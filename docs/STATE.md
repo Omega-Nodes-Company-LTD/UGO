@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.2.0"
+version: "0.3.0"
 last_updated: "2026-08-07"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -14,8 +14,8 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 ## 1. Situazione in una riga
 
-**Fase 1 — Anima minima: COMPLETATA** (DoD dimostrata, evidenze in §6). Prossimo passo: Fase 2 — Corpo di casa
-(**solo software**: firmware Arduino accantonato su decisione del proprietario, 2026-08-07).
+**Fase 2 — Corpo di casa (parte software): COMPLETATA** (evidenze in §6). Firmware Arduino **accantonato su
+decisione del proprietario** (2026-08-07). Prossimo passo: Fase 3 — Vita interiore.
 
 ## 2. Contenuto attuale del repository
 
@@ -30,7 +30,9 @@ UGO/
 │   ├── ARCHITECTURE.md        # architettura + perché delle scelte
 │   ├── STATE.md               # questo file
 │   └── ADR/README.md          # indice: 001–011 in PROGETTO §2, prossimo 012
-├── apps/soul/                 # Fastify: /health, /v1/chat|psyche|events|memories/search, /debug/chat
+├── apps/
+│   ├── soul/                  # Fastify: /health, /v1/* REST, WS /v1/face, /debug/chat
+│   └── face/                  # webapp kiosk: canvas porcetto, WS client+coda offline, sensi, voce, E2E
 ├── packages/
 │   ├── db/                    # schema Drizzle §5.2 completo, migrazioni, client, migrate-cli
 │   ├── shared/                # parseEnv, crypto AES-256-GCM, contratti Zod, costanti/topic
@@ -44,8 +46,8 @@ UGO/
     └── mosquitto/             # conf (auth obbligatoria), ACL least-privilege, generate-passwd.sh
 ```
 
-Assenti (come previsto, fasi successive): `apps/face|meet-face`, `ops/jobs`, `firmware/`, `hardware/`,
-`documentation/` (nessuna feature utente visibile finora — la pagina `/debug/chat` è strumento di sviluppo).
+Assenti (come previsto): `apps/meet-face` (post-v1), `ops/jobs` (Fase 3), `firmware/` (accantonato),
+`hardware/` (Fase 6), `documentation/` (prima feature utente completa → in stesura da Fase 2 on-device).
 
 ## 3. Disallineamenti — RISOLTI
 
@@ -80,9 +82,32 @@ Assenti (come previsto, fasi successive): `apps/face|meet-face`, `ops/jobs`, `fi
 | Fase | Stato |
 |---|---|
 | **0 — Fondamenta** | ✅ completata |
-| **1 — Anima minima** | ✅ **completata** — evidenze sotto |
-| 2 — Corpo di casa | ⬜ prossima (**senza firmware Nano**: accantonato dal proprietario) |
-| 3–6 | ⬜ bloccate dalla sequenza |
+| **1 — Anima minima** | ✅ completata |
+| **2 — Corpo di casa** | ✅ **parte software completata** — evidenze sotto; voci firmware Nano fuori scope (decisione proprietario); voci "sul 3a Pro reale" da validare col telefono |
+| 3–6 | ⬜ Fase 3 prossima |
+
+### Definition of Done Fase 2 (software) — evidenze riproducibili
+
+Comandi: `pnpm test:integration` (gateway WS, 6 test) + `UGO_CHROMIUM_PATH=... pnpm test:e2e`
+(browser reale contro soul reale, 4 test). Zero mock: Postgres+pgvector e Ollama reali, provider
+stubbato a livello di rete, WS reale su server in ascolto reale, soul lanciato come processo figlio
+dal suo entrypoint di produzione (`dist/index.js`).
+
+1. **Faccia con stati e sguardo** — canvas porcetto con `sleeping|idle|alert|listening|thinking|talking`,
+   pupille gaze-follow (FaceDetector nativo con fallback puntatore), orecchie = barometro umore.
+2. **Va a dormire col buio** — `light lux≤10` con ora ≥22 (TZ progetto) → `state: sleeping`; di giorno
+   il buio non addormenta; risveglio da `face_seen` con **saluto contestuale zero-token dal desire
+   pendente** ("…com'è andata dal cliente").
+3. **Risponde a voce** — loop completo `heard_text` → thinking → chat (prompt §5.5 + budget guard) →
+   talking → `speak` + TTS + sottotitolo visibile (asserito in E2E nel browser).
+4. **Reazioni locali a costo zero** — rumore forte: startle locale immediato + evento `noise` → stress
+   sale, stato `alert`; urto → `shake`; eventi `face` persistiti in `events` (verificato su DB reale).
+5. **Canale WS robusto** — hello con stato+mood alla connessione, riconnessione con backoff, coda
+   offline bounded flushata in ordine (E2E), frame malformati ignorati senza far cadere il socket.
+
+**Richiede il Nothing 3a Pro fisico (fuori portata qui, prossima sessione col device):** kiosk mode,
+STT/TTS di sistema reali, camera/MediaPipe per gaze e presenza, sensore luce reale, Glyph. Il codice
+degrada esplicitamente in assenza di ciascuna capability.
 
 ### Definition of Done Fase 1 — evidenze riproducibili
 
@@ -137,10 +162,11 @@ Postgres+pgvector reale, Ollama reale con `nomic-embed-text`, stub Messages-API 
 
 ## 8. Prossimo passo operativo
 
-**Fase 2 — Corpo di casa, solo software** (PROGETTO §8, §4.1, §5.7): `apps/face` (occhi canvas,
-macchina a stati, gaze-follow, STT/TTS, WS `/v1/face` con riconnessione e coda offline) + canale WS
-in soul + reazioni locali a costo zero token. Il firmware Nano (env→MQTT, relè, OLED) è escluso
-finché il proprietario non lo richiama.
+**Fase 3 — Vita interiore** (PROGETTO §8, §5.6): job del sogno completo (riflessione, diario, desires,
+igiene, backup) idempotente e ripartibile, proattività al risveglio (già predisposta dal saluto con
+desire), wake word Vosk (richiede il device: consegnabile come predisposizione). Nota: il fallback
+batch è l'API in modalità batch (ADR-001); su questo ambiente la riflessione si verifica con stub di
+rete + Ollama reale per gli embeddings.
 
 ## Prossimi Passi
 
