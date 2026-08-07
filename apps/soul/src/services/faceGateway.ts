@@ -70,15 +70,16 @@ export class FaceGateway {
 
   private async wakeUpGreeting(): Promise<string> {
     const pending = await this.deps.db
-      .select({ text: desires.text })
+      .select({ id: desires.id, text: desires.text })
       .from(desires)
       .where(eq(desires.status, "pending"))
       .orderBy(asc(desires.createdAt))
       .limit(1);
-    const desire = pending[0]?.text;
-    return desire !== undefined
-      ? `Grunf... buongiorno! Mi ero segnato una cosa: ${desire}`
-      : "Grunf... bentornato, mi ero appisolato.";
+    const desire = pending[0];
+    if (desire === undefined) return "Grunf... bentornato, mi ero appisolato.";
+    // proactivity (Fase 3): a desire voiced out loud is fulfilled, not repeated
+    await this.deps.db.update(desires).set({ status: "done" }).where(eq(desires.id, desire.id));
+    return `Grunf... buongiorno! Mi ero segnato una cosa: ${desire.text}`;
   }
 
   /** Entry point for one raw WS text frame. Returns false on invalid input. */

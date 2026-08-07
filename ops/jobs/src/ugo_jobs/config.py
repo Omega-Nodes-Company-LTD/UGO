@@ -1,0 +1,51 @@
+"""Fail-fast environment loading (names only in errors, never values)."""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+
+
+class ConfigError(RuntimeError):
+    pass
+
+
+def _require(name: str) -> str:
+    value = os.environ.get(name, "")
+    if value == "":
+        raise ConfigError(f"missing required environment variable: {name}")
+    return value
+
+
+@dataclass(frozen=True)
+class JobsConfig:
+    database_url: str
+    ollama_url: str
+    ollama_embed_model: str
+    ollama_batch_url: str
+    ollama_batch_model: str
+    data_key_b64: str
+    s3_endpoint: str
+    s3_access_key: str
+    s3_secret_key: str
+    s3_bucket_backup: str
+    timezone: str
+    backup_retention_days: int = 30
+
+    @staticmethod
+    def from_env() -> "JobsConfig":
+        ollama_url = _require("OLLAMA_URL")
+        return JobsConfig(
+            database_url=_require("DATABASE_URL"),
+            ollama_url=ollama_url,
+            ollama_embed_model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
+            # the batch model may live behind a different endpoint (API batch fallback, ADR-001)
+            ollama_batch_url=os.environ.get("OLLAMA_BATCH_URL", ollama_url),
+            ollama_batch_model=_require("OLLAMA_BATCH_MODEL"),
+            data_key_b64=_require("UGO_DATA_KEY"),
+            s3_endpoint=_require("S3_ENDPOINT"),
+            s3_access_key=_require("S3_ACCESS_KEY"),
+            s3_secret_key=_require("S3_SECRET_KEY"),
+            s3_bucket_backup=os.environ.get("S3_BUCKET_BACKUP", "ugo-backup"),
+            timezone=os.environ.get("TZ", "Europe/Rome"),
+        )

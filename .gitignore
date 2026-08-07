@@ -13,5 +13,12 @@ coverage/
 *.key
 ops/docker/mosquitto/.generated/
 
+# Python (ops/jobs)
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+
 # OS / editor noise
 .DS_Store

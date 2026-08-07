@@ -156,6 +156,10 @@ describe("WS /v1/face", () => {
     const speak = await face.waitFor("speak");
     expect(speak.type === "speak" && speak.text).toContain("dal cliente");
     expect(gateway.currentState()).toBe("idle");
+
+    // proactivity (Fase 3): the voiced desire is marked done, never repeated
+    const remaining = await db.select().from(desires).where(eq(desires.status, "pending"));
+    expect(remaining).toHaveLength(0);
     await face.close();
   });
 
