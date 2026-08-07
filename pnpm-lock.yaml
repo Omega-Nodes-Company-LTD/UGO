@@ -32,6 +32,12 @@ importers:
       '@ugo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@ugo/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
+      '@ugo/psyche':
+        specifier: workspace:*
+        version: link:../../packages/psyche
       '@ugo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -54,6 +60,9 @@ importers:
       '@types/node':
         specifier: ^22.19.0
         version: 22.20.1
+      '@ugo/factories':
+        specifier: workspace:*
+        version: link:../../tests/factories
       testcontainers:
         specifier: ^12.1.0
         version: 12.1.0
@@ -186,6 +195,9 @@ importers:
       '@ugo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      testcontainers:
+        specifier: ^12.1.0
+        version: 12.1.0
     devDependencies:
       '@types/node':
         specifier: ^22.19.0

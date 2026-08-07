@@ -1,11 +1,10 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { createDbClient, memories, runMigrations, type DbClient } from "@ugo/db";
-import { MemoryFactory } from "@ugo/factories";
+import { EMBED_MODEL, MemoryFactory, startOllama, type OllamaHandle } from "@ugo/factories";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { OllamaEmbeddingsClient } from "../../src/embeddings.js";
 import { searchMemories, writeMemory } from "../../src/retrieval.js";
-import { EMBED_MODEL, startOllama, type OllamaHandle } from "./ollama-helper.js";
 
 // Zero-Mock: real Postgres+pgvector AND real Ollama embeddings — semantic
 // similarity below is produced by the actual nomic-embed-text model.

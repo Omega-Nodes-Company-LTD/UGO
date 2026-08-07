@@ -1,10 +1,10 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { budgetLedger, createDbClient, runMigrations, type DbClient } from "@ugo/db";
+import { startLlmStub, type LlmStub } from "@ugo/factories";
 import { identityPrompt, rulesPrompt } from "@ugo/prompts";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { DEGRADED_REPLY, LlmClient } from "../../src/llmClient.js";
 import { computeCostUsd } from "../../src/pricing.js";
-import { startLlmStub, type LlmStub } from "./llm-stub-server.js";
 
 // Real Postgres ledger + network-level provider stub (playbook §3 P2).
 
