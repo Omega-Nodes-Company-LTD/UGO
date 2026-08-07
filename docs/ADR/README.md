@@ -18,4 +18,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 |---|---|---|
 | 001–011 | Vedi [`PROGETTO.md §2`](../PROGETTO.md) | Accettate |
 | [012](./012-persistenza-baseline-psiche.md) | Persistenza delle baseline adattive della psiche | **Proposta** |
-| 013 | *(prossimo numero disponibile)* | — |
+| [013](./013-vexa-polling-e-voce-in-call.md) | Integrazione Vexa: polling e voce in call rinviata | **Proposta** |
+| 014 | *(prossimo numero disponibile)* | — |

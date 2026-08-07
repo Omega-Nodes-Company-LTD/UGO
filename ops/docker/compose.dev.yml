@@ -142,6 +142,10 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-}
       S3_BUCKET_AUDIO: ${S3_BUCKET_AUDIO:-}
+      # Fase 5 — riunioni (facoltative in dev)
+      VEXA_API_URL: ${VEXA_API_URL:-}
+      VEXA_API_KEY: ${VEXA_API_KEY:-}
+      UGO_OWNER_NAME: ${UGO_OWNER_NAME:-casa}
       PORT: "3000"
       TZ: ${TZ:-Europe/Rome}
     depends_on:

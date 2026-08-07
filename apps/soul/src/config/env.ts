@@ -28,6 +28,10 @@ export const soulEnvSchema = z.object({
   S3_ACCESS_KEY: optionalNonEmpty,
   S3_SECRET_KEY: optionalNonEmpty,
   S3_BUCKET_AUDIO: optionalNonEmpty,
+  // Fase 5 — meetings: the feature activates only when both are set
+  VEXA_API_URL: optionalNonEmpty,
+  VEXA_API_KEY: optionalNonEmpty,
+  UGO_OWNER_NAME: z.string().min(1).default("casa"),
 });
 
 export type SoulEnv = z.infer<typeof soulEnvSchema>;

@@ -4,13 +4,19 @@ import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js"
 import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
+import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
 import type { FaceGateway } from "./services/faceGateway.js";
+import type { MeetingsService } from "./services/meetingsService.js";
 
 export interface ServerOptions extends HealthDeps {
   logger?: boolean;
   /** v1 feature surface; omitted only by infra-focused tests */
-  features?: Omit<V1Deps, "db"> & { face?: FaceGateway; audio?: AudioStorageConfig };
+  features?: Omit<V1Deps, "db"> & {
+    face?: FaceGateway;
+    audio?: AudioStorageConfig;
+    meetings?: MeetingsService;
+  };
 }
 
 /**
@@ -30,11 +36,14 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   app.register(cors, { origin: true });
   registerHealthRoute(app, options);
   if (options.features !== undefined) {
-    const { face, audio, ...v1 } = options.features;
+    const { face, audio, meetings, ...v1 } = options.features;
     registerV1Routes(app, { db: options.db, ...v1 });
     registerDebugChatRoute(app);
     if (audio !== undefined) {
       registerAudioRoutes(app, audio);
+    }
+    if (meetings !== undefined) {
+      registerMeetingsRoutes(app, meetings);
     }
     if (face !== undefined) {
       app.register(async (instance) => {

@@ -3,6 +3,7 @@ export { MemoryFactory, type MemoryFactoryInput } from "./memory.factory.js";
 export { PersonFactory, type PersonFactoryInput } from "./person.factory.js";
 export { startOllama, EMBED_MODEL, type OllamaHandle } from "./ollama.helper.js";
 export { startMinio, type MinioHandle } from "./minio.helper.js";
+export { startVexaStub, VexaStub, type VexaSegment } from "./vexa-stub.helper.js";
 export {
   LlmStub,
   startLlmStub,

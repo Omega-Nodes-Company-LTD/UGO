@@ -4,6 +4,7 @@ import { EnvValidationError, parseDataKey, parseEnv } from "@ugo/shared";
 import { audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
 import { FaceGateway } from "./services/faceGateway.js";
+import { MeetingsService } from "./services/meetingsService.js";
 import { PsycheService } from "./services/psycheService.js";
 import { buildServer } from "./server.js";
 
@@ -50,12 +51,40 @@ const face = new FaceGateway({
 });
 
 const audio = audioStorageFromEnv(env);
+const dataKey = parseDataKey(env.UGO_DATA_KEY);
+const meetings =
+  env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined
+    ? new MeetingsService({
+        db,
+        embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
+        llm,
+        dataKey,
+        vexa: { baseUrl: env.VEXA_API_URL, apiKey: env.VEXA_API_KEY, ownerName: env.UGO_OWNER_NAME },
+      })
+    : undefined;
+
 const app = buildServer({
   db,
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
-  features: { chat, psyche, face, ...(audio !== undefined && { audio }) },
+  features: {
+    chat,
+    psyche,
+    face,
+    ...(audio !== undefined && { audio }),
+    ...(meetings !== undefined && { meetings }),
+  },
 });
+
+const MEETINGS_POLL_MS = 3000;
+if (meetings !== undefined) {
+  const pollTimer = setInterval(() => {
+    meetings.pollAll().catch((error: unknown) => {
+      app.log.warn(error, "meetings polling round failed");
+    });
+  }, MEETINGS_POLL_MS);
+  pollTimer.unref();
+}
 
 const snapshotTimer = setInterval(() => {
   psyche.snapshot().catch((error: unknown) => {
