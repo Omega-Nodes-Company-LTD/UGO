@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.5.0"
+version: "0.6.0"
 last_updated: "2026-08-07"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -14,9 +14,10 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 ## 1. Situazione in una riga
 
-**Fase 4 — In giro (parte software): COMPLETATA** (evidenze in §6). Firmware Arduino accantonato
-(decisione proprietario); ADR-012 in attesa. Prossimo passo: Fase 5 — Riunioni (integrazione lato
-soul; il deploy Vexa reale richiede il server).
+**Fasi 0–5 (parte software): COMPLETATE** — tutto ciò che non richiede hardware fisico o il server di
+produzione è implementato e verificato su infrastruttura reale. In attesa: decisioni ADR-012 e
+ADR-013; col device/server: validazioni on-device (Fase 2/4), deploy Vexa + Meet di prova (Fase 5),
+gusci (Fase 6, richiede misure col calibro). Firmware Arduino accantonato (decisione proprietario).
 
 ## 2. Contenuto attuale del repository
 
@@ -86,8 +87,31 @@ Assenti (come previsto): `apps/meet-face` (post-v1), `ops/jobs` (Fase 3), `firmw
 | **1 — Anima minima** | ✅ completata |
 | **2 — Corpo di casa** | ✅ parte software completata; firmware fuori scope; voci "sul device" da validare col telefono |
 | **3 — Vita interiore** | ✅ completata; baseline adattive in ADR-012 (proposta); wake word Vosk = passo on-device |
-| **4 — In giro** | ✅ **parte software completata** — evidenze sotto; connettività tailnet reale e batteria = validazione col device |
-| 5–6 | ⬜ Fase 5 prossima (lato integrazione) |
+| **4 — In giro** | ✅ parte software completata; connettività tailnet reale e batteria = validazione col device |
+| **5 — Riunioni** | ✅ **lato integrazione completato** — evidenze sotto; deploy Vexa reale + Meet di prova = col server; voce in call bloccata upstream (ADR-013) |
+| 6 — Gusci | ⬜ richiede misure col calibro e stampante (prompt GUSCI dedicato) |
+
+### Definition of Done Fase 5 (integrazione) — evidenze riproducibili
+
+Comando: `pnpm test:integration` (suite `meetings.integration.test.ts`, 5 test). Contratto Vexa
+**v0.12 open-core reale** (README ufficiale consultato 2026-08-07): stub di rete per lo stack Vexa
+(un deployment vero richiede flotta Chromium headless + call Meet viva); Postgres, pgvector ed
+embeddings reali.
+
+1. **`POST /v1/meetings/join`** — parsing URL Meet (`abc-defg-hij`) e Teams; il bot è richiesto a
+   Vexa con `X-API-Key` e display name `UGO 🐾 appunti di <nome>`; riga `meetings` in stato `live`.
+2. **Ingestione live via polling** (ADR-013: il WS multiplex upstream non esiste ancora) — solo la
+   coda nuova del transcript viene ingerita a ogni giro (dedup per indice), segmenti cifrati
+   `v1:` con embedding 768d e speaker preservato.
+3. **Trigger vocale con rate-limit** — menzione "UGO" + domanda → retrieval k=10 → risposta Haiku
+   canale meeting (`max_tokens` 300, memorie nel blocco dinamico), registrata cifrata su `messages`
+   e sul ledger; seconda menzione entro 2 minuti → **nessuna** seconda chiamata al provider.
+4. **Stop** — `DELETE /bots/{platform}/{id}`, meeting `ended` con `ended_at`.
+5. **Digest post-call** — il sogno legge già i `transcript_segments` del giorno (Fase 3/4).
+
+**Bloccato da upstream (ADR-013):** la risposta *pronunciata in call* — `/speak` risponde 404
+nell'open-core; la pipeline si ferma dichiaratamente alla `SpeakPort`. **Col server:** deploy dello
+stack Vexa, Meet di prova reale, verifica del cache-hit con la chiave API vera.
 
 ### Definition of Done Fase 4 (software) — evidenze riproducibili
 
@@ -211,12 +235,16 @@ Postgres+pgvector reale, Ollama reale con `nomic-embed-text`, stub Messages-API 
 
 ## 8. Prossimo passo operativo
 
-**Fase 5 — Riunioni** (PROGETTO §8, §4.3): lato integrazione realizzabile qui — `POST /v1/meetings/join`
-che chiama l'API Vexa, consumer WS per l'ingestione live in `transcript_segments`, trigger vocale con
-rate-limit (max 1 intervento/2 min), digest post-call. Il deploy dello stack Vexa reale e la Meet di
-prova richiedono il server Coolify: la DoD completa si chiude al deploy (Vexa stubbata a livello di
-rete nei test, come da playbook §3 P2, consultando il README ufficiale Vexa per i contratti).
-In coda: decisione ADR-012; runbook `docs/OPS_COOLIFY.md` (Prompt 2) ora che i servizi sono definiti.
+Il software delle Fasi 0–5 è completo. Le prossime mosse dipendono dal proprietario:
+
+1. **Decisioni attese**: ADR-012 (baseline adattive) e ADR-013 (voce in call: attendere upstream /
+   TTS dal telefono in stanza / contributo upstream).
+2. **Runbook Coolify** (`docs/OPS_COOLIFY.md`, Prompt 2 del piano operativo): tutti i servizi sono
+   ormai definiti (postgres, mosquitto, ollama, soul, jobs, vexa) — generabile subito.
+3. **Primo deploy** sul server: lì si chiudono le verifiche che richiedono la realtà — cache-hit con
+   chiave API vera, pull dei modelli Ollama, cron del sogno 02:30, stack Vexa + Meet di prova.
+4. **Col telefono**: kiosk, STT/TTS reali, MediaPipe/camera, Tailscale mobile, Vosk wake word.
+5. **Fase 6 — Gusci**: sessione dedicata col prompt GUSCI; servono le misure col calibro.
 
 ## Prossimi Passi
 
