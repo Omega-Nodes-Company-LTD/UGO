@@ -11,6 +11,17 @@ export {
   type MemorySearchQuery,
 } from "./contracts.js";
 export {
+  FACE_STATES,
+  faceToServerSchema,
+  serverToFaceSchema,
+  NOISE_ALERT_DB,
+  DARKNESS_LUX,
+  NIGHT_START_HOUR,
+  type FaceState,
+  type FaceToServerMessage,
+  type ServerToFaceMessage,
+} from "./faceContracts.js";
+export {
   EVENT_SOURCES,
   MESSAGE_CHANNELS,
   MEMORY_KINDS,

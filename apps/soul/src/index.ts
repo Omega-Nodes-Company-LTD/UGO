@@ -3,6 +3,7 @@ import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import { EnvValidationError, parseDataKey, parseEnv } from "@ugo/shared";
 import { soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
+import { FaceGateway } from "./services/faceGateway.js";
 import { PsycheService } from "./services/psycheService.js";
 import { buildServer } from "./server.js";
 
@@ -35,11 +36,24 @@ const chat = new ChatService({
   dataKey: parseDataKey(env.UGO_DATA_KEY),
 });
 
+const face = new FaceGateway({
+  db,
+  chat,
+  psyche,
+  // hour in project TZ so the sleep rule follows Europe/Rome, not the host
+  hourOf: (at) =>
+    Number(
+      new Intl.DateTimeFormat("it-IT", { hour: "numeric", hour12: false, timeZone: env.TZ }).format(
+        at,
+      ),
+    ),
+});
+
 const app = buildServer({
   db,
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
-  features: { chat, psyche },
+  features: { chat, psyche, face },
 });
 
 const snapshotTimer = setInterval(() => {
