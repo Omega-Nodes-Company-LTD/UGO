@@ -1,0 +1,34 @@
+{
+  "name": "@ugo/memory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run src",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@ugo/db": "workspace:*",
+    "@ugo/prompts": "workspace:*",
+    "@ugo/shared": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^12.1.0",
+    "@types/node": "^22.19.0",
+    "@ugo/factories": "workspace:*",
+    "testcontainers": "^12.1.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

@@ -104,6 +104,64 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@22.20.1)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.11)(yaml@2.9.0))
 
+  packages/memory:
+    dependencies:
+      '@ugo/db':
+        specifier: workspace:*
+        version: link:../db
+      '@ugo/prompts':
+        specifier: workspace:*
+        version: link:../prompts
+      '@ugo/shared':
+        specifier: workspace:*
+        version: link:../shared
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@testcontainers/postgresql':
+        specifier: ^12.1.0
+        version: 12.1.0
+      '@types/node':
+        specifier: ^22.19.0
+        version: 22.20.1
+      '@ugo/factories':
+        specifier: workspace:*
+        version: link:../../tests/factories
+      testcontainers:
+        specifier: ^12.1.0
+        version: 12.1.0
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@22.20.1)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.11)(yaml@2.9.0))
+
+  packages/prompts:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.0
+        version: 22.20.1
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@22.20.1)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.11)(yaml@2.9.0))
+
+  packages/psyche:
+    devDependencies:
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@22.20.1)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.11)(yaml@2.9.0))
+
   packages/shared:
     dependencies:
       zod:
