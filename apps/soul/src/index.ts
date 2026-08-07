@@ -1,7 +1,7 @@
 import { createDbClient } from "@ugo/db";
 import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import { EnvValidationError, parseDataKey, parseEnv } from "@ugo/shared";
-import { soulEnvSchema } from "./config/env.js";
+import { audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
 import { FaceGateway } from "./services/faceGateway.js";
 import { PsycheService } from "./services/psycheService.js";
@@ -49,11 +49,12 @@ const face = new FaceGateway({
     ),
 });
 
+const audio = audioStorageFromEnv(env);
 const app = buildServer({
   db,
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
-  features: { chat, psyche, face },
+  features: { chat, psyche, face, ...(audio !== undefined && { audio }) },
 });
 
 const snapshotTimer = setInterval(() => {

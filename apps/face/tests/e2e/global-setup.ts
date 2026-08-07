@@ -3,7 +3,14 @@ import { randomBytes } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { runMigrations } from "@ugo/db";
-import { startLlmStub, startOllama, type LlmStub, type OllamaHandle } from "@ugo/factories";
+import {
+  startLlmStub,
+  startMinio,
+  startOllama,
+  type LlmStub,
+  type MinioHandle,
+  type OllamaHandle,
+} from "@ugo/factories";
 
 /**
  * Real backend for the E2E run (Zero-Mock): Postgres+pgvector container,
@@ -15,6 +22,7 @@ const SOUL_PORT = 3987;
 
 let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
+let minio: MinioHandle;
 let stub: LlmStub;
 let soul: ChildProcess;
 
@@ -32,9 +40,10 @@ async function waitForHealth(url: string, attempts = 60): Promise<void> {
 }
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
-  [pg, ollama, stub] = await Promise.all([
+  [pg, ollama, minio, stub] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
     startOllama(),
+    startMinio(),
     startLlmStub(),
   ]);
   await runMigrations(pg.getConnectionUri());
@@ -54,15 +63,33 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       ANTHROPIC_BASE_URL: stub.baseUrl,
       UGO_DAILY_BUDGET_USD: "5",
       UGO_DATA_KEY: randomBytes(32).toString("base64"),
+      S3_ENDPOINT: minio.endpoint,
+      S3_ACCESS_KEY: minio.accessKey,
+      S3_SECRET_KEY: minio.secretKey,
+      S3_BUCKET_AUDIO: "ugo-audio",
       PORT: String(SOUL_PORT),
       TZ: "Europe/Rome",
     },
   });
   await waitForHealth(`http://127.0.0.1:${String(SOUL_PORT)}/health`);
   process.env.UGO_E2E_SOUL_WS = `ws://127.0.0.1:${String(SOUL_PORT)}/v1/face`;
+  process.env.UGO_E2E_DATABASE_URL = pg.getConnectionUri();
+  process.env.UGO_E2E_S3_ENDPOINT = minio.endpoint;
+  process.env.UGO_E2E_S3_ACCESS_KEY = minio.accessKey;
+  process.env.UGO_E2E_S3_SECRET_KEY = minio.secretKey;
+
+  // the audio bucket must exist before the first presigned PUT
+  const { S3Client, CreateBucketCommand } = await import("@aws-sdk/client-s3");
+  const s3 = new S3Client({
+    endpoint: minio.endpoint,
+    region: "us-east-1",
+    forcePathStyle: true,
+    credentials: { accessKeyId: minio.accessKey, secretAccessKey: minio.secretKey },
+  });
+  await s3.send(new CreateBucketCommand({ Bucket: "ugo-audio" }));
 
   return async () => {
     soul.kill("SIGTERM");
-    await Promise.allSettled([pg.stop(), ollama.container.stop(), stub.close()]);
+    await Promise.allSettled([pg.stop(), ollama.container.stop(), minio.container.stop(), stub.close()]);
   };
 }

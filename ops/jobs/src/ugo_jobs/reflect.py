@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from .config import JobsConfig
 from .crypto import decrypt_text, parse_data_key
+from .embeddings import embed
 
 MAX_DESIRES = 3
 ALLOWED_KINDS = {"fact", "preference", "episode", "insight"}
@@ -40,7 +41,7 @@ class ReflectResult:
 
 
 PROMPT = """Sei UGO, un porcetto artificiale che rilegge la propria giornata prima di dormire.
-Qui sotto trovi gli eventi e le conversazioni del giorno {date}.
+Qui sotto trovi gli eventi, le conversazioni e le registrazioni del giorno {date}.
 Rispondi SOLO con un JSON con questa forma:
 {{"memories":[{{"kind":"fact|preference|episode|insight","text":"...","importance":0.0}}],
 "diary":"racconto in prima persona della giornata, in italiano, 3-6 frasi",
@@ -51,6 +52,9 @@ EVENTI:
 
 CONVERSAZIONI:
 {messages}
+
+REGISTRAZIONI (trascritte):
+{transcripts}
 """
 
 
@@ -58,7 +62,9 @@ def _day_window(conn: psycopg.Connection, dream_date: str) -> tuple[str, str]:
     return (f"{dream_date} 00:00:00+00", f"{dream_date} 23:59:59+00")
 
 
-def _collect_day(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> tuple[str, str]:
+def _collect_day(
+    conn: psycopg.Connection, cfg: JobsConfig, dream_date: str
+) -> tuple[str, str, str]:
     start, end = _day_window(conn, dream_date)
     events_rows = conn.execute(
         """
@@ -81,10 +87,31 @@ def _collect_day(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> 
             lines.append(f"- {role}: {decrypt_text(ciphertext, key)}")
         except ValueError:
             continue  # unreadable row: skip, never crash the dream
-    return events_text or "(nessun evento)", "\n".join(lines) or "(nessuna conversazione)"
+
+    segment_rows = conn.execute(
+        """
+        select coalesce(ts.speaker, 'voce'), ts.text
+        from transcript_segments ts
+        join meetings m on m.id = ts.meeting_id
+        where m.started_at between %s and %s
+        order by m.started_at asc, ts.t0 asc limit 300
+        """,
+        (start, end),
+    ).fetchall()
+    transcript_lines: list[str] = []
+    for speaker, ciphertext in segment_rows:
+        try:
+            transcript_lines.append(f"- {speaker}: {decrypt_text(ciphertext, key)}")
+        except ValueError:
+            continue
+    return (
+        events_text or "(nessun evento)",
+        "\n".join(lines) or "(nessuna conversazione)",
+        "\n".join(transcript_lines) or "(nessuna registrazione)",
+    )
 
 
-def _ask_batch_model(cfg: JobsConfig, prompt: str) -> ReflectionOutput:
+def ask_batch_model(cfg: JobsConfig, prompt: str) -> ReflectionOutput:
     response = httpx.post(
         f"{cfg.ollama_batch_url}/api/chat",
         json={
@@ -101,18 +128,6 @@ def _ask_batch_model(cfg: JobsConfig, prompt: str) -> ReflectionOutput:
         return ReflectionOutput.model_validate_json(content)
     except ValidationError as error:
         raise RuntimeError(f"batch model returned invalid reflection JSON: {error}") from error
-
-
-def _embed(cfg: JobsConfig, texts: list[str]) -> list[list[float]]:
-    if not texts:
-        return []
-    response = httpx.post(
-        f"{cfg.ollama_url}/api/embed",
-        json={"model": cfg.ollama_embed_model, "input": texts},
-        timeout=120,
-    )
-    response.raise_for_status()
-    return response.json()["embeddings"]
 
 
 def _mood_summary(conn: psycopg.Connection, dream_date: str) -> dict[str, object]:
@@ -138,13 +153,16 @@ def _mood_summary(conn: psycopg.Connection, dream_date: str) -> dict[str, object
 
 
 def run_reflect(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> ReflectResult:
-    events_text, messages_text = _collect_day(conn, cfg, dream_date)
-    output = _ask_batch_model(
-        cfg, PROMPT.format(date=dream_date, events=events_text, messages=messages_text)
+    events_text, messages_text, transcripts_text = _collect_day(conn, cfg, dream_date)
+    output = ask_batch_model(
+        cfg,
+        PROMPT.format(
+            date=dream_date, events=events_text, messages=messages_text, transcripts=transcripts_text
+        ),
     )
 
     memories = [m for m in output.memories if m.kind in ALLOWED_KINDS][:20]
-    embeddings = _embed(cfg, [m.text for m in memories])
+    embeddings = embed(cfg, [m.text for m in memories])
     for memory, embedding in zip(memories, embeddings):
         conn.execute(
             """

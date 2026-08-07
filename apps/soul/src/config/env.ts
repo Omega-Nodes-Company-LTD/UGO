@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-/** Fase 0+1 environment contract for soul-api. Boot fails fast if unmet. */
+/** empty string = not configured (compose passes empty defaults through) */
+const optionalNonEmpty = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
+
+/** Environment contract for soul-api (Fasi 0-4). Boot fails fast if unmet. */
 export const soulEnvSchema = z.object({
   DATABASE_URL: z.url(),
   MQTT_URL: z.url(),
@@ -17,6 +23,36 @@ export const soulEnvSchema = z.object({
   UGO_DATA_KEY: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(3000),
   TZ: z.string().min(1).default("Europe/Rome"),
+  // Fase 4 — audio uploads: the feature activates only when all four are set
+  S3_ENDPOINT: optionalNonEmpty,
+  S3_ACCESS_KEY: optionalNonEmpty,
+  S3_SECRET_KEY: optionalNonEmpty,
+  S3_BUCKET_AUDIO: optionalNonEmpty,
 });
 
 export type SoulEnv = z.infer<typeof soulEnvSchema>;
+
+export interface AudioStorageEnv {
+  endpoint: string;
+  accessKey: string;
+  secretKey: string;
+  bucket: string;
+}
+
+/** All-or-nothing S3 group: a partial configuration is a config error. */
+export function audioStorageFromEnv(env: SoulEnv): AudioStorageEnv | undefined {
+  const values = [env.S3_ENDPOINT, env.S3_ACCESS_KEY, env.S3_SECRET_KEY, env.S3_BUCKET_AUDIO];
+  const set = values.filter((value) => value !== undefined).length;
+  if (set === 0) return undefined;
+  if (set !== values.length) {
+    throw new Error(
+      "partial S3 configuration: set all of S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_AUDIO or none",
+    );
+  }
+  return {
+    endpoint: env.S3_ENDPOINT ?? "",
+    accessKey: env.S3_ACCESS_KEY ?? "",
+    secretKey: env.S3_SECRET_KEY ?? "",
+    bucket: env.S3_BUCKET_AUDIO ?? "",
+  };
+}

@@ -20,8 +20,15 @@ export class FaceRenderer {
   private blinkUntil = 0;
   private nextBlinkAt = performance.now() + 3000;
   private raf = 0;
+  private lowPower = false;
+  private lastDrawAt = 0;
 
   public constructor(private readonly canvas: HTMLCanvasElement) {}
+
+  /** portable mode (§4.2): fondo nero, animazioni ridotte, ~2 fps in idle */
+  public setLowPower(on: boolean): void {
+    this.lowPower = on;
+  }
 
   public setMood(mood: MoodView): void {
     this.mood = mood;
@@ -48,6 +55,16 @@ export class FaceRenderer {
   }
 
   private draw(now: number): void {
+    // low power: redraw at ~2 fps unless the state animates (talking/listening)
+    if (
+      this.lowPower &&
+      this.state !== "talking" &&
+      this.state !== "listening" &&
+      now - this.lastDrawAt < 500
+    ) {
+      return;
+    }
+    this.lastDrawAt = now;
     const ctx = this.canvas.getContext("2d");
     if (ctx === null) return;
     const dpr = window.devicePixelRatio || 1;

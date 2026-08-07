@@ -1,6 +1,7 @@
 import { diaryEntries, messages, people, type DbClient } from "@ugo/db";
 import {
   searchMemories,
+  searchTranscripts,
   type EmbeddingsClient,
   type LlmClient,
   type LlmHistoryTurn,
@@ -12,6 +13,7 @@ import type { PsycheService } from "./psycheService.js";
 
 /** top-k per channel (PROGETTO §5.4: k=6 casa, k=10 riunioni) */
 const K_BY_CHANNEL = { home: 6, meeting: 10, api: 6 } as const;
+const TRANSCRIPT_K = 3;
 const HISTORY_TURNS = 8;
 const DIARY_EXCERPT_CHARS = 300;
 
@@ -30,6 +32,7 @@ function buildDynamicSystem(
   view: { label: string; phrase: string },
   diary: { date: string; text: string } | undefined,
   retrieved: readonly RankedMemory[],
+  recordings: readonly string[],
 ): string {
   const lines = [`Stato d'animo: ${view.label}. ${view.phrase}`];
   if (diary !== undefined) {
@@ -42,6 +45,9 @@ function buildDynamicSystem(
           .join("\n")}`
       : "Nessun ricordo pertinente.",
   );
+  if (recordings.length > 0) {
+    lines.push(`Dalle registrazioni:\n${recordings.map((text) => `- ${text}`).join("\n")}`);
+  }
   return lines.join("\n");
 }
 
@@ -82,6 +88,16 @@ export class ChatService {
       K_BY_CHANNEL[request.channel],
       at,
     );
+    // recordings made "in giro" are interrogable through chat (§4.2)
+    const transcripts = await searchTranscripts(db, embedder, request.text, TRANSCRIPT_K);
+    const recordings: string[] = [];
+    for (const segment of transcripts) {
+      try {
+        recordings.push(decryptText(segment.text, dataKey));
+      } catch {
+        // undecryptable segment (rotated key?): skip, never break the chat
+      }
+    }
     const diaryRows = await db
       .select({ date: diaryEntries.date, text: diaryEntries.text })
       .from(diaryEntries)
@@ -92,7 +108,7 @@ export class ChatService {
     const result = await llm.chat(
       {
         channel: request.channel,
-        dynamicSystem: buildDynamicSystem(view, diaryRows[0], retrieved),
+        dynamicSystem: buildDynamicSystem(view, diaryRows[0], retrieved, recordings),
         history,
         userText: request.text,
       },

@@ -11,9 +11,13 @@ export default defineConfig({
     // data-testid selectors only (TESTING_PLAYBOOK §4): set the attribute name
     testIdAttribute: "data-testid",
     // pre-provisioned browser wins over the version-pinned download when set
-    ...(process.env.UGO_CHROMIUM_PATH !== undefined && {
-      launchOptions: { executablePath: process.env.UGO_CHROMIUM_PATH },
-    }),
+    launchOptions: {
+      ...(process.env.UGO_CHROMIUM_PATH !== undefined && {
+        executablePath: process.env.UGO_CHROMIUM_PATH,
+      }),
+      // fake mic so the portable recorder runs for real in headless e2e
+      args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+    },
   },
   webServer: {
     command: "pnpm build && pnpm preview",

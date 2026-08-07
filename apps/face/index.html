@@ -65,15 +65,64 @@
         font-size: 0.75rem;
         opacity: 0.7;
       }
+      #rec-banner {
+        position: absolute;
+        top: env(safe-area-inset-top, 0.6rem);
+        left: 50%;
+        transform: translateX(-50%);
+        background: #c62828;
+        color: #fff;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        border-radius: 999px;
+        padding: 0.35rem 1.1rem;
+        animation: pulse 1.2s infinite;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.55;
+        }
+      }
+      .overlay[hidden] {
+        display: none;
+      }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(5, 5, 10, 0.92);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        color: #cfcfe0;
+      }
+      [data-mode="portable"] #hud button.home-only {
+        display: none;
+      }
     </style>
   </head>
   <body>
     <div id="app" data-testid="app" data-state="idle" data-connected="false">
       <canvas id="face" data-testid="face-canvas"></canvas>
       <p id="speak-text" data-testid="speak-text"></p>
+      <div id="rec-banner" data-testid="rec-banner" hidden>● REC</div>
+      <div id="privacy-overlay" data-testid="privacy-overlay" class="overlay" hidden>
+        <div style="font-size: 3rem">😴 z z z</div>
+        <p>Privacy mode: microfono e registrazione spenti davvero.</p>
+        <button id="btn-privacy-off" data-testid="btn-privacy-off" type="button">Risveglia UGO</button>
+      </div>
+      <div id="qr-overlay" data-testid="qr-overlay" class="overlay" hidden>
+        <p>Piacere, UGO 🐷 — inquadra per i contatti</p>
+        <canvas id="qr-canvas" data-testid="qr-canvas" width="240" height="240"></canvas>
+        <button id="btn-qr-close" data-testid="btn-qr-close" type="button">Chiudi</button>
+      </div>
       <div id="hud">
         <span id="mood-label" data-testid="mood-label"></span>
-        <button id="btn-mic" data-testid="btn-mic" type="button">🎤 attiva sensi</button>
+        <button id="btn-mic" data-testid="btn-mic" class="home-only" type="button">🎤 attiva sensi</button>
+        <button id="btn-rec" data-testid="btn-rec" type="button" hidden>● REC</button>
+        <button id="btn-privacy" data-testid="btn-privacy" type="button" hidden>😴 privacy</button>
+        <button id="btn-card" data-testid="btn-card" type="button" hidden>🪪 QR</button>
         <span id="conn" data-testid="conn-status">disconnesso</span>
       </div>
     </div>

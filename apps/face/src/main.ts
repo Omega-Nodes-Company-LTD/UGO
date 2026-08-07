@@ -1,5 +1,6 @@
 import type { FaceState, FaceToServerMessage, ServerToFaceMessage } from "@ugo/shared/face";
 import { startCameraGaze, startPointerGaze } from "./gaze.js";
+import { PortableController } from "./portable.js";
 import { FaceRenderer } from "./renderer.js";
 import { Sensors } from "./sensors.js";
 import { Speech } from "./speech.js";
@@ -26,6 +27,9 @@ const micButton = requireElement("#btn-mic");
 
 const params = new URLSearchParams(location.search);
 const soulUrl = params.get("soul") ?? `ws://${location.hostname}:3000/v1/face`;
+// portable mode (§4.2): NFC tag in the shell sets ?mode=portable; manual fallback
+const portableMode = params.get("mode") === "portable";
+const soulHttpBase = soulUrl.replace(/^ws/, "http").replace(/\/v1\/face$/, "");
 
 const renderer = new FaceRenderer(canvas);
 const speech = new Speech();
@@ -141,12 +145,70 @@ startPointerGaze(canvas, (target) => {
 renderer.start();
 socket.connect();
 
-/** deterministic hook for e2e tests: inject face→server messages */
+// ---- portable mode wiring (§4.2) ------------------------------------------
+const portable = new PortableController(
+  soulHttpBase,
+  {
+    recBanner: requireElement("#rec-banner"),
+    privacyOverlay: requireElement("#privacy-overlay"),
+    qrOverlay: requireElement("#qr-overlay"),
+    qrCanvas: (() => {
+      const el = requireElement("#qr-canvas");
+      if (!(el instanceof HTMLCanvasElement)) throw new Error("#qr-canvas is not a canvas");
+      return el;
+    })(),
+  },
+  (message) => {
+    socket.send(message);
+  },
+  params.get("contact") ?? "https://thinkpinkstudio.it",
+);
+
+if (portableMode) {
+  app.dataset.mode = "portable";
+  renderer.setLowPower(true);
+  for (const id of ["#btn-rec", "#btn-privacy", "#btn-card"]) requireElement(id).hidden = false;
+  const recButton = requireElement("#btn-rec");
+  recButton.addEventListener("click", () => {
+    void (async () => {
+      if (portable.recorderState() === "recording") {
+        await portable.stopRecording();
+        recButton.textContent = "● REC";
+      } else {
+        await portable.startRecording();
+        recButton.textContent = "■ STOP";
+      }
+    })();
+  });
+  requireElement("#btn-privacy").addEventListener("click", () => {
+    void portable.setPrivacy(true);
+  });
+  requireElement("#btn-privacy-off").addEventListener("click", () => {
+    void portable.setPrivacy(false);
+  });
+  requireElement("#btn-card").addEventListener("click", () => {
+    void portable.showBusinessCard();
+  });
+  requireElement("#btn-qr-close").addEventListener("click", () => {
+    portable.hideBusinessCard();
+  });
+}
+
+/** deterministic hooks for e2e tests */
 declare global {
   interface Window {
     __ugoFace: {
       send: (message: FaceToServerMessage) => void;
       queued: () => number;
+    };
+    __ugoPortable: {
+      startRec: () => Promise<void>;
+      stopRec: () => Promise<void>;
+      setPrivacy: (on: boolean) => Promise<void>;
+      showCard: () => Promise<void>;
+      recorderState: () => string;
+      trackStates: () => string[];
+      pending: () => number;
     };
   }
 }
@@ -155,4 +217,13 @@ window.__ugoFace = {
     socket.send(message);
   },
   queued: () => socket.queuedCount(),
+};
+window.__ugoPortable = {
+  startRec: () => portable.startRecording(),
+  stopRec: () => portable.stopRecording(),
+  setPrivacy: (on) => portable.setPrivacy(on),
+  showCard: () => portable.showBusinessCard(),
+  recorderState: () => portable.recorderState(),
+  trackStates: () => portable.trackStates(),
+  pending: () => portable.pendingCount(),
 };
