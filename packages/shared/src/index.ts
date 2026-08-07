@@ -1,4 +1,5 @@
 export { parseEnv, EnvValidationError } from "./env.js";
+export { encryptText, decryptText, isEncrypted, parseDataKey } from "./crypto.js";
 export {
   EVENT_SOURCES,
   MESSAGE_CHANNELS,
