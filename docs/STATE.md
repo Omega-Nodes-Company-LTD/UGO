@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.4.0"
+version: "0.5.0"
 last_updated: "2026-08-07"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -14,9 +14,9 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 ## 1. Situazione in una riga
 
-**Fase 3 — Vita interiore: COMPLETATA** (sogno idempotente su infra reale, evidenze in §6; baseline
-adattive → ADR-012 in attesa di decisione). Firmware Arduino accantonato (decisione proprietario).
-Prossimo passo: Fase 4 — In giro.
+**Fase 4 — In giro (parte software): COMPLETATA** (evidenze in §6). Firmware Arduino accantonato
+(decisione proprietario); ADR-012 in attesa. Prossimo passo: Fase 5 — Riunioni (integrazione lato
+soul; il deploy Vexa reale richiede il server).
 
 ## 2. Contenuto attuale del repository
 
@@ -85,8 +85,31 @@ Assenti (come previsto): `apps/meet-face` (post-v1), `ops/jobs` (Fase 3), `firmw
 | **0 — Fondamenta** | ✅ completata |
 | **1 — Anima minima** | ✅ completata |
 | **2 — Corpo di casa** | ✅ parte software completata; firmware fuori scope; voci "sul device" da validare col telefono |
-| **3 — Vita interiore** | ✅ **completata** — evidenze sotto; baseline adattive in ADR-012 (proposta); wake word Vosk = passo on-device |
-| 4–6 | ⬜ Fase 4 prossima |
+| **3 — Vita interiore** | ✅ completata; baseline adattive in ADR-012 (proposta); wake word Vosk = passo on-device |
+| **4 — In giro** | ✅ **parte software completata** — evidenze sotto; connettività tailnet reale e batteria = validazione col device |
+| 5–6 | ⬜ Fase 5 prossima (lato integrazione) |
+
+### Definition of Done Fase 4 (software) — evidenze riproducibili
+
+Comandi: `pnpm test:e2e` (7 test, browser reale + mic finto + MinIO reale + soul reale) e
+`cd ops/jobs && .venv/bin/pytest -q` (7 test, whisper reale su CPU).
+
+1. **REC ben visibile** — banner pulsante + flag `data-recording`; il blob Opus/webm finisce in
+   `ugo-audio/inbox/` con naming `YYYY-MM-DD_HHmm_*.webm` via URL presigned emesso da soul
+   (credenziali S3 mai sul client).
+2. **Privacy mode reale, verificata da test** — recorder `inactive` e **tutte le track del microfono
+   `ended`** (non un'icona): asserito in E2E; con privacy attiva la registrazione rifiuta di partire.
+3. **Registrazione → trascrizione interrogabile via `/chat`** — l'ingest notturno trascrive
+   (faster-whisper CPU, voce sintetica espeak nei test: mai voci di persone reali), cifra i segmenti,
+   li embedda e archivia il file; `/chat` recupera i segmenti pertinenti e li porta decifrati nel
+   blocco "Dalle registrazioni" (asserito sulla richiesta catturata).
+4. **Biglietto da visita parlante** — overlay QR renderizzato (pixel verificati) + evento
+   `lead_contact` persistito su `events`.
+5. **Fallback dichiarati** — senza `HF_TOKEN`: mono-speaker (PROGETTO §11); coda upload
+   store-and-forward con retry al flush successivo.
+
+**Richiede il device/server reale:** Tailscale su rete mobile, batteria di una giornata, NFC del
+guscio (il toggle manuale `?mode=portable` c'è), pyannote con HF_TOKEN per la diarizzazione vera.
 
 ### Definition of Done Fase 3 — evidenze riproducibili
 
@@ -188,12 +211,12 @@ Postgres+pgvector reale, Ollama reale con `nomic-embed-text`, stub Messages-API 
 
 ## 8. Prossimo passo operativo
 
-**Fase 4 — In giro** (PROGETTO §8, §4.2, §5.6 punto 1): modalità portable di `apps/face` (basso
-consumo, REC visibile, privacy mode che spegne davvero il mic, biglietto da visita QR, coda offline
-già pronta), poller del bucket `ugo-audio/inbox/`, pipeline faster-whisper + diarizzazione + match
-`people`, digest nel sogno. In questo ambiente: pipeline audio con modello whisper piccolo su CPU e
-S3 reale (MinIO); pyannote richiede `HF_TOKEN` → fallback mono-speaker (PROGETTO §11). Decisione
-ADR-012 (baseline adattive) attesa dal proprietario.
+**Fase 5 — Riunioni** (PROGETTO §8, §4.3): lato integrazione realizzabile qui — `POST /v1/meetings/join`
+che chiama l'API Vexa, consumer WS per l'ingestione live in `transcript_segments`, trigger vocale con
+rate-limit (max 1 intervento/2 min), digest post-call. Il deploy dello stack Vexa reale e la Meet di
+prova richiedono il server Coolify: la DoD completa si chiude al deploy (Vexa stubbata a livello di
+rete nei test, come da playbook §3 P2, consultando il README ufficiale Vexa per i contratti).
+In coda: decisione ADR-012; runbook `docs/OPS_COOLIFY.md` (Prompt 2) ora che i servizi sono definiti.
 
 ## Prossimi Passi
 
