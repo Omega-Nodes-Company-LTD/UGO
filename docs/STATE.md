@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.3.0"
+version: "0.4.0"
 last_updated: "2026-08-07"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -14,8 +14,9 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 ## 1. Situazione in una riga
 
-**Fase 2 — Corpo di casa (parte software): COMPLETATA** (evidenze in §6). Firmware Arduino **accantonato su
-decisione del proprietario** (2026-08-07). Prossimo passo: Fase 3 — Vita interiore.
+**Fase 3 — Vita interiore: COMPLETATA** (sogno idempotente su infra reale, evidenze in §6; baseline
+adattive → ADR-012 in attesa di decisione). Firmware Arduino accantonato (decisione proprietario).
+Prossimo passo: Fase 4 — In giro.
 
 ## 2. Contenuto attuale del repository
 
@@ -75,7 +76,7 @@ Assenti (come previsto): `apps/meet-face` (post-v1), `ops/jobs` (Fase 3), `firmw
 |---|---|---|
 | Node / pnpm | 22.22.2 / 10.33.0 | ✅ |
 | Docker | 29.3.1 | ✅ in questo container il daemon va avviato a mano (`dockerd &`); Docker Hub può dare 429 → mirror `mirror.gcr.io` |
-| Python | 3.11.15 | ⚠ spec chiede 3.12 per `ops/jobs`: da risolvere in Fase 3, irrilevante ora |
+| Python | 3.11.15 | ✅ jobs sviluppati su 3.11, immagine di produzione pinnata 3.12 (jobs.Dockerfile) |
 
 ## 6. Avanzamento per fase (PROGETTO §8)
 
@@ -83,8 +84,33 @@ Assenti (come previsto): `apps/meet-face` (post-v1), `ops/jobs` (Fase 3), `firmw
 |---|---|
 | **0 — Fondamenta** | ✅ completata |
 | **1 — Anima minima** | ✅ completata |
-| **2 — Corpo di casa** | ✅ **parte software completata** — evidenze sotto; voci firmware Nano fuori scope (decisione proprietario); voci "sul 3a Pro reale" da validare col telefono |
-| 3–6 | ⬜ Fase 3 prossima |
+| **2 — Corpo di casa** | ✅ parte software completata; firmware fuori scope; voci "sul device" da validare col telefono |
+| **3 — Vita interiore** | ✅ **completata** — evidenze sotto; baseline adattive in ADR-012 (proposta); wake word Vosk = passo on-device |
+| 4–6 | ⬜ Fase 4 prossima |
+
+### Definition of Done Fase 3 — evidenze riproducibili
+
+Comando: `cd ops/jobs && python3 -m venv .venv && .venv/bin/pip install -e ".[test]" &&
+UGO_TEST_OLLAMA_MODELS=<dir-cache> .venv/bin/pytest -q` (5 test, ~10 s a infra calda).
+Zero mock: Postgres migrato con gli **stessi file SQL drizzle** di produzione, MinIO reale (S3 API),
+embeddings Ollama reali; solo il modello MoE 30B è stub di rete (playbook §3 P2: non entra in un runner).
+
+1. **Giornata simulata ("golden day") → diario scritto** — eventi + messaggi cifrati del 2026-08-06
+   → `diary_entries` con testo e `mood_summary` aggregato dagli snapshot psiche del giorno.
+2. **≥1 desire generato e posto a voce l'indomani** — il sogno inserisce il desire `pending`
+   ("com'è andata la consegna DHL"); il risveglio (`face_seen` da `sleeping`, suite WS) lo pronuncia
+   e lo marca `done`: mai ripetuto.
+3. **Job idempotente e ripartibile** — ogni step marca il completamento su `events`
+   (`dream_step_completed{date,step}`): doppia esecuzione = tutti gli step `skipped`, zero duplicati
+   (conteggi diary/desires/memories invariati, verificato).
+4. **Igiene** — ricordo mai riletto >30 gg: importanza 0.5→0.45; due ricordi identici (similarità 1.0)
+   → merge con importanza massima conservata e tracciamento `merged_from`.
+5. **Backup dell'anima** — `pg_dump -Fc` cifrato AES-256-GCM (framing binario `UGO1`, chiave separata
+   dal DB) su `ugo-backup/pg/<date>.dump.enc` in MinIO reale; il decrypt restituisce un archivio
+   `PGDMP` valido; retention 30 giorni.
+6. **Interop crypto TS↔Python** — fixture cifrata dal lato TypeScript decifrata in Python (formato v1).
+
+**On-device (prossima sessione col telefono):** wake word "Ehi Ugo" con Vosk small-it.
 
 ### Definition of Done Fase 2 (software) — evidenze riproducibili
 
@@ -162,11 +188,12 @@ Postgres+pgvector reale, Ollama reale con `nomic-embed-text`, stub Messages-API 
 
 ## 8. Prossimo passo operativo
 
-**Fase 3 — Vita interiore** (PROGETTO §8, §5.6): job del sogno completo (riflessione, diario, desires,
-igiene, backup) idempotente e ripartibile, proattività al risveglio (già predisposta dal saluto con
-desire), wake word Vosk (richiede il device: consegnabile come predisposizione). Nota: il fallback
-batch è l'API in modalità batch (ADR-001); su questo ambiente la riflessione si verifica con stub di
-rete + Ollama reale per gli embeddings.
+**Fase 4 — In giro** (PROGETTO §8, §4.2, §5.6 punto 1): modalità portable di `apps/face` (basso
+consumo, REC visibile, privacy mode che spegne davvero il mic, biglietto da visita QR, coda offline
+già pronta), poller del bucket `ugo-audio/inbox/`, pipeline faster-whisper + diarizzazione + match
+`people`, digest nel sogno. In questo ambiente: pipeline audio con modello whisper piccolo su CPU e
+S3 reale (MinIO); pyannote richiede `HF_TOKEN` → fallback mono-speaker (PROGETTO §11). Decisione
+ADR-012 (baseline adattive) attesa dal proprietario.
 
 ## Prossimi Passi
 
