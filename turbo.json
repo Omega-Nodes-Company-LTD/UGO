@@ -17,7 +17,17 @@
     },
     "test:integration": {
       "dependsOn": ["build"],
-      "cache": false
+      "cache": false,
+      "passThroughEnv": [
+        "UGO_TEST_OLLAMA_MODELS",
+        "DOCKER_HOST",
+        "TESTCONTAINERS_*",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "NO_PROXY",
+        "SSL_CERT_FILE",
+        "NODE_EXTRA_CA_CERTS"
+      ]
     },
     "db:generate": {
       "cache": false

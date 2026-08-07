@@ -105,6 +105,11 @@ services:
       MQTT_USER: ${MQTT_USER:?missing MQTT_USER}
       MQTT_PASS: ${MQTT_PASS:?missing MQTT_PASS}
       OLLAMA_URL: ${OLLAMA_URL:?missing OLLAMA_URL}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?missing ANTHROPIC_API_KEY}
+      UGO_CHAT_MODEL: ${UGO_CHAT_MODEL:-claude-haiku-4-5}
+      UGO_DAILY_BUDGET_USD: ${UGO_DAILY_BUDGET_USD:-0.50}
+      UGO_DATA_KEY: ${UGO_DATA_KEY:?missing UGO_DATA_KEY}
       PORT: "3000"
       TZ: ${TZ:-Europe/Rome}
     depends_on:

@@ -1,8 +1,12 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
+import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
+import { registerV1Routes, type V1Deps } from "./routes/v1.js";
 
 export interface ServerOptions extends HealthDeps {
   logger?: boolean;
+  /** v1 feature surface; omitted only by infra-focused tests */
+  features?: Omit<V1Deps, "db">;
 }
 
 /**
@@ -17,5 +21,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   };
   const app = Fastify(serverOptions);
   registerHealthRoute(app, options);
+  if (options.features !== undefined) {
+    registerV1Routes(app, { db: options.db, ...options.features });
+    registerDebugChatRoute(app);
+  }
   return app;
 }
