@@ -1,0 +1,28 @@
+{
+  "name": "face",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "echo 'no unit tests: face is a DOM app, covered by e2e (TESTING_PLAYBOOK §1/§4)'",
+    "test:e2e": "playwright test",
+    "dev": "vite",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ugo/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@testcontainers/postgresql": "^12.1.0",
+    "@types/node": "^22.19.0",
+    "@ugo/db": "workspace:*",
+    "@ugo/factories": "workspace:*",
+    "testcontainers": "^12.1.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.2.1"
+  }
+}

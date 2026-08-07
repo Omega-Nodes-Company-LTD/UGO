@@ -12,6 +12,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:integration": "turbo run test:integration --concurrency=1",
+    "test:e2e": "turbo run test:e2e --concurrency=1",
     "db:generate": "pnpm --filter @ugo/db db:generate",
     "db:migrate": "pnpm --filter @ugo/db db:migrate",
     "format": "prettier --write .",

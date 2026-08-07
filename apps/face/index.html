@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#0b0b10" />
+    <title>UGO</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0b10;
+        overflow: hidden;
+        touch-action: manipulation;
+        font-family: system-ui, sans-serif;
+      }
+      #app {
+        position: relative;
+        height: 100%;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #hud {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 0.6rem 1rem calc(0.6rem + env(safe-area-inset-bottom));
+        color: #cfcfe0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.9rem;
+      }
+      #speak-text {
+        position: absolute;
+        left: 50%;
+        bottom: 18%;
+        transform: translateX(-50%);
+        max-width: 80%;
+        color: #ffe9ef;
+        background: rgba(20, 20, 30, 0.7);
+        border-radius: 1rem;
+        padding: 0.5rem 1rem;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      #speak-text.visible {
+        opacity: 1;
+      }
+      #btn-mic {
+        background: #21212e;
+        color: #cfcfe0;
+        border: 1px solid #3a3a4c;
+        border-radius: 999px;
+        padding: 0.4rem 0.9rem;
+      }
+      #conn {
+        font-size: 0.75rem;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" data-testid="app" data-state="idle" data-connected="false">
+      <canvas id="face" data-testid="face-canvas"></canvas>
+      <p id="speak-text" data-testid="speak-text"></p>
+      <div id="hud">
+        <span id="mood-label" data-testid="mood-label"></span>
+        <button id="btn-mic" data-testid="btn-mic" type="button">🎤 attiva sensi</button>
+        <span id="conn" data-testid="conn-status">disconnesso</span>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
