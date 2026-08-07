@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.1.0"
+version: "0.2.0"
 last_updated: "2026-08-07"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -14,7 +14,8 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 ## 1. Situazione in una riga
 
-**Fase 0 — Fondamenta: COMPLETATA** (DoD dimostrata, evidenze in §6). Prossimo passo: Fase 1 — Anima minima.
+**Fase 1 — Anima minima: COMPLETATA** (DoD dimostrata, evidenze in §6). Prossimo passo: Fase 2 — Corpo di casa
+(**solo software**: firmware Arduino accantonato su decisione del proprietario, 2026-08-07).
 
 ## 2. Contenuto attuale del repository
 
@@ -29,19 +30,22 @@ UGO/
 │   ├── ARCHITECTURE.md        # architettura + perché delle scelte
 │   ├── STATE.md               # questo file
 │   └── ADR/README.md          # indice: 001–011 in PROGETTO §2, prossimo 012
-├── apps/soul/                 # Fastify: buildServer DI, GET /health, boot fail-fast
+├── apps/soul/                 # Fastify: /health, /v1/chat|psyche|events|memories/search, /debug/chat
 ├── packages/
 │   ├── db/                    # schema Drizzle §5.2 completo, migrazioni, client, migrate-cli
-│   └── shared/                # parseEnv fail-fast, costanti domini chiusi + topic MQTT
-├── tests/factories/           # Faker + embedding deterministici da seed, zero PII reali
+│   ├── shared/                # parseEnv, crypto AES-256-GCM, contratti Zod, costanti/topic
+│   ├── psyche/                # motore omeostasi puro (transienti a decadimento, label it)
+│   ├── prompts/               # identity.it.md + rules.it.md (blocchi [CACHED] §5.5)
+│   └── memory/                # embeddings Ollama, retrieval re-rank, llmClient budget guard
+├── tests/factories/           # Faker + embedding da seed + helper infra (ollama reale, stub LLM)
 └── ops/docker/
     ├── compose.dev.yml        # postgres+mosquitto+ollama su rete internal, migrate one-shot, soul
     ├── soul.Dockerfile        # multi-stage, non-root, read-only, HEALTHCHECK
     └── mosquitto/             # conf (auth obbligatoria), ACL least-privilege, generate-passwd.sh
 ```
 
-Assenti (come previsto, fasi successive): `packages/psyche|memory|prompts`, `apps/face|meet-face`,
-`ops/jobs`, `firmware/`, `hardware/`, `documentation/` (nessuna feature utente visibile finora).
+Assenti (come previsto, fasi successive): `apps/face|meet-face`, `ops/jobs`, `firmware/`, `hardware/`,
+`documentation/` (nessuna feature utente visibile finora — la pagina `/debug/chat` è strumento di sviluppo).
 
 ## 3. Disallineamenti — RISOLTI
 
@@ -75,9 +79,34 @@ Assenti (come previsto, fasi successive): `packages/psyche|memory|prompts`, `app
 
 | Fase | Stato |
 |---|---|
-| **0 — Fondamenta** | ✅ **completata** — evidenze sotto |
-| 1 — Anima minima | ⬜ prossima |
-| 2–6 | ⬜ bloccate dalla sequenza |
+| **0 — Fondamenta** | ✅ completata |
+| **1 — Anima minima** | ✅ **completata** — evidenze sotto |
+| 2 — Corpo di casa | ⬜ prossima (**senza firmware Nano**: accantonato dal proprietario) |
+| 3–6 | ⬜ bloccate dalla sequenza |
+
+### Definition of Done Fase 1 — evidenze riproducibili
+
+Comando: `UGO_TEST_OLLAMA_MODELS=<dir-cache-modelli> pnpm test:integration` (28 test, zero mock:
+Postgres+pgvector reale, Ollama reale con `nomic-embed-text`, stub Messages-API a livello di rete
+— playbook §3 P2, Anthropic non offre chiavi sandbox).
+
+1. **La conversazione ricorda fatti tra sessioni** — `chat.integration.test.ts`: una memoria scritta
+   ("il fattorino DHL si chiama Ivan") raggiunge il blocco dinamico del prompt in una **seconda sessione**
+   (servizi ricostruiti da zero sullo stesso DB); la cronologia della sessione precedente arriva
+   decifrata nel blocco 5.
+2. **La psiche varia con eventi simulati** — 2×`loud_noise` via `POST /v1/events` → `stress` sale in
+   `GET /v1/psyche`; label transitions → snapshot su `psyche_snapshots`; motore verificato da 13 unit
+   test deterministici (decadimento τ, spike 15 min, clamp, label).
+3. **Il ledger registra i costi** — ogni chiamata provider inserisce una riga in `budget_ledger` con
+   costo calcolato dall'usage reale (input, cache write ×1.25, cache read ×0.1, output); righe
+   `messages` cifrate `v1:` con costo sull'assistant row.
+4. **Budget guard** — con budget esaurito: risposta degradata dichiarata, provider **mai contattato**,
+   nessuna riga ledger nuova; conteggio solo sul giorno corrente (TZ Europe/Rome).
+5. **Disciplina di caching verificata sui token della richiesta** — `cache_control: ephemeral` presente
+   **solo** sui primi due blocchi system (identity, rules), byte-identici tra chiamate con contenuto
+   dinamico diverso; il blocco dinamico non è mai cached. ⚠ La verifica del *cache hit* effettivo
+   (`cache_read_input_tokens` reali) richiede la chiave API vera: da eseguire al primo deploy
+   (annotata nel runbook Coolify).
 
 ### Definition of Done Fase 0 — evidenze riproducibili
 
@@ -102,14 +131,16 @@ Assenti (come previsto, fasi successive): `packages/psyche|memory|prompts`, `app
 |---|---|---|
 | esbuild MODERATE via drizzle-kit (dev-only) | Basso | Bump drizzle-kit quando esce il fix |
 | Python 3.11 nell'ambiente vs 3.12 in spec | Nullo fino a Fase 3 | Pin 3.12 nel Dockerfile di `ops/jobs` |
-| Ollama nel compose non ha ancora i modelli pullati | `/health` resta `ok` (check di versione), ma gli embeddings non esistono | Pull `nomic-embed-text` come post-deploy step (runbook Coolify) e in Fase 1 per il dev |
-| Budget guard non ancora attivo | Nessuna chiamata LLM deve esistere prima di `packages/memory/llmClient` | Vincolo rispettato: zero client API nel codice attuale |
+| Ollama nel compose non ha i modelli pullati al primo avvio | Chat → errore embeddings finché `nomic-embed-text` non è presente | `docker compose exec ollama ollama pull nomic-embed-text` (post-deploy step nel runbook Coolify) |
+| Cache hit reale non verificabile senza chiave API | Solo la *disciplina* è verificata (posizione/stabilità blocchi) | Al primo deploy: 2 chiamate reali e verifica `cache_read_input_tokens` nel ledger |
+| Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
 
 ## 8. Prossimo passo operativo
 
-**Fase 1 — Anima minima** (PROGETTO §8, §5.3–§5.5): psyche v1 + snapshot, memoria write/read con
-embeddings, `POST /chat` con prompt cached (ordine §5.5) + budget guard, mini pagina chat di debug.
-Sessione dedicata, piano prima del codice.
+**Fase 2 — Corpo di casa, solo software** (PROGETTO §8, §4.1, §5.7): `apps/face` (occhi canvas,
+macchina a stati, gaze-follow, STT/TTS, WS `/v1/face` con riconnessione e coda offline) + canale WS
+in soul + reazioni locali a costo zero token. Il firmware Nano (env→MQTT, relè, OLED) è escluso
+finché il proprietario non lo richiama.
 
 ## Prossimi Passi
 
