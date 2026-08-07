@@ -1,0 +1,118 @@
+# UGO — dev stack (ADR-007: local-first, zero public exposure).
+# Datastores publish NO host port and live on an internal network; the only
+# port reaching the host is soul's HTTP on 127.0.0.1:3000.
+# Prerequisites: cp .env.example .env, then ops/docker/mosquitto/generate-passwd.sh
+# Run from the repo root: docker compose -f ops/docker/compose.dev.yml up -d --build
+
+name: ugo-dev
+
+networks:
+  backend:
+    internal: true
+  edge: {}
+
+volumes:
+  postgres-data: {}
+  mosquitto-data: {}
+  ollama-models: {}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    networks: [backend]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?missing POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?missing POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    networks: [backend]
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/acl.conf:/mosquitto/config/acl.conf:ro
+      - ./mosquitto/.generated/passwd:/mosquitto/config/passwd:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mosquitto_pub -h localhost -u \"$${MQTT_HEALTH_USER}\" -P \"$${MQTT_HEALTH_PASS}\" -t ugo/health -m ping -q 0 || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    environment:
+      MQTT_HEALTH_USER: ${MQTT_USER:?missing MQTT_USER}
+      MQTT_HEALTH_PASS: ${MQTT_PASS:?missing MQTT_PASS}
+
+  ollama:
+    image: ollama/ollama
+    restart: unless-stopped
+    networks: [backend]
+    volumes:
+      - ollama-models:/root/.ollama
+    # CPU only (ADR-001); cap memory so a model can't starve the host
+    mem_limit: 12g
+    healthcheck:
+      test: ["CMD", "ollama", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # one-shot: applies drizzle migrations (the only sanctioned way to touch
+  # the schema, CLAUDE.md rule 5) using the same image as soul
+  migrate:
+    build:
+      context: ../..
+      dockerfile: ops/docker/soul.Dockerfile
+    command: ["node", "node_modules/@ugo/db/dist/migrate-cli.js"]
+    restart: "no"
+    networks: [backend]
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  soul:
+    build:
+      context: ../..
+      dockerfile: ops/docker/soul.Dockerfile
+    restart: unless-stopped
+    networks: [backend, edge]
+    # the ONLY host-published port of the stack, loopback only
+    ports:
+      - "127.0.0.1:3000:3000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
+      MQTT_URL: ${MQTT_URL:?missing MQTT_URL}
+      MQTT_USER: ${MQTT_USER:?missing MQTT_USER}
+      MQTT_PASS: ${MQTT_PASS:?missing MQTT_PASS}
+      OLLAMA_URL: ${OLLAMA_URL:?missing OLLAMA_URL}
+      PORT: "3000"
+      TZ: ${TZ:-Europe/Rome}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      mosquitto:
+        condition: service_started
+      ollama:
+        condition: service_started
