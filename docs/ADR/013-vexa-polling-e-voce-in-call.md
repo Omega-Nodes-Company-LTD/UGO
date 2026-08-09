@@ -1,6 +1,10 @@
 # ADR-013 — Integrazione Vexa: polling invece di WebSocket, voce in call rinviata
 
-**Stato: PROPOSTA — implementata la parte non controversa (polling); attesa decisione sulla voce.**
+**Stato: ACCETTATA** (decisione delegata dal proprietario, 2026-08-07): polling per l'ingestione;
+per la voce, **opzione (b) come interim** — la risposta viene pronunciata in stanza dal corpo di
+casa (`SpeakPort` → broadcast sul WS `/v1/face` → TTS on-device), utile quando il proprietario segue
+la call dalla stanza di UGO. Si monitora upstream per `/speak`; a quel punto la porta cambierà
+implementazione senza toccare la pipeline.
 
 ## Contesto
 

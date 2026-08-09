@@ -19,12 +19,16 @@ export async function registerFaceWs(app: FastifyInstance, gateway: FaceGateway)
     send({ type: "state", state: gateway.currentState() });
     const { vars, label } = gatewayMood(gateway);
     send({ type: "mood", label, vars });
+    gateway.registerSender(send); // ADR-013: in-room voice for meeting answers
 
     socket.on("message", (raw: Buffer | string) => {
       void gateway.handleRaw(String(raw), send).catch(() => {
         // never let a single bad frame take the socket down; IDs-only logging
         app.log.warn("face frame handling failed");
       });
+    });
+    socket.on("close", () => {
+      gateway.unregisterSender(send);
     });
   });
 }

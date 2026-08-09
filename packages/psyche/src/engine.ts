@@ -2,6 +2,7 @@ import {
   PSYCHE_VARIABLES,
   TAU_HOURS,
   baselineFor,
+  type BaselineOverrides,
   type PsycheState,
   type PsycheTransient,
   type PsycheVariable,
@@ -20,12 +21,17 @@ function decayedContribution(transient: PsycheTransient, atMs: number): number {
 }
 
 /** Current variable values: baseline(t) + Σ decayed transients, clamped to [0,1]. */
-export function varsAt(state: PsycheState, at: Date, hourOfDay?: number): PsycheVars {
+export function varsAt(
+  state: PsycheState,
+  at: Date,
+  hourOfDay?: number,
+  overrides?: BaselineOverrides,
+): PsycheVars {
   const hour = hourOfDay ?? at.getHours();
   const atMs = at.getTime();
   const vars = {} as PsycheVars;
   for (const variable of PSYCHE_VARIABLES) {
-    let value = baselineFor(variable, hour);
+    let value = baselineFor(variable, hour, overrides);
     for (const transient of state.transients) {
       if (transient.variable === variable) {
         value += decayedContribution(transient, atMs);
@@ -72,11 +78,16 @@ export function applyPerturbations(
  * Per-spike τ fidelity is lost across restarts — an accepted approximation
  * (the sum of decays with equal τ collapses to a single decay).
  */
-export function stateFromSnapshot(vars: PsycheVars, at: Date, hourOfDay?: number): PsycheState {
+export function stateFromSnapshot(
+  vars: PsycheVars,
+  at: Date,
+  hourOfDay?: number,
+  overrides?: BaselineOverrides,
+): PsycheState {
   const hour = hourOfDay ?? at.getHours();
   const transients: PsycheTransient[] = [];
   for (const variable of PSYCHE_VARIABLES) {
-    const deviation = vars[variable] - baselineFor(variable, hour);
+    const deviation = vars[variable] - baselineFor(variable, hour, overrides);
     if (Math.abs(deviation) > 1e-4) {
       transients.push({
         variable,

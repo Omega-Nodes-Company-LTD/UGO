@@ -15,6 +15,13 @@
       "when": 1786135204199,
       "tag": "0001_initial-schema",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786256773252,
+      "tag": "0002_psyche-baselines",
+      "breakpoints": true
     }
   ]
 }

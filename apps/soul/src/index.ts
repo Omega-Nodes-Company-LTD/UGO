@@ -60,6 +60,14 @@ const meetings =
         llm,
         dataKey,
         vexa: { baseUrl: env.VEXA_API_URL, apiKey: env.VEXA_API_KEY, ownerName: env.UGO_OWNER_NAME },
+        // ADR-013 opzione b: finché Vexa open-core non espone /speak, la
+        // risposta viene pronunciata in stanza dal corpo di casa
+        speakPort: {
+          speak: (_ref, text) => {
+            face.broadcastSpeak(text);
+            return Promise.resolve();
+          },
+        },
       })
     : undefined;
 

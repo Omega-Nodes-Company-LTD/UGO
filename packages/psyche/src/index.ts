@@ -11,6 +11,7 @@ export {
   type PsycheVars,
   type PsycheTransient,
   type PsycheState,
+  type BaselineOverrides,
 } from "./model.js";
 export {
   varsAt,

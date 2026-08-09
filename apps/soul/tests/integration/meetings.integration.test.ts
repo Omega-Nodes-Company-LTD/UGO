@@ -38,6 +38,7 @@ let vexa: VexaStub;
 let llmStub: LlmStub;
 let db: DbClient;
 let service: MeetingsService;
+const spoken: string[] = []; // ADR-013: SpeakPort capture (in-room voice)
 
 beforeAll(async () => {
   [pg, ollama, vexa, llmStub] = await Promise.all([
@@ -61,6 +62,12 @@ beforeAll(async () => {
     }),
     dataKey,
     vexa: { baseUrl: vexa.baseUrl, apiKey: "vxa_test_key", ownerName: "Omega" },
+    speakPort: {
+      speak: (_ref, text) => {
+        spoken.push(text);
+        return Promise.resolve();
+      },
+    },
   });
 });
 
@@ -157,6 +164,8 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
     expect(assistantRows).toHaveLength(1);
     expect(decryptText(assistantRows[0]?.text ?? "", dataKey)).toContain("PETG");
     expect((await db.select().from(budgetLedger)).length).toBeGreaterThanOrEqual(1);
+    // ADR-013 opzione b: la risposta è stata instradata alla voce in stanza
+    expect(spoken).toEqual(["Nella scorsa call avevate scelto il PETG. Grunf."]);
   });
 
   it("stop leaves the call and closes the meeting", async () => {

@@ -1,6 +1,8 @@
 # ADR-012 — Persistenza delle baseline adattive della psiche
 
-**Stato: PROPOSTA — in attesa di decisione del proprietario.**
+**Stato: ACCETTATA e implementata** (decisione delegata dal proprietario al Principal Engineer,
+2026-08-07). Migrazione `0002_psyche-baselines`; il motore riceve `BaselineOverrides` e resta puro;
+l'igiene notturna aggiusta `umore` di ±0.02 con clamp [0.35, 0.7]; `energia` resta circadiana.
 
 ## Contesto
 

@@ -31,8 +31,27 @@ export type FaceSender = (message: ServerToFaceMessage) => void;
  */
 export class FaceGateway {
   private state: FaceState = "idle";
+  private readonly senders = new Set<FaceSender>();
 
   public constructor(private readonly deps: FaceGatewayDeps) {}
+
+  public registerSender(send: FaceSender): void {
+    this.senders.add(send);
+  }
+
+  public unregisterSender(send: FaceSender): void {
+    this.senders.delete(send);
+  }
+
+  /**
+   * ADR-013 (opzione b): meeting answers are voiced by the home body — every
+   * connected face speaks the text through its on-device TTS.
+   */
+  public broadcastSpeak(text: string): void {
+    for (const send of this.senders) {
+      send({ type: "speak", text });
+    }
+  }
 
   public currentState(): FaceState {
     return this.state;

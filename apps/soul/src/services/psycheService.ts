@@ -1,4 +1,4 @@
-import { psycheSnapshots, type DbClient } from "@ugo/db";
+import { psycheBaselines, psycheSnapshots, type DbClient } from "@ugo/db";
 import {
   applyPerturbations,
   emptyState,
@@ -7,6 +7,7 @@ import {
   pickLabel,
   stateFromSnapshot,
   varsAt,
+  type BaselineOverrides,
   type PsycheState,
   type PsycheVars,
 } from "@ugo/psyche";
@@ -38,26 +39,34 @@ export class PsycheService {
   public constructor(
     private readonly db: DbClient,
     initialState?: PsycheState,
+    private readonly overrides: BaselineOverrides = {},
   ) {
     this.state = initialState ?? emptyState();
   }
 
-  /** Rebuild the state from the latest snapshot (soul restart). */
+  /** Rebuild state + adaptive baselines (ADR-012) from the database. */
   public static async restore(db: DbClient, at: Date = new Date()): Promise<PsycheService> {
+    const baselineRows = await db
+      .select({ variable: psycheBaselines.variable, baseline: psycheBaselines.baseline })
+      .from(psycheBaselines);
+    const overrides: BaselineOverrides = {};
+    for (const row of baselineRows) {
+      if (["umore", "affetto", "noia", "stress", "curiosita"].includes(row.variable)) {
+        overrides[row.variable as keyof BaselineOverrides] = row.baseline;
+      }
+    }
     const rows = await db
       .select({ vars: psycheSnapshots.vars })
       .from(psycheSnapshots)
       .orderBy(desc(psycheSnapshots.ts))
       .limit(1);
-    const raw = rows[0]?.vars;
-    if (raw === undefined) return new PsycheService(db);
-    const parsed = varsSchema.safeParse(raw);
-    if (!parsed.success) return new PsycheService(db);
-    return new PsycheService(db, stateFromSnapshot(parsed.data, at));
+    const parsed = varsSchema.safeParse(rows[0]?.vars);
+    if (!parsed.success) return new PsycheService(db, undefined, overrides);
+    return new PsycheService(db, stateFromSnapshot(parsed.data, at, undefined, overrides), overrides);
   }
 
   public current(at: Date = new Date()): PsycheView {
-    const vars = varsAt(this.state, at);
+    const vars = varsAt(this.state, at, undefined, this.overrides);
     const label = pickLabel(vars, this.state.lastEventType);
     return { vars, label, phrase: labelPhrase(label) };
   }

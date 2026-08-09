@@ -61,12 +61,23 @@ export const ENERGY_NIGHT_BASELINE = 0.2;
 /** Day window [start, end) for the circadian energia baseline. */
 export const DAY_HOURS: readonly [number, number] = [7, 23];
 
-export function baselineFor(variable: PsycheVariable, hourOfDay: number): number {
+/**
+ * Adaptive baselines (ADR-012): persisted in psyche_baselines and passed in
+ * as overrides — the engine stays pure. `energia` remains circadian and
+ * ignores overrides by design.
+ */
+export type BaselineOverrides = Partial<Record<Exclude<PsycheVariable, "energia">, number>>;
+
+export function baselineFor(
+  variable: PsycheVariable,
+  hourOfDay: number,
+  overrides?: BaselineOverrides,
+): number {
   if (variable === "energia") {
     const [dayStart, dayEnd] = DAY_HOURS;
     return hourOfDay >= dayStart && hourOfDay < dayEnd ? ENERGY_DAY_BASELINE : ENERGY_NIGHT_BASELINE;
   }
-  return BASELINES[variable];
+  return overrides?.[variable] ?? BASELINES[variable];
 }
 
 export function emptyState(): PsycheState {

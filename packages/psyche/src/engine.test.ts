@@ -109,6 +109,27 @@ describe("perturbation application", () => {
   });
 });
 
+describe("adaptive baselines (ADR-012)", () => {
+  it("overrides shift the rest value of non-energia variables", () => {
+    const vars = varsAt(emptyState(), NOON, 12, { umore: 0.45 });
+    expect(vars.umore).toBe(0.45);
+    expect(vars.stress).toBe(BASELINES.stress); // untouched without override
+  });
+
+  it("energia stays circadian and ignores overrides by design", () => {
+    const vars = varsAt(emptyState(), NOON, 3, { umore: 0.45 });
+    expect(vars.energia).toBe(ENERGY_NIGHT_BASELINE);
+  });
+
+  it("snapshot round-trip is consistent under overrides", () => {
+    const overrides = { umore: 0.5 } as const;
+    const state = applyPerturbations(emptyState(), perturbationsForEvent("compliment"), NOON);
+    const vars = varsAt(state, NOON, 12, overrides);
+    const restored = stateFromSnapshot(vars, NOON, 12, overrides);
+    expect(varsAt(restored, NOON, 12, overrides).umore).toBeCloseTo(vars.umore, 4);
+  });
+});
+
 describe("snapshot round-trip", () => {
   it("rebuilds a state whose vars match the snapshot at restore time", () => {
     let state = emptyState();

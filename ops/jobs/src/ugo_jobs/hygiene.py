@@ -1,9 +1,6 @@
 """Dream step 3 — memory hygiene (PROGETTO §5.6.3): unread memories fade,
-near-duplicates (cosine similarity > 0.95) are merged.
-
-The spec also mentions a light psyche-baseline adjustment; the §5.2 data
-model has no home for persisted baselines, so that part is deferred to
-ADR-012 (see docs/ADR/) instead of inventing schema on the fly.
+near-duplicates (cosine similarity > 0.95) are merged, and the umore
+baseline drifts gently with the lived days (ADR-012, accepted).
 """
 
 from __future__ import annotations
@@ -18,11 +15,19 @@ IMPORTANCE_FLOOR = 0.05
 STALE_DAYS = 30
 DEDUP_SIMILARITY = 0.95
 
+# ADR-012: at most ±0.02 per night, hard-clamped so bad weeks can't spiral
+BASELINE_STEP = 0.02
+UMORE_DEFAULT = 0.55
+UMORE_CLAMP = (0.35, 0.7)
+UMORE_LOW_DAY = 0.45
+UMORE_HIGH_DAY = 0.65
+
 
 @dataclass
 class HygieneResult:
     decayed: int
     merged: int
+    baseline_adjusted: bool = False
 
 
 def _decay_stale(conn: psycopg.Connection) -> int:
@@ -75,8 +80,47 @@ def _merge_duplicates(conn: psycopg.Connection) -> int:
     return merged
 
 
-def run_hygiene(conn: psycopg.Connection, _dream_date: str) -> HygieneResult:
+def _adjust_umore_baseline(conn: psycopg.Connection, dream_date: str) -> bool:
+    """ADR-012: a heavy day nudges the umore baseline down, a bright one up."""
+    row = conn.execute(
+        """
+        select avg((vars->>'umore')::numeric) from psyche_snapshots
+        where ts between %s and %s and vars ? 'umore'
+        """,
+        (f"{dream_date} 00:00:00+00", f"{dream_date} 23:59:59+00"),
+    ).fetchone()
+    day_avg = row[0] if row is not None else None
+    if day_avg is None:
+        return False
+
+    current_row = conn.execute(
+        "select baseline from psyche_baselines where variable = 'umore'"
+    ).fetchone()
+    current = float(current_row[0]) if current_row is not None else UMORE_DEFAULT
+    if float(day_avg) <= UMORE_LOW_DAY:
+        target = current - BASELINE_STEP
+    elif float(day_avg) >= UMORE_HIGH_DAY:
+        target = current + BASELINE_STEP
+    else:
+        return False
+    low, high = UMORE_CLAMP
+    target = max(low, min(high, target))
+    if target == current:
+        return False
+    conn.execute(
+        """
+        insert into psyche_baselines (variable, baseline, updated_at)
+        values ('umore', %s, now())
+        on conflict (variable) do update set baseline = excluded.baseline, updated_at = now()
+        """,
+        (target,),
+    )
+    return True
+
+
+def run_hygiene(conn: psycopg.Connection, dream_date: str) -> HygieneResult:
     decayed = _decay_stale(conn)
     merged = _merge_duplicates(conn)
+    adjusted = _adjust_umore_baseline(conn, dream_date)
     conn.commit()
-    return HygieneResult(decayed=decayed, merged=merged)
+    return HygieneResult(decayed=decayed, merged=merged, baseline_adjusted=adjusted)
