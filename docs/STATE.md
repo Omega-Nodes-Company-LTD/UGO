@@ -14,10 +14,11 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 ## 1. Situazione in una riga
 
-**Fasi 0–5 (parte software): COMPLETATE** — tutto ciò che non richiede hardware fisico o il server di
-produzione è implementato e verificato su infrastruttura reale. In attesa: decisioni ADR-012 e
-ADR-013; col device/server: validazioni on-device (Fase 2/4), deploy Vexa + Meet di prova (Fase 5),
-gusci (Fase 6, richiede misure col calibro). Firmware Arduino accantonato (decisione proprietario).
+**Fasi 0–5 (parte software): COMPLETATE** — tutto verificato su infrastruttura reale. ADR-012 e
+ADR-013 **accettati e implementati**; runbook di deploy pronto in [`OPS_COOLIFY.md`](./OPS_COOLIFY.md)
+(mancano solo i valori dei placeholder). Col device/server: validazioni on-device (Fase 2/4), deploy
+Vexa + Meet di prova (Fase 5), gusci (Fase 6 — il proprietario ha design da una sessione chat
+precedente, da integrare in `hardware/shell/`). Firmware Arduino accantonato (decisione proprietario).
 
 ## 2. Contenuto attuale del repository
 
@@ -86,9 +87,9 @@ Assenti (come previsto): `apps/meet-face` (post-v1), `ops/jobs` (Fase 3), `firmw
 | **0 — Fondamenta** | ✅ completata |
 | **1 — Anima minima** | ✅ completata |
 | **2 — Corpo di casa** | ✅ parte software completata; firmware fuori scope; voci "sul device" da validare col telefono |
-| **3 — Vita interiore** | ✅ completata; baseline adattive in ADR-012 (proposta); wake word Vosk = passo on-device |
+| **3 — Vita interiore** | ✅ completata; baseline adattive implementate (ADR-012 accettato); wake word Vosk = passo on-device |
 | **4 — In giro** | ✅ parte software completata; connettività tailnet reale e batteria = validazione col device |
-| **5 — Riunioni** | ✅ **lato integrazione completato** — evidenze sotto; deploy Vexa reale + Meet di prova = col server; voce in call bloccata upstream (ADR-013) |
+| **5 — Riunioni** | ✅ **lato integrazione completato** — evidenze sotto; deploy Vexa reale + Meet di prova = col server; voce: interim in stanza via corpo di casa (ADR-013 accettato) |
 | 6 — Gusci | ⬜ richiede misure col calibro e stampante (prompt GUSCI dedicato) |
 
 ### Definition of Done Fase 5 (integrazione) — evidenze riproducibili
