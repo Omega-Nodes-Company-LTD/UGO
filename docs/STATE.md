@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.6.0"
+version: "0.7.0"
 last_updated: "2026-08-07"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -237,12 +237,12 @@ Postgres+pgvector reale, Ollama reale con `nomic-embed-text`, stub Messages-API 
 
 Il software delle Fasi 0–5 è completo. Le prossime mosse dipendono dal proprietario:
 
-1. **Decisioni attese**: ADR-012 (baseline adattive) e ADR-013 (voce in call: attendere upstream /
-   TTS dal telefono in stanza / contributo upstream).
-2. **Runbook Coolify** (`docs/OPS_COOLIFY.md`, Prompt 2 del piano operativo): tutti i servizi sono
-   ormai definiti (postgres, mosquitto, ollama, soul, jobs, vexa) — generabile subito.
-3. **Primo deploy** sul server: lì si chiudono le verifiche che richiedono la realtà — cache-hit con
-   chiave API vera, pull dei modelli Ollama, cron del sogno 02:30, stack Vexa + Meet di prova.
+1. ~~Decisioni ADR~~ — **accettate e implementate** (ADR-012: `psyche_baselines` + deriva umore
+   ±0.02 clampata; ADR-013: voce in stanza via corpo di casa come interim).
+2. ~~Runbook Coolify~~ — **generato**: [`OPS_COOLIFY.md`](./OPS_COOLIFY.md); mancano solo i valori
+   dei placeholder angolari (elenco chiesto al proprietario).
+3. **Primo deploy** sul server seguendo il runbook: lì si chiudono cache-hit reale, pull modelli,
+   cron del sogno, stack Vexa + Meet di prova.
 4. **Col telefono**: kiosk, STT/TTS reali, MediaPipe/camera, Tailscale mobile, Vosk wake word.
 5. **Fase 6 — Gusci**: sessione dedicata col prompt GUSCI; servono le misure col calibro.
 
