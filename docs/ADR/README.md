@@ -23,4 +23,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [015](./015-genoma-versionato.md) | Genoma versionato (ossatura dati) | Accettata |
 | [016](./016-percezione-multimodale-e-biometria.md) | Percezione multimodale, biometria e enrollment vocale | Accettata |
 | [017](./017-hosting-su-server-dedicato-hetzner.md) | Il "local" di local-first è un server dedicato in UE | Accettata |
-| 018 | *(prossimo numero disponibile)* | — |
+| [018](./018-guscio-android-capacitor.md) | Il guscio del corpo: APK Capacitor | **Proposta** |
+| 019 | *(prossimo numero disponibile)* | — |
