@@ -23,6 +23,7 @@ class JobsConfig:
     ollama_url: str
     ollama_embed_model: str
     ollama_batch_url: str
+    """empty = no local reflection model here; the dream uses the API fallback"""
     ollama_batch_model: str
     data_key_b64: str
     s3_endpoint: str
@@ -49,7 +50,9 @@ class JobsConfig:
             ollama_embed_model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
             # the batch model may live behind a different endpoint (API batch fallback, ADR-001)
             ollama_batch_url=os.environ.get("OLLAMA_BATCH_URL", ollama_url),
-            ollama_batch_model=_require("OLLAMA_BATCH_MODEL"),
+            # empty = no local reflection model on this box; the dream goes
+            # straight to the API fallback (ADR-001), still through the ledger
+            ollama_batch_model=os.environ.get("OLLAMA_BATCH_MODEL", ""),
             data_key_b64=_require("UGO_DATA_KEY"),
             s3_endpoint=_require("S3_ENDPOINT"),
             s3_access_key=_require("S3_ACCESS_KEY"),

@@ -167,16 +167,29 @@ def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None
 def ask_batch_model(
     cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None = None
 ) -> ReflectionOutput:
-    """Local MoE first (free, private); the API only if the local one is down."""
-    try:
-        content = _ask_ollama(cfg, prompt)
-    except Exception as ollama_error:  # noqa: BLE001 — any failure means "fall back"
+    """Local MoE first (free, private); the API only if the local one is down.
+
+    With OLLAMA_BATCH_MODEL unset there is no local model on this box at all —
+    a perfectly normal deployment — so we go straight to the API rather than
+    firing a request that can only fail.
+    """
+    if not cfg.ollama_batch_model:
         if not cfg.anthropic_api_key:
             raise RuntimeError(
-                "local batch model unreachable and no ANTHROPIC_API_KEY for the "
-                f"ADR-001 fallback: {ollama_error}"
-            ) from ollama_error
+                "no OLLAMA_BATCH_MODEL and no ANTHROPIC_API_KEY: the dream has "
+                "nothing to reflect with (ADR-001)"
+            )
         content = _ask_anthropic(cfg, prompt, conn)
+    else:
+        try:
+            content = _ask_ollama(cfg, prompt)
+        except Exception as ollama_error:  # noqa: BLE001 — any failure means "fall back"
+            if not cfg.anthropic_api_key:
+                raise RuntimeError(
+                    "local batch model unreachable and no ANTHROPIC_API_KEY for the "
+                    f"ADR-001 fallback: {ollama_error}"
+                ) from ollama_error
+            content = _ask_anthropic(cfg, prompt, conn)
 
     try:
         return ReflectionOutput.model_validate_json(content)

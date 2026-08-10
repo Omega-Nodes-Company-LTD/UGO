@@ -112,3 +112,29 @@ def test_without_an_api_key_it_fails_loudly_instead_of_silently(
     )
     with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
         ask_batch_model(cfg, "riassumi la giornata", None)
+
+
+def test_without_a_local_model_it_goes_straight_to_the_api(
+    pg_url: str, minio: dict[str, str], ollama_url: str, batch_stub, anthropic_stub  # noqa: ANN001
+) -> None:
+    """A server with no local reflection model is a normal deployment, not a
+    broken one: the dream must not fire a doomed request at Ollama first, and
+    the API spend still has to land in the ledger."""
+    base_url, handler = anthropic_stub
+    handler.seen.clear()
+    cfg = replace(
+        make_config(pg_url, minio, ollama_url, batch_stub.base_url),
+        ollama_batch_url=UNREACHABLE,
+        ollama_batch_model="",  # nothing pulled on this box, by choice
+        anthropic_base_url=base_url,
+        anthropic_api_key="test-key",
+    )
+    with psycopg.connect(cfg.database_url) as conn:
+        output = ask_batch_model(cfg, "rifletti sulla giornata", conn)
+        assert output.diary
+        assert len(handler.seen) == 1, "the API should be called once, directly"
+        row = conn.execute(
+            "select provider from budget_ledger order by date desc, cost_usd desc limit 1"
+        ).fetchone()
+        assert row is not None and row[0] == "anthropic"
+        conn.rollback()

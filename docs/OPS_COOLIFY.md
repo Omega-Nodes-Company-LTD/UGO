@@ -154,10 +154,15 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
 > *Ollama Api*, mai la web UI.
 4. Volume persistente su `/root/.ollama`: se non c'è, aggiungilo ora. I modelli pesano gigabyte e
    senza volume li riscarichi a ogni redeploy.
-5. Scarica i modelli che servono, una volta sola — **Execute Command** sulla risorsa Ollama:
-   `ollama pull nomic-embed-text` (indispensabile: senza, la chat va in errore sugli embeddings) e,
-   solo se hai RAM per il modello batch del sogno, `ollama pull <OLLAMA_BATCH_MODEL>`.
-6. Prova dalla shell di soul: `curl -s http://<HOST_OLLAMA>:11434/api/tags` → deve elencare
+5. Scarica gli embeddings, che sono l'indispensabile: `ollama pull nomic-embed-text` (~274 MB).
+   Senza, la chat va in errore e la memoria non funziona.
+6. Se il server ha RAM da spendere (≥32 GB liberi), scarica anche il modello della riflessione
+   notturna: `ollama pull qwen3:30b-a3b` (~18 GB). È un **MoE**: ha 30 miliardi di parametri ma ne
+   attiva ~3 per token, quindi su CPU va a una velocità sensata, che un modello denso della stessa
+   taglia non avrebbe. Il sogno gira alle 02:30 e non ha fretta, ma "non ha fretta" non vuol dire
+   "può metterci sei ore".
+7. Verifica cosa c'è: `ollama list` → devi vedere entrambi.
+8. Prova dalla shell di soul: `curl -s http://<HOST_OLLAMA>:11434/api/tags` → deve elencare
    `nomic-embed-text`.
 
 ### 2.4 soul-api
@@ -189,15 +194,25 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
 
 1. Tipo: **Application → Dockerfile**. Stesso repo, Dockerfile: `ops/docker/jobs.Dockerfile`.
 2. Variabili: `DATABASE_URL` (come soul) · `OLLAMA_URL` · `OLLAMA_EMBED_MODEL=nomic-embed-text` ·
-   `OLLAMA_BATCH_MODEL=<OLLAMA_BATCH_MODEL>` · `UGO_DATA_KEY=<UGO_DATA_KEY>` · `S3_ENDPOINT` ·
+   `OLLAMA_BATCH_MODEL` (**lascialo vuoto**, vedi sotto) · `UGO_DATA_KEY=<UGO_DATA_KEY>` · `S3_ENDPOINT` ·
    `S3_ACCESS_KEY` · `S3_SECRET_KEY` · `S3_BUCKET_AUDIO=ugo-audio` · `S3_BUCKET_BACKUP=ugo-backup` ·
    `UGO_WHISPER_MODEL=large-v3` · `UGO_AUDIO_RETENTION_DAYS=90` · `HF_TOKEN=<HF_TOKEN>` (opzionale:
    senza, la diarizzazione degrada a mono-speaker) · `TZ=Europe/Rome`.
-3. In **Scheduled Tasks** aggiungi un task: comando `python -m ugo_jobs.dream`, frequenza
+3. **Chi fa la riflessione notturna.** Ogni notte UGO rilegge la giornata e ne ricava ricordi, diario
+   e desideri. Serve un modello linguistico, e hai due strade:
+   - **`OLLAMA_BATCH_MODEL=qwen3:30b-a3b`** (scaricato al §2.3) → la riflessione è **gratis** e non
+     esce dal nostro ferro: la parte più intima della giornata — cosa ha capito, cosa si è segnato —
+     non passa da nessuna API. Vuole ~24 GB di RAM per Ollama. **Se hai la RAM, è questa.**
+   - **`OLLAMA_BATCH_MODEL` vuoto** → usa l'API Anthropic in batch (metà prezzo), passando dal
+     salvadanaio come tutto il resto. Pochi centesimi a notte, niente da scaricare.
+   In entrambi i casi la rete di sicurezza c'è: se il modello locale non risponde, il sogno passa
+   all'API da solo e la notte non salta. È una variabile d'ambiente, non una decisione strutturale:
+   puoi cambiare idea quando vuoi.
+4. In **Scheduled Tasks** aggiungi un task: comando `python -m ugo_jobs.dream`, frequenza
    `30 2 * * *` (Coolify usa il fuso del server: verifica che sia Europe/Rome, altrimenti converti).
-4. Disattiva l'avvio continuo del container (il job gira solo a schedulazione). Limite RAM: 8 GB
+5. Disattiva l'avvio continuo del container (il job gira solo a schedulazione). Limite RAM: 8 GB
    (whisper large-v3 su CPU). **Deploy** dell'immagine.
-5. Prova manuale: **Execute Command** → `python -m ugo_jobs.dream --date <IERI>`. Risultato atteso:
+6. Prova manuale: **Execute Command** → `python -m ugo_jobs.dream --date <IERI>`. Risultato atteso:
    una riga JSON `{"dream_report": …}` senza errori.
 
 ### 2.6 vexa (stack riunioni)
@@ -465,8 +480,8 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 | Valore | Cosa metterci |
 |---|---|
 | `<OWNER_NAME>` | come UGO chiama casa tua |
-| `<OLLAMA_RAM_LIMIT>` | 4 GB se Ollama fa solo embeddings; ~24 GB se ci gira anche il MoE del sogno |
-| `<OLLAMA_BATCH_MODEL>` | il modello del sogno; lascialo perdere al primo giro e usa il fallback API |
+| `<OLLAMA_RAM_LIMIT>` | 4 GB se Ollama fa solo embeddings; **24 GB** se ci gira anche il MoE del sogno |
+| `<OLLAMA_BATCH_MODEL>` | `qwen3:30b-a3b` se hai ≥32 GB di RAM libera, altrimenti vuoto (§2.5) |
 | `<IP_LAN_IOT>` | l'IP su cui esporre MQTT, solo se userai il Nano 33 |
 
 I segnaposto rimanenti (`<DATA>`, `<DATA_PERSA>`, `<IERI>`) sono date che scriverai al momento, nel
