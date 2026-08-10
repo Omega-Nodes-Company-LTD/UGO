@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.7.0"
+version: "0.8.0"
 last_updated: "2026-08-07"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -14,9 +14,9 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 ## 1. Situazione in una riga
 
-**Fasi 0–5 (parte software): COMPLETATE** — tutto verificato su infrastruttura reale. ADR-012 e
-ADR-013 **accettati e implementati**; runbook di deploy pronto in [`OPS_COOLIFY.md`](./OPS_COOLIFY.md)
-(mancano solo i valori dei placeholder). Col device/server: validazioni on-device (Fase 2/4), deploy
+**Fasi 0–5 (parte software) + Gruppo A del backlog: COMPLETATI** — tutto verificato su infrastruttura
+reale. ADR-012 e ADR-013 **accettati e implementati**; runbook di deploy pronto in
+[`OPS_COOLIFY.md`](./OPS_COOLIFY.md) (mancano solo i valori dei placeholder). Col device/server: validazioni on-device (Fase 2/4), deploy
 Vexa + Meet di prova (Fase 5), gusci (Fase 6 — il proprietario ha design da una sessione chat
 precedente, da integrare in `hardware/shell/`). Firmware Arduino accantonato (decisione proprietario).
 
@@ -224,6 +224,23 @@ Postgres+pgvector reale, Ollama reale con `nomic-embed-text`, stub Messages-API 
    dentro la toolchain deprecata di `drizzle-kit`, solo dev, non nel runtime): sotto soglia di blocco,
    da rivalutare al prossimo bump di drizzle-kit.
 
+## 6-bis. Backlog di consolidamento — Gruppo A (chiuso)
+
+Sei buchi di conformità/robustezza trovati rileggendo spec e skill a fasi concluse, tutti chiusi
+prima del deploy:
+
+| # | Voce | Esito |
+|---|---|---|
+| A1 | Diritto all'oblio (`ugo forget --person`) | ✅ redazione del nome su **tutta** la biografia (anche righe non collegate), speaker, payload jsonb; memorie **re-embeddate** perché il vettore conserva il nome; audit senza PII; CLI + `POST /v1/privacy/forget` |
+| A2 | Portabilità dei dati | ✅ `ugo export` + `GET /v1/privacy/export`: JSON completo con corpi decifrati |
+| A3 | Restore del backup mai provato | ✅ `ugo_jobs.restore` + test round-trip su Postgres **vergine**; sezione disaster recovery nel runbook |
+| A4 | `ignored_day`/`solitude_hour` orfani | ✅ `SolitudeMonitor` li emette dai dati ogni 15 min, con marcatori idempotenti su `events` |
+| A5 | Nessuna auth interna; `/v1/jobs/dream` mancante | ✅ bearer token timing-safe sulle rotte distruttive/costose, **boot rifiutato** in produzione senza token; endpoint del sogno che dice la verità su cosa è successo |
+| A6 | CI assente | ✅ GitHub Actions: static → integration → e2e → pytest, con cache dei modelli |
+
+Bug latente trovato strada facendo: `faster-whisper` era importato ma non dichiarato in
+`pyproject.toml` — l'immagine di produzione dei jobs sarebbe esplosa al primo ingest audio.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -236,7 +253,7 @@ Postgres+pgvector reale, Ollama reale con `nomic-embed-text`, stub Messages-API 
 
 ## 8. Prossimo passo operativo
 
-Il software delle Fasi 0–5 è completo. Le prossime mosse dipendono dal proprietario:
+Il software delle Fasi 0–5 e il Gruppo A del backlog sono completi. Le prossime mosse:
 
 1. ~~Decisioni ADR~~ — **accettate e implementate** (ADR-012: `psyche_baselines` + deriva umore
    ±0.02 clampata; ADR-013: voce in stanza via corpo di casa come interim).
@@ -245,7 +262,11 @@ Il software delle Fasi 0–5 è completo. Le prossime mosse dipendono dal propri
 3. **Primo deploy** sul server seguendo il runbook: lì si chiudono cache-hit reale, pull modelli,
    cron del sogno, stack Vexa + Meet di prova.
 4. **Col telefono**: kiosk, STT/TTS reali, MediaPipe/camera, Tailscale mobile, Vosk wake word.
-5. **Fase 6 — Gusci**: sessione dedicata col prompt GUSCI; servono le misure col calibro.
+5. **Fase 6 — Gusci**: sessione dedicata; il proprietario ha già dei design da una sessione chat
+   precedente, da integrare in `hardware/shell/` con `params.py` e coupon di calibrazione.
+6. **Backlog gruppi B/C/D** (12 voci residue): compattazione `events`, coda offline su IndexedDB,
+   advisory lock migrazioni, `/v1/stats`, fallback API batch, digest post-call, Glyph, scoping
+   cronologia per persona, wake word, MediaPipe, `/documentation`, test "giornata di vita".
 
 ## Prossimi Passi
 

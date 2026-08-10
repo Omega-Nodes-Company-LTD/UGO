@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # tests pull real containers; keep Testcontainers quiet and reuse-free
+  TESTCONTAINERS_RYUK_DISABLED: "false"
+
+jobs:
+  # Fast gate: types, lint and pure unit tests. Must stay under a couple of
+  # minutes so a red build is noticed while the change is still fresh.
+  static:
+    name: build · lint · typecheck · unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo build lint typecheck test
+      - name: audit (blocks on HIGH/CRITICAL only)
+        run: pnpm audit --audit-level high
+
+  # Real infrastructure, per TESTING_PLAYBOOK: Postgres+pgvector, Mosquitto,
+  # MinIO and Ollama containers. ubuntu-latest ships a working Docker daemon.
+  integration:
+    name: integration (real containers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: cache the embedding model between runs
+        uses: actions/cache@v4
+        with:
+          path: ~/.ugo-ollama
+          key: ollama-nomic-embed-text-v1
+      - run: mkdir -p ~/.ugo-ollama
+      - run: pnpm test:integration
+        env:
+          UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
+
+  e2e:
+    name: e2e (real browser vs real soul)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter face exec playwright install --with-deps chromium
+      - uses: actions/cache@v4
+        with:
+          path: ~/.ugo-ollama
+          key: ollama-nomic-embed-text-v1
+      - run: mkdir -p ~/.ugo-ollama
+      - run: pnpm test:e2e
+        env:
+          UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/face/test-results/
+          retention-days: 7
+
+  jobs-python:
+    name: jobs (dream, whisper on CPU)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: espeak-ng provides the synthetic voice for the ingest fixture
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends espeak-ng
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ugo-ollama
+            ~/.ugo-whisper
+          key: models-nomic-whisperbase-v1
+      - run: mkdir -p ~/.ugo-ollama ~/.ugo-whisper
+      - working-directory: ops/jobs
+        run: pip install -e ".[test]"
+      - working-directory: ops/jobs
+        run: pytest -q
+        env:
+          UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
+          UGO_TEST_WHISPER_MODELS: /home/runner/.ugo-whisper

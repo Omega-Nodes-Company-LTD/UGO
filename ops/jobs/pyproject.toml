@@ -9,6 +9,8 @@ dependencies = [
     "boto3>=1.35",
     "pydantic>=2.9",
     "cryptography>=43.0",
+    # ingest.py transcribes on CPU (ADR-001); heavy, imported lazily
+    "faster-whisper>=1.1",
 ]
 
 [project.optional-dependencies]
