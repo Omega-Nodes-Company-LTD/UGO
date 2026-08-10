@@ -17,7 +17,7 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
     { variable: "noia", amount: -0.2 },
   ],
   compliment: [{ variable: "umore", amount: 0.05 }],
-  /** applied once per day by the night job when ignored >24h */
+  /** emitted by soul's SolitudeMonitor after 24h without being addressed */
   ignored_day: [{ variable: "umore", amount: -0.1 }],
   /** RH > 70% sustained */
   high_humidity: [{ variable: "umore", amount: -0.05 }],
@@ -28,7 +28,7 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
   shake: [{ variable: "stress", amount: 0.1 }],
   meeting_completed: [{ variable: "curiosita", amount: 0.1 }],
   new_topic: [{ variable: "curiosita", amount: 0.05 }],
-  /** one hour alone */
+  /** one hour alone, emitted by soul's SolitudeMonitor */
   solitude_hour: [{ variable: "noia", amount: 0.05 }],
 };
 

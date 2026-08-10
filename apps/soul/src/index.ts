@@ -6,6 +6,7 @@ import { ChatService } from "./services/chatService.js";
 import { FaceGateway } from "./services/faceGateway.js";
 import { MeetingsService } from "./services/meetingsService.js";
 import { PsycheService } from "./services/psycheService.js";
+import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { buildServer } from "./server.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -94,6 +95,16 @@ if (meetings !== undefined) {
   pollTimer.unref();
 }
 
+// §5.3: loneliness and neglect are perturbations no sensor can emit
+const solitude = new SolitudeMonitor({ db, psyche });
+const SOLITUDE_TICK_MS = 15 * 60_000;
+const solitudeTimer = setInterval(() => {
+  solitude.tick().catch((error: unknown) => {
+    app.log.warn(error, "solitude tick failed");
+  });
+}, SOLITUDE_TICK_MS);
+solitudeTimer.unref();
+
 const snapshotTimer = setInterval(() => {
   psyche.snapshot().catch((error: unknown) => {
     app.log.error(error, "periodic psyche snapshot failed");
@@ -104,6 +115,7 @@ snapshotTimer.unref();
 const shutdown = (signal: NodeJS.Signals): void => {
   app.log.info({ signal }, "shutting down");
   clearInterval(snapshotTimer);
+  clearInterval(solitudeTimer);
   void Promise.allSettled([app.close(), db.$client.end()]).then(() => {
     process.exit(0);
   });
