@@ -1,4 +1,4 @@
-import { createDbClient } from "@ugo/db";
+import { createDbClient, runMigrations } from "@ugo/db";
 import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
@@ -22,6 +22,32 @@ try {
   // Fail fast with variable NAMES only — never values (they may be secrets).
   console.error(error instanceof EnvValidationError ? error.message : error);
   process.exit(1);
+}
+
+/**
+ * Migrations run at boot, not from a deployment step somebody has to remember
+ * to configure. They are additive by contract (CLAUDE.md rule 5) and guarded
+ * by a Postgres advisory lock, so two containers starting together is safe.
+ *
+ * The failure this prevents is not hypothetical: without them soul crash-loops
+ * on `relation "psyche_baselines" does not exist`, which reads like a bug in
+ * the code rather than a missing step in the platform.
+ */
+if (env.UGO_AUTO_MIGRATE) {
+  try {
+    await runMigrations(env.DATABASE_URL);
+    console.log(JSON.stringify({ level: "info", msg: "migrations applied" }));
+  } catch (error) {
+    // never print the URL: it carries the password
+    console.error(
+      JSON.stringify({
+        level: "fatal",
+        msg: "migrations failed",
+        detail: error instanceof Error ? error.message : "unknown",
+      }),
+    );
+    process.exit(1);
+  }
 }
 
 const db = createDbClient(env.DATABASE_URL);
