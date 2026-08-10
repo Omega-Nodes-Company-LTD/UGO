@@ -33,9 +33,10 @@ UGO/
 │   ├── ARCHITECTURE.md        # architettura + perché delle scelte
 │   ├── STATE.md               # questo file
 │   └── ADR/README.md          # indice: 001–011 in PROGETTO §2, prossimo 012
+├── .github/workflows/ci.yml   # static · integration · e2e · pytest
 ├── apps/
-│   ├── soul/                  # Fastify: /health, /v1/* REST, WS /v1/face, /debug/chat
-│   └── face/                  # webapp kiosk: canvas porcetto, WS client+coda offline, sensi, voce, E2E
+│   ├── soul/                  # Fastify: /health, /v1/* REST (guarded), WS /v1/face, CLI `ugo`
+│   └── face/                  # webapp kiosk + portable: canvas porcetto, coda offline, sensi, E2E
 ├── packages/
 │   ├── db/                    # schema Drizzle §5.2 completo, migrazioni, client, migrate-cli
 │   ├── shared/                # parseEnv, crypto AES-256-GCM, contratti Zod, costanti/topic
@@ -43,14 +44,13 @@ UGO/
 │   ├── prompts/               # identity.it.md + rules.it.md (blocchi [CACHED] §5.5)
 │   └── memory/                # embeddings Ollama, retrieval re-rank, llmClient budget guard
 ├── tests/factories/           # Faker + embedding da seed + helper infra (ollama reale, stub LLM)
-└── ops/docker/
-    ├── compose.dev.yml        # postgres+mosquitto+ollama su rete internal, migrate one-shot, soul
-    ├── soul.Dockerfile        # multi-stage, non-root, read-only, HEALTHCHECK
-    └── mosquitto/             # conf (auth obbligatoria), ACL least-privilege, generate-passwd.sh
+└── ops/
+    ├── docker/                # compose.dev (reti internal), soul/jobs Dockerfile non-root, mosquitto
+    └── jobs/                  # sogno: ingest audio, riflessione, igiene, backup, restore
 ```
 
-Assenti (come previsto): `apps/meet-face` (post-v1), `ops/jobs` (Fase 3), `firmware/` (accantonato),
-`hardware/` (Fase 6), `documentation/` (prima feature utente completa → in stesura da Fase 2 on-device).
+Assenti (come previsto): `apps/meet-face` (post-v1), `firmware/` (accantonato), `hardware/` (Fase 6),
+`documentation/` (manuale utente: nel backlog gruppo D).
 
 ## 3. Disallineamenti — RISOLTI
 
