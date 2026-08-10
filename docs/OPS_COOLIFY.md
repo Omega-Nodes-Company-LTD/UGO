@@ -66,8 +66,8 @@ bussare. È gratis fino a 100 dispositivi e non richiede di toccare il router n�
 2. Verifica che nessuna porta di datastore sia pubblica: `ss -tlnp | grep -E ':5432|:1883|:11434'`.
    Risultato atteso: **nessuna riga** con `0.0.0.0` o `[::]` (solo `127.0.0.1` o IP `100.x` della
    tailnet, se presenti).
-3. Crea la rete Docker privata condivisa dalle risorse: `docker network create ugo-backend`.
-   Risultato atteso: un ID di rete stampato a video.
+3. Non serve creare reti a mano: Coolify ne ha già una, e ogni risorsa con
+   **Connect To Predefined Network** spuntato ci finisce dentro. È così che si parlano fra loro.
 4. Apri Coolify nel browser (dalla tailnet), vai su **Projects** e clicca **+ Add**. Nome: `ugo`.
 5. Dentro il progetto seleziona l'ambiente **production** (Coolify lo crea di default).
 6. In **Sources**, collega il repository Git `<REPO_URL>` (GitHub App o deploy key). Risultato
@@ -86,8 +86,8 @@ bussare. È gratis fino a 100 dispositivi e non richiede di toccare il router n�
 ## 2. Risorse, una per una
 
 Per ogni risorsa: **+ New** → scegli il tipo indicato → assegnala al progetto `ugo` / ambiente
-`production`. In **Advanced** → **Network**, collega ogni risorsa alla rete `ugo-backend`
-(opzione *Connect to Predefined Network*).
+`production`, e spunta **Connect To Predefined Network**: è ciò che le rende raggiungibili fra loro
+per nome, senza esporre niente all'esterno.
 
 > **Le due cose che Coolify fa da solo e vanno disfatte, su ogni risorsa.**
 > 1. **Domains** — Coolify ci mette da solo un dominio pubblico tipo
@@ -137,13 +137,21 @@ salute riporterà `mqtt: "off"` — non configurato, che non è un guasto — e 
 Ollama è già installato come container in Coolify: **non crearne un altro**. Due Ollama sullo stesso
 server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo raggiungibile da UGO.
 
-1. Apri la risorsa Ollama esistente → **Advanced** → **Network** → collegala alla rete
-   `ugo-backend` (*Connect to Predefined Network*). È l'unico passo indispensabile.
-2. Annota il **nome del container** che Coolify mostra nella pagina della risorsa: è il valore da
-   usare in `OLLAMA_URL=http://<HOST_OLLAMA>:11434` per soul e per i jobs.
+1. Apri la risorsa Ollama esistente → **General** → spunta **Connect To Predefined Network**.
+   È l'unico passo indispensabile perché soul possa parlarci.
+2. Ricava il **nome esatto del container**: non è il nome che leggi nella pagina (quello è lo stack).
+   Dal **Terminal** del server: `docker ps --format '{{.Names}}' | grep -i ollama`. La riga che
+   contiene `ollama-api` (non `open-webui`) è il tuo `<HOST_OLLAMA>`, e va in
+   `OLLAMA_URL=http://<HOST_OLLAMA>:11434`.
+   Verifica subito che sia quello giusto: `docker exec <HOST_OLLAMA> ollama --version`.
 3. Verifica che **non** sia pubblicamente esposta: nessun dominio assegnato, e in **Ports** nessuna
    mappatura su `0.0.0.0`. Se una c'è, toglila: un endpoint Ollama aperto è un modello che chiunque
    può interrogare a spese tue.
+
+> **Se hai installato Ollama come stack "with Open WebUI"**, controlla il servizio *Open Webui*: di
+> default Coolify gli dà un dominio pubblico `…sslip.io`. È una chat sul tuo Ollama raggiungibile da
+> Internet. Se non ti serve, cancella il dominio o ferma proprio quel servizio — a UGO serve solo
+> *Ollama Api*, mai la web UI.
 4. Volume persistente su `/root/.ollama`: se non c'è, aggiungilo ora. I modelli pesano gigabyte e
    senza volume li riscarichi a ogni redeploy.
 5. Scarica i modelli che servono, una volta sola — **Execute Command** sulla risorsa Ollama:
@@ -439,7 +447,7 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 | `<TAILSCALE_IP>` | `tailscale ip -4` sul server (§0.2) — è anche `<INDIRIZZO_UGO>` del pannello |
 | `<IP_HETZNER>` | l'IP pubblico del server: serve **solo** per il primo SSH, prima di Tailscale |
 | `<UTENTE>` | l'utente SSH che usi già (spesso `root`) |
-| `<HOST_POSTGRES>` `<HOST_MOSQUITTO>` `<HOST_OLLAMA>` | il nome del container, nella pagina di ogni risorsa Coolify |
+| `<HOST_POSTGRES>` `<HOST_OLLAMA>` | il nome **del container**, non dello stack: `docker ps --format '{{.Names}}'` sul server |
 | `<CONTAINER_POSTGRES>` | `docker ps` sul server, per i comandi `psql` di verifica |
 | `<REPO_URL>` | l'URL del repo Git di UGO |
 
