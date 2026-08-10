@@ -65,14 +65,16 @@ test("a minor is registered with no voice profile ever offered", async ({ page }
 
   // and the server refuses even if the request is made anyway
   const response = await page.evaluate(async (bearer) => {
-    const pack = await (await fetch("/v1/pack")).json();
-    const sofia = pack.beings.find((b: { displayName: string }) => b.displayName === "Sofia");
-    const res = await fetch(`/v1/beings/${sofia.id}/enroll/voice`, {
+    const pack = (await (await fetch("/v1/pack")).json()) as {
+      beings: { id: string; displayName: string }[];
+    };
+    const sofia = pack.beings.find((being) => being.displayName === "Sofia");
+    const res = await fetch(`/v1/beings/${sofia?.id ?? "missing"}/enroll/voice`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${bearer}` },
       body: JSON.stringify({ objectKey: "inbox/whatever.webm" }),
     });
-    return { status: res.status, body: await res.json() };
+    return { status: res.status, body: (await res.json()) as unknown };
   }, token());
   expect(response.status).toBe(403);
   expect(JSON.stringify(response.body)).toContain("minor_biometrics_forbidden");
@@ -92,7 +94,7 @@ test("recording a voice queues an enrollment for tonight's dream", async ({ page
   // the request is on record, waiting for the night job
   const queued = await page.evaluate(async () => {
     const res = await fetch("/v1/pack");
-    return (await res.json()).beings.length;
+    return ((await res.json()) as { beings: unknown[] }).beings.length;
   });
   expect(queued).toBeGreaterThan(0);
 });

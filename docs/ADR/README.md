@@ -22,4 +22,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [014](./014-il-branco-non-l-utente.md) | Il branco, non l'utente | Accettata |
 | [015](./015-genoma-versionato.md) | Genoma versionato (ossatura dati) | Accettata |
 | [016](./016-percezione-multimodale-e-biometria.md) | Percezione multimodale, biometria e enrollment vocale | Accettata |
-| 017 | *(prossimo numero disponibile)* | — |
+| [017](./017-hosting-su-server-dedicato-hetzner.md) | Il "local" di local-first è un server dedicato in UE | Accettata |
+| 018 | *(prossimo numero disponibile)* | — |

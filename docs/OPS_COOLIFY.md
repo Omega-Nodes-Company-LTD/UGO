@@ -8,15 +8,61 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 # Runbook — Deploy di UGO su Coolify
 
-Vincoli sempre attivi (PROGETTO §7, ADR-007): **nessun servizio esposto pubblicamente**, datastore
-solo su rete Docker privata, accesso umano solo via Tailscale/WireGuard, segreti solo nelle
-variabili criptate di Coolify. I valori tra parentesi angolari (`<COSÌ>`) sono tuoi: l'elenco
-completo da fornire è in fondo.
+Vincoli sempre attivi (PROGETTO §7, ADR-007, ADR-017): **nessun servizio esposto pubblicamente**,
+datastore solo su rete Docker privata, accesso umano solo attraverso la rete privata Tailscale,
+segreti solo nelle variabili criptate di Coolify. I valori tra parentesi angolari (`<COSÌ>`) sono
+tuoi: l'elenco completo da fornire è in fondo.
+
+Il server è un **dedicato Hetzner**, non una macchina in casa (ADR-017). Due conseguenze pratiche,
+entrambe coperte sotto: il telefono non è sulla stessa rete del server, quindi serve Tailscale
+(§0); e la copia offline di `UGO_DATA_KEY` non è un consiglio ma un passo obbligatorio (§1.7),
+perché è l'unica ragione per cui i backup restano illeggibili a chiunque non sia tu.
+
+## 0. Tailscale — la rete privata fra i tuoi dispositivi
+
+Se non l'hai mai usato: Tailscale mette **i tuoi dispositivi nella stessa stanza** anche quando non
+lo sono. Il server a Hetzner e il tuo telefono si vedono a un indirizzo che esiste solo per te.
+Da fuori, UGO non è "protetto da password": semplicemente **non esiste**, non c'è nessuna porta a cui
+bussare. È gratis fino a 100 dispositivi e non richiede di toccare il router né di avere un IP fisso.
+
+### 0.1 Crea la rete
+
+1. Vai su `https://login.tailscale.com/start` e fai login (Google, Microsoft o GitHub: non serve
+   creare l'ennesima password). Risultato atteso: una console vuota, sezione **Machines**.
+2. Non cambiare nessuna impostazione. I default vanno bene.
+
+### 0.2 Metti il server nella rete
+
+1. Entra nel server via SSH come fai di solito: `ssh root@<IP_HETZNER>`.
+2. Installa: `curl -fsSL https://tailscale.com/install.sh | sh`. Risultato atteso: termina senza
+   errori e `tailscale version` risponde.
+3. Collega la macchina: `tailscale up`. Stampa un link `https://login.tailscale.com/a/...`:
+   **aprilo dal browser** e conferma. Risultato atteso: nella console, sotto **Machines**, compare il
+   server.
+4. Leggi l'indirizzo privato del server: `tailscale ip -4`. Esce qualcosa tipo `100.101.102.103`.
+   **Questo è `<TAILSCALE_IP>`**, il valore che userai in tutto il resto del runbook. Annotalo.
+5. Rendilo permanente: `tailscale up --ssh=false --accept-routes` non serve; basta verificare che il
+   servizio parta da solo con `systemctl is-enabled tailscaled` → atteso `enabled`.
+
+### 0.3 Metti il telefono nella rete
+
+1. Installa **Tailscale** dal Play Store sul Nothing Phone.
+2. Apri l'app e fai login **con lo stesso account** del punto 0.1. Risultato atteso: l'interruttore
+   in alto diventa verde e nella lista compare il server.
+3. Prova subito: dal browser del telefono apri `http://<TAILSCALE_IP>:3000/health`. Finché soul non
+   è deployato riceverai un errore di connessione — è normale; quello che conta è che al punto §4
+   questa stessa URL risponderà.
+4. Lascia l'app attiva. Consuma pochissimo, e serve anche quando sei fuori casa in rete mobile: è
+   così che il corpo "in giro" rimanda a casa le registrazioni.
+
+> **Se un giorno perdi l'accesso**: la console di Tailscale (dal browser, da qualunque dispositivo)
+> ti fa sempre rientrare, e da lì puoi rimuovere un dispositivo rubato con un clic. Non c'è nessuno
+> stato sul telefono da recuperare.
 
 ## 1. Prerequisiti server
 
-1. Collegati al server via SSH attraverso la tailnet: `ssh <UTENTE>@<TAILSCALE_HOST>`. Devi entrare
-   senza passare da IP pubblici.
+1. Collegati al server via SSH: da adesso puoi usare l'indirizzo privato,
+   `ssh <UTENTE>@<TAILSCALE_IP>` (§0.2), invece dell'IP pubblico di Hetzner.
 2. Verifica che nessuna porta di datastore sia pubblica: `ss -tlnp | grep -E ':5432|:1883|:11434'`.
    Risultato atteso: **nessuna riga** con `0.0.0.0` o `[::]` (solo `127.0.0.1` o IP `100.x` della
    tailnet, se presenti).
@@ -26,6 +72,16 @@ completo da fornire è in fondo.
 5. Dentro il progetto seleziona l'ambiente **production** (Coolify lo crea di default).
 6. In **Sources**, collega il repository Git `<REPO_URL>` (GitHub App o deploy key). Risultato
    atteso: il repo compare tra le sorgenti selezionabili.
+
+### 1.7 La chiave dei dati, fuori dal server (obbligatorio)
+
+1. Genera la chiave: `openssl rand -base64 32`. È `<UGO_DATA_KEY>`.
+2. **Salvane una copia fuori da Hetzner**: gestore di password, o un foglio nel cassetto. Non nel
+   repo, non in un file sul server.
+3. Perché non è un consiglio (ADR-017): con la chiave e il database sulla stessa macchina, la
+   cifratura non protegge da chi ottiene root lì sopra — protegge i **backup**. Se un giorno il
+   bucket S3 finisce nelle mani sbagliate, quei dump restano byte illeggibili solo grazie a questa
+   copia. E se perdi la chiave, i backup diventano illeggibili **anche per te**: non c'è recupero.
 
 ## 2. Risorse, una per una
 
