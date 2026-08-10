@@ -1,7 +1,5 @@
 /** The pack table: render, create, and amend the protections. */
 export const PACK_JS = `
-const SPECIES_LABEL = { human: "persona", dog: "cane", parrot: "pappagallo", reptile: "rettile" };
-
 // --- il branco -------------------------------------------------------------
 let pack = [];
 // Two quick actions start two refreshes, and without this the SLOWER one wins
