@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "sync": "pnpm --filter face build && cap sync android",
+    "sync": "pnpm turbo build --filter=face && cap sync android",
     "apk": "pnpm run sync && cd android && ./gradlew assembleDebug",
     "lint": "echo \"no sources to lint: the web app lives in apps/face\"",
     "typecheck": "echo \"no TypeScript here: capacitor config only\""

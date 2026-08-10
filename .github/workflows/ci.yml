@@ -164,7 +164,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: build the web app the shell wraps
-        run: pnpm --filter face build
+        # turbo, not a bare filter: the face depends on @ugo/shared, and only
+        # turbo knows to build the workspace dependency first
+        run: pnpm turbo build --filter=face
       - name: sync capacitor
         working-directory: apps/face-android
         run: npx cap sync android
