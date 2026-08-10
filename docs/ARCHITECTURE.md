@@ -68,6 +68,11 @@ deve vivere in un database transazionale.
 Esiste **una sola** uscita verso Internet nel percorso critico: la Claude API per la chat real-time.
 Tutto il resto (embeddings, trascrizione, diarizzazione, riflessione notturna) gira su CPU locale.
 
+> **Dove sta "locale"** (ADR-017): il ferro è un dedicato Hetzner in UE, non una macchina in casa.
+> Ogni «in casa» qui sotto significa «sul nostro server». La cifratura a riposo protegge backup,
+> snapshot e dump esfiltrati — **non** chi ottiene root sulla macchina viva, dove chiave e dati
+> convivono. Per questo la copia offline di `UGO_DATA_KEY` è un requisito, non un consiglio.
+
 **Perché questo confine è dove è** (ADR-001 + ADR-007): il server non ha GPU e un server GPU di terzi è
 escluso. La chat real-time ha un vincolo di latenza che una CPU non regge; il lavoro batch notturno no,
 quindi resta in casa. Risultato: l'unico dato che esce è il contesto di un singolo turno di conversazione,
@@ -80,8 +85,10 @@ Tre livelli di esposizione, in ordine decrescente di privilegio:
 
 1. **Reti Docker private** — `postgres`, `mosquitto`, `ollama`, `jobs`. Nessuna porta pubblicata sull'host.
    Raggiungibili solo dai container che ne hanno bisogno.
-2. **Tailnet** — `soul-api` è raggiungibile dai corpi (telefono in casa e in giro) via Tailscale/WireGuard.
-   Nessun dominio pubblico, nessun ingress su Internet.
+2. **Tailnet** — `soul-api` è raggiungibile dai corpi (telefono in casa e in giro) e dal pannello
+   operatore `/admin` via Tailscale/WireGuard. Nessun dominio pubblico, nessun ingress su Internet.
+   Con il server fuori casa (ADR-017) questo livello non è più una comodità: è l'unica cosa che
+   tiene soul irraggiungibile dal resto di Internet.
 3. **LAN/VLAN IoT** — `mosquitto` sulla 1883 per il solo Nano 33 IoT, con credenziali dedicate al device
    e ACL ristretta ai topic `ugo/#`.
 
@@ -408,8 +415,9 @@ Una modifica che viola uno di questi punti richiede un ADR, non una PR:
 | ADR-014 Il branco, non l'utente | §5 e §5.1-bis; `beings`/`bonds`/`relations` |
 | ADR-015 Genoma versionato | `gosini`/`trait_sets`; `gosino_id` su ogni tabella di stato |
 | ADR-016 Percezione multimodale | `perception_events`, biometrici cifrati, blocco 3-bis del prompt |
+| ADR-017 Ferro dedicato in UE | §2.1 confine di fiducia; tailnet obbligatoria; chiave dati offline |
 
-Nuove decisioni architetturali → `docs/ADR/NNN-titolo.md` a partire da **017**.
+Nuove decisioni architetturali → `docs/ADR/NNN-titolo.md` a partire da **018**.
 
 ## Prossimi Passi
 

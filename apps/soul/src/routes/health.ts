@@ -6,7 +6,8 @@ import { z } from "zod";
 
 const CHECK_TIMEOUT_MS = 500;
 
-const checkResult = z.enum(["ok", "error"]);
+/** "off" = deliberately not configured, which is not a failure. */
+const checkResult = z.enum(["ok", "error", "off"]);
 type CheckResult = z.infer<typeof checkResult>;
 
 // Response is validated on the way out too (Zod at every boundary) and by
@@ -19,7 +20,7 @@ export type HealthResponse = z.infer<typeof healthResponseSchema>;
 
 export interface HealthDeps {
   db: DbClient;
-  mqtt: { url: string; username?: string; password?: string };
+  mqtt: { url?: string | undefined; username?: string | undefined; password?: string | undefined };
   ollamaUrl: string;
 }
 
@@ -40,6 +41,7 @@ async function checkDb(db: DbClient): Promise<CheckResult> {
 }
 
 async function checkMqtt(target: HealthDeps["mqtt"]): Promise<CheckResult> {
+  if (target.url === undefined) return "off";
   try {
     const client = await mqtt.connectAsync(target.url, {
       ...(target.username !== undefined && { username: target.username }),
@@ -75,7 +77,11 @@ export function registerHealthRoute(app: FastifyInstance, deps: HealthDeps): voi
     ]);
     const checks = { db, mqtt: broker, ollama };
     const status: HealthResponse["status"] =
-      db === "error" ? "unavailable" : broker === "ok" && ollama === "ok" ? "ok" : "degraded";
+      db === "error"
+        ? "unavailable"
+        : (broker === "ok" || broker === "off") && ollama === "ok"
+          ? "ok"
+          : "degraded";
     const body = healthResponseSchema.parse({ status, checks });
     return reply.code(status === "unavailable" ? 503 : 200).send(body);
   });

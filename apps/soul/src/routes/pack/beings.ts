@@ -1,0 +1,166 @@
+import {
+  PRIME_GOSINO_ID,
+  beings,
+  bonds,
+  perceptionEvents,
+  recognitionProfiles,
+  type DbClient,
+} from "@ugo/db";
+import { KNOWN_SPECIES, profileFor } from "@ugo/shared";
+import { and, desc, eq } from "drizzle-orm";
+import type { FastifyInstance } from "fastify";
+import { z } from "zod";
+import { BeingNotFoundError, type BeingsService } from "../../services/beingsService.js";
+import {
+  createBeingSchema,
+  enrollSchema,
+  patchBeingSchema,
+  problem,
+  uuidParam,
+  type PackRouteDeps,
+} from "./shared.js";
+
+/** The beings themselves: read, create, amend, and teach a voice. */
+export function registerBeingRoutes(
+  app: FastifyInstance,
+  deps: PackRouteDeps,
+  service: BeingsService,
+): void {
+  const gosinoId = deps.gosinoId ?? PRIME_GOSINO_ID;
+  const db: DbClient = deps.db;
+
+  app.get("/v1/pack", async (_request, reply) => {
+    const rows = await db
+      .select({
+        id: beings.id,
+        displayName: beings.displayName,
+        species: beings.species,
+        kind: beings.kind,
+        isMinor: beings.isMinor,
+        noVision: beings.noVision,
+        noAudio: beings.noAudio,
+        familiarity: bonds.familiarity,
+        affinity: bonds.affinity,
+        // whether UGO can already recognize the voice, and how well fed the
+        // centroid is — the panel shows it so enrollment is not guesswork
+        voiceSamples: recognitionProfiles.sampleCount,
+      })
+      .from(beings)
+      .leftJoin(bonds, and(eq(bonds.beingId, beings.id), eq(bonds.gosinoId, gosinoId)))
+      .leftJoin(
+        recognitionProfiles,
+        and(eq(recognitionProfiles.beingId, beings.id), eq(recognitionProfiles.modality, "voice")),
+      )
+      .orderBy(desc(beings.createdAt));
+    return reply.send({
+      gosinoId,
+      beings: rows.map((row) => ({
+        ...row,
+        familiarity: row.familiarity ?? 0,
+        affinity: row.affinity ?? 0,
+        hasVoiceProfile: row.voiceSamples !== null,
+        voiceSamples: row.voiceSamples ?? 0,
+        channels: profileFor(deps.speciesMap, row.species).channels,
+      })),
+      knownSpecies: KNOWN_SPECIES,
+    });
+  });
+
+  app.post("/v1/beings", { preHandler: deps.guard }, async (request, reply) => {
+    const parsed = createBeingSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .type("application/problem+json")
+        .send(problem("Invalid being", 400, z.prettifyError(parsed.error)));
+    }
+    const { arrivalAt, notes, ...rest } = parsed.data;
+    const [created] = await db
+      .insert(beings)
+      .values({
+        ...rest,
+        ...(arrivalAt !== undefined && { arrivalAt }),
+        ...(notes !== undefined && { notes }),
+      })
+      .returning({ id: beings.id });
+    // the bond starts at zero: UGO is the newcomer, he has to earn it
+    if (created !== undefined) {
+      await db.insert(bonds).values({ gosinoId, beingId: created.id });
+    }
+    return reply.code(201).send({ id: created?.id });
+  });
+
+  /**
+   * Consent is not given once and for all: somebody can ask later not to be
+   * listened to. Setting that here DESTROYS the voiceprint (BeingsService)
+   * instead of merely ignoring it from now on.
+   */
+  app.patch("/v1/beings/:id", { preHandler: deps.guard }, async (request, reply) => {
+    const id = uuidParam(request.params);
+    const parsed = patchBeingSchema.safeParse(request.body);
+    if (id === undefined || !parsed.success) {
+      return reply
+        .code(400)
+        .type("application/problem+json")
+        .send(
+          problem("Invalid being patch", 400, parsed.success ? undefined : z.prettifyError(parsed.error)),
+        );
+    }
+    try {
+      return await reply.send(await service.update(id, parsed.data));
+    } catch (error) {
+      if (error instanceof BeingNotFoundError) {
+        return reply.code(404).type("application/problem+json").send(problem("Being not found", 404));
+      }
+      throw error;
+    }
+  });
+
+  /** "Cancella la mia voce, ma resto nel branco." */
+  app.delete("/v1/beings/:id/recognition/voice", { preHandler: deps.guard }, async (request, reply) => {
+    const id = uuidParam(request.params);
+    if (id === undefined) {
+      return reply.code(400).type("application/problem+json").send(problem("Invalid being id", 400));
+    }
+    return reply.send({ destroyed: await service.destroyVoice(id) });
+  });
+
+  app.post("/v1/beings/:id/enroll/voice", { preHandler: deps.guard }, async (request, reply) => {
+    const id = uuidParam(request.params);
+    const parsed = enrollSchema.safeParse(request.body);
+    if (id === undefined || !parsed.success) {
+      return reply
+        .code(400)
+        .type("application/problem+json")
+        .send(problem("Invalid enrollment request", 400));
+    }
+    const [being] = await db
+      .select({ isMinor: beings.isMinor, noAudio: beings.noAudio })
+      .from(beings)
+      .where(eq(beings.id, id));
+    if (being === undefined) {
+      return reply.code(404).type("application/problem+json").send(problem("Being not found", 404));
+    }
+    // refused here as well as in the job: the request must not even be filed
+    // for someone whose voice we have promised never to model (ADR-016)
+    if (being.isMinor || being.noAudio) {
+      return reply
+        .code(403)
+        .type("application/problem+json")
+        .send(
+          problem(
+            "Biometric enrollment refused",
+            403,
+            being.isMinor ? "minor_biometrics_forbidden" : "opted_out_of_audio",
+          ),
+        );
+    }
+    await db.insert(perceptionEvents).values({
+      gosinoId,
+      modality: "audio_speech",
+      beingId: id,
+      observed: { kind: "enrollment_requested", object_key: parsed.data.objectKey, channel: "home" },
+    });
+    return reply.code(202).send({ status: "queued" });
+  });
+}

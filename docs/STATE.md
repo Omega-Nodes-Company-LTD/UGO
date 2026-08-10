@@ -324,6 +324,7 @@ DPIA** — ADR-016 dice esattamente dove ricomincia la conversazione.
 |---|---|---|
 | esbuild MODERATE via drizzle-kit (dev-only) | Basso | Bump drizzle-kit quando esce il fix |
 | Python 3.11 nell'ambiente vs 3.12 in spec | Nullo fino a Fase 3 | Pin 3.12 nel Dockerfile di `ops/jobs` |
+| Chiave dati e database sulla stessa macchina (ADR-017) | La cifratura a riposo copre backup/snapshot/dump, non root sul server vivo | Copia offline di `UGO_DATA_KEY` obbligatoria (runbook §1.7); un KMS ha senso solo se il ferro diventa più di uno |
 | Encoder vocale MFCC, non neurale | Separa poche voci in casa; su rumore reale sarà più fragile | Vendorizzare pyannote/WeSpeaker dietro la porta `VoiceEncoder`; `recognition_profiles.model` impedisce di confondere i centroidi |
 | Perimetro biometrico non formalizzato | Nessuno finché l'enrollment resta sul corpo di casa | Rispondere alla domanda §6-quater prima di estendere il riconoscimento fuori casa |
 | Wake word senza asset del modello (~40 MB) | Interfaccia pronta, riconoscimento non attivo | Vendorizzare Vosk small-it sul device (validazione Fase 2 on-device) |

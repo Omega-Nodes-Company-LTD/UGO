@@ -1,5 +1,6 @@
 import { budgetLedger, events, memories, messages, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
+import type { PreHandler } from "./guard.js";
 import { desc, eq, sql } from "drizzle-orm";
 
 /**
@@ -15,10 +16,13 @@ export interface StatsDeps {
   db: DbClient;
   dailyBudgetUsd: number;
   timezone: string;
+  guard: PreHandler;
 }
 
 export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void {
-  app.get("/v1/stats", async (_request, reply) => {
+  // guarded: spend, counts and dream activity together describe when the
+  // house is awake and how much it talks — operational, but nobody else's
+  app.get("/v1/stats", { preHandler: deps.guard }, async (_request, reply) => {
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: deps.timezone }).format(new Date());
 
     const [spend] = await deps.db

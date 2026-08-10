@@ -109,3 +109,32 @@ jobs:
         env:
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
           UGO_TEST_WHISPER_MODELS: /home/runner/.ugo-whisper
+
+  images:
+    # The pipeline validated the source but never the artefacts, so a
+    # Dockerfile that had not kept up with the workspace graph sailed through
+    # every green run and only failed on the deployment server.
+    name: docker images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build soul image
+        run: docker build -f ops/docker/soul.Dockerfile -t ugo-soul:ci .
+      - name: soul resolves its workspace dependencies
+        run: |
+          docker run --rm ugo-soul:ci node -e "
+            Promise.all(['@ugo/memory','@ugo/psyche','@ugo/db','@ugo/shared'].map((m) => import(m)))
+              .then(() => console.log('all workspace deps resolve'))
+              .catch((error) => { console.error(error.message); process.exit(1); })"
+      - name: build jobs image
+        run: docker build -f ops/docker/jobs.Dockerfile -t ugo-jobs:ci .
+      # --entrypoint: the image's entrypoint IS the dream, so a bare command
+      # would be parsed as arguments to it
+      - name: jobs image has the dream and a pg_dump that matches the server
+        run: |
+          docker run --rm --entrypoint sh ugo-jobs:ci -c "
+            python -c 'import ugo_jobs.dream' &&
+            pg_dump --version | grep -q 'PostgreSQL) 16' &&
+            test \"\$(whoami)\" = ugo &&
+            echo 'dream imports, pg_dump 16, non-root'"
+
