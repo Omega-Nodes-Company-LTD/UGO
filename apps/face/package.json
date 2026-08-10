@@ -7,7 +7,7 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
-    "test": "echo 'no unit tests: face is a DOM app, covered by e2e (TESTING_PLAYBOOK §1/§4)'",
+    "test": "vitest run src",
     "test:e2e": "playwright test",
     "dev": "vite",
     "preview": "vite preview"
@@ -27,6 +27,7 @@
     "drizzle-orm": "^0.45.2",
     "testcontainers": "^12.1.0",
     "typescript": "~5.9.3",
-    "vite": "^8.2.1"
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
   }
 }

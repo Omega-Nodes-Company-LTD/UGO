@@ -12,6 +12,23 @@ export const FACE_STATES = [
 ] as const;
 export type FaceState = (typeof FACE_STATES)[number];
 
+/**
+ * Glyph LED patterns (§4.1). Kept as a closed set so soul and the face agree
+ * on meaning; the face degrades silently when the device has no Glyph SDK.
+ */
+export const GLYPH_PATTERNS = ["sleep", "alert", "listening", "thinking", "talking", "rec"] as const;
+export type GlyphPattern = (typeof GLYPH_PATTERNS)[number];
+
+/** Which pattern belongs to which face state (rec is driven separately). */
+export const GLYPH_FOR_STATE: Readonly<Record<FaceState, GlyphPattern | undefined>> = {
+  sleeping: "sleep",
+  idle: undefined,
+  alert: "alert",
+  listening: "listening",
+  thinking: "thinking",
+  talking: "talking",
+};
+
 /** face → server */
 export const faceToServerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("heard_text"), text: z.string().min(1).max(2000) }),
@@ -32,7 +49,7 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("speak"), text: z.string() }),
   z.object({ type: z.literal("state"), state: z.enum(FACE_STATES) }),
-  z.object({ type: z.literal("glyph"), pattern: z.string() }),
+  z.object({ type: z.literal("glyph"), pattern: z.enum(GLYPH_PATTERNS) }),
 ]);
 export type ServerToFaceMessage = z.infer<typeof serverToFaceSchema>;
 

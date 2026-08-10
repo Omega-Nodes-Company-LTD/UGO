@@ -12,6 +12,8 @@ export {
 } from "./contracts.js";
 export {
   FACE_STATES,
+  GLYPH_PATTERNS,
+  GLYPH_FOR_STATE,
   faceToServerSchema,
   serverToFaceSchema,
   NOISE_ALERT_DB,
@@ -20,6 +22,7 @@ export {
   type FaceState,
   type FaceToServerMessage,
   type ServerToFaceMessage,
+  type GlyphPattern,
 } from "./faceContracts.js";
 export {
   EVENT_SOURCES,

@@ -8,13 +8,18 @@ import {
   type RankedMemory,
 } from "@ugo/memory";
 import { decryptText, encryptText, type ChatRequest, type ChatResponse } from "@ugo/shared";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import type { PsycheService } from "./psycheService.js";
 
 /** top-k per channel (PROGETTO §5.4: k=6 casa, k=10 riunioni) */
 const K_BY_CHANNEL = { home: 6, meeting: 10, api: 6 } as const;
 const TRANSCRIPT_K = 3;
 const HISTORY_TURNS = 8;
+/**
+ * Turns older than this never come back as "the conversation so far": a
+ * thread from last month is memory's job, not the context window's.
+ */
+const HISTORY_WINDOW_HOURS = 12;
 const DIARY_EXCERPT_CHARS = 300;
 
 export class PersonNotFoundError extends Error {}
@@ -54,11 +59,32 @@ function buildDynamicSystem(
 export class ChatService {
   public constructor(private readonly deps: ChatServiceDeps) {}
 
-  private async loadHistory(channel: ChatRequest["channel"]): Promise<LlmHistoryTurn[]> {
+  /**
+   * The last turns of *this* conversation (§5.5 block 5).
+   *
+   * Scoped by person and by time: without it, a question from one person
+   * arrives with somebody else's thread as context — UGO answering Paola
+   * while reading Ivan's turns. Assistant replies have no person_id, so they
+   * are matched by the window alone, which keeps each exchange intact.
+   */
+  private async loadHistory(
+    channel: ChatRequest["channel"],
+    personId: string | undefined,
+    at: Date,
+  ): Promise<LlmHistoryTurn[]> {
+    const since = new Date(at.getTime() - HISTORY_WINDOW_HOURS * 3_600_000);
     const rows = await this.deps.db
       .select({ role: messages.role, text: messages.text, ts: messages.ts })
       .from(messages)
-      .where(eq(messages.channel, channel))
+      .where(
+        and(
+          eq(messages.channel, channel),
+          gte(messages.ts, since),
+          personId === undefined
+            ? or(isNull(messages.personId), sql`${messages.role} <> 'user'`)
+            : or(eq(messages.personId, personId), sql`${messages.role} <> 'user'`),
+        ),
+      )
       .orderBy(desc(messages.ts), asc(messages.id))
       .limit(HISTORY_TURNS);
     return rows
@@ -104,7 +130,7 @@ export class ChatService {
       .orderBy(desc(diaryEntries.date))
       .limit(1);
 
-    const history = await this.loadHistory(request.channel);
+    const history = await this.loadHistory(request.channel, request.personId, at);
     const result = await llm.chat(
       {
         channel: request.channel,

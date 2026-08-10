@@ -1,6 +1,7 @@
 import { desires, events, type DbClient } from "@ugo/db";
 import {
   DARKNESS_LUX,
+  GLYPH_FOR_STATE,
   NIGHT_START_HOUR,
   NOISE_ALERT_DB,
   faceToServerSchema,
@@ -76,10 +77,13 @@ export class FaceGateway {
   }
 
   private setState(state: FaceState, send: FaceSender): void {
-    if (this.state !== state) {
-      this.state = state;
-      send({ type: "state", state });
-    }
+    if (this.state === state) return;
+    this.state = state;
+    send({ type: "state", state });
+    // the Glyph is the state seen from across the room (§4.1); the face
+    // degrades silently when the device has no Glyph SDK
+    const pattern = GLYPH_FOR_STATE[state];
+    if (pattern !== undefined) send({ type: "glyph", pattern });
   }
 
   private pushMood(send: FaceSender): void {

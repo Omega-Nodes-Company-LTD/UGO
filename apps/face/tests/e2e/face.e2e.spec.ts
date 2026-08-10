@@ -21,11 +21,16 @@ test("the face connects and shows UGO's mood", async ({ page }) => {
   await expect(page.getByTestId("conn-status")).toHaveText("connesso");
 });
 
-test("a tap wakes attention: alert state and mood refresh from soul", async ({ page }) => {
+test("a tap wakes attention: alert state, mood refresh and Glyph pattern", async ({ page }) => {
   await openFace(page);
   await page.getByTestId("face-canvas").click();
   await expect(page.getByTestId("app")).toHaveAttribute("data-state", "alert");
   await expect(page.getByTestId("mood-label")).not.toHaveText("");
+  // §4.1: the state is also readable across the room, on the Glyph LEDs
+  await expect(page.getByTestId("app")).toHaveAttribute("data-glyph", "alert");
+  expect(await page.evaluate(() => window.__ugoGlyph.current())).toBe("alert");
+  // no Glyph SDK in a browser: it must degrade silently, not throw
+  expect(await page.evaluate(() => window.__ugoGlyph.available())).toBe(false);
 });
 
 test("heard text runs the full chat loop and the reply is shown", async ({ page }) => {

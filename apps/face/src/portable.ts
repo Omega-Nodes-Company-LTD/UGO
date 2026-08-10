@@ -34,6 +34,8 @@ export class PortableController {
     private readonly contactUrl: string,
     /** operator token for soul's guarded routes (presign); absent in dev */
     private readonly internalToken?: string,
+    /** lets the caller mirror the REC state on the Glyph LEDs (§4.2) */
+    private readonly onRecording?: (recording: boolean) => void,
   ) {}
 
   private authHeaders(): Record<string, string> {
@@ -70,9 +72,10 @@ export class PortableController {
       if (event.data.size > 0) this.chunks.push(event.data);
     });
     this.recorder.start(1000);
-    // REC ben visibile (§4.2): banner + machine-readable flag
+    // REC ben visibile (§4.2): banner, flag e pattern Glyph dedicato
     this.elements.recBanner.hidden = false;
     document.documentElement.dataset.recording = "true";
+    this.onRecording?.(true);
   }
 
   public async stopRecording(): Promise<void> {
@@ -96,6 +99,7 @@ export class PortableController {
   private releaseMicrophone(): void {
     this.elements.recBanner.hidden = true;
     delete document.documentElement.dataset.recording;
+    this.onRecording?.(false);
     for (const track of this.stream?.getTracks() ?? []) track.stop();
   }
 

@@ -1,5 +1,6 @@
 import type { FaceState, FaceToServerMessage, ServerToFaceMessage } from "@ugo/shared/face";
 import { startCameraGaze, startPointerGaze } from "./gaze.js";
+import { GlyphDriver } from "./glyph.js";
 import { PortableController } from "./portable.js";
 import { FaceRenderer } from "./renderer.js";
 import { Sensors } from "./sensors.js";
@@ -32,6 +33,7 @@ const portableMode = params.get("mode") === "portable";
 const soulHttpBase = soulUrl.replace(/^ws/, "http").replace(/\/v1\/face$/, "");
 
 const renderer = new FaceRenderer(canvas);
+const glyph = new GlyphDriver(app);
 const speech = new Speech();
 let lastPresenceAt = 0;
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
@@ -69,7 +71,8 @@ function onServerMessage(message: ServerToFaceMessage): void {
       speech.speak(message.text);
       return;
     case "glyph":
-      return; // Glyph patterns: degrade silently off-device (§4.1)
+      glyph.play(message.pattern);
+      return;
   }
 }
 
@@ -163,6 +166,9 @@ const portable = new PortableController(
   },
   params.get("contact") ?? "https://thinkpinkstudio.it",
   params.get("token") ?? undefined,
+  (recording) => {
+    if (recording) glyph.play("rec");
+  },
 );
 
 if (portableMode) {
@@ -203,6 +209,7 @@ declare global {
       queued: () => number;
       queuedFresh: () => Promise<number>;
     };
+    __ugoGlyph: { current: () => string | undefined; available: () => boolean };
     __ugoPortable: {
       startRec: () => Promise<void>;
       stopRec: () => Promise<void>;
@@ -220,6 +227,10 @@ window.__ugoFace = {
   },
   queued: () => socket.queuedCount(),
   queuedFresh: () => socket.queuedCountFresh(),
+};
+window.__ugoGlyph = {
+  current: () => glyph.currentPattern(),
+  available: () => glyph.available(),
 };
 window.__ugoPortable = {
   startRec: () => portable.startRecording(),
