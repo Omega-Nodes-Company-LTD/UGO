@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.8.0"
-last_updated: "2026-08-07"
+version: "0.9.0"
+last_updated: "2026-08-10"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -14,7 +14,7 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 ## 1. Situazione in una riga
 
-**Fasi 0–5 (parte software) + Gruppo A del backlog: COMPLETATI** — tutto verificato su infrastruttura
+**Fasi 0–5 (parte software) + backlog di consolidamento (Gruppi A/B/C/D): COMPLETATI** — tutto verificato su infrastruttura
 reale. ADR-012 e ADR-013 **accettati e implementati**; runbook di deploy pronto in
 [`OPS_COOLIFY.md`](./OPS_COOLIFY.md) (mancano solo i valori dei placeholder). Col device/server: validazioni on-device (Fase 2/4), deploy
 Vexa + Meet di prova (Fase 5), gusci (Fase 6 — il proprietario ha design da una sessione chat
@@ -44,13 +44,13 @@ UGO/
 │   ├── prompts/               # identity.it.md + rules.it.md (blocchi [CACHED] §5.5)
 │   └── memory/                # embeddings Ollama, retrieval re-rank, llmClient budget guard
 ├── tests/factories/           # Faker + embedding da seed + helper infra (ollama reale, stub LLM)
+├── documentation/             # manuale utente (getting-started, core-features, troubleshooting)
 └── ops/
     ├── docker/                # compose.dev (reti internal), soul/jobs Dockerfile non-root, mosquitto
     └── jobs/                  # sogno: ingest audio, riflessione, igiene, backup, restore
 ```
 
-Assenti (come previsto): `apps/meet-face` (post-v1), `firmware/` (accantonato), `hardware/` (Fase 6),
-`documentation/` (manuale utente: nel backlog gruppo D).
+Assenti (come previsto): `apps/meet-face` (post-v1), `firmware/` (accantonato), `hardware/` (Fase 6).
 
 ## 3. Disallineamenti — RISOLTI
 
@@ -241,19 +241,57 @@ prima del deploy:
 Bug latente trovato strada facendo: `faster-whisper` era importato ma non dichiarato in
 `pyproject.toml` — l'immagine di produzione dei jobs sarebbe esplosa al primo ingest audio.
 
+## 6-ter. Backlog di consolidamento — Gruppi B/C/D (chiusi)
+
+Le dodici voci residue, eseguite su richiesta del proprietario ("falle tutte") dopo il Gruppo A.
+
+### Gruppo B — Robustezza operativa
+
+| # | Voce | Esito |
+|---|---|---|
+| B7 | `events` cresce per sempre | ✅ passo `compaction` nel sogno: ogni giornata ambientale oltre i 90 gg collassa in **un** `ambient_day_summary` con conteggi e range; conversazioni, presenza, riunioni e audit **mai** toccati. Test ancorato a `date_trunc('day', …)`, non all'ora di esecuzione |
+| B8 | Coda offline della face solo in memoria | ✅ `DurableQueue` su IndexedDB: eventi e upload sopravvivono a un reload del kiosk e si svuotano alla riconnessione (verificato in E2E con reload reale) |
+| B9 | Migrazioni senza lock | ✅ advisory lock Postgres attorno a `runMigrations()`; test con due migrazioni concorrenti che devono riuscire entrambe, con ogni migrazione applicata **una** volta |
+| B10 | Osservabilità inesistente | ✅ `GET /v1/stats` (spesa del giorno, conteggi, ultimo sogno, cache-hit ratio) + ledger che separa `tokens_cache_write`/`tokens_cache_read`: il risparmio del caching diventa misurabile invece che dichiarato |
+| B11 | Fallback batch del sogno assente (ADR-001) | ✅ adapter Anthropic dietro la stessa interfaccia del MoE locale, **passando dal budget guard**; senza chiave fallisce a voce alta invece di saltare la riflessione in silenzio |
+| B12 | Digest di riunione solo a notte fonda | ✅ `stop()` emette `meeting_completed` (perturbazione curiosità in spec e mai emessa) e scrive subito il digest su `memories` |
+
+### Gruppo C — Esperienza e carattere
+
+| # | Voce | Esito |
+|---|---|---|
+| C13 | Glyph nel contratto ma mai pilotato | ✅ pattern per stato e per REC inviati da soul e interpretati dalla face; **degrada in silenzio** dove l'SDK non c'è (verificato in E2E: `available() === false` e nessuna eccezione) |
+| C14 | Cronologia chat globale per canale | ✅ scoping per persona **e** finestra di 12 h: UGO non risponde più a una persona leggendo il filo di un'altra; le sue risposte restano agganciate allo scambio |
+| C15 | Wake word assente perfino come interfaccia | ✅ riconoscitore predisposto e testato a unità; l'asset del modello (~40 MB) resta da vendorizzare sul device |
+| C16 | Gaze solo con `FaceDetector` nativo | ✅ `FaceLocator` iniettabile: MediaPipe si innesta senza toccare il resto, fallback puntatore invariato. Da validare col 3a Pro |
+
+### Gruppo D — Igiene tecnica
+
+| # | Voce | Esito |
+|---|---|---|
+| D17 | `/documentation` utente vuota | ✅ manuale per **chi lo usa**, non per chi lo sviluppa: indice, primo avvio, parlare con UGO, in giro, i tuoi dati, problemi comuni — frontmatter versionato, passi a singola azione, nessuno screenshot da far marcire |
+| D18 | Nessun filo end-to-end | ✅ `lifeday.integration.test.ts`: mattina che diventa memoria → soprassalto → sera di silenzio che intacca l'umore davvero → artefatti del sogno → risveglio che pronuncia **quel** desiderio → domanda di domani che ritrova il fatto di ieri. Sei test su infrastruttura reale |
+
+Difetto trovato dalla validazione finale, non dal codice nuovo: il test sul conteggio delle
+migrazioni aveva il numero **cablato** (3) e sarebbe diventato rosso a ogni migrazione futura. Ora
+verifica l'invariante vera — "ogni migrazione applicata una volta sola" — derivandola dai file su
+disco.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
 |---|---|---|
 | esbuild MODERATE via drizzle-kit (dev-only) | Basso | Bump drizzle-kit quando esce il fix |
 | Python 3.11 nell'ambiente vs 3.12 in spec | Nullo fino a Fase 3 | Pin 3.12 nel Dockerfile di `ops/jobs` |
+| Wake word senza asset del modello (~40 MB) | Interfaccia pronta, riconoscimento non attivo | Vendorizzare Vosk small-it sul device (validazione Fase 2 on-device) |
+| MediaPipe non ancora innestato in `FaceLocator` | Gaze resta sul fallback puntatore dove manca `FaceDetector` | Validare col Nothing 3a Pro e vendorizzare BlazeFace |
 | Ollama nel compose non ha i modelli pullati al primo avvio | Chat → errore embeddings finché `nomic-embed-text` non è presente | `docker compose exec ollama ollama pull nomic-embed-text` (post-deploy step nel runbook Coolify) |
 | Cache hit reale non verificabile senza chiave API | Solo la *disciplina* è verificata (posizione/stabilità blocchi) | Al primo deploy: 2 chiamate reali e verifica `cache_read_input_tokens` nel ledger |
 | Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
 
 ## 8. Prossimo passo operativo
 
-Il software delle Fasi 0–5 e il Gruppo A del backlog sono completi. Le prossime mosse:
+Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi. Le prossime mosse:
 
 1. ~~Decisioni ADR~~ — **accettate e implementate** (ADR-012: `psyche_baselines` + deriva umore
    ±0.02 clampata; ADR-013: voce in stanza via corpo di casa come interim).
@@ -264,11 +302,13 @@ Il software delle Fasi 0–5 e il Gruppo A del backlog sono completi. Le prossim
 4. **Col telefono**: kiosk, STT/TTS reali, MediaPipe/camera, Tailscale mobile, Vosk wake word.
 5. **Fase 6 — Gusci**: sessione dedicata; il proprietario ha già dei design da una sessione chat
    precedente, da integrare in `hardware/shell/` con `params.py` e coupon di calibrazione.
-6. **Backlog gruppi B/C/D** (12 voci residue): compattazione `events`, coda offline su IndexedDB,
-   advisory lock migrazioni, `/v1/stats`, fallback API batch, digest post-call, Glyph, scoping
-   cronologia per persona, wake word, MediaPipe, `/documentation`, test "giornata di vita".
+6. ~~Backlog gruppi B/C/D~~ — **chiusi** (§6-ter).
+
+Da qui in avanti non resta software da scrivere prima del deploy: tutto ciò che manca richiede
+**hardware o rete reale** — il server, il telefono, il guscio.
 
 ## Prossimi Passi
 
+- Manuale per chi usa UGO: [`documentation/index.md`](../documentation/index.md)
 - Architettura e razionale delle scelte: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 - Specifica completa e fonte di verità: [`PROGETTO.md`](./PROGETTO.md)

@@ -1,0 +1,93 @@
+---
+title: "Parlare con UGO"
+description: "Come funziona una conversazione: la voce, la memoria che resta, l'umore che cambia e il budget giornaliero."
+version: "0.9.0"
+last_updated: "2026-08-09"
+author: "ThinkPink Studio"
+---
+
+# Parlare con UGO
+
+Una conversazione con UGO non è una domanda a un motore di ricerca. Lui arriva alla risposta con
+addosso il suo umore del momento, i ricordi che ha di te e quello che ha scritto sul diario la notte
+prima. Per questo la stessa domanda, fatta in due giorni diversi, può avere due toni diversi.
+
+## Avviare una conversazione
+
+1. Tocca il muso sullo schermo. Il grugno si muove: UGO è in ascolto.
+2. Parla normalmente. Non serve una formula magica né alzare la voce.
+3. Sullo schermo compare **la sua risposta scritta** e la senti a voce.
+4. Se vuoi chiudere il discorso, smetti di parlare: dopo qualche secondo torna in attesa.
+
+Se il telefono non ti sente, torna a [Primo avvio](../01-getting-started/primo-avvio.md) e controlla
+di avere concesso il permesso al microfono.
+
+## Cosa ricorda (e cosa no)
+
+UGO tiene due cose diverse in due posti diversi.
+
+- **Il filo del discorso.** Gli ultimi scambi di _questa_ conversazione, con _te_. Vale per mezza
+  giornata: dopo, un discorso di ieri non torna più da solo come contesto.
+- **La memoria vera.** I fatti che valgono la pena — nomi, abitudini, cose successe — restano nel
+  database e tornano a galla quando c'entrano con quello che stai dicendo, anche mesi dopo.
+
+### Fargli imparare qualcosa
+
+1. Dillo come lo diresti a una persona: `il corriere DHL si chiama Ivan`.
+2. Non serve confermare né salvare: UGO decide da solo cosa merita di restare.
+3. La notte, mentre dormi, rilegge la giornata e ne ricava i ricordi definitivi.
+4. Il giorno dopo chiedi `come si chiama il corriere?`. Se te lo dice, il fatto è entrato in memoria.
+
+### Perché a volte dimentica
+
+I ricordi che non tornano mai utili sbiadiscono: dopo un mese senza essere richiamati perdono peso,
+e i doppioni vengono fusi in uno solo. È voluto. Un ricordo che non usi mai non è un ricordo, è
+zavorra. Se una cosa ti sta a cuore, nominala ogni tanto: torna a pesare.
+
+## L'umore
+
+In basso a sinistra, accanto al pulsante del microfono, c'è sempre **una parola sola**: `sereno`,
+`irrequieto`, `annoiato`, e così via. È il suo stato d'animo in quel momento, non un'etichetta fissa.
+
+Si muove per conto suo, in base a com'è andata:
+
+| Cosa succede                                  | Come reagisce                       |
+| --------------------------------------------- | ----------------------------------- |
+| Parli con lui                                 | si rasserena, la curiosità sale     |
+| Un rumore forte improvviso                    | sobbalza, resta all'erta per un po' |
+| Lo scuoti                                     | si agita                            |
+| Passa un'ora senza vedere nessuno             | comincia ad annoiarsi               |
+| Passa un giorno intero senza che tu gli parli | l'umore cala davvero                |
+
+Dopo ogni scossone torna lentamente al suo punto di equilibrio, come una persona che si calma. E
+quel punto di equilibrio si sposta di poco, notte dopo notte, in base alle giornate che ha vissuto:
+settimane belle lo rendono un po' più sereno di base, settimane vuote un po' più cupo.
+
+## Il risveglio
+
+Se la stanza è buia dopo le 22, UGO si addormenta: lo schermo si calma e smette di rispondere.
+Quando ti rivede si sveglia da solo.
+
+1. Torna davanti al dock. UGO ti riconosce e si sveglia.
+2. Ti saluta. Se durante la notte gli è venuta una curiosità, te la dice subito
+   (`Grunf... buongiorno! Mi ero segnato una cosa: ...`).
+3. Rispondigli o ignoralo: in entrambi i casi non te la ripete più. Le sue curiosità le chiede
+   una volta sola.
+
+## Il budget giornaliero
+
+Ogni giorno UGO ha una cifra fissa da spendere in conversazione. Serve a non avere sorprese in
+bolletta.
+
+- Finché c'è budget, non te ne accorgi.
+- Quando finisce, **te lo dice esplicitamente** invece di rispondere peggio in silenzio.
+- A mezzanotte riparte da capo.
+
+Il conto lo tiene lui: chi gestisce il server può vederlo, insieme al risparmio ottenuto riusando le
+parti fisse del suo carattere, sulla pagina di stato.
+
+## Prossimi Passi
+
+- [In giro](./in-giro.md) — portarlo fuori casa e registrare a vista.
+- [I tuoi dati](./i-tuoi-dati.md) — cosa c'è dentro e come tirarlo fuori.
+- [Problemi comuni](../04-troubleshooting/problemi-comuni.md) — se non risponde o non ricorda.

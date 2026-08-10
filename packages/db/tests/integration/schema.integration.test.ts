@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { MemoryFactory, embeddingFromSeed } from "@ugo/factories";
 import { cosineDistance, eq, sql } from "drizzle-orm";
@@ -162,6 +163,11 @@ describe("migration concurrency (zero-downtime redeploys)", () => {
     const applied = await db.execute<{ n: string }>(
       sql`select count(*) as n from drizzle.__drizzle_migrations`,
     );
-    expect(Number(applied[0]?.n)).toBe(3); // 0000, 0001, 0002 — applied once each
+    // derived from disk, not hardcoded: the invariant is "each migration once",
+    // and it must keep holding as migrations are added
+    const onDisk = readdirSync(new URL("../../drizzle", import.meta.url)).filter((name) =>
+      name.endsWith(".sql"),
+    ).length;
+    expect(Number(applied[0]?.n)).toBe(onDisk);
   });
 });
