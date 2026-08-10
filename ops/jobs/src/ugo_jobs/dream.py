@@ -15,13 +15,14 @@ from zoneinfo import ZoneInfo
 import psycopg
 
 from .backup import run_backup
+from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
 from .hygiene import run_hygiene
 from .ingest import run_ingest
 from .markers import mark_step_done, step_done
 from .reflect import run_reflect
 
-STEPS = ("ingest", "reflect", "hygiene", "backup")
+STEPS = ("ingest", "reflect", "hygiene", "compaction", "backup")
 
 
 def yesterday(cfg: JobsConfig) -> str:
@@ -52,7 +53,17 @@ def run_dream(cfg: JobsConfig, dream_date: str) -> dict[str, object]:
                 }
             elif step == "hygiene":
                 hygiene = run_hygiene(conn, dream_date)
-                report[step] = {"decayed": hygiene.decayed, "merged": hygiene.merged}
+                report[step] = {
+                    "decayed": hygiene.decayed,
+                    "merged": hygiene.merged,
+                    "baseline_adjusted": hygiene.baseline_adjusted,
+                }
+            elif step == "compaction":
+                compaction = run_compaction(conn)
+                report[step] = {
+                    "days": compaction.days_compacted,
+                    "events_removed": compaction.events_removed,
+                }
             else:
                 backup = run_backup(cfg, dream_date)
                 report[step] = {

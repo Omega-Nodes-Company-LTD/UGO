@@ -141,3 +141,27 @@ describe("vector round-trip on memories", () => {
     });
   });
 });
+
+describe("migration concurrency (zero-downtime redeploys)", () => {
+  it("serializes concurrent runs instead of corrupting the schema", async () => {
+    // both containers boot at the same instant and both try to migrate
+    const results = await Promise.allSettled([
+      runMigrations(container.getConnectionUri()),
+      runMigrations(container.getConnectionUri()),
+      runMigrations(container.getConnectionUri()),
+    ]);
+    expect(results.every((result) => result.status === "fulfilled")).toBe(true);
+
+    // the schema survived: still exactly one of each table, no duplicates
+    const rows = await db.execute<{ table_name: string; n: string }>(sql`
+      select table_name, count(*) as n from information_schema.tables
+      where table_schema = 'public' and table_type = 'BASE TABLE'
+      group by table_name
+    `);
+    expect(rows.every((row) => Number(row.n) === 1)).toBe(true);
+    const applied = await db.execute<{ n: string }>(
+      sql`select count(*) as n from drizzle.__drizzle_migrations`,
+    );
+    expect(Number(applied[0]?.n)).toBe(3); // 0000, 0001, 0002 — applied once each
+  });
+});

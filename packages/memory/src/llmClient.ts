@@ -143,6 +143,8 @@ export class LlmClient {
       provider: "anthropic",
       model: this.options.model,
       tokensIn: usage.inputTokens + usage.cacheCreationInputTokens + usage.cacheReadInputTokens,
+      tokensCacheWrite: usage.cacheCreationInputTokens,
+      tokensCacheRead: usage.cacheReadInputTokens,
       tokensOut: usage.outputTokens,
       costUsd: costUsd.toFixed(6),
     });

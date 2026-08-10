@@ -13,7 +13,12 @@ export const budgetLedger = pgTable(
     date: date("date").notNull(),
     provider: text("provider").notNull(),
     model: text("model").notNull(),
+    // tokens_in is the billed input total; the two cache columns break it
+    // down so the saving from prompt caching (§5.5) is actually measurable
+    // instead of merely believed.
     tokensIn: integer("tokens_in").notNull().default(0),
+    tokensCacheWrite: integer("tokens_cache_write").notNull().default(0),
+    tokensCacheRead: integer("tokens_cache_read").notNull().default(0),
     tokensOut: integer("tokens_out").notNull().default(0),
     costUsd: numeric("cost_usd", { precision: 10, scale: 6 }).notNull().default("0"),
   },

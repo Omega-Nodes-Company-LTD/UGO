@@ -4,6 +4,7 @@ import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js"
 import { createAuthGuard } from "./routes/guard.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
+import { registerStatsRoute } from "./routes/stats.js";
 import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
@@ -22,6 +23,7 @@ export interface ServerOptions extends HealthDeps {
     audio?: AudioStorageConfig;
     meetings?: MeetingsService;
     privacy?: { forget: ForgetService; exporter: ExportService };
+    stats?: { dailyBudgetUsd: number; timezone: string };
     /** bearer token protecting destructive/expensive routes */
     internalToken?: string;
     dreamTriggerUrl?: string;
@@ -45,7 +47,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   app.register(cors, { origin: true });
   registerHealthRoute(app, options);
   if (options.features !== undefined) {
-    const { face, audio, meetings, privacy, internalToken, dreamTriggerUrl, ...v1 } =
+    const { face, audio, meetings, privacy, stats, internalToken, dreamTriggerUrl, ...v1 } =
       options.features;
     const guard = createAuthGuard(internalToken);
     registerV1Routes(app, { db: options.db, ...v1 });
@@ -63,6 +65,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (privacy !== undefined) {
       registerPrivacyRoutes(app, { ...privacy, guard });
+    }
+    if (stats !== undefined) {
+      registerStatsRoute(app, { db: options.db, ...stats });
     }
     if (face !== undefined) {
       app.register(async (instance) => {

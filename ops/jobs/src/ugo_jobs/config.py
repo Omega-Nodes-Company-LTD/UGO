@@ -31,6 +31,10 @@ class JobsConfig:
     s3_bucket_backup: str
     s3_bucket_audio: str
     timezone: str
+    # ADR-001 fallback: API batch when the local MoE is unreachable
+    anthropic_api_key: str = ""
+    anthropic_base_url: str = "https://api.anthropic.com"
+    anthropic_batch_model: str = "claude-haiku-4-5"
     whisper_model: str = "large-v3"
     whisper_download_root: str = ""
     audio_retention_days: int = 90
@@ -53,6 +57,9 @@ class JobsConfig:
             s3_bucket_backup=os.environ.get("S3_BUCKET_BACKUP", "ugo-backup"),
             s3_bucket_audio=os.environ.get("S3_BUCKET_AUDIO", "ugo-audio"),
             timezone=os.environ.get("TZ", "Europe/Rome"),
+            anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+            anthropic_base_url=os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
+            anthropic_batch_model=os.environ.get("UGO_CHAT_MODEL", "claude-haiku-4-5"),
             whisper_model=os.environ.get("UGO_WHISPER_MODEL", "large-v3"),
             whisper_download_root=os.environ.get("UGO_WHISPER_DOWNLOAD_ROOT", ""),
             audio_retention_days=int(os.environ.get("UGO_AUDIO_RETENTION_DAYS", "90")),

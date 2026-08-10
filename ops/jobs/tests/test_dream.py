@@ -45,6 +45,7 @@ def make_config(pg_url: str, minio: dict[str, str], ollama_url: str, batch_url: 
         s3_bucket_backup="ugo-backup",
         s3_bucket_audio="ugo-audio",
         timezone="Europe/Rome",
+        anthropic_api_key="",
         whisper_model="base",
         whisper_download_root=os.environ.get("UGO_TEST_WHISPER_MODELS", ""),
     )
@@ -166,7 +167,7 @@ def test_second_run_duplicates_nothing(dream_env: JobsConfig) -> None:
     report = run_dream(dream_env, DREAM_DATE)
     assert all(
         report[step] == "skipped (already done)"
-        for step in ("ingest", "reflect", "hygiene", "backup")
+        for step in ("ingest", "reflect", "hygiene", "compaction", "backup")
     )
     with psycopg.connect(dream_env.database_url) as conn:
         after = {

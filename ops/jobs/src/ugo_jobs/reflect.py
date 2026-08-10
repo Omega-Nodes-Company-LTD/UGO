@@ -111,7 +111,7 @@ def _collect_day(
     )
 
 
-def ask_batch_model(cfg: JobsConfig, prompt: str) -> ReflectionOutput:
+def _ask_ollama(cfg: JobsConfig, prompt: str) -> str:
     response = httpx.post(
         f"{cfg.ollama_batch_url}/api/chat",
         json={
@@ -123,7 +123,61 @@ def ask_batch_model(cfg: JobsConfig, prompt: str) -> ReflectionOutput:
         timeout=600,
     )
     response.raise_for_status()
-    content = response.json()["message"]["content"]
+    return response.json()["message"]["content"]
+
+
+def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None) -> str:
+    """ADR-001 fallback: the API in batch-priced mode when the local MoE is
+    unavailable. It costs money, so it goes through the same piggy bank the
+    real-time path uses (CLAUDE.md rule 3) — the ledger must show every cent,
+    whichever process spent it."""
+    response = httpx.post(
+        f"{cfg.anthropic_base_url}/v1/messages",
+        headers={
+            "x-api-key": cfg.anthropic_api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        json={
+            "model": cfg.anthropic_batch_model,
+            "max_tokens": 2000,
+            "messages": [{"role": "user", "content": prompt}],
+        },
+        timeout=600,
+    )
+    response.raise_for_status()
+    body = response.json()
+    if conn is not None:
+        usage = body.get("usage", {})
+        tokens_in = int(usage.get("input_tokens", 0))
+        tokens_out = int(usage.get("output_tokens", 0))
+        # batch pricing is half of standard (PROGETTO §6)
+        cost = (tokens_in * 1.0 + tokens_out * 5.0) / 1_000_000 * 0.5
+        conn.execute(
+            """
+            insert into budget_ledger (date, provider, model, tokens_in, tokens_out, cost_usd)
+            values (current_date, 'anthropic', %s, %s, %s, %s)
+            """,
+            (cfg.anthropic_batch_model, tokens_in, tokens_out, round(cost, 6)),
+        )
+        conn.commit()
+    return "".join(part.get("text", "") for part in body.get("content", []))
+
+
+def ask_batch_model(
+    cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None = None
+) -> ReflectionOutput:
+    """Local MoE first (free, private); the API only if the local one is down."""
+    try:
+        content = _ask_ollama(cfg, prompt)
+    except Exception as ollama_error:  # noqa: BLE001 — any failure means "fall back"
+        if not cfg.anthropic_api_key:
+            raise RuntimeError(
+                "local batch model unreachable and no ANTHROPIC_API_KEY for the "
+                f"ADR-001 fallback: {ollama_error}"
+            ) from ollama_error
+        content = _ask_anthropic(cfg, prompt, conn)
+
     try:
         return ReflectionOutput.model_validate_json(content)
     except ValidationError as error:
@@ -159,6 +213,7 @@ def run_reflect(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> R
         PROMPT.format(
             date=dream_date, events=events_text, messages=messages_text, transcripts=transcripts_text
         ),
+        conn,
     )
 
     memories = [m for m in output.memories if m.kind in ALLOWED_KINDS][:20]

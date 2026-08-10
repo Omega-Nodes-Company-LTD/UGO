@@ -37,13 +37,28 @@ test("heard text runs the full chat loop and the reply is shown", async ({ page 
   await expect(page.getByTestId("app")).toHaveAttribute("data-state", "idle");
 });
 
-test("messages sent while offline are queued, not lost", async ({ page }) => {
-  await page.goto(`/?soul=${encodeURIComponent("ws://127.0.0.1:1/v1/face")}`);
+test("messages sent while offline survive a kiosk reload and flush on reconnect", async ({
+  page,
+}) => {
+  const dead = encodeURIComponent("ws://127.0.0.1:1/v1/face");
+  await page.goto(`/?soul=${dead}`);
   await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "false");
-  const queued = await page.evaluate(() => {
+
+  await page.evaluate(async () => {
     window.__ugoFace.send({ type: "tap" });
     window.__ugoFace.send({ type: "shake" });
-    return window.__ugoFace.queued();
+    await window.__ugoFace.queuedFresh();
   });
-  expect(queued).toBe(2);
+  expect(await page.evaluate(() => window.__ugoFace.queued())).toBe(2);
+
+  // Android kills the tab, the app updates, someone pulls to refresh:
+  // an in-memory queue would lose exactly the data that cannot be remade
+  await page.reload();
+  await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "false");
+  await expect.poll(() => page.evaluate(() => window.__ugoFace.queuedFresh())).toBe(2);
+
+  // reconnect to a live soul: the backlog drains and the queue empties
+  await page.goto(`/?soul=${encodeURIComponent(soulWs())}`);
+  await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "true");
+  await expect.poll(() => page.evaluate(() => window.__ugoFace.queuedFresh())).toBe(0);
 });

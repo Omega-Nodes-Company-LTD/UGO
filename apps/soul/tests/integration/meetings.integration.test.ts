@@ -3,7 +3,9 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import {
   budgetLedger,
   createDbClient,
+  events,
   meetings,
+  memories,
   messages,
   runMigrations,
   transcriptSegments,
@@ -39,6 +41,7 @@ let llmStub: LlmStub;
 let db: DbClient;
 let service: MeetingsService;
 const spoken: string[] = []; // ADR-013: SpeakPort capture (in-room voice)
+const perturbed: string[] = []; // psyche events raised by the meeting lifecycle
 
 beforeAll(async () => {
   [pg, ollama, vexa, llmStub] = await Promise.all([
@@ -62,6 +65,12 @@ beforeAll(async () => {
     }),
     dataKey,
     vexa: { baseUrl: vexa.baseUrl, apiKey: "vxa_test_key", ownerName: "Omega" },
+    psyche: {
+      applyEventType: (type) => {
+        perturbed.push(type);
+        return Promise.resolve();
+      },
+    },
     speakPort: {
       speak: (_ref, text) => {
         spoken.push(text);
@@ -168,14 +177,31 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
     expect(spoken).toEqual(["Nella scorsa call avevate scelto il PETG. Grunf."]);
   });
 
-  it("stop leaves the call and closes the meeting", async () => {
+  it("stop leaves the call, closes the meeting and leaves a digest behind", async () => {
     const ref = service.active()[0];
     if (ref === undefined) throw new Error("no active meeting");
+    llmStub.nextResponse = {
+      text: "Si è deciso di stampare i gusci in PETG; consegna confermata a giovedì mattina.",
+    };
     await service.stop(ref);
+
     expect(vexa.botsDeleted.at(-1)).toBe("/bots/google_meet/abc-defg-hij");
     const [row] = await db.select().from(meetings).where(eq(meetings.id, ref.meetingId));
     expect(row?.status).toBe("ended");
     expect(row?.endedAt).not.toBeNull();
     expect(service.active()).toHaveLength(0);
+
+    // a finished meeting feeds curiosity and is journaled (§4.3, §5.3)
+    expect(perturbed).toContain("meeting_completed");
+    const completed = await db.select().from(events).where(eq(events.type, "meeting_completed"));
+    expect(completed).toHaveLength(1);
+
+    // the digest is a real memory, embedded, available before the night job
+    const digests = await db.select().from(memories).where(eq(memories.kind, "insight"));
+    expect(digests).toHaveLength(1);
+    expect(digests[0]?.text).toContain("PETG");
+    expect(digests[0]?.text).toContain("riunione di prova");
+    expect(digests[0]?.embedding).toHaveLength(768);
+    expect(JSON.stringify(digests[0]?.sourceRefs)).toContain(ref.meetingId);
   });
 });

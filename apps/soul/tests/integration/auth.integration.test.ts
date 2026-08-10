@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, events, people, runMigrations, type DbClient } from "@ugo/db";
+import { budgetLedger, createDbClient, events, people, runMigrations, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -30,6 +30,7 @@ function build(token: string | undefined): FastifyInstance {
       chat: undefined as never, // unused by the routes under test
       psyche: undefined as never,
       privacy: { forget: new ForgetService({ db, dataKey }), exporter: new ExportService(db, dataKey) },
+      stats: { dailyBudgetUsd: 0.5, timezone: "Europe/Rome" },
       ...(token !== undefined && { internalToken: token }),
     },
   });
@@ -187,5 +188,70 @@ describe("erasure over HTTP", () => {
       payload: { personId: crypto.randomUUID(), confirm: true },
     });
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("GET /v1/stats", () => {
+  it("reports spend, cache-hit ratio and counts without any content", async () => {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date());
+    await db.insert(budgetLedger).values([
+      {
+        date: today,
+        provider: "anthropic",
+        model: "claude-haiku-4-5",
+        tokensIn: 1000,
+        tokensCacheWrite: 200,
+        tokensCacheRead: 700,
+        tokensOut: 50,
+        costUsd: "0.100000",
+      },
+      {
+        date: today,
+        provider: "anthropic",
+        model: "claude-haiku-4-5",
+        tokensIn: 1000,
+        tokensCacheWrite: 0,
+        tokensCacheRead: 900,
+        tokensOut: 50,
+        costUsd: "0.050000",
+      },
+    ]);
+
+    const response = await open.inject({ method: "GET", url: "/v1/stats" });
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{
+      budget: { spentUsd: number; remainingUsd: number; degraded: boolean; callsToday: number };
+      tokensToday: { cacheRead: number; cacheWrite: number };
+      cacheHitRatio: number | null;
+      counts: { memories: number; events: number };
+    }>();
+
+    expect(body.budget.spentUsd).toBeCloseTo(0.15, 6);
+    expect(body.budget.remainingUsd).toBeCloseTo(0.35, 6);
+    expect(body.budget.degraded).toBe(false);
+    expect(body.budget.callsToday).toBe(2);
+    expect(body.tokensToday.cacheRead).toBe(1600);
+    expect(body.tokensToday.cacheWrite).toBe(200);
+    // 1600 cached out of 2000 billed input: the §5.5 discipline is paying
+    expect(body.cacheHitRatio).toBeCloseTo(0.8, 4);
+    expect(body.counts.events).toBeGreaterThanOrEqual(0);
+
+    // counts and money only: never a scrap of what was said
+    expect(response.body).not.toMatch(/Test Persona|ciao|v1:/);
+  });
+
+  it("flags the degraded state once the budget is gone", async () => {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date());
+    await db.insert(budgetLedger).values({
+      date: today,
+      provider: "anthropic",
+      model: "claude-haiku-4-5",
+      costUsd: "0.400000",
+    });
+    const body = (await open.inject({ method: "GET", url: "/v1/stats" })).json<{
+      budget: { degraded: boolean; remainingUsd: number };
+    }>();
+    expect(body.budget.degraded).toBe(true);
+    expect(body.budget.remainingUsd).toBe(0);
   });
 });

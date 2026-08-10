@@ -1,7 +1,7 @@
-import { meetings, messages, transcriptSegments, type DbClient } from "@ugo/db";
+import { events, meetings, memories, messages, transcriptSegments, type DbClient } from "@ugo/db";
 import { searchMemories, type EmbeddingsClient, type LlmClient } from "@ugo/memory";
-import { encryptText } from "@ugo/shared";
-import { count, eq } from "drizzle-orm";
+import { decryptText, encryptText } from "@ugo/shared";
+import { asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
 /**
@@ -67,8 +67,13 @@ export interface MeetingsDeps {
   dataKey: Buffer;
   vexa: VexaConfig;
   speakPort?: SpeakPort;
+  /** structural type: avoids a circular import with PsycheService */
+  psyche?: { applyEventType: (type: string, at?: Date) => Promise<unknown> };
   logger?: { warn: (data: Record<string, unknown>, message: string) => void };
 }
+
+/** How many segments of the call feed the closing digest. */
+const DIGEST_SEGMENT_LIMIT = 200;
 
 export class MeetingsService {
   private ingestedCounts = new Map<string, number>();
@@ -121,15 +126,76 @@ export class MeetingsService {
     return ref;
   }
 
-  public async stop(ref: MeetingRef): Promise<void> {
+  public async stop(ref: MeetingRef, at: Date = new Date()): Promise<void> {
     await this.vexaFetch(`/bots/${ref.platform}/${encodeURIComponent(ref.nativeId)}`, {
       method: "DELETE",
     });
     this.activeRefs.delete(ref.meetingId);
     await this.deps.db
       .update(meetings)
-      .set({ status: "ended", endedAt: new Date() })
+      .set({ status: "ended", endedAt: at })
       .where(eq(meetings.id, ref.meetingId));
+
+    // a finished meeting is an experience, not just a closed row (§4.3):
+    // it feeds curiosity and leaves a digest behind before the night job runs
+    await this.deps.db
+      .insert(events)
+      .values({ ts: at, source: "meet", type: "meeting_completed", payload: { meetingId: ref.meetingId } });
+    await this.deps.psyche?.applyEventType("meeting_completed", at);
+    await this.writeDigest(ref, at);
+  }
+
+  /**
+   * Post-call digest (§4.3): the night job would eventually reflect on the
+   * transcript, but by then the owner has already been asked "how did it
+   * go?". A digest written at hangup is available immediately.
+   */
+  private async writeDigest(ref: MeetingRef, at: Date): Promise<void> {
+    const rows = await this.deps.db
+      .select({ speaker: transcriptSegments.speaker, text: transcriptSegments.text })
+      .from(transcriptSegments)
+      .where(eq(transcriptSegments.meetingId, ref.meetingId))
+      .orderBy(asc(transcriptSegments.t0))
+      .limit(DIGEST_SEGMENT_LIMIT);
+    if (rows.length === 0) return; // nothing was said: nothing to remember
+
+    const lines: string[] = [];
+    for (const row of rows) {
+      try {
+        lines.push(`${row.speaker ?? "voce"}: ${decryptText(row.text, this.deps.dataKey)}`);
+      } catch {
+        continue;
+      }
+    }
+    if (lines.length === 0) return;
+
+    const [meeting] = await this.deps.db
+      .select({ title: meetings.title })
+      .from(meetings)
+      .where(eq(meetings.id, ref.meetingId));
+    const result = await this.deps.llm.chat(
+      {
+        channel: "meeting",
+        dynamicSystem:
+          "Riassumi la riunione appena conclusa in massimo 3 frasi, citando le decisioni e gli " +
+          "action item. Scrivi in italiano, in terza persona, senza markdown.\n\n" +
+          lines.join("\n"),
+        userText: "Fammi il riassunto della riunione.",
+      },
+      at,
+    );
+    if (result.degraded || result.text.trim() === "") return;
+
+    const title = meeting?.title ?? ref.nativeId;
+    const digest = `Riunione "${title}" del ${at.toISOString().slice(0, 10)}: ${result.text}`;
+    const [embedding] = await this.deps.embedder.embed([digest]);
+    await this.deps.db.insert(memories).values({
+      kind: "insight",
+      text: digest,
+      ...(embedding !== undefined && { embedding }),
+      importance: 0.7,
+      sourceRefs: { meetingId: ref.meetingId },
+    });
   }
 
   /** One polling round: ingest only the new tail of the full transcript. */

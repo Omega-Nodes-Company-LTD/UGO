@@ -143,7 +143,7 @@ startPointerGaze(canvas, (target) => {
   if (target !== null) renderer.setGaze(target);
 });
 renderer.start();
-socket.connect();
+void socket.start();
 
 // ---- portable mode wiring (§4.2) ------------------------------------------
 const portable = new PortableController(
@@ -201,6 +201,7 @@ declare global {
     __ugoFace: {
       send: (message: FaceToServerMessage) => void;
       queued: () => number;
+      queuedFresh: () => Promise<number>;
     };
     __ugoPortable: {
       startRec: () => Promise<void>;
@@ -218,6 +219,7 @@ window.__ugoFace = {
     socket.send(message);
   },
   queued: () => socket.queuedCount(),
+  queuedFresh: () => socket.queuedCountFresh(),
 };
 window.__ugoPortable = {
   startRec: () => portable.startRecording(),

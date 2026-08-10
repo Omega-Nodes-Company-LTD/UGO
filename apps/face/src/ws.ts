@@ -3,6 +3,7 @@ import {
   type FaceToServerMessage,
   type ServerToFaceMessage,
 } from "@ugo/shared/face";
+import { DurableQueue } from "./queue.js";
 
 const MAX_QUEUE = 100;
 const BACKOFF_MIN_MS = 500;
@@ -20,7 +21,9 @@ export interface FaceSocketHandlers {
  */
 export class FaceSocket {
   private socket: WebSocket | undefined;
-  private queue: FaceToServerMessage[] = [];
+  // durable: a kiosk reload must not lose events raised while offline
+  private readonly queue = new DurableQueue<FaceToServerMessage>("events", MAX_QUEUE);
+  private queuedCache = 0;
   private backoffMs = BACKOFF_MIN_MS;
   private closed = false;
 
@@ -28,6 +31,13 @@ export class FaceSocket {
     private readonly url: string,
     private readonly handlers: FaceSocketHandlers,
   ) {}
+
+  /** Opens the durable queue and connects; call once at startup. */
+  public async start(): Promise<void> {
+    await this.queue.open();
+    this.queuedCache = await this.queue.size();
+    this.connect();
+  }
 
   public connect(): void {
     if (this.closed) return;
@@ -37,9 +47,7 @@ export class FaceSocket {
     socket.addEventListener("open", () => {
       this.backoffMs = BACKOFF_MIN_MS;
       this.handlers.onConnected(true);
-      const pending = [...this.queue];
-      this.queue = [];
-      for (const message of pending) this.send(message);
+      void this.flush();
     });
 
     socket.addEventListener("message", (event: MessageEvent<string>) => {
@@ -64,17 +72,33 @@ export class FaceSocket {
     });
   }
 
+  /** Drains the durable queue in order; anything still failing stays put. */
+  private async flush(): Promise<void> {
+    for (const item of await this.queue.list()) {
+      if (this.socket?.readyState !== WebSocket.OPEN) break;
+      this.socket.send(JSON.stringify(item.value));
+      await this.queue.remove(item.id);
+    }
+    this.queuedCache = await this.queue.size();
+  }
+
   public send(message: FaceToServerMessage): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
       return;
     }
-    if (this.queue.length >= MAX_QUEUE) this.queue.shift();
-    this.queue.push(message);
+    this.queuedCache += 1;
+    void this.queue.push(message);
   }
 
+  /** Cached count: the UI and the e2e hooks need it synchronously. */
   public queuedCount(): number {
-    return this.queue.length;
+    return this.queuedCache;
+  }
+
+  public async queuedCountFresh(): Promise<number> {
+    this.queuedCache = await this.queue.size();
+    return this.queuedCache;
   }
 
   public close(): void {

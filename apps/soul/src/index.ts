@@ -69,6 +69,7 @@ const meetings =
         llm,
         dataKey,
         vexa: { baseUrl: env.VEXA_API_URL, apiKey: env.VEXA_API_KEY, ownerName: env.UGO_OWNER_NAME },
+        psyche,
         // ADR-013 opzione b: finché Vexa open-core non espone /speak, la
         // risposta viene pronunciata in stanza dal corpo di casa
         speakPort: {
@@ -89,6 +90,7 @@ const app = buildServer({
     psyche,
     face,
     privacy,
+    stats: { dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD, timezone: env.TZ },
     ...(env.UGO_INTERNAL_TOKEN !== undefined && { internalToken: env.UGO_INTERNAL_TOKEN }),
     ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),
     ...(audio !== undefined && { audio }),
