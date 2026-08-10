@@ -8,6 +8,21 @@ export {
   parseDataKey,
 } from "./crypto.js";
 export {
+  advertise,
+  epochAt,
+  generateGosinoKeys,
+  greeting,
+  introduction,
+  openCard,
+  recognize,
+  signCard,
+  EPOCH_MS,
+  type GosinoKeys,
+  type GreetingCard,
+  type Pseudonym,
+  type SignedCard,
+} from "./peer.js";
+export {
   generateDataKey,
   unwrapDataKey,
   wrapDataKey,

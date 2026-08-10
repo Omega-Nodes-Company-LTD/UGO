@@ -40,6 +40,8 @@ export const MODALITIES = [
   "vision",
   "ambient",
   "manual",
+  /** another gosino, announcing itself over the air (ADR-020) */
+  "peer",
 ] as const;
 export type Modality = (typeof MODALITIES)[number];
 
