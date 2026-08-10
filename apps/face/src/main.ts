@@ -162,6 +162,7 @@ const portable = new PortableController(
     socket.send(message);
   },
   params.get("contact") ?? "https://thinkpinkstudio.it",
+  params.get("token") ?? undefined,
 );
 
 if (portableMode) {

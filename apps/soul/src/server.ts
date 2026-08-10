@@ -1,6 +1,9 @@
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js";
+import { createAuthGuard } from "./routes/guard.js";
+import { registerJobsRoutes } from "./routes/jobs.js";
+import { registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
@@ -8,6 +11,8 @@ import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
 import type { FaceGateway } from "./services/faceGateway.js";
 import type { MeetingsService } from "./services/meetingsService.js";
+import type { ExportService } from "./services/privacy/exportService.js";
+import type { ForgetService } from "./services/privacy/forgetService.js";
 
 export interface ServerOptions extends HealthDeps {
   logger?: boolean;
@@ -16,6 +21,10 @@ export interface ServerOptions extends HealthDeps {
     face?: FaceGateway;
     audio?: AudioStorageConfig;
     meetings?: MeetingsService;
+    privacy?: { forget: ForgetService; exporter: ExportService };
+    /** bearer token protecting destructive/expensive routes */
+    internalToken?: string;
+    dreamTriggerUrl?: string;
   };
 }
 
@@ -36,14 +45,24 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   app.register(cors, { origin: true });
   registerHealthRoute(app, options);
   if (options.features !== undefined) {
-    const { face, audio, meetings, ...v1 } = options.features;
+    const { face, audio, meetings, privacy, internalToken, dreamTriggerUrl, ...v1 } =
+      options.features;
+    const guard = createAuthGuard(internalToken);
     registerV1Routes(app, { db: options.db, ...v1 });
     registerDebugChatRoute(app);
+    registerJobsRoutes(app, {
+      db: options.db,
+      guard,
+      ...(dreamTriggerUrl !== undefined && { dreamTriggerUrl }),
+    });
     if (audio !== undefined) {
-      registerAudioRoutes(app, audio);
+      registerAudioRoutes(app, audio, guard);
     }
     if (meetings !== undefined) {
-      registerMeetingsRoutes(app, meetings);
+      registerMeetingsRoutes(app, meetings, guard);
+    }
+    if (privacy !== undefined) {
+      registerPrivacyRoutes(app, { ...privacy, guard });
     }
     if (face !== undefined) {
       app.register(async (instance) => {

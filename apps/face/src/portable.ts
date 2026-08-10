@@ -32,7 +32,18 @@ export class PortableController {
     private readonly elements: PortableElements,
     private readonly sendEvent: (message: FaceToServerMessage) => void,
     private readonly contactUrl: string,
+    /** operator token for soul's guarded routes (presign); absent in dev */
+    private readonly internalToken?: string,
   ) {}
+
+  private authHeaders(): Record<string, string> {
+    return {
+      "content-type": "application/json",
+      ...(this.internalToken !== undefined && {
+        authorization: `Bearer ${this.internalToken}`,
+      }),
+    };
+  }
 
   public isPrivacyOn(): boolean {
     return this.privacy;
@@ -118,7 +129,7 @@ export class PortableController {
       try {
         const presign = await fetch(`${this.soulHttpBase}/v1/audio/presign`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: this.authHeaders(),
           body: JSON.stringify({ filename: item.filename }),
         });
         if (!presign.ok) throw new Error(`presign ${String(presign.status)}`);
@@ -141,7 +152,7 @@ export class PortableController {
       // curiosity becomes a measurable lead on the events table
       await fetch(`${this.soulHttpBase}/v1/events`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: this.authHeaders(),
         body: JSON.stringify({ source: "face", type: "lead_contact", payload: {} }),
       });
     } catch {

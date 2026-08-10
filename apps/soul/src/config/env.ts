@@ -32,9 +32,28 @@ export const soulEnvSchema = z.object({
   VEXA_API_URL: optionalNonEmpty,
   VEXA_API_KEY: optionalNonEmpty,
   UGO_OWNER_NAME: z.string().min(1).default("casa"),
+  // Bearer token for destructive/expensive routes (see routes/guard.ts).
+  // Mandatory in production: an unguarded erasure endpoint is not a risk
+  // worth carrying just because the tailnet is usually enough.
+  UGO_INTERNAL_TOKEN: optionalNonEmpty,
+  // optional HTTP trigger of the jobs runner, for POST /v1/jobs/dream
+  UGO_JOBS_TRIGGER_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.url().optional(),
+  ),
+  NODE_ENV: z.string().default("development"),
 });
 
 export type SoulEnv = z.infer<typeof soulEnvSchema>;
+
+export function assertProductionSecrets(env: SoulEnv): void {
+  if (env.NODE_ENV === "production" && env.UGO_INTERNAL_TOKEN === undefined) {
+    throw new Error(
+      "UGO_INTERNAL_TOKEN is required when NODE_ENV=production: refusing to expose " +
+        "erasure, export, meeting and upload routes without authentication",
+    );
+  }
+}
 
 export interface AudioStorageEnv {
   endpoint: string;

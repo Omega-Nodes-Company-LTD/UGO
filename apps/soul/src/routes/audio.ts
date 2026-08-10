@@ -1,6 +1,7 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { FastifyInstance, FastifyReply } from "fastify";
+import type { PreHandler } from "./guard.js";
 import { z } from "zod";
 
 /**
@@ -33,7 +34,11 @@ function problem(reply: FastifyReply, status: number, title: string, detail?: st
     .send({ type: "about:blank", title, status, ...(detail !== undefined && { detail }) });
 }
 
-export function registerAudioRoutes(app: FastifyInstance, storage: AudioStorageConfig): void {
+export function registerAudioRoutes(
+  app: FastifyInstance,
+  storage: AudioStorageConfig,
+  guard: PreHandler,
+): void {
   const client = new S3Client({
     endpoint: storage.endpoint,
     region: "us-east-1",
@@ -41,7 +46,7 @@ export function registerAudioRoutes(app: FastifyInstance, storage: AudioStorageC
     credentials: { accessKeyId: storage.accessKey, secretAccessKey: storage.secretKey },
   });
 
-  app.post("/v1/audio/presign", async (request, reply) => {
+  app.post("/v1/audio/presign", { preHandler: guard }, async (request, reply) => {
     const parsed = presignRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       problem(reply, 400, "Invalid presign request", z.prettifyError(parsed.error));

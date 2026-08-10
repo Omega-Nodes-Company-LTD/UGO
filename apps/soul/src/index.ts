@@ -1,10 +1,12 @@
 import { createDbClient } from "@ugo/db";
 import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import { EnvValidationError, parseDataKey, parseEnv } from "@ugo/shared";
-import { audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
+import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
 import { FaceGateway } from "./services/faceGateway.js";
 import { MeetingsService } from "./services/meetingsService.js";
+import { ExportService } from "./services/privacy/exportService.js";
+import { ForgetService } from "./services/privacy/forgetService.js";
 import { PsycheService } from "./services/psycheService.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { buildServer } from "./server.js";
@@ -14,6 +16,7 @@ const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
 let env;
 try {
   env = parseEnv(soulEnvSchema);
+  assertProductionSecrets(env);
 } catch (error) {
   // Fail fast with variable NAMES only — never values (they may be secrets).
   console.error(error instanceof EnvValidationError ? error.message : error);
@@ -53,11 +56,16 @@ const face = new FaceGateway({
 
 const audio = audioStorageFromEnv(env);
 const dataKey = parseDataKey(env.UGO_DATA_KEY);
+const embedder = new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL);
+const privacy = {
+  forget: new ForgetService({ db, dataKey, embedder }),
+  exporter: new ExportService(db, dataKey),
+};
 const meetings =
   env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined
     ? new MeetingsService({
         db,
-        embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
+        embedder,
         llm,
         dataKey,
         vexa: { baseUrl: env.VEXA_API_URL, apiKey: env.VEXA_API_KEY, ownerName: env.UGO_OWNER_NAME },
@@ -80,6 +88,9 @@ const app = buildServer({
     chat,
     psyche,
     face,
+    privacy,
+    ...(env.UGO_INTERNAL_TOKEN !== undefined && { internalToken: env.UGO_INTERNAL_TOKEN }),
+    ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),
     ...(audio !== undefined && { audio }),
     ...(meetings !== undefined && { meetings }),
   },

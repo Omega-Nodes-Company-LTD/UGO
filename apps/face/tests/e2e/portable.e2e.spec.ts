@@ -14,7 +14,8 @@ const env = (name: string): string => {
 
 const openPortable = async (page: Page): Promise<void> => {
   const soul = encodeURIComponent(env("UGO_E2E_SOUL_WS"));
-  await page.goto(`/?mode=portable&soul=${soul}&contact=https://example.test/ugo`);
+  const token = encodeURIComponent(env("UGO_E2E_TOKEN"));
+  await page.goto(`/?mode=portable&soul=${soul}&token=${token}&contact=https://example.test/ugo`);
   await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "true");
   await expect(page.getByTestId("app")).toHaveAttribute("data-mode", "portable");
 };

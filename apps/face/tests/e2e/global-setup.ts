@@ -19,6 +19,7 @@ import {
  */
 
 const SOUL_PORT = 3987;
+const E2E_TOKEN = "e2e-operator-token";
 
 let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
@@ -63,6 +64,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       ANTHROPIC_BASE_URL: stub.baseUrl,
       UGO_DAILY_BUDGET_USD: "5",
       UGO_DATA_KEY: randomBytes(32).toString("base64"),
+      UGO_INTERNAL_TOKEN: E2E_TOKEN,
       S3_ENDPOINT: minio.endpoint,
       S3_ACCESS_KEY: minio.accessKey,
       S3_SECRET_KEY: minio.secretKey,
@@ -73,6 +75,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   });
   await waitForHealth(`http://127.0.0.1:${String(SOUL_PORT)}/health`);
   process.env.UGO_E2E_SOUL_WS = `ws://127.0.0.1:${String(SOUL_PORT)}/v1/face`;
+  process.env.UGO_E2E_TOKEN = E2E_TOKEN;
   process.env.UGO_E2E_DATABASE_URL = pg.getConnectionUri();
   process.env.UGO_E2E_S3_ENDPOINT = minio.endpoint;
   process.env.UGO_E2E_S3_ACCESS_KEY = minio.accessKey;

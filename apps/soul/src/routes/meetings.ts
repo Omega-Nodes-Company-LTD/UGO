@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { MeetingsService } from "../services/meetingsService.js";
+import type { PreHandler } from "./guard.js";
 
 const joinRequestSchema = z.object({
   url: z.url(),
@@ -15,8 +16,12 @@ function problem(reply: FastifyReply, status: number, title: string, detail?: st
 }
 
 /** POST /v1/meetings/join (PROGETTO §5.7): launches the Vexa bot. */
-export function registerMeetingsRoutes(app: FastifyInstance, service: MeetingsService): void {
-  app.post("/v1/meetings/join", async (request, reply) => {
+export function registerMeetingsRoutes(
+  app: FastifyInstance,
+  service: MeetingsService,
+  guard: PreHandler,
+): void {
+  app.post("/v1/meetings/join", { preHandler: guard }, async (request, reply) => {
     const parsed = joinRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       problem(reply, 400, "Invalid meeting request", z.prettifyError(parsed.error));

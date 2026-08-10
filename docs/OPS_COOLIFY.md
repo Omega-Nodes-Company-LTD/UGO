@@ -79,7 +79,8 @@ risorsa.
    `MQTT_URL=mqtt://<HOST_MOSQUITTO>:1883` · `MQTT_USER=soul` · `MQTT_PASS=<MQTT_PASS>` ·
    `OLLAMA_URL=http://<HOST_OLLAMA>:11434` · `OLLAMA_EMBED_MODEL=nomic-embed-text` ·
    `ANTHROPIC_API_KEY=<ANTHROPIC_API_KEY>` · `UGO_CHAT_MODEL=claude-haiku-4-5` ·
-   `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY=<UGO_DATA_KEY>` · `S3_ENDPOINT=<S3_ENDPOINT>` ·
+   `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY=<UGO_DATA_KEY>` ·
+   `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` · `NODE_ENV=production` · `S3_ENDPOINT=<S3_ENDPOINT>` ·
    `S3_ACCESS_KEY=<S3_ACCESS_KEY>` · `S3_SECRET_KEY=<S3_SECRET_KEY>` · `S3_BUCKET_AUDIO=ugo-audio` ·
    `VEXA_API_URL=<VEXA_API_URL>` · `VEXA_API_KEY=<VEXA_API_KEY>` · `UGO_OWNER_NAME=<OWNER_NAME>` ·
    `TZ=Europe/Rome`. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
@@ -142,6 +143,9 @@ Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
    → attese: una riga per ogni chiamata; il `cost_usd` della **seconda** chiamata sensibilmente più
    basso della prima (il prefisso cached costa ~10%: è la verifica del cache-hit reale, STATE.md §6).
 5. `GET http://<TAILSCALE_IP>:3000/debug/chat` dal browser (tailnet) → la mini chat risponde.
+6. Verifica che le rotte protette siano davvero protette:
+   `curl -s -o /dev/null -w '%{http_code}\n' -X POST http://<TAILSCALE_IP>:3000/v1/jobs/dream`
+   → atteso **401**; ripeti con `-H "Authorization: Bearer <UGO_INTERNAL_TOKEN>"` → atteso **202**.
 
 ## 5. Troubleshooting
 
@@ -149,6 +153,11 @@ Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
 RAM insufficiente per il modello batch: nei log di ollama compare `out of memory` o il container
 viene ucciso (OOMKilled). Alza `<OLLAMA_RAM_LIMIT>` o scegli un MoE più piccolo; gli embeddings da
 soli richiedono pochissimo.
+
+### soul non parte e nei log c'è `UGO_INTERNAL_TOKEN is required`
+Con `NODE_ENV=production` il token è obbligatorio: soul si rifiuta di esporre oblio, export,
+riunioni e upload senza autenticazione. Genera il token (`openssl rand -hex 32`), aggiungilo alle
+variabili della risorsa e redeploya. È un rifiuto voluto, non un bug.
 
 ### soul segnala `mqtt: "error"` in /health
 Quasi sempre ACL o credenziali: verifica che il password file contenga l'utente `soul` con la
