@@ -128,5 +128,13 @@ jobs:
               .catch((error) => { console.error(error.message); process.exit(1); })"
       - name: build jobs image
         run: docker build -f ops/docker/jobs.Dockerfile -t ugo-jobs:ci .
-      - name: jobs image can import the dream
-        run: docker run --rm ugo-jobs:ci python -c "import ugo_jobs.dream; print('dream imports')"
+      # --entrypoint: the image's entrypoint IS the dream, so a bare command
+      # would be parsed as arguments to it
+      - name: jobs image has the dream and a pg_dump that matches the server
+        run: |
+          docker run --rm --entrypoint sh ugo-jobs:ci -c "
+            python -c 'import ugo_jobs.dream' &&
+            pg_dump --version | grep -q 'PostgreSQL) 16' &&
+            test \"\$(whoami)\" = ugo &&
+            echo 'dream imports, pg_dump 16, non-root'"
+

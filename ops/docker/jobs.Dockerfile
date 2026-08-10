@@ -3,16 +3,21 @@
 # pgvector:pg16 server. Runs as a dedicated non-root user; no secrets baked.
 # Build context: repository root.
 
-FROM python:3.12-slim AS runtime
+# Pinned to bookworm on purpose: `python:3.12-slim` follows Debian stable, and
+# when it rolled to trixie the hardcoded bookworm-pgdg repo below stopped
+# resolving mid-build. Pinning keeps the base still; deriving the codename
+# below keeps it correct anyway the day we move it deliberately.
+FROM python:3.12-slim-bookworm AS runtime
 
-# postgresql-client-16 from PGDG (bookworm ships 15, which cannot dump pg16)
+# postgresql-client-16 from PGDG (Debian stable ships 15, which cannot dump pg16)
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
   && install -d /usr/share/postgresql-common/pgdg \
   && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
      -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+  && . /etc/os-release \
   && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
-     http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+     http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
      > /etc/apt/sources.list.d/pgdg.list \
   && apt-get update \
   && apt-get install -y --no-install-recommends postgresql-client-16 \
