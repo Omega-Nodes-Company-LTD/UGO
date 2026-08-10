@@ -1,8 +1,8 @@
 ---
 title: "Runbook — Deploy di UGO su Coolify"
 description: "Procedura completa per portare l'anima di UGO in produzione sul server Coolify: prerequisiti, risorse una per una, bucket S3, smoke test, troubleshooting e aggiornamenti."
-version: "0.6.0"
-last_updated: "2026-08-07"
+version: "0.10.0"
+last_updated: "2026-08-10"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -83,10 +83,13 @@ risorsa.
    `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` · `NODE_ENV=production` · `S3_ENDPOINT=<S3_ENDPOINT>` ·
    `S3_ACCESS_KEY=<S3_ACCESS_KEY>` · `S3_SECRET_KEY=<S3_SECRET_KEY>` · `S3_BUCKET_AUDIO=ugo-audio` ·
    `VEXA_API_URL=<VEXA_API_URL>` · `VEXA_API_KEY=<VEXA_API_KEY>` · `UGO_OWNER_NAME=<OWNER_NAME>` ·
-   `TZ=Europe/Rome`. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
+   `TZ=Europe/Rome`. Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
+   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
    nella pagina di ogni risorsa.)
 4. **Pre-deployment Command** (applica le migrazioni prima di ogni avvio, CLAUDE.md regola 5):
    `node node_modules/@ugo/db/dist/migrate-cli.js`. Risultato atteso nei log: `migrations applied`.
+   La migrazione semina anche l'esemplare `ugo-prime`: senza quella riga nessuna scrittura di stato
+   passerebbe la foreign key (ADR-015).
 5. Healthcheck: già nel Dockerfile (`GET /health`). Limite RAM: 1 GB.
 6. **Deploy**. Risultato atteso: **Running (healthy)**.
 
@@ -139,15 +142,78 @@ Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
    `curl -s -X POST http://<TAILSCALE_IP>:3000/v1/chat -H 'content-type: application/json' -d '{"channel":"home","text":"ciao UGO, come stai?"}'`
    → atteso: `{"reply":"…","moodLabel":"…","memoriesUsed":[…]}` in italiano, tono da porcetto.
 4. Ripeti la chiamata del punto 3 con un testo diverso, poi verifica il salvadanaio **e** la cache:
-   `docker exec <CONTAINER_POSTGRES> psql -U ugo -d ugo -c "select date, tokens_in, tokens_out, cost_usd from budget_ledger order by date desc limit 5;"`
-   → attese: una riga per ogni chiamata; il `cost_usd` della **seconda** chiamata sensibilmente più
-   basso della prima (il prefisso cached costa ~10%: è la verifica del cache-hit reale, STATE.md §6).
+   `curl -s http://<TAILSCALE_IP>:3000/v1/stats -H "Authorization: Bearer <UGO_INTERNAL_TOKEN>"`
+   → attesi: `spendToday` maggiore di zero e `cacheHitRatio` **maggiore di zero**. È la verifica del
+   cache-hit reale (STATE.md §6): se resta a zero dopo due chiamate, il prefisso cached si sta
+   invalidando e va indagato prima di andare avanti.
 5. `GET http://<TAILSCALE_IP>:3000/debug/chat` dal browser (tailnet) → la mini chat risponde.
 6. Verifica che le rotte protette siano davvero protette:
    `curl -s -o /dev/null -w '%{http_code}\n' -X POST http://<TAILSCALE_IP>:3000/v1/jobs/dream`
    → atteso **401**; ripeti con `-H "Authorization: Bearer <UGO_INTERNAL_TOKEN>"` → atteso **202**.
 
-## 5. Troubleshooting
+## 5. Il branco: popolarlo e insegnargli le voci
+
+UGO arriva in una casa che esiste già. Finché il branco è vuoto risponde a tutti come a sconosciuti:
+questi passi sono ciò che lo rende un membro della famiglia invece di un servizio.
+
+### 5.1 Registrare chi vive in casa
+
+1. Aggiungi ogni essere, uno per volta (tutte le rotte del branco vogliono il token):
+   ```
+   curl -s -X POST http://<TAILSCALE_IP>:3000/v1/beings \
+     -H "Authorization: Bearer <UGO_INTERNAL_TOKEN>" -H 'content-type: application/json' \
+     -d '{"displayName":"<NOME>","species":"human","kind":"resident","arrivalAt":"<AAAA-MM-GG>"}'
+   ```
+   → atteso: `201` con l'`id` dell'essere. **Annotalo**: serve per l'enrollment.
+2. Per gli animali cambia solo `species`: `dog`, `parrot`, `reptile` — o qualunque altra cosa, che
+   viene accettata e degrada al profilo prudente `unknown` finché non le dai una mappa.
+3. Per un minore aggiungi `"isMinor": true`. Da quel momento **nessun profilo biometrico** sarà
+   creato per lui, né dalla rotta né dal sogno: verrà riconosciuto solo se un umano di fiducia dice
+   chi è. Chi non vuole essere ascoltato o inquadrato: `"noAudio": true` / `"noVision": true`.
+4. Rileggi il branco: `curl -s http://<TAILSCALE_IP>:3000/v1/pack` → atteso: l'elenco con specie,
+   canali e i legami a zero. Sono a zero perché UGO è appena arrivato e deve guadagnarseli.
+
+### 5.2 Insegnargli le voci
+
+L'enrollment è **asincrono per disegno**: la clip viene messa in coda e diventa un'impronta durante
+il sogno. UGO dice "me lo segno", non finge di aver imparato subito.
+
+1. Fai registrare alla persona ~10 secondi di parlato normale **dal dock di casa** (non dal wearable:
+   fuori dal corpo di casa l'enrollment viene rifiutato di proposito, ADR-016).
+2. Carica la clip con l'URL prefirmato:
+   `POST /v1/audio/presign` con `{"filename":"<NOME>_enroll_1.webm"}` → poi `PUT` del file sull'URL
+   restituito.
+3. Deposita la richiesta:
+   ```
+   curl -s -X POST http://<TAILSCALE_IP>:3000/v1/beings/<BEING_ID>/enroll/voice \
+     -H "Authorization: Bearer <UGO_INTERNAL_TOKEN>" -H 'content-type: application/json' \
+     -d '{"objectKey":"<CHIAVE_RESTITUITA_DAL_PRESIGN>"}'
+   ```
+   → atteso: `202` con `{"status":"queued"}`. Un `403` qui **non è un errore**: è una tutela che ha
+   detto no (minore o opt-out audio).
+4. Ripeti due o tre volte per persona, in momenti diversi. Il centroide è una media: più sessioni,
+   più robusto contro raffreddori e stanchezza.
+5. Fai girare il sogno (o aspetta le 02:30): `POST /v1/jobs/dream` col token. Nel report cerca
+   `"enroll": {"enrolled": N, ...}`.
+6. Verifica: `docker exec <CONTAINER_POSTGRES> psql -U ugo -d ugo -c "select being_id, modality, model, sample_count from recognition_profiles;"`
+   → atteso: una riga per persona. **La colonna `payload` non compare di proposito**: è ciphertext, e
+   guardarla non direbbe nulla comunque.
+7. Le clip di enrollment vengono cancellate dalla notte stessa che le usa. Non serve fare pulizia.
+
+### 5.3 Correggerlo quando sbaglia
+
+Il riconoscimento è fallibile per costruzione, e `wrong_name` è il segnale più importante del
+sistema. Quando chiama qualcuno col nome sbagliato:
+
+```
+curl -s -X POST http://<TAILSCALE_IP>:3000/v1/corrections \
+  -H "Authorization: Bearer <UGO_INTERNAL_TOKEN>" -H 'content-type: application/json' \
+  -d '{"signal":"wrong_name","aboutBeing":"<BEING_ID_GIUSTO>"}'
+```
+
+Le correzioni recenti entrano nel prompt: UGO sa di aver sbagliato e diventa più prudente.
+
+## 6. Troubleshooting
 
 ### Ollama non risponde o il sogno fallisce in riflessione
 RAM insufficiente per il modello batch: nei log di ollama compare `out of memory` o il container
@@ -173,12 +239,26 @@ Cache dei prompt fredda: ogni modifica a `packages/prompts/*` o un lungo periodo
 invalida il prefisso cached e la prima chiamata paga il prezzo pieno (cache write ×1.25). È
 fisiologico; se persiste, verifica di non avere deploy ripetuti che riavviano il ciclo.
 
+### L'enrollment resta in coda e non produce nessun profilo
+Guarda l'esito registrato dal sogno:
+`select observed from perception_events where observed->>'kind' = 'enrollment' order by occurred_at desc limit 5;`
+Il campo `outcome` dice tutto: `refused:minor_biometrics_forbidden` e `refused:opted_out_of_audio`
+sono **tutele che hanno funzionato**, non guasti; `refused:channel_not_home` significa che la clip non
+veniva dal dock; `no_object` che la chiave S3 era sbagliata; `failed` che l'audio non era decodificabile.
+
+### UGO non riconosce una voce che ha imparato
+Normale sotto soglia: preferisce chiedere che indovinare. Aggiungi una o due sessioni di enrollment
+per quella persona (§5.2) — il centroide migliora con la varietà. Se sbaglia **persona**, mandagli una
+correzione `wrong_name` (§5.3) invece di rifare tutto da capo.
+
 ### Il sogno non è partito stanotte
 Controlla lo Scheduled Task: fuso orario del server (il cron di Coolify usa quello di sistema),
 task abilitato, e i log dell'ultima esecuzione. Il job è idempotente: recuperare a mano con
 `python -m ugo_jobs.dream --date <DATA_PERSA>` è sempre sicuro (gli step completati vengono saltati).
+Gli step sono `ingest → enroll → reflect → hygiene → compaction → backup`: il report li elenca tutti,
+con `skipped (already done)` per quelli già chiusi.
 
-## 6. Ripristino da backup (disaster recovery)
+## 7. Ripristino da backup (disaster recovery)
 
 Il backup è verificato da un test di round-trip, ma la procedura va provata **almeno una volta** sul
 server, su un database di scratch: un ripristino improvvisato durante un incidente è un secondo
@@ -199,7 +279,7 @@ incidente.
    backup è stato cifrato: senza quella chiave il dump è indecifrabile — è il motivo per cui va
    custodita fuori dal server.
 
-## 7. Aggiornamenti
+## 8. Aggiornamenti
 
 ### Redeploy senza downtime
 1. Push sul branch di produzione → in Coolify clicca **Redeploy** sulla risorsa soul (o abilita
@@ -224,4 +304,4 @@ incidente.
 - Stato del progetto e Definition of Done per fase: [`STATE.md`](./STATE.md)
 - Architettura e vincoli invarianti: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 - Problemi non coperti qui: apri i log della risorsa in Coolify e confronta con la sezione
-  [Troubleshooting](#5-troubleshooting).
+  [Troubleshooting](#6-troubleshooting).
