@@ -2,74 +2,35 @@ import {
   PRIME_GOSINO_ID,
   beings,
   bonds,
-  corrections,
   perceptionEvents,
   recognitionProfiles,
   type DbClient,
 } from "@ugo/db";
-import {
-  BEING_KINDS,
-  CORRECTION_SIGNALS,
-  KNOWN_SPECIES,
-  profileFor,
-  type SpeciesMap,
-} from "@ugo/shared";
+import { KNOWN_SPECIES, profileFor } from "@ugo/shared";
 import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { PreHandler } from "./guard.js";
+import { BeingNotFoundError, type BeingsService } from "../../services/beingsService.js";
+import {
+  createBeingSchema,
+  enrollSchema,
+  patchBeingSchema,
+  problem,
+  uuidParam,
+  type PackRouteDeps,
+} from "./shared.js";
 
-/**
- * The pack over HTTP (ADR-014/016). Everything here is guarded: adding a being
- * or asking UGO to learn a voice are not things a stray request should do.
- *
- * Enrollment is filed, not performed: the clip is already in object storage,
- * and tonight's dream turns it into a centroid. UGO says "me lo segno" instead
- * of pretending to have learned on the spot.
- */
-
-const createBeingSchema = z.object({
-  displayName: z.string().min(1).max(120),
-  // not an enum on purpose (ADR-014): a species we do not know yet must be
-  // accepted, and degrade to the cautious `unknown` profile
-  species: z.string().min(1).max(40).default("human"),
-  kind: z.enum(BEING_KINDS).default("resident"),
-  arrivalAt: z.iso.date().optional(),
-  isMinor: z.boolean().default(false),
-  noVision: z.boolean().default(false),
-  noAudio: z.boolean().default(false),
-  aliases: z.array(z.string().min(1).max(80)).max(10).default([]),
-  notes: z.string().max(500).optional(),
-});
-
-const enrollSchema = z.object({
-  /** object key of a clip already uploaded through /v1/audio/presign */
-  objectKey: z.string().min(1).max(300),
-});
-
-const correctionSchema = z.object({
-  beingId: z.uuid().optional(),
-  aboutBeing: z.uuid().optional(),
-  signal: z.enum(CORRECTION_SIGNALS),
-  payload: z.record(z.string(), z.unknown()).default({}),
-});
-
-export interface PackRouteDeps {
-  db: DbClient;
-  speciesMap: SpeciesMap;
-  guard: PreHandler;
-  gosinoId?: string;
-}
-
-function problem(title: string, status: number, detail?: string): Record<string, unknown> {
-  return { type: "about:blank", title, status, ...(detail !== undefined && { detail }) };
-}
-
-export function registerPackRoutes(app: FastifyInstance, deps: PackRouteDeps): void {
+/** The beings themselves: read, create, amend, and teach a voice. */
+export function registerBeingRoutes(
+  app: FastifyInstance,
+  deps: PackRouteDeps,
+  service: BeingsService,
+): void {
   const gosinoId = deps.gosinoId ?? PRIME_GOSINO_ID;
+  const db: DbClient = deps.db;
 
   app.get("/v1/pack", async (_request, reply) => {
-    const rows = await deps.db
+    const rows = await db
       .select({
         id: beings.id,
         displayName: beings.displayName,
@@ -114,7 +75,7 @@ export function registerPackRoutes(app: FastifyInstance, deps: PackRouteDeps): v
         .send(problem("Invalid being", 400, z.prettifyError(parsed.error)));
     }
     const { arrivalAt, notes, ...rest } = parsed.data;
-    const [created] = await deps.db
+    const [created] = await db
       .insert(beings)
       .values({
         ...rest,
@@ -124,24 +85,59 @@ export function registerPackRoutes(app: FastifyInstance, deps: PackRouteDeps): v
       .returning({ id: beings.id });
     // the bond starts at zero: UGO is the newcomer, he has to earn it
     if (created !== undefined) {
-      await deps.db.insert(bonds).values({ gosinoId, beingId: created.id });
+      await db.insert(bonds).values({ gosinoId, beingId: created.id });
     }
     return reply.code(201).send({ id: created?.id });
   });
 
+  /**
+   * Consent is not given once and for all: somebody can ask later not to be
+   * listened to. Setting that here DESTROYS the voiceprint (BeingsService)
+   * instead of merely ignoring it from now on.
+   */
+  app.patch("/v1/beings/:id", { preHandler: deps.guard }, async (request, reply) => {
+    const id = uuidParam(request.params);
+    const parsed = patchBeingSchema.safeParse(request.body);
+    if (id === undefined || !parsed.success) {
+      return reply
+        .code(400)
+        .type("application/problem+json")
+        .send(
+          problem("Invalid being patch", 400, parsed.success ? undefined : z.prettifyError(parsed.error)),
+        );
+    }
+    try {
+      return await reply.send(await service.update(id, parsed.data));
+    } catch (error) {
+      if (error instanceof BeingNotFoundError) {
+        return reply.code(404).type("application/problem+json").send(problem("Being not found", 404));
+      }
+      throw error;
+    }
+  });
+
+  /** "Cancella la mia voce, ma resto nel branco." */
+  app.delete("/v1/beings/:id/recognition/voice", { preHandler: deps.guard }, async (request, reply) => {
+    const id = uuidParam(request.params);
+    if (id === undefined) {
+      return reply.code(400).type("application/problem+json").send(problem("Invalid being id", 400));
+    }
+    return reply.send({ destroyed: await service.destroyVoice(id) });
+  });
+
   app.post("/v1/beings/:id/enroll/voice", { preHandler: deps.guard }, async (request, reply) => {
-    const id = z.uuid().safeParse((request.params as { id?: string }).id);
+    const id = uuidParam(request.params);
     const parsed = enrollSchema.safeParse(request.body);
-    if (!id.success || !parsed.success) {
+    if (id === undefined || !parsed.success) {
       return reply
         .code(400)
         .type("application/problem+json")
         .send(problem("Invalid enrollment request", 400));
     }
-    const [being] = await deps.db
+    const [being] = await db
       .select({ isMinor: beings.isMinor, noAudio: beings.noAudio })
       .from(beings)
-      .where(eq(beings.id, id.data));
+      .where(eq(beings.id, id));
     if (being === undefined) {
       return reply.code(404).type("application/problem+json").send(problem("Being not found", 404));
     }
@@ -159,30 +155,12 @@ export function registerPackRoutes(app: FastifyInstance, deps: PackRouteDeps): v
           ),
         );
     }
-    await deps.db.insert(perceptionEvents).values({
+    await db.insert(perceptionEvents).values({
       gosinoId,
       modality: "audio_speech",
-      beingId: id.data,
+      beingId: id,
       observed: { kind: "enrollment_requested", object_key: parsed.data.objectKey, channel: "home" },
     });
     return reply.code(202).send({ status: "queued" });
-  });
-
-  app.post("/v1/corrections", { preHandler: deps.guard }, async (request, reply) => {
-    const parsed = correctionSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply
-        .code(400)
-        .type("application/problem+json")
-        .send(problem("Invalid correction", 400, z.prettifyError(parsed.error)));
-    }
-    const { beingId, aboutBeing, ...rest } = parsed.data;
-    await deps.db.insert(corrections).values({
-      gosinoId,
-      ...rest,
-      ...(beingId !== undefined && { beingId }),
-      ...(aboutBeing !== undefined && { aboutBeing }),
-    });
-    return reply.code(201).send({ status: "recorded" });
   });
 }

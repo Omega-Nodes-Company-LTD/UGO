@@ -8,7 +8,12 @@
 export const ADMIN_SCRIPT = `
 const $ = (id) => document.getElementById(id);
 const token = () => sessionStorage.getItem("ugo_token") ?? "";
-const headers = () => ({ "content-type": "application/json", authorization: "Bearer " + token() });
+// content-type only when there IS a body: Fastify rejects an empty body sent
+// as application/json, which silently broke every DELETE from this panel
+const headers = (hasBody) => ({
+  ...(hasBody ? { "content-type": "application/json" } : {}),
+  authorization: "Bearer " + token(),
+});
 const say = (where, text, kind) => { $(where).innerHTML = ""; const d = document.createElement("div");
   d.className = "msg " + (kind ?? "info"); d.textContent = text; d.dataset.testid = where + "-text";
   $(where).appendChild(d); };
@@ -16,7 +21,7 @@ const say = (where, text, kind) => { $(where).innerHTML = ""; const d = document
 const SPECIES_LABEL = { human: "persona", dog: "cane", parrot: "pappagallo", reptile: "rettile" };
 
 async function call(path, options) {
-  const res = await fetch(path, { ...options, headers: headers() });
+  const res = await fetch(path, { ...options, headers: headers(options?.body !== undefined) });
   let body = null;
   try { body = await res.json(); } catch { /* empty body is fine */ }
   if (!res.ok) {
@@ -33,6 +38,7 @@ $("save-token").addEventListener("click", async () => {
     await call("/v1/stats", {});
     $("app").hidden = false; $("auth").hidden = true;
     await refresh();
+    await loadHealth();
   } catch (error) {
     say("auth-msg", error.status === 401 ? "Token non valido." : "Non riesco a parlare con UGO: " + error.message, "err");
   }
@@ -40,9 +46,15 @@ $("save-token").addEventListener("click", async () => {
 
 // --- il branco -------------------------------------------------------------
 let pack = [];
+// Two quick actions start two refreshes, and without this the SLOWER one wins
+// and repaints the panel with data from before the last change. Latest call
+// wins, every earlier one drops its result on the floor.
+let refreshSeq = 0;
 
 async function refresh() {
+  const mine = ++refreshSeq;
   const data = await call("/v1/pack", {});
+  if (mine !== refreshSeq) return;
   pack = data.beings;
   $("species-list").innerHTML = data.knownSpecies.map((s) => '<option value="' + s + '">').join("");
   const rows = pack.map((b) => {
@@ -50,17 +62,54 @@ async function refresh() {
       .filter(Boolean).join(" · ");
     const bond = b.familiarity >= 0.75 ? "vi conoscete bene" : b.familiarity >= 0.4 ? "un po'" : "poco";
     const voice = b.hasVoiceProfile ? "sì (" + b.voiceSamples + ")" : (b.isMinor || b.noAudio ? "—" : "no");
+    const toggle = (field, label) => '<label class="flags" style="display:inline-block;margin-right:.6rem">' +
+      '<input type="checkbox" data-toggle="' + field + '" data-being="' + b.id + '"' +
+      (b[field] ? " checked" : "") + "> " + label + "</label>";
+    const drop = b.hasVoiceProfile
+      ? '<button class="ghost" data-drop-voice="' + b.id + '" data-testid="drop-voice">scorda la voce</button>'
+      : "";
     return '<tr data-testid="pack-row"><td>' + escape(b.displayName) +
       (flags ? '<div class="flags">' + flags + "</div>" : "") + "</td><td>" +
-      (SPECIES_LABEL[b.species] ?? escape(b.species)) + "</td><td>" + bond + "</td><td>" + voice + "</td><td></td></tr>";
+      (SPECIES_LABEL[b.species] ?? escape(b.species)) + "</td><td>" + bond + "</td><td>" + voice + "</td><td>" +
+      toggle("isMinor", "minorenne") + toggle("noAudio", "non ascoltare") + toggle("noVision", "non guardare") +
+      "</td><td>" + drop + "</td></tr>";
   });
   document.querySelector('[data-testid="pack-rows"]').innerHTML = rows.join("") ||
     '<tr><td colspan="5">Nessuno, ancora. UGO risponderà a tutti come a sconosciuti.</td></tr>';
-  for (const select of ["enroll-being", "corr-being"]) {
+  for (const select of ["enroll-being", "corr-being", "forget-being", "rel-a", "rel-b"]) {
     $(select).innerHTML = pack.map((b) => '<option value="' + b.id + '">' + escape(b.displayName) + "</option>").join("");
   }
+  if (mine !== refreshSeq) return;
+  await loadRelations();
   await loadStats();
 }
+
+// tutele: cambiarle è un'azione, non una preferenza salvata da qualche parte
+document.addEventListener("change", async (event) => {
+  const box = event.target.closest?.("[data-toggle]");
+  if (!box) return;
+  const field = box.dataset.toggle;
+  try {
+    const report = await call("/v1/beings/" + box.dataset.being, {
+      method: "PATCH", body: JSON.stringify({ [field]: box.checked }),
+    });
+    say("pack-msg", report.biometricsDestroyed > 0
+      ? "Fatto — e l'impronta vocale è stata distrutta: revocare il consenso non è smettere di usare un dato."
+      : "Fatto.", "ok");
+    await refresh();
+  } catch (error) { say("pack-msg", "Non aggiornato: " + error.message, "err"); box.checked = !box.checked; }
+});
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest?.("[data-drop-voice]");
+  if (!button) return;
+  try {
+    const res = await call("/v1/beings/" + button.dataset.dropVoice + "/recognition/voice", { method: "DELETE" });
+    say("pack-msg", "Impronta cancellata (" + res.destroyed + "). Resta nel branco, ma UGO non lo " +
+      "riconoscerà più dalla voce finché non glielo reinsegni.", "ok");
+    await refresh();
+  } catch (error) { say("pack-msg", "Non cancellata: " + error.message, "err"); }
+});
 
 function escape(value) { const d = document.createElement("div"); d.textContent = value; return d.innerHTML; }
 
@@ -75,9 +124,39 @@ $("add-being").addEventListener("click", async () => {
   try {
     await call("/v1/beings", { method: "POST", body: JSON.stringify(body) });
     $("name").value = ""; $("minor").checked = false; $("no-audio").checked = false; $("no-vision").checked = false;
-    say("add-msg", displayName + " fa parte del branco. Il legame parte da zero: UGO deve guadagnarselo.", "ok");
     await refresh();
+    say("add-msg", displayName + " fa parte del branco. Il legame parte da zero: UGO deve guadagnarselo.", "ok");
   } catch (error) { say("add-msg", "Non aggiunto: " + error.message, "err"); }
+});
+
+// --- relazioni -------------------------------------------------------------
+const REL_LABEL = { parent_of: "è genitore di", partner_of: "sta con", cares_for: "si prende cura di", avoids: "evita" };
+
+async function loadRelations() {
+  const { relations } = await call("/v1/relations", {});
+  const name = (id) => pack.find((b) => b.id === id)?.displayName ?? "?";
+  $("rel-list").innerHTML = relations.map((r) =>
+    '<li data-testid="rel-item">' + escape(name(r.beingA)) + " " + (REL_LABEL[r.type] ?? r.type) + " " +
+    escape(name(r.beingB)) + ' <button class="ghost" data-unlink="' + r.id + '">togli</button></li>').join("") ||
+    "<li>Nessuna. UGO non sa ancora chi è parente di chi.</li>";
+}
+
+$("add-rel").addEventListener("click", async () => {
+  try {
+    await call("/v1/relations", {
+      method: "POST",
+      body: JSON.stringify({ beingA: $("rel-a").value, beingB: $("rel-b").value, type: $("rel-type").value }),
+    });
+    say("rel-msg", "Collegati.", "ok");
+    await loadRelations();
+  } catch (error) { say("rel-msg", "Non collegati: " + error.message, "err"); }
+});
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest?.("[data-unlink]");
+  if (!button) return;
+  try { await call("/v1/relations/" + button.dataset.unlink, { method: "DELETE" }); await loadRelations(); }
+  catch (error) { say("rel-msg", error.message, "err"); }
 });
 
 // --- enrollment vocale -----------------------------------------------------
@@ -138,6 +217,35 @@ $("add-corr").addEventListener("click", async () => {
   } catch (error) { say("corr-msg", "Non registrata: " + error.message, "err"); }
 });
 
+// --- i dati ----------------------------------------------------------------
+$("export").addEventListener("click", async () => {
+  try {
+    const bundle = await call("/v1/privacy/export", {});
+    const url = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = "ugo-" + new Date().toISOString().slice(0, 10) + ".json";
+    link.click(); URL.revokeObjectURL(url);
+  } catch (error) { say("forget-msg", "Export fallito: " + error.message, "err"); }
+});
+
+$("forget").addEventListener("click", async () => {
+  if ($("forget-confirm").value.trim() !== "DIMENTICA") {
+    say("forget-msg", "Scrivi DIMENTICA per confermare. È irreversibile, e voglio esserne sicuro.", "err");
+    return;
+  }
+  const beingId = $("forget-being").value;
+  try {
+    const report = await call("/v1/privacy/forget", {
+      method: "POST", body: JSON.stringify({ beingId, confirm: true }),
+    });
+    $("forget-confirm").value = "";
+    say("forget-msg", "Dimenticato. Messaggi ripuliti: " + report.messagesRedacted +
+      ", ricordi riscritti: " + report.memoriesRedacted +
+      ", impronte biometriche distrutte: " + report.biometricProfilesDestroyed + ".", "ok");
+    await refresh();
+  } catch (error) { say("forget-msg", "Non dimenticato: " + error.message, "err"); }
+});
+
 // --- stato -----------------------------------------------------------------
 async function loadStats() {
   const s = await call("/v1/stats", {});
@@ -151,8 +259,17 @@ async function loadStats() {
 }
 const stat = (label, value) => '<div class="stat"><b>' + value + "</b>" + label + "</div>";
 
+async function loadHealth() {
+  const res = await fetch("/health");
+  const body = await res.json();
+  const dot = (ok) => (ok === "ok" ? "🟢" : ok === "degraded" ? "🟡" : "🔴");
+  $("health").innerHTML = Object.entries(body.checks ?? {})
+    .map(([name, state]) => dot(state) + " " + name + " ")
+    .join("") + (body.status === "ok" ? "" : " — qualcosa non va: guarda i log della risorsa.");
+}
+
 $("refresh").addEventListener("click", async () => {
-  try { await refresh(); say("stats-msg", "Aggiornato.", "ok"); }
+  try { await refresh(); await loadHealth(); say("stats-msg", "Aggiornato.", "ok"); }
   catch (error) { say("stats-msg", error.message, "err"); }
 });
 

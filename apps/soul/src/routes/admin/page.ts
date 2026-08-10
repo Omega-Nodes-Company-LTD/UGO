@@ -52,8 +52,11 @@ export const ADMIN_PAGE = `<!doctype html>
 <div id="app" hidden>
   <section>
     <h2>Il branco</h2>
-    <table id="pack"><thead><tr><th>Nome</th><th>Specie</th><th>Legame</th><th>Voce</th><th></th></tr></thead>
+    <table id="pack"><thead><tr><th>Nome</th><th>Specie</th><th>Legame</th><th>Voce</th><th>Tutele</th><th></th></tr></thead>
       <tbody data-testid="pack-rows"></tbody></table>
+    <p class="flags">Le tutele si possono cambiare in qualunque momento. Spuntare <b>non ascoltare</b>
+       (o <b>è minorenne</b>) su chi ha già un'impronta vocale la <b>cancella</b>: revocare il consenso
+       non è smettere di usare un dato, è distruggerlo.</p>
     <div id="pack-msg"></div>
   </section>
 
@@ -78,6 +81,24 @@ export const ADMIN_PAGE = `<!doctype html>
     <p class="flags">Se spunti <b>è minorenne</b> UGO non costruirà mai un'impronta della sua voce:
        lo riconoscerà solo se glielo dici tu. Vale anche per <b>non ascoltare</b>.</p>
     <div id="add-msg"></div>
+  </section>
+
+  <section>
+    <h2>Chi è chi</h2>
+    <p class="flags">Le relazioni tra gli altri, che esistono anche senza UGO. Gli servono per capire
+       di chi state parlando.</p>
+    <div class="row">
+      <div><label for="rel-a">Questo</label><select id="rel-a" data-testid="rel-a"></select></div>
+      <div><label for="rel-type">è</label><select id="rel-type" data-testid="rel-type">
+        <option value="parent_of">genitore di</option>
+        <option value="partner_of">sta con</option>
+        <option value="cares_for">si prende cura di</option>
+        <option value="avoids">evita</option></select></div>
+      <div><label for="rel-b">questo</label><select id="rel-b" data-testid="rel-b"></select></div>
+      <button id="add-rel" data-testid="add-rel" style="flex:0 0 auto">Collega</button>
+    </div>
+    <ul id="rel-list" data-testid="rel-list" style="font-size:.9rem"></ul>
+    <div id="rel-msg"></div>
   </section>
 
   <section>
@@ -106,8 +127,30 @@ export const ADMIN_PAGE = `<!doctype html>
   </section>
 
   <section>
+    <h2>I dati</h2>
+    <div class="row">
+      <button id="export" class="ghost" data-testid="export" style="flex:0 0 auto">Scarica tutto (JSON)</button>
+    </div>
+    <p class="flags">Il file contiene conversazioni, trascrizioni, ricordi e diario <b>in chiaro</b>.
+       Le impronte vocali no: un file di export è testo leggibile, e un'impronta in chiaro è ciò che la
+       cifratura esiste per impedire.</p>
+    <h3 style="font-size:.95rem;margin-top:1.5rem">Far dimenticare qualcuno</h3>
+    <div class="row">
+      <div><label for="forget-being">Chi</label><select id="forget-being" data-testid="forget-being"></select></div>
+      <div><label for="forget-confirm">Scrivi <code>DIMENTICA</code> per confermare</label>
+        <input id="forget-confirm" data-testid="forget-confirm" autocomplete="off"></div>
+      <button id="forget" data-testid="forget" style="flex:0 0 auto">Dimentica</button>
+    </div>
+    <p class="flags">Irreversibile. Il nome sparisce da tutta la biografia — anche dalle frasi degli
+       altri — i ricordi vengono riscritti e ricalcolati, e l'impronta vocale è distrutta. Non c'è
+       cestino: si torna indietro solo da un backup precedente.</p>
+    <div id="forget-msg"></div>
+  </section>
+
+  <section>
     <h2>Come sta</h2>
     <div id="stats" data-testid="stats"></div>
+    <div id="health" data-testid="health" style="margin-top:.8rem;font-size:.9rem"></div>
     <div class="row" style="margin-top:.8rem">
       <button id="refresh" class="ghost" data-testid="refresh" style="flex:0 0 auto">Aggiorna</button>
       <button id="dream" class="ghost" data-testid="dream" style="flex:0 0 auto">Fallo sognare adesso</button>

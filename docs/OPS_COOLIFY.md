@@ -265,12 +265,31 @@ Il riconoscimento è fallibile per costruzione, e *ha sbagliato nome* è il segn
 sistema. Nella sezione **Correggilo**: scegli su chi, scegli cosa ha sbagliato, clicca **Diglielo**.
 Le correzioni recenti entrano nel prompt: UGO sa di aver sbagliato e diventa più prudente.
 
-### 5.4 Tenerlo d'occhio
+### 5.4 Cambiare idea, e cancellare
+
+Le tutele **non si decidono una volta per tutte**. Nella tabella del branco ogni riga ha le sue
+caselle: spuntare *non ascoltare* (o *è minorenne*) su chi ha già un'impronta vocale la **distrugge**,
+non la mette da parte. Revocare un consenso non è smettere di usare un dato: è eliminarlo.
+
+- **Scorda la voce** — bottone sulla riga: cancella l'impronta ma lascia la persona nel branco. Serve
+  quando qualcuno dice "cancella la mia voce" senza volersene andare.
+- **Chi è chi** — dichiari le relazioni tra gli altri (`è genitore di`, `sta con`, …). UGO le usa per
+  capire di chi state parlando. Le coppie simmetriche le normalizza lui: non devi sapere in che ordine.
+- **Scarica tutto (JSON)** — l'intera biografia in chiaro, in un file. Le impronte vocali no: un file
+  di export è testo leggibile.
+- **Far dimenticare qualcuno** — devi scrivere `DIMENTICA` per confermare. Il nome sparisce da tutta la
+  biografia, anche dalle frasi degli altri; i ricordi vengono riscritti e ricalcolati; l'impronta è
+  distrutta. Non c'è cestino.
+
+### 5.5 Tenerlo d'occhio
 
 La sezione **Come sta** mostra quanto ha speso oggi sul budget, quanto sta risparmiando grazie alla
 cache dei prompt, quanti ricordi ha e quando ha sognato l'ultima volta. Se *risparmio cache* resta a
 zero dopo diverse conversazioni, il prefisso cached si sta invalidando: è la cosa da indagare prima
 di qualunque altra, perché è la differenza tra pochi euro al mese e un ordine di grandezza in più.
+
+Sotto, i semafori di **db**, **mqtt** e **ollama**: verde tutto a posto, giallo degrada ma vive, rosso
+guarda i log della risorsa. Sono gli stessi controlli di `/health`, senza doverli interrogare a mano.
 
 ## 6. Troubleshooting
 
