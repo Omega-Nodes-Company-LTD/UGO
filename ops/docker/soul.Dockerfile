@@ -12,14 +12,22 @@ RUN corepack enable
 FROM base AS build
 WORKDIR /repo
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.base.json ./
+# every workspace package soul depends on, transitively:
+# soul → db, memory, psyche, shared · memory → db, prompts, shared · db → shared
 COPY apps/soul/package.json apps/soul/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
+COPY packages/memory/package.json packages/memory/
+COPY packages/psyche/package.json packages/psyche/
+COPY packages/prompts/package.json packages/prompts/
 COPY tests/factories/package.json tests/factories/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY apps/soul apps/soul
 COPY packages/shared packages/shared
 COPY packages/db packages/db
+COPY packages/memory packages/memory
+COPY packages/psyche packages/psyche
+COPY packages/prompts packages/prompts
 COPY tests/factories tests/factories
 RUN pnpm turbo build --filter=soul
 

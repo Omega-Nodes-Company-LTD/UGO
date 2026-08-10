@@ -171,7 +171,12 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
    Dockerfile: `ops/docker/soul.Dockerfile`. Build context: root del repo.
 2. **Non impostare alcun dominio**: il servizio vive solo nella tailnet. In **Ports**, mappa
    `<TAILSCALE_IP>:3000:3000` (l'IP `100.x` del server) — così la porta esiste solo sulla tailnet.
-3. Variabili d'ambiente (tutte come **Secret** dove sensibili), riferite a `.env.example`:
+3. **Prima di incollare qualunque variabile**: in Coolify ogni variabile ha una casella
+   **Available at Buildtime**. Lasciala **spenta** su tutte. Se accesa, Coolify le trasforma in
+   `ARG` del Dockerfile e **le stampa in chiaro nel log di build** — chiavi comprese. Il log resta
+   salvato, e la chiave finisce anche dentro l'immagine (`docker history` la mostra). Nessuna
+   variabile di UGO serve a build time: servono tutte solo a runtime.
+4. Variabili d'ambiente (tutte come **Secret** dove sensibili), riferite a `.env.example`:
    `DATABASE_URL=postgres://ugo:<POSTGRES_PASSWORD>@<HOST_POSTGRES>:5432/ugo` ·
    `MQTT_URL` · `MQTT_USER` · `MQTT_PASS` (**lasciale vuote**: servono solo col Nano 33, §2.2) ·
    `OLLAMA_URL=http://<HOST_OLLAMA>:11434` · `OLLAMA_EMBED_MODEL=nomic-embed-text` ·
@@ -183,12 +188,12 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
    `TZ=Europe/Rome`. Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
    dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
    nella pagina di ogni risorsa.)
-4. **Pre-deployment Command** (applica le migrazioni prima di ogni avvio, CLAUDE.md regola 5):
+5. **Pre-deployment Command** (applica le migrazioni prima di ogni avvio, CLAUDE.md regola 5):
    `node node_modules/@ugo/db/dist/migrate-cli.js`. Risultato atteso nei log: `migrations applied`.
    La migrazione semina anche l'esemplare `ugo-prime`: senza quella riga nessuna scrittura di stato
    passerebbe la foreign key (ADR-015).
-5. Healthcheck: già nel Dockerfile (`GET /health`). Limite RAM: 1 GB.
-6. **Deploy**. Risultato atteso: **Running (healthy)**.
+6. Healthcheck: già nel Dockerfile (`GET /health`). Limite RAM: 1 GB.
+7. **Deploy**. Risultato atteso: **Running (healthy)**.
 
 ### 2.5 jobs (il sogno, cron 02:30)
 
@@ -359,6 +364,18 @@ Se non usi il Nano 33, `MQTT_URL` dev'essere **vuota**: allora leggi `"off"` e v
 `"error"` significa che una URL c'è ma il broker non risponde — quasi sempre ACL o credenziali:
 verifica che il password file contenga l'utente `soul` con la password giusta (rigenera il file,
 §2.2) e che `acl.conf` sia montato. Nei log mosquitto cerca `Connection Refused: not authorised`.
+
+### Ho visto delle chiavi in chiaro nel log di build
+È la casella **Available at Buildtime** accesa su quelle variabili (§2.4). Il danno è fatto: quelle
+chiavi vanno **considerate compromesse e ruotate**, perché il log resta salvato in Coolify e il
+valore è finito nei metadati dell'immagine.
+1. Spegni *Available at Buildtime* su tutte le variabili e salva.
+2. Rigenera i segreti: `openssl rand -base64 32` per `UGO_DATA_KEY`, `openssl rand -hex 32` per
+   `UGO_INTERNAL_TOKEN`; le credenziali S3 dal pannello del provider; la chiave API dalla console
+   Anthropic.
+3. Cancella i log di deployment vecchi dalla risorsa.
+4. **Su `UGO_DATA_KEY` fai attenzione**: ruotarla è gratis solo finché il database è vuoto. Dopo,
+   i dati già cifrati con la vecchia chiave diventano illeggibili e serve una ri-cifratura (§8).
 
 ### Una risorsa risulta **Exited** appena creata
 Guarda prima le due cose che Coolify imposta da solo (§2): il **dominio pubblico** generato

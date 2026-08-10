@@ -109,3 +109,24 @@ jobs:
         env:
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
           UGO_TEST_WHISPER_MODELS: /home/runner/.ugo-whisper
+
+  images:
+    # The pipeline validated the source but never the artefacts, so a
+    # Dockerfile that had not kept up with the workspace graph sailed through
+    # every green run and only failed on the deployment server.
+    name: docker images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build soul image
+        run: docker build -f ops/docker/soul.Dockerfile -t ugo-soul:ci .
+      - name: soul resolves its workspace dependencies
+        run: |
+          docker run --rm ugo-soul:ci node -e "
+            Promise.all(['@ugo/memory','@ugo/psyche','@ugo/db','@ugo/shared'].map((m) => import(m)))
+              .then(() => console.log('all workspace deps resolve'))
+              .catch((error) => { console.error(error.message); process.exit(1); })"
+      - name: build jobs image
+        run: docker build -f ops/docker/jobs.Dockerfile -t ugo-jobs:ci .
+      - name: jobs image can import the dream
+        run: docker run --rm ugo-jobs:ci python -c "import ugo_jobs.dream; print('dream imports')"
