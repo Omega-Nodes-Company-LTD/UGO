@@ -1,5 +1,7 @@
 /** The pack table: render, create, and amend the protections. */
 export const PACK_JS = `
+const SPECIES_LABEL = { human: "persona", dog: "cane", parrot: "pappagallo", reptile: "rettile" };
+
 // --- il branco -------------------------------------------------------------
 let pack = [];
 // Two quick actions start two refreshes, and without this the SLOWER one wins
@@ -13,25 +15,27 @@ async function refresh() {
   if (mine !== refreshSeq) return;
   pack = data.beings;
   $("species-list").innerHTML = data.knownSpecies.map((s) => '<option value="' + s + '">').join("");
-  const rows = pack.map((b) => {
-    const flags = [b.isMinor ? "minorenne" : "", b.noAudio ? "non ascoltare" : "", b.noVision ? "non guardare" : ""]
-      .filter(Boolean).join(" · ");
-    const bond = b.familiarity >= 0.75 ? "vi conoscete bene" : b.familiarity >= 0.4 ? "un po'" : "poco";
-    const voice = b.hasVoiceProfile ? "sì (" + b.voiceSamples + ")" : (b.isMinor || b.noAudio ? "—" : "no");
-    const toggle = (field, label) => '<label class="flags" style="display:inline-block;margin-right:.6rem">' +
-      '<input type="checkbox" data-toggle="' + field + '" data-being="' + b.id + '"' +
-      (b[field] ? " checked" : "") + "> " + label + "</label>";
+  const card = (b) => {
+    const guard = (field, label) => '<label class="check"><input type="checkbox" data-toggle="' + field +
+      '" data-being="' + b.id + '"' + (b[field] ? " checked" : "") + "> " + label + "</label>";
+    const voice = b.hasVoiceProfile
+      ? "impronta vocale · " + b.voiceSamples + " campion" + (b.voiceSamples === 1 ? "e" : "i")
+      : b.isMinor || b.noAudio ? "nessuna impronta, per scelta" : "voce non ancora insegnata";
     const drop = b.hasVoiceProfile
       ? '<button class="ghost" data-drop-voice="' + b.id + '" data-testid="drop-voice">scorda la voce</button>'
       : "";
-    return '<tr data-testid="pack-row"><td>' + escape(b.displayName) +
-      (flags ? '<div class="flags">' + flags + "</div>" : "") + "</td><td>" +
-      (SPECIES_LABEL[b.species] ?? escape(b.species)) + "</td><td>" + bond + "</td><td>" + voice + "</td><td>" +
-      toggle("isMinor", "minorenne") + toggle("noAudio", "non ascoltare") + toggle("noVision", "non guardare") +
-      "</td><td>" + drop + "</td></tr>";
-  });
-  document.querySelector('[data-testid="pack-rows"]').innerHTML = rows.join("") ||
-    '<tr><td colspan="5">Nessuno, ancora. UGO risponderà a tutti come a sconosciuti.</td></tr>';
+    return '<article class="being" data-testid="pack-row"><h4>' + escape(b.displayName) + "</h4>" +
+      '<div class="species">' + (SPECIES_LABEL[b.species] ?? escape(b.species)) + " · " + voice + "</div>" +
+      '<div class="bond"><div><span>conoscenza</span>' + meter(b.familiarity) + "</div>" +
+      // affinity is signed, so it is drawn on a 0..1 scale centred on neutral
+      '<div><span>affinità</span>' + meter((b.affinity + 1) / 2, 0.5) + "</div></div>" +
+      '<div class="guards">' + guard("isMinor", "minorenne") + guard("noAudio", "non ascoltare") +
+      guard("noVision", "non guardare") + "</div>" +
+      (drop ? '<div style="margin-top:.5rem">' + drop + "</div>" : "") + "</article>";
+  };
+  document.querySelector('[data-testid="pack-rows"]').innerHTML = pack.map(card).join("") ||
+    '<p class="empty">Nessuno, ancora. UGO risponderà a tutti come a sconosciuti.</p>';
+
   for (const select of ["enroll-being", "corr-being", "forget-being", "rel-a", "rel-b"]) {
     $(select).innerHTML = pack.map((b) => '<option value="' + b.id + '">' + escape(b.displayName) + "</option>").join("");
   }

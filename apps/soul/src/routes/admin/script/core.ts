@@ -30,8 +30,9 @@ $("save-token").addEventListener("click", async () => {
   sessionStorage.setItem("ugo_token", $("token").value.trim());
   try {
     await call("/v1/stats", {});
-    $("app").hidden = false; $("auth").hidden = true;
+    $("app").hidden = false; $("auth-hero").hidden = true; $("mood-hero").hidden = false;
     await refresh();
+    await loadPsyche();
     await loadHealth();
   } catch (error) {
     say("auth-msg", error.status === 401 ? "Token non valido." : "Non riesco a parlare con UGO: " + error.message, "err");

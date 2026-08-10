@@ -55,9 +55,8 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     env: {
       ...process.env,
       DATABASE_URL: pg.getConnectionUri(),
-      MQTT_URL: "mqtt://127.0.0.1:1",
-      MQTT_USER: "soul",
-      MQTT_PASS: "e2e-only",
+      // deliberately unset, exactly like the real deployment: the Nano 33
+      // firmware is shelved, so there is no broker and health says "off"
       OLLAMA_URL: ollama.baseUrl,
       OLLAMA_EMBED_MODEL: "nomic-embed-text",
       ANTHROPIC_API_KEY: "e2e-key",

@@ -1,4 +1,5 @@
 import { ARCHIVE_JS } from "./script/archive.js";
+import { CHARTS_JS } from "./script/charts.js";
 import { CORE_JS } from "./script/core.js";
 import { DATA_JS } from "./script/data.js";
 import { PACK_JS } from "./script/pack.js";
@@ -15,6 +16,7 @@ import { VOICE_JS } from "./script/voice.js";
  */
 export const ADMIN_SCRIPT = [
   CORE_JS,
+  CHARTS_JS,
   PACK_JS,
   RELATIONS_JS,
   VOICE_JS,
