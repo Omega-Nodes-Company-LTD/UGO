@@ -24,5 +24,10 @@ export default defineConfig({
     url: "http://127.0.0.1:4173",
     reuseExistingServer: false,
     timeout: 120_000,
+    // without these the server's own output is swallowed, and a startup
+    // failure is indistinguishable from a slow boot: the run just times out
+    // after two minutes saying nothing about why
+    stdout: "pipe",
+    stderr: "pipe",
   },
 });

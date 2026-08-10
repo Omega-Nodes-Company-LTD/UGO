@@ -1,5 +1,32 @@
 export { parseEnv, EnvValidationError } from "./env.js";
-export { encryptText, decryptText, isEncrypted, parseDataKey } from "./crypto.js";
+export {
+  encryptText,
+  decryptText,
+  encryptBytes,
+  decryptBytes,
+  isEncrypted,
+  parseDataKey,
+} from "./crypto.js";
+export {
+  packEmbedding,
+  unpackEmbedding,
+  sealEmbedding,
+  openEmbedding,
+  cosineSimilarity,
+} from "./biometrics.js";
+export {
+  DEFAULT_SPECIES_MAP,
+  IDENTITY_STRENGTHS,
+  SpeciesMapError,
+  acceptsModality,
+  loadSpeciesMap,
+  profileFor,
+  speciesMapSchema,
+  speciesProfileSchema,
+  type IdentityStrength,
+  type SpeciesMap,
+  type SpeciesProfile,
+} from "./species.js";
 export {
   chatRequestSchema,
   chatResponseSchema,
@@ -31,8 +58,20 @@ export {
   DESIRE_STATUSES,
   EMBEDDING_DIMENSIONS,
   MQTT_TOPICS,
+  KNOWN_SPECIES,
+  BEING_KINDS,
+  RELATION_TYPES,
+  SYMMETRIC_RELATION_TYPES,
+  MODALITIES,
+  RECOGNITION_MODALITIES,
+  CORRECTION_SIGNALS,
   type EventSource,
   type MessageChannel,
   type MemoryKind,
   type DesireStatus,
+  type BeingKind,
+  type RelationType,
+  type Modality,
+  type RecognitionModality,
+  type CorrectionSignal,
 } from "./constants.js";

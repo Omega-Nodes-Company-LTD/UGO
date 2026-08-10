@@ -12,7 +12,7 @@ import { memories } from "../../src/schema/index.js";
 // the same runMigrations() code production uses.
 
 const EXPECTED_TABLES = [
-  "people",
+  "beings",
   "events",
   "messages",
   "memories",
@@ -22,6 +22,14 @@ const EXPECTED_TABLES = [
   "diary_entries",
   "desires",
   "budget_ledger",
+  "gosini",
+  "trait_sets",
+  "bonds",
+  "relations",
+  "recognition_profiles",
+  "perception_events",
+  "corrections",
+  "memory_beings",
 ] as const;
 
 let container: StartedPostgreSqlContainer;

@@ -17,12 +17,13 @@ import psycopg
 from .backup import run_backup
 from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
+from .enroll_step import run_enroll
 from .hygiene import run_hygiene
 from .ingest import run_ingest
 from .markers import mark_step_done, step_done
 from .reflect import run_reflect
 
-STEPS = ("ingest", "reflect", "hygiene", "compaction", "backup")
+STEPS = ("ingest", "enroll", "reflect", "hygiene", "compaction", "backup")
 
 
 def yesterday(cfg: JobsConfig) -> str:
@@ -43,6 +44,13 @@ def run_dream(cfg: JobsConfig, dream_date: str) -> dict[str, object]:
                     "files": ingest.files,
                     "segments": ingest.segments,
                     "pruned": ingest.pruned,
+                }
+            elif step == "enroll":
+                enrolled = run_enroll(conn, cfg)
+                report[step] = {
+                    "enrolled": enrolled.enrolled,
+                    "refused": enrolled.refused,
+                    "missing": enrolled.missing,
                 }
             elif step == "reflect":
                 result = run_reflect(conn, cfg, dream_date)

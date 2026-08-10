@@ -1,11 +1,13 @@
 import { sql } from "drizzle-orm";
 import { index, pgTable, jsonb, real, text, timestamp, uuid, vector } from "drizzle-orm/pg-core";
 import { EMBEDDING_DIMENSIONS } from "@ugo/shared";
+import { gosinoId } from "./self.js";
 
 export const meetings = pgTable("meetings", {
   id: uuid("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
+  gosinoId: gosinoId(),
   platform: text("platform").notNull(),
   title: text("title"),
   startedAt: timestamp("started_at", { withTimezone: true }),

@@ -39,8 +39,12 @@ Dopo ogni modifica: `tsc --noEmit`, `eslint . --max-warnings=0`, build. Se rosso
 6. **Dati**: testo di trascrizioni/messaggi cifrato a riposo (AES-256-GCM via `UGO_DATA_KEY`); niente PII né contenuti nei log; ID ovunque.
 7. **Firmware & hardware**: non toccare `firmware/` o `hardware/` se il task non li riguarda esplicitamente. I relè restano su carichi a bassissima tensione (vincolo di sicurezza fisica, ADR in PROGETTO §4.4).
 8. **Scope**: una fase per volta (PROGETTO §8). Vietato anticipare feature di fasi successive "già che ci sono". Boy Scout Rule solo sui file toccati.
-9. **File >200 righe** → estrai in servizi di dominio. Nomenclatura codice in inglese; testi rivolti a UGO/utente in italiano.
-10. **Docs vive**: a fine task aggiorna `docs/STATE.md` (cosa è fatto, cosa manca, decisioni prese); nuove decisioni architetturali → `docs/ADR/NNN-titolo.md`; feature visibili all'utente → `/documentation` secondo `DOCUMENTATION_STYLE.md`.
+9. **Il branco, non l'utente** (ADR-014): l'entità di prima classe è `beings` — mai `users`, mai
+   `people`, mai tabelle separate per gli animali. Ogni tabella di stato porta `gosino_id`
+   (ADR-015). Gli embedding biometrici sono ciphertext in `bytea`, mai colonne `vector` (ADR-016);
+   `is_minor`, `no_vision` e `no_audio` si applicano **a monte** della pipeline, non a valle.
+10. **File >200 righe** → estrai in servizi di dominio. Nomenclatura codice in inglese; testi rivolti a UGO/utente in italiano.
+11. **Docs vive**: a fine task aggiorna `docs/STATE.md` (cosa è fatto, cosa manca, decisioni prese); nuove decisioni architetturali → `docs/ADR/NNN-titolo.md`; feature visibili all'utente → `/documentation` secondo `DOCUMENTATION_STYLE.md`.
 
 ## FLUSSO DI LAVORO PER OGNI TASK
 1. Leggi `docs/PROGETTO.md` (sezioni pertinenti) + `docs/STATE.md` + skill di area.

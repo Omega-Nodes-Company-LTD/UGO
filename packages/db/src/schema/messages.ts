@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
 import { index, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { messageChannel } from "./enums.js";
-import { people } from "./people.js";
+import { beings } from "./beings.js";
+import { gosinoId } from "./self.js";
 
 export const messages = pgTable(
   "messages",
@@ -9,11 +10,12 @@ export const messages = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
+    gosinoId: gosinoId(),
     ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
     channel: messageChannel("channel").notNull(),
     role: text("role").notNull(),
     // set null: GDPR erasure anonymizes, it does not destroy the biography
-    personId: uuid("person_id").references(() => people.id, { onDelete: "set null" }),
+    beingId: uuid("being_id").references(() => beings.id, { onDelete: "set null" }),
     // Contract (PROGETTO §7): from Fase 1 this column holds AES-256-GCM
     // ciphertext (UGO_DATA_KEY), never plaintext. Full-text SQL search is
     // deliberately impossible; retrieval goes through embeddings.

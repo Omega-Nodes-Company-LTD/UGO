@@ -50,3 +50,34 @@ export function decryptText(payload: string, key: Buffer): string {
 export function isEncrypted(payload: string): boolean {
   return payload.startsWith(VERSION_PREFIX);
 }
+
+/**
+ * Binary format, wire-compatible with ops/jobs crypto.py:
+ *   b"UGO1" + iv[12] || ciphertext || authTag[16]
+ * Used where the plaintext is not text — biometric embeddings (ADR-016) and
+ * backups — so we do not pay base64 on top of bytes that are already opaque.
+ */
+const BINARY_MAGIC = Buffer.from("UGO1", "ascii");
+
+export function encryptBytes(data: Buffer, key: Buffer): Buffer {
+  const iv = randomBytes(IV_BYTES);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const ciphertext = Buffer.concat([cipher.update(data), cipher.final()]);
+  return Buffer.concat([BINARY_MAGIC, iv, ciphertext, cipher.getAuthTag()]);
+}
+
+export function decryptBytes(payload: Buffer, key: Buffer): Buffer {
+  if (!payload.subarray(0, BINARY_MAGIC.length).equals(BINARY_MAGIC)) {
+    throw new Error("unknown binary ciphertext format");
+  }
+  const packed = payload.subarray(BINARY_MAGIC.length);
+  if (packed.length < IV_BYTES + TAG_BYTES) {
+    throw new Error("ciphertext too short");
+  }
+  const iv = packed.subarray(0, IV_BYTES);
+  const tag = packed.subarray(packed.length - TAG_BYTES);
+  const ciphertext = packed.subarray(IV_BYTES, packed.length - TAG_BYTES);
+  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}

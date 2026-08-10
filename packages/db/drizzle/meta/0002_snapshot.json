@@ -1,9 +1,262 @@
 {
-  "id": "589a9569-760b-478b-bc55-7f864a3fe975",
-  "prevId": "0865eca7-e9b0-48be-95b6-9b2c8e3abb38",
+  "id": "00000000-0000-4000-8000-0000000000f2",
+  "prevId": "e3d63bfd-d7a4-41b9-8dca-eb2834559900",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.beings": {
+      "name": "beings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "species": {
+          "name": "species",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'human'"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "being_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'resident'"
+        },
+        "arrival_at": {
+          "name": "arrival_at",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_minor": {
+          "name": "is_minor",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "no_vision": {
+          "name": "no_vision",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "no_audio": {
+          "name": "no_audio",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "aliases": {
+          "name": "aliases",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "embedding": {
+          "name": "embedding",
+          "type": "vector(768)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "beings_embedding_hnsw_idx": {
+          "name": "beings_embedding_hnsw_idx",
+          "columns": [
+            {
+              "expression": "embedding",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "vector_cosine_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "hnsw",
+          "with": {}
+        },
+        "beings_species_idx": {
+          "name": "beings_species_idx",
+          "columns": [
+            {
+              "expression": "species",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bonds": {
+      "name": "bonds",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "being_id": {
+          "name": "being_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "familiarity": {
+          "name": "familiarity",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "affinity": {
+          "name": "affinity",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "interaction_count": {
+          "name": "interaction_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "bonds_gosino_idx": {
+          "name": "bonds_gosino_idx",
+          "columns": [
+            {
+              "expression": "gosino_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bonds_gosino_id_gosini_id_fk": {
+          "name": "bonds_gosino_id_gosini_id_fk",
+          "tableFrom": "bonds",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "bonds_being_id_beings_id_fk": {
+          "name": "bonds_being_id_beings_id_fk",
+          "tableFrom": "bonds",
+          "tableTo": "beings",
+          "columnsFrom": [
+            "being_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "bonds_gosino_being_uq": {
+          "name": "bonds_gosino_being_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "gosino_id",
+            "being_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "bonds_familiarity_range": {
+          "name": "bonds_familiarity_range",
+          "value": "\"bonds\".\"familiarity\" between 0 and 1"
+        },
+        "bonds_affinity_range": {
+          "name": "bonds_affinity_range",
+          "value": "\"bonds\".\"affinity\" between -1 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.budget_ledger": {
       "name": "budget_ledger",
       "schema": "",
@@ -35,6 +288,20 @@
         },
         "tokens_in": {
           "name": "tokens_in",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "tokens_cache_write": {
+          "name": "tokens_cache_write",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "tokens_cache_read": {
+          "name": "tokens_cache_read",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -79,6 +346,127 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.corrections": {
+      "name": "corrections",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "being_id": {
+          "name": "being_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "about_being": {
+          "name": "about_being",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signal": {
+          "name": "signal",
+          "type": "correction_signal",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "corrections_gosino_created_idx": {
+          "name": "corrections_gosino_created_idx",
+          "columns": [
+            {
+              "expression": "gosino_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "corrections_gosino_id_gosini_id_fk": {
+          "name": "corrections_gosino_id_gosini_id_fk",
+          "tableFrom": "corrections",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "corrections_being_id_beings_id_fk": {
+          "name": "corrections_being_id_beings_id_fk",
+          "tableFrom": "corrections",
+          "tableTo": "beings",
+          "columnsFrom": [
+            "being_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "corrections_about_being_beings_id_fk": {
+          "name": "corrections_about_being_beings_id_fk",
+          "tableFrom": "corrections",
+          "tableTo": "beings",
+          "columnsFrom": [
+            "about_being"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.desires": {
       "name": "desires",
       "schema": "",
@@ -89,6 +477,13 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'00000000-0000-4000-8000-000000000001'"
         },
         "text": {
           "name": "text",
@@ -119,7 +514,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "desires_gosino_id_gosini_id_fk": {
+          "name": "desires_gosino_id_gosini_id_fk",
+          "tableFrom": "desires",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -136,6 +545,13 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'00000000-0000-4000-8000-000000000001'"
         },
         "date": {
           "name": "date",
@@ -158,7 +574,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "diary_entries_gosino_id_gosini_id_fk": {
+          "name": "diary_entries_gosino_id_gosini_id_fk",
+          "tableFrom": "diary_entries",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "diary_entries_date_unique": {
@@ -183,6 +613,13 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'00000000-0000-4000-8000-000000000001'"
         },
         "ts": {
           "name": "ts",
@@ -229,9 +666,109 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "events_gosino_id_gosini_id_fk": {
+          "name": "events_gosino_id_gosini_id_fk",
+          "tableFrom": "events",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.gosini": {
+      "name": "gosini",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_label": {
+          "name": "location_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_gosino_id": {
+          "name": "parent_gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "generation": {
+          "name": "generation",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "born_at": {
+          "name": "born_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "retired_at": {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "gosini_parent_gosino_id_gosini_id_fk": {
+          "name": "gosini_parent_gosino_id_gosini_id_fk",
+          "tableFrom": "gosini",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "parent_gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "gosini_device_id_unique": {
+          "name": "gosini_device_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "device_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -246,6 +783,13 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'00000000-0000-4000-8000-000000000001'"
         },
         "platform": {
           "name": "platform",
@@ -293,7 +837,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "meetings_gosino_id_gosini_id_fk": {
+          "name": "meetings_gosino_id_gosini_id_fk",
+          "tableFrom": "meetings",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -310,6 +868,13 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'00000000-0000-4000-8000-000000000001'"
         },
         "kind": {
           "name": "kind",
@@ -391,9 +956,100 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "memories_gosino_id_gosini_id_fk": {
+          "name": "memories_gosino_id_gosini_id_fk",
+          "tableFrom": "memories",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.memory_beings": {
+      "name": "memory_beings",
+      "schema": "",
+      "columns": {
+        "memory_id": {
+          "name": "memory_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "being_id": {
+          "name": "being_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "memory_beings_being_idx": {
+          "name": "memory_beings_being_idx",
+          "columns": [
+            {
+              "expression": "being_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "memory_beings_memory_id_memories_id_fk": {
+          "name": "memory_beings_memory_id_memories_id_fk",
+          "tableFrom": "memory_beings",
+          "tableTo": "memories",
+          "columnsFrom": [
+            "memory_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "memory_beings_being_id_beings_id_fk": {
+          "name": "memory_beings_being_id_beings_id_fk",
+          "tableFrom": "memory_beings",
+          "tableTo": "beings",
+          "columnsFrom": [
+            "being_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "memory_beings_pk": {
+          "name": "memory_beings_pk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "memory_id",
+            "being_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -408,6 +1064,13 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'00000000-0000-4000-8000-000000000001'"
         },
         "ts": {
           "name": "ts",
@@ -429,8 +1092,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "person_id": {
-          "name": "person_id",
+        "being_id": {
+          "name": "being_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -496,12 +1159,25 @@
         }
       },
       "foreignKeys": {
-        "messages_person_id_people_id_fk": {
-          "name": "messages_person_id_people_id_fk",
+        "messages_gosino_id_gosini_id_fk": {
+          "name": "messages_gosino_id_gosini_id_fk",
           "tableFrom": "messages",
-          "tableTo": "people",
+          "tableTo": "gosini",
           "columnsFrom": [
-            "person_id"
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "messages_being_id_beings_id_fk": {
+          "name": "messages_being_id_beings_id_fk",
+          "tableFrom": "messages",
+          "tableTo": "beings",
+          "columnsFrom": [
+            "being_id"
           ],
           "columnsTo": [
             "id"
@@ -516,8 +1192,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.people": {
-      "name": "people",
+    "public.perception_events": {
+      "name": "perception_events",
       "schema": "",
       "columns": {
         "id": {
@@ -527,33 +1203,45 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "display_name": {
-          "name": "display_name",
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "modality": {
+          "name": "modality",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "aliases": {
-          "name": "aliases",
-          "type": "text[]",
+        "being_id": {
+          "name": "being_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "candidate_being_id": {
+          "name": "candidate_being_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observed": {
+          "name": "observed",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": "'{}'"
+          "default": "'{}'::jsonb"
         },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "embedding": {
-          "name": "embedding",
-          "type": "vector(768)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
+        "occurred_at": {
+          "name": "occurred_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -561,24 +1249,84 @@
         }
       },
       "indexes": {
-        "people_embedding_hnsw_idx": {
-          "name": "people_embedding_hnsw_idx",
+        "perception_events_gosino_occurred_idx": {
+          "name": "perception_events_gosino_occurred_idx",
           "columns": [
             {
-              "expression": "embedding",
+              "expression": "gosino_id",
               "isExpression": false,
               "asc": true,
-              "nulls": "last",
-              "opclass": "vector_cosine_ops"
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
           "concurrently": false,
-          "method": "hnsw",
+          "method": "btree",
+          "with": {}
+        },
+        "perception_events_being_idx": {
+          "name": "perception_events_being_idx",
+          "columns": [
+            {
+              "expression": "being_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "perception_events_gosino_id_gosini_id_fk": {
+          "name": "perception_events_gosino_id_gosini_id_fk",
+          "tableFrom": "perception_events",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "perception_events_being_id_beings_id_fk": {
+          "name": "perception_events_being_id_beings_id_fk",
+          "tableFrom": "perception_events",
+          "tableTo": "beings",
+          "columnsFrom": [
+            "being_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "perception_events_candidate_being_id_beings_id_fk": {
+          "name": "perception_events_candidate_being_id_beings_id_fk",
+          "tableFrom": "perception_events",
+          "tableTo": "beings",
+          "columnsFrom": [
+            "candidate_being_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -589,10 +1337,17 @@
       "name": "psyche_baselines",
       "schema": "",
       "columns": {
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'00000000-0000-4000-8000-000000000001'"
+        },
         "variable": {
           "name": "variable",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "baseline": {
@@ -610,8 +1365,30 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "foreignKeys": {
+        "psyche_baselines_gosino_id_gosini_id_fk": {
+          "name": "psyche_baselines_gosino_id_gosini_id_fk",
+          "tableFrom": "psyche_baselines",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "psyche_baselines_gosino_id_variable_pk": {
+          "name": "psyche_baselines_gosino_id_variable_pk",
+          "columns": [
+            "gosino_id",
+            "variable"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -627,6 +1404,13 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'00000000-0000-4000-8000-000000000001'"
         },
         "ts": {
           "name": "ts",
@@ -665,9 +1449,328 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "psyche_snapshots_gosino_id_gosini_id_fk": {
+          "name": "psyche_snapshots_gosino_id_gosini_id_fk",
+          "tableFrom": "psyche_snapshots",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.recognition_profiles": {
+      "name": "recognition_profiles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "being_id": {
+          "name": "being_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "modality": {
+          "name": "modality",
+          "type": "recognition_modality",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dimensions": {
+          "name": "dimensions",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sample_count": {
+          "name": "sample_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "recognition_profiles_being_id_beings_id_fk": {
+          "name": "recognition_profiles_being_id_beings_id_fk",
+          "tableFrom": "recognition_profiles",
+          "tableTo": "beings",
+          "columnsFrom": [
+            "being_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "recognition_profiles_being_modality_uq": {
+          "name": "recognition_profiles_being_modality_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "being_id",
+            "modality"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.relations": {
+      "name": "relations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "being_a": {
+          "name": "being_a",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "being_b": {
+          "name": "being_b",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "relation_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "strength": {
+          "name": "strength",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "relations_being_a_idx": {
+          "name": "relations_being_a_idx",
+          "columns": [
+            {
+              "expression": "being_a",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "relations_being_b_idx": {
+          "name": "relations_being_b_idx",
+          "columns": [
+            {
+              "expression": "being_b",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "relations_being_a_beings_id_fk": {
+          "name": "relations_being_a_beings_id_fk",
+          "tableFrom": "relations",
+          "tableTo": "beings",
+          "columnsFrom": [
+            "being_a"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "relations_being_b_beings_id_fk": {
+          "name": "relations_being_b_beings_id_fk",
+          "tableFrom": "relations",
+          "tableTo": "beings",
+          "columnsFrom": [
+            "being_b"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "relations_pair_type_uq": {
+          "name": "relations_pair_type_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "being_a",
+            "being_b",
+            "type"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "relations_no_self_link": {
+          "name": "relations_no_self_link",
+          "value": "\"relations\".\"being_a\" <> \"relations\".\"being_b\""
+        },
+        "relations_symmetric_normalized": {
+          "name": "relations_symmetric_normalized",
+          "value": "\"relations\".\"type\" not in ('partner_of') or \"relations\".\"being_a\" < \"relations\".\"being_b\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.trait_sets": {
+      "name": "trait_sets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "gosino_id": {
+          "name": "gosino_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "traits": {
+          "name": "traits",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "parent_trait_set_id": {
+          "name": "parent_trait_set_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mutation_note": {
+          "name": "mutation_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "trait_sets_gosino_id_gosini_id_fk": {
+          "name": "trait_sets_gosino_id_gosini_id_fk",
+          "tableFrom": "trait_sets",
+          "tableTo": "gosini",
+          "columnsFrom": [
+            "gosino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "trait_sets_parent_trait_set_id_trait_sets_id_fk": {
+          "name": "trait_sets_parent_trait_set_id_trait_sets_id_fk",
+          "tableFrom": "trait_sets",
+          "tableTo": "trait_sets",
+          "columnsFrom": [
+            "parent_trait_set_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "trait_sets_gosino_version_uq": {
+          "name": "trait_sets_gosino_version_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "gosino_id",
+            "version"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -776,6 +1879,25 @@
     }
   },
   "enums": {
+    "public.being_kind": {
+      "name": "being_kind",
+      "schema": "public",
+      "values": [
+        "resident",
+        "visitor",
+        "unknown"
+      ]
+    },
+    "public.correction_signal": {
+      "name": "correction_signal",
+      "schema": "public",
+      "values": [
+        "too_loud",
+        "leave_alone",
+        "good",
+        "wrong_name"
+      ]
+    },
     "public.desire_status": {
       "name": "desire_status",
       "schema": "public",
@@ -813,6 +1935,27 @@
         "home",
         "meeting",
         "api"
+      ]
+    },
+    "public.recognition_modality": {
+      "name": "recognition_modality",
+      "schema": "public",
+      "values": [
+        "voice",
+        "face",
+        "visual",
+        "tag",
+        "manual"
+      ]
+    },
+    "public.relation_type": {
+      "name": "relation_type",
+      "schema": "public",
+      "values": [
+        "parent_of",
+        "partner_of",
+        "cares_for",
+        "avoids"
       ]
     }
   },

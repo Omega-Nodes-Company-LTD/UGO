@@ -1,13 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { ExportService } from "../services/privacy/exportService.js";
-import { PersonNotFoundError, type ForgetService } from "../services/privacy/forgetService.js";
+import { BeingNotFoundError, type ForgetService } from "../services/privacy/forgetService.js";
 import type { PreHandler } from "./guard.js";
 
 /** Data-subject rights over HTTP (PROGETTO §7). Always behind the guard. */
 
 const forgetRequestSchema = z.object({
-  personId: z.uuid(),
+  beingId: z.uuid(),
   /** erasure is irreversible: the caller must say so explicitly */
   confirm: z.literal(true),
 });
@@ -30,14 +30,14 @@ export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDe
       });
     }
     try {
-      const report = await deps.forget.forgetPerson(parsed.data.personId);
+      const report = await deps.forget.forgetBeing(parsed.data.beingId);
       return await reply.send(report);
     } catch (error) {
-      if (error instanceof PersonNotFoundError) {
+      if (error instanceof BeingNotFoundError) {
         return reply
           .code(404)
           .type("application/problem+json")
-          .send({ type: "about:blank", title: "Person not found", status: 404 });
+          .send({ type: "about:blank", title: "Being not found", status: 404 });
       }
       throw error;
     }

@@ -6,7 +6,7 @@ import { EVENT_SOURCES, MESSAGE_CHANNELS } from "./constants.js";
 export const chatRequestSchema = z.object({
   channel: z.enum(MESSAGE_CHANNELS),
   text: z.string().min(1).max(2000),
-  personId: z.uuid().optional(),
+  beingId: z.uuid().optional(),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 

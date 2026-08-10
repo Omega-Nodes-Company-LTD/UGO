@@ -7,7 +7,7 @@ import {
 } from "@ugo/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import { PersonNotFoundError, type ChatService } from "../services/chatService.js";
+import { BeingNotFoundError, type ChatService } from "../services/chatService.js";
 import type { PsycheService } from "../services/psycheService.js";
 
 export interface V1Deps {
@@ -35,7 +35,7 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
       const response = await deps.chat.handle(parsed.data);
       return await reply.send(chatResponseSchema.parse(response));
     } catch (error) {
-      if (error instanceof PersonNotFoundError) {
+      if (error instanceof BeingNotFoundError) {
         problem(reply, 404, "Person not found");
         return;
       }

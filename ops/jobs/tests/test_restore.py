@@ -71,7 +71,7 @@ def test_restore_into_a_pristine_database_recovers_the_soul(seeded_backup) -> No
                     "where table_schema='public' and table_type='BASE TABLE'"
                 ).fetchall()
             }
-            assert {"people", "messages", "memories", "budget_ledger"} <= tables
+            assert {"beings", "messages", "memories", "budget_ledger"} <= tables
 
 
 def test_restore_of_a_missing_date_fails_loudly(seeded_backup) -> None:  # noqa: ANN001

@@ -41,6 +41,9 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.url().optional(),
   ),
+  // ADR-016: the Umwelt map is configuration. Malformed JSON must fail the
+  // boot, not silently make UGO treat a reptile like a human.
+  UGO_SPECIES_MAP: optionalNonEmpty,
   NODE_ENV: z.string().default("development"),
 });
 
