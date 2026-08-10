@@ -1,6 +1,12 @@
-import { budgetLedger, type DbClient } from "@ugo/db";
+import {
+  budgetLedger,
+  households,
+  PRIME_GOSINO_ID,
+  PRIME_HOUSEHOLD_ID,
+  type DbClient,
+} from "@ugo/db";
 import { identityPrompt, rulesPrompt } from "@ugo/prompts";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { computeCostUsd, type TokenUsage } from "./pricing.js";
 
@@ -46,7 +52,12 @@ export interface LlmClientOptions {
   db: DbClient;
   apiKey: string;
   model: string;
+  /** fallback ceiling; a house that sets its own in `households` overrides it */
   dailyBudgetUsd: number;
+  /** whose piggy bank this is (ADR-019); defaults to the first house */
+  householdId?: string;
+  /** which exemplar spent it — a house may hold more than one */
+  gosinoId?: string;
   /** override for network-level test stubs and future proxies */
   baseUrl?: string;
   /** ledger day boundary timezone (default Europe/Rome) */
@@ -71,27 +82,45 @@ function localDate(timezone: string, at: Date): string {
 export class LlmClient {
   private readonly baseUrl: string;
   private readonly timezone: string;
+  private readonly householdId: string;
+  private readonly gosinoId: string;
 
   public constructor(private readonly options: LlmClientOptions) {
     this.baseUrl = options.baseUrl ?? "https://api.anthropic.com";
     this.timezone = options.timezone ?? "Europe/Rome";
+    this.householdId = options.householdId ?? PRIME_HOUSEHOLD_ID;
+    this.gosinoId = options.gosinoId ?? PRIME_GOSINO_ID;
   }
 
-  /** Sum of today's ledger — always computed server-side, never estimated. */
+  /**
+   * Sum of THIS house's ledger today — always computed server-side, never
+   * estimated. Scoped by household (ADR-019): before that, one family's
+   * conversation drained the other's day.
+   */
   public async spentTodayUsd(at: Date = new Date()): Promise<number> {
     const today = localDate(this.timezone, at);
     const rows = await this.options.db
       .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
       .from(budgetLedger)
-      .where(eq(budgetLedger.date, today));
+      .where(and(eq(budgetLedger.householdId, this.householdId), eq(budgetLedger.date, today)));
     return Number(rows[0]?.total ?? 0);
   }
 
+  /** The house's own ceiling when it has one, the process default otherwise. */
+  public async dailyBudgetUsd(): Promise<number> {
+    const [row] = await this.options.db
+      .select({ limit: households.dailyBudgetUsd })
+      .from(households)
+      .where(eq(households.id, this.householdId));
+    const own = row?.limit;
+    return own === null || own === undefined ? this.options.dailyBudgetUsd : Number(own);
+  }
+
   public async chat(request: LlmChatRequest, at: Date = new Date()): Promise<LlmChatResult> {
-    const spent = await this.spentTodayUsd(at);
-    if (spent >= this.options.dailyBudgetUsd) {
+    const [spent, budgetUsd] = await Promise.all([this.spentTodayUsd(at), this.dailyBudgetUsd()]);
+    if (spent >= budgetUsd) {
       this.options.logger?.warn(
-        { spentUsd: spent, budgetUsd: this.options.dailyBudgetUsd },
+        { spentUsd: spent, budgetUsd, householdId: this.householdId },
         "daily LLM budget exceeded: declared degradation",
       );
       return { text: DEGRADED_REPLY, degraded: true };
@@ -139,6 +168,8 @@ export class LlmClient {
     const costUsd = computeCostUsd(this.options.model, usage);
 
     await this.options.db.insert(budgetLedger).values({
+      householdId: this.householdId,
+      gosinoId: this.gosinoId,
       date: localDate(this.timezone, at),
       provider: "anthropic",
       model: this.options.model,

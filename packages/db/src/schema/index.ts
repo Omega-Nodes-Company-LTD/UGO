@@ -1,4 +1,5 @@
 export {
+  accessRole,
   beingKind,
   correctionSignal,
   desireStatus,
@@ -10,6 +11,8 @@ export {
 } from "./enums.js";
 export { beings } from "./beings.js";
 export { gosini, traitSets } from "./gosini.js";
+export { households, PRIME_HOUSEHOLD_ID } from "./households.js";
+export { accessTokens } from "./access-tokens.js";
 export { bonds, relations } from "./pack.js";
 export {
   corrections,

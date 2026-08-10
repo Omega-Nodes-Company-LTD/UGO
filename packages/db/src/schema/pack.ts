@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  foreignKey,
   index,
   integer,
   pgTable,
@@ -12,6 +13,7 @@ import {
 import { SYMMETRIC_RELATION_TYPES } from "@ugo/shared";
 import { beings } from "./beings.js";
 import { gosini } from "./gosini.js";
+import { householdId } from "./households.js";
 import { relationType } from "./enums.js";
 
 /**
@@ -24,12 +26,9 @@ export const bonds = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    gosinoId: uuid("gosino_id")
-      .notNull()
-      .references(() => gosini.id, { onDelete: "cascade" }),
-    beingId: uuid("being_id")
-      .notNull()
-      .references(() => beings.id, { onDelete: "cascade" }),
+    householdId: householdId(),
+    gosinoId: uuid("gosino_id").notNull(),
+    beingId: uuid("being_id").notNull(),
     /** 0..1 — how well this exemplar knows the being */
     familiarity: real("familiarity").notNull().default(0),
     /** -1..1 — how it feels about them */
@@ -41,6 +40,19 @@ export const bonds = pgTable(
   (table) => [
     unique("bonds_gosino_being_uq").on(table.gosinoId, table.beingId),
     index("bonds_gosino_idx").on(table.gosinoId),
+    index("bonds_household_idx").on(table.householdId),
+    // composite, not two separate keys: this is what makes "exemplar of house
+    // A bonded to a being of house B" impossible to write at all (ADR-019)
+    foreignKey({
+      name: "bonds_being_same_household_fk",
+      columns: [table.householdId, table.beingId],
+      foreignColumns: [beings.householdId, beings.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "bonds_gosino_same_household_fk",
+      columns: [table.householdId, table.gosinoId],
+      foreignColumns: [gosini.householdId, gosini.id],
+    }).onDelete("cascade"),
     check("bonds_familiarity_range", sql`${table.familiarity} between 0 and 1`),
     check("bonds_affinity_range", sql`${table.affinity} between -1 and 1`),
   ],
@@ -53,6 +65,9 @@ export const bonds = pgTable(
  * Symmetric types are stored once, normalized on being_a < being_b, so
  * partner_of(A,B) and partner_of(B,A) cannot coexist as distinct rows.
  * Asymmetric types (parent_of, cares_for, avoids) stay oriented.
+ *
+ * Both ends are pinned to the same house by composite foreign keys (ADR-019):
+ * a relation that links two families cannot be inserted.
  */
 export const relations = pgTable(
   "relations",
@@ -60,12 +75,9 @@ export const relations = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    beingA: uuid("being_a")
-      .notNull()
-      .references(() => beings.id, { onDelete: "cascade" }),
-    beingB: uuid("being_b")
-      .notNull()
-      .references(() => beings.id, { onDelete: "cascade" }),
+    householdId: householdId(),
+    beingA: uuid("being_a").notNull(),
+    beingB: uuid("being_b").notNull(),
     type: relationType("type").notNull(),
     strength: real("strength").notNull().default(1),
   },
@@ -73,6 +85,17 @@ export const relations = pgTable(
     unique("relations_pair_type_uq").on(table.beingA, table.beingB, table.type),
     index("relations_being_a_idx").on(table.beingA),
     index("relations_being_b_idx").on(table.beingB),
+    index("relations_household_idx").on(table.householdId),
+    foreignKey({
+      name: "relations_being_a_same_household_fk",
+      columns: [table.householdId, table.beingA],
+      foreignColumns: [beings.householdId, beings.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "relations_being_b_same_household_fk",
+      columns: [table.householdId, table.beingB],
+      foreignColumns: [beings.householdId, beings.id],
+    }).onDelete("cascade"),
     check("relations_no_self_link", sql`${table.beingA} <> ${table.beingB}`),
     // sql.raw, not a bound parameter: drizzle-kit renders check constraints
     // into a migration file, where a `$1` placeholder is never substituted

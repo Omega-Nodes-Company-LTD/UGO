@@ -24,4 +24,6 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [016](./016-percezione-multimodale-e-biometria.md) | Percezione multimodale, biometria e enrollment vocale | Accettata |
 | [017](./017-hosting-su-server-dedicato-hetzner.md) | Il "local" di local-first è un server dedicato in UE | Accettata |
 | [018](./018-guscio-android-capacitor.md) | Il guscio del corpo: APK Capacitor, in due tempi (PWA ora, APK alla Fase 4) | Accettata |
-| 019 | *(prossimo numero disponibile)* | — |
+| [019](./019-il-vicinato-multi-tenancy.md) | Il vicinato: più gosini, una famiglia ciascuno (multi-tenancy) | Accettata |
+| [020](./020-incontro-fra-gosini.md) | L'incontro al parco: due gosini che non si sono mai visti | **Proposta** |
+| 021 | *(prossimo numero disponibile)* | — |

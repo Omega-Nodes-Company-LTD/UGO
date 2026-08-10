@@ -1,7 +1,19 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, index, pgTable, text, timestamp, uuid, vector } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+  vector,
+} from "drizzle-orm/pg-core";
 import { EMBEDDING_DIMENSIONS } from "@ugo/shared";
 import { beingKind } from "./enums.js";
+import { householdId } from "./households.js";
 
 /**
  * The pack (ADR-014): every being of the house, whatever the species. Not
@@ -10,6 +22,12 @@ import { beingKind } from "./enums.js";
  *
  * GDPR: erasure anonymizes in place (services/privacy), FKs use "set null" so
  * the biography survives the being.
+ *
+ * Scoped to a HOUSE, not to an exemplar (ADR-019). The same human living in
+ * two houses is two rows, deliberately: a shared row would let one family
+ * enumerate another's people, and would correlate two lives that never asked
+ * to be correlated. Within one house the row is shared, which is what lets two
+ * exemplars hold different opinions about the same person (ADR-014).
  */
 export const beings = pgTable(
   "beings",
@@ -17,6 +35,7 @@ export const beings = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
+    householdId: householdId(),
     displayName: text("display_name").notNull(),
     // deliberately text, not an enum: adding a species must not need a migration
     species: text("species").notNull().default("human"),
@@ -27,6 +46,8 @@ export const beings = pgTable(
     isMinor: boolean("is_minor").notNull().default(false),
     noVision: boolean("no_vision").notNull().default(false),
     noAudio: boolean("no_audio").notNull().default(false),
+    /** the human this house belongs to; at most one per household */
+    isOwner: boolean("is_owner").notNull().default(false),
     aliases: text("aliases").array().notNull().default([]),
     notes: text("notes"),
     /** textual embedding of the being, NOT biometric (see recognition_profiles) */
@@ -36,5 +57,12 @@ export const beings = pgTable(
   (table) => [
     index("beings_embedding_hnsw_idx").using("hnsw", table.embedding.op("vector_cosine_ops")),
     index("beings_species_idx").on(table.species),
+    index("beings_household_idx").on(table.householdId),
+    // the target of the composite foreign keys that make a cross-house bond
+    // or relation structurally impossible (ADR-019)
+    unique("beings_household_id_uq").on(table.householdId, table.id),
+    uniqueIndex("beings_one_owner_per_household_uq")
+      .on(table.householdId)
+      .where(sql`${table.isOwner}`),
   ],
 );

@@ -339,6 +339,39 @@ apre l'immagine e controlla che `index.html`, il manifest e le icone ci siano da
 Quel che la PWA **non** fa, e resta il motivo del Tempo 2: registrare a schermo spento, riavviarsi al
 boot, impedire l'uscita accidentale (lock task).
 
+## 6-sexies. Il vicinato: multi-tenancy, fase 1 (ADR-019)
+
+Il proprietario ha deciso che il passo successivo è **più famiglie, un UGO ciascuna**. Fatta la fase
+1: le fondamenta, non le rotte.
+
+| Fatto | Dove |
+|---|---|
+| `households` — il tenant: casa, fuso, lingua, budget, chiave dati | `packages/db/src/schema/households.ts` |
+| `beings` legati alla **casa** (non all'esemplare), con un solo proprietario per casa | `schema/beings.ts` |
+| `bonds` e `relations` con chiavi esterne **composte**: un legame fra due case è impossibile da inserire | `schema/pack.ts` |
+| `budget_ledger` con `household_id` **e** `gosino_id` — era l'unica tabella sfuggita ad ADR-015 | `schema/budget-ledger.ts` |
+| `access_tokens`: solo SHA-256, ruolo, scadenza, revoca; il vecchio `UGO_INTERNAL_TOKEN` vale come `operator` | `schema/access-tokens.ts`, `services/tenantAuth.ts` |
+| Chiave dati per casa (KEK/DEK): distruggerla cancella la famiglia in modo dimostrabile | `packages/shared/src/tenantKeys.ts` |
+| Budget e tetto giornaliero per casa nel collo di bottiglia | `packages/memory/src/llmClient.ts` |
+
+**Due errori trovati dai test, non dalla revisione.** Il primo: la prima stesura di ADR-019 faceva
+del *gosino* il tenant, e il test `lets two exemplars disagree about the same being` l'ha smentita —
+ADR-014 richiede che l'essere sia condiviso dentro la casa. Da lì è nato `households`. Il secondo:
+drizzle-kit genera le chiavi esterne composte **prima** del vincolo `UNIQUE` che referenziano, e
+Postgres le rifiuta; le istruzioni della migrazione `0003` sono state riordinate a mano, e se un
+giorno la si rigenera va rifatto.
+
+**Più esemplari nella stessa casa sono la norma, non un caso limite**: uno in cucina, uno nello
+studio, stesso branco e stessa chiave, ricordi e umore separati. Quel che ancora non li rende diversi
+*di carattere* è `trait_sets`, che esiste e non pilota nulla — primo lavoro della fase 3.
+
+Verifiche: 15 test di integrazione dedicati (due case vere in Postgres vero) più le suite esistenti —
+99 test di integrazione, 22 E2E, 24 pytest, tutto verde.
+
+Restano da fare, fase 2: servizi e rotte che passano la casa ovunque, RLS con ruolo Postgres dedicato,
+caduta dei `DEFAULT`. Fase 3: job per esemplare, pannello con selettore, provisioning di una casa,
+audit log, lingua per casa, genoma che pilota il carattere.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

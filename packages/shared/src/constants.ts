@@ -19,6 +19,14 @@ export const KNOWN_SPECIES = ["human", "dog", "parrot", "reptile", "unknown"] as
 export const BEING_KINDS = ["resident", "visitor", "unknown"] as const;
 export type BeingKind = (typeof BEING_KINDS)[number];
 
+/**
+ * Who a token speaks for (ADR-019). Three, deliberately: `owner` runs their
+ * own household, `member` lives in it, `operator` runs the server and spans
+ * the neighbourhood. A fourth role would be a permission, not a role.
+ */
+export const ACCESS_ROLES = ["owner", "member", "operator"] as const;
+export type AccessRole = (typeof ACCESS_ROLES)[number];
+
 export const RELATION_TYPES = ["parent_of", "partner_of", "cares_for", "avoids"] as const;
 export type RelationType = (typeof RELATION_TYPES)[number];
 
