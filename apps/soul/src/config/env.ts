@@ -47,6 +47,11 @@ export const soulEnvSchema = z.object({
   // ADR-016: the Umwelt map is configuration. Malformed JSON must fail the
   // boot, not silently make UGO treat a reptile like a human.
   UGO_SPECIES_MAP: optionalNonEmpty,
+  // Set to "false" only when something else owns the schema (a second
+  // exemplar, or a release step that runs migrations before the rollout).
+  UGO_AUTO_MIGRATE: z
+    .preprocess((value) => (value === "" ? undefined : value), z.enum(["true", "false"]).default("true"))
+    .transform((value) => value === "true"),
   NODE_ENV: z.string().default("development"),
 });
 

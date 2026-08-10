@@ -188,10 +188,11 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
    `TZ=Europe/Rome`. Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
    dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
    nella pagina di ogni risorsa.)
-5. **Pre-deployment Command** (applica le migrazioni prima di ogni avvio, CLAUDE.md regola 5):
-   `node node_modules/@ugo/db/dist/migrate-cli.js`. Risultato atteso nei log: `migrations applied`.
-   La migrazione semina anche l'esemplare `ugo-prime`: senza quella riga nessuna scrittura di stato
-   passerebbe la foreign key (ADR-015).
+5. **Le migrazioni non devi configurarle**: soul le applica da solo all'avvio e scrive
+   `migrations applied` nei log. Sono additive per contratto e protette da un lock, quindi due
+   container che partono insieme non si pestano i piedi. La prima applicazione semina anche
+   l'esemplare `ugo-prime`, senza il quale nessuna scrittura passerebbe la foreign key (ADR-015).
+   Se un giorno vorrai che se ne occupi un passo di rilascio, metti `UGO_AUTO_MIGRATE=false`.
 6. Healthcheck: già nel Dockerfile (`GET /health`). Limite RAM: 1 GB.
 7. **Deploy**. Risultato atteso: **Running (healthy)**.
 
@@ -383,8 +384,9 @@ automaticamente e **Ports Exposes: 80**. Su un servizio che non parla HTTP sono 
 Poi i log della risorsa: se manca un file di configurazione montato, il container esce subito.
 
 ### `relation "…" does not exist` nei log di soul
-Migrazioni non applicate: il Pre-deployment Command del punto 2.4 manca o è fallito. Eseguilo a
-mano (**Execute Command** → `node node_modules/@ugo/db/dist/migrate-cli.js`) e redeploya.
+Da quando soul migra da solo all'avvio (§2.4) questo non dovrebbe più succedere. Se capita:
+controlla che `UGO_AUTO_MIGRATE` non sia impostata a `false`, e cerca nei log la riga
+`migrations failed` col motivo — di solito è l'utente del database senza permesso di creare tabelle.
 
 ### Costi più alti dell'atteso nelle prime ore
 Cache dei prompt fredda: ogni modifica a `packages/prompts/*` o un lungo periodo di inattività
