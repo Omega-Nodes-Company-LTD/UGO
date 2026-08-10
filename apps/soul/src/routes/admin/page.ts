@@ -127,6 +127,35 @@ export const ADMIN_PAGE = `<!doctype html>
   </section>
 
   <section>
+    <h2>Cosa ricorda</h2>
+    <p class="flags">Una finestra sulla memoria, non il modo di usarla: il modo è chiedergli le cose
+       parlando. Con una ricerca vedi quello che <b>lui</b> ripescherebbe, con lo stesso ordinamento.</p>
+    <div class="row">
+      <div><label for="mem-q">Cerca</label><input id="mem-q" data-testid="mem-q" placeholder="il corriere"></div>
+      <div><label for="mem-kind">Tipo</label><select id="mem-kind" data-testid="mem-kind">
+        <option value="">tutti</option><option value="fact">fatti</option>
+        <option value="preference">preferenze</option><option value="episode">episodi</option>
+        <option value="insight">intuizioni</option></select></div>
+      <button id="mem-go" data-testid="mem-go" style="flex:0 0 auto">Guarda</button>
+    </div>
+    <ul id="mem-list" data-testid="mem-list" style="font-size:.9rem"></ul>
+    <div id="mem-msg"></div>
+  </section>
+
+  <section>
+    <h2>Riunioni</h2>
+    <div class="row">
+      <div><label for="meet-url">Link della call</label>
+        <input id="meet-url" data-testid="meet-url" placeholder="https://meet.google.com/abc-defg-hij"></div>
+      <div><label for="meet-title">Titolo (facoltativo)</label>
+        <input id="meet-title" data-testid="meet-title" placeholder="consegna cliente"></div>
+      <button id="meet-join" data-testid="meet-join" style="flex:0 0 auto">Mandalo in call</button>
+    </div>
+    <ul id="meet-list" data-testid="meet-list" style="font-size:.9rem"></ul>
+    <div id="meet-msg"></div>
+  </section>
+
+  <section>
     <h2>I dati</h2>
     <div class="row">
       <button id="export" class="ghost" data-testid="export" style="flex:0 0 auto">Scarica tutto (JSON)</button>

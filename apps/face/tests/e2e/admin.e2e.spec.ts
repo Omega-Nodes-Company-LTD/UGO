@@ -214,3 +214,38 @@ test("the panel shows whether the machinery underneath is alive", async ({ page 
   await expect(page.getByTestId("health")).toContainText("db");
   await expect(page.getByTestId("health")).toContainText("ollama");
 });
+
+test("what UGO remembers can be read, and searched the way he would", async ({ page }) => {
+  await openPanel(page);
+
+  // give him something to remember, through the front door
+  await page.evaluate(async () => {
+    await fetch("/v1/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ channel: "home", text: "il corriere DHL si chiama Ivan" }),
+    });
+  });
+
+  await page.getByTestId("mem-go").click();
+  await expect(page.getByTestId("mem-msg-text")).toHaveText(/ultimi che ha scritto|Ecco cosa/);
+
+  // a search runs the same re-ranking the chat uses, so it answers with a score
+  await page.getByTestId("mem-q").fill("chi consegna i pacchi");
+  await page.getByTestId("mem-go").click();
+  await expect(page.getByTestId("mem-msg-text")).toHaveText(/Ecco cosa ripescherebbe/);
+});
+
+test("meetings are listed, and a bad link is refused with a reason", async ({ page }) => {
+  await openPanel(page);
+  await expect(page.getByTestId("meet-list")).toContainText("Nessuna riunione");
+
+  await page.getByTestId("meet-join").click();
+  await expect(page.getByTestId("meet-msg-text")).toHaveText(/Serve il link/);
+
+  // Vexa is not wired in this environment: the panel must say so plainly
+  // rather than leaving the operator staring at a spinner
+  await page.getByTestId("meet-url").fill("https://meet.google.com/abc-defg-hij");
+  await page.getByTestId("meet-join").click();
+  await expect(page.getByTestId("meet-msg-text")).toHaveText(/riunioni non sono configurate|Non è entrato/);
+});

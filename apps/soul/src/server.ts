@@ -4,6 +4,7 @@ import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js"
 import { createAuthGuard } from "./routes/guard.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
+import { registerArchiveRoutes } from "./routes/archive.js";
 import { registerPackRoutes } from "./routes/pack/index.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerStatsRoute } from "./routes/stats.js";
@@ -82,6 +83,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (speciesMap !== undefined) {
       registerPackRoutes(app, { db: options.db, speciesMap, guard });
+      registerArchiveRoutes(app, { db: options.db, chat: v1.chat, guard });
       registerAdminRoutes(app);
     }
     if (stats !== undefined) {

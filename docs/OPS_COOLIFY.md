@@ -281,7 +281,16 @@ non la mette da parte. Revocare un consenso non è smettere di usare un dato: è
   biografia, anche dalle frasi degli altri; i ricordi vengono riscritti e ricalcolati; l'impronta è
   distrutta. Non c'è cestino.
 
-### 5.5 Tenerlo d'occhio
+### 5.5 Guardare cosa ricorda, e mandarlo in riunione
+
+- **Cosa ricorda** — la lista degli ultimi ricordi, filtrabile per tipo. Scrivendo una ricerca vedi
+  quello che **lui** ripescherebbe, con lo stesso ordinamento della chat: è una finestra sulla
+  memoria, non il modo di usarla. Il modo è chiedergli le cose parlando.
+- **Riunioni** — incolli il link della call e clicca *Mandalo in call*. Sotto trovi lo storico con lo
+  stato. Se lo stack Vexa non è configurato su questo server il pannello te lo dice in chiaro,
+  invece di lasciarti davanti a un caricamento infinito.
+
+### 5.6 Tenerlo d'occhio
 
 La sezione **Come sta** mostra quanto ha speso oggi sul budget, quanto sta risparmiando grazie alla
 cache dei prompt, quanti ricordi ha e quando ha sognato l'ultima volta. Se *risparmio cache* resta a
