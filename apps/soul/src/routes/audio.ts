@@ -15,6 +15,8 @@ export interface AudioStorageConfig {
   accessKey: string;
   secretKey: string;
   bucket: string;
+  /** provider region: Hetzner rejects a wrong one, AWS-alikes ignore it */
+  region: string;
 }
 
 const PRESIGN_TTL_SECONDS = 300;
@@ -41,7 +43,7 @@ export function registerAudioRoutes(
 ): void {
   const client = new S3Client({
     endpoint: storage.endpoint,
-    region: "us-east-1",
+    region: storage.region,
     forcePathStyle: true, // MinIO and most S3-compatibles
     credentials: { accessKeyId: storage.accessKey, secretAccessKey: storage.secretKey },
   });

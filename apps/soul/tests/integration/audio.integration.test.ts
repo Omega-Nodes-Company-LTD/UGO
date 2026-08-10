@@ -81,6 +81,7 @@ beforeAll(async () => {
         accessKey: minio.accessKey,
         secretKey: minio.secretKey,
         bucket: BUCKET,
+        region: "us-east-1",
       },
     },
   });

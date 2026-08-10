@@ -28,9 +28,16 @@ export const soulEnvSchema = z.object({
   TZ: z.string().min(1).default("Europe/Rome"),
   // Fase 4 — audio uploads: the feature activates only when all four are set
   S3_ENDPOINT: optionalNonEmpty,
+  // Both spellings are accepted. The AWS-conventional names are what every
+  // provider's console shows you (Hetzner included) and what the SDK docs
+  // use, so insisting on our shorter ones only bought a confusing boot error.
   S3_ACCESS_KEY: optionalNonEmpty,
+  S3_ACCESS_KEY_ID: optionalNonEmpty,
   S3_SECRET_KEY: optionalNonEmpty,
+  S3_SECRET_ACCESS_KEY: optionalNonEmpty,
   S3_BUCKET_AUDIO: optionalNonEmpty,
+  /** provider region; Hetzner needs its own (e.g. fsn1), AWS-alikes tolerate us-east-1 */
+  S3_REGION: z.string().min(1).default("us-east-1"),
   // Fase 5 — meetings: the feature activates only when both are set
   VEXA_API_URL: optionalNonEmpty,
   VEXA_API_KEY: optionalNonEmpty,
@@ -71,22 +78,38 @@ export interface AudioStorageEnv {
   accessKey: string;
   secretKey: string;
   bucket: string;
+  /** provider region: Hetzner rejects a wrong one, AWS-alikes ignore it */
+  region: string;
 }
 
 /** All-or-nothing S3 group: a partial configuration is a config error. */
 export function audioStorageFromEnv(env: SoulEnv): AudioStorageEnv | undefined {
-  const values = [env.S3_ENDPOINT, env.S3_ACCESS_KEY, env.S3_SECRET_KEY, env.S3_BUCKET_AUDIO];
-  const set = values.filter((value) => value !== undefined).length;
-  if (set === 0) return undefined;
-  if (set !== values.length) {
+  const accessKey = env.S3_ACCESS_KEY ?? env.S3_ACCESS_KEY_ID;
+  const secretKey = env.S3_SECRET_KEY ?? env.S3_SECRET_ACCESS_KEY;
+  const required = {
+    S3_ENDPOINT: env.S3_ENDPOINT,
+    "S3_ACCESS_KEY (o S3_ACCESS_KEY_ID)": accessKey,
+    "S3_SECRET_KEY (o S3_SECRET_ACCESS_KEY)": secretKey,
+    S3_BUCKET_AUDIO: env.S3_BUCKET_AUDIO,
+  };
+  const missing = Object.entries(required)
+    .filter(([, value]) => value === undefined)
+    .map(([name]) => name);
+
+  // nothing configured at all is a valid choice: audio upload simply stays off
+  if (missing.length === Object.keys(required).length) return undefined;
+  if (missing.length > 0) {
+    // name the variables, never their values (CLAUDE.md rule 6)
     throw new Error(
-      "partial S3 configuration: set all of S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_AUDIO or none",
+      `configurazione S3 incompleta: mancano ${missing.join(", ")}. ` +
+        "Impostale tutte, oppure nessuna per disattivare l'upload audio.",
     );
   }
   return {
     endpoint: env.S3_ENDPOINT ?? "",
-    accessKey: env.S3_ACCESS_KEY ?? "",
-    secretKey: env.S3_SECRET_KEY ?? "",
+    accessKey: accessKey ?? "",
+    secretKey: secretKey ?? "",
     bucket: env.S3_BUCKET_AUDIO ?? "",
+    region: env.S3_REGION,
   };
 }
