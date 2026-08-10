@@ -22,6 +22,14 @@ const EXPECTED_TABLES = [
   "diary_entries",
   "desires",
   "budget_ledger",
+  "gosini",
+  "trait_sets",
+  "bonds",
+  "relations",
+  "recognition_profiles",
+  "perception_events",
+  "corrections",
+  "memory_beings",
 ] as const;
 
 let container: StartedPostgreSqlContainer;

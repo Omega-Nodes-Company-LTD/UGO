@@ -1,10 +1,11 @@
 import { createDbClient } from "@ugo/db";
 import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
-import { EnvValidationError, parseDataKey, parseEnv } from "@ugo/shared";
+import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
 import { FaceGateway } from "./services/faceGateway.js";
 import { MeetingsService } from "./services/meetingsService.js";
+import { PackService } from "./services/packService.js";
 import { ExportService } from "./services/privacy/exportService.js";
 import { ForgetService } from "./services/privacy/forgetService.js";
 import { PsycheService } from "./services/psycheService.js";
@@ -33,12 +34,15 @@ const llm = new LlmClient({
   ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
   timezone: env.TZ,
 });
+const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
+const pack = new PackService(db, speciesMap);
 const chat = new ChatService({
   db,
   embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
   llm,
   psyche,
   dataKey: parseDataKey(env.UGO_DATA_KEY),
+  pack,
 });
 
 const face = new FaceGateway({
@@ -90,6 +94,7 @@ const app = buildServer({
     psyche,
     face,
     privacy,
+    speciesMap,
     stats: { dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD, timezone: env.TZ },
     ...(env.UGO_INTERNAL_TOKEN !== undefined && { internalToken: env.UGO_INTERNAL_TOKEN }),
     ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),

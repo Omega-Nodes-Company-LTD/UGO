@@ -158,10 +158,18 @@ diventa vincolo di design del guscio (§4.5 della spec).
 Chiavi **UUIDv4** ovunque, embeddings `vector(768)`, indice ivfflat/hnsw sulle colonne vector.
 
 ```
-people ──┬─< messages          (chi ha detto cosa, con costo)
-         ├─< transcript_segments (via meetings)
-         └─ (DELETE ⇒ anonimizzazione irreversibile a cascata)
+gosini ──< trait_sets          lignaggio + genoma versionato immutabile (ADR-015)
+   └─< (gosino_id su ogni tabella di stato)
 
+beings ──┬─< messages           (chi ha detto cosa, con costo)
+         ├─< bonds              cosa QUESTO esemplare prova per lui (ADR-014)
+         ├─< relations          il grafo tra gli altri, senza UGO
+         ├─< recognition_profiles  come riconoscerlo, per modalità (cifrato)
+         ├─< memory_beings      quali ricordi lo riguardano
+         └─ (DELETE ⇒ anonimizzazione irreversibile a cascata + biometrici distrutti)
+
+perception_events  percezione agnostica alla modalità, nessun media raw
+corrections        come il branco educa UGO (`wrong_name` è il segnale chiave)
 events        append-only, sorgente: face | nano | ear | meet | system
 memories      fact | preference | episode | insight + importance + last_accessed
 psyche_snapshots  serie temporale dello stato emotivo
@@ -189,12 +197,45 @@ budget_ledger                 il salvadanaio
   **Conseguenza da accettare consapevolmente**: sul testo cifrato non si può fare ricerca full-text SQL —
   il recupero passa dagli embeddings, non da `LIKE`.
 
+### 5.1-bis Il branco e la percezione (ADR-014/015/016)
+
+UGO non ha un utente: entra in un **branco preesistente** dove convivono specie diverse. Tre
+conseguenze che si vedono nello schema.
+
+- **`beings` e non `users`.** `species` è `text` di proposito: aggiungere una specie non deve
+  richiedere una migrazione. `kind` invece è un enum, perché un valore inventato deve rifiutarlo il
+  database. Il costo accettato è qualche join in più; il guadagno è che il modello non codifica
+  "padrone + accessori".
+- **`bonds` per esemplare, `relations` senza UGO.** Due UGO nella stessa casa possono avere opinioni
+  diverse sulla stessa persona; che Ivan sia il padre di Sofia è vero comunque. I tipi simmetrici
+  sono normalizzati su `being_a < being_b` da un check, così la coppia speculare non può esistere.
+- **`gosino_id` ovunque, da subito.** Con un esemplare solo è ridondante. Aggiungerlo dopo
+  significherebbe attribuire a posteriori ogni riga di stato a un esemplare che nessuno ha registrato.
+
+**La percezione è agnostica alla modalità** e ogni specie dichiara i suoi canali in configurazione
+(`UGO_SPECIES_MAP`), non in `if` sparsi nella pipeline. `perception_events` distingue `being_id` (chi
+è) da `candidate_being_id` (chi potrebbe essere): sotto soglia UGO **non indovina**, tratta l'essere
+come sconosciuto e chiede a un umano di fiducia.
+
+**Gli embedding biometrici sono ciphertext in `bytea`, mai colonne `vector`.** Le due cose si
+escludono: un `vector` contiene float leggibili, e un'impronta vocale in chiaro è precisamente il dato
+che la cifratura esiste per proteggere. Il confronto avviene in memoria dopo la decifratura — su una
+decina di esseri l'indice HNSW non comprerebbe nulla. `model` e `dimensions` sono espliciti perché
+encoder facciali, vocali e testuali hanno taglie diverse e i loro vettori non sono confrontabili.
+
+L'enrollment vocale è legato al **corpo di casa**: badge indossabile e meeting bot non costruiscono né
+leggono profili biometrici, così il dato non esce dal perimetro domestico neanche quando esce un
+corpo. `is_minor` e `no_audio`/`no_vision` scartano il campione **a monte**: un filtro a valle
+significa che il biometrico è già stato calcolato.
+
 ### 5.2 Diritto all'oblio
 
-`DELETE` su `people` non è una `DELETE` fisica a cascata: propaga **anonimizzazione irreversibile** su
+`DELETE` su `beings` non è una `DELETE` fisica a cascata: propaga **anonimizzazione irreversibile** su
 messaggi e segmenti collegati. Il contenuto della conversazione resta come esperienza vissuta da UGO,
 ma cessa di essere riconducibile a un individuo. È la lettura corretta della minimizzazione GDPR:
-si cancella il legame con la persona, non si distrugge l'integrità della biografia.
+si cancella il legame con la persona, non si distrugge l'integrità della biografia. Fanno eccezione i
+**profili biometrici**, che vengono distrutti e non anonimizzati: un centroide vocale resta utilizzabile
+per sempre, quindi è l'unica cosa che non può sopravvivere in nessuna forma.
 
 ---
 
@@ -246,6 +287,7 @@ Ordine **fisso**, non negoziabile:
 | 1 | Identità e personalità (`packages/prompts/identity.it.md`) | `[CACHED]` |
 | 2 | Regole di formato e limiti (max 2 frasi in casa, 3 in call; niente markdown a voce) | `[CACHED]` |
 | 3 | Stato psiche (label + frase) + estratto ultimo diario | dinamico |
+| 3-bis | Chi sono io · il branco presente · relazioni tra i presenti · regole di specie · correzioni recenti | dinamico |
 | 4 | Memorie recuperate (top-k, con data) | dinamico |
 | 5 | Ultimi N turni del canale | dinamico |
 | 6 | Messaggio utente | dinamico |
@@ -255,6 +297,9 @@ Ordine **fisso**, non negoziabile:
 richiesta, e il costo dell'input passa dal ~10% al 100%. La differenza tra "1–3 €/mese" e un ordine di
 grandezza in più sta interamente in questa regola. Da qui il divieto assoluto di interpolare dati
 variabili — data, umore, nome — nei blocchi cached: l'umore va al blocco 3, mai al blocco 1.
+
+Il blocco 3-bis sta **prima** delle memorie di proposito: chi è nella stanza decide come va detto un
+ricordo, non il contrario. Ed è dinamico per costruzione — il branco è esattamente la parte che cambia.
 
 Il costo strutturale accettato: l'identità non può essere personalizzata dinamicamente. È una feature,
 non un limite — l'identità *deve* essere stabile.
@@ -340,6 +385,8 @@ Una modifica che viola uno di questi punti richiede un ADR, non una PR:
 8. Nessun file utente sul writable layer di un container.
 9. Nessuna chiave primaria sequenziale.
 10. Nessuna feature di una fase successiva anticipata nella fase corrente.
+11. Nessuna tabella `users` o `people`: l'entità è `beings` (ADR-014).
+12. Nessun embedding biometrico in una colonna `vector`, né fuori dal corpo di casa (ADR-016).
 
 ## 9. Tracciabilità ADR → architettura
 
@@ -356,8 +403,13 @@ Una modifica che viola uno di questi punti richiede un ADR, non una PR:
 | ADR-009 Monorepo pnpm/Turbo/TS strict | Frontiere dei package §3.1 |
 | ADR-010 Giurisdizione IT/UE | §7.2 integralmente; **già risolto, non ridiscutere** |
 | ADR-011 Visibile by design | REC e privacy mode come requisiti funzionali testabili §4 |
+| ADR-012 Baseline persistite | `psyche_baselines`, per esemplare (ADR-015) |
+| ADR-013 Vexa polling + voce in stanza | Fase 5, `SpeakPort` dichiaratamente ferma |
+| ADR-014 Il branco, non l'utente | §5 e §5.1-bis; `beings`/`bonds`/`relations` |
+| ADR-015 Genoma versionato | `gosini`/`trait_sets`; `gosino_id` su ogni tabella di stato |
+| ADR-016 Percezione multimodale | `perception_events`, biometrici cifrati, blocco 3-bis del prompt |
 
-Nuove decisioni architetturali → `docs/ADR/NNN-titolo.md` a partire da **012**.
+Nuove decisioni architetturali → `docs/ADR/NNN-titolo.md` a partire da **017**.
 
 ## Prossimi Passi
 

@@ -151,14 +151,14 @@ describe("forgetBeing — anonimizzazione irreversibile (§7)", () => {
   });
 
   it("writes an audit event with ids only, never the erased name", async () => {
-    const [audit] = await db.select().from(events).where(eq(events.type, "person_forgotten"));
+    const [audit] = await db.select().from(events).where(eq(events.type, "being_forgotten"));
     expect(audit).toBeDefined();
     const payload = JSON.stringify(audit?.payload);
     expect(payload).toContain(beingId);
     expect(payload).not.toMatch(/ivan|bianchi|vanni/i);
   });
 
-  it("rejects an unknown person id", async () => {
+  it("rejects an unknown being id", async () => {
     const service = new ForgetService({ db, dataKey });
     await expect(service.forgetBeing(crypto.randomUUID())).rejects.toThrow(BeingNotFoundError);
   });
@@ -168,7 +168,7 @@ describe("exportAll — portabilità (SECURITY §3)", () => {
   it("returns every table with message bodies decrypted", async () => {
     const bundle = await new ExportService(db, dataKey).exportAll();
     expect(bundle.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    expect(bundle.beings).toHaveLength(1); // only the surviving person
+    expect(bundle.beings).toHaveLength(1); // only the surviving being
     expect(bundle.messages).toHaveLength(4);
     const serialized = JSON.stringify(bundle.messages);
     expect(serialized).toContain("Paola parla del meteo"); // decrypted, not "v1:"

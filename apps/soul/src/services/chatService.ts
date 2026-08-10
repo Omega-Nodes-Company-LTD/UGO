@@ -9,6 +9,8 @@ import {
 } from "@ugo/memory";
 import { decryptText, encryptText, type ChatRequest, type ChatResponse } from "@ugo/shared";
 import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import type { PackService } from "./packService.js";
+import { buildPackPrompt } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
 
 /** top-k per channel (PROGETTO §5.4: k=6 casa, k=10 riunioni) */
@@ -30,6 +32,8 @@ export interface ChatServiceDeps {
   llm: LlmClient;
   psyche: PsycheService;
   dataKey: Buffer;
+  /** the pack block of the prompt (ADR-014); absent = no pack context */
+  pack?: PackService;
 }
 
 /** Blocks 3+4 of the §5.5 prompt order — dynamic, therefore NEVER cached. */
@@ -38,8 +42,12 @@ function buildDynamicSystem(
   diary: { date: string; text: string } | undefined,
   retrieved: readonly RankedMemory[],
   recordings: readonly string[],
+  pack: string | undefined,
 ): string {
   const lines = [`Stato d'animo: ${view.label}. ${view.phrase}`];
+  // the pack comes before the memories: who is in the room decides how a
+  // recollection should be said, not the other way round
+  if (pack !== undefined && pack !== "") lines.push(pack);
   if (diary !== undefined) {
     lines.push(`Dal diario (${diary.date}): ${diary.text.slice(0, DIARY_EXCERPT_CHARS)}`);
   }
@@ -95,6 +103,30 @@ export class ChatService {
       .map((row) => ({ role: row.role, content: decryptText(row.text, this.deps.dataKey) }));
   }
 
+  /**
+   * Who is in the room, as prompt text. Only the beings we can actually name
+   * are listed; an unrecognized presence becomes an explicit "do not guess".
+   */
+  private async packBlock(
+    beingId: string | undefined,
+    channel: ChatRequest["channel"],
+  ): Promise<string | undefined> {
+    const { pack } = this.deps;
+    if (pack === undefined) return undefined;
+    const present = await pack.present(beingId === undefined ? [] : [beingId]);
+    const ids = present.map((being) => being.id);
+    return buildPackPrompt({
+      self: await pack.self(),
+      present,
+      relations: await pack.relationsAmong(ids),
+      speciesRules: pack.speciesRules(present),
+      corrections: await pack.recentCorrections(ids),
+      // only at home does an unnamed speaker mean "somebody is here and I do
+      // not know who": on the API channel it just means nobody said
+      unidentifiedPresent: beingId === undefined && channel === "home",
+    });
+  }
+
   public async handle(request: ChatRequest, at: Date = new Date()): Promise<ChatResponse> {
     const { db, embedder, llm, psyche, dataKey } = this.deps;
 
@@ -134,7 +166,13 @@ export class ChatService {
     const result = await llm.chat(
       {
         channel: request.channel,
-        dynamicSystem: buildDynamicSystem(view, diaryRows[0], retrieved, recordings),
+        dynamicSystem: buildDynamicSystem(
+          view,
+          diaryRows[0],
+          retrieved,
+          recordings,
+          await this.packBlock(request.beingId, request.channel),
+        ),
         history,
         userText: request.text,
       },

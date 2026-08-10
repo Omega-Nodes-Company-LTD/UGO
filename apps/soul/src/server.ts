@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastif
 import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js";
 import { createAuthGuard } from "./routes/guard.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
+import { registerPackRoutes } from "./routes/pack.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerStatsRoute } from "./routes/stats.js";
 import { registerDebugChatRoute } from "./routes/debugChat.js";
@@ -14,6 +15,7 @@ import type { FaceGateway } from "./services/faceGateway.js";
 import type { MeetingsService } from "./services/meetingsService.js";
 import type { ExportService } from "./services/privacy/exportService.js";
 import type { ForgetService } from "./services/privacy/forgetService.js";
+import type { SpeciesMap } from "@ugo/shared";
 
 export interface ServerOptions extends HealthDeps {
   logger?: boolean;
@@ -24,6 +26,8 @@ export interface ServerOptions extends HealthDeps {
     meetings?: MeetingsService;
     privacy?: { forget: ForgetService; exporter: ExportService };
     stats?: { dailyBudgetUsd: number; timezone: string };
+    /** the pack surface (ADR-014); the Umwelt map comes from configuration */
+    speciesMap?: SpeciesMap;
     /** bearer token protecting destructive/expensive routes */
     internalToken?: string;
     dreamTriggerUrl?: string;
@@ -47,8 +51,17 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   app.register(cors, { origin: true });
   registerHealthRoute(app, options);
   if (options.features !== undefined) {
-    const { face, audio, meetings, privacy, stats, internalToken, dreamTriggerUrl, ...v1 } =
-      options.features;
+    const {
+      face,
+      audio,
+      meetings,
+      privacy,
+      stats,
+      speciesMap,
+      internalToken,
+      dreamTriggerUrl,
+      ...v1
+    } = options.features;
     const guard = createAuthGuard(internalToken);
     registerV1Routes(app, { db: options.db, ...v1 });
     registerDebugChatRoute(app);
@@ -65,6 +78,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (privacy !== undefined) {
       registerPrivacyRoutes(app, { ...privacy, guard });
+    }
+    if (speciesMap !== undefined) {
+      registerPackRoutes(app, { db: options.db, speciesMap, guard });
     }
     if (stats !== undefined) {
       registerStatsRoute(app, { db: options.db, ...stats });

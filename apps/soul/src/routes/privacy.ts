@@ -37,7 +37,7 @@ export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDe
         return reply
           .code(404)
           .type("application/problem+json")
-          .send({ type: "about:blank", title: "Person not found", status: 404 });
+          .send({ type: "about:blank", title: "Being not found", status: 404 });
       }
       throw error;
     }

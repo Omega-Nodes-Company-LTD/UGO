@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.9.0"
+version: "0.10.0"
 last_updated: "2026-08-10"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -14,7 +14,7 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 ## 1. Situazione in una riga
 
-**Fasi 0–5 (parte software) + backlog di consolidamento (Gruppi A/B/C/D): COMPLETATI** — tutto verificato su infrastruttura
+**Fasi 0–5 (software) + backlog di consolidamento + fondamenta del branco (ADR-014/015/016): COMPLETATI** — tutto verificato su infrastruttura
 reale. ADR-012 e ADR-013 **accettati e implementati**; runbook di deploy pronto in
 [`OPS_COOLIFY.md`](./OPS_COOLIFY.md) (mancano solo i valori dei placeholder). Col device/server: validazioni on-device (Fase 2/4), deploy
 Vexa + Meet di prova (Fase 5), gusci (Fase 6 — il proprietario ha design da una sessione chat
@@ -45,6 +45,7 @@ UGO/
 │   └── memory/                # embeddings Ollama, retrieval re-rank, llmClient budget guard
 ├── tests/factories/           # Faker + embedding da seed + helper infra (ollama reale, stub LLM)
 ├── documentation/             # manuale utente (getting-started, core-features, troubleshooting)
+│                              # NB: non copre ancora il branco (nessuna feature esposta)
 └── ops/
     ├── docker/                # compose.dev (reti internal), soul/jobs Dockerfile non-root, mosquitto
     └── jobs/                  # sogno: ingest audio, riflessione, igiene, backup, restore
@@ -277,12 +278,54 @@ migrazioni aveva il numero **cablato** (3) e sarebbe diventato rosso a ogni migr
 verifica l'invariante vera — "ogni migrazione applicata una volta sola" — derivandola dai file su
 disco.
 
+## 6-quater. Il branco, il genoma, la percezione (ADR-014/015/016)
+
+Rifondazione dello schema chiesta dal proprietario **prima del primo deploy**, quando cambiarlo costa
+una migrazione su un database vuoto invece che una riscrittura su una biografia viva. Nulla è ancora
+installato da nessuna parte, quindi il database **nasce** col branco: le migrazioni sono rigenerate da
+zero e la tabella `people` non è mai esistita.
+
+| Area | Esito |
+|---|---|
+| ADR-014 — il branco | ✅ `beings` (specie aperta, `kind` chiuso), `bonds` per esemplare, `relations` tra gli altri con normalizzazione dei tipi simmetrici e divieto di self-link, `memory_beings` |
+| ADR-015 — genoma | ✅ `gosini` con lignaggio + `trait_sets` immutabili concatenati; `gosino_id` su **ogni** tabella di stato, con default sull'esemplare seminato `ugo-prime`. Mutazione e riproduzione **fuori scope**, come da spec |
+| ADR-016 — percezione | ✅ mappa canali per specie validata Zod e sovrascrivibile (`UGO_SPECIES_MAP`), `perception_events` agnostica alla modalità con `being_id`/`candidate_being_id`, `corrections` come canale di educazione |
+| Biometria | ✅ centroidi in `bytea` cifrato AES-256-GCM (`UGO1`), **mai** colonne `vector`; `model`+`dimensions` espliciti; confronto in RAM dopo decifratura |
+| Enrollment vocale | ✅ encoder MFCC reale dietro porta `VoiceEncoder`, centroide incrementale, clip cancellata la notte stessa; passo `enroll` nel sogno; rotte `POST /v1/beings/:id/enroll/voice`, `GET /v1/pack`, `POST /v1/corrections` |
+| Tutele | ✅ `is_minor` → nessun profilo biometrico, `no_audio`/`no_vision` → scarto **a monte**, enrollment ammesso **solo** dal corpo di casa. Rifiuto sia nella rotta che nel job |
+| Prompt §5.5 | ✅ nuovo blocco 3-bis (chi sono io · presenti con familiarity/affinity · relazioni tra i presenti · regole di specie · correzioni), **prima** delle memorie e sempre dinamico |
+| Oblio | ✅ il report conta i profili biometrici distrutti; l'export di portabilità include bond/relazioni/correzioni ma **non** i centroidi |
+
+### Numeri della validazione
+
+- schema/branco: **13** test di integrazione su Postgres reale (7 nuovi sull'integrità del branco)
+- soul: **56** · memory: **11** · E2E: **7** · Python: **23** (6 nuovi sull'enrollment vocale)
+- `pnpm turbo build lint typecheck test`: 31/31 · `pnpm audit`: solo il moderate noto (esbuild, dev-only)
+
+### Due trappole trovate strada facendo
+
+1. **Check constraint con parametro legato.** drizzle-kit rende i check dentro il file di migrazione:
+   un parametro diventa un `$1` che nessuno sostituirà mai. Il vincolo sulle relazioni simmetriche è
+   inlineato con `sql.raw`.
+2. **Cifratura e pgvector si escludono.** Non è un dettaglio implementativo ma una scelta di schema:
+   documentata in ADR-016 come deroga *inversa* — si rinuncia all'indice, non alla cifratura.
+
+### Domanda ancora aperta (non bloccante per lo schema)
+
+Il perimetro biometrico — esenzione domestica (art. 2(2)(c)) *contro* categorie particolari (art. 9) —
+non ha risposta formale. La decisione tecnica la rende in larga parte non vincolante: l'enrollment è
+legato al corpo di casa, quindi il dato non lascia l'ambito domestico. **Se un giorno si vorrà
+riconoscere qualcuno dal wearable o dal meeting bot, quel giorno servono base giuridica, informativa e
+DPIA** — ADR-016 dice esattamente dove ricomincia la conversazione.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
 |---|---|---|
 | esbuild MODERATE via drizzle-kit (dev-only) | Basso | Bump drizzle-kit quando esce il fix |
 | Python 3.11 nell'ambiente vs 3.12 in spec | Nullo fino a Fase 3 | Pin 3.12 nel Dockerfile di `ops/jobs` |
+| Encoder vocale MFCC, non neurale | Separa poche voci in casa; su rumore reale sarà più fragile | Vendorizzare pyannote/WeSpeaker dietro la porta `VoiceEncoder`; `recognition_profiles.model` impedisce di confondere i centroidi |
+| Perimetro biometrico non formalizzato | Nessuno finché l'enrollment resta sul corpo di casa | Rispondere alla domanda §6-quater prima di estendere il riconoscimento fuori casa |
 | Wake word senza asset del modello (~40 MB) | Interfaccia pronta, riconoscimento non attivo | Vendorizzare Vosk small-it sul device (validazione Fase 2 on-device) |
 | MediaPipe non ancora innestato in `FaceLocator` | Gaze resta sul fallback puntatore dove manca `FaceDetector` | Validare col Nothing 3a Pro e vendorizzare BlazeFace |
 | Ollama nel compose non ha i modelli pullati al primo avvio | Chat → errore embeddings finché `nomic-embed-text` non è presente | `docker compose exec ollama ollama pull nomic-embed-text` (post-deploy step nel runbook Coolify) |
@@ -303,6 +346,9 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
 5. **Fase 6 — Gusci**: sessione dedicata; il proprietario ha già dei design da una sessione chat
    precedente, da integrare in `hardware/shell/` con `params.py` e coupon di calibrazione.
 6. ~~Backlog gruppi B/C/D~~ — **chiusi** (§6-ter).
+7. ~~Fondamenta del branco~~ — **chiuse** (§6-quater): schema, enrollment vocale e prompt.
+   Restano da fare, dopo il deploy: popolare il branco reale, fare l'enrollment delle voci di casa,
+   e documentare in `/documentation` le funzioni una volta che l'utente potrà usarle davvero.
 
 Da qui in avanti non resta software da scrivere prima del deploy: tutto ciò che manca richiede
 **hardware o rete reale** — il server, il telefono, il guscio.
