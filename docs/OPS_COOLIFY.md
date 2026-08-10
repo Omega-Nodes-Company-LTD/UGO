@@ -169,7 +169,28 @@ Controlla lo Scheduled Task: fuso orario del server (il cron di Coolify usa quel
 task abilitato, e i log dell'ultima esecuzione. Il job è idempotente: recuperare a mano con
 `python -m ugo_jobs.dream --date <DATA_PERSA>` è sempre sicuro (gli step completati vengono saltati).
 
-## 6. Aggiornamenti
+## 6. Ripristino da backup (disaster recovery)
+
+Il backup è verificato da un test di round-trip, ma la procedura va provata **almeno una volta** sul
+server, su un database di scratch: un ripristino improvvisato durante un incidente è un secondo
+incidente.
+
+1. Elenca i backup disponibili: nella risorsa `jobs`, **Execute Command** →
+   `python -m ugo_jobs.restore --date x --list`. Risultato atteso: righe `pg/YYYY-MM-DD.dump.enc`.
+2. Crea un database di prova accanto a quello vivo:
+   `docker exec <CONTAINER_POSTGRES> psql -U ugo -d postgres -c "create database ugo_restore_test;"`.
+3. Ripristina lì dentro:
+   `python -m ugo_jobs.restore --date <DATA> --target postgres://ugo:<POSTGRES_PASSWORD>@<HOST_POSTGRES>:5432/ugo_restore_test`.
+   Risultato atteso: una riga JSON `{"restored": "pg/…", "bytes": …}`.
+4. Verifica che l'anima ci sia:
+   `docker exec <CONTAINER_POSTGRES> psql -U ugo -d ugo_restore_test -c "select count(*) from memories;"`.
+5. Butta il database di prova: `drop database ugo_restore_test;`.
+6. **Ripristino vero** (solo in emergenza): ferma `soul`, esegui il restore **senza** `--target`
+   (usa `DATABASE_URL`), riavvia `soul`. Serve `UGO_DATA_KEY` **identica** a quella con cui il
+   backup è stato cifrato: senza quella chiave il dump è indecifrabile — è il motivo per cui va
+   custodita fuori dal server.
+
+## 7. Aggiornamenti
 
 ### Redeploy senza downtime
 1. Push sul branch di produzione → in Coolify clicca **Redeploy** sulla risorsa soul (o abilita
