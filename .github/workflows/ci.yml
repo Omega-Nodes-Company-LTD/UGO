@@ -126,6 +126,13 @@ jobs:
             Promise.all(['@ugo/memory','@ugo/psyche','@ugo/db','@ugo/shared'].map((m) => import(m)))
               .then(() => console.log('all workspace deps resolve'))
               .catch((error) => { console.error(error.message); process.exit(1); })"
+      - name: soul carries the face bundle (ADR-018 Tempo 1)
+        run: |
+          docker run --rm ugo-soul:ci sh -c "
+            test -f /app/public/index.html &&
+            test -f /app/public/manifest.webmanifest &&
+            ls /app/public/icon-512.png &&
+            echo 'face bundle present'"
       - name: build jobs image
         run: docker build -f ops/docker/jobs.Dockerfile -t ugo-jobs:ci .
       # --entrypoint: the image's entrypoint IS the dream, so a bare command

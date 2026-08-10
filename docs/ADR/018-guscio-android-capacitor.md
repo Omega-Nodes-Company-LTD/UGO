@@ -1,8 +1,9 @@
 # ADR-018 — Il guscio del corpo: APK Capacitor, non una scheda del browser
 
-**Stato: PROPOSTA** — decisione che PROGETTO §4.1 chiedeva di prendere in Fase 2 («Fully Kiosk
-Browser o APK Capacitor con lock task; scegliere in Fase 2 e registrare ADR») e che non è mai stata
-presa. Il corpo di casa gira oggi in una scheda di Chrome, che è un default per omissione.
+**Stato: ACCETTATA (2026-08-10), con adozione in due tempi** — decisione che PROGETTO §4.1 chiedeva
+di prendere in Fase 2 («Fully Kiosk Browser o APK Capacitor con lock task; scegliere in Fase 2 e
+registrare ADR») e che non era mai stata presa. Il corpo di casa girava fino a ieri in una scheda di
+Chrome, che è un default per omissione.
 
 ## Contesto
 
@@ -32,7 +33,7 @@ L'ultima riga merita attenzione: Android **obbliga** un foreground service a mos
 persistente. Per un progetto il cui primo principio è *visibile by design*, un requisito di sistema
 che dice a tutti che il microfono è attivo non è un costo, è un alleato.
 
-## Decisione proposta
+## Decisione
 
 **Un APK Capacitor**, che impacchetta la stessa webapp e vale per **entrambi** i corpi.
 
@@ -46,11 +47,38 @@ che dice a tutti che il microfono è attivo non è un costo, è un alleato.
 **Fully Kiosk Browser** resta come ripiego per il solo dock, se un giorno servisse qualcosa subito e
 senza toolchain Android. Non copre il corpo in giro, quindi non può essere la scelta principale.
 
+## Adozione in due tempi
+
+Il proprietario ha scelto di **partire dalla PWA** e impacchettare dopo: «possiamo cmq partire dalla
+web app e testare le cose al volo, poi spostarci su app native». La decisione sopra non cambia — la
+sua *data di consegna* sì, ed è giusto così: si verifica prima che la creatura funzioni, poi la si
+chiude in un guscio.
+
+**Tempo 1 — adesso, PWA installabile.** `apps/face` ha manifest, icone e `display: fullscreen`; si
+aggiunge alla schermata Home e parte senza barra degli indirizzi. In più prende uno **Screen Wake
+Lock** (`apps/face/src/wakelock.ts`) quando il microfono si accende, così il dock non si spegne a
+metà frase. È abbastanza per il corpo di casa e per provare tutto il resto sul telefono vero.
+
+**Tempo 2 — quando il comportamento è validato, il guscio.** L'APK Capacitor come descritto sopra.
+Il criterio per passare non è una data ma un fatto: quando serve registrare a schermo spento, cioè
+quando si apre davvero la Fase 4.
+
+Una precisazione su cosa impacchetta cosa, perché i nomi si confondono:
+
+| Piattaforma | Guscio |
+|---|---|
+| Android (dock e wearable) | **Capacitor** (APK), oppure una Trusted Web Activity |
+| Mac mini, PC Windows/Linux | **Electron** o Tauri — desktop soltanto, non producono APK |
+| Qualunque browser, subito | la PWA del Tempo 1 |
+
+Electron **non** è un'alternativa a Capacitor: non tocca Android. Se un giorno UGO deve stare su un
+Mac mini in salotto, è un secondo guscio attorno alla stessa `apps/face`, non un sostituto.
+
 ## Alternative scartate
 
-1. **PWA e basta.** È ciò che c'è oggi. Regge il dock e **non regge il wearable**: registrerebbe solo
-   con lo schermo acceso e l'app davanti, cioè non in un guscio sul petto. Sarebbe consegnare la
-   Fase 4 a metà e chiamarla fatta.
+1. **PWA e basta, per sempre.** È il Tempo 1 promosso a soluzione finale. Regge il dock e **non
+   regge il wearable**: registrerebbe solo con lo schermo acceso e l'app davanti, cioè non in un
+   guscio sul petto. Sarebbe consegnare la Fase 4 a metà e chiamarla fatta.
 2. **App nativa Android (Kotlin).** Darebbe tutto e in più il controllo fine su batteria e audio, al
    prezzo di **riscrivere la faccia, la macchina a stati e la coda offline** in un secondo linguaggio,
    e di mantenerne due per sempre. Sproporzionato: quello che manca alla webapp sono quattro
@@ -60,10 +88,16 @@ senza toolchain Android. Non copre il corpo in giro, quindi non può essere la s
 
 ## Conseguenze
 
-- Nasce `apps/face-android/` con la configurazione Capacitor e i permessi; `apps/face` non cambia.
-- Serve la toolchain Android (SDK + JDK) per produrre l'APK: **non è verificabile nella CI attuale**,
-  e va detto invece che scoperto dopo.
+- Nel Tempo 1 `apps/face` guadagna `public/manifest.webmanifest`, le icone e `ScreenAwake`: niente
+  toolchain, niente CI nuova, e la webapp resta l'unica sorgente.
+- Nel Tempo 2 nasce `apps/face-android/` con la configurazione Capacitor e i permessi; `apps/face`
+  non cambia.
+- Servirà la toolchain Android (SDK + JDK) per produrre l'APK: **non è verificabile nella CI
+  attuale**, e va detto invece che scoperto dopo.
+- Lo Screen Wake Lock è un palliativo dichiarato, non un sostituto: tiene acceso lo schermo, non
+  tiene vivo il processo. A schermo spento la scheda viene sospesa comunque.
 - La wake word di Fase 3 e la registrazione a schermo spento di Fase 4 diventano possibili: oggi non
   lo sono, indipendentemente dal codice che scriviamo.
-- Il runbook guadagna una sezione «installare UGO sul telefono» che oggi dice, di fatto, «apri il
-  browser».
+- Il runbook guadagna una sezione «installare UGO sul telefono» ([OPS_COOLIFY §10](../OPS_COOLIFY.md)),
+  che nel Tempo 1 descrive l'aggiunta alla schermata Home e nel Tempo 2 diventerà l'installazione
+  dell'APK.

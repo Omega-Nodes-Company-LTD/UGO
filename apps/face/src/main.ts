@@ -2,8 +2,10 @@ import type { FaceState, FaceToServerMessage, ServerToFaceMessage } from "@ugo/s
 import { startCameraGaze, startPointerGaze } from "./gaze.js";
 import { GlyphDriver } from "./glyph.js";
 import { PortableController } from "./portable.js";
+import { ScreenAwake } from "./wakelock.js";
 import { FaceRenderer } from "./renderer.js";
 import { Sensors } from "./sensors.js";
+import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { Speech } from "./speech.js";
 import { FaceSocket } from "./ws.js";
 
@@ -27,10 +29,10 @@ const connStatus = requireElement("#conn");
 const micButton = requireElement("#btn-mic");
 
 const params = new URLSearchParams(location.search);
-const soulUrl = params.get("soul") ?? `ws://${location.hostname}:3000/v1/face`;
+const soulUrl = resolveSoulUrl(location, params.get("soul"));
 // portable mode (§4.2): NFC tag in the shell sets ?mode=portable; manual fallback
 const portableMode = params.get("mode") === "portable";
-const soulHttpBase = soulUrl.replace(/^ws/, "http").replace(/\/v1\/face$/, "");
+const soulHttp = soulHttpBase(soulUrl);
 
 const renderer = new FaceRenderer(canvas);
 const glyph = new GlyphDriver(app);
@@ -114,8 +116,17 @@ function startVoiceOnTap(): void {
   });
 }
 
+/**
+ * In the dock the screen must stay on, or the creature is a screensaver.
+ * Taken together with the senses because both need the same user gesture,
+ * and re-taken whenever the tab comes back — the system drops it on hide.
+ */
+const awake = new ScreenAwake();
+awake.watch(document);
+
 micButton.addEventListener("click", () => {
   void (async () => {
+    await awake.acquire();
     await sensors.startMicrophone().catch(() => undefined);
     sensors.startMotion();
     sensors.startLight();
@@ -150,7 +161,7 @@ void socket.start();
 
 // ---- portable mode wiring (§4.2) ------------------------------------------
 const portable = new PortableController(
-  soulHttpBase,
+  soulHttp,
   {
     recBanner: requireElement("#rec-banner"),
     privacyOverlay: requireElement("#privacy-overlay"),
@@ -208,6 +219,7 @@ declare global {
       send: (message: FaceToServerMessage) => void;
       queued: () => number;
       queuedFresh: () => Promise<number>;
+      awake: () => { available: boolean; held: boolean };
     };
     __ugoGlyph: { current: () => string | undefined; available: () => boolean };
     __ugoPortable: {
@@ -227,6 +239,7 @@ window.__ugoFace = {
   },
   queued: () => socket.queuedCount(),
   queuedFresh: () => socket.queuedCountFresh(),
+  awake: () => ({ available: awake.available(), held: awake.held() }),
 };
 window.__ugoGlyph = {
   current: () => glyph.currentPattern(),

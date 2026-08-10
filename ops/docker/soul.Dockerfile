@@ -11,10 +11,14 @@ RUN corepack enable
 # --- install full workspace deps and build ---------------------------------
 FROM base AS build
 WORKDIR /repo
+# apps/face carries Playwright as a dev dependency; the image builds the
+# bundle, it never runs the browsers
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.base.json ./
 # every workspace package soul depends on, transitively:
 # soul → db, memory, psyche, shared · memory → db, prompts, shared · db → shared
 COPY apps/soul/package.json apps/soul/
+COPY apps/face/package.json apps/face/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
 COPY packages/memory/package.json packages/memory/
@@ -23,13 +27,16 @@ COPY packages/prompts/package.json packages/prompts/
 COPY tests/factories/package.json tests/factories/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY apps/soul apps/soul
+COPY apps/face apps/face
 COPY packages/shared packages/shared
 COPY packages/db packages/db
 COPY packages/memory packages/memory
 COPY packages/psyche packages/psyche
 COPY packages/prompts packages/prompts
 COPY tests/factories tests/factories
-RUN pnpm turbo build --filter=soul
+# the face travels inside soul's image (ADR-018 Tempo 1): one origin, one
+# certificate, therefore a secure context for microphone and wake lock
+RUN pnpm turbo build --filter=soul --filter=face
 
 # --- prune to production deps for soul only --------------------------------
 FROM build AS prune
@@ -42,6 +49,8 @@ WORKDIR /app
 COPY --from=prune --chown=node:node /out .
 # drizzle migrations travel with the image so the release step can run them
 COPY --from=build --chown=node:node /repo/packages/db/drizzle ./node_modules/@ugo/db/drizzle
+COPY --from=build --chown=node:node /repo/apps/face/dist ./public
+ENV UGO_FACE_DIR=/app/public
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

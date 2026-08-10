@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { createDbClient, runMigrations } from "@ugo/db";
 import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
@@ -113,6 +114,7 @@ const meetings =
 
 const app = buildServer({
   db,
+  ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
   features: {
