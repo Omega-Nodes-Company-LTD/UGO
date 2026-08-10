@@ -1,5 +1,6 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 import {
+  ACCESS_ROLES,
   BEING_KINDS,
   CORRECTION_SIGNALS,
   DESIRE_STATUSES,
@@ -22,3 +23,4 @@ export const beingKind = pgEnum("being_kind", BEING_KINDS);
 export const relationType = pgEnum("relation_type", RELATION_TYPES);
 export const recognitionModality = pgEnum("recognition_modality", RECOGNITION_MODALITIES);
 export const correctionSignal = pgEnum("correction_signal", CORRECTION_SIGNALS);
+export const accessRole = pgEnum("access_role", ACCESS_ROLES);

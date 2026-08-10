@@ -8,6 +8,11 @@ export {
   parseDataKey,
 } from "./crypto.js";
 export {
+  generateDataKey,
+  unwrapDataKey,
+  wrapDataKey,
+} from "./tenantKeys.js";
+export {
   packEmbedding,
   unpackEmbedding,
   sealEmbedding,
@@ -59,6 +64,7 @@ export {
   EMBEDDING_DIMENSIONS,
   MQTT_TOPICS,
   KNOWN_SPECIES,
+  ACCESS_ROLES,
   BEING_KINDS,
   RELATION_TYPES,
   SYMMETRIC_RELATION_TYPES,
@@ -69,6 +75,7 @@ export {
   type MessageChannel,
   type MemoryKind,
   type DesireStatus,
+  type AccessRole,
   type BeingKind,
   type RelationType,
   type Modality,

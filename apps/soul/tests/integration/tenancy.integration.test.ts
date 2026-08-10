@@ -1,0 +1,369 @@
+import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import {
+  accessTokens,
+  beings,
+  bonds,
+  budgetLedger,
+  createDbClient,
+  gosini,
+  households,
+  relations,
+  runMigrations,
+  PRIME_GOSINO_ID,
+  PRIME_HOUSEHOLD_ID,
+  type DbClient,
+} from "@ugo/db";
+import {
+  encryptText,
+  decryptText,
+  generateDataKey,
+  unwrapDataKey,
+  wrapDataKey,
+} from "@ugo/shared";
+import { randomBytes } from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  actsFor,
+  canAdminister,
+  householdOf,
+  issueToken,
+  revokeToken,
+  TenantResolver,
+} from "../../src/services/tenantAuth.js";
+
+/**
+ * ADR-019, and the only version of this test worth writing: two real families
+ * in a real database, asking the questions that would end the project if the
+ * answer were wrong.
+ */
+
+let container: StartedPostgreSqlContainer;
+let db: DbClient;
+const masterKey = randomBytes(32);
+
+interface House {
+  id: string;
+  gosinoId: string;
+  dataKey: Buffer;
+}
+
+async function createHouse(slug: string, name: string): Promise<House> {
+  const dataKey = generateDataKey();
+  const [house] = await db
+    .insert(households)
+    .values({ slug, name, wrappedDataKey: wrapDataKey(dataKey, masterKey) })
+    .returning({ id: households.id });
+  if (house === undefined) throw new Error("household was not created");
+  const [exemplar] = await db
+    .insert(gosini)
+    .values({ householdId: house.id, name: `ugo-${slug}`, generation: 0 })
+    .returning({ id: gosini.id });
+  if (exemplar === undefined) throw new Error("exemplar was not created");
+  return { id: house.id, gosinoId: exemplar.id, dataKey };
+}
+
+async function addBeing(house: House, displayName: string): Promise<string> {
+  const [being] = await db
+    .insert(beings)
+    .values({ householdId: house.id, displayName })
+    .returning({ id: beings.id });
+  if (being === undefined) throw new Error("being was not created");
+  return being.id;
+}
+
+let casa: House;
+let vicini: House;
+
+beforeAll(async () => {
+  container = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
+  await runMigrations(container.getConnectionUri());
+  db = createDbClient(container.getConnectionUri());
+  casa = await createHouse("casa-rossi", "casa Rossi");
+  vicini = await createHouse("casa-bianchi", "casa Bianchi");
+});
+
+afterAll(async () => {
+  await db.$client.end();
+  await container.stop();
+});
+
+describe("the migration leaves the first family exactly where it was", () => {
+  it("moves ugo-prime into a house of its own", async () => {
+    const [prime] = await db
+      .select({ householdId: gosini.householdId })
+      .from(gosini)
+      .where(eq(gosini.id, PRIME_GOSINO_ID));
+    expect(prime?.householdId).toBe(PRIME_HOUSEHOLD_ID);
+
+    const [house] = await db
+      .select({ slug: households.slug, timezone: households.timezone })
+      .from(households)
+      .where(eq(households.id, PRIME_HOUSEHOLD_ID));
+    expect(house?.slug).toBe("casa-prime");
+    expect(house?.timezone).toBe("Europe/Rome");
+  });
+});
+
+describe("two families under one roof of iron", () => {
+  it("refuses a bond between one house's exemplar and another's being", async () => {
+    const ivan = await addBeing(casa, "Ivan");
+    // the database says no — not a service, not a code review, the database
+    await expect(
+      db.insert(bonds).values({
+        householdId: vicini.id,
+        gosinoId: vicini.gosinoId,
+        beingId: ivan,
+      }),
+    ).rejects.toThrow();
+
+    await expect(
+      db.insert(bonds).values({ householdId: casa.id, gosinoId: casa.gosinoId, beingId: ivan }),
+    ).resolves.toBeDefined();
+  });
+
+  it("refuses a relation that would link two families", async () => {
+    const nostro = await addBeing(casa, "Paola");
+    const loro = await addBeing(vicini, "Giulia");
+    await expect(
+      db
+        .insert(relations)
+        .values({ householdId: casa.id, beingA: nostro, beingB: loro, type: "cares_for" }),
+    ).rejects.toThrow();
+  });
+
+  // the ordinary configuration, not an edge case: one in the kitchen, one in
+  // the study, same family, different lives (ADR-019)
+  it("keeps ADR-014 true: two exemplars in ONE house may disagree about one person", async () => {
+    const [studio] = await db
+      .insert(gosini)
+      .values({ householdId: casa.id, name: "ugo-studio", locationLabel: "studio" })
+      .returning({ id: gosini.id });
+    if (studio === undefined) throw new Error("second exemplar was not created");
+    const sofia = await addBeing(casa, "Sofia");
+
+    await db
+      .insert(bonds)
+      .values({ householdId: casa.id, gosinoId: casa.gosinoId, beingId: sofia, affinity: 0.9 });
+    await db
+      .insert(bonds)
+      .values({ householdId: casa.id, gosinoId: studio.id, beingId: sofia, affinity: -0.3 });
+
+    const opinions = await db
+      .select({ affinity: bonds.affinity })
+      .from(bonds)
+      .where(and(eq(bonds.householdId, casa.id), eq(bonds.beingId, sofia)));
+    expect(opinions.map((o) => o.affinity).sort()).toEqual([-0.3, 0.9].sort());
+  });
+
+  it("allows one owner per house, and only one", async () => {
+    await db
+      .insert(beings)
+      .values({ householdId: casa.id, displayName: "Francesco", isOwner: true });
+    // the neighbours get their own owner, and that is not a conflict
+    await expect(
+      db.insert(beings).values({ householdId: vicini.id, displayName: "Marco", isOwner: true }),
+    ).resolves.toBeDefined();
+    await expect(
+      db.insert(beings).values({ householdId: casa.id, displayName: "Un altro", isOwner: true }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("one key per family", () => {
+  it("cannot read the neighbours' words with its own key", () => {
+    const secret = encryptText("il corriere si chiama Ivan", casa.dataKey);
+    expect(decryptText(secret, casa.dataKey)).toContain("Ivan");
+    expect(() => decryptText(secret, vicini.dataKey)).toThrow();
+  });
+
+  it("stores keys wrapped, never in the clear", async () => {
+    const [row] = await db
+      .select({ wrapped: households.wrappedDataKey })
+      .from(households)
+      .where(eq(households.id, casa.id));
+    const wrapped = row?.wrapped;
+    if (wrapped === undefined || wrapped === null) throw new Error("no wrapped key stored");
+
+    expect(wrapped.equals(casa.dataKey)).toBe(false);
+    expect(unwrapDataKey(wrapped, masterKey)).toEqual(casa.dataKey);
+    expect(() => unwrapDataKey(wrapped, randomBytes(32))).toThrow();
+  });
+});
+
+describe("the piggy bank belongs to the house", () => {
+  it("keeps one family's spending out of the other's day", async () => {
+    await db.insert(budgetLedger).values({
+      householdId: casa.id,
+      gosinoId: casa.gosinoId,
+      date: "2026-01-15",
+      provider: "anthropic",
+      model: "claude-haiku-4-5",
+      costUsd: "0.40",
+    });
+
+    const spent = async (householdId: string): Promise<number> => {
+      const rows = await db
+        .select({ cost: budgetLedger.costUsd })
+        .from(budgetLedger)
+        .where(and(eq(budgetLedger.householdId, householdId), eq(budgetLedger.date, "2026-01-15")));
+      return rows.reduce((total, row) => total + Number(row.cost), 0);
+    };
+
+    expect(await spent(casa.id)).toBeCloseTo(0.4);
+    expect(await spent(vicini.id)).toBe(0);
+  });
+});
+
+describe("tokens say who is asking", () => {
+  it("resolves a token to its house and role, and never stores it in the clear", async () => {
+    const resolver = new TenantResolver({ db });
+    const issued = await issueToken(db, {
+      householdId: casa.id,
+      role: "owner",
+      label: "telefono di Francesco",
+    });
+
+    const context = await resolver.resolve(issued.token);
+    expect(context?.householdId).toBe(casa.id);
+    expect(context?.role).toBe("owner");
+
+    const [stored] = await db
+      .select({ hash: accessTokens.tokenHash })
+      .from(accessTokens)
+      .where(eq(accessTokens.id, issued.id));
+    expect(stored?.hash).not.toBe(issued.token);
+    expect(stored?.hash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("gives nothing to a token of the wrong house", async () => {
+    const resolver = new TenantResolver({ db });
+    const theirs = await issueToken(db, {
+      householdId: vicini.id,
+      role: "owner",
+      label: "telefono di Marco",
+    });
+    const context = await resolver.resolve(theirs.token);
+    if (context === undefined) throw new Error("token should resolve");
+
+    expect(actsFor(context, vicini.id)).toBe(true);
+    expect(actsFor(context, casa.id)).toBe(false);
+    expect(await householdOf(db, context, casa.id)).toBeUndefined();
+    expect(await householdOf(db, context, vicini.id)).toBe(vicini.id);
+  });
+
+  it("lets an operator act for any house, and a member administer none", async () => {
+    const resolver = new TenantResolver({ db });
+    const operator = await issueToken(db, {
+      householdId: null,
+      role: "operator",
+      label: "console",
+    });
+    const member = await issueToken(db, {
+      householdId: casa.id,
+      role: "member",
+      label: "tablet cucina",
+    });
+
+    const asOperator = await resolver.resolve(operator.token);
+    const asMember = await resolver.resolve(member.token);
+    if (asOperator === undefined || asMember === undefined) throw new Error("should resolve");
+
+    expect(actsFor(asOperator, casa.id)).toBe(true);
+    expect(actsFor(asOperator, vicini.id)).toBe(true);
+    expect(canAdminister(asOperator)).toBe(true);
+    expect(canAdminister(asMember)).toBe(false);
+  });
+
+  it("stops honouring a token once revoked or expired", async () => {
+    const resolver = new TenantResolver({ db });
+    const doomed = await issueToken(db, {
+      householdId: casa.id,
+      role: "member",
+      label: "vecchio telefono",
+    });
+    expect(await resolver.resolve(doomed.token)).toBeDefined();
+    expect(await revokeToken(db, doomed.id)).toBe(true);
+    expect(await resolver.resolve(doomed.token)).toBeUndefined();
+
+    const expired = await issueToken(db, {
+      householdId: casa.id,
+      role: "member",
+      label: "ospite di ieri",
+      expiresAt: new Date(Date.now() - 60_000),
+    });
+    expect(await resolver.resolve(expired.token)).toBeUndefined();
+  });
+
+  it("still honours the old shared secret, as an operator", async () => {
+    const resolver = new TenantResolver({ db, legacyToken: "il-vecchio-segreto" });
+    const context = await resolver.resolve("il-vecchio-segreto");
+    expect(context?.role).toBe("operator");
+    expect(await resolver.resolve("quasi-il-vecchio-segreto")).toBeUndefined();
+    expect(await resolver.resolve("")).toBeUndefined();
+  });
+
+  it("refuses to mint a household-less token for anyone but an operator", async () => {
+    await expect(
+      issueToken(db, { householdId: null, role: "owner", label: "impossibile" }),
+    ).rejects.toThrow(/operator/);
+  });
+});
+
+describe("the ceiling is the house's own", () => {
+  it("spends against its own day and stops at its own limit", async () => {
+    const { LlmClient } = await import("@ugo/memory");
+    // the neighbours are frugal, and that is their business alone
+    await db
+      .update(households)
+      .set({ dailyBudgetUsd: "0.10" })
+      .where(eq(households.id, vicini.id));
+
+    const ours = new LlmClient({
+      db,
+      apiKey: "unused: the budget check happens before any call",
+      model: "claude-haiku-4-5",
+      dailyBudgetUsd: 1,
+      householdId: casa.id,
+      gosinoId: casa.gosinoId,
+    });
+    const theirs = new LlmClient({
+      db,
+      apiKey: "unused",
+      model: "claude-haiku-4-5",
+      dailyBudgetUsd: 1,
+      householdId: vicini.id,
+      gosinoId: vicini.gosinoId,
+    });
+
+    expect(await ours.dailyBudgetUsd()).toBe(1);
+    expect(await theirs.dailyBudgetUsd()).toBeCloseTo(0.1);
+
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date());
+    await db.insert(budgetLedger).values({
+      householdId: casa.id,
+      gosinoId: casa.gosinoId,
+      date: today,
+      provider: "anthropic",
+      model: "claude-haiku-4-5",
+      costUsd: "0.90",
+    });
+
+    expect(await ours.spentTodayUsd()).toBeCloseTo(0.9);
+    expect(await theirs.spentTodayUsd()).toBe(0);
+
+    // over its own ceiling, UGO says so in words instead of spending more
+    await db.insert(budgetLedger).values({
+      householdId: casa.id,
+      gosinoId: casa.gosinoId,
+      date: today,
+      provider: "anthropic",
+      model: "claude-haiku-4-5",
+      costUsd: "0.20",
+    });
+    const reply = await ours.chat({ channel: "home", userText: "ciao" });
+    expect(reply.degraded).toBe(true);
+    // and the neighbours are untouched by any of it
+    expect((await theirs.spentTodayUsd()) < 0.1).toBe(true);
+  });
+});

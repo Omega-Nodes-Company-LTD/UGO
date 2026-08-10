@@ -22,6 +22,13 @@
       "when": 1786352433935,
       "tag": "0002_seed-prime-gosino",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786395777979,
+      "tag": "0003_neighbourhood-households",
+      "breakpoints": true
     }
   ]
 }

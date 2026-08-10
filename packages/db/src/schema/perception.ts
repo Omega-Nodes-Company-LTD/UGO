@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  customType,
   index,
   integer,
   jsonb,
@@ -15,10 +14,7 @@ import { beings } from "./beings.js";
 import { gosini } from "./gosini.js";
 import { memories } from "./memories.js";
 import { correctionSignal, recognitionModality } from "./enums.js";
-
-const bytea = customType<{ data: Buffer; driverData: Buffer }>({
-  dataType: () => "bytea",
-});
+import { bytea } from "./types.js";
 
 /**
  * How to recognize a being, per modality (ADR-016).

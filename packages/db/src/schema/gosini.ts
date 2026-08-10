@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  index,
   integer,
   jsonb,
   pgTable,
@@ -9,25 +10,36 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { householdId } from "./households.js";
 
 /**
- * The population (ADR-015). One exemplar today (`ugo-prime`, generation 0),
- * but lineage and versioning exist from birth: adding them later would mean
- * attributing every existing row to an exemplar nobody ever recorded.
+ * The population (ADR-015): the exemplars themselves. A gosino is a character
+ * — memories, mood, genome. What belongs to the *house* rather than to the
+ * creature (clock, language, money, data key) lives in `households` (ADR-019),
+ * because one house may hold more than one exemplar.
  */
-export const gosini = pgTable("gosini", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  /** 'cucina', 'officina', 'camera' — where this exemplar lives */
-  locationLabel: text("location_label"),
-  deviceId: text("device_id").unique(),
-  parentGosinoId: uuid("parent_gosino_id").references((): AnyPgColumn => gosini.id),
-  generation: integer("generation").notNull().default(0),
-  bornAt: timestamp("born_at", { withTimezone: true }).notNull().defaultNow(),
-  retiredAt: timestamp("retired_at", { withTimezone: true }),
-});
+export const gosini = pgTable(
+  "gosini",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    householdId: householdId(),
+    name: text("name").notNull(),
+    /** 'cucina', 'officina', 'camera' — where this exemplar lives */
+    locationLabel: text("location_label"),
+    deviceId: text("device_id").unique(),
+    parentGosinoId: uuid("parent_gosino_id").references((): AnyPgColumn => gosini.id),
+    generation: integer("generation").notNull().default(0),
+    bornAt: timestamp("born_at", { withTimezone: true }).notNull().defaultNow(),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("gosini_household_idx").on(table.householdId),
+    // the target of the composite keys that pin a bond to one house
+    unique("gosini_household_id_uq").on(table.householdId, table.id),
+  ],
+);
 
 /**
  * The genome: immutable per version. A trait is never updated in place — a new
