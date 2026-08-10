@@ -10,10 +10,13 @@
 FROM python:3.12-slim-bookworm AS runtime
 
 # postgresql-client-16 from PGDG (Debian stable ships 15, which cannot dump pg16)
+# --retry: postgresql.org answered 503 once and turned a green pipeline red for
+# a reason that had nothing to do with the change under test
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
   && install -d /usr/share/postgresql-common/pgdg \
-  && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+  && curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+     https://www.postgresql.org/media/keys/ACCC4CF8.asc \
      -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
   && . /etc/os-release \
   && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
