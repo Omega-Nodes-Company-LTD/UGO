@@ -1,3 +1,4 @@
+import { Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { ADMIN_SCRIPT } from "./script.js";
 import { ADMIN_PAGE } from "./page.js";
@@ -8,13 +9,13 @@ import { ADMIN_PAGE } from "./page.js";
  * fine — while the result dies at parse time and takes the whole page with it.
  *
  * That is exactly what happened, and it survived a local e2e run because the
- * filtered command did not rebuild soul. `new Function` parses without
- * executing, which is all this needs: a duplicate declaration is an early
- * error, raised before a single line runs.
+ * filtered command did not rebuild soul. `new Script` compiles without
+ * running, which is all this needs: a duplicate declaration is an early
+ * error, raised before a single line executes.
  */
 describe("the assembled panel script", () => {
   it("parses, so a duplicate declaration across modules cannot ship", () => {
-    expect(() => new Function(ADMIN_SCRIPT)).not.toThrow();
+    expect(() => new Script(ADMIN_SCRIPT)).not.toThrow();
   });
 
   it("declares each top-level const exactly once", () => {
