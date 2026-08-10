@@ -59,6 +59,9 @@ export const soulEnvSchema = z.object({
   UGO_AUTO_MIGRATE: z
     .preprocess((value) => (value === "" ? undefined : value), z.enum(["true", "false"]).default("true"))
     .transform((value) => value === "true"),
+  // where the built face lives inside the image (ADR-018 Tempo 1); empty in
+  // development, where Vite serves it on its own port
+  UGO_FACE_DIR: z.preprocess((value) => (value === "" ? undefined : value), z.string().optional()),
   NODE_ENV: z.string().default("development"),
 });
 

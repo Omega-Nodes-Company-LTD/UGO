@@ -2,7 +2,7 @@
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
 version: "0.9.0"
-last_updated: "2026-08-09"
+last_updated: "2026-08-10"
 author: "ThinkPink Studio"
 ---
 
@@ -17,6 +17,9 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
 1. Controlla che in basso a destra ci sia scritto **connesso**.
 2. Guarda se il pulsante **🎤 attiva sensi** è ancora visibile. Se c'è, il microfono non è mai stato
    autorizzato: toccalo e concedi i permessi.
+   - Se lo tocchi e **non succede niente**, guarda l'indirizzo: se comincia per `http://` invece che
+     `https://`, è il telefono a negare il microfono, non UGO. Usa l'indirizzo `https://…ts.net`
+     (chi gestisce il server lo trova nel runbook, §10) e reinstalla l'icona da lì.
 3. Tocca il muso: se il grugno si muove, ti sta ascoltando e il problema è il riconoscimento vocale.
    Parla più vicino, in un ambiente meno rumoroso.
 4. Se dice `oggi ho finito le parole` (o una frase simile), non è rotto: ha esaurito il budget
@@ -30,6 +33,14 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
    funziona nemmeno lì, il server è giù e serve chi lo gestisce.
 4. Nel frattempo non perdi niente: quello che tocchi resta in coda sul telefono e parte da solo alla
    riconnessione, anche se ricarichi la pagina.
+
+## Lo schermo si spegne mentre parlo
+
+1. Verifica di aver aperto UGO **dall'icona** sulla schermata Home, non da una scheda del browser.
+2. Il permesso del microfono dev'essere concesso: lo schermo resta acceso solo mentre UGO ascolta.
+3. Controlla il risparmio energetico del telefono: sotto una certa soglia di batteria la richiesta
+   viene ignorata. Nel dock, tienilo alimentato.
+4. Su iPhone questa funzione non esiste: imposta *Blocco schermo → Mai* mentre UGO è nel dock.
 
 ## UGO non ricorda una cosa che gli ho detto
 

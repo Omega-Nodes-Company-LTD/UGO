@@ -194,7 +194,9 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
    container che partono insieme non si pestano i piedi. La prima applicazione semina anche
    l'esemplare `ugo-prime`, senza il quale nessuna scrittura passerebbe la foreign key (ADR-015).
    Se un giorno vorrai che se ne occupi un passo di rilascio, metti `UGO_AUTO_MIGRATE=false`.
-6. Healthcheck: già nel Dockerfile (`GET /health`). Limite RAM: 1 GB.
+6. Healthcheck: già nel Dockerfile (`GET /health`). Limite RAM: 1 GB. L'immagine contiene anche la
+   **faccia** (`/`) e il **pannello** (`/admin`): non serve una seconda risorsa per la webapp.
+   `UGO_FACE_DIR` è già impostata nel Dockerfile, non aggiungerla fra le variabili.
 7. **Deploy**. Risultato atteso: **Running (healthy)**.
 
 ### 2.5 jobs (il sogno, cron 02:30)
@@ -481,6 +483,7 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 |---|---|
 | `<TAILSCALE_IP>` | `tailscale ip -4` sul server (§0.2) — è anche `<INDIRIZZO_UGO>` del pannello |
 | `<IP_HETZNER>` | l'IP pubblico del server: serve **solo** per il primo SSH, prima di Tailscale |
+| `<NOME_SERVER>` `<NOME_TAILNET>` | li stampa `sudo tailscale serve status` (§10.1): compongono `https://<NOME_SERVER>.<NOME_TAILNET>.ts.net`, l'indirizzo di UGO dal telefono |
 | `<UTENTE>` | l'utente SSH che usi già (spesso `root`) |
 | `<HOST_POSTGRES>` `<HOST_OLLAMA>` | il nome **del container**, non dello stack: `docker ps --format '{{.Names}}'` sul server |
 | `<CONTAINER_POSTGRES>` | `docker ps` sul server, per i comandi `psql` di verifica |
@@ -506,6 +509,112 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 
 I segnaposto rimanenti (`<DATA>`, `<DATA_PERSA>`, `<IERI>`) sono date che scriverai al momento, nel
 formato `AAAA-MM-GG`.
+
+## 10. Installare UGO sul telefono
+
+Oggi UGO è una webapp installabile (PWA). Non è un compromesso definitivo: la decisione di
+impacchettarlo in un APK è agli atti in [ADR-018](./ADR/018-guscio-android-capacitor.md) ed è
+programmata per quando servirà registrare a schermo spento. Fino ad allora questa è la strada, e per
+il corpo di casa nel dock è sufficiente.
+
+Non devi installare niente di nuovo sul server: **la faccia viaggia dentro l'immagine di `soul-api`**
+e viene servita allo stesso indirizzo dell'API. Un solo indirizzo, un solo certificato.
+
+### 10.1 Prima cosa: HTTPS, altrimenti niente microfono
+
+Il browser concede microfono, fotocamera e «tieni acceso lo schermo» **solo in contesto sicuro**:
+HTTPS, oppure `localhost`. Un indirizzo tipo `http://100.x.x.x:3000` è sulla tua rete privata, ma
+resta HTTP: sul telefono il pulsante del microfono verrebbe rifiutato dal sistema, non da UGO.
+
+Tailscale risolve la cosa con un comando, e il certificato è vero (Let's Encrypt), non autofirmato.
+**Sul server**, via SSH:
+
+```bash
+sudo tailscale cert --help >/dev/null   # verifica che HTTPS sia abilitato nella tailnet
+sudo tailscale serve --bg 3000
+sudo tailscale serve status
+```
+
+L'ultimo comando stampa l'indirizzo definitivo, nella forma:
+
+```
+https://<NOME_SERVER>.<NOME_TAILNET>.ts.net/  →  http://127.0.0.1:3000
+```
+
+Se `tailscale cert` protesta, apri la console Tailscale (<https://login.tailscale.com/admin/dns>) e
+attiva **HTTPS Certificates**: è un interruttore, si fa una volta sola.
+
+Da qui in avanti quell'URL è **l'indirizzo di UGO**: la faccia sta su `/`, il pannello su `/admin`,
+l'API sotto `/v1`. Continua a essere raggiungibile **solo dai tuoi dispositivi in tailnet** — non è
+diventato pubblico: `tailscale serve` non espone nulla su Internet (quello sarebbe `tailscale
+funnel`, che **non** devi usare).
+
+### 10.2 Aggiungerlo alla schermata Home (Android, Chrome)
+
+1. Sul telefono, con Tailscale connesso, apri `https://<NOME_SERVER>.<NOME_TAILNET>.ts.net/`.
+   Dovresti vedere il muso.
+2. Menu **⋮** → **Aggiungi a schermata Home** (in alcune versioni: *Installa app*).
+3. Conferma. Comparirà l'icona col muso su fondo scuro.
+4. **Avvialo dall'icona, non dal browser.** Solo così parte a schermo intero senza barra degli
+   indirizzi: aperto come scheda resta una scheda.
+
+Su iPhone (Safari) il percorso è **Condividi → Aggiungi alla schermata Home**. Funziona, ma iOS non
+concede lo Screen Wake Lock: nel dock lo schermo si spegnerà secondo le impostazioni di sistema.
+
+### 10.3 I permessi, una volta sola
+
+Alla prima pressione del pulsante del microfono il telefono chiede:
+
+- **Microfono** — obbligatorio: senza, non c'è dialogo. Concedi *Mentre usi l'app*.
+- **Fotocamera** — facoltativo, serve solo a presenza e sguardo. Puoi negarlo: UGO degrada al
+  puntatore e continua a funzionare.
+
+Se hai negato per sbaglio: *Impostazioni → App → UGO → Autorizzazioni*, oppure — se l'hai aperto
+come scheda — *Chrome → Impostazioni sito → l'indirizzo di UGO*.
+
+### 10.4 Lo schermo che non si spegne
+
+Quando accendi il microfono, la webapp chiede al sistema uno **Screen Wake Lock**: lo schermo resta
+acceso finché la sessione è attiva, e il lock viene ripreso da solo se cambi app e torni.
+
+Cosa **non** fa, ed è bene saperlo prima di provarci:
+
+| | PWA (oggi) | APK Capacitor (ADR-018, Tempo 2) |
+|---|---|---|
+| Schermo acceso mentre parli | sì | sì |
+| Registrare col telefono in tasca, schermo spento | **no** | sì |
+| Riavviarsi da solo al boot del telefono | no | sì |
+| Impedire l'uscita accidentale (kiosk) | no | sì (lock task) |
+
+Per il dock è tutto ciò che serve. Per il guscio da portare addosso no, ed è il motivo per cui l'APK
+resta in programma.
+
+### 10.5 Il telefono nel dock
+
+- *Impostazioni → Display → Sospensione*: **mai**, o il massimo disponibile.
+- Disattiva la rotazione automatica: la faccia è pensata in verticale.
+- Tieni il dock alimentato: schermo sempre acceso e batteria non vanno d'accordo.
+- Se il telefono va in stand-by lo stesso, controlla il risparmio energetico: alcune ROM ignorano il
+  wake lock del browser sotto una certa soglia di batteria.
+
+### 10.6 Su Mac mini, PC o un altro schermo di casa
+
+Stesso indirizzo, stesso comportamento: da Chrome o Edge, **⋮ → Trasmetti, salva e condividi →
+Installa questa pagina come app**. È la stessa PWA in una finestra propria. Serve Tailscale anche su
+quel computer.
+
+Un guscio desktop vero (**Electron** o Tauri) è possibile e riguarda solo Mac/PC: **non** produce
+un'app Android, che resta il compito di Capacitor. Nessuno dei due è necessario per provare UGO
+adesso.
+
+### 10.7 Se la faccia non compare
+
+| Sintomo | Causa quasi certa |
+|---|---|
+| `/` risponde 404, `/health` funziona | l'immagine è vecchia: fai **Redeploy** di `soul-api` (§8) |
+| La pagina si vede ma resta «offline» | stai usando `http://…:3000` da un telefono: il socket sicuro non parte, passa all'URL `https://…ts.net` |
+| Il pulsante microfono non fa nulla | contesto non sicuro (§10.1) o permesso negato (§10.3) |
+| «Impossibile raggiungere il sito» | Tailscale disconnesso sul telefono, o `tailscale serve` non attivo sul server |
 
 ## Prossimi Passi
 

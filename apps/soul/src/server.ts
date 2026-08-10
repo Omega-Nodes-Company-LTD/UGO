@@ -9,6 +9,7 @@ import { registerPackRoutes } from "./routes/pack/index.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerStatsRoute } from "./routes/stats.js";
 import { registerDebugChatRoute } from "./routes/debugChat.js";
+import { registerFaceStatic } from "./routes/faceStatic.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
@@ -21,6 +22,8 @@ import type { SpeciesMap } from "@ugo/shared";
 
 export interface ServerOptions extends HealthDeps {
   logger?: boolean;
+  /** absolute path of the built face bundle; absent in dev, where Vite serves it */
+  faceRoot?: string;
   /** v1 feature surface; omitted only by infra-focused tests */
   features?: Omit<V1Deps, "db"> & {
     face?: FaceGateway;
@@ -94,6 +97,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         await registerFaceWs(instance, face);
       });
     }
+  }
+  // last: the static bundle must never shadow an API route
+  if (options.faceRoot !== undefined) {
+    registerFaceStatic(app, options.faceRoot);
   }
   return app;
 }

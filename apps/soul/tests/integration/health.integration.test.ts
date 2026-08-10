@@ -1,6 +1,9 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { GenericContainer, type StartedTestContainer } from "testcontainers";
 import { createDbClient, runMigrations, type DbClient } from "@ugo/db";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../../src/server.js";
 
@@ -114,6 +117,65 @@ describe("GET /health", () => {
       const response = await app.inject({ method: "GET", url: "/health" });
       expect(response.body).not.toContain("supersecretpassword");
       expect(response.body).not.toContain(mqttUrl);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+// ADR-018 Tempo 1: soul serves the built face so phone and API share one
+// origin — one certificate, a secure context, and a same-origin `wss://`.
+describe("the face bundle served by soul", () => {
+  let faceRoot: string;
+
+  beforeAll(async () => {
+    faceRoot = await mkdtemp(join(tmpdir(), "ugo-face-"));
+    await writeFile(join(faceRoot, "index.html"), "<!doctype html><title>UGO</title>", "utf8");
+    await writeFile(join(faceRoot, "manifest.webmanifest"), '{"name":"UGO"}', "utf8");
+  });
+
+  afterAll(async () => {
+    await rm(faceRoot, { recursive: true, force: true });
+  });
+
+  it("answers / with the bundle and still routes the API", async () => {
+    const app = buildServer({
+      db,
+      faceRoot,
+      mqtt: { url: mqttUrl },
+      ollamaUrl: `http://${UNREACHABLE}`,
+      logger: false,
+    });
+    try {
+      await app.ready();
+      const page = await app.inject({ method: "GET", url: "/" });
+      expect(page.statusCode).toBe(200);
+      expect(page.body).toContain("UGO");
+
+      const manifest = await app.inject({ method: "GET", url: "/manifest.webmanifest" });
+      expect(manifest.statusCode).toBe(200);
+
+      // the static root must never shadow an API route
+      const health = await app.inject({ method: "GET", url: "/health" });
+      expect(health.statusCode).toBe(200);
+      expect(health.json<{ status: string }>().status).toBeDefined();
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("starts anyway when no bundle was built into the image", async () => {
+    const app = buildServer({
+      db,
+      faceRoot: join(faceRoot, "nowhere"),
+      mqtt: { url: mqttUrl },
+      ollamaUrl: `http://${UNREACHABLE}`,
+      logger: false,
+    });
+    try {
+      await app.ready();
+      expect((await app.inject({ method: "GET", url: "/" })).statusCode).toBe(404);
+      expect((await app.inject({ method: "GET", url: "/health" })).statusCode).toBe(200);
     } finally {
       await app.close();
     }

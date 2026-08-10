@@ -318,6 +318,27 @@ legato al corpo di casa, quindi il dato non lascia l'ambito domestico. **Se un g
 riconoscere qualcuno dal wearable o dal meeting bot, quel giorno servono base giuridica, informativa e
 DPIA** — ADR-016 dice esattamente dove ricomincia la conversazione.
 
+## 6-quinquies. Il corpo di casa, installabile (ADR-018, Tempo 1)
+
+Il proprietario ha scelto di partire dalla webapp e impacchettarla dopo: prima si verifica che la
+creatura funzioni sul telefono vero, poi le si costruisce il guscio. Chiuso quel che serve perché la
+webapp sia davvero usabile come corpo, e non solo una pagina aperta per prova.
+
+| Fatto | Dove | Perché così |
+|---|---|---|
+| Manifest PWA + icone 192/512 (anche maskable) | `apps/face/public/` | Si aggiunge alla schermata Home e parte a schermo intero, senza barra degli indirizzi |
+| `ScreenAwake` (Screen Wake Lock) | `apps/face/src/wakelock.ts` | Il dock non si spegne a metà frase; il lock si riprende da solo quando la scheda torna visibile, perché il sistema lo revoca a ogni nascondimento |
+| Soul serve la faccia su `/` | `apps/soul/src/routes/faceStatic.ts`, `UGO_FACE_DIR` nel Dockerfile | **Una sola origine**: un certificato solo, quindi contesto sicuro (senza il quale il telefono nega microfono e wake lock) e `wss://` consentito dalla stessa pagina |
+| URL di soul dedotto dall'origine | `apps/face/src/soulUrl.ts` | Una pagina `https://` non può aprire un socket `ws://`; in sviluppo Vite resta su un'altra porta e la regola lo sa |
+| `tailscale serve --bg 3000` nel runbook | `OPS_COOLIFY.md §10` | HTTPS con certificato vero **dentro la tailnet**: non è `funnel`, non espone nulla su Internet |
+
+Verifiche: 6 unit test su `resolveSoulUrl`, 5 su `ScreenAwake`, 2 test di integrazione (bundle servito
+da soul senza ombreggiare `/health`, e avvio regolare quando il bundle non c'è), un passo di CI che
+apre l'immagine e controlla che `index.html`, il manifest e le icone ci siano davvero.
+
+Quel che la PWA **non** fa, e resta il motivo del Tempo 2: registrare a schermo spento, riavviarsi al
+boot, impedire l'uscita accidentale (lock task).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -327,6 +348,7 @@ DPIA** — ADR-016 dice esattamente dove ricomincia la conversazione.
 | Chiave dati e database sulla stessa macchina (ADR-017) | La cifratura a riposo copre backup/snapshot/dump, non root sul server vivo | Copia offline di `UGO_DATA_KEY` obbligatoria (runbook §1.7); un KMS ha senso solo se il ferro diventa più di uno |
 | Encoder vocale MFCC, non neurale | Separa poche voci in casa; su rumore reale sarà più fragile | Vendorizzare pyannote/WeSpeaker dietro la porta `VoiceEncoder`; `recognition_profiles.model` impedisce di confondere i centroidi |
 | Perimetro biometrico non formalizzato | Nessuno finché l'enrollment resta sul corpo di casa | Rispondere alla domanda §6-quater prima di estendere il riconoscimento fuori casa |
+| Guscio Android: **deciso, non ancora costruito** | Il corpo di casa gira come PWA installata (sufficiente nel dock); **il corpo in giro non può ancora registrare a schermo spento** | ADR-018 **accettato**, adozione in due tempi: Tempo 1 (PWA + wake lock) fatto; Tempo 2 (APK Capacitor) quando si apre davvero la Fase 4. Serve la toolchain Android, non verificabile nella CI attuale |
 | Wake word senza asset del modello (~40 MB) | Interfaccia pronta, riconoscimento non attivo | Vendorizzare Vosk small-it sul device (validazione Fase 2 on-device) |
 | MediaPipe non ancora innestato in `FaceLocator` | Gaze resta sul fallback puntatore dove manca `FaceDetector` | Validare col Nothing 3a Pro e vendorizzare BlazeFace |
 | Ollama nel compose non ha i modelli pullati al primo avvio | Chat → errore embeddings finché `nomic-embed-text` non è presente | `docker compose exec ollama ollama pull nomic-embed-text` (post-deploy step nel runbook Coolify) |
@@ -343,7 +365,8 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
    dei placeholder angolari (elenco chiesto al proprietario).
 3. **Primo deploy** sul server seguendo il runbook: lì si chiudono cache-hit reale, pull modelli,
    cron del sogno, stack Vexa + Meet di prova.
-4. **Col telefono**: kiosk, STT/TTS reali, MediaPipe/camera, Tailscale mobile, Vosk wake word.
+4. **Col telefono**: installare la PWA (runbook §10), STT/TTS reali, MediaPipe/camera, Vosk wake
+   word. Il guscio Capacitor (ADR-018 Tempo 2) parte quando serve registrare a schermo spento.
 5. **Fase 6 — Gusci**: sessione dedicata; il proprietario ha già dei design da una sessione chat
    precedente, da integrare in `hardware/shell/` con `params.py` e coupon di calibrazione.
 6. ~~Backlog gruppi B/C/D~~ — **chiusi** (§6-ter).
