@@ -1,4 +1,4 @@
-import { budgetLedger, events, memories, messages, type DbClient } from "@ugo/db";
+import { budgetLedger, events, memories, messages, psycheSnapshots, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
 import { desc, eq, sql } from "drizzle-orm";
@@ -52,6 +52,27 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
       })
       .from(sql`(select 1) as _`);
 
+    // Two weeks of spend, so the panel can show a trend instead of a number
+    // that means nothing without yesterday next to it.
+    const history = await deps.db
+      .select({
+        date: budgetLedger.date,
+        costUsd: sql<string>`sum(${budgetLedger.costUsd})`,
+        calls: sql<string>`count(*)`,
+      })
+      .from(budgetLedger)
+      .where(sql`${budgetLedger.date} >= current_date - interval '13 days'`)
+      .groupBy(budgetLedger.date)
+      .orderBy(budgetLedger.date);
+
+    // The mood over the last two days: the one series that says what kind of
+    // creature has been living here, rather than what it cost.
+    const mood = await deps.db
+      .select({ ts: psycheSnapshots.ts, vars: psycheSnapshots.vars, label: psycheSnapshots.label })
+      .from(psycheSnapshots)
+      .where(sql`${psycheSnapshots.ts} >= now() - interval '48 hours'`)
+      .orderBy(psycheSnapshots.ts);
+
     const [lastDream] = await deps.db
       .select({ ts: events.ts, payload: events.payload })
       .from(events)
@@ -85,6 +106,16 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
         messages: Number(counts?.messages ?? 0),
         events: Number(counts?.events ?? 0),
       },
+      history: history.map((row) => ({
+        date: row.date,
+        costUsd: Number(Number(row.costUsd).toFixed(6)),
+        calls: Number(row.calls),
+      })),
+      mood: mood.map((row) => ({
+        at: row.ts.toISOString(),
+        vars: row.vars,
+        label: row.label,
+      })),
       lastDream:
         lastDream === undefined
           ? null

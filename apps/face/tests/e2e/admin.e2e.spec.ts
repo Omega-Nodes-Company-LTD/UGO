@@ -77,8 +77,8 @@ test("the household can be registered without touching a terminal", async ({ pag
   const rows = page.getByTestId("pack-row");
   await expect(rows).toHaveCount(2);
   await expect(rows.filter({ hasText: "Argo" })).toContainText("cane");
-  // a fresh bond starts at zero: UGO is the newcomer
-  await expect(rows.filter({ hasText: "Ivan" })).toContainText("poco");
+  // a newcomer has no voiceprint and the card says which, not just "no"
+  await expect(rows.filter({ hasText: "Ivan" })).toContainText("voce non ancora insegnata");
 });
 
 test("a minor is registered with no voice profile ever offered", async ({ page }) => {
@@ -87,9 +87,8 @@ test("a minor is registered with no voice profile ever offered", async ({ page }
   await addBeing(page, "Sofia");
 
   const row = page.getByTestId("pack-row").filter({ hasText: "Sofia" });
-  await expect(row).toContainText("minorenne");
-  // the voice column reads "—", not "no": there is nothing to do here
-  await expect(row).toContainText("—");
+  // not "no voiceprint yet" but "none, by choice": there is nothing to do here
+  await expect(row).toContainText("nessuna impronta, per scelta");
 
   // and the server refuses even if the request is made anyway
   const response = await page.evaluate(async (bearer) => {
@@ -157,12 +156,14 @@ test("withdrawing consent destroys the voiceprint, it does not just stop using i
   await seedVoiceProfile(beingId);
   await page.getByTestId("refresh").click();
   const row = page.getByTestId("pack-row").filter({ hasText: "Giulia" });
-  await expect(row).toContainText("sì (");
+  await expect(row).toContainText("impronta vocale · 3 campioni");
 
   // she changes her mind: "non ascoltarmi più"
   await row.locator('[data-toggle="noAudio"]').check();
   await expect(page.getByTestId("pack-msg-text")).toHaveText(/impronta vocale è stata distrutta/);
-  await expect(page.getByTestId("pack-row").filter({ hasText: "Giulia" })).toContainText("—");
+  await expect(page.getByTestId("pack-row").filter({ hasText: "Giulia" })).toContainText(
+    "nessuna impronta, per scelta",
+  );
 
   // and it is gone from the database, not merely ignored
   const left = await page.evaluate(async (id) => {
@@ -248,4 +249,48 @@ test("meetings are listed, and a bad link is refused with a reason", async ({ pa
   await page.getByTestId("meet-url").fill("https://meet.google.com/abc-defg-hij");
   await page.getByTestId("meet-join").click();
   await expect(page.getByTestId("meet-msg-text")).toHaveText(/riunioni non sono configurate|Non è entrato/);
+});
+
+test("the mood is the first thing on the page, drawn and not just numbered", async ({ page }) => {
+  await openPanel(page);
+
+  // the hero: what kind of creature has been living here, before any accounting
+  await expect(page.getByTestId("mood-label")).not.toHaveText("—");
+  await expect(page.getByTestId("mood-phrase")).not.toHaveText("");
+
+  // six magnitudes, each with its resting point marked
+  const bars = page.getByTestId("psyche-bars").locator(".var");
+  await expect(bars).toHaveCount(6);
+  await expect(bars.filter({ hasText: "curiosità" })).toHaveCount(1);
+  expect(await page.getByTestId("psyche-bars").locator(".baseline").count()).toBeGreaterThan(0);
+
+  // the mood series needs two points to be a line; with one it says so in words
+  // rather than drawing a misleading dot
+  const moodPlot = page.getByTestId("mood-chart");
+  await expect(moodPlot).toBeVisible();
+  const hasPlot = await moodPlot.locator("svg.chart, p.empty").count();
+  expect(hasPlot).toBeGreaterThan(0);
+});
+
+test("spending is shown against its limit, with the numbers reachable", async ({ page }) => {
+  await openPanel(page);
+  await expect(page.getByTestId("stats").locator(".tile")).toHaveCount(4);
+  // state is a word too, never colour alone
+  await expect(page.getByTestId("stats").locator(".pill")).toHaveText(/budget|limite/);
+
+  const spend = page.getByTestId("spend-chart");
+  await expect(spend).toBeVisible();
+  await expect(spend.locator("svg.chart, p.empty")).toHaveCount(1);
+
+  // an accessible way out of the picture, for anybody the chart does not serve
+  await page.getByText("Vedi i numeri").click();
+});
+
+test("each service says what it is doing in words, not only in colour", async ({ page }) => {
+  await openPanel(page);
+  const pills = page.getByTestId("health").locator(".pill");
+  await expect(pills).toHaveCount(3);
+  await expect(pills.filter({ hasText: "db" })).toContainText("risponde");
+  // mqtt is deliberately unconfigured on this deployment, and says so
+  await expect(pills.filter({ hasText: "mqtt" })).toContainText("non configurato");
 });
