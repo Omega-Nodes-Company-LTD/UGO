@@ -12,7 +12,7 @@ import { memories } from "../../src/schema/index.js";
 // the same runMigrations() code production uses.
 
 const EXPECTED_TABLES = [
-  "people",
+  "beings",
   "events",
   "messages",
   "memories",

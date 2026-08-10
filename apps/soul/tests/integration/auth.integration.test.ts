@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { budgetLedger, createDbClient, events, people, runMigrations, type DbClient } from "@ugo/db";
+import { budgetLedger, createDbClient, events, beings, runMigrations, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -54,7 +54,7 @@ const PROTECTED: { method: "POST" | "GET"; url: string; payload: Record<string, 
   {
     method: "POST",
     url: "/v1/privacy/forget",
-    payload: { personId: crypto.randomUUID(), confirm: true },
+    payload: { beingId: crypto.randomUUID(), confirm: true },
   },
   { method: "GET", url: "/v1/privacy/export", payload: {} },
   { method: "POST", url: "/v1/jobs/dream", payload: {} },
@@ -156,16 +156,16 @@ describe("POST /v1/jobs/dream (§5.7)", () => {
 describe("erasure over HTTP", () => {
   it("requires explicit confirmation and reports a real result", async () => {
     const [person] = await db
-      .insert(people)
+      .insert(beings)
       .values({ displayName: "Test Persona", aliases: [] })
-      .returning({ id: people.id });
+      .returning({ id: beings.id });
     if (person === undefined) throw new Error("insert failed");
 
     const unconfirmed = await guarded.inject({
       method: "POST",
       url: "/v1/privacy/forget",
       headers: { authorization: `Bearer ${TOKEN}` },
-      payload: { personId: person.id },
+      payload: { beingId: person.id },
     });
     expect(unconfirmed.statusCode).toBe(400);
 
@@ -173,11 +173,11 @@ describe("erasure over HTTP", () => {
       method: "POST",
       url: "/v1/privacy/forget",
       headers: { authorization: `Bearer ${TOKEN}` },
-      payload: { personId: person.id, confirm: true },
+      payload: { beingId: person.id, confirm: true },
     });
     expect(confirmed.statusCode).toBe(200);
-    expect(confirmed.json<{ personId: string }>().personId).toBe(person.id);
-    expect(await db.select().from(people).where(eq(people.id, person.id))).toHaveLength(0);
+    expect(confirmed.json<{ beingId: string }>().beingId).toBe(person.id);
+    expect(await db.select().from(beings).where(eq(beings.id, person.id))).toHaveLength(0);
   });
 
   it("404s on an unknown person", async () => {
@@ -185,7 +185,7 @@ describe("erasure over HTTP", () => {
       method: "POST",
       url: "/v1/privacy/forget",
       headers: { authorization: `Bearer ${TOKEN}` },
-      payload: { personId: crypto.randomUUID(), confirm: true },
+      payload: { beingId: crypto.randomUUID(), confirm: true },
     });
     expect(response.statusCode).toBe(404);
   });

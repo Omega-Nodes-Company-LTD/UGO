@@ -1,9 +1,24 @@
 import { pgEnum } from "drizzle-orm/pg-core";
-import { DESIRE_STATUSES, EVENT_SOURCES, MEMORY_KINDS, MESSAGE_CHANNELS } from "@ugo/shared";
+import {
+  BEING_KINDS,
+  CORRECTION_SIGNALS,
+  DESIRE_STATUSES,
+  EVENT_SOURCES,
+  MEMORY_KINDS,
+  MESSAGE_CHANNELS,
+  RECOGNITION_MODALITIES,
+  RELATION_TYPES,
+} from "@ugo/shared";
 
 // Closed domains as real Postgres enums: invalid values are rejected by the
-// database itself, not just by application code.
+// database itself, not just by application code. `species` and `modality` are
+// deliberately NOT here — ADR-014/016 promise that adding one needs no
+// migration.
 export const eventSource = pgEnum("event_source", EVENT_SOURCES);
 export const messageChannel = pgEnum("message_channel", MESSAGE_CHANNELS);
 export const memoryKind = pgEnum("memory_kind", MEMORY_KINDS);
 export const desireStatus = pgEnum("desire_status", DESIRE_STATUSES);
+export const beingKind = pgEnum("being_kind", BEING_KINDS);
+export const relationType = pgEnum("relation_type", RELATION_TYPES);
+export const recognitionModality = pgEnum("recognition_modality", RECOGNITION_MODALITIES);
+export const correctionSignal = pgEnum("correction_signal", CORRECTION_SIGNALS);

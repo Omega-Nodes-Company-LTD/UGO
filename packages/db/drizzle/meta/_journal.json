@@ -12,22 +12,15 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1786135204199,
-      "tag": "0001_initial-schema",
+      "when": 1786352432935,
+      "tag": "0001_pack-genome-perception",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-      "when": 1786256773252,
-      "tag": "0002_psyche-baselines",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1786332756951,
-      "tag": "0003_ledger-cache-tokens",
+      "when": 1786352433935,
+      "tag": "0002_seed-prime-gosino",
       "breakpoints": true
     }
   ]

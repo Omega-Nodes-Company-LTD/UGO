@@ -7,7 +7,7 @@ import {
   meetings,
   memories,
   messages,
-  people,
+  beings,
   runMigrations,
   transcriptSegments,
   type DbClient,
@@ -18,7 +18,7 @@ import { decryptText, encryptText } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ExportService } from "../../src/services/privacy/exportService.js";
-import { ForgetService, PersonNotFoundError } from "../../src/services/privacy/forgetService.js";
+import { ForgetService, BeingNotFoundError } from "../../src/services/privacy/forgetService.js";
 import { REDACTION } from "../../src/services/privacy/redaction.js";
 
 // GDPR erasure on real infrastructure: real Postgres+pgvector and real
@@ -30,7 +30,7 @@ let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
 let db: DbClient;
 let embedder: OllamaEmbeddingsClient;
-let personId: string;
+let beingId: string;
 let strangerId: string;
 
 beforeAll(async () => {
@@ -43,23 +43,23 @@ beforeAll(async () => {
   embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
 
   const [ivan] = await db
-    .insert(people)
+    .insert(beings)
     .values({ displayName: "Ivan Bianchi", aliases: ["Ivan", "Vanni"], notes: "corriere DHL" })
-    .returning({ id: people.id });
+    .returning({ id: beings.id });
   const [paola] = await db
-    .insert(people)
+    .insert(beings)
     .values({ displayName: "Paola Verdi", aliases: ["Paola"] })
-    .returning({ id: people.id });
-  if (ivan === undefined || paola === undefined) throw new Error("people insert failed");
-  personId = ivan.id;
+    .returning({ id: beings.id });
+  if (ivan === undefined || paola === undefined) throw new Error("beings insert failed");
+  beingId = ivan.id;
   strangerId = paola.id;
 
   await db.insert(messages).values([
-    { channel: "home", role: "user", personId, text: encryptText("Ivan Bianchi ha portato il pacco", dataKey) },
+    { channel: "home", role: "user", beingId, text: encryptText("Ivan Bianchi ha portato il pacco", dataKey) },
     { channel: "home", role: "assistant", text: encryptText("Grunf, ringrazio Ivan!", dataKey) },
     // a turn belonging to someone else that still names the erased person
-    { channel: "home", role: "user", personId: strangerId, text: encryptText("Paola: ieri Vanni era di corsa", dataKey) },
-    { channel: "home", role: "user", personId: strangerId, text: encryptText("Paola parla del meteo", dataKey) },
+    { channel: "home", role: "user", beingId: strangerId, text: encryptText("Paola: ieri Vanni era di corsa", dataKey) },
+    { channel: "home", role: "user", beingId: strangerId, text: encryptText("Paola parla del meteo", dataKey) },
   ]);
 
   const [meeting] = await db
@@ -101,10 +101,10 @@ afterAll(async () => {
   await Promise.all([pg.stop(), ollama.container.stop()]);
 });
 
-describe("forgetPerson — anonimizzazione irreversibile (§7)", () => {
+describe("forgetBeing — anonimizzazione irreversibile (§7)", () => {
   it("erases the person and every trace of the name, keeping the experience", async () => {
     const service = new ForgetService({ db, dataKey, embedder });
-    const report = await service.forgetPerson(personId);
+    const report = await service.forgetBeing(beingId);
 
     expect(report.messagesRedacted).toBe(3); // includes the stranger's turn
     expect(report.segmentsRedacted).toBe(1);
@@ -115,7 +115,7 @@ describe("forgetPerson — anonimizzazione irreversibile (§7)", () => {
     expect(report.eventsRedacted).toBe(1);
 
     // the person is gone
-    expect(await db.select().from(people).where(eq(people.id, personId))).toHaveLength(0);
+    expect(await db.select().from(beings).where(eq(beings.id, beingId))).toHaveLength(0);
 
     // the biography survives, anonymized: no name anywhere, nothing deleted
     const messageRows = await db.select().from(messages);
@@ -126,7 +126,7 @@ describe("forgetPerson — anonimizzazione irreversibile (§7)", () => {
     // the unrelated person is untouched
     expect(plaintexts).toContain("Paola parla del meteo");
     // the link is broken too
-    expect(messageRows.filter((row) => row.personId === personId)).toHaveLength(0);
+    expect(messageRows.filter((row) => row.beingId === beingId)).toHaveLength(0);
 
     const [segment] = await db.select().from(transcriptSegments);
     expect(segment?.speaker).toBe(REDACTION);
@@ -154,13 +154,13 @@ describe("forgetPerson — anonimizzazione irreversibile (§7)", () => {
     const [audit] = await db.select().from(events).where(eq(events.type, "person_forgotten"));
     expect(audit).toBeDefined();
     const payload = JSON.stringify(audit?.payload);
-    expect(payload).toContain(personId);
+    expect(payload).toContain(beingId);
     expect(payload).not.toMatch(/ivan|bianchi|vanni/i);
   });
 
   it("rejects an unknown person id", async () => {
     const service = new ForgetService({ db, dataKey });
-    await expect(service.forgetPerson(crypto.randomUUID())).rejects.toThrow(PersonNotFoundError);
+    await expect(service.forgetBeing(crypto.randomUUID())).rejects.toThrow(BeingNotFoundError);
   });
 });
 
@@ -168,7 +168,7 @@ describe("exportAll — portabilità (SECURITY §3)", () => {
   it("returns every table with message bodies decrypted", async () => {
     const bundle = await new ExportService(db, dataKey).exportAll();
     expect(bundle.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    expect(bundle.people).toHaveLength(1); // only the surviving person
+    expect(bundle.beings).toHaveLength(1); // only the surviving person
     expect(bundle.messages).toHaveLength(4);
     const serialized = JSON.stringify(bundle.messages);
     expect(serialized).toContain("Paola parla del meteo"); // decrypted, not "v1:"

@@ -4,12 +4,12 @@ import { OllamaEmbeddingsClient } from "@ugo/memory";
 import { EnvValidationError, parseDataKey, parseEnv } from "@ugo/shared";
 import { z } from "zod";
 import { ExportService } from "./services/privacy/exportService.js";
-import { ForgetService, PersonNotFoundError } from "./services/privacy/forgetService.js";
+import { ForgetService, BeingNotFoundError } from "./services/privacy/forgetService.js";
 
 /**
  * `ugo` operator CLI (PROGETTO §7): data-subject rights that must be
  * available without going through the HTTP surface.
- *   pnpm --filter soul ugo forget --person <uuid>
+ *   pnpm --filter soul ugo forget --being <uuid>
  *   pnpm --filter soul ugo export > anima.json
  */
 
@@ -21,13 +21,13 @@ const cliEnvSchema = z.object({
 });
 
 const USAGE = `uso:
-  ugo forget --person <uuid>   anonimizza irreversibilmente una persona
+  ugo forget --being <uuid>    anonimizza irreversibilmente un essere del branco
   ugo export                   esporta tutti i dati in JSON (stdout)`;
 
 async function main(): Promise<number> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { person: { type: "string" }, yes: { type: "boolean", default: false } },
+    options: { being: { type: "string" }, yes: { type: "boolean", default: false } },
   });
   const command = positionals[0];
 
@@ -43,8 +43,8 @@ async function main(): Promise<number> {
 
   try {
     if (command === "forget") {
-      if (values.person === undefined) {
-        console.error("errore: --person <uuid> è obbligatorio\n" + USAGE);
+      if (values.being === undefined) {
+        console.error("errore: --being <uuid> è obbligatorio\n" + USAGE);
         return 1;
       }
       if (!values.yes) {
@@ -60,7 +60,7 @@ async function main(): Promise<number> {
         db,
         dataKey,
         ...(embedder !== undefined && { embedder }),
-      }).forgetPerson(values.person);
+      }).forgetBeing(values.being);
       if (embedder === undefined) {
         console.error("attenzione: OLLAMA_URL assente — memorie non re-embeddate");
       }
@@ -75,8 +75,8 @@ async function main(): Promise<number> {
     console.error(USAGE);
     return 1;
   } catch (error) {
-    if (error instanceof PersonNotFoundError) {
-      console.error(`errore: persona ${values.person ?? ""} non trovata`);
+    if (error instanceof BeingNotFoundError) {
+      console.error(`errore: essere ${values.being ?? ""} non trovato`);
       return 1;
     }
     console.error("errore:", error instanceof Error ? error.message : error);

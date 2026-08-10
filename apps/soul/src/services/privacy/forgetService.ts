@@ -1,9 +1,10 @@
 import {
+  beings,
   diaryEntries,
   events,
   memories,
   messages,
-  people,
+  recognitionProfiles,
   transcriptSegments,
   type DbClient,
 } from "@ugo/db";
@@ -13,16 +14,16 @@ import { eq } from "drizzle-orm";
 import { REDACTION, buildRedactor, redactJson } from "./redaction.js";
 
 /**
- * `ugo forget --person <id>` (PROGETTO §7, SECURITY_COMPLIANCE §3).
+ * `ugo forget --being <id>` (PROGETTO §7, SECURITY_COMPLIANCE §3).
  * "Anonimizzazione irreversibile" taken literally: unlinking the FK is not
  * enough — the name also lives in message/transcript bodies, in memory texts
  * and in their embeddings. Erasure redacts every occurrence across the whole
- * biography (not only linked rows: names travel through other people's
- * turns), re-embeds the affected memories, then deletes the person. What
+ * biography (not only linked rows: names travel through other beings'
+ * turns), re-embeds the affected memories, then deletes the being. What
  * survives is UGO's lived experience, no longer referable to anyone.
  */
 
-export class PersonNotFoundError extends Error {}
+export class BeingNotFoundError extends Error {}
 export interface ForgetDeps {
   db: DbClient;
   dataKey: Buffer;
@@ -30,7 +31,7 @@ export interface ForgetDeps {
   embedder?: EmbeddingsClient;
 }
 export interface ForgetReport {
-  personId: string;
+  beingId: string;
   messagesUnlinked: number;
   messagesRedacted: number;
   segmentsRedacted: number;
@@ -39,19 +40,20 @@ export interface ForgetReport {
   memoriesReEmbedded: number;
   diaryRedacted: number;
   eventsRedacted: number;
+  biometricProfilesDestroyed: number;
 }
 
 export class ForgetService {
   public constructor(private readonly deps: ForgetDeps) {}
 
-  public async forgetPerson(personId: string, at: Date = new Date()): Promise<ForgetReport> {
+  public async forgetBeing(beingId: string, at: Date = new Date()): Promise<ForgetReport> {
     const { db } = this.deps;
-    const [person] = await db.select().from(people).where(eq(people.id, personId));
-    if (person === undefined) throw new PersonNotFoundError(personId);
+    const [being] = await db.select().from(beings).where(eq(beings.id, beingId));
+    if (being === undefined) throw new BeingNotFoundError(beingId);
 
-    const redact = buildRedactor([person.displayName, ...person.aliases]);
+    const redact = buildRedactor([being.displayName, ...being.aliases]);
     const report: ForgetReport = {
-      personId,
+      beingId,
       messagesUnlinked: 0,
       messagesRedacted: 0,
       segmentsRedacted: 0,
@@ -60,26 +62,37 @@ export class ForgetService {
       memoriesReEmbedded: 0,
       diaryRedacted: 0,
       eventsRedacted: 0,
+      biometricProfilesDestroyed: 0,
     };
 
-    await this.redactMessages(redact, report, personId);
+    await this.redactMessages(redact, report, beingId);
     await this.redactSegments(redact, report);
     await this.redactMemories(redact, report);
     await this.redactDiaryAndEvents(redact, report);
 
-    // the person themselves: row, notes and face/voice embedding destroyed
-    await db.delete(people).where(eq(people.id, personId));
+    // The biometric profiles are the point of no return: a voiceprint is the
+    // one datum that stays usable forever. They cascade with the being, but we
+    // count them so the report can prove they are gone (ADR-016).
+    const profiles = await db
+      .select({ id: recognitionProfiles.id })
+      .from(recognitionProfiles)
+      .where(eq(recognitionProfiles.beingId, beingId));
+    report.biometricProfilesDestroyed = profiles.length;
+
+    // the being themselves: row, notes, embedding, bonds and profiles destroyed
+    await db.delete(beings).where(eq(beings.id, beingId));
 
     // audit trail with IDs and counts only — never the erased name (NIS2)
     await db.insert(events).values({
       ts: at,
       source: "system",
-      type: "person_forgotten",
+      type: "being_forgotten",
       payload: {
-        personId,
+        beingId,
         messagesRedacted: report.messagesRedacted,
         segmentsRedacted: report.segmentsRedacted,
         memoriesRedacted: report.memoriesRedacted,
+        biometricProfilesDestroyed: report.biometricProfilesDestroyed,
       },
     });
     return report;
@@ -88,14 +101,14 @@ export class ForgetService {
   private async redactMessages(
     redact: (value: string) => string,
     report: ForgetReport,
-    personId: string,
+    beingId: string,
   ): Promise<void> {
     const { db, dataKey } = this.deps;
     const rows = await db
-      .select({ id: messages.id, text: messages.text, personId: messages.personId })
+      .select({ id: messages.id, text: messages.text, beingId: messages.beingId })
       .from(messages);
     for (const row of rows) {
-      if (row.personId === personId) report.messagesUnlinked += 1;
+      if (row.beingId === beingId) report.messagesUnlinked += 1;
       let plain: string;
       try {
         plain = decryptText(row.text, dataKey);
