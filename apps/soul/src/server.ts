@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastif
 import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js";
 import { createAuthGuard } from "./routes/guard.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
+import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerPackRoutes } from "./routes/pack.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerStatsRoute } from "./routes/stats.js";
@@ -81,9 +82,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (speciesMap !== undefined) {
       registerPackRoutes(app, { db: options.db, speciesMap, guard });
+      registerAdminRoutes(app);
     }
     if (stats !== undefined) {
-      registerStatsRoute(app, { db: options.db, ...stats });
+      registerStatsRoute(app, { db: options.db, ...stats, guard });
     }
     if (face !== undefined) {
       app.register(async (instance) => {

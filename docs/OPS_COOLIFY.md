@@ -58,15 +58,25 @@ risorsa.
    (`<IP_LAN_IOT>:1883:1883`), mai su `0.0.0.0`. Limite RAM: 256 MB.
 6. **Deploy**. Risultato atteso: log con `mosquitto version 2.x running`.
 
-### 2.3 ollama (CPU)
+### 2.3 ollama (CPU) — riusa quello che hai già
 
-1. Tipo: **Docker Image**. Immagine: `ollama/ollama`.
-2. Volume persistente: `/root/.ollama` (i modelli pesano gigabyte: non perderli a ogni redeploy).
-3. Limite RAM: `<OLLAMA_RAM_LIMIT>` (per il MoE 30B servono ~24 GB; solo embeddings: 4 GB).
-4. Nessuna porta host. **Deploy**.
-5. Post-deploy (una volta, dal server): `docker exec <CONTAINER_OLLAMA> ollama pull nomic-embed-text`
-   e `docker exec <CONTAINER_OLLAMA> ollama pull <OLLAMA_BATCH_MODEL>`. Risultato atteso: `success`
-   per entrambi. In Coolify puoi salvarlo come **Post-deployment Command**.
+Ollama è già installato come container in Coolify: **non crearne un altro**. Due Ollama sullo stesso
+server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo raggiungibile da UGO.
+
+1. Apri la risorsa Ollama esistente → **Advanced** → **Network** → collegala alla rete
+   `ugo-backend` (*Connect to Predefined Network*). È l'unico passo indispensabile.
+2. Annota il **nome del container** che Coolify mostra nella pagina della risorsa: è il valore da
+   usare in `OLLAMA_URL=http://<HOST_OLLAMA>:11434` per soul e per i jobs.
+3. Verifica che **non** sia pubblicamente esposta: nessun dominio assegnato, e in **Ports** nessuna
+   mappatura su `0.0.0.0`. Se una c'è, toglila: un endpoint Ollama aperto è un modello che chiunque
+   può interrogare a spese tue.
+4. Volume persistente su `/root/.ollama`: se non c'è, aggiungilo ora. I modelli pesano gigabyte e
+   senza volume li riscarichi a ogni redeploy.
+5. Scarica i modelli che servono, una volta sola — **Execute Command** sulla risorsa Ollama:
+   `ollama pull nomic-embed-text` (indispensabile: senza, la chat va in errore sugli embeddings) e,
+   solo se hai RAM per il modello batch del sogno, `ollama pull <OLLAMA_BATCH_MODEL>`.
+6. Prova dalla shell di soul: `curl -s http://<HOST_OLLAMA>:11434/api/tags` → deve elencare
+   `nomic-embed-text`.
 
 ### 2.4 soul-api
 
@@ -142,76 +152,69 @@ Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
    `curl -s -X POST http://<TAILSCALE_IP>:3000/v1/chat -H 'content-type: application/json' -d '{"channel":"home","text":"ciao UGO, come stai?"}'`
    → atteso: `{"reply":"…","moodLabel":"…","memoriesUsed":[…]}` in italiano, tono da porcetto.
 4. Ripeti la chiamata del punto 3 con un testo diverso, poi verifica il salvadanaio **e** la cache:
+   apri il pannello (`/admin`, §5) e guarda **Come sta**; da riga di comando:
    `curl -s http://<TAILSCALE_IP>:3000/v1/stats -H "Authorization: Bearer <UGO_INTERNAL_TOKEN>"`
    → attesi: `spendToday` maggiore di zero e `cacheHitRatio` **maggiore di zero**. È la verifica del
    cache-hit reale (STATE.md §6): se resta a zero dopo due chiamate, il prefisso cached si sta
    invalidando e va indagato prima di andare avanti.
-5. `GET http://<TAILSCALE_IP>:3000/debug/chat` dal browser (tailnet) → la mini chat risponde.
+5. `GET http://<TAILSCALE_IP>:3000/debug/chat` dal browser → la mini chat risponde.
+   Poi apri `http://<TAILSCALE_IP>:3000/admin`, incolla il token e clicca **Entra**: se vedi le
+   sezioni del pannello, hai finito con la riga di comando (§5).
 6. Verifica che le rotte protette siano davvero protette:
    `curl -s -o /dev/null -w '%{http_code}\n' -X POST http://<TAILSCALE_IP>:3000/v1/jobs/dream`
    → atteso **401**; ripeti con `-H "Authorization: Bearer <UGO_INTERNAL_TOKEN>"` → atteso **202**.
 
 ## 5. Il branco: popolarlo e insegnargli le voci
 
-UGO arriva in una casa che esiste già. Finché il branco è vuoto risponde a tutti come a sconosciuti:
-questi passi sono ciò che lo rende un membro della famiglia invece di un servizio.
+UGO arriva in una casa che esiste già. Finché il branco è vuoto risponde a tutti come a sconosciuti.
+
+Tutto questo si fa **dal pannello**, non da riga di comando: apri
+`http://<INDIRIZZO_UGO>:3000/admin` dal browser (telefono o computer), incolla una volta il token
+operatore (`UGO_INTERNAL_TOKEN`) e sei dentro. Il token resta solo in quella scheda: se la chiudi,
+sparisce. Non finisce mai nell'indirizzo, quindi non resta nella cronologia.
 
 ### 5.1 Registrare chi vive in casa
 
-1. Aggiungi ogni essere, uno per volta (tutte le rotte del branco vogliono il token):
-   ```
-   curl -s -X POST http://<TAILSCALE_IP>:3000/v1/beings \
-     -H "Authorization: Bearer <UGO_INTERNAL_TOKEN>" -H 'content-type: application/json' \
-     -d '{"displayName":"<NOME>","species":"human","kind":"resident","arrivalAt":"<AAAA-MM-GG>"}'
-   ```
-   → atteso: `201` con l'`id` dell'essere. **Annotalo**: serve per l'enrollment.
-2. Per gli animali cambia solo `species`: `dog`, `parrot`, `reptile` — o qualunque altra cosa, che
-   viene accettata e degrada al profilo prudente `unknown` finché non le dai una mappa.
-3. Per un minore aggiungi `"isMinor": true`. Da quel momento **nessun profilo biometrico** sarà
-   creato per lui, né dalla rotta né dal sogno: verrà riconosciuto solo se un umano di fiducia dice
-   chi è. Chi non vuole essere ascoltato o inquadrato: `"noAudio": true` / `"noVision": true`.
-4. Rileggi il branco: `curl -s http://<TAILSCALE_IP>:3000/v1/pack` → atteso: l'elenco con specie,
-   canali e i legami a zero. Sono a zero perché UGO è appena arrivato e deve guadagnarseli.
+1. Nella sezione **Aggiungi un essere**: scrivi il nome, scegli la specie (`human`, `dog`, `parrot`,
+   `reptile` — o scrivine una tua, viene accettata), il ruolo e da quando fa parte del branco.
+2. Le tre caselle a fianco sono tutele, non preferenze:
+   - **è minorenne** → UGO non costruirà **mai** un'impronta della sua voce. Nella tabella la
+     colonna *Voce* mostrerà `—`: non c'è niente da fare, ed è voluto.
+   - **non ascoltare** / **non guardare** → il campione viene scartato prima di essere elaborato.
+3. Clicca **Aggiungi**. Compare nella tabella **Il branco**, con il legame a `poco`: è a zero perché
+   UGO è appena arrivato e deve guadagnarselo.
+4. Ripeti per ogni convivente, animali compresi. Il cane è un membro del branco, non un attributo di
+   un umano: ha una riga tutta sua.
 
 ### 5.2 Insegnargli le voci
 
-L'enrollment è **asincrono per disegno**: la clip viene messa in coda e diventa un'impronta durante
-il sogno. UGO dice "me lo segno", non finge di aver imparato subito.
+1. Nella sezione **Insegnagli una voce**, scegli la persona dal menu.
+2. Clicca **● Registra 10 s** e fai parlare la persona normalmente. Il pulsante diventa
+   *sto ascoltando…* e si ferma da solo.
+3. Al termine leggi **"Me lo segno"**: la clip è caricata e la richiesta è in coda. L'impronta nasce
+   **stanotte**, nel sogno — UGO non finge di aver imparato subito.
+4. Ripeti due o tre volte a testa, in momenti diversi. Il centroide è una media: più sessioni, più
+   regge raffreddori e stanchezza.
+5. Se vuoi vedere subito il risultato, clicca **Fallo sognare adesso** in *Come sta*, poi
+   **Aggiorna**: la colonna *Voce* passa da `no` a `sì (n)`.
+6. Fallo **dal dock di casa**. Dal wearable l'enrollment viene rifiutato di proposito: il dato
+   biometrico non esce dal perimetro domestico (ADR-016).
 
-1. Fai registrare alla persona ~10 secondi di parlato normale **dal dock di casa** (non dal wearable:
-   fuori dal corpo di casa l'enrollment viene rifiutato di proposito, ADR-016).
-2. Carica la clip con l'URL prefirmato:
-   `POST /v1/audio/presign` con `{"filename":"<NOME>_enroll_1.webm"}` → poi `PUT` del file sull'URL
-   restituito.
-3. Deposita la richiesta:
-   ```
-   curl -s -X POST http://<TAILSCALE_IP>:3000/v1/beings/<BEING_ID>/enroll/voice \
-     -H "Authorization: Bearer <UGO_INTERNAL_TOKEN>" -H 'content-type: application/json' \
-     -d '{"objectKey":"<CHIAVE_RESTITUITA_DAL_PRESIGN>"}'
-   ```
-   → atteso: `202` con `{"status":"queued"}`. Un `403` qui **non è un errore**: è una tutela che ha
-   detto no (minore o opt-out audio).
-4. Ripeti due o tre volte per persona, in momenti diversi. Il centroide è una media: più sessioni,
-   più robusto contro raffreddori e stanchezza.
-5. Fai girare il sogno (o aspetta le 02:30): `POST /v1/jobs/dream` col token. Nel report cerca
-   `"enroll": {"enrolled": N, ...}`.
-6. Verifica: `docker exec <CONTAINER_POSTGRES> psql -U ugo -d ugo -c "select being_id, modality, model, sample_count from recognition_profiles;"`
-   → atteso: una riga per persona. **La colonna `payload` non compare di proposito**: è ciphertext, e
-   guardarla non direbbe nulla comunque.
-7. Le clip di enrollment vengono cancellate dalla notte stessa che le usa. Non serve fare pulizia.
+> Un rifiuto qui **non è un guasto**. Se il pannello dice che la richiesta è stata rifiutata perché
+> la persona è minorenne o ha chiesto di non essere ascoltata, è una tutela che ha funzionato.
 
 ### 5.3 Correggerlo quando sbaglia
 
-Il riconoscimento è fallibile per costruzione, e `wrong_name` è il segnale più importante del
-sistema. Quando chiama qualcuno col nome sbagliato:
-
-```
-curl -s -X POST http://<TAILSCALE_IP>:3000/v1/corrections \
-  -H "Authorization: Bearer <UGO_INTERNAL_TOKEN>" -H 'content-type: application/json' \
-  -d '{"signal":"wrong_name","aboutBeing":"<BEING_ID_GIUSTO>"}'
-```
-
+Il riconoscimento è fallibile per costruzione, e *ha sbagliato nome* è il segnale più importante del
+sistema. Nella sezione **Correggilo**: scegli su chi, scegli cosa ha sbagliato, clicca **Diglielo**.
 Le correzioni recenti entrano nel prompt: UGO sa di aver sbagliato e diventa più prudente.
+
+### 5.4 Tenerlo d'occhio
+
+La sezione **Come sta** mostra quanto ha speso oggi sul budget, quanto sta risparmiando grazie alla
+cache dei prompt, quanti ricordi ha e quando ha sognato l'ultima volta. Se *risparmio cache* resta a
+zero dopo diverse conversazioni, il prefisso cached si sta invalidando: è la cosa da indagare prima
+di qualunque altra, perché è la differenza tra pochi euro al mese e un ordine di grandezza in più.
 
 ## 6. Troubleshooting
 
@@ -238,6 +241,11 @@ mano (**Execute Command** → `node node_modules/@ugo/db/dist/migrate-cli.js`) e
 Cache dei prompt fredda: ogni modifica a `packages/prompts/*` o un lungo periodo di inattività
 invalida il prefisso cached e la prima chiamata paga il prezzo pieno (cache write ×1.25). È
 fisiologico; se persiste, verifica di non avere deploy ripetuti che riavviano il ciclo.
+
+### Il pannello dice "Token non valido"
+È il token operatore (`UGO_INTERNAL_TOKEN` nella risorsa soul), non la password di Coolify né la
+chiave API. Se l'hai perso puoi rigenerarlo (`openssl rand -hex 32`), aggiornarlo nella variabile e
+fare **Redeploy**: non c'è nessuno stato legato al vecchio valore.
 
 ### L'enrollment resta in coda e non produce nessun profilo
 Guarda l'esito registrato dal sogno:

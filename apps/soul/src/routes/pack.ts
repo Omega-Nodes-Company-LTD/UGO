@@ -1,4 +1,12 @@
-import { beings, bonds, corrections, perceptionEvents, PRIME_GOSINO_ID, type DbClient } from "@ugo/db";
+import {
+  PRIME_GOSINO_ID,
+  beings,
+  bonds,
+  corrections,
+  perceptionEvents,
+  recognitionProfiles,
+  type DbClient,
+} from "@ugo/db";
 import {
   BEING_KINDS,
   CORRECTION_SIGNALS,
@@ -6,7 +14,7 @@ import {
   profileFor,
   type SpeciesMap,
 } from "@ugo/shared";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { PreHandler } from "./guard.js";
@@ -72,9 +80,16 @@ export function registerPackRoutes(app: FastifyInstance, deps: PackRouteDeps): v
         noAudio: beings.noAudio,
         familiarity: bonds.familiarity,
         affinity: bonds.affinity,
+        // whether UGO can already recognize the voice, and how well fed the
+        // centroid is — the panel shows it so enrollment is not guesswork
+        voiceSamples: recognitionProfiles.sampleCount,
       })
       .from(beings)
-      .leftJoin(bonds, eq(bonds.beingId, beings.id))
+      .leftJoin(bonds, and(eq(bonds.beingId, beings.id), eq(bonds.gosinoId, gosinoId)))
+      .leftJoin(
+        recognitionProfiles,
+        and(eq(recognitionProfiles.beingId, beings.id), eq(recognitionProfiles.modality, "voice")),
+      )
       .orderBy(desc(beings.createdAt));
     return reply.send({
       gosinoId,
@@ -82,6 +97,8 @@ export function registerPackRoutes(app: FastifyInstance, deps: PackRouteDeps): v
         ...row,
         familiarity: row.familiarity ?? 0,
         affinity: row.affinity ?? 0,
+        hasVoiceProfile: row.voiceSamples !== null,
+        voiceSamples: row.voiceSamples ?? 0,
         channels: profileFor(deps.speciesMap, row.species).channels,
       })),
       knownSpecies: KNOWN_SPECIES,
