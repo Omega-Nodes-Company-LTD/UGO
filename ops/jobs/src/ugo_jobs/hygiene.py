@@ -21,6 +21,9 @@ UMORE_DEFAULT = 0.55
 UMORE_CLAMP = (0.35, 0.7)
 UMORE_LOW_DAY = 0.45
 UMORE_HIGH_DAY = 0.65
+# ADR-015: the baseline belongs to an exemplar. One today, so it is the seeded
+# one; when there are two, this is the argument the caller will have to pass.
+PRIME_GOSINO_ID = "00000000-0000-4000-8000-000000000001"
 
 
 @dataclass
@@ -94,7 +97,8 @@ def _adjust_umore_baseline(conn: psycopg.Connection, dream_date: str) -> bool:
         return False
 
     current_row = conn.execute(
-        "select baseline from psyche_baselines where variable = 'umore'"
+        "select baseline from psyche_baselines where gosino_id = %s and variable = 'umore'",
+        (PRIME_GOSINO_ID,),
     ).fetchone()
     current = float(current_row[0]) if current_row is not None else UMORE_DEFAULT
     if float(day_avg) <= UMORE_LOW_DAY:
@@ -109,11 +113,12 @@ def _adjust_umore_baseline(conn: psycopg.Connection, dream_date: str) -> bool:
         return False
     conn.execute(
         """
-        insert into psyche_baselines (variable, baseline, updated_at)
-        values ('umore', %s, now())
-        on conflict (variable) do update set baseline = excluded.baseline, updated_at = now()
+        insert into psyche_baselines (gosino_id, variable, baseline, updated_at)
+        values (%s, 'umore', %s, now())
+        on conflict (gosino_id, variable)
+        do update set baseline = excluded.baseline, updated_at = now()
         """,
-        (target,),
+        (PRIME_GOSINO_ID, target),
     )
     return True
 
