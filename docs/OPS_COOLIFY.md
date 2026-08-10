@@ -87,8 +87,18 @@ bussare. È gratis fino a 100 dispositivi e non richiede di toccare il router n�
 
 Per ogni risorsa: **+ New** → scegli il tipo indicato → assegnala al progetto `ugo` / ambiente
 `production`. In **Advanced** → **Network**, collega ogni risorsa alla rete `ugo-backend`
-(opzione *Connect to Predefined Network*). Non assegnare **nessun dominio pubblico** a nessuna
-risorsa.
+(opzione *Connect to Predefined Network*).
+
+> **Le due cose che Coolify fa da solo e vanno disfatte, su ogni risorsa.**
+> 1. **Domains** — Coolify ci mette da solo un dominio pubblico tipo
+>    `http://xxxx.144.76.152.139.sslip.io`. **Svuota il campo e salva.** Quel dominio è un indirizzo
+>    su cui chiunque, da Internet, può bussare: è esattamente ciò che ADR-007 vieta. UGO si raggiunge
+>    dalla tailnet, non dal web.
+> 2. **Ports Exposes** — il default è `80`, che vale per un sito web e per nient'altro. Mettici la
+>    porta vera del servizio, o svuotalo se il servizio non deve essere raggiungibile dall'esterno
+>    del suo container.
+>
+> Se una risorsa risulta **Exited** subito dopo il deploy, il 90% delle volte è uno di questi due.
 
 ### 2.1 postgres
 
@@ -100,19 +110,27 @@ risorsa.
 5. Limite RAM: 2 GB. Healthcheck: già incluso nell'immagine (`pg_isready`).
 6. Clicca **Deploy**. Risultato atteso: stato **Running (healthy)**.
 
-### 2.2 mosquitto
+### 2.2 mosquitto — SALTALO
 
-1. Tipo: **Docker Image**. Immagine: `eclipse-mosquitto:2`.
-2. Sul server genera il password file (mai nel repo):
-   `docker run --rm -v /data/ugo/mosquitto:/work eclipse-mosquitto:2 sh -c "mosquitto_passwd -c -b /work/passwd soul '<MQTT_PASS>' && mosquitto_passwd -b /work/passwd nano '<MQTT_NANO_PASS>' && chown 1883:1883 /work/passwd"`.
+**Non ti serve, salta al 2.3.** Mosquitto esiste per una cosa sola: parlare con il firmware del
+Nano 33 IoT, che è accantonato. Senza Arduino non c'è nulla che pubblichi o legga su MQTT.
+
+Lascia `MQTT_URL`, `MQTT_USER` e `MQTT_PASS` **vuote** nelle variabili di soul: il controllo di
+salute riporterà `mqtt: "off"` — non configurato, che non è un guasto — e lo stato generale resterà
+`ok`. Se un giorno riprenderai il Nano, questa sezione è nello storico del repo.
+
+<details>
+<summary>Se invece ti serve davvero (solo con l'Arduino in casa)</summary>
+
+1. Tipo: **Docker Image**, immagine `eclipse-mosquitto:2`.
+2. Sul server genera il password file (mai nel repo): `docker run --rm -v /data/ugo/mosquitto:/work eclipse-mosquitto:2 sh -c "mosquitto_passwd -c -b /work/passwd soul '<MQTT_PASS>' && mosquitto_passwd -b /work/passwd nano '<MQTT_NANO_PASS>' && chown 1883:1883 /work/passwd"`.
 3. Copia dal repo `ops/docker/mosquitto/mosquitto.conf` e `acl.conf` in `/data/ugo/mosquitto/`.
-4. Nella risorsa, **Persistent Storage** → aggiungi tre mount:
-   `/data/ugo/mosquitto/mosquitto.conf → /mosquitto/config/mosquitto.conf`,
-   `/data/ugo/mosquitto/acl.conf → /mosquitto/config/acl.conf`,
-   `/data/ugo/mosquitto/passwd → /mosquitto/config/passwd`, più un volume per `/mosquitto/data`.
-5. Porta: mappa `1883` **solo** sull'IP della VLAN IoT o della tailnet
-   (`<IP_LAN_IOT>:1883:1883`), mai su `0.0.0.0`. Limite RAM: 256 MB.
-6. **Deploy**. Risultato atteso: log con `mosquitto version 2.x running`.
+4. In **Persistent Storage** monta i tre file su `/mosquitto/config/` più un volume per `/mosquitto/data`.
+5. **Cancella il dominio** che Coolify genera da solo e togli `80` da *Ports Exposes*: mosquitto non
+   parla HTTP. In *Port Mappings* metti `<IP_LAN_IOT>:1883:1883`, mai `0.0.0.0`.
+6. **Deploy**. Atteso nei log: `mosquitto version 2.x running`.
+
+</details>
 
 ### 2.3 ollama (CPU) — riusa quello che hai già
 
@@ -142,7 +160,7 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
    `<TAILSCALE_IP>:3000:3000` (l'IP `100.x` del server) — così la porta esiste solo sulla tailnet.
 3. Variabili d'ambiente (tutte come **Secret** dove sensibili), riferite a `.env.example`:
    `DATABASE_URL=postgres://ugo:<POSTGRES_PASSWORD>@<HOST_POSTGRES>:5432/ugo` ·
-   `MQTT_URL=mqtt://<HOST_MOSQUITTO>:1883` · `MQTT_USER=soul` · `MQTT_PASS=<MQTT_PASS>` ·
+   `MQTT_URL` · `MQTT_USER` · `MQTT_PASS` (**lasciale vuote**: servono solo col Nano 33, §2.2) ·
    `OLLAMA_URL=http://<HOST_OLLAMA>:11434` · `OLLAMA_EMBED_MODEL=nomic-embed-text` ·
    `ANTHROPIC_API_KEY=<ANTHROPIC_API_KEY>` · `UGO_CHAT_MODEL=claude-haiku-4-5` ·
    `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY=<UGO_DATA_KEY>` ·
@@ -200,7 +218,8 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
 Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
 
 1. `curl -s http://<TAILSCALE_IP>:3000/health` → atteso:
-   `{"status":"ok","checks":{"db":"ok","mqtt":"ok","ollama":"ok"}}`.
+   `{"status":"ok","checks":{"db":"ok","mqtt":"off","ollama":"ok"}}`. `mqtt: "off"` è corretto:
+   significa non configurato, perché il Nano 33 è accantonato (§2.2).
 2. Inserisci un evento:
    `curl -s -X POST http://<TAILSCALE_IP>:3000/v1/events -H 'content-type: application/json' -d '{"source":"system","type":"compliment","payload":{}}'`
    → atteso: `201` con `{"id":"…","moodLabel":"…"}`.
@@ -313,9 +332,15 @@ riunioni e upload senza autenticazione. Genera il token (`openssl rand -hex 32`)
 variabili della risorsa e redeploya. È un rifiuto voluto, non un bug.
 
 ### soul segnala `mqtt: "error"` in /health
-Quasi sempre ACL o credenziali: verifica che il password file contenga l'utente `soul` con la
-password giusta (rigenera il file, punto 2.2) e che `acl.conf` sia montato. Nei log mosquitto cerca
-`Connection Refused: not authorised`.
+Se non usi il Nano 33, `MQTT_URL` dev'essere **vuota**: allora leggi `"off"` e va bene così.
+`"error"` significa che una URL c'è ma il broker non risponde — quasi sempre ACL o credenziali:
+verifica che il password file contenga l'utente `soul` con la password giusta (rigenera il file,
+§2.2) e che `acl.conf` sia montato. Nei log mosquitto cerca `Connection Refused: not authorised`.
+
+### Una risorsa risulta **Exited** appena creata
+Guarda prima le due cose che Coolify imposta da solo (§2): il **dominio pubblico** generato
+automaticamente e **Ports Exposes: 80**. Su un servizio che non parla HTTP sono entrambi sbagliati.
+Poi i log della risorsa: se manca un file di configurazione montato, il container esce subito.
 
 ### `relation "…" does not exist` nei log di soul
 Migrazioni non applicate: il Pre-deployment Command del punto 2.4 manca o è fallito. Eseguilo a

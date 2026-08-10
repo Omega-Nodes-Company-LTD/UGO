@@ -9,9 +9,12 @@ const optionalNonEmpty = z.preprocess(
 /** Environment contract for soul-api (Fasi 0-4). Boot fails fast if unmet. */
 export const soulEnvSchema = z.object({
   DATABASE_URL: z.url(),
-  MQTT_URL: z.url(),
-  MQTT_USER: z.string().min(1),
-  MQTT_PASS: z.string().min(1),
+  // MQTT exists for the Nano 33 IoT firmware only (PROGETTO §5.7). With the
+  // firmware set aside, a deployment has no broker and must not be forced to
+  // invent one: leave these unset and the check reports "off", not "error".
+  MQTT_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  MQTT_USER: optionalNonEmpty,
+  MQTT_PASS: optionalNonEmpty,
   OLLAMA_URL: z.url(),
   OLLAMA_EMBED_MODEL: z.string().min(1).default("nomic-embed-text"),
   ANTHROPIC_API_KEY: z.string().min(1),
