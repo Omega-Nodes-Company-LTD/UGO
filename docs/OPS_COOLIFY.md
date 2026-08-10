@@ -391,6 +391,54 @@ incidente.
 3. Il codice legge tutto dalle env: nessun file da toccare, nessun rebuild necessario oltre al
    redeploy.
 
+## 9. Il foglio dei valori
+
+I valori tra parentesi angolari usati sopra. Compilali **prima** di cominciare: a metà deploy, cercare
+una chiave è il modo migliore per incollarla nel posto sbagliato. Quelli che si generano, generali
+adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il runbook te lo dice.
+
+### Da generare adesso (comando a fianco)
+
+| Valore | Come |
+|---|---|
+| `<POSTGRES_PASSWORD>` | `openssl rand -hex 24` |
+| `<MQTT_PASS>` | `openssl rand -hex 24` — utente `soul` |
+| `<MQTT_NANO_PASS>` | `openssl rand -hex 24` — utente `nano`, solo se userai il Nano 33 |
+| `<UGO_DATA_KEY>` | `openssl rand -base64 32` — **e una copia fuori dal server** (§1.7) |
+| `<UGO_INTERNAL_TOKEN>` | `openssl rand -hex 32` — è anche la password del pannello `/admin` |
+
+### Da leggere durante il deploy
+
+| Valore | Dove lo trovi |
+|---|---|
+| `<TAILSCALE_IP>` | `tailscale ip -4` sul server (§0.2) — è anche `<INDIRIZZO_UGO>` del pannello |
+| `<IP_HETZNER>` | l'IP pubblico del server: serve **solo** per il primo SSH, prima di Tailscale |
+| `<UTENTE>` | l'utente SSH che usi già (spesso `root`) |
+| `<HOST_POSTGRES>` `<HOST_MOSQUITTO>` `<HOST_OLLAMA>` | il nome del container, nella pagina di ogni risorsa Coolify |
+| `<CONTAINER_POSTGRES>` | `docker ps` sul server, per i comandi `psql` di verifica |
+| `<REPO_URL>` | l'URL del repo Git di UGO |
+
+### Da procurarti (servizi esterni)
+
+| Valore | Dove |
+|---|---|
+| `<ANTHROPIC_API_KEY>` | console Anthropic. È l'unica spesa ricorrente: il budget la tiene sotto controllo |
+| `<S3_ENDPOINT>` `<S3_ACCESS_KEY>` `<S3_SECRET_KEY>` | il tuo provider S3, con permessi **solo** sui due bucket (§3) |
+| `<HF_TOKEN>` | Hugging Face, facoltativo: senza, la diarizzazione degrada a un solo interlocutore |
+| `<VEXA_API_URL>` `<VEXA_API_KEY>` | dallo stack Vexa, se e quando lo installi (§2.6) |
+
+### Scelte tue
+
+| Valore | Cosa metterci |
+|---|---|
+| `<OWNER_NAME>` | come UGO chiama casa tua |
+| `<OLLAMA_RAM_LIMIT>` | 4 GB se Ollama fa solo embeddings; ~24 GB se ci gira anche il MoE del sogno |
+| `<OLLAMA_BATCH_MODEL>` | il modello del sogno; lascialo perdere al primo giro e usa il fallback API |
+| `<IP_LAN_IOT>` | l'IP su cui esporre MQTT, solo se userai il Nano 33 |
+
+I segnaposto rimanenti (`<DATA>`, `<DATA_PERSA>`, `<IERI>`) sono date che scriverai al momento, nel
+formato `AAAA-MM-GG`.
+
 ## Prossimi Passi
 
 - Stato del progetto e Definition of Done per fase: [`STATE.md`](./STATE.md)
