@@ -16,7 +16,7 @@ const base = {
 };
 
 const parse = (extra: Record<string, string>) =>
-  soulEnvSchema.parse({ ...base, ...extra } as Record<string, unknown>);
+  soulEnvSchema.parse({ ...base, ...extra });
 
 describe("S3 configuration", () => {
   it("accepts the AWS-conventional names every provider console shows", () => {
