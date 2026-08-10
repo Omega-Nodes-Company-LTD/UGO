@@ -28,6 +28,16 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
   shake: [{ variable: "stress", amount: 0.1 }],
   meeting_completed: [{ variable: "curiosita", amount: 0.1 }],
   new_topic: [{ variable: "curiosita", amount: 0.05 }],
+  /** ADR-020: meeting one of your own kind, for the first time */
+  peer_met: [
+    { variable: "curiosita", amount: 0.15 },
+    { variable: "noia", amount: -0.2 },
+  ],
+  /** an acquaintance seen again: milder, and it warms rather than excites */
+  peer_greeted: [
+    { variable: "umore", amount: 0.04 },
+    { variable: "noia", amount: -0.1 },
+  ],
   /** one hour alone, emitted by soul's SolitudeMonitor */
   solitude_hour: [{ variable: "noia", amount: 0.05 }],
 };

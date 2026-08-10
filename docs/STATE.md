@@ -372,6 +372,33 @@ Restano da fare, fase 2: servizi e rotte che passano la casa ovunque, RLS con ru
 caduta dei `DEFAULT`. Fase 3: job per esemplare, pannello con selettore, provisioning di una casa,
 audit log, lingua per casa, genoma che pilota il carattere.
 
+## 6-septies. L'incontro fra gosini e il guscio Android
+
+**ADR-020, parte pura** (`packages/shared/src/peer.ts`, `apps/soul/src/services/peerService.ts`).
+Il punto non era il saluto: un identificatore stabile trasmesso in giro è un beacon di
+tracciamento, e permetterebbe di ricostruire le abitudini della famiglia vicina. Quindi pseudonimo
+rotante (nonce + tag HMAC per epoca) che due sconosciuti non possono collegare, e riconoscimento
+solo dopo una presentazione fisica. L'altro gosino diventa un `being` di specie `gosino` e kind
+`visitor` **nella nostra casa** — la nostra percezione di loro, non i loro dati; il `bond` fa
+crescere la familiarità a ogni incontro. Nessuna chiamata all'LLM: il saluto costa zero token.
+Spento per default, per esemplare. 13 unit + 12 di integrazione con due case che si incontrano.
+
+**ADR-018 Tempo 2 cominciato** (`apps/face-android/`): Capacitor attorno alla stessa `apps/face`,
+permessi dichiarati con il motivo accanto, APK di debug **che si costruisce davvero** (4,2 MB,
+verificato leggendone i permessi). Nuovo job di CI `android shell (debug apk)` che lo costruisce e
+lo pubblica come artefatto: la riga «toolchain Android non verificabile nella CI» di ADR-018 non è
+più vera.
+
+**Attribuzione dello speaker** (competitor #11): `identify_voice()` era scritto e testato dal primo
+giorno e **non lo chiamava nessuno**. Ora la pipeline di ingest decodifica la forma d'onda, ritaglia
+ogni segmento e chiede chi ha parlato; sotto soglia nessuno viene nominato, perché un nome sbagliato
+è peggio di nessun nome. `transcript_segments.being_id` porta la risposta. La query è **scoped per
+casa**: un test enrolla la stessa identica voce anche dai vicini e verifica che non venga mai
+attribuita qui.
+
+Cosa manca al guscio: il codice nativo che *usa* quei permessi — foreground service col microfono,
+lock task, avvio al boot, radio BLE per l'incontro. I permessi ci sono, l'implementazione no.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

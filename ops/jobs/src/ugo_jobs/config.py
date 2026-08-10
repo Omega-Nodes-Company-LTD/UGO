@@ -38,6 +38,10 @@ class JobsConfig:
     anthropic_batch_model: str = "claude-haiku-4-5"
     whisper_model: str = "large-v3"
     whisper_download_root: str = ""
+    # ADR-019: whose house this run belongs to. Defaults keep a single-family
+    # install working untouched; a second family passes its own.
+    household_id: str = "00000000-0000-4000-8000-000000000002"
+    gosino_id: str = "00000000-0000-4000-8000-000000000001"
     audio_retention_days: int = 90
     backup_retention_days: int = 30
 

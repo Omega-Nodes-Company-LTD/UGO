@@ -607,6 +607,21 @@ Un guscio desktop vero (**Electron** o Tauri) è possibile e riguarda solo Mac/P
 un'app Android, che resta il compito di Capacitor. Nessuno dei due è necessario per provare UGO
 adesso.
 
+### 10.7 L'app Android, quando la vuoi
+
+Il guscio esiste (`apps/face-android`) e la CI ne costruisce l'APK a ogni push. Per averlo:
+
+1. Vai su **Actions** nel repository, apri l'ultima esecuzione andata a buon fine, e scarica
+   l'artefatto **`ugo-debug-apk`**.
+2. Copia l'APK sul telefono e aprilo. Android chiederà di autorizzare l'installazione da questa
+   sorgente: è un'app tua, non di uno store, ed è voluto (un utente solo, un telefono solo).
+3. La prima apertura chiede gli stessi permessi della §10.3.
+
+È un pacchetto **di debug**: fa tutto quello che fa la PWA, dentro una finestra propria e con i
+permessi già dichiarati. Le funzioni che giustificano il guscio — registrare a schermo spento, il
+kiosk vero, l'avvio al boot, l'incontro fra gosini via Bluetooth — hanno i permessi ma non ancora il
+codice nativo che li usa: arrivano nei prossimi giri.
+
 ### 10.7 Se la faccia non compare
 
 | Sintomo | Causa quasi certa |

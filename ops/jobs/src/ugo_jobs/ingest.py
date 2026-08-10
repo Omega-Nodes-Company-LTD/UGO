@@ -17,11 +17,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import boto3
+import numpy as np
 import psycopg
 
 from .config import JobsConfig
 from .crypto import encrypt_text, parse_data_key
 from .embeddings import embed
+from .enrollment import identify_voice, record_observation
 
 INBOX_PREFIX = "inbox/"
 ARCHIVE_PREFIX = "archive/"
@@ -65,12 +67,57 @@ def _started_at(key: str) -> datetime | None:
     return datetime.fromisoformat(f"{date_part}T{hh}:{mm}:00+00:00")
 
 
+SAMPLE_RATE = 16_000
+# a slice shorter than this carries too little voice to judge anyone by
+MIN_ATTRIBUTION_SECONDS = 1.0
+
+
+def _waveform(path: Path) -> np.ndarray | None:
+    """The audio as samples, for attribution. Never fatal: a transcript
+    without a name is worth more than an ingest that died trying."""
+    try:
+        from faster_whisper.audio import decode_audio
+
+        return decode_audio(str(path), sampling_rate=SAMPLE_RATE)
+    except Exception:  # noqa: BLE001 - any decoder failure degrades, never stops
+        return None
+
+
+def _attribute(
+    conn: psycopg.Connection,
+    cfg: JobsConfig,
+    audio: np.ndarray | None,
+    t0: float,
+    t1: float,
+) -> str | None:
+    """Who said this stretch, if the voiceprint is sure enough (ADR-016).
+
+    Below the threshold nobody is named: a wrong name is worse than no name,
+    and `wrong_name` is the correction signal UGO fears most.
+    """
+    if audio is None or t1 - t0 < MIN_ATTRIBUTION_SECONDS:
+        return None
+    piece = audio[int(t0 * SAMPLE_RATE) : int(t1 * SAMPLE_RATE)]
+    if piece.size < SAMPLE_RATE:
+        return None
+    identification = identify_voice(
+        conn,
+        samples=piece,
+        data_key=parse_data_key(cfg.data_key_b64),
+        household_id=cfg.household_id,
+    )
+    record_observation(conn, gosino_id=cfg.gosino_id, identification=identification)
+    return identification.being_id
+
+
 def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str) -> int:  # noqa: ANN001
     name = Path(key).name
     with tempfile.NamedTemporaryFile(suffix=Path(name).suffix) as handle:
         client.download_fileobj(cfg.s3_bucket_audio, key, handle)
         handle.flush()
         pieces = _transcribe(cfg, Path(handle.name))
+        # inside the block on purpose: the temporary file is gone after it
+        audio = _waveform(Path(handle.name)) if pieces else None
     if not pieces:
         return 0
 
@@ -86,13 +133,16 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str) -> 
     key_bytes = parse_data_key(cfg.data_key_b64)
     vectors = embed(cfg, [text for _t0, _t1, text in pieces])
     for (t0, t1, text), vector in zip(pieces, vectors):
+        being_id = _attribute(conn, cfg, audio, t0, t1)
         conn.execute(
             """
-            insert into transcript_segments (meeting_id, speaker, t0, t1, text, embedding)
-            values (%s, %s, %s, %s, %s, %s)
+            insert into transcript_segments
+                (meeting_id, speaker, being_id, t0, t1, text, embedding)
+            values (%s, %s, %s, %s, %s, %s, %s)
             """,
             # mono-speaker fallback: no diarization without HF_TOKEN (§11)
-            (meeting_id, None, t0, t1, encrypt_text(text, key_bytes), json.dumps(vector)),
+            (meeting_id, None, being_id, t0, t1,
+             encrypt_text(text, key_bytes), json.dumps(vector)),
         )
     conn.commit()
 

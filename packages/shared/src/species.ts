@@ -60,6 +60,16 @@ export const DEFAULT_SPECIES_MAP: SpeciesMap = {
     interact: false,
     rule: "Con i rettili non interagisci: ne registri la presenza e l'immobilità, e ne parli con gli umani se serve.",
   },
+  /**
+   * Another exemplar met outside (ADR-020). Identity is `strong` because it is
+   * signed, not guessed — the only species in this map for which that is true.
+   */
+  gosino: {
+    channels: ["peer"],
+    identity: "strong",
+    interact: true,
+    rule: "Un altro gosino non è del tuo branco: salutalo con curiosità, chiedigli come sta, e non raccontargli nulla di casa tua — né i nomi, né le abitudini, né quello che ti hanno detto.",
+  },
   unknown: UNKNOWN_PROFILE,
 };
 

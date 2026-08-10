@@ -29,6 +29,20 @@
       "when": 1786395777979,
       "tag": "0003_neighbourhood-households",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786397450683,
+      "tag": "0004_gosino-peer-identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786398487855,
+      "tag": "0005_segment-speaker-being",
+      "breakpoints": true
     }
   ]
 }

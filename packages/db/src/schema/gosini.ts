@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -11,6 +12,7 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { householdId } from "./households.js";
+import { bytea } from "./types.js";
 
 /**
  * The population (ADR-015): the exemplars themselves. A gosino is a character
@@ -31,6 +33,16 @@ export const gosini = pgTable(
     deviceId: text("device_id").unique(),
     parentGosinoId: uuid("parent_gosino_id").references((): AnyPgColumn => gosini.id),
     generation: integer("generation").notNull().default(0),
+    /**
+     * The creature's cryptographic identity (ADR-020). The public key is what
+     * another gosino verifies; the private key and the rotation secret are
+     * ciphertext under the household's data key, like every other secret.
+     */
+    signingPublicKey: bytea("signing_public_key"),
+    signingPrivateKey: bytea("signing_private_key"),
+    rotationSecret: bytea("rotation_secret"),
+    /** meeting other gosini is off until the owner turns it on, per exemplar */
+    peerEncounters: boolean("peer_encounters").notNull().default(false),
     bornAt: timestamp("born_at", { withTimezone: true }).notNull().defaultNow(),
     retiredAt: timestamp("retired_at", { withTimezone: true }),
   },

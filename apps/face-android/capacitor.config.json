@@ -1,0 +1,16 @@
+{
+  "appId": "it.thinkpinkstudio.ugo",
+  "appName": "UGO",
+  "webDir": "../face/dist",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": false
+    }
+  }
+}

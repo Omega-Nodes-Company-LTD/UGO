@@ -23,6 +23,7 @@ from ugo_jobs.voice import MfccVoiceEncoder, unpack
 from conftest import TEST_DATA_KEY
 
 PRIME = "00000000-0000-4000-8000-000000000001"
+PRIME_HOUSE = "00000000-0000-4000-8000-000000000002"
 SECONDS = 2.0
 
 
@@ -68,12 +69,12 @@ def test_two_voices_enrolled_are_told_apart(conn: psycopg.Connection) -> None:
             conn, gosino_id=PRIME, being_id=paola, samples=_voice(PAOLA, seed + 10), data_key=key
         )
 
-    assert identify_voice(conn, samples=_voice(IVAN, 99), data_key=key).being_id == ivan
+    assert identify_voice(conn, samples=_voice(IVAN, 99), data_key=key, household_id=PRIME_HOUSE).being_id == ivan
     # a quieter take of the same voice is still the same person
     assert (
-        identify_voice(conn, samples=_voice(IVAN, 98, gain=0.4), data_key=key).being_id == ivan
+        identify_voice(conn, samples=_voice(IVAN, 98, gain=0.4), data_key=key, household_id=PRIME_HOUSE).being_id == ivan
     )
-    assert identify_voice(conn, samples=_voice(PAOLA, 97), data_key=key).being_id == paola
+    assert identify_voice(conn, samples=_voice(PAOLA, 97), data_key=key, household_id=PRIME_HOUSE).being_id == paola
 
 
 def test_an_unknown_voice_is_not_guessed(conn: psycopg.Connection) -> None:
@@ -81,7 +82,7 @@ def test_an_unknown_voice_is_not_guessed(conn: psycopg.Connection) -> None:
     ivan = _being(conn, "Ivan U.")
     enroll_voice(conn, gosino_id=PRIME, being_id=ivan, samples=_voice(IVAN, 4), data_key=key)
 
-    stranger = identify_voice(conn, samples=_voice((330, 900, 2400, 4100), 5), data_key=key)
+    stranger = identify_voice(conn, samples=_voice((330, 900, 2400, 4100), 5), data_key=key, household_id=PRIME_HOUSE)
     assert stranger.being_id is None
     # the near miss survives so a human can be asked, not told
     record_observation(conn, gosino_id=PRIME, identification=stranger)
