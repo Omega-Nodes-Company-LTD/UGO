@@ -19,4 +19,7 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | 001–011 | Vedi [`PROGETTO.md §2`](../PROGETTO.md) | Accettate |
 | [012](./012-persistenza-baseline-psiche.md) | Persistenza delle baseline adattive della psiche | Accettata |
 | [013](./013-vexa-polling-e-voce-in-call.md) | Integrazione Vexa: polling e voce in stanza (interim) | Accettata |
-| 014 | *(prossimo numero disponibile)* | — |
+| [014](./014-il-branco-non-l-utente.md) | Il branco, non l'utente | Accettata |
+| [015](./015-genoma-versionato.md) | Genoma versionato (ossatura dati) | Accettata |
+| [016](./016-percezione-multimodale-e-biometria.md) | Percezione multimodale, biometria e enrollment vocale | Accettata |
+| 017 | *(prossimo numero disponibile)* | — |
