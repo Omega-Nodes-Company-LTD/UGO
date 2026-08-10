@@ -7,6 +7,7 @@ the file is archived. Whisper runs for real on CPU (base model).
 from __future__ import annotations
 
 import subprocess
+from dataclasses import replace
 
 import boto3
 import psycopg
@@ -82,3 +83,73 @@ def test_file_archived_and_second_run_is_noop(audio_env) -> None:  # noqa: ANN00
         after = conn.execute("select count(*) from transcript_segments").fetchone()[0]
     assert result.files == 0
     assert before == after
+
+
+def _house(conn: psycopg.Connection, slug: str) -> str:
+    return str(
+        conn.execute(
+            "insert into households (slug, name) values (%s, %s) returning id", (slug, slug)
+        ).fetchone()[0]
+    )
+
+
+def _being(conn: psycopg.Connection, household_id: str, name: str) -> str:
+    return str(
+        conn.execute(
+            "insert into beings (household_id, display_name) values (%s, %s) returning id",
+            (household_id, name),
+        ).fetchone()[0]
+    )
+
+
+def test_a_known_voice_gets_a_name_and_a_stranger_does_not(audio_env, tmp_path) -> None:  # noqa: ANN001
+    """ADR-016 wired end to end: enrolment was written and never called.
+
+    The second half is the one that matters: the same voice enrolled in
+    ANOTHER house must not be attributed here (ADR-019).
+    """
+    from faster_whisper.audio import decode_audio
+
+    from ugo_jobs.enrollment import enroll_voice
+
+    cfg, client = audio_env
+    key = parse_data_key(TEST_DATA_KEY)
+
+    wav = tmp_path / "voce.wav"
+    subprocess.run(["espeak-ng", "-v", "it", PHRASE, "-w", str(wav)], check=True, timeout=60)
+    samples = decode_audio(str(wav), sampling_rate=16_000)
+
+    with psycopg.connect(cfg.database_url) as conn:
+        nostra = _house(conn, "casa-attribuzione")
+        vicini = _house(conn, "casa-vicini")
+        gosino = str(
+            conn.execute(
+                "insert into gosini (household_id, name) values (%s, %s) returning id",
+                (nostra, "ugo-attribuzione"),
+            ).fetchone()[0]
+        )
+        parlante = _being(conn, nostra, "Francesco")
+        # the neighbours enrol the very same voice, in their own house
+        sosia = _being(conn, vicini, "Un vicino")
+        enroll_voice(conn, gosino_id=gosino, being_id=parlante, samples=samples, data_key=key)
+        enroll_voice(conn, gosino_id=gosino, being_id=sosia, samples=samples, data_key=key)
+        conn.commit()
+
+    scoped = replace(cfg, household_id=nostra, gosino_id=gosino)
+    new_key = "inbox/2026-08-07_0930_attribuzione.wav"
+    client.upload_file(str(wav), cfg.s3_bucket_audio, new_key)
+
+    with psycopg.connect(scoped.database_url) as conn:
+        run_ingest(conn, scoped, "2026-08-07")
+        rows = conn.execute(
+            """select s.being_id from transcript_segments s
+                 join meetings m on m.id = s.meeting_id
+                where m.title = %s""",
+            ("2026-08-07_0930_attribuzione.wav",),
+        ).fetchall()
+
+    assert rows, "the recording should have produced segments"
+    attributed = {str(being_id) for (being_id,) in rows if being_id is not None}
+    # our own resident is named; the neighbours' identical voiceprint is not
+    assert attributed == {parlante}, attributed
+    assert sosia not in attributed

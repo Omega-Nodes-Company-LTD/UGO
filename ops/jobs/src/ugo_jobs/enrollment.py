@@ -133,16 +133,24 @@ def identify_voice(
     *,
     samples: np.ndarray,
     data_key: bytes,
+    household_id: str,
     encoder: VoiceEncoder | None = None,
     threshold: float = DEFAULT_MATCH_THRESHOLD,
 ) -> Identification:
-    """Best match above the threshold, otherwise nobody. UGO does not guess."""
+    """Best match above the threshold, otherwise nobody. UGO does not guess.
+
+    Scoped to one house (ADR-019): an unscoped query here would happily match
+    the neighbours' voice, which is the exact failure the whole tenancy work
+    exists to prevent.
+    """
     coder = encoder or MfccVoiceEncoder()
     probe = coder.encode(samples)
     rows = conn.execute(
-        """select being_id, payload from recognition_profiles
-           where modality = %s and model = %s""",
-        (MODALITY, coder.model),
+        """select p.being_id, p.payload
+             from recognition_profiles p
+             join beings b on b.id = p.being_id
+            where p.modality = %s and p.model = %s and b.household_id = %s""",
+        (MODALITY, coder.model, household_id),
     ).fetchall()
 
     best_id, best_score = None, -1.0

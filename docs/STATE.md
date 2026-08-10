@@ -389,6 +389,13 @@ verificato leggendone i permessi). Nuovo job di CI `android shell (debug apk)` c
 lo pubblica come artefatto: la riga «toolchain Android non verificabile nella CI» di ADR-018 non è
 più vera.
 
+**Attribuzione dello speaker** (competitor #11): `identify_voice()` era scritto e testato dal primo
+giorno e **non lo chiamava nessuno**. Ora la pipeline di ingest decodifica la forma d'onda, ritaglia
+ogni segmento e chiede chi ha parlato; sotto soglia nessuno viene nominato, perché un nome sbagliato
+è peggio di nessun nome. `transcript_segments.being_id` porta la risposta. La query è **scoped per
+casa**: un test enrolla la stessa identica voce anche dai vicini e verifica che non venga mai
+attribuita qui.
+
 Cosa manca al guscio: il codice nativo che *usa* quei permessi — foreground service col microfono,
 lock task, avvio al boot, radio BLE per l'incontro. I permessi ci sono, l'implementazione no.
 
