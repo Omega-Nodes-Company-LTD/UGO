@@ -145,3 +145,45 @@ jobs:
             test \"\$(whoami)\" = ugo &&
             echo 'dream imports, pg_dump 16, non-root'"
 
+  apk:
+    # ADR-018 said the Android toolchain was not verifiable here, and that a
+    # broken shell would be discovered on the phone instead of in the pipeline.
+    name: android shell (debug apk)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: build the web app the shell wraps
+        run: pnpm --filter face build
+      - name: sync capacitor
+        working-directory: apps/face-android
+        run: npx cap sync android
+      - name: assemble the debug apk
+        working-directory: apps/face-android/android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: the apk carries the permissions the shell exists for
+        working-directory: apps/face-android/android
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          AAPT=$(ls -d "$ANDROID_HOME"/build-tools/* | tail -1)/aapt2
+          for perm in RECORD_AUDIO FOREGROUND_SERVICE_MICROPHONE BLUETOOTH_ADVERTISE WAKE_LOCK; do
+            "$AAPT" dump permissions "$APK" | grep -q "$perm" \
+              || { echo "missing permission: $perm"; exit 1; }
+          done
+          echo "apk built with the permissions a browser tab cannot have"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ugo-debug-apk
+          path: apps/face-android/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

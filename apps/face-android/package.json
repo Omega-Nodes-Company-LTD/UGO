@@ -1,0 +1,19 @@
+{
+  "name": "face-android",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "pnpm --filter face build && cap sync android",
+    "apk": "pnpm run sync && cd android && ./gradlew assembleDebug",
+    "lint": "echo \"no sources to lint: the web app lives in apps/face\"",
+    "typecheck": "echo \"no TypeScript here: capacitor config only\""
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/core": "^7.4.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.4"
+  }
+}
