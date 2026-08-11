@@ -204,3 +204,76 @@ describe("debug surface", () => {
     await app.close();
   });
 });
+
+/**
+ * Facts expire; similarity does not know it (competitor gap #1/#2).
+ *
+ * "Ivan è il corriere DHL" scores just as well three years after Ivan changed
+ * job — the vector index has no notion of a fact having stopped being true.
+ * These are the two corrections a person needs, and the proof that the first
+ * one actually reaches retrieval.
+ */
+describe("a fact that stopped being true", () => {
+  async function firstMemoryId(app: FastifyInstance): Promise<string> {
+    const listed = await app.inject({ method: "GET", url: "/v1/memories" });
+    const { memories: rows } = listed.json<{ memories: { id: string; text: string }[] }>();
+    const ivan = rows.find((row) => row.text.includes("Ivan"));
+    if (ivan === undefined) throw new Error("the DHL memory should be there");
+    return ivan.id;
+  }
+
+  it("stops coming back the moment it is retired, and returns if revived", async () => {
+    const app = await buildSession();
+    const id = await firstMemoryId(app);
+
+    const asked = async (): Promise<string[]> => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/v1/memories/search?q=chi%20consegna%20i%20pacchi%3F&k=3",
+      });
+      return response.json<{ text: string }[]>().map((row) => row.text);
+    };
+    expect((await asked()).some((text) => text.includes("Ivan"))).toBe(true);
+
+    const retired = await app.inject({
+      method: "PATCH",
+      url: `/v1/memories/${id}`,
+      payload: { valid: false, reason: "ha cambiato lavoro" },
+    });
+    expect(retired.statusCode).toBe(200);
+
+    // the whole point: retrieval must not surface it any more
+    expect((await asked()).some((text) => text.includes("Ivan"))).toBe(false);
+
+    // …and it is still there, because what he used to believe explains what
+    // he said last month
+    const listed = await app.inject({ method: "GET", url: "/v1/memories" });
+    const row = listed
+      .json<{ memories: { id: string; invalidatedAt: string | null; invalidatedReason: string | null }[] }>()
+      .memories.find((memory) => memory.id === id);
+    expect(row?.invalidatedAt).not.toBeNull();
+    expect(row?.invalidatedReason).toBe("ha cambiato lavoro");
+
+    // a wrong correction must be undoable
+    await app.inject({ method: "PATCH", url: `/v1/memories/${id}`, payload: { valid: true } });
+    expect((await asked()).some((text) => text.includes("Ivan"))).toBe(true);
+    await app.close();
+  });
+
+  it("destroys one for good when it should never have existed", async () => {
+    const app = await buildSession();
+    const id = await firstMemoryId(app);
+
+    const gone = await app.inject({ method: "DELETE", url: `/v1/memories/${id}` });
+    expect(gone.json<{ destroyed: boolean }>().destroyed).toBe(true);
+
+    const listed = await app.inject({ method: "GET", url: "/v1/memories" });
+    const rows = listed.json<{ memories: { id: string }[] }>().memories;
+    expect(rows.some((memory) => memory.id === id)).toBe(false);
+
+    // deleting something that is not there is not an error, it is a no-op
+    const again = await app.inject({ method: "DELETE", url: `/v1/memories/${id}` });
+    expect(again.json<{ destroyed: boolean }>().destroyed).toBe(false);
+    await app.close();
+  });
+});

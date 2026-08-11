@@ -63,7 +63,9 @@ export async function searchMemories(
       similarity: sql<number>`1 - (${distance})`,
     })
     .from(memories)
-    .where(sql`${memories.embedding} is not null`)
+    // an invalidated memory is kept for the biography and never retrieved:
+    // similarity has no idea that a fact stopped being true
+    .where(sql`${memories.embedding} is not null and ${memories.invalidatedAt} is null`)
     .orderBy(distance)
     .limit(k * CANDIDATE_MULTIPLIER);
 

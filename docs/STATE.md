@@ -424,6 +424,29 @@ Tolto anche `HF_TOKEN` da `.env.example` e dal runbook: **nessuna riga di codice
 diarizzazione con pyannote resta un lavoro futuro (PROGETTO §5.6.1), e una variabile che promette
 una funzione inesistente è peggio che assente.
 
+## 6-nonies. I fatti hanno una data di scadenza (competitor #1/#2, #4)
+
+Il primo difetto dell'analisi competitiva: **la somiglianza non sa che un fatto ha smesso di essere
+vero**. «Ivan è il corriere DHL» ottiene lo stesso punteggio tre anni dopo che Ivan ha cambiato
+lavoro, e riemerge dal vettoriale ogni volta che capita di essere il più vicino alla domanda.
+
+- `memories` guadagna `valid_from`, `invalidated_at`, `invalidated_reason`, `superseded_by`; il
+  recupero salta i ricordi invalidati (`retrieval.ts`), che è il punto: un fatto ritirato **smette
+  davvero** di riemergere, non solo di essere mostrato.
+- La migrazione riallinea `valid_from` a `created_at`: il default `now()` avrebbe datato al deploy
+  fatti imparati mesi prima.
+- `PATCH /v1/memories/:id` ritira o riabilita; `DELETE` distrugge. **Ritirare non cancella**: quello
+  che UGO credeva spiega quello che ha detto il mese scorso, e una biografia con i buchi non si può
+  verificare. Cancellare resta possibile per ciò che non doveva esserci.
+- Il pannello mostra i ricordi ritirati barrati con il motivo, e offre le due azioni per riga —
+  «non è più vero» e «cancella», con conferma solo sulla seconda.
+
+Sciolto anche un accoppiamento senza motivo: le rotte dell'archivio erano registrate dentro il ramo
+della mappa delle specie, quindi `/v1/memories` esisteva solo se era configurato il branco.
+
+Verifiche: due test di integrazione che fanno la domanda vera — dopo il ritiro il ricordo **non
+compare più** nella ricerca semantica, resta nell'elenco con il motivo, e torna se lo riabiliti.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
