@@ -12,11 +12,28 @@ export interface GazeTarget {
   y: number; // [-1, 1]
 }
 
+/**
+ * How fast the eyes catch up with the target, per frame at 60fps. Locked to
+ * the target they were unnerving: a real gaze arrives late and overshoots
+ * nothing.
+ */
+const GAZE_EASING = 0.12;
+/** Every so often the eyes wander off by themselves, like anyone's do. */
+const GLANCE_EVERY_MS = 4200;
+const GLANCE_SPREAD_MS = 3500;
+const GLANCE_LASTS_MS = 700;
+
 /** Low-poly pig face on canvas: eyes with gaze-follow, mood ears, snout. */
 export class FaceRenderer {
   private mood: MoodView = { label: "", umore: 0.55, stress: 0.3 };
   private state: FaceState = "idle";
+  /** where the eyes are told to look */
   private gaze: GazeTarget = { x: 0, y: 0 };
+  /** where they actually are: they lag, and sometimes they wander off */
+  private eyes: GazeTarget = { x: 0, y: 0 };
+  private glanceUntil = 0;
+  private glance: GazeTarget = { x: 0, y: 0 };
+  private nextGlanceAt = performance.now() + GLANCE_EVERY_MS;
   private blinkUntil = 0;
   private nextBlinkAt = performance.now() + 3000;
   private raf = 0;
@@ -101,7 +118,19 @@ export class FaceRenderer {
     ctx.ellipse(cx, cy, unit * 3.4, unit * 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // eyes
+    // eyes: they follow late, and now and then they look away on their own —
+    // a pupil welded to the pointer reads as a stare, not as attention
+    if (now > this.nextGlanceAt) {
+      this.glanceUntil = now + GLANCE_LASTS_MS;
+      this.nextGlanceAt = now + GLANCE_EVERY_MS + Math.random() * GLANCE_SPREAD_MS;
+      this.glance = { x: (Math.random() - 0.5) * 1.4, y: (Math.random() - 0.5) * 0.8 };
+    }
+    const looking = now < this.glanceUntil ? this.glance : this.gaze;
+    this.eyes = {
+      x: this.eyes.x + (looking.x - this.eyes.x) * GAZE_EASING,
+      y: this.eyes.y + (looking.y - this.eyes.y) * GAZE_EASING,
+    };
+
     const sleeping = this.state === "sleeping";
     if (now > this.nextBlinkAt) {
       this.blinkUntil = now + 120;
@@ -124,9 +153,9 @@ export class FaceRenderer {
         ctx.beginPath();
         ctx.ellipse(ex, ey, unit * 0.62 * wide, unit * 0.72 * wide, 0, 0, Math.PI * 2);
         ctx.fill();
-        // pupils follow the gaze target — l'effetto "mi vede" (§4.1)
-        const px = ex + this.gaze.x * unit * 0.28;
-        const py = ey + this.gaze.y * unit * 0.28 - (this.state === "thinking" ? unit * 0.2 : 0);
+        // pupils follow the eased position — l'effetto "mi vede" (§4.1)
+        const px = ex + this.eyes.x * unit * 0.28;
+        const py = ey + this.eyes.y * unit * 0.28 - (this.state === "thinking" ? unit * 0.2 : 0);
         ctx.fillStyle = "#2a1a20";
         ctx.beginPath();
         ctx.ellipse(px, py, unit * 0.26, unit * 0.3, 0, 0, Math.PI * 2);

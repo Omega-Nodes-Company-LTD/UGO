@@ -59,12 +59,18 @@
       #speak-text.visible {
         opacity: 1;
       }
-      #btn-mic {
+      #btn-mic,
+      #btn-ears {
         background: #21212e;
         color: #cfcfe0;
         border: 1px solid #3a3a4c;
         border-radius: 999px;
         padding: 0.4rem 0.9rem;
+      }
+      /* while the ears are on, the button says so without being shouted at */
+      #app[data-ears="on"] #btn-ears {
+        border-color: #6a6a8c;
+        color: #eaeaf5;
       }
       #conn {
         font-size: 0.75rem;
@@ -125,6 +131,9 @@
       <div id="hud">
         <span id="mood-label" data-testid="mood-label"></span>
         <button id="btn-mic" data-testid="btn-mic" class="home-only" type="button">🎤 attiva sensi</button>
+        <button id="btn-ears" data-testid="btn-ears" class="home-only" type="button" hidden>
+          👂 ti ascolto
+        </button>
         <button id="btn-rec" data-testid="btn-rec" type="button" hidden>● REC</button>
         <button id="btn-privacy" data-testid="btn-privacy" type="button" hidden>😴 privacy</button>
         <button id="btn-card" data-testid="btn-card" type="button" hidden>🪪 QR</button>

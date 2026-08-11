@@ -7,6 +7,7 @@ import { FaceRenderer } from "./renderer.js";
 import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { Speech } from "./speech.js";
+import { worthSending } from "./heard.js";
 import { FaceSocket } from "./ws.js";
 
 const PRESENCE_COOLDOWN_MS = 30_000;
@@ -27,6 +28,7 @@ const moodLabel = requireElement("#mood-label");
 const speakText = requireElement("#speak-text");
 const connStatus = requireElement("#conn");
 const micButton = requireElement("#btn-mic");
+const earsButton = requireElement("#btn-ears");
 
 const params = new URLSearchParams(location.search);
 const soulUrl = resolveSoulUrl(location, params.get("soul"));
@@ -100,20 +102,33 @@ canvas.addEventListener("pointerdown", () => {
   socket.send({ type: "tap" });
 });
 
-function startVoiceOnTap(): void {
+/**
+ * Listening without being asked (§4.1).
+ *
+ * The tap-per-sentence was honest while the browser's recognizer was the only
+ * option, but it makes a companion feel like a walkie-talkie. Now UGO listens
+ * for as long as the senses are on, and two guards keep that from being
+ * expensive: `worthSending` drops grunts and drops UGO's own voice coming back
+ * from the speaker, and the mouth mutes the ears while it talks.
+ *
+ * The trade is declared, not hidden: the browser's recognizer is Google's, so
+ * what you SAY leaves the house while this is on. `Ehi UGO` on the device
+ * (Fase 3) is what removes that, and the button below is what removes it now.
+ */
+function startListening(): void {
   if (!speech.sttAvailable()) return;
-  // MVP activation (§4.1): tap starts one listening session
-  canvas.addEventListener("pointerdown", () => {
-    void (async () => {
-      setLocalState("listening");
-      const text = await speech.listenOnce();
-      if (text !== null && text.length > 0) {
-        socket.send({ type: "heard_text", text });
-      } else {
-        setLocalState("idle");
-      }
-    })();
+  const started = speech.listen((text) => {
+    if (!worthSending(text, { spoken: speech.spokenLast() })) return;
+    setLocalState("listening");
+    socket.send({ type: "heard_text", text });
   });
+  if (started) app.dataset.ears = "on";
+}
+
+function stopListening(): void {
+  speech.stopListening();
+  app.dataset.ears = "off";
+  setLocalState("idle");
 }
 
 /**
@@ -148,9 +163,20 @@ micButton.addEventListener("click", () => {
         if (target !== null) renderer.setGaze(target);
       });
     }
-    startVoiceOnTap();
+    startListening();
     micButton.hidden = true;
+    earsButton.hidden = false;
   })();
+});
+
+earsButton.addEventListener("click", () => {
+  if (speech.isListening()) {
+    stopListening();
+    earsButton.textContent = "🔇 orecchie spente";
+  } else {
+    startListening();
+    earsButton.textContent = "👂 ti ascolto";
+  }
 });
 
 startPointerGaze(canvas, (target) => {
