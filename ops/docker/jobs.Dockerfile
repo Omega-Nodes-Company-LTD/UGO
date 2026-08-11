@@ -32,9 +32,33 @@ RUN apt-get update \
 
 RUN useradd --system --create-home ugo
 WORKDIR /app
+
+# Dependencies first, from the manifest alone, in a layer the source cannot
+# touch. They used to install *after* `COPY src`, so every commit invalidated
+# them: each deploy re-downloaded ~200 MB of wheels and rebuilt — and then had
+# to re-export — a layer of ~490 MB (ctranslate2 135, av 103, onnxruntime 58,
+# numpy 71, botocore 30). That export is where the deploy of 2026-08-11 died,
+# not the install. Split like this, a change to the dream's own code rebuilds
+# and exports kilobytes, and the half gigabyte below stays cached.
+#
+# The list is read out of pyproject at build time rather than copied into a
+# requirements.txt: one manifest stays the single source of truth, and the two
+# cannot drift apart.
 COPY ops/jobs/pyproject.toml ./
+RUN python <<'PY'
+import pathlib, tomllib
+manifest = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+pathlib.Path("/tmp/requirements.txt").write_text(
+    "\n".join(manifest["project"]["dependencies"]) + "\n"
+)
+PY
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
+
+# Only the package itself here: --no-deps because the layer above already
+# resolved them, and because a dependency appearing at this step would mean the
+# split above had silently stopped working.
 COPY ops/jobs/src ./src
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir --no-deps .
 
 USER ugo
 # The container stays up and dreams on its own hour (UGO_DREAM_AT, default

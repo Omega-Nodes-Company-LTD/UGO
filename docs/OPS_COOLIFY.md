@@ -202,6 +202,8 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
 ### 2.5 jobs (il sogno, che si sveglia da solo alle 02:30)
 
 1. Tipo: **Application → Dockerfile**. Stesso repo, Dockerfile: `ops/docker/jobs.Dockerfile`.
+   Vale anche qui, e per le stesse ragioni, la regola del §2.4.3: **Available at Buildtime spenta
+   su tutte le variabili**. Nessuna serve a build time, e questa risorsa maneggia `UGO_DATA_KEY`.
 2. Variabili: `DATABASE_URL` (come soul) · `OLLAMA_URL` · `OLLAMA_EMBED_MODEL=nomic-embed-text` ·
    `OLLAMA_BATCH_MODEL` (**lascialo vuoto**, vedi sotto) · `UGO_DATA_KEY=<UGO_DATA_KEY>` · `S3_ENDPOINT` ·
    `S3_ACCESS_KEY` · `S3_SECRET_KEY` · `S3_BUCKET_AUDIO=ugo-audio` · `S3_BUCKET_BACKUP=ugo-backup` ·
@@ -434,6 +436,27 @@ valore è finito nei metadati dell'immagine.
 3. Cancella i log di deployment vecchi dalla risorsa.
 4. **Su `UGO_DATA_KEY` fai attenzione**: ruotarla è gratis solo finché il database è vuoto. Dopo,
    i dati già cifrati con la vecchia chiave diventano illeggibili e serve una ri-cifratura (§8).
+
+### Il deploy di jobs muore su `exporting layers`, senza un errore sotto
+Il log arriva a `#14 exporting to image` / `exporting layers` e finisce lì: nessuna riga `ERROR`,
+Coolify dice solo *exit code 255*. Non è il build ad essere fallito — quello era già `DONE` — ma
+l'esportazione dell'immagine sul server. 255 è il codice con cui esce `ssh` quando è la connessione
+a cadere, non il comando remoto: il server ha smesso di rispondere mentre scriveva l'immagine.
+
+Due cause, che si sommano:
+
+1. **Disco.** Guarda `docker system df` sul server. Ogni deploy lascia l'immagine precedente:
+   `docker image prune -a --filter "until=168h"` recupera parecchio, e i modelli di Ollama sotto
+   `/var/lib/docker/volumes` sono l'altra voce grossa. Se `Avail` è agli sgoccioli, l'esportazione
+   fallisce in pochi secondi come qui.
+2. **Il layer che si ricostruiva ogni volta.** Fino al 2026-08-11 `jobs.Dockerfile` copiava i
+   sorgenti *prima* di installare le dipendenze, quindi ogni commit invalidava mezzo gigabyte di
+   ruote (ctranslate2, av, onnxruntime, numpy) e obbligava il server a riscaricarle e riesportarle
+   anche quando era cambiata una riga di Python. Ora i due passi sono separati: **corretto nel
+   repository**, non serve toccare Coolify.
+
+Il primo deploy dopo la correzione ricostruisce comunque tutto una volta — le impronte dei layer
+cambiano. Fai spazio *prima* di lanciarlo; dai successivi in poi esporta kilobyte.
 
 ### Una risorsa risulta **Exited** appena creata
 Guarda prima le due cose che Coolify imposta da solo (§2): il **dominio pubblico** generato

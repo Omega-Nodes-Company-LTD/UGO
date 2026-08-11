@@ -447,6 +447,38 @@ della mappa delle specie, quindi `/v1/memories` esisteva solo se era configurato
 Verifiche: due test di integrazione che fanno la domanda vera — dopo il ritiro il ricordo **non
 compare più** nella ricerca semantica, resta nell'elenco con il motivo, e torna se lo riabiliti.
 
+## 6-decies. Il primo deploy vero, e il layer che si rifaceva ogni volta
+
+Il primo tentativo di deploy su Coolify (2026-08-11, commit `8aacb42`) è morto su
+`#14 exporting to image` / `exporting layers`, senza una riga di errore sotto e con *exit code 255*
+— che è il codice di `ssh` quando cade la connessione, non quello di un comando remoto fallito.
+Il build era già `DONE`: a fallire è stata la scrittura dell'immagine sul server.
+
+La causa nel repository era l'ordine dei passi in `ops/docker/jobs.Dockerfile`: `COPY ops/jobs/src`
+stava **prima** di `pip install .`, quindi ogni commit invalidava l'installazione delle dipendenze.
+Misurate, sono **~490 MB** di `site-packages` — ctranslate2 135, av 103, numpy 71, onnxruntime 58,
+botocore 30 — che il server riscaricava (~200 MB di ruote) e soprattutto **riesportava** anche
+quando era cambiata una riga di Python. Nel log si vede: passi 1–5 `CACHED`, `COPY src` che sbanca
+la cache, e diciannove secondi di `pip install` per nulla.
+
+Ora l'installazione è divisa in due: le dipendenze vengono lette da `pyproject.toml` — che resta
+l'unica fonte, niente `requirements.txt` da tenere allineato — e installate in un layer che i
+sorgenti non toccano; il pacchetto entra dopo con `--no-deps`. Un cambio di codice del sogno adesso
+ricostruisce ed esporta kilobyte.
+
+Non è tutta la storia: mezzo giga esportato non uccide un server sano. Il resto è **spazio sul
+disco** del server, che i deploy ripetuti erodono lasciando le immagini vecchie — la voce è nel
+runbook (§6, «Il deploy di jobs muore su `exporting layers`»), insieme al fatto che il primo deploy
+dopo questa correzione ricostruisce comunque tutto una volta, perché le impronte dei layer cambiano.
+
+Il log ha mostrato anche un secondo problema, di configurazione e non di codice: **Available at
+Buildtime era accesa** sulle variabili della risorsa, quindi Coolify le ha trasformate in `ARG` con
+i valori in chiaro nel log — `UGO_DATA_KEY`, `MQTT_PASS`, `MQTT_NANO_PASS`, `UGO_INTERNAL_TOKEN`,
+`S3_ACCESS_KEY` per intero. Il runbook lo prevedeva per soul (§2.4.3) ma non lo ripeteva nella
+sezione di jobs: ora sì. Quei segreti vanno considerati compromessi e ruotati (§6, «Ho visto delle
+chiavi in chiaro nel log di build»); su `UGO_DATA_KEY` la rotazione è gratis solo finché il
+database è vuoto, ed è esattamente il momento in cui siamo.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
