@@ -176,3 +176,25 @@ def test_second_run_duplicates_nothing(dream_env: JobsConfig) -> None:
             "memories": conn.execute("select count(*) from memories").fetchone()[0],
         }
     assert before == after
+
+
+def test_a_failed_dump_says_why_without_leaking_the_password() -> None:
+    """The old message was `pg_dump failed (exit 1)` and nothing else, which
+    turned every failure into a guess — including a real one in production.
+    The reason is on stderr; the only thing that must not travel with it is
+    the password.
+    """
+    from ugo_jobs.backup import _dump_database, _redact
+
+    with pytest.raises(RuntimeError) as failure:
+        # port 1: nothing listens there, so pg_dump fails for a real reason
+        _dump_database("postgres://ugo:hunter2@127.0.0.1:1/ugo")
+
+    message = str(failure.value)
+    assert "hunter2" not in message
+    assert "ugo:***@" in message or "connect" in message.lower()
+    assert message != "pg_dump failed (exit 1)"
+
+    # the redaction itself, on the shape pg_dump actually echoes back
+    assert _redact("postgres://ugo:hunter2@db:5432/ugo") == "postgres://ugo:***@db:5432/ugo"
+    assert _redact("nothing to redact here") == "nothing to redact here"

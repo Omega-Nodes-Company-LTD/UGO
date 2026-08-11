@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# UGO night jobs (the dream). Python 3.12 per spec; pg_dump 16 matches the
-# pgvector:pg16 server. Runs as a dedicated non-root user; no secrets baked.
+# UGO night jobs (the dream). Python 3.12 per spec; pg_dump from PGDG, always
+# new enough for the server. Runs as a dedicated non-root user; no secrets baked.
 # Build context: repository root.
 
 # Pinned to bookworm on purpose: `python:3.12-slim` follows Debian stable, and
@@ -9,7 +9,10 @@
 # below keeps it correct anyway the day we move it deliberately.
 FROM python:3.12-slim-bookworm AS runtime
 
-# postgresql-client-16 from PGDG (Debian stable ships 15, which cannot dump pg16)
+# The newest client from PGDG, not a pinned major. pg_dump only works forwards:
+# a client can dump its own server version and older ones, never a newer one.
+# Pinning 16 meant that the day the database moved to 17 the nightly backup
+# started failing — and a backup that stops silently is not a backup.
 # --retry: postgresql.org answered 503 once and turned a green pipeline red for
 # a reason that had nothing to do with the change under test
 RUN apt-get update \
@@ -23,7 +26,7 @@ RUN apt-get update \
      http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
      > /etc/apt/sources.list.d/pgdg.list \
   && apt-get update \
-  && apt-get install -y --no-install-recommends postgresql-client-16 \
+  && apt-get install -y --no-install-recommends postgresql-client \
   && apt-get purge -y curl gnupg && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/*
 

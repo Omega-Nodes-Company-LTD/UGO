@@ -353,6 +353,26 @@ guarda i log della risorsa. Sono gli stessi controlli di `/health`, senza doverl
 
 ## 6. Troubleshooting
 
+### Il sogno fallisce con `pg_dump failed`
+
+Da agosto 2026 il messaggio **contiene il motivo** (con la password rimossa): leggilo, dice quasi
+sempre tutto. Le tre cause reali, in ordine di frequenza:
+
+| Nel messaggio compare | Cosa è successo | Cosa fare |
+|---|---|---|
+| `server version: 17.x; pg_dump version: 16.x` o simile | il client è più vecchio del database: `pg_dump` va solo in avanti | **Redeploy dell'immagine `jobs`**: adesso installa il client più recente da PGDG (18.x), che dumpa qualunque server più vecchio |
+| `connection refused` / `could not translate host name` | `DATABASE_URL` punta a un host che il container non vede | Verifica il nome del container Postgres sulla rete `ugo-backend` (§2.1) |
+| `password authentication failed` | credenziali sbagliate nella `DATABASE_URL` di `jobs` | Riallineala a quella di `soul-api` |
+
+Per sapere che versione ha il tuo database, dal server:
+
+```bash
+docker exec -it <NOME_CONTAINER_POSTGRES> psql -U ugo -d ugo -c 'select version();'
+```
+
+> Se il messaggio è ancora il vecchio `pg_dump failed (exit 1)` **senza spiegazione**, stai girando
+> un'immagine precedente: fai il redeploy di `jobs` e riprova.
+
 ### Ollama non risponde o il sogno fallisce in riflessione
 RAM insufficiente per il modello batch: nei log di ollama compare `out of memory` o il container
 viene ucciso (OOMKilled). Alza `<OLLAMA_RAM_LIMIT>` o scegli un MoE più piccolo; gli embeddings da
