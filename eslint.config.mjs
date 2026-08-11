@@ -9,9 +9,6 @@ export default tseslint.config(
       "**/.turbo/**",
       "**/coverage/**",
       "packages/db/drizzle/**",
-      // spike fuori dal workspace pnpm: nessun tsconfig di progetto da cui
-      // partire, e per definizione non è codice che va in produzione
-      "spikes/**",
     ],
   },
   eslint.configs.recommended,

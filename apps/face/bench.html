@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UGO — banco del corpo</title>
+    <style>
+      :root {
+        --ground: #171416;
+        --panel: #211b1e;
+        --edge: #342b2f;
+        --ink: #f1e7e9;
+        --muted: #a39095;
+        --accent: #e08aa2;
+        --data: #6fb3aa;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --ground: #f7f3f2;
+          --panel: #ffffff;
+          --edge: #e6dcdd;
+          --ink: #241c1f;
+          --muted: #6d5b60;
+          --accent: #c2607d;
+          --data: #2f7a72;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font: 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr);
+        gap: 14px;
+        padding: 14px;
+        min-height: 100vh;
+      }
+      @media (max-width: 900px) { body { grid-template-columns: 1fr; } }
+      .stage { display: flex; flex-direction: column; gap: 10px; }
+      #face {
+        width: 100%;
+        height: clamp(320px, 56vh, 560px);
+        display: block;
+        background: radial-gradient(120% 100% at 50% 8%, var(--panel), var(--ground));
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+      }
+      #readout {
+        padding: 8px 12px;
+        border: 1px solid var(--edge);
+        border-radius: 10px;
+        color: var(--data);
+        font-size: 11.5px;
+        min-height: 2.4em;
+      }
+      .rail { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 96vh; }
+      section {
+        border: 1px solid var(--edge);
+        border-radius: 12px;
+        padding: 12px;
+        background: var(--panel);
+      }
+      h2 {
+        margin: 0 0 8px;
+        font-size: 10.5px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      h2 small { color: var(--muted); letter-spacing: 0.05em; text-transform: none; }
+      h3 {
+        margin: 10px 0 5px;
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      button {
+        font: inherit;
+        font-size: 11px;
+        padding: 6px 9px;
+        margin: 0 4px 4px 0;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      button:hover { border-color: var(--accent); color: var(--ink); }
+      button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+      .row { display: grid; grid-template-columns: 5.5em 1fr 2.6em; gap: 8px; align-items: center; }
+      .row label { color: var(--muted); font-size: 11px; }
+      .row span { text-align: right; color: var(--data); font-size: 11px; font-variant-numeric: tabular-nums; }
+      input[type="range"] { width: 100%; accent-color: var(--accent); }
+      input[type="checkbox"] { accent-color: var(--accent); }
+      :where(button, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <canvas id="face"></canvas>
+      <div id="readout"></div>
+    </div>
+    <div class="rail">
+      <section>
+        <h2>Stato <small>· discreto, dal WS</small></h2>
+        <div id="states"></div>
+      </section>
+      <section>
+        <h2>Postura <small>· asse a sé, si incrocia con lo stato</small></h2>
+        <div id="postures"></div>
+        <button id="auto">↺ decide lui</button>
+        <label style="display: flex; gap: 8px; align-items: center; margin-top: 8px; color: var(--muted)">
+          <input type="checkbox" id="wander" checked /> gira per la stanza e grufola
+        </label>
+      </section>
+      <section>
+        <h2>Psiche <small>· continua, §5.3</small></h2>
+        <div id="psyche"></div>
+      </section>
+      <section>
+        <h2>Gesti <small>· <span id="count">0</span> eventi, non stati</small></h2>
+        <div id="gestures"></div>
+      </section>
+      <section>
+        <h2>Genoma <small>· la forma, ADR-015</small></h2>
+        <div id="genome"></div>
+      </section>
+    </div>
+    <script type="module" src="/src/bench.ts"></script>
+  </body>
+</html>

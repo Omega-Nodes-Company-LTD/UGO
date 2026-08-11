@@ -1,6 +1,8 @@
 import type { FaceState } from "@ugo/shared/face";
+import type { FaceRenderer } from "./body/faceRenderer.js";
+import type { PsycheVars } from "./body/pose.js";
 
-export interface MoodView {
+interface MoodView {
   label: string;
   /** umore drives the ears: dritte = gasato, afflosciate = mogio */
   umore: number;
@@ -23,8 +25,14 @@ const GLANCE_EVERY_MS = 4200;
 const GLANCE_SPREAD_MS = 3500;
 const GLANCE_LASTS_MS = 700;
 
-/** Low-poly pig face on canvas: eyes with gaze-follow, mood ears, snout. */
-export class FaceRenderer {
+/**
+ * Low-poly pig face on canvas: eyes with gaze-follow, mood ears, snout.
+ *
+ * Still here on purpose (ADR-026): it is the fallback for a device without
+ * WebGL, for headless rendering with no GPU, and for the day the battery says
+ * no to the 3D body. It reads the same interface, so nothing above it knows.
+ */
+export class Canvas2dFace implements FaceRenderer {
   private mood: MoodView = { label: "", umore: 0.55, stress: 0.3 };
   private state: FaceState = "idle";
   /** where the eyes are told to look */
@@ -47,9 +55,24 @@ export class FaceRenderer {
     this.lowPower = on;
   }
 
-  public setMood(mood: MoodView): void {
-    this.mood = mood;
+  public setMood(label: string, vars: Partial<PsycheVars>): void {
+    this.mood = {
+      label,
+      umore: vars.umore ?? this.mood.umore,
+      stress: vars.stress ?? this.mood.stress,
+    };
   }
+
+  /** The 2D face has no gesture layer; reacting is the 3D body's job. */
+  public reflex(): void {
+    // intentionally empty: nothing to play here
+  }
+
+  public readonly debug = (): Record<string, string | number> => ({
+    state: this.state,
+    mood: this.mood.label,
+    renderer: "2d",
+  });
 
   public setState(state: FaceState): void {
     this.state = state;

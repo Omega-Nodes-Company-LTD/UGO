@@ -32,6 +32,7 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 ## Prossimi Passi
 
 - [Primo avvio](./01-getting-started/primo-avvio.md) — accendere UGO e dirgli la prima cosa.
+- [Il corpo di UGO](./02-core-features/il-corpo-di-ugo.md) — posture, gesti, cosa dice il muso.
 - [Parlare con UGO](./02-core-features/parlare-con-ugo.md) — voce, memoria, umore.
 - [In giro](./02-core-features/in-giro.md) — registrare a vista, privacy, biglietto da visita.
 - [I tuoi dati](./02-core-features/i-tuoi-dati.md) — esportare tutto, far dimenticare una persona.

@@ -690,6 +690,66 @@ browser reale. In tutto 52 pytest, 101 di integrazione in `soul`, 22 e2e.
 aperti: l'astensione (non risolvibile con una soglia sul coseno, misurato) e il fatto che i `fact`
 scavalcano gli `episode` (costo di ADR-021, misurato).
 
+## 6-undecies. Il corpo di casa ha un corpo (ADR-026)
+
+Il muso 2D disegnava **una** variabile di psiche su sei: `umore` pilotava le orecchie, `stress`
+arrivava al renderer e non veniva usato, le altre quattro non arrivavano. Metà del motore di
+omeostasi era invisibile — e una variabile invisibile non esiste, per chi guarda.
+
+Il proprietario ha chiesto «almeno un centinaio di stati». La risposta non è un elenco: sono
+**tre strati sovrapposti**, più un asse nuovo.
+
+| | Cosa | Dove |
+|---|---|---|
+| Strato 1 | posa continua: venti canali dalle sei variabili di §5.3 | `body/pose.ts`, puro |
+| Strato 2 | i sei stati di §4.1, che *inclinano* la posa | dal WS di soul |
+| Strato 3 | **56 gesti** (sbadiglio, starnuto, scrollata, grufolata…), eventi con inizio e fine | `body/gestures.ts`, dati |
+| Asse nuovo | **postura** — in piedi / seduto / coricato / accovacciato, miscelata e **ortogonale** allo stato | `body/posture.ts` |
+
+Pensa da coricato, parla da seduto, si annoia in piedi. E lasciato in pace **gira per la stanza e
+grufola**: la voglia di muoversi esce da `noia` ed `energia` (`body/wander.ts`), non da un timer.
+Tutto locale, **zero token** (§4.1): soul dice in che stato è, cosa fa con le orecchie è affare suo.
+
+Il porcetto è **generato a runtime** da una decina di solidi arrotondati: nessun asset binario in
+repository, nessuna licenza di terzi. `Traits` (forma) è separato da `Pose` (movimento) ed è
+l'aggancio per `trait_sets`, che dalla nascita esiste e non pilota nulla.
+
+**Due renderer dietro un'interfaccia**, ed è questa la decisione di ADR-026 — non «passiamo al 3D».
+`Canvas2dFace` resta il fallback per un dispositivo senza WebGL, per la batteria, e per l'headless
+senza GPU. Scelta per capacità, override con `?renderer=2d|3d`, fallback silenzioso.
+
+### Le quattro regole che tengono in piedi il continuo
+
+1. **Mappatura non lineare** (zona morta ±0.03, esponente 0.62): lineare, la psiche resta sempre
+   vicino alla baseline e la creatura sembra morta.
+2. **Una firma esclusiva per variabile**, o due si sommano sullo stesso muscolo e si annullano.
+3. **I gesti come punteggiatura**, pescati con pesi che vengono dalla psiche (`body/autonomy.ts`).
+4. **Il banco** `/bench.html`, che gira sugli **stessi moduli** del kiosk — due copie di una
+   mappatura espressiva divergono in una settimana.
+
+### Tre difetti trovati dai test, non dalla revisione
+
+1. **`noia` era invisibile.** Nella prima stesura smorzava soltanto altri canali: annoiato e
+   sereno, da fermi, erano identici. Ora ha la sua firma — lo sguardo che si stacca da te e vaga.
+   Il test «ogni variabile muove qualcosa da sola» è la regressione.
+2. **`lastNow = 0` era sia "mai partito" sia un istante legittimo**, e il primo `step` lasciava
+   `dt = 0` per sempre. Trovato dal test della dissolvenza fra posture, in `posture.ts` e `wander.ts`.
+3. **Un gesto che non torna a zero fa uno scatto** quando il suo orologio finisce: `doze` chiudeva
+   gli occhi con una rampa e poi li spalancava di colpo. Le forme `rise`/`fall` sono state tolte
+   dal linguaggio e l'invariante è asserito su tutto il catalogo.
+
+### Numeri della validazione
+
+- unit face: **49** (posa, catalogo gesti, postura, autonomia) · e2e: **28** su browser reale con
+  WebGL software, soul reale, Postgres+pgvector e Ollama reali
+- `pnpm turbo build lint typecheck test`: verde · bundle 172 kB gzip (era ~34): three.js è 138 kB
+  in un chunk a sé
+- Spike `spikes/pig3d` **rimosso**: superato dal codice vero, e due copie della mappatura
+  sarebbero divergute
+
+**Da misurare sul ferro:** la batteria per una giornata sul 3a Pro, e il rendering software per
+`meet-face` (in CI, con SwiftShader, 2–6 fps: funziona, non è gratis).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -711,6 +771,9 @@ scavalcano gli `episode` (costo di ADR-021, misurato).
 | Ollama nel compose non ha i modelli pullati al primo avvio | Chat → errore embeddings finché `nomic-embed-text` non è presente | `docker compose exec ollama ollama pull nomic-embed-text` (post-deploy step nel runbook Coolify) |
 | Cache hit reale non verificabile senza chiave API | Solo la *disciplina* è verificata (posizione/stabilità blocchi) | Al primo deploy: 2 chiamate reali e verifica `cache_read_input_tokens` nel ledger |
 | Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
+| `Webgl3dFace` importato staticamente | Un dispositivo che usa il fallback 2D scarica lo stesso i 138 kB di three.js | Import dinamico in `createFace`, che diventa asincrono: piccolo, ma tocca l'ordine di avvio di `main.ts` |
+| Batteria del corpo 3D mai misurata | È il vincolo della Fase 4, e nessun numero lo copre | Una giornata sul 3a Pro; il fallback 2D è già lì se il numero è brutto |
+| Stato faccia di soul **per processo**, non per connessione | Due schede aperte si vedono lo stesso stato; gli e2e devono ordinarsi (`z-body.e2e.spec.ts`) | Diventa reale con più corpi per casa (ADR-019 fase 3): lì lo stato va per esemplare |
 
 ## 8. Prossimo passo operativo
 
