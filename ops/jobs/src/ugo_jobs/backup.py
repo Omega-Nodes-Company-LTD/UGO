@@ -72,6 +72,23 @@ def _prune_old(client, bucket: str, retention_days: int) -> int:  # noqa: ANN001
     return pruned
 
 
+def backup_exists(cfg: JobsConfig, dream_date: str) -> bool:
+    """Is the backup for that night actually in the bucket?
+
+    The step marker only says "we did it once". If the object is later gone —
+    a bucket recreated, a retention rule too eager, a hand slipping — the
+    marker keeps saying yes and the backup silently becomes a belief. Asking
+    the bucket costs one call a night.
+    """
+    try:
+        _s3_client(cfg).head_object(
+            Bucket=cfg.s3_bucket_backup, Key=f"{KEY_PREFIX}{dream_date}.dump.enc"
+        )
+        return True
+    except Exception:  # noqa: BLE001 - missing, unreachable or denied: redo it
+        return False
+
+
 def run_backup(cfg: JobsConfig, dream_date: str) -> BackupResult:
     dump = _dump_database(cfg.database_url)
     sealed = encrypt_bytes(dump, parse_data_key(cfg.data_key_b64))

@@ -146,6 +146,13 @@ export const ADMIN_PAGE = `<!doctype html>
                 justify-content: space-between; gap: .5rem; align-items: center; }
   ul.plain li:last-child { border-bottom: 0; }
   .flags { font-size: .8rem; color: var(--muted); }
+  /* corrections on a memory: present, but never louder than the memory */
+  button.link { background: none; border: 0; padding: 0 .1rem; font: inherit;
+    font-size: .8rem; color: var(--muted); text-decoration: underline; cursor: pointer; }
+  button.link:hover { color: var(--ink); }
+  button.link.danger:hover { color: var(--danger, #b3261e); }
+  li.retired { opacity: .55; }
+  li.retired b { text-decoration: line-through; }
   .msg { margin-top: .8rem; padding: .55rem .7rem; border-radius: .45rem; font-size: .88rem; }
   .msg.ok { background: #0ca30c1a; } .msg.err { background: #d03b3b1a; } .msg.info { background: var(--sunk); }
   code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em;

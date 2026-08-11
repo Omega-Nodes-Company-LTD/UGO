@@ -93,6 +93,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     if (privacy !== undefined) {
       registerPrivacyRoutes(app, { ...privacy, guard });
     }
+    // the archive is about memories and meetings, and had no business being
+    // gated on the species map: it was registered there only because both
+    // arrived in the same afternoon
+    registerArchiveRoutes(app, { db: options.db, chat: v1.chat, guard });
     if (speciesMap !== undefined) {
       registerPackRoutes(app, {
         db: options.db,
@@ -100,7 +104,6 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         guard,
         ...(audio !== undefined && { audio }),
       });
-      registerArchiveRoutes(app, { db: options.db, chat: v1.chat, guard });
       registerAdminRoutes(app);
     }
     if (stats !== undefined) {

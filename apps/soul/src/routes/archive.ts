@@ -7,15 +7,26 @@ import type { ChatService } from "../services/chatService.js";
 import type { PreHandler } from "./guard.js";
 
 /**
- * Read-only windows onto what UGO has accumulated: what he remembers, and
- * which meetings he sat through. Guarded — these return stored content, not
- * just counts, and on a rented box (ADR-017) the tailnet is the only other
- * thing standing in front of them.
+ * Windows onto what UGO has accumulated, and the two corrections a person
+ * needs when he has got something wrong: "non è più vero" and "non doveva
+ * esserci". Guarded — these return stored content, not just counts, and on a
+ * rented box (ADR-017) the tailnet is the only other thing in front of them.
  *
  * This is a window, not the way to use the memory: the way is to ask him.
  */
 
 const RECENT_LIMIT = 30;
+
+/** `valid: false` retires a memory; `true` brings it back. */
+const invalidateSchema = z.object({
+  valid: z.boolean(),
+  reason: z.string().min(1).max(300).optional(),
+});
+
+function memoryId(params: unknown): string | undefined {
+  const parsed = z.object({ id: z.uuid() }).safeParse(params);
+  return parsed.success ? parsed.data.id : undefined;
+}
 
 const listQuerySchema = z.object({
   kind: z.enum(MEMORY_KINDS).optional(),
@@ -66,12 +77,71 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         importance: memories.importance,
         lastAccessed: memories.lastAccessed,
         createdAt: memories.createdAt,
+        validFrom: memories.validFrom,
+        invalidatedAt: memories.invalidatedAt,
+        invalidatedReason: memories.invalidatedReason,
       })
       .from(memories)
       .where(kind === undefined ? undefined : eq(memories.kind, kind))
       .orderBy(desc(memories.createdAt))
       .limit(limit);
     return reply.send({ mode: "recent", memories: rows });
+  });
+
+  /**
+   * "Non è più vero."
+   *
+   * The memory is kept and stops being retrieved. Deleting would be tidier and
+   * wrong: what UGO used to believe explains what he said last month, and a
+   * biography with holes cannot be audited. Reversible on purpose — an owner
+   * who invalidates the wrong one must be able to take it back.
+   */
+  app.patch("/v1/memories/:id", { preHandler: deps.guard }, async (request, reply) => {
+    const id = memoryId(request.params);
+    const parsed = invalidateSchema.safeParse(request.body);
+    if (id === undefined || !parsed.success) {
+      return reply
+        .code(400)
+        .type("application/problem+json")
+        .send({ type: "about:blank", title: "Invalid correction", status: 400 });
+    }
+    const [updated] = await deps.db
+      .update(memories)
+      .set(
+        parsed.data.valid
+          ? { invalidatedAt: null, invalidatedReason: null }
+          : {
+              invalidatedAt: new Date(),
+              ...(parsed.data.reason !== undefined && { invalidatedReason: parsed.data.reason }),
+            },
+      )
+      .where(eq(memories.id, id))
+      .returning({ id: memories.id, invalidatedAt: memories.invalidatedAt });
+    if (updated === undefined) {
+      return reply
+        .code(404)
+        .type("application/problem+json")
+        .send({ type: "about:blank", title: "Memory not found", status: 404 });
+    }
+    request.log.info({ memoryId: id, valid: parsed.data.valid }, "memory validity changed");
+    return reply.send(updated);
+  });
+
+  /** "Non doveva esserci." Gone for good — the one thing invalidation is not. */
+  app.delete("/v1/memories/:id", { preHandler: deps.guard }, async (request, reply) => {
+    const id = memoryId(request.params);
+    if (id === undefined) {
+      return reply
+        .code(400)
+        .type("application/problem+json")
+        .send({ type: "about:blank", title: "Invalid memory id", status: 400 });
+    }
+    const gone = await deps.db
+      .delete(memories)
+      .where(eq(memories.id, id))
+      .returning({ id: memories.id });
+    request.log.info({ memoryId: id, existed: gone.length > 0 }, "memory destroyed");
+    return reply.send({ destroyed: gone.length > 0 });
   });
 
   app.get("/v1/meetings", { preHandler: deps.guard }, async (_request, reply) => {
