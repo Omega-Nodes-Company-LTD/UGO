@@ -2,6 +2,7 @@ import { ARCHIVE_JS } from "./script/archive.js";
 import { CHARTS_JS } from "./script/charts.js";
 import { CORE_JS } from "./script/core.js";
 import { DATA_JS } from "./script/data.js";
+import { GRAPH_JS } from "./script/graph.js";
 import { PACK_JS } from "./script/pack.js";
 import { RELATIONS_JS } from "./script/relations.js";
 import { STATUS_JS } from "./script/status.js";
@@ -21,6 +22,7 @@ export const ADMIN_SCRIPT = [
   RELATIONS_JS,
   VOICE_JS,
   ARCHIVE_JS,
+  GRAPH_JS,
   DATA_JS,
   STATUS_JS,
 ].join("\n");

@@ -635,6 +635,61 @@ Verifiche: 8 pytest nuovi su Postgres+pgvector, Ollama e un server HTTP veri (43
 chiama Bruno» e «Bruno dorme sul router» si completano, e un risolutore troppo zelante cancella
 conoscenza in silenzio, di notte, senza che nessuno guardi.
 
+## 6-quindecies. Chi riguarda un ricordo, e come si legano (ADR-024, e il grafo)
+
+`memory_beings` esisteva da quando lo schema del branco è nato ed era **scritta da nessuno**;
+`relations` si popolava solo a mano. UGO sapeva chi è Ivan e sapeva cosa era successo, ma non che
+quel ricordo parlasse di Ivan.
+
+Due meccanismi, perché sono due problemi:
+
+- **`memory_beings` per corrispondenza, non per inferenza.** Il nome e gli alias di un essere si
+  cercano nel testo come parola intera: zero token, zero allucinazioni, risultato identico a ogni
+  esecuzione. Un modello qui non aggiungerebbe accuratezza, solo il rischio di collegare un ricordo
+  a chi non c'entra. Limite dichiarato: «mio fratello» non collega nessuno, perché non è un nome —
+  un arco mancante si vede, uno falso no.
+- **`relations` le propone il modello, solo fra esseri già noti**, e solo per i ricordi che ne
+  nominano almeno due. **Il sogno non crea mai un `being`**: un parente allucinato sarebbe una
+  persona inventata dentro il branco di una famiglia vera.
+- **Migrazione `0009`**: `relations.source` (`owner` | `dream`). «Me l'hai detto tu» e «l'ho capito
+  io» sono affermazioni diverse, e il pannello mostra quel grafo al proprietario.
+
+**Trappola di drizzle-kit, la seconda dopo quella delle FK composte di ADR-019**: per un enum nuovo
+genera l'`ALTER TABLE` ma **non il `CREATE TYPE`**, quindi la migrazione fallisce su un database
+vero. Aggiunto a mano, con la nota nel file: se la si rigenera, va rimesso.
+
+**Il grafo della memoria** chiude il gruppo. `GET /v1/memories/graph` restituisce nodi e archi — mai
+il testo integrale, tetto a 200 nodi — e il pannello lo disegna in SVG a mano come `charts.ts`
+(nessuna libreria, nessun build step). Layout radiale e deterministico, non a forze: un grafo che si
+rimescola a ogni ricarica è un grafo che nessuno impara a leggere. Il quadrato è una persona, il
+cerchio un ricordo, il cerchio vuoto un ricordo ritirato, il tratteggio una sostituzione — la forma
+è la legenda, il colore non porta significato da solo.
+
+## 6-sedecies. Quando la casa è vuota, UGO mette in ordine (ADR-025)
+
+Il sogno esisteva e partiva una volta a notte: tutto ciò che maturava di giorno aspettava le 02:30
+anche a casa vuota dalle due del pomeriggio.
+
+- Il sogno guadagna una **modalità `light`**: `contradictions`, `entities`, `hygiene`. Fuori
+  `ingest` (senza voci non c'è audio nuovo), `backup` (è una promessa notturna) e soprattutto
+  `reflect` — **il giorno non è finito**, e rileggere mezza giornata scriverebbe ricordi a metà.
+- **I marcatori diventano per modalità.** Era la trappola: con la chiave `(date, step)` una corsa
+  leggera del pomeriggio avrebbe dichiarato fatto il passo notturno. Ora è `(date, step, mode)`, e
+  i marcatori scritti prima valgono come `full` grazie a un `coalesce` — nessuna migrazione.
+- Lato soul, `IdleConsolidation` ha la stessa forma di `SolitudeMonitor` e usa lo stesso trasporto
+  del trigger manuale. Una richiesta **per tratto di quiete**, non per tick; mai entro un'ora dal
+  sogno vero; e se il runner è giù **il marcatore resta**, perché un runner spento non deve far
+  riprovare UGO ogni quarto d'ora per tutto il pomeriggio.
+- Il vincolo è il budget, ed era già in piedi: è esattamente il motivo per cui la guardia è arrivata
+  con ADR-023 e non dopo.
+
+Verifiche: 9 pytest su entità e relazioni, 8 di integrazione sul consolidamento, 1 e2e sul grafo con
+browser reale. In tutto 52 pytest, 101 di integrazione in `soul`, 22 e2e.
+
+**Il Gruppo 1 del backlog è chiuso**, con due punti nuovi che ha generato lui stesso e che restano
+aperti: l'astensione (non risolvibile con una soglia sul coseno, misurato) e il fatto che i `fact`
+scavalcano gli `episode` (costo di ADR-021, misurato).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -646,6 +701,8 @@ conoscenza in silenzio, di notte, senza che nessuno guardi.
 | **I fatti scavalcano gli episodi** (§6-duodecies) | Medio: una domanda su un episodio riceve cinque fatti. Conseguenza misurata di ADR-021 | Riapre la *forma* della formula, non i suoi valori: la recency moltiplicativa non è confrontabile fra tipi. Da valutare col banco quando si tocca il ranking la prossima volta |
 | **Il recupero non sa tacere** (§6-terdecies) | A una domanda senza risposta UGO riceve comunque ricordi irrilevanti nel prompt | **Non risolvibile con una soglia**: misurato in ADR-022, le bande di similarità con e senza risposta si sovrappongono. Serve un criterio relativo, una verifica del modello, o un embedder che separi meglio |
 | **`memories.text` in chiaro con un indice che ne dipende** (ADR-022) | Cifrare i ricordi non sarebbe più una migrazione di colonna: sarebbe rinunciare alla ricerca lessicale | Impegno consapevole rispetto a CLAUDE.md regola 6. `messages` e `transcript_segments` restano ciphertext e fuori dalla ricerca ibrida |
+| **drizzle-kit non genera `CREATE TYPE` per un enum nuovo** (§6-quindecies) | Una migrazione che sembra corretta fallisce sul database vero | Aggiunto a mano nella `0009`, con la nota nel file. Seconda trappola dopo l'ordinamento delle FK composte (ADR-019): le migrazioni generate vanno **sempre** provate contro Postgres, mai lette e basta |
+| **La normalizzazione dei tipi simmetrici vive in due lingue** (ADR-024) | Una regola sola, scritta in TypeScript (`BeingsService.link`) e in Python (`entities.py`) | Il check constraint `relations_symmetric_normalized` è la rete sotto entrambe. Da unificare se nasce un terzo scrittore |
 | Encoder vocale MFCC, non neurale | Separa poche voci in casa; su rumore reale sarà più fragile | Vendorizzare pyannote/WeSpeaker dietro la porta `VoiceEncoder`; `recognition_profiles.model` impedisce di confondere i centroidi |
 | Perimetro biometrico non formalizzato | Nessuno finché l'enrollment resta sul corpo di casa | Rispondere alla domanda §6-quater prima di estendere il riconoscimento fuori casa |
 | Guscio Android: **deciso, non ancora costruito** | Il corpo di casa gira come PWA installata (sufficiente nel dock); **il corpo in giro non può ancora registrare a schermo spento** | ADR-018 **accettato**, adozione in due tempi: Tempo 1 (PWA + wake lock) fatto; Tempo 2 (APK Capacitor) quando si apre davvero la Fase 4. Serve la toolchain Android, non verificabile nella CI attuale |

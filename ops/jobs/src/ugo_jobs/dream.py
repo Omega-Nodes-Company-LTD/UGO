@@ -19,15 +19,35 @@ from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
 from .contradictions import run_contradictions
 from .enroll_step import run_enroll
+from .entities import run_entities
 from .hygiene import run_hygiene
 from .ingest import run_ingest
-from .markers import mark_step_done, step_done
+from .markers import FULL, LIGHT, mark_step_done, step_done
 from .reflect import run_reflect
 
 # contradictions sits between reflect and hygiene on purpose (ADR-023):
 # reflect writes tonight's memories, hygiene merges near-duplicates above
 # 0.95 cosine and deletes one of the pair. Judge first, compact after.
-STEPS = ("ingest", "enroll", "reflect", "contradictions", "hygiene", "compaction", "backup")
+STEPS = (
+    "ingest",
+    "enroll",
+    "reflect",
+    "contradictions",
+    "entities",
+    "hygiene",
+    "compaction",
+    "backup",
+)
+
+#: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
+#: is nothing new to transcribe if nobody has spoken), no backup (a backup is a
+#: nightly promise, not an idle-time chore), no reflection (the day is not over
+#: yet, and re-reading half a day would write half-formed memories).
+LIGHT_STEPS = ("contradictions", "entities", "hygiene")
+
+
+def steps_for(mode: str) -> tuple[str, ...]:
+    return LIGHT_STEPS if mode == LIGHT else STEPS
 
 
 def yesterday(cfg: JobsConfig) -> str:
@@ -35,11 +55,15 @@ def yesterday(cfg: JobsConfig) -> str:
     return (now - timedelta(days=1)).date().isoformat()
 
 
-def run_dream(cfg: JobsConfig, dream_date: str) -> dict[str, object]:
-    report: dict[str, object] = {"dream_date": dream_date}
+def today(cfg: JobsConfig) -> str:
+    return datetime.now(ZoneInfo(cfg.timezone)).date().isoformat()
+
+
+def run_dream(cfg: JobsConfig, dream_date: str, mode: str = FULL) -> dict[str, object]:
+    report: dict[str, object] = {"dream_date": dream_date, "mode": mode}
     with psycopg.connect(cfg.database_url) as conn:
-        for step in STEPS:
-            if step_done(conn, dream_date, step):
+        for step in steps_for(mode):
+            if step_done(conn, dream_date, step, mode):
                 # the backup is the one step whose result lives outside this
                 # database: trust the marker only if the object is still there
                 if step != "backup" or backup_exists(cfg, dream_date):
@@ -74,6 +98,13 @@ def run_dream(cfg: JobsConfig, dream_date: str) -> dict[str, object]:
                     "pairs": contradictions.pairs_examined,
                     "superseded": contradictions.superseded,
                 }
+            elif step == "entities":
+                entities = run_entities(conn, cfg, dream_date)
+                report[step] = {
+                    "memories": entities.memories_linked,
+                    "beings": entities.beings_linked,
+                    "relations": entities.relations_inferred,
+                }
             elif step == "hygiene":
                 hygiene = run_hygiene(conn, dream_date)
                 report[step] = {
@@ -94,20 +125,29 @@ def run_dream(cfg: JobsConfig, dream_date: str) -> dict[str, object]:
                     "bytes": backup.encrypted_bytes,
                     "pruned": backup.pruned,
                 }
-            mark_step_done(conn, dream_date, step)
+            mark_step_done(conn, dream_date, step, mode)
     return report
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run UGO's nightly dream")
     parser.add_argument("--date", help="dream date YYYY-MM-DD (default: yesterday in TZ)")
+    parser.add_argument(
+        "--mode",
+        choices=(FULL, LIGHT),
+        default=FULL,
+        help="light = consolidation only, for an idle-time run (ADR-025)",
+    )
     arguments = parser.parse_args()
     try:
         cfg = JobsConfig.from_env()
     except ConfigError as error:
         print(str(error), file=sys.stderr)
         return 1
-    report = run_dream(cfg, arguments.date or yesterday(cfg))
+    # a light run consolidates *today*, not yesterday: it exists because the
+    # day is quiet right now, and yesterday is already done
+    default_date = today(cfg) if arguments.mode == LIGHT else yesterday(cfg)
+    report = run_dream(cfg, arguments.date or default_date, arguments.mode)
     print(json.dumps({"dream_report": report}, ensure_ascii=False))
     return 0
 

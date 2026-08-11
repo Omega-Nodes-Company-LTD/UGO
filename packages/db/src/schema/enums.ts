@@ -8,6 +8,7 @@ import {
   MEMORY_KINDS,
   MESSAGE_CHANNELS,
   RECOGNITION_MODALITIES,
+  RELATION_SOURCES,
   RELATION_TYPES,
 } from "@ugo/shared";
 
@@ -21,6 +22,7 @@ export const memoryKind = pgEnum("memory_kind", MEMORY_KINDS);
 export const desireStatus = pgEnum("desire_status", DESIRE_STATUSES);
 export const beingKind = pgEnum("being_kind", BEING_KINDS);
 export const relationType = pgEnum("relation_type", RELATION_TYPES);
+export const relationSource = pgEnum("relation_source", RELATION_SOURCES);
 export const recognitionModality = pgEnum("recognition_modality", RECOGNITION_MODALITIES);
 export const correctionSignal = pgEnum("correction_signal", CORRECTION_SIGNALS);
 export const accessRole = pgEnum("access_role", ACCESS_ROLES);

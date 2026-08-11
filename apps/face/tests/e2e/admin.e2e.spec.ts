@@ -237,6 +237,23 @@ test("what UGO remembers can be read, and searched the way he would", async ({ p
   await expect(page.getByTestId("mem-msg-text")).toHaveText(/Ecco cosa ripescherebbe/);
 });
 
+test("the memory graph draws what UGO has connected, and says so in words", async ({ page }) => {
+  await openPanel(page);
+
+  // somebody for the memories to be about
+  await addBeing(page, "Ivan Bianchi");
+
+  await page.getByTestId("graph-go").click();
+
+  // the shape is the legend: squares are people, circles are memories
+  await expect(page.getByTestId("graph-node").first()).toBeVisible();
+  await expect(page.getByTestId("graph-svg").locator("svg")).toHaveAttribute(
+    "aria-label",
+    "Grafo della memoria",
+  );
+  await expect(page.getByTestId("graph-msg-text")).toContainText(/nodi/);
+});
+
 test("meetings are listed, and a bad link is refused with a reason", async ({ page }) => {
   await openPanel(page);
   await expect(page.getByTestId("meet-list")).toContainText("Nessuna riunione");

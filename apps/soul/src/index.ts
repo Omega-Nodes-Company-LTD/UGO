@@ -10,6 +10,7 @@ import { PackService } from "./services/packService.js";
 import { ExportService } from "./services/privacy/exportService.js";
 import { ForgetService } from "./services/privacy/forgetService.js";
 import { PsycheService } from "./services/psycheService.js";
+import { IdleConsolidation } from "./services/idleConsolidation.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { buildServer } from "./server.js";
 
@@ -150,6 +151,39 @@ const solitudeTimer = setInterval(() => {
   });
 }, SOLITUDE_TICK_MS);
 solitudeTimer.unref();
+
+// backlog gruppo 1: the dream exists, what was missing was the trigger for
+// when UGO has been left alone for a while (ADR-025)
+if (env.UGO_IDLE_CONSOLIDATION_MINUTES > 0) {
+  const triggerUrl = env.UGO_JOBS_TRIGGER_URL;
+  const idle = new IdleConsolidation({
+    db,
+    options: {
+      idleMinutes: env.UGO_IDLE_CONSOLIDATION_MINUTES,
+      nightGuardMinutes: 60,
+      dreamAt: env.UGO_DREAM_AT,
+      timezone: env.TZ,
+    },
+    logger: app.log,
+    ...(triggerUrl !== undefined && {
+      trigger: async (mode: "light"): Promise<void> => {
+        const response = await fetch(triggerUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ mode }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!response.ok) throw new Error(`status ${String(response.status)}`);
+      },
+    }),
+  });
+  const idleTimer = setInterval(() => {
+    idle.tick().catch((error: unknown) => {
+      app.log.warn(error, "idle consolidation tick failed");
+    });
+  }, SOLITUDE_TICK_MS);
+  idleTimer.unref();
+}
 
 const snapshotTimer = setInterval(() => {
   psyche.snapshot().catch((error: unknown) => {

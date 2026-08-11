@@ -11,22 +11,33 @@ import psycopg
 MARKER_TYPE = "dream_step_completed"
 
 
-def step_done(conn: psycopg.Connection, dream_date: str, step: str) -> bool:
+#: ADR-025: a light run during the day must not mark the night's step done.
+#: Markers written before modes existed carry no `mode` and are full ones.
+FULL = "full"
+LIGHT = "light"
+
+
+def step_done(
+    conn: psycopg.Connection, dream_date: str, step: str, mode: str = FULL
+) -> bool:
     row = conn.execute(
         """
         select 1 from events
         where source = 'system' and type = %s
           and payload->>'date' = %s and payload->>'step' = %s
+          and coalesce(payload->>'mode', %s) = %s
         limit 1
         """,
-        (MARKER_TYPE, dream_date, step),
+        (MARKER_TYPE, dream_date, step, FULL, mode),
     ).fetchone()
     return row is not None
 
 
-def mark_step_done(conn: psycopg.Connection, dream_date: str, step: str) -> None:
+def mark_step_done(
+    conn: psycopg.Connection, dream_date: str, step: str, mode: str = FULL
+) -> None:
     conn.execute(
         "insert into events (source, type, payload) values ('system', %s, %s)",
-        (MARKER_TYPE, json.dumps({"date": dream_date, "step": step})),
+        (MARKER_TYPE, json.dumps({"date": dream_date, "step": step, "mode": mode})),
     )
     conn.commit()

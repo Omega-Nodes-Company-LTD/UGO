@@ -282,6 +282,14 @@ export const ADMIN_PAGE = `<!doctype html>
     <ul class="plain" id="mem-list" data-testid="mem-list"></ul>
     <div id="mem-msg"></div>
 
+    <h3>Come si legano</h3>
+    <p class="lede">Chi parla di chi, chi è parente di chi, e cosa ha preso il posto di cosa.
+       Il quadrato è una persona, il cerchio un ricordo; un cerchio vuoto è un ricordo ritirato,
+       e la linea tratteggiata dice «questo ha sostituito quello».</p>
+    <button id="graph-go" data-testid="graph-go" style="flex:0 0 auto">Disegna</button>
+    <div id="graph-svg" data-testid="graph-svg"></div>
+    <div id="graph-msg"></div>
+
     <h3>Riunioni</h3>
     <div class="row">
       <div><label for="meet-url">Link della call</label>

@@ -33,6 +33,10 @@ export type RelationType = (typeof RELATION_TYPES)[number];
 /** Symmetric relations are stored once, normalized on being_a < being_b. */
 export const SYMMETRIC_RELATION_TYPES = ["partner_of"] as const;
 
+/** Who asserted a relation (ADR-024): the owner typed it, or the dream inferred it. */
+export const RELATION_SOURCES = ["owner", "dream"] as const;
+export type RelationSource = (typeof RELATION_SOURCES)[number];
+
 /** Perception channels (ADR-016). Open-ended for the same reason as species. */
 export const MODALITIES = [
   "audio_speech",

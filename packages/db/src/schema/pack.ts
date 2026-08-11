@@ -14,7 +14,7 @@ import { SYMMETRIC_RELATION_TYPES } from "@ugo/shared";
 import { beings } from "./beings.js";
 import { gosini } from "./gosini.js";
 import { householdId } from "./households.js";
-import { relationType } from "./enums.js";
+import { relationSource, relationType } from "./enums.js";
 
 /**
  * What THIS exemplar feels about a being (ADR-014). Per-exemplar by design:
@@ -80,6 +80,13 @@ export const relations = pgTable(
     beingB: uuid("being_b").notNull(),
     type: relationType("type").notNull(),
     strength: real("strength").notNull().default(1),
+    /**
+     * Who says so (ADR-024). The panel shows this graph to the owner, and
+     * «me l'hai detto tu» and «l'ho capito io» are different claims. Defaults
+     * to `owner` because every row that existed before the dream could infer
+     * anything was in fact typed by hand.
+     */
+    source: relationSource("source").notNull().default("owner"),
   },
   (table) => [
     unique("relations_pair_type_uq").on(table.beingA, table.beingB, table.type),
