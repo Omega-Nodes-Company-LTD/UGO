@@ -77,6 +77,18 @@ def ollama_url() -> str:
 class _BatchModelHandler(BaseHTTPRequestHandler):
     reflection: dict[str, object] = {}
     calls: list[dict[str, object]] = []
+    # ADR-023: the dream asks more than one kind of question now. Each route is
+    # (marker found in the prompt, answer); anything unmatched still gets
+    # `reflection`, so the tests written before this existed are untouched.
+    routes: list[tuple[str, dict[str, object]]] = []
+
+    def _answer_for(self, body: dict[str, object]) -> dict[str, object]:
+        messages = body.get("messages", [])
+        prompt = messages[0].get("content", "") if messages else ""
+        for marker, answer in type(self).routes:
+            if marker in prompt:
+                return answer
+        return type(self).reflection
 
     def do_POST(self) -> None:  # noqa: N802 — http.server API
         length = int(self.headers.get("content-length", "0"))
@@ -84,7 +96,7 @@ class _BatchModelHandler(BaseHTTPRequestHandler):
         type(self).calls.append(body)
         payload = {
             "model": body.get("model", ""),
-            "message": {"role": "assistant", "content": json.dumps(type(self).reflection)},
+            "message": {"role": "assistant", "content": json.dumps(self._answer_for(body))},
             "done": True,
         }
         data = json.dumps(payload).encode()

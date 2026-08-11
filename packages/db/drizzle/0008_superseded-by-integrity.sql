@@ -1,0 +1,2 @@
+ALTER TABLE "memories" ADD CONSTRAINT "memories_superseded_by_fk" FOREIGN KEY ("superseded_by") REFERENCES "public"."memories"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "memories_superseded_by_idx" ON "memories" USING btree ("superseded_by");

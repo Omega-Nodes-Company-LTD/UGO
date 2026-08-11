@@ -1,5 +1,15 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgTable, real, text, timestamp, uuid, vector } from "drizzle-orm/pg-core";
+import {
+  foreignKey,
+  index,
+  jsonb,
+  pgTable,
+  real,
+  text,
+  timestamp,
+  uuid,
+  vector,
+} from "drizzle-orm/pg-core";
 import { EMBEDDING_DIMENSIONS } from "@ugo/shared";
 import { memoryKind } from "./enums.js";
 import { gosinoId } from "./self.js";
@@ -39,7 +49,10 @@ export const memories = pgTable(
     invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
     /** in the owner's words: "si è trasferito", "non era vero" */
     invalidatedReason: text("invalidated_reason"),
-    /** the memory that took its place, when there is one */
+    /**
+     * The memory that took its place, when there is one. Written by the
+     * owner from the panel and, since ADR-023, by the dream itself.
+     */
     supersededBy: uuid("superseded_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     /**
@@ -64,5 +77,15 @@ export const memories = pgTable(
     // retrieval asks for the living ones on every single turn
     index("memories_alive_idx").on(table.gosinoId, table.invalidatedAt),
     index("memories_search_gin_idx").using("gin", table.searchVector),
+    // ADR-023: a bare uuid pointing at a row `DELETE /v1/memories/:id` can
+    // remove is a dangling pointer waiting to happen, and the memory graph
+    // will read this edge. `set null` because losing the pointer is right when
+    // the replacement is gone — the retirement itself still stands.
+    foreignKey({
+      name: "memories_superseded_by_fk",
+      columns: [table.supersededBy],
+      foreignColumns: [table.id],
+    }).onDelete("set null"),
+    index("memories_superseded_by_idx").on(table.supersededBy),
   ],
 );

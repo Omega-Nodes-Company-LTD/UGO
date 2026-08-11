@@ -3,6 +3,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import {
   budgetLedger,
   createDbClient,
+  memories,
   messages,
   runMigrations,
   type DbClient,
@@ -10,6 +11,7 @@ import {
 import { EMBED_MODEL, startLlmStub, startOllama, type LlmStub, type OllamaHandle } from "@ugo/factories";
 import { DEGRADED_REPLY, LlmClient, OllamaEmbeddingsClient, writeMemory } from "@ugo/memory";
 import { decryptText } from "@ugo/shared";
+import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
@@ -257,6 +259,38 @@ describe("a fact that stopped being true", () => {
     // a wrong correction must be undoable
     await app.inject({ method: "PATCH", url: `/v1/memories/${id}`, payload: { valid: true } });
     expect((await asked()).some((text) => text.includes("Ivan"))).toBe(true);
+    await app.close();
+  });
+
+  it("stops claiming to be superseded once it is brought back (ADR-023)", async () => {
+    const app = await buildSession();
+    const retired = await firstMemoryId(app);
+    const replacement = await writeMemory(db, embedder, {
+      kind: "fact",
+      text: "Da marzo i pacchi li porta un corriere diverso.",
+      importance: 0.7,
+    });
+
+    // what the dream does: retire, and say what took its place
+    await db
+      .update(memories)
+      .set({
+        invalidatedAt: new Date(),
+        invalidatedReason: "il sogno: ha cambiato lavoro",
+        supersededBy: replacement.id,
+      })
+      .where(eq(memories.id, retired));
+
+    await app.inject({ method: "PATCH", url: `/v1/memories/${retired}`, payload: { valid: true } });
+
+    const [row] = await db
+      .select({ superseded: memories.supersededBy, invalidated: memories.invalidatedAt })
+      .from(memories)
+      .where(eq(memories.id, retired));
+    expect(row?.invalidated).toBeNull();
+    // the bug this guards: a memory the owner brought back that still points
+    // at its replacement is a memory that says two opposite things about itself
+    expect(row?.superseded).toBeNull();
     await app.close();
   });
 

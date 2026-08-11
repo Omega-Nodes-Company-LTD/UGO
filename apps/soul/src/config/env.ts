@@ -51,6 +51,15 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.url().optional(),
   ),
+  // ADR-025: how long the house must be quiet before UGO uses the pause to
+  // consolidate. 0 turns idle consolidation off entirely.
+  UGO_IDLE_CONSOLIDATION_MINUTES: z
+    .preprocess((value) => (value === "" ? undefined : value), z.coerce.number().int().min(0).default(90)),
+  // the nightly dream's own hour, so the idle run stands well clear of it
+  UGO_DREAM_AT: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().regex(/^\d{2}:\d{2}$/).default("02:30"),
+  ),
   // ADR-016: the Umwelt map is configuration. Malformed JSON must fail the
   // boot, not silently make UGO treat a reptile like a human.
   UGO_SPECIES_MAP: optionalNonEmpty,

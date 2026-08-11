@@ -57,6 +57,20 @@
       "when": 1786466057321,
       "tag": "0007_memory-hybrid-search",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786469930519,
+      "tag": "0008_superseded-by-integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786473391278,
+      "tag": "0009_relation-provenance",
+      "breakpoints": true
     }
   ]
 }

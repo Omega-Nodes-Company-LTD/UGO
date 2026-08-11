@@ -109,7 +109,10 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
       .update(memories)
       .set(
         parsed.data.valid
-          ? { invalidatedAt: null, invalidatedReason: null }
+          ? // `supersededBy` goes too, or a memory the owner brought back keeps
+            // declaring itself replaced — latent until ADR-023, because until
+            // then nothing ever wrote that column
+            { invalidatedAt: null, invalidatedReason: null, supersededBy: null }
           : {
               invalidatedAt: new Date(),
               ...(parsed.data.reason !== undefined && { invalidatedReason: parsed.data.reason }),
