@@ -48,10 +48,22 @@ col telefono in tasca e lo schermo spento. Per il dock questo basta.
 > Se il telefono si spegne lo stesso, guarda il risparmio energetico: sotto una certa soglia di
 > batteria alcuni telefoni ignorano la richiesta. Nel dock, tienilo alimentato.
 
+> **Una cosa da sapere sull'ascolto continuo.** Il riconoscimento vocale è quello del browser, e
+> quello di Chrome **non è locale**: mentre le orecchie sono accese, ciò che dici passa dai server di
+> Google per essere trascritto. La voce che UGO usa per rispondere, invece, è del telefono e non esce
+> di casa. Il pulsante **👂** è il modo di chiudere il rubinetto in qualsiasi momento; la soluzione
+> definitiva è la parola di richiamo riconosciuta sul dispositivo (`Ehi UGO`), che arriva con l'app.
+
 ## La prima conversazione
 
-1. Tocca il muso. UGO passa in ascolto (il grugno si muove).
+Da agosto 2026 **non devi toccare niente**: appena accendi i sensi, UGO resta in ascolto. In basso
+c'è **👂 ti ascolto**; premilo per spegnere le orecchie quando vuoi parlare senza che senta, e
+ripremilo per riaccenderle.
+
+1. Parla, e basta. UGO passa in ascolto (il grugno si muove).
 2. Di' qualcosa che valga la pena ricordare, per esempio: `Ciao UGO, il corriere DHL si chiama Ivan`.
+   Un mugugno o una parola sola non lo disturbano: sotto le due parole non ascolta, e quando parla
+   lui chiude le orecchie — altrimenti si risponderebbe da solo, a spese tue.
 3. UGO risponde a voce e sullo schermo compare la frase. Sotto, a sinistra, leggi il suo umore
    corrente (per esempio `sereno`).
 4. Domani chiedigli `come si chiama il corriere?`: se te lo dice, la memoria funziona.
