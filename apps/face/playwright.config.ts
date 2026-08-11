@@ -15,8 +15,16 @@ export default defineConfig({
       ...(process.env.UGO_CHROMIUM_PATH !== undefined && {
         executablePath: process.env.UGO_CHROMIUM_PATH,
       }),
-      // fake mic so the portable recorder runs for real in headless e2e
-      args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+      args: [
+        // fake mic so the portable recorder runs for real in headless e2e
+        "--use-fake-device-for-media-stream",
+        "--use-fake-ui-for-media-stream",
+        // software WebGL: without these the 3D body (ADR-026) silently falls
+        // back to the 2D canvas here, and the e2e would stop covering it
+        "--use-gl=angle",
+        "--use-angle=swiftshader",
+        "--enable-unsafe-swiftshader",
+      ],
     },
   },
   webServer: {

@@ -3,7 +3,7 @@ import { startCameraGaze, startPointerGaze } from "./gaze.js";
 import { GlyphDriver } from "./glyph.js";
 import { PortableController } from "./portable.js";
 import { ScreenAwake } from "./wakelock.js";
-import { FaceRenderer } from "./renderer.js";
+import { createFace } from "./body/createFace.js";
 import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { Speech } from "./speech.js";
@@ -36,7 +36,12 @@ const soulUrl = resolveSoulUrl(location, params.get("soul"));
 const portableMode = params.get("mode") === "portable";
 const soulHttp = soulHttpBase(soulUrl);
 
-const renderer = new FaceRenderer(canvas);
+// ADR-026: the body is 3D where the device can, 2D where it cannot. Nothing
+// below this line knows which one it got.
+const renderer = createFace(canvas, {
+  force: params.get("renderer"),
+  wander: params.get("wander") !== "off",
+});
 const glyph = new GlyphDriver(app);
 const speech = new Speech();
 let lastPresenceAt = 0;
@@ -63,11 +68,8 @@ function onServerMessage(message: ServerToFaceMessage): void {
       return;
     case "mood": {
       moodLabel.textContent = message.label;
-      renderer.setMood({
-        label: message.label,
-        umore: message.vars.umore ?? 0.55,
-        stress: message.vars.stress ?? 0.3,
-      });
+      // every psyche variable reaches the body now, not just umore and stress
+      renderer.setMood(message.label, message.vars);
       return;
     }
     case "speak":
@@ -95,11 +97,14 @@ const sensors = new Sensors(
   },
   () => {
     setLocalState("alert");
+    // zero-token local reaction: he jumps before soul has heard about it
+    renderer.reflex("noise");
   },
 );
 
 canvas.addEventListener("pointerdown", () => {
   socket.send({ type: "tap" });
+  renderer.reflex("tap");
 });
 
 /**
@@ -248,6 +253,11 @@ declare global {
       awake: () => { available: boolean; held: boolean };
     };
     __ugoGlyph: { current: () => string | undefined; available: () => boolean };
+    __ugoBody: {
+      debug: () => Record<string, string | number>;
+      play: (id: string) => void;
+      mood: (vars: Record<string, number>) => void;
+    };
     __ugoPortable: {
       startRec: () => Promise<void>;
       stopRec: () => Promise<void>;
@@ -266,6 +276,15 @@ window.__ugoFace = {
   queued: () => socket.queuedCount(),
   queuedFresh: () => socket.queuedCountFresh(),
   awake: () => ({ available: awake.available(), held: awake.held() }),
+};
+window.__ugoBody = {
+  debug: () => renderer.debug(),
+  play: (id) => {
+    renderer.reflex(id);
+  },
+  mood: (vars) => {
+    renderer.setMood("test", vars);
+  },
 };
 window.__ugoGlyph = {
   current: () => glyph.currentPattern(),
