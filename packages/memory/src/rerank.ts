@@ -18,7 +18,7 @@
  */
 import { reciprocalRankFusion } from "./fusion.js";
 
-export const RECENCY_TAU_DAYS: Record<string, number> = {
+export const RECENCY_TAU_DAYS = {
   /** something that happened on a day: its bearing on today really does fade */
   episode: 30,
   /** an understanding of how things are — stable, but revisable in silence */
@@ -27,10 +27,17 @@ export const RECENCY_TAU_DAYS: Record<string, number> = {
   preference: 365,
   /** a state of the world: it does not fade, it gets invalidated */
   fact: 730,
-};
+} as const;
 
 /** An unknown kind should fade too fast rather than live forever. */
 const FALLBACK_TAU_DAYS = Math.min(...Object.values(RECENCY_TAU_DAYS));
+
+/**
+ * `kind` is a plain string on the candidate — the row could carry a kind this
+ * build has never heard of — so the lookup is widened deliberately rather than
+ * asserted away.
+ */
+const tauByKind: Record<string, number | undefined> = RECENCY_TAU_DAYS;
 
 const MS_PER_DAY = 86_400_000;
 
@@ -63,7 +70,7 @@ export interface RankedMemory extends RerankCandidate {
 export function recencyFactor(candidate: RerankCandidate, now: Date): number {
   const reference = candidate.lastAccessed ?? candidate.createdAt;
   const ageDays = Math.max(0, now.getTime() - reference.getTime()) / MS_PER_DAY;
-  const tau = RECENCY_TAU_DAYS[candidate.kind] ?? FALLBACK_TAU_DAYS;
+  const tau = tauByKind[candidate.kind] ?? FALLBACK_TAU_DAYS;
   return Math.exp(-ageDays / tau);
 }
 
