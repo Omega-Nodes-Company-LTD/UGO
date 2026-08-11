@@ -16,6 +16,8 @@
  * are both bounded by 1 — so the two terms that carry the information could not
  * outvote age for anything older than a season.
  */
+import { reciprocalRankFusion } from "./fusion.js";
+
 export const RECENCY_TAU_DAYS: Record<string, number> = {
   /** something that happened on a day: its bearing on today really does fade */
   episode: 30,
@@ -40,10 +42,21 @@ export interface RerankCandidate {
   importance: number;
   lastAccessed: Date | null;
   createdAt: Date;
+  /** 1-based position in the vector arm; absent if only the lexical arm found it */
+  vectorRank?: number | undefined;
+  /** 1-based position in the lexical arm; absent if only the vector arm found it */
+  lexicalRank?: number | undefined;
 }
 
 export interface RankedMemory extends RerankCandidate {
   recency: number;
+  /**
+   * What took similarity's place in the product: the fused rank when the search
+   * had two arms, the plain similarity when it had one. `similarity` is kept
+   * alongside as the diagnostic it always was — `/v1/memories/search` returns
+   * it, and a lexical-only hit needs to be able to show a poor cosine.
+   */
+  relevance: number;
   score: number;
 }
 
@@ -58,7 +71,11 @@ export function rerank(candidates: readonly RerankCandidate[], now: Date): Ranke
   return candidates
     .map((candidate) => {
       const recency = recencyFactor(candidate, now);
-      return { ...candidate, recency, score: candidate.similarity * candidate.importance * recency };
+      const fused = candidate.vectorRank !== undefined || candidate.lexicalRank !== undefined;
+      const relevance = fused
+        ? reciprocalRankFusion(candidate.vectorRank, candidate.lexicalRank)
+        : candidate.similarity;
+      return { ...candidate, recency, relevance, score: relevance * candidate.importance * recency };
     })
     .sort((a, b) => b.score - a.score);
 }

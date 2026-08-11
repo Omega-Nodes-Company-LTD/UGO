@@ -1,6 +1,7 @@
 import { memories, type DbClient } from "@ugo/db";
 import type { MemoryKind } from "@ugo/shared";
-import { cosineDistance, inArray, sql } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
+import { fetchCandidates } from "./candidates.js";
 import type { EmbeddingsClient } from "./embeddings.js";
 import { rerank, type RankedMemory } from "./rerank.js";
 
@@ -37,9 +38,27 @@ export async function writeMemory(
 }
 
 /**
- * Top-k semantic retrieval (PROGETTO §5.4): pgvector cosine top-N candidates,
- * pure re-rank similarity × importance × recency, then touch last_accessed of
- * the winners so used memories stay alive.
+ * Below this cosine similarity a memory is noise, not an answer — unless the
+ * lexical arm found it, see below. Same value as `searchTranscripts`, and the
+ * same reasoning, because the bench showed the alternative does not work:
+ * across this corpus the best similarity for an unanswerable question reaches
+ * 0.672 while an answerable one starts at 0.624, so the two ranges **overlap**
+ * and no absolute cut separates them. A threshold cannot deliver abstention
+ * here, so it should not try: its only job is dropping obvious noise, and a
+ * conservative value does that without discarding true answers. At 0.6 it was
+ * already cutting the right episodic answer.
+ */
+export const MIN_SIMILARITY = 0.5;
+
+/**
+ * Top-k hybrid retrieval (PROGETTO §5.4, ADR-022): vector and lexical arms,
+ * fused by rank, re-ranked by relevance × importance × recency, then
+ * `last_accessed` touched on the winners so used memories stay alive.
+ *
+ * The threshold is disjunctive: a row survives if it is semantically close
+ * **or** if the lexical arm matched it. That asymmetry is the feature, not a
+ * loophole — a number plate has a poor cosine and an exact token, and dropping
+ * it for being "far" would throw away the one case hybrid search exists for.
  */
 export async function searchMemories(
   db: DbClient,
@@ -51,25 +70,12 @@ export async function searchMemories(
   const [queryEmbedding] = await embedder.embed([query]);
   if (queryEmbedding === undefined) throw new Error("query embedding returned nothing");
 
-  const distance = cosineDistance(memories.embedding, queryEmbedding);
-  const candidates = await db
-    .select({
-      id: memories.id,
-      text: memories.text,
-      kind: memories.kind,
-      importance: memories.importance,
-      lastAccessed: memories.lastAccessed,
-      createdAt: memories.createdAt,
-      similarity: sql<number>`1 - (${distance})`,
-    })
-    .from(memories)
-    // an invalidated memory is kept for the biography and never retrieved:
-    // similarity has no idea that a fact stopped being true
-    .where(sql`${memories.embedding} is not null and ${memories.invalidatedAt} is null`)
-    .orderBy(distance)
-    .limit(k * CANDIDATE_MULTIPLIER);
+  const candidates = await fetchCandidates(db, queryEmbedding, query, k * CANDIDATE_MULTIPLIER);
+  const worthAnswering = candidates.filter(
+    (candidate) => candidate.similarity >= MIN_SIMILARITY || candidate.lexicalRank !== undefined,
+  );
 
-  const ranked = rerank(candidates, now).slice(0, k);
+  const ranked = rerank(worthAnswering, now).slice(0, k);
   if (ranked.length > 0) {
     await db
       .update(memories)

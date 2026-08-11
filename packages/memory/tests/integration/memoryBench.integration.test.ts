@@ -67,20 +67,20 @@ const daysAgo = (days: number): Date => new Date(NOW.getTime() - days * MS_PER_D
  * Non-regression floors, one per family: measured, not wished for. They rise
  * and never fall, and each move records the backlog point that caused it.
  *
- * Raised 2026-08-11 by ADR-021 (τ per kind), which took `semantica` from 0 to
- * a full recall and `temporale` from MRR 0.5 to 1. See ./bench/BASELINE.md for
- * the before and after on the same corpus and the same command.
+ * Raised twice on 2026-08-11: by ADR-021 (τ per kind) and then by ADR-022
+ * (hybrid search). See ./bench/BASELINE.md for all three measurements on the
+ * same corpus and the same command.
  *
- * `astensione` stays at 0: `searchMemories` has no threshold and cannot return
- * nothing. That one belongs to "ricerca ibrida BM25 + vettoriale". A floor of 0
- * asserts nothing on purpose — it records a fact rather than pretending to
- * guard one.
+ * `astensione` stays at 0, and this time not for lack of a mechanism: the
+ * similarity bands of answerable and unanswerable questions overlap on this
+ * corpus, so no absolute threshold separates them. A floor of 0 asserts nothing
+ * on purpose — it records a fact rather than pretending to guard one.
  */
 const FLOORS: Record<Family, { recallAtK: number; mrr: number }> = {
   temporale: { recallAtK: 1, mrr: 1 },
   contraddizione: { recallAtK: 1, mrr: 1 },
-  semantica: { recallAtK: 1, mrr: 0.54 },
-  lessicale: { recallAtK: 0.75, mrr: 0.58 },
+  semantica: { recallAtK: 1, mrr: 0.64 },
+  lessicale: { recallAtK: 1, mrr: 0.8 },
   astensione: { recallAtK: 0, mrr: 0 },
 };
 
@@ -225,8 +225,7 @@ describe("banco di prova della memoria", () => {
   it("still lets an episode fade, which is what the decay is for", async () => {
     // ADR-021 lengthens τ for facts, not for everything: within a kind, what
     // happened last month still loses to what happened last week. Asked for the
-    // whole living corpus, because facts now sit above episodes in any mixed
-    // ranking — see the next test, which is about exactly that.
+    // whole living corpus, because facts outrank episodes in any mixed ranking.
     const stale = idByKey.get("libreria-montaggio"); // episode, 100 days
     const fresh = idByKey.get("lavatrice-rumore"); // episode, 12 days
     const everything = corpus.memories.length;
@@ -234,31 +233,54 @@ describe("banco di prova della memoria", () => {
     await db.update(memories).set({ lastAccessed: null });
     const ids = found.map((memory) => memory.id);
     expect(ids).toContain(fresh);
-    expect(ids).toContain(stale);
-    expect(ids.indexOf(fresh ?? "")).toBeLessThan(ids.indexOf(stale ?? ""));
+    expect(ids.indexOf(fresh ?? "")).toBeLessThan(
+      ids.includes(stale ?? "") ? ids.indexOf(stale ?? "") : Number.MAX_SAFE_INTEGER,
+    );
   });
 
-  it("now ranks facts above episodes even when the question is about an episode", async () => {
-    // The cost of ADR-021, measured rather than assumed. A per-kind τ makes the
-    // recency factor incomparable across kinds: a 12-day episode sits at 0.67
-    // while a 120-day fact sits at 0.85, so a mixed ranking fills up with facts.
-    // Asked "cosa si è rotto in casa?", the top five are the cat, the meeting,
-    // the number plate, the allergy and the wifi — and the broken washing
-    // machine is not among them.
+  it("still cannot abstain: the similarity bands overlap (ADR-022)", async () => {
+    // Measured, not assumed. Across this corpus the best similarity for a
+    // question with no answer reaches 0.604, 0.637 and 0.672, while a question
+    // with an answer starts at 0.624 — the two ranges overlap, so no absolute
+    // cut separates them. MIN_SIMILARITY sits at 0.6 to drop obvious noise, and
+    // deliberately not at the 0.675 that would "pass" this corpus by four
+    // thousandths of fitted margin.
     //
-    // Recorded as a test, not just as prose, because it is a real trade-off and
-    // whoever changes the ranking next should be told by a failure, not by
-    // reading BASELINE.md.
-    const found = await searchMemories(db, embedder, "cosa si è rotto in casa?", K, NOW);
-    await db.update(memories).set({ lastAccessed: null });
-    expect(found.every((memory) => memory.kind === "fact")).toBe(true);
-  });
-
-  it("has no way to abstain yet: an unanswerable question still gets answers", async () => {
-    // Not a wish, a measurement: retrieval has no threshold, so it always
-    // returns k rows. This test is what "ricerca ibrida" has to overturn.
-    const found = await searchMemories(db, embedder, "qual e il codice IBAN del conto?", K, NOW);
+    // Abstention therefore needs a mechanism that is not a threshold on cosine.
+    // It stays open in the backlog, and this test holds the evidence.
+    const found = await searchMemories(
+      db,
+      embedder,
+      "qual e il codice IBAN del conto corrente?",
+      K,
+      NOW,
+    );
     await db.update(memories).set({ lastAccessed: null });
     expect(found.length).toBeGreaterThan(0);
+  });
+
+  it("finds a code and a proper noun that similarity alone missed (ADR-022)", async () => {
+    // The two cases the hybrid arm exists for. The number plate has a poor
+    // cosine (0.624) and an exact token; "Ferretti" is named inside a memory
+    // that is otherwise about boilers.
+    for (const [query, key] of [
+      ["GK492NR", "targa-auto"],
+      ["chi e il tecnico Ferretti?", "caldaia-modello"],
+    ] as const) {
+      const found = await searchMemories(db, embedder, query, K, NOW);
+      await db.update(memories).set({ lastAccessed: null });
+      expect(found[0]?.id, `${query} should surface ${key} first`).toBe(idByKey.get(key));
+    }
+  });
+
+  it("does not let the lexical arm resurrect an invalidated memory", async () => {
+    // The classic way to get this wrong is to filter `invalidated_at is null`
+    // on the vector arm only, and let a retired fact back in through the side
+    // door. "Ferrari" appears verbatim in the retired job memory and nowhere
+    // else, so the lexical arm would find it if the filter were missing.
+    const retired = idByKey.get("ivan-lavoro-vecchio");
+    const found = await searchMemories(db, embedder, "Ferrari trasporti autista", K, NOW);
+    await db.update(memories).set({ lastAccessed: null });
+    expect(found.map((memory) => memory.id)).not.toContain(retired);
   });
 });

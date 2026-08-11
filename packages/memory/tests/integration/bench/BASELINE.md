@@ -11,16 +11,17 @@ Postgres 16 + pgvector reali, Ollama reale, modello `nomic-embed-text` (768d). C
 
 ## Le misure
 
-| Famiglia | Domande | recall@5 prima | recall@5 dopo | MRR prima | MRR dopo |
-|---|---|---|---|---|---|
-| temporale | 1 | 1.00 | 1.00 | 0.50 | **1.00** |
-| contraddizione | 1 | 1.00 | 1.00 | 1.00 | 1.00 |
-| semantica | 4 | 0.00 | **1.00** | 0.00 | **0.54** |
-| lessicale | 4 | 0.00 | **0.75** | 0.00 | **0.58** |
-| astensione | 3 | 0.00 (astensione) | 0.00 (astensione) | — | — |
+| Famiglia | Domande | recall@5 · A → B → C | MRR · A → B → C |
+|---|---|---|---|
+| temporale | 1 | 1.00 → 1.00 → 1.00 | 0.50 → **1.00** → 1.00 |
+| contraddizione | 1 | 1.00 → 1.00 → 1.00 | 1.00 → 1.00 → 1.00 |
+| semantica | 4 | 0.00 → **1.00** → 1.00 | 0.00 → **0.54** → **0.65** |
+| lessicale | 4 | 0.00 → **0.75** → **1.00** | 0.00 → **0.58** → **0.80** |
+| astensione | 3 | astensione 0.00 → 0.00 → 0.00 | — |
 
-- **prima** = 2026-08-11, recupero semantico con τ globale di 30 giorni.
-- **dopo** = 2026-08-11, **ADR-021**: τ per tipo di ricordo.
+- **A** = recupero solo semantico, τ globale di 30 giorni (il punto di partenza).
+- **B** = **ADR-021**: τ per tipo di ricordo.
+- **C** = **ADR-022**: ricerca ibrida lessicale + vettoriale, fusione RRF, soglia disgiuntiva.
 
 ## Cosa ha trovato la prima misura
 
@@ -60,13 +61,33 @@ giorni prima), ma le domande episodiche ricevono risposte fattuali.
 È registrato come test eseguibile, non solo qui: chi cambierà il ranking la prossima volta lo saprà
 da un fallimento, non da un file di documentazione.
 
-## Quel che resta
+## Cosa ha cambiato ADR-022 (misura C)
 
-*astensione* è a zero e non si è mossa. `searchMemories` non ha alcuna soglia e restituisce sempre
-`k` righe: non risponde male alle domande senza risposta, non ha proprio il modo di tacere. Il
-confronto è con `searchTranscripts`, che una soglia ce l'ha (`MIN_SIMILARITY = 0.5`). È il compito
-della **ricerca ibrida BM25 + vettoriale**, insieme al resto di *lessicale* — il tecnico Ferretti,
-citato dentro un ricordo che parla di caldaie, non si trova ancora.
+Due bracci — vettoriale e lessicale — fusi per rango con RRF, e una soglia disgiuntiva. *lessicale*
+arriva a recall pieno e MRR 0.80: `GK492NR` è primo, e «chi è il tecnico Ferretti?» ora trova il
+ricordo che lo nomina pur parlando di caldaie. *semantica* sale ancora, da 0.54 a 0.65, perché la
+soglia toglie il rumore che sedeva sopra la risposta.
+
+## La cosa che il banco ha smentito
+
+ADR-022 doveva anche risolvere l'**astensione**, e non la risolve. Misurate sul corpus, le migliori
+similarità sono:
+
+| | migliore similarità |
+|---|---|
+| domande **senza** risposta | 0.604 · 0.637 · 0.672 |
+| domande **con** risposta | da 0.624 a 0.893 |
+
+**Le due bande si sovrappongono**: nessun taglio assoluto le separa. Ce n'è uno che «farebbe passare»
+questo corpus — 0.675 — e sarebbe quattro millesimi di margine tarati sul test, cioè aver visto le
+risposte, non aver risolto il problema.
+
+La soglia resta quindi a 0.5, lo stesso valore che `searchTranscripts` usa già: non tenta
+l'astensione, toglie solo il rumore evidente. A 0.6 tagliava anche la risposta episodica giusta —
+alla domanda «cosa si è rotto in casa?» spariva la lavatrice — che è il modo peggiore di sbagliare.
+
+L'astensione resta aperta nel backlog e richiede un meccanismo che non sia una soglia sul coseno: un
+criterio relativo invece che assoluto, una verifica del modello, o un embedder che separi meglio.
 
 ## Le soglie
 

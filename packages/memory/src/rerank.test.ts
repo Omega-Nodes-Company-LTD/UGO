@@ -59,6 +59,52 @@ describe("rerank = similarità × importanza × recency", () => {
   });
 });
 
+// ADR-022: with two arms the product takes the fused rank instead of the raw
+// similarity, which is what lets a lexical-only hit compete at all.
+describe("relevance = fused rank when the search had two arms (ADR-022)", () => {
+  it("falls back to plain similarity when neither arm reported a rank", () => {
+    // the single-arm path, unchanged: every existing caller lands here
+    const [ranked] = rerank([candidate({ similarity: 0.7, importance: 0.5 })], NOW);
+    expect(ranked?.relevance).toBe(0.7);
+  });
+
+  it("keeps similarity as a diagnostic even when relevance replaces it", () => {
+    const [ranked] = rerank([candidate({ similarity: 0.31, vectorRank: 4, lexicalRank: 1 })], NOW);
+    expect(ranked?.similarity).toBe(0.31);
+    expect(ranked?.relevance).not.toBe(0.31);
+  });
+
+  it("lets a poor cosine with an exact word match beat a mediocre semantic hit", () => {
+    // the measured case: a number plate has a bad cosine and an exact token
+    const code = candidate({
+      id: "targa",
+      similarity: 0.32,
+      importance: 0.7,
+      lexicalRank: 1,
+      vectorRank: undefined,
+    });
+    const vague = candidate({
+      id: "vago",
+      similarity: 0.61,
+      importance: 0.7,
+      vectorRank: 1,
+      lexicalRank: undefined,
+    });
+    const ranked = rerank([vague, code], NOW);
+    // agreement decides nothing here — both were first in exactly one arm —
+    // so they tie on relevance and importance, and recency breaks it
+    expect(ranked.map((one) => one.id).sort()).toEqual(["targa", "vago"]);
+    expect(ranked[0]?.relevance).toBe(ranked[1]?.relevance);
+  });
+
+  it("puts what both arms agree on above what only one of them found", () => {
+    const agreed = candidate({ id: "both", similarity: 0.4, vectorRank: 1, lexicalRank: 1 });
+    const oneArm = candidate({ id: "one", similarity: 0.9, vectorRank: 1 });
+    const ranked = rerank([oneArm, agreed], NOW);
+    expect(ranked[0]?.id).toBe("both");
+  });
+});
+
 // ADR-021: the exponential decay used to do two jobs at once — "questo ricordo
 // non serve più" and "questo ricordo non è più vero". Migration 0006 gave the
 // second one its own mechanism, so τ can go back to meaning only the first,

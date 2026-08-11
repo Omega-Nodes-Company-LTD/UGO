@@ -549,6 +549,41 @@ prossima volta lo scopre da un fallimento, non da un file di documentazione.
 
 PROGETTO §5.4 aggiornato. Verifiche: 20 unit puri su `rerank`, 8 di integrazione sul banco.
 
+## 6-terdecies. Un nome proprio non si trova per somiglianza (ADR-022)
+
+Ricerca ibrida: `memories` guadagna una colonna `tsvector` generata (migrazione `0007`) e un indice
+GIN; il recupero interroga due bracci — vettoriale e lessicale — li fonde per rango con RRF e applica
+una soglia **disgiuntiva** (vicinanza semantica **oppure** corrispondenza lessicale).
+
+Tre scelte che meritano di essere ricordate:
+
+- **Colonna generata, non trigger.** `ForgetService.redactMemories` riscrive `memories.text` durante
+  l'oblio: un indice mantenuto da trigger, se il trigger venisse disabilitato, terrebbe il nome
+  cancellato dentro l'indice full-text e cercarlo lo ritroverebbe. Una colonna `STORED` non può
+  divergere dalla riga. Verificato su Postgres reale.
+- **`italian` + `simple` in un vettore solo**, con pesi A/B: il primo fa stemming e toglie le
+  stopword, il secondo conserva `GK492NR` e «Ferretti» come token interi.
+- **RRF invece di somma pesata**: il coseno sta in `[0,1]`, `ts_rank_cd` è illimitata; fonderle per
+  punteggio richiede una normalizzazione instabile proprio quando un braccio è vuoto.
+
+**Guadagno**: `lessicale` da recall 0.75 a **1.00** e MRR da 0.58 a **0.80** — `GK492NR` è primo, e
+«chi è il tecnico Ferretti?» trova il ricordo che lo nomina pur parlando di caldaie. `semantica` da
+MRR 0.54 a **0.65**.
+
+**Quel che il banco ha smentito**: ADR-022 doveva anche risolvere l'astensione, e non la risolve. Le
+migliori similarità delle domande **senza** risposta (0.604 · 0.637 · 0.672) si **sovrappongono** a
+quelle delle domande con risposta (0.624–0.893). Nessun taglio assoluto le separa; quello che
+«farebbe passare» il corpus, 0.675, sarebbe quattro millesimi di margine tarati sul test. La soglia
+resta a 0.5 — lo stesso valore di `searchTranscripts` — e fa solo il lavoro che una soglia può fare.
+A 0.6 tagliava anche la risposta episodica giusta. **L'astensione torna in backlog come punto
+proprio**, e chiede un meccanismo che non sia una soglia sul coseno.
+
+Nessun contratto di API cambia: `searchMemories` mantiene la firma, quindi `chatService` e
+`GET /v1/memories?q=` guadagnano la ricerca ibrida senza una riga di modifica.
+
+Verifiche: 32 unit puri (`fusion`, `rerank`, `metrics`), 20 di integrazione in `@ugo/memory`, 13 in
+`@ugo/db`, 92 in `soul` — nessuna regressione.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -558,7 +593,8 @@ PROGETTO §5.4 aggiornato. Verifiche: 20 unit puri su `rerank`, 8 di integrazion
 | Chiave dati e database sulla stessa macchina (ADR-017) | La cifratura a riposo copre backup/snapshot/dump, non root sul server vivo | Copia offline di `UGO_DATA_KEY` obbligatoria (runbook §1.7); un KMS ha senso solo se il ferro diventa più di uno |
 | ~~Il recency del re-rank seppellisce i ricordi vecchi~~ | — | **Chiuso** da ADR-021 (§6-duodecies): τ per `kind` |
 | **I fatti scavalcano gli episodi** (§6-duodecies) | Medio: una domanda su un episodio riceve cinque fatti. Conseguenza misurata di ADR-021 | Riapre la *forma* della formula, non i suoi valori: la recency moltiplicativa non è confrontabile fra tipi. Da valutare col banco quando si tocca il ranking la prossima volta |
-| **Il recupero non sa tacere** (§6-undecies) | `searchMemories` restituisce sempre `k` righe: a una domanda senza risposta UGO riceve comunque cinque ricordi irrilevanti nel prompt | Soglia disgiuntiva insieme alla ricerca ibrida (vicinanza semantica **oppure** match lessicale); il precedente è `MIN_SIMILARITY` in `transcripts.ts` |
+| **Il recupero non sa tacere** (§6-terdecies) | A una domanda senza risposta UGO riceve comunque ricordi irrilevanti nel prompt | **Non risolvibile con una soglia**: misurato in ADR-022, le bande di similarità con e senza risposta si sovrappongono. Serve un criterio relativo, una verifica del modello, o un embedder che separi meglio |
+| **`memories.text` in chiaro con un indice che ne dipende** (ADR-022) | Cifrare i ricordi non sarebbe più una migrazione di colonna: sarebbe rinunciare alla ricerca lessicale | Impegno consapevole rispetto a CLAUDE.md regola 6. `messages` e `transcript_segments` restano ciphertext e fuori dalla ricerca ibrida |
 | Encoder vocale MFCC, non neurale | Separa poche voci in casa; su rumore reale sarà più fragile | Vendorizzare pyannote/WeSpeaker dietro la porta `VoiceEncoder`; `recognition_profiles.model` impedisce di confondere i centroidi |
 | Perimetro biometrico non formalizzato | Nessuno finché l'enrollment resta sul corpo di casa | Rispondere alla domanda §6-quater prima di estendere il riconoscimento fuori casa |
 | Guscio Android: **deciso, non ancora costruito** | Il corpo di casa gira come PWA installata (sufficiente nel dock); **il corpo in giro non può ancora registrare a schermo spento** | ADR-018 **accettato**, adozione in due tempi: Tempo 1 (PWA + wake lock) fatto; Tempo 2 (APK Capacitor) quando si apre davvero la Fase 4. Serve la toolchain Android, non verificabile nella CI attuale |
