@@ -46,6 +46,10 @@ class JobsConfig:
     dream_at: str = "02:30"
     audio_retention_days: int = 90
     backup_retention_days: int = 30
+    # ADR-023: the ceiling the paid fallback respects. Same variable the chat
+    # path reads, so one number governs the whole day whoever is spending it;
+    # a house with its own `households.daily_budget_usd` overrides it.
+    daily_budget_usd: float = 0.50
 
     @staticmethod
     def from_env() -> "JobsConfig":
@@ -73,4 +77,5 @@ class JobsConfig:
             whisper_download_root=os.environ.get("UGO_WHISPER_DOWNLOAD_ROOT", ""),
             dream_at=os.environ.get("UGO_DREAM_AT", "02:30"),
             audio_retention_days=int(os.environ.get("UGO_AUDIO_RETENTION_DAYS", "90")),
+            daily_budget_usd=float(os.environ.get("UGO_DAILY_BUDGET_USD", "0.50")),
         )

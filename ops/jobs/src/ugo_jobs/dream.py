@@ -17,13 +17,17 @@ import psycopg
 from .backup import backup_exists, run_backup
 from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
+from .contradictions import run_contradictions
 from .enroll_step import run_enroll
 from .hygiene import run_hygiene
 from .ingest import run_ingest
 from .markers import mark_step_done, step_done
 from .reflect import run_reflect
 
-STEPS = ("ingest", "enroll", "reflect", "hygiene", "compaction", "backup")
+# contradictions sits between reflect and hygiene on purpose (ADR-023):
+# reflect writes tonight's memories, hygiene merges near-duplicates above
+# 0.95 cosine and deletes one of the pair. Judge first, compact after.
+STEPS = ("ingest", "enroll", "reflect", "contradictions", "hygiene", "compaction", "backup")
 
 
 def yesterday(cfg: JobsConfig) -> str:
@@ -63,6 +67,12 @@ def run_dream(cfg: JobsConfig, dream_date: str) -> dict[str, object]:
                     "memories": result.memories_written,
                     "desires": result.desires_written,
                     "diary": result.diary_written,
+                }
+            elif step == "contradictions":
+                contradictions = run_contradictions(conn, cfg, dream_date)
+                report[step] = {
+                    "pairs": contradictions.pairs_examined,
+                    "superseded": contradictions.superseded,
                 }
             elif step == "hygiene":
                 hygiene = run_hygiene(conn, dream_date)

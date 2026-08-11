@@ -584,6 +584,57 @@ Nessun contratto di API cambia: `searchMemories` mantiene la firma, quindi `chat
 Verifiche: 32 unit puri (`fusion`, `rerank`, `metrics`), 20 di integrazione in `@ugo/memory`, 13 in
 `@ugo/db`, 92 in `soul` — nessuna regressione.
 
+## 6-quaterdecies. Il sogno che ritira un ricordo da solo (ADR-023)
+
+`superseded_by` esisteva dalla `0006` e non lo scriveva nessuno: due ricordi che si smentivano
+convivevano finché il proprietario non se ne accorgeva a mano. Ora il sogno li riconosce e ritira il
+perdente.
+
+- Nuovo passo `contradictions` in `ops/jobs`, **fra `reflect` e `hygiene`**: il primo scrive i
+  ricordi di stanotte, il secondo fonde i quasi-duplicati sopra 0.95 di coseno e **cancella** una
+  delle due righe. Una coppia contraddittoria finita nel merge avrebbe perso la prova. Prima si
+  giudica, poi si compatta.
+- Candidati: i ricordi di stanotte contro i vivi che somigliano loro fra 0.6 e 0.95 di coseno —
+  sopra ci pensa `hygiene`, sotto non parlano della stessa cosa. Solo `fact` e `preference`: un
+  `episode` resta vero comunque, e un `insight` è rivedibile senza essere falso. Solo dentro lo
+  stesso esemplare, perché due gosini che dissentono sono la loro differenza, non un errore.
+- **Al modello si chiede *se*, non *quale*.** La direzione la decide il codice con `valid_from` e
+  non con `created_at`: un fatto può essere registrato in ritardo («fino al 2024 Ivan faceva il
+  corriere», scritto stanotte) e resta la verità più vecchia. È il caso in cui un modello
+  sbaglierebbe, e c'è un test che lo fissa.
+- Soglia di confidenza 0.75, e un esito di astensione esplicito nel contratto: senza la possibilità
+  di dire «non si contraddicono», un modello piccolo le inventa per compiacere la domanda.
+- `invalidated_reason` ha ora due voci — quelle del proprietario e quelle della macchina — e il
+  pannello lo mostra verbatim: il sogno scrive sempre col prefisso `il sogno:`.
+
+**Il trasporto batch è stato estratto prima, e non era un dettaglio.** `ask_batch_model` era cablato
+su `ReflectionOutput` dentro `reflect.py`, insieme a tutta la logica «MoE locale, fallback API,
+scrivi sul ledger». Un secondo passo che la copiava sarebbe stato il modo in cui il budget guard
+smette di essere un collo di bottiglia (regola 3). Ora vive in `batch.py`, generico sul modello
+Pydantic.
+
+E lì si è chiuso un buco trovato leggendo: **il percorso Python scriveva sul `budget_ledger` senza
+mai controllare il tetto**, a differenza di `LlmClient.chat`. Con un consumatore notturno era
+sopportabile; ADR-023 ne fa due. Conseguenza dichiarata: **a budget esaurito il passo solleva invece
+di spendere**, e riprova la notte dopo. Il ledger ora riceve anche `household_id` e `gosino_id`
+espliciti invece di appoggiarsi ai `DEFAULT`.
+
+Due seguiti che l'ADR si era impegnato a fare, entrambi latenti finché nessuno scriveva quel campo:
+
+- **Migrazione `0008`**: `superseded_by` era un `uuid` nudo senza FK né indice, e
+  `DELETE /v1/memories/:id` è esposto — un puntatore a un ricordo cancellato era raggiungibile già
+  oggi. Ora FK verso `memories.id` con `on delete set null` e indice.
+- **`PATCH {valid: true}` non azzerava `superseded_by`**: un ricordo riabilitato dal proprietario
+  continuava a dichiararsi sostituito.
+
+Lo stub batch dei test ora instrada sulla domanda: ne restituiva una sola per ogni POST, e un
+secondo passo lo avrebbe rotto.
+
+Verifiche: 8 pytest nuovi su Postgres+pgvector, Ollama e un server HTTP veri (43 in tutto),
+93 di integrazione in `soul`. Il test che conta di più è quello del **falso positivo**: «il gatto si
+chiama Bruno» e «Bruno dorme sul router» si completano, e un risolutore troppo zelante cancella
+conoscenza in silenzio, di notte, senza che nessuno guardi.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

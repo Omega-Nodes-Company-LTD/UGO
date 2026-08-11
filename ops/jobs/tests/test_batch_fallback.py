@@ -13,7 +13,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import psycopg
 import pytest
 
-from ugo_jobs.reflect import ask_batch_model
+from ugo_jobs.batch import ask_batch_model
+from ugo_jobs.reflect import ReflectionOutput
 from test_dream import REFLECTION, make_config
 
 UNREACHABLE = "http://127.0.0.1:1"
@@ -65,7 +66,7 @@ def test_falls_back_to_the_api_and_records_the_spend(
     with psycopg.connect(pg_url) as conn:
         conn.execute("delete from budget_ledger")
         conn.commit()
-        output = ask_batch_model(cfg, "riassumi la giornata", conn)
+        output = ask_batch_model(cfg, "riassumi la giornata", ReflectionOutput, conn)
 
         assert output.diary  # the dream happened anyway
         assert len(handler.seen) == 1
@@ -96,7 +97,7 @@ def test_prefers_the_local_model_when_it_answers(
     with psycopg.connect(pg_url) as conn:
         conn.execute("delete from budget_ledger")
         conn.commit()
-        ask_batch_model(cfg, "riassumi la giornata", conn)
+        ask_batch_model(cfg, "riassumi la giornata", ReflectionOutput, conn)
         assert handler.seen == []  # the API was never touched
         spend = conn.execute("select count(*) from budget_ledger").fetchone()
         assert spend is not None and spend[0] == 0  # free, as designed
@@ -111,7 +112,7 @@ def test_without_an_api_key_it_fails_loudly_instead_of_silently(
         anthropic_api_key="",
     )
     with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
-        ask_batch_model(cfg, "riassumi la giornata", None)
+        ask_batch_model(cfg, "riassumi la giornata", ReflectionOutput, None)
 
 
 def test_without_a_local_model_it_goes_straight_to_the_api(
@@ -130,7 +131,7 @@ def test_without_a_local_model_it_goes_straight_to_the_api(
         anthropic_api_key="test-key",
     )
     with psycopg.connect(cfg.database_url) as conn:
-        output = ask_batch_model(cfg, "rifletti sulla giornata", conn)
+        output = ask_batch_model(cfg, "rifletti sulla giornata", ReflectionOutput, conn)
         assert output.diary
         assert len(handler.seen) == 1, "the API should be called once, directly"
         row = conn.execute(
