@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 import psycopg
 
-from .backup import run_backup
+from .backup import backup_exists, run_backup
 from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
 from .enroll_step import run_enroll
@@ -36,8 +36,13 @@ def run_dream(cfg: JobsConfig, dream_date: str) -> dict[str, object]:
     with psycopg.connect(cfg.database_url) as conn:
         for step in STEPS:
             if step_done(conn, dream_date, step):
-                report[step] = "skipped (already done)"
-                continue
+                # the backup is the one step whose result lives outside this
+                # database: trust the marker only if the object is still there
+                if step != "backup" or backup_exists(cfg, dream_date):
+                    report[step] = "skipped (already done)"
+                    continue
+                report["backup_missing"] = "marker said done, the bucket disagreed"
+
             if step == "ingest":
                 ingest = run_ingest(conn, cfg, dream_date)
                 report[step] = {

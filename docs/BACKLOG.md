@@ -81,7 +81,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 |---|---|---|
 | ⬜️ | **Fallback LLM locale per la chat** | oggi "local-first" ha un asterisco: senza l'API Anthropic la chat muore. Ollama è già lì per il sogno |
 | ⬜️ | **RAG su documenti** | UGO conosce solo ciò che ha sentito |
-| ⬜️ | Verifica che il backup esista davvero | il marcatore dice "l'ho fatto", nessuno controlla l'oggetto nel bucket |
+| ✅ | Verifica che il backup esista davvero | il sogno interroga il bucket prima di saltare il passo: un backup sparito viene rifatto |
 
 ## Scartati, con motivo
 

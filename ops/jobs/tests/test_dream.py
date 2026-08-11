@@ -198,3 +198,40 @@ def test_a_failed_dump_says_why_without_leaking_the_password() -> None:
     # the redaction itself, on the shape pg_dump actually echoes back
     assert _redact("postgres://ugo:hunter2@db:5432/ugo") == "postgres://ugo:***@db:5432/ugo"
     assert _redact("nothing to redact here") == "nothing to redact here"
+
+
+def test_a_backup_that_vanished_is_made_again(dream_env) -> None:  # noqa: ANN001
+    """The marker said "done"; the bucket said otherwise.
+
+    Before this, the step marker was the only evidence a backup existed. Delete
+    the object — a bucket recreated, a retention rule too eager, a hand
+    slipping — and the dream would say "skipped (already done)" every night
+    from then on. The backup would quietly become a belief.
+    """
+    import boto3
+
+    from ugo_jobs.backup import KEY_PREFIX, backup_exists
+
+    cfg = dream_env
+    date = "2026-07-04"
+
+    first = run_dream(cfg, date)
+    assert isinstance(first["backup"], dict), first["backup"]
+    assert backup_exists(cfg, date)
+
+    # a second run is a no-op, as it should be
+    assert run_dream(cfg, date)["backup"] == "skipped (already done)"
+
+    client = boto3.client(
+        "s3",
+        endpoint_url=cfg.s3_endpoint,
+        aws_access_key_id=cfg.s3_access_key,
+        aws_secret_access_key=cfg.s3_secret_key,
+    )
+    client.delete_object(Bucket=cfg.s3_bucket_backup, Key=f"{KEY_PREFIX}{date}.dump.enc")
+    assert not backup_exists(cfg, date)
+
+    third = run_dream(cfg, date)
+    assert third.get("backup_missing") is not None
+    assert isinstance(third["backup"], dict), "the dream must redo a backup that is not there"
+    assert backup_exists(cfg, date)
