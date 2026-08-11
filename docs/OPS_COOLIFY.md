@@ -611,8 +611,9 @@ adesso.
 
 Il guscio esiste (`apps/face-android`) e la CI ne costruisce l'APK a ogni push. Per averlo:
 
-1. Vai su **Actions** nel repository, apri l'ultima esecuzione andata a buon fine, e scarica
-   l'artefatto **`ugo-debug-apk`**.
+1. Dal telefono, apri la pagina delle **Releases** del repository e prendi l'ultima, `apk-latest`:
+   <https://github.com/Omega-Nodes-Company-LTD/UGO/releases/tag/apk-latest>. È un indirizzo fisso,
+   aggiornato a ogni push su `main`, quindi puoi metterlo tra i preferiti: il file cambia, il link no.
 2. Copia l'APK sul telefono e aprilo. Android chiederà di autorizzare l'installazione da questa
    sorgente: è un'app tua, non di uno store, ed è voluto (un utente solo, un telefono solo).
 3. La prima apertura chiede gli stessi permessi della §10.3.
