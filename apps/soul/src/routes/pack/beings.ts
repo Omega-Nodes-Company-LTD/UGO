@@ -19,6 +19,10 @@ import {
   uuidParam,
   type PackRouteDeps,
 } from "./shared.js";
+import { putAudioObject } from "../audio.js";
+
+/** Ten seconds of speech at Opus bitrates is well under this. */
+const MAX_ENROLLMENT_BYTES = 4 * 1024 * 1024;
 
 /** The beings themselves: read, create, amend, and teach a voice. */
 export function registerBeingRoutes(
@@ -163,4 +167,66 @@ export function registerBeingRoutes(
     });
     return reply.code(202).send({ status: "queued" });
   });
+
+  /**
+   * The same enrolment, with the audio sent to us instead of to the bucket.
+   *
+   * The panel used to presign and PUT straight to object storage, which is a
+   * cross-origin request: without a CORS rule on the bucket the browser never
+   * even sends it and reports "Failed to fetch". Ten seconds of speech is
+   * small enough to pass through soul, and one origin is one thing that can
+   * go wrong instead of two.
+   */
+  if (deps.audio !== undefined) {
+    const storage = deps.audio;
+    app.post(
+      "/v1/beings/:id/enroll/voice/audio",
+      { preHandler: deps.guard, bodyLimit: MAX_ENROLLMENT_BYTES },
+      async (request, reply) => {
+        const id = uuidParam(request.params);
+        const body = request.body;
+        if (id === undefined || !Buffer.isBuffer(body) || body.length === 0) {
+          return reply
+            .code(400)
+            .type("application/problem+json")
+            .send(problem("Invalid enrollment audio", 400));
+        }
+        const [being] = await db
+          .select({ isMinor: beings.isMinor, noAudio: beings.noAudio })
+          .from(beings)
+          .where(eq(beings.id, id));
+        if (being === undefined) {
+          return reply
+            .code(404)
+            .type("application/problem+json")
+            .send(problem("Being not found", 404));
+        }
+        if (being.isMinor || being.noAudio) {
+          return reply
+            .code(403)
+            .type("application/problem+json")
+            .send(
+              problem(
+                "Biometric enrollment refused",
+                403,
+                being.isMinor ? "minor_biometrics_forbidden" : "opted_out_of_audio",
+              ),
+            );
+        }
+        // refuse BEFORE storing: audio for someone we promised not to model
+        // must not sit in the bucket even for a night (ADR-016)
+        const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+        const objectKey = `inbox/enroll_${id.slice(0, 8)}_${stamp}.webm`;
+        await putAudioObject(storage, objectKey, body, "audio/webm");
+        await db.insert(perceptionEvents).values({
+          gosinoId,
+          modality: "audio_speech",
+          beingId: id,
+          observed: { kind: "enrollment_requested", object_key: objectKey, channel: "home" },
+        });
+        request.log.info({ beingId: id, bytes: body.length }, "enrollment audio stored");
+        return reply.code(202).send({ status: "queued", objectKey });
+      },
+    );
+  }
 }

@@ -2,6 +2,7 @@ import type { DbClient } from "@ugo/db";
 import { BEING_KINDS, CORRECTION_SIGNALS, RELATION_TYPES, type SpeciesMap } from "@ugo/shared";
 import { z } from "zod";
 import type { PreHandler } from "../guard.js";
+import type { AudioStorageConfig } from "../audio.js";
 
 /** Contracts and deps shared by the pack routes (ADR-014/016). */
 
@@ -10,6 +11,8 @@ export interface PackRouteDeps {
   speciesMap: SpeciesMap;
   guard: PreHandler;
   gosinoId?: string;
+  /** where enrolment audio is stored; absent means the panel cannot record */
+  audio?: AudioStorageConfig;
 }
 
 export const createBeingSchema = z.object({
