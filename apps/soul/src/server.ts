@@ -54,6 +54,15 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   // tailnet; no cookies or credentials are involved, so a permissive CORS is
   // the correct posture for this single-user, never-public service (ADR-007)
   app.register(cors, { origin: true });
+  // audio arrives as bytes, not JSON: without this Fastify refuses the body
+  // with a 415 before any route sees it
+  app.addContentTypeParser(
+    ["audio/webm", "audio/ogg", "audio/wav", "application/octet-stream"],
+    { parseAs: "buffer" },
+    (_request, payload, done) => {
+      done(null, payload);
+    },
+  );
   registerHealthRoute(app, options);
   if (options.features !== undefined) {
     const {
@@ -85,7 +94,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       registerPrivacyRoutes(app, { ...privacy, guard });
     }
     if (speciesMap !== undefined) {
-      registerPackRoutes(app, { db: options.db, speciesMap, guard });
+      registerPackRoutes(app, {
+        db: options.db,
+        speciesMap,
+        guard,
+        ...(audio !== undefined && { audio }),
+      });
       registerArchiveRoutes(app, { db: options.db, chat: v1.chat, guard });
       registerAdminRoutes(app);
     }

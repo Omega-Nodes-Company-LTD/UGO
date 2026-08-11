@@ -362,6 +362,31 @@ guarda i log della risorsa. Sono gli stessi controlli di `/health`, senza doverl
 
 ## 6. Troubleshooting
 
+### UGO sente ma non risponde
+
+Le orecchie che si muovono sono una reazione **locale** della faccia al rumore: dimostrano che il
+microfono funziona, non che UGO abbia capito o risposto. Per capire dove si ferma, in ordine:
+
+1. **`/health`** dal browser: se `ollama` è `error`, la chat non può funzionare — gli embeddings
+   servono a ogni messaggio. Rimetti in piedi Ollama (§2.3) e riprova.
+2. **`/debug/chat`**: una pagina dove si scrive invece di parlare. Se qui UGO risponde, il problema
+   è il riconoscimento vocale del browser e non il server; se non risponde nemmeno qui, guarda i log
+   di `soul-api` mentre premi Invio.
+3. **Nella faccia devi toccare il muso** per farlo ascoltare: le orecchie si muovono comunque, ma il
+   riconoscimento vocale parte solo dopo il tocco.
+4. Se dice `oggi ho finito le parole`, non è rotto: ha esaurito il budget giornaliero.
+
+### La registrazione della voce dice «Failed to fetch»
+
+Fino ad agosto 2026 il pannello caricava l'audio **direttamente nel bucket** dal browser: una
+richiesta cross-origin che uno storage senza regola CORS non riceve nemmeno, e il browser la
+riassume con quel messaggio. Ora l'audio passa da soul, stessa origine, nessun CORS da configurare:
+**fai il redeploy di `soul-api`** e il pulsante funziona.
+
+> Il corpo **in giro** carica ancora con URL prefirmato, perché manda molto più audio. Quando lo
+> userai da un browser (non dall'APK) e vedrai lo stesso errore, la soluzione è una regola CORS sul
+> bucket `ugo-audio` che consenta `PUT` dall'origine di UGO.
+
 ### Il sogno fallisce con `pg_dump failed`
 
 Da agosto 2026 il messaggio **contiene il motivo** (con la password rimossa): leggilo, dice quasi

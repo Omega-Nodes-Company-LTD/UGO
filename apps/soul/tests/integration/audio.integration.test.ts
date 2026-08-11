@@ -11,6 +11,7 @@ import {
   type MinioHandle,
   type OllamaHandle,
 } from "@ugo/factories";
+import { DEFAULT_SPECIES_MAP } from "@ugo/shared";
 import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import { encryptText } from "@ugo/shared";
 import type { FastifyInstance } from "fastify";
@@ -28,6 +29,7 @@ const BUCKET = "ugo-audio";
 let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
 let minio: MinioHandle;
+let s3: S3Client;
 let stub: LlmStub;
 let db: DbClient;
 let embedder: OllamaEmbeddingsClient;
@@ -44,7 +46,7 @@ beforeAll(async () => {
   db = createDbClient(pg.getConnectionUri());
   embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
 
-  const s3 = new S3Client({
+  s3 = new S3Client({
     endpoint: minio.endpoint,
     region: "us-east-1",
     forcePathStyle: true,
@@ -76,6 +78,8 @@ beforeAll(async () => {
     features: {
       chat,
       psyche,
+      // registers the pack routes, where enrolment audio now arrives
+      speciesMap: DEFAULT_SPECIES_MAP,
       audio: {
         endpoint: minio.endpoint,
         accessKey: minio.accessKey,
@@ -158,5 +162,70 @@ describe("recordings interrogable through /chat (§4.2)", () => {
     const dynamicBlock = captured?.body.system[2]?.text ?? "";
     expect(dynamicBlock).toContain("Dalle registrazioni:");
     expect(dynamicBlock).toContain("slitta a giovedì");
+  });
+});
+
+/**
+ * The panel used to presign and PUT straight to object storage. That is a
+ * cross-origin request, and a bucket without a CORS rule never even receives
+ * it — the browser reports "Failed to fetch", which is what the owner saw.
+ * MinIO is permissive by default, so these tests could not have caught it;
+ * now the audio comes through soul and there is only one origin to trust.
+ */
+describe("POST /v1/beings/:id/enroll/voice/audio", () => {
+  const audio = Buffer.from("not really webm, but it is bytes and it is ours");
+
+  async function newBeing(fields: Record<string, unknown> = {}): Promise<string> {
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/beings",
+      payload: { displayName: "Francesco", ...fields },
+    });
+    return response.json<{ id: string }>().id;
+  }
+
+  it("stores the audio itself and files the enrollment for tonight", async () => {
+    const beingId = await newBeing();
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/beings/${beingId}/enroll/voice/audio`,
+      headers: { "content-type": "audio/webm" },
+      payload: audio,
+    });
+
+    expect(response.statusCode).toBe(202);
+    const { objectKey } = response.json<{ objectKey: string }>();
+    expect(objectKey).toMatch(/^inbox\/enroll_[0-9a-f]{8}_\d{8}\d{4}\.webm$/);
+
+    const listed = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "inbox/" }));
+    const stored = (listed.Contents ?? []).find((item) => item.Key === objectKey);
+    expect(stored?.Size).toBe(audio.length);
+  });
+
+  it("refuses a minor BEFORE the audio ever reaches the bucket", async () => {
+    const beingId = await newBeing({ displayName: "Sofia", isMinor: true });
+    const before = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "inbox/" }));
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/beings/${beingId}/enroll/voice/audio`,
+      headers: { "content-type": "audio/webm" },
+      payload: audio,
+    });
+    expect(response.statusCode).toBe(403);
+
+    const after = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "inbox/" }));
+    expect((after.Contents ?? []).length).toBe((before.Contents ?? []).length);
+  });
+
+  it("says so plainly when no audio arrived", async () => {
+    const beingId = await newBeing({ displayName: "Monika" });
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/beings/${beingId}/enroll/voice/audio`,
+      headers: { "content-type": "audio/webm" },
+      payload: Buffer.alloc(0),
+    });
+    expect(response.statusCode).toBe(400);
   });
 });

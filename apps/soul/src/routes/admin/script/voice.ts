@@ -35,13 +35,11 @@ $("rec").addEventListener("click", async () => {
 
 async function upload(beingId, blob) {
   if (blob.size === 0) throw new Error("non è arrivato audio dal microfono");
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
-  const filename = "enroll_" + beingId.slice(0, 8) + "_" + stamp + ".webm";
-  const presigned = await call("/v1/audio/presign", { method: "POST", body: JSON.stringify({ filename }) });
-  const put = await fetch(presigned.url, { method: "PUT", body: blob });
-  if (!put.ok) throw new Error("caricamento fallito (" + put.status + ")");
-  await call("/v1/beings/" + beingId + "/enroll/voice", {
-    method: "POST", body: JSON.stringify({ objectKey: presigned.key }),
+  // through soul, not straight to the bucket: a browser PUT to object storage
+  // is cross-origin, and without a CORS rule it never leaves — which the
+  // browser reports as the unhelpful "Failed to fetch"
+  await call("/v1/beings/" + beingId + "/enroll/voice/audio", {
+    method: "POST", body: blob, contentType: "audio/webm",
   });
   say("enroll-msg", "Me lo segno. L'impronta nasce stanotte, nel sogno — o subito se premi " +
     '"Fallo sognare adesso".', "ok");

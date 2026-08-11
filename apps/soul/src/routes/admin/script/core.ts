@@ -4,8 +4,8 @@ const $ = (id) => document.getElementById(id);
 const token = () => sessionStorage.getItem("ugo_token") ?? "";
 // content-type only when there IS a body: Fastify rejects an empty body sent
 // as application/json, which silently broke every DELETE from this panel
-const headers = (hasBody) => ({
-  ...(hasBody ? { "content-type": "application/json" } : {}),
+const headers = (hasBody, contentType) => ({
+  ...(hasBody ? { "content-type": contentType ?? "application/json" } : {}),
   authorization: "Bearer " + token(),
 });
 const say = (where, text, kind) => { $(where).innerHTML = ""; const d = document.createElement("div");
@@ -15,7 +15,10 @@ const say = (where, text, kind) => { $(where).innerHTML = ""; const d = document
 const SPECIES_LABEL = { human: "persona", dog: "cane", parrot: "pappagallo", reptile: "rettile" };
 
 async function call(path, options) {
-  const res = await fetch(path, { ...options, headers: headers(options?.body !== undefined) });
+  const res = await fetch(path, {
+    ...options,
+    headers: headers(options?.body !== undefined, options?.contentType),
+  });
   let body = null;
   try { body = await res.json(); } catch { /* empty body is fine */ }
   if (!res.ok) {
