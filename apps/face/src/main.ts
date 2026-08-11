@@ -79,6 +79,11 @@ function onServerMessage(message: ServerToFaceMessage): void {
     case "glyph":
       glyph.play(message.pattern);
       return;
+    case "gesture":
+      // ADR-027: soul decided, the body performs. Unknown ids are dropped by
+      // the player, so an older face and a newer soul stay compatible.
+      renderer.reflex(message.id);
+      return;
   }
 }
 

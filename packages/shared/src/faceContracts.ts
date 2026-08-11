@@ -50,6 +50,11 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("speak"), text: z.string() }),
   z.object({ type: z.literal("state"), state: z.enum(FACE_STATES) }),
   z.object({ type: z.literal("glyph"), pattern: z.enum(GLYPH_PATTERNS) }),
+  // ADR-027: soul decides an initiative, the body performs it. The id is a
+  // gesture from the body's own catalogue; a face that does not know it
+  // ignores it rather than failing — the decision must never depend on the
+  // renderer that happens to be running.
+  z.object({ type: z.literal("gesture"), id: z.string().min(1).max(64) }),
 ]);
 export type ServerToFaceMessage = z.infer<typeof serverToFaceSchema>;
 

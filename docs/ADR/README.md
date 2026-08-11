@@ -32,4 +32,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [024](./024-il-sogno-collega-i-ricordi-agli-esseri.md) | Il sogno collega i ricordi agli esseri | Accettata |
 | [025](./025-consolidamento-su-inattivita.md) | Consolidamento su inattività | Accettata |
 | [026](./026-corpo-tridimensionale-e-strati-espressivi.md) | Il corpo di casa in tre dimensioni, e i tre strati espressivi | Accettata |
-| 027 | *(prossimo numero disponibile)* | — |
+| [027](./027-iniziativa.md) | L'iniziativa: UGO può cominciare lui | Accettata |
+| 028 | *(prossimo numero disponibile)* | — |

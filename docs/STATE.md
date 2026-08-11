@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.11.0"
+version: "0.12.0"
 last_updated: "2026-08-11"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -750,6 +750,51 @@ senza GPU. Scelta per capacità, override con `?renderer=2d|3d`, fallback silenz
 **Da misurare sul ferro:** la batteria per una giornata sul 3a Pro, e il rendering software per
 `meet-face` (in CI, con SwiftShader, 2–6 fps: funziona, non è gratis).
 
+## 6-duodecies. UGO comincia lui (ADR-027)
+
+Domanda del proprietario: «fa mai qualcosa perché DECIDE di farla?». No — e in un
+modo preciso: **ogni frase che avesse mai detto era una risposta**.
+
+Il volere però esisteva già a metà. `desires` porta scritto nello schema che cos'è
+(«un'intenzione che deve sopravvivere fino a domani»), il sogno la riempie davvero,
+e aveva **un solo lettore in tutto il repository**: il saluto del risveglio. Se eri
+già in casa quando si svegliava, il desiderio non usciva mai. `due_hint` esiste dalla
+prima migrazione e non l'aveva mai letta nessuno.
+
+| Pezzo | Cosa fa | Dove |
+|---|---|---|
+| **Pressioni** | psiche + fatti → `boredom`, `loneliness`, `curiosity`, `unspoken`, `worry`, ognuna con il suo motivo scritto | `volition/pressures.ts`, puro |
+| **Atti** | nove atti che **dichiarano a cosa servono**: sollievo atteso, costo d'attenzione, cooldown | `volition/acts.ts`, dati |
+| **Decisione** | il migliore, **oppure nessuno** — non agire è un candidato vero | `volition/decide.ts`, puro |
+| **Curiosità** | legge i ricordi e chiede a **Ollama locale** l'unica cosa che vorrebbe sapere; la archivia come `desire` | `volition/curiosity.ts` |
+| **Riscontro** | al giro dopo confronta la pressione su cui aveva mirato: `initiative_worked` / `initiative_flat` | `volition/volitionService.ts` |
+
+Otto atti su nove costano **zero token**; il nono gira sul **modello locale**, mai sul
+provider a pagamento — un'iniziativa che potesse spendere il budget mentre nessuno
+guarda non è un carattere, è una perdita.
+
+Cancelli reali: interruttore (`UGO_INITIATIVE`), pavimento fra due iniziative, **ore
+di silenzio** (niente di rumoroso fra le 22 e le 8), cooldown per atto, e prerequisiti
+— non inventa una domanda se il modello è giù, non dice un desiderio che non ha.
+
+Nuovo messaggio WS `{type:"gesture", id}`: soul decide, il corpo di ADR-026 esegue.
+**Nessuna migrazione**: `desires` ed `events` bastavano.
+
+### Tre difetti trovati dai test
+
+1. Una **`Date` interpolata in un template `sql` grezzo** non si lega con questo driver:
+   fallisce a Bind time, non a compile time. Ora operatori tipati.
+2. **`tidyQuestion` prendeva la prima riga**, e i modelli locali premettono quasi sempre
+   una riga di cortesia: la curiosità sarebbe fallita quasi sempre.
+3. Il test che pretendeva una domanda inventata **quando c'era solo solitudine** aveva
+   torto: lì è giusto che vinca un atto più economico. La correzione è stata al test —
+   ed è la prova che il confronto fra candidati funziona.
+
+Verifiche: **33 unit** (pressioni, decisione, estrazione della domanda) + **8 di
+integrazione** su Postgres reale (dice il desiderio e non lo ripete, tace di notte,
+non parte due volte di fila, inventa una domanda sul modello locale, ripiega su un
+atto muto quando il modello è giù, e si dà un voto).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -773,6 +818,8 @@ senza GPU. Scelta per capacità, override con `?renderer=2d|3d`, fallback silenz
 | Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
 | `Webgl3dFace` importato staticamente | Un dispositivo che usa il fallback 2D scarica lo stesso i 138 kB di three.js | Import dinamico in `createFace`, che diventa asincrono: piccolo, ma tocca l'ordine di avvio di `main.ts` |
 | Batteria del corpo 3D mai misurata | È il vincolo della Fase 4, e nessun numero lo copre | Una giornata sul 3a Pro; il fallback 2D è già lì se il numero è brutto |
+| **Sa cominciare, non sa declinare** | Teso o esausto risponde comunque, sempre, subito: l'unica cosa che lo zittisce è il budget esaurito, che è il rifiuto di un contabile | Il passo gemello di ADR-027: risposta più corta, o dopo, o un grugnito — con interruttore del proprietario |
+| **Un solo ciclo di iniziativa** per tutto soul | Con più gosini in casa due creature parlerebbero addosso l'una all'altra | Per esemplare, insieme ad ADR-019 fase 3 |
 | Stato faccia di soul **per processo**, non per connessione | Due schede aperte si vedono lo stesso stato; gli e2e devono ordinarsi (`z-body.e2e.spec.ts`) | Diventa reale con più corpi per casa (ADR-019 fase 3): lì lo stato va per esemplare |
 
 ## 8. Prossimo passo operativo

@@ -1,0 +1,255 @@
+import { desires, events, messages, type DbClient } from "@ugo/db";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import type { FaceGateway } from "../faceGateway.js";
+import type { PsycheService } from "../psycheService.js";
+import { GLYPH_PATTERNS, type GlyphPattern } from "@ugo/shared";
+import { ACT_BY_ID, type Act } from "./acts.js";
+import type { Curiosity } from "./curiosity.js";
+import { type Gates, decide } from "./decide.js";
+import { type Vars, type WorldFacts, pressures } from "./pressures.js";
+
+/**
+ * Initiative (ADR-027) — the loop that lets UGO act because he decided to.
+ *
+ * Everything expressive and every judgement lives in the pure modules next
+ * door; this file gathers the facts, performs the chosen act, and writes down
+ * what it did and why. The write-down is not bookkeeping: an initiative you
+ * cannot explain afterwards is indistinguishable from a bug, and `events` is
+ * already the append-only place where the night job will read it back.
+ */
+
+const MIN = 60_000;
+/** Anything that means someone is here with him (same list as solitude). */
+const PRESENCE_EVENT_TYPES = ["face_seen", "tap", "heard_text", "lead_contact"] as const;
+/** How far back to look for his own past initiatives, for the cooldowns. */
+const HISTORY_MIN = 180;
+
+const isGlyphPattern = (value: string | undefined): value is GlyphPattern =>
+  value !== undefined && (GLYPH_PATTERNS as readonly string[]).includes(value);
+
+export interface VolitionDeps {
+  db: DbClient;
+  psyche: PsycheService;
+  gateway: FaceGateway;
+  curiosity?: Curiosity;
+  /** the local model answered a ping: `askQuestion` needs it */
+  localModelUp: () => boolean;
+  enabled: () => boolean;
+  now?: () => Date;
+  hourOf?: (at: Date) => number;
+}
+
+export interface TickReport {
+  acted: string | undefined;
+  because: string | undefined;
+  /** pressures seen this tick, strongest first */
+  seen: { id: string; magnitude: number }[];
+}
+
+interface Taken {
+  act: string;
+  driver: string;
+  magnitude: number;
+  at: Date;
+}
+
+export class VolitionService {
+  /** the last initiative, kept to score whether it actually helped */
+  private pending: Taken | undefined;
+
+  public constructor(private readonly deps: VolitionDeps) {}
+
+  private now(): Date {
+    return this.deps.now?.() ?? new Date();
+  }
+
+  private hour(at: Date): number {
+    return this.deps.hourOf?.(at) ?? at.getHours();
+  }
+
+  private async minutesSince(types: readonly string[], at: Date): Promise<number> {
+    const rows = await this.deps.db
+      .select({ ts: events.ts })
+      .from(events)
+      .where(inArray(events.type, [...types]))
+      .orderBy(desc(events.ts))
+      .limit(1);
+    const last = rows[0]?.ts;
+    if (last === undefined) return Number.POSITIVE_INFINITY;
+    return (at.getTime() - last.getTime()) / MIN;
+  }
+
+  /** Presence also counts a message he received, not only a sensor event. */
+  private async minutesAlone(at: Date): Promise<number> {
+    const fromEvents = await this.minutesSince(PRESENCE_EVENT_TYPES, at);
+    const rows = await this.deps.db
+      .select({ ts: messages.ts })
+      .from(messages)
+      .where(eq(messages.role, "user"))
+      .orderBy(desc(messages.ts))
+      .limit(1);
+    const last = rows[0]?.ts;
+    const fromMessages =
+      last === undefined ? Number.POSITIVE_INFINITY : (at.getTime() - last.getTime()) / MIN;
+    return Math.min(fromEvents, fromMessages);
+  }
+
+  /** Minutes since each act was last performed, from the journal. */
+  private async sinceAct(at: Date): Promise<Record<string, number>> {
+    const rows = await this.deps.db
+      .select({ ts: events.ts, payload: events.payload })
+      .from(events)
+      // typed operators, not a raw template: interpolating a Date into
+      // sql`` binds it as text and the driver refuses it at Bind time —
+      // found by the integration suite, not by review
+      .where(
+        and(
+          eq(events.type, "initiative_taken"),
+          gte(events.ts, new Date(at.getTime() - HISTORY_MIN * MIN)),
+        ),
+      )
+      .orderBy(desc(events.ts));
+    const out: Record<string, number> = {};
+    for (const row of rows) {
+      const act = (row.payload as { act?: unknown }).act;
+      if (typeof act !== "string" || act in out) continue;
+      out[act] = (at.getTime() - row.ts.getTime()) / MIN;
+    }
+    return out;
+  }
+
+  private async pendingDesire(
+    at: Date,
+  ): Promise<{ count: number; due: boolean; text: string | undefined; id: string | undefined }> {
+    const rows = await this.deps.db
+      .select({ id: desires.id, text: desires.text, dueHint: desires.dueHint })
+      .from(desires)
+      .where(eq(desires.status, "pending"))
+      .orderBy(asc(desires.createdAt));
+    const first = rows[0];
+    const hour = this.hour(at);
+    // `due_hint` has existed since the first migration and nothing has ever
+    // read it: a desire could name its moment and the moment never came
+    const due = rows.some((row) => {
+      const hint = row.dueHint;
+      if (hint === null || hint === "") return false;
+      const match = /(\d{1,2})\s*[:.]?\s*\d{0,2}/u.exec(hint);
+      const named = match?.[1] === undefined ? undefined : Number(match[1]);
+      return named !== undefined && named === hour;
+    });
+    return { count: rows.length, due, text: first?.text, id: first?.id };
+  }
+
+  private async record(type: string, payload: Record<string, unknown>): Promise<void> {
+    await this.deps.db.insert(events).values({ source: "system", type, payload });
+  }
+
+  /**
+   * Did the last initiative actually help? Compared on the pressure it was
+   * aimed at, not on a general feeling — otherwise everything looks like it
+   * worked eventually.
+   */
+  private async scoreLast(current: readonly { id: string; magnitude: number }[]): Promise<void> {
+    const last = this.pending;
+    if (last === undefined) return;
+    this.pending = undefined;
+    const nowMagnitude = current.find((p) => p.id === last.driver)?.magnitude ?? 0;
+    const dropped = last.magnitude - nowMagnitude;
+    await this.record(dropped > 0.05 ? "initiative_worked" : "initiative_flat", {
+      act: last.act,
+      driver: last.driver,
+      before: Number(last.magnitude.toFixed(3)),
+      after: Number(nowMagnitude.toFixed(3)),
+    });
+  }
+
+  private async perform(
+    act: Act,
+    desire: { text: string | undefined; id: string | undefined },
+  ): Promise<boolean> {
+    const { gateway, db } = this.deps;
+    switch (act.kind) {
+      case "gesture":
+        gateway.broadcastGesture(act.payload ?? "earFlick");
+        return true;
+      case "glyph":
+        gateway.broadcastGlyph(isGlyphPattern(act.payload) ? act.payload : "alert");
+        return true;
+      case "speakDesire": {
+        if (desire.text === undefined || desire.id === undefined) return false;
+        gateway.broadcastSpeak(desire.text);
+        // voiced is fulfilled: the same desire must never come round twice
+        await db.update(desires).set({ status: "done" }).where(eq(desires.id, desire.id));
+        return true;
+      }
+      case "askQuestion": {
+        const question = await this.deps.curiosity?.wonder();
+        if (question === undefined) return false;
+        gateway.broadcastSpeak(question);
+        await db
+          .update(desires)
+          .set({ status: "done" })
+          .where(sql`${desires.text} = ${question} and ${desires.status} = 'pending'`);
+        return true;
+      }
+    }
+  }
+
+  /** One beat of the loop. Safe to call on a timer; never throws at the caller. */
+  public async tick(): Promise<TickReport> {
+    const at = this.now();
+    const vars: Vars = this.deps.psyche.current(at).vars;
+
+    const [alone, sinceInitiative, sinceAct, desire] = await Promise.all([
+      this.minutesAlone(at),
+      this.minutesSince(["initiative_taken"], at),
+      this.sinceAct(at),
+      this.pendingDesire(at),
+    ]);
+
+    const facts: WorldFacts = {
+      minutesAlone: Number.isFinite(alone) ? alone : 24 * 60,
+      minutesSinceInitiative: sinceInitiative,
+      pendingDesires: desire.count,
+      desireIsDue: desire.due,
+      bodyPresent: this.deps.gateway.hasBody(),
+      hour: this.hour(at),
+    };
+
+    const list = pressures(vars, facts);
+    const seen = list.map((p) => ({ id: p.id, magnitude: Number(p.magnitude.toFixed(3)) }));
+    await this.scoreLast(seen);
+
+    const gates: Gates = {
+      bodyPresent: facts.bodyPresent,
+      localModelUp: this.deps.localModelUp(),
+      hasDesire: desire.count > 0,
+      hour: facts.hour,
+      minutesSinceInitiative: facts.minutesSinceInitiative,
+      sinceAct,
+      enabled: this.deps.enabled(),
+    };
+
+    const decision = decide(list, gates);
+    if (decision === undefined) return { acted: undefined, because: undefined, seen };
+
+    const done = await this.perform(decision.act, desire);
+    if (!done) return { acted: undefined, because: undefined, seen };
+
+    await this.record("initiative_taken", {
+      act: decision.act.id,
+      driver: decision.driver.id,
+      because: decision.driver.because,
+      score: Number(decision.score.toFixed(3)),
+    });
+    this.pending = {
+      act: decision.act.id,
+      driver: decision.driver.id,
+      magnitude: decision.driver.magnitude,
+      at,
+    };
+    return { acted: decision.act.id, because: decision.driver.because, seen };
+  }
+}
+
+export { ACT_BY_ID };

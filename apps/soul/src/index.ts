@@ -1,6 +1,8 @@
 import { resolve } from "node:path";
 import { createDbClient, runMigrations } from "@ugo/db";
-import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { LlmClient, OllamaEmbeddingsClient,
+  OllamaTextClient,
+} from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
@@ -12,6 +14,8 @@ import { ForgetService } from "./services/privacy/forgetService.js";
 import { PsycheService } from "./services/psycheService.js";
 import { IdleConsolidation } from "./services/idleConsolidation.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
+import { Curiosity } from "./services/volition/curiosity.js";
+import { VolitionService } from "./services/volition/volitionService.js";
 import { buildServer } from "./server.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -142,6 +146,48 @@ if (meetings !== undefined) {
   pollTimer.unref();
 }
 
+// ADR-027: initiative. Until now every single thing UGO said was a reply.
+const localText = new OllamaTextClient(
+  env.OLLAMA_URL,
+  env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
+);
+let localTextUp = false;
+const probeLocal = (): void => {
+  localText
+    .available()
+    .then((up) => {
+      localTextUp = up;
+    })
+    .catch(() => {
+      localTextUp = false;
+    });
+};
+probeLocal();
+const localProbeTimer = setInterval(probeLocal, 10 * 60_000);
+localProbeTimer.unref();
+
+const volition = new VolitionService({
+  db,
+  psyche,
+  gateway: face,
+  curiosity: new Curiosity({ db, local: localText, dataKey, name: "UGO" }),
+  localModelUp: () => localTextUp,
+  enabled: () => env.UGO_INITIATIVE === "on",
+  hourOf: (at) => Number(at.toLocaleString("it-IT", { hour: "2-digit", hour12: false, timeZone: env.TZ })),
+});
+const volitionTimer = setInterval(() => {
+  volition
+    .tick()
+    .then((report) => {
+      // IDs only, never the words he said (rule 6)
+      if (report.acted !== undefined) app.log.info({ act: report.acted }, "initiative");
+    })
+    .catch((error: unknown) => {
+      app.log.warn(error, "initiative tick failed");
+    });
+}, env.UGO_INITIATIVE_TICK_MINUTES * 60_000);
+volitionTimer.unref();
+
 // §5.3: loneliness and neglect are perturbations no sensor can emit
 const solitude = new SolitudeMonitor({ db, psyche });
 const SOLITUDE_TICK_MS = 15 * 60_000;
@@ -196,6 +242,8 @@ const shutdown = (signal: NodeJS.Signals): void => {
   app.log.info({ signal }, "shutting down");
   clearInterval(snapshotTimer);
   clearInterval(solitudeTimer);
+  clearInterval(volitionTimer);
+  clearInterval(localProbeTimer);
   void Promise.allSettled([app.close(), db.$client.end()]).then(() => {
     process.exit(0);
   });

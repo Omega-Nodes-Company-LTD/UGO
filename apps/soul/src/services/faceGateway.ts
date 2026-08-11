@@ -7,6 +7,7 @@ import {
   faceToServerSchema,
   type FaceState,
   type FaceToServerMessage,
+  type GlyphPattern,
   type ServerToFaceMessage,
 } from "@ugo/shared";
 import { asc, eq } from "drizzle-orm";
@@ -52,6 +53,29 @@ export class FaceGateway {
     for (const send of this.senders) {
       send({ type: "speak", text });
     }
+  }
+
+  /**
+   * ADR-027: soul decides an initiative, the body performs it. A face that
+   * does not know the gesture drops it — the decision must not depend on which
+   * renderer happens to be running.
+   */
+  public broadcastGesture(id: string): void {
+    for (const send of this.senders) {
+      send({ type: "gesture", id });
+    }
+  }
+
+  /** The one act that carries across the room without being looked at. */
+  public broadcastGlyph(pattern: GlyphPattern): void {
+    for (const send of this.senders) {
+      send({ type: "glyph", pattern });
+    }
+  }
+
+  /** True when at least one body is connected: someone could plausibly see him. */
+  public hasBody(): boolean {
+    return this.senders.size > 0;
   }
 
   public currentState(): FaceState {
