@@ -42,6 +42,8 @@ class JobsConfig:
     # install working untouched; a second family passes its own.
     household_id: str = "00000000-0000-4000-8000-000000000002"
     gosino_id: str = "00000000-0000-4000-8000-000000000001"
+    # the dream's own hour (HH:MM in `timezone`); the image schedules itself
+    dream_at: str = "02:30"
     audio_retention_days: int = 90
     backup_retention_days: int = 30
 
@@ -69,5 +71,6 @@ class JobsConfig:
             anthropic_batch_model=os.environ.get("UGO_CHAT_MODEL", "claude-haiku-4-5"),
             whisper_model=os.environ.get("UGO_WHISPER_MODEL", "large-v3"),
             whisper_download_root=os.environ.get("UGO_WHISPER_DOWNLOAD_ROOT", ""),
+            dream_at=os.environ.get("UGO_DREAM_AT", "02:30"),
             audio_retention_days=int(os.environ.get("UGO_AUDIO_RETENTION_DAYS", "90")),
         )
