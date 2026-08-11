@@ -62,8 +62,10 @@ metà frase. È abbastanza per il corpo di casa e per provare tutto il resto sul
 **Tempo 2 — cominciato (2026-08-10).** `apps/face-android/` esiste: Capacitor attorno alla stessa
 `apps/face`, i permessi dichiarati uno per uno con il motivo accanto, e l'APK di debug che si
 costruisce davvero — 4,2 MB, verificato aprendo il pacchetto e leggendone i permessi. La CI lo
-costruisce a ogni push e lo pubblica come artefatto, quindi la riga «non verificabile nella CI
-attuale» qui sotto non è più vera: era il rischio principale di questa decisione ed è chiuso.
+costruisce a ogni push e lo pubblica come **release** `apk-latest` — non come artefatto: un artefatto
+scade in novanta giorni e vive dietro la scheda Actions, mentre qui si installa da un telefono e
+serve un indirizzo che continui a funzionare. Quindi la riga «non verificabile nella CI attuale» qui
+sotto non è più vera: era il rischio principale di questa decisione ed è chiuso.
 
 Restano da scrivere le parti native vere e proprie — foreground service col microfono, lock task,
 avvio al boot, e la radio BLE per ADR-020: i permessi ci sono, il codice che li usa no.
@@ -101,7 +103,11 @@ Mac mini in salotto, è un secondo guscio attorno alla stessa `apps/face`, non u
   attuale~~ — **risolto**: il job `android shell (debug apk)` costruisce il pacchetto e ne verifica i
   permessi a ogni push.
 - L'APK pubblicato dalla CI è **di debug e non firmato per la distribuzione**. Una chiave di firma
-  non entra nel repository: quando servirà un release, la chiave sarà un segreto di CI.
+  non entra nel repository: quando servirà un release vero, la chiave sarà un segreto di CI e la
+  release smetterà di essere `prerelease`.
+- La release è **rotante**: una sola, `apk-latest`, sostituita a ogni push su `main`. Per un
+  pacchetto di debug l'unica versione interessante è quella corrente; le release versionate
+  arriveranno quando ci sarà una versione da rilasciare.
 - Lo Screen Wake Lock è un palliativo dichiarato, non un sostituto: tiene acceso lo schermo, non
   tiene vivo il processo. A schermo spento la scheda viene sospesa comunque.
 - La wake word di Fase 3 e la registrazione a schermo spento di Fase 4 diventano possibili: oggi non

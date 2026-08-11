@@ -386,8 +386,9 @@ Spento per default, per esemplare. 13 unit + 12 di integrazione con due case che
 **ADR-018 Tempo 2 cominciato** (`apps/face-android/`): Capacitor attorno alla stessa `apps/face`,
 permessi dichiarati con il motivo accanto, APK di debug **che si costruisce davvero** (4,2 MB,
 verificato leggendone i permessi). Nuovo job di CI `android shell (debug apk)` che lo costruisce e
-lo pubblica come artefatto: la riga «toolchain Android non verificabile nella CI» di ADR-018 non è
-più vera.
+lo pubblica come **release rotante** `apk-latest` (non come artefatto: scadrebbe in novanta giorni e
+vivrebbe dietro la scheda Actions, mentre lo si installa da un telefono). La riga «toolchain Android
+non verificabile nella CI» di ADR-018 non è più vera.
 
 **Attribuzione dello speaker** (competitor #11): `identify_voice()` era scritto e testato dal primo
 giorno e **non lo chiamava nessuno**. Ora la pipeline di ingest decodifica la forma d'onda, ritaglia
