@@ -23,6 +23,13 @@ export const desires = pgTable("desires", {
   gosinoId: gosinoId(),
   text: text("text").notNull(),
   status: desireStatus("status").notNull().default("pending"),
+  /** the dream's fuzzy hint, in words: "domani mattina", "quando torna" */
   dueHint: text("due_hint"),
+  /**
+   * ADR-028: the exact moment, when there is one. A reminder the owner asked
+   * for ("buttare l'acqua alle 13") is a desire with a clock on it — nullable,
+   * because the dream's own desires have no appointment.
+   */
+  dueAt: timestamp("due_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

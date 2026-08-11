@@ -7,6 +7,7 @@ import { ACT_BY_ID, type Act } from "./acts.js";
 import type { Curiosity } from "./curiosity.js";
 import { type Gates, decide } from "./decide.js";
 import { type Vars, type WorldFacts, pressures } from "./pressures.js";
+import { voiceReminder } from "./reminders.js";
 
 /**
  * Initiative (ADR-027) — the loop that lets UGO act because he decided to.
@@ -120,24 +121,48 @@ export class VolitionService {
 
   private async pendingDesire(
     at: Date,
-  ): Promise<{ count: number; due: boolean; text: string | undefined; id: string | undefined }> {
+  ): Promise<{
+    count: number;
+    due: boolean;
+    /** the owner asked for this one, by the clock: it bypasses the quiet rules */
+    isReminder: boolean;
+    text: string | undefined;
+    id: string | undefined;
+  }> {
     const rows = await this.deps.db
-      .select({ id: desires.id, text: desires.text, dueHint: desires.dueHint })
+      .select({ id: desires.id, text: desires.text, dueAt: desires.dueAt, dueHint: desires.dueHint })
       .from(desires)
       .where(eq(desires.status, "pending"))
       .orderBy(asc(desires.createdAt));
-    const first = rows[0];
+
+    // A reminder the owner asked for outranks everything: it comes first, and
+    // it is exact to the minute (ADR-028). `due_hint` stays the dream's own
+    // fuzzy wish and is read only as an hour of the day.
+    const ripe = rows
+      .filter((row) => row.dueAt !== null && row.dueAt.getTime() <= at.getTime())
+      .sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0))[0];
+    if (ripe !== undefined) {
+      return { count: rows.length, due: true, isReminder: true, text: ripe.text, id: ripe.id };
+    }
+
     const hour = this.hour(at);
-    // `due_hint` has existed since the first migration and nothing has ever
-    // read it: a desire could name its moment and the moment never came
-    const due = rows.some((row) => {
+    const hinted = rows.some((row) => {
       const hint = row.dueHint;
       if (hint === null || hint === "") return false;
       const match = /(\d{1,2})\s*[:.]?\s*\d{0,2}/u.exec(hint);
       const named = match?.[1] === undefined ? undefined : Number(match[1]);
       return named !== undefined && named === hour;
     });
-    return { count: rows.length, due, text: first?.text, id: first?.id };
+    // a desire with an appointment in the future must not be said early
+    const spontaneous = rows.filter((row) => row.dueAt === null);
+    const first = spontaneous[0];
+    return {
+      count: spontaneous.length,
+      due: hinted,
+      isReminder: false,
+      text: first?.text,
+      id: first?.id,
+    };
   }
 
   private async record(type: string, payload: Record<string, unknown>): Promise<void> {
@@ -219,6 +244,20 @@ export class VolitionService {
     const list = pressures(vars, facts);
     const seen = list.map((p) => ({ id: p.id, magnitude: Number(p.magnitude.toFixed(3)) }));
     await this.scoreLast(seen);
+
+    // A reminder the owner asked for is not an initiative to be weighed: it is
+    // an instruction with a time on it. It skips the quiet hours and the floor
+    // between initiatives, because "svegliami alle 6" means alle 6 (ADR-028).
+    if (desire.isReminder && desire.text !== undefined && desire.id !== undefined) {
+      if (!this.deps.enabled()) return { acted: undefined, because: undefined, seen };
+      this.deps.gateway.broadcastSpeak(voiceReminder(desire.text));
+      await this.deps.db
+        .update(desires)
+        .set({ status: "done" })
+        .where(eq(desires.id, desire.id));
+      await this.record("reminder_voiced", { late: Math.round(facts.minutesSinceInitiative) });
+      return { acted: "reminder", because: "me l'avevi chiesto tu", seen };
+    }
 
     const gates: Gates = {
       bodyPresent: facts.bodyPresent,

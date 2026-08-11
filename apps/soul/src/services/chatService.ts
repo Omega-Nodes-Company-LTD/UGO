@@ -1,4 +1,4 @@
-import { beings, diaryEntries, messages, type DbClient } from "@ugo/db";
+import { beings, desires, diaryEntries, messages, type DbClient } from "@ugo/db";
 import {
   searchMemories,
   searchTranscripts,
@@ -12,6 +12,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import type { PackService } from "./packService.js";
 import { buildPackPrompt } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
+import { confirmReminder, parseReminder } from "./volition/reminders.js";
 
 /** top-k per channel (PROGETTO §5.4: k=6 casa, k=10 riunioni) */
 const K_BY_CHANNEL = { home: 6, meeting: 10, api: 6 } as const;
@@ -34,17 +35,22 @@ export interface ChatServiceDeps {
   dataKey: Buffer;
   /** the pack block of the prompt (ADR-014); absent = no pack context */
   pack?: PackService;
+  /** the household's clock (ADR-019); defaults to the project timezone */
+  timezone?: string;
 }
 
 /** Blocks 3+4 of the §5.5 prompt order — dynamic, therefore NEVER cached. */
 function buildDynamicSystem(
+  now: string,
   view: { label: string; phrase: string },
   diary: { date: string; text: string } | undefined,
   retrieved: readonly RankedMemory[],
   recordings: readonly string[],
   pack: string | undefined,
 ): string {
-  const lines = [`Stato d'animo: ${view.label}. ${view.phrase}`];
+  // the clock goes in the DYNAMIC block and nowhere else: interpolating a time
+  // into a cached block would break the cache on every single call (§5.5)
+  const lines = [`Adesso è ${now}.`, `Stato d'animo: ${view.label}. ${view.phrase}`];
   // the pack comes before the memories: who is in the room decides how a
   // recollection should be said, not the other way round
   if (pack !== undefined && pack !== "") lines.push(pack);
@@ -66,6 +72,32 @@ function buildDynamicSystem(
 
 export class ChatService {
   public constructor(private readonly deps: ChatServiceDeps) {}
+
+  /**
+   * The wall clock in the household's timezone (ADR-028).
+   *
+   * Until now UGO did not know what time it was — not a small gap for someone
+   * who is asked "ricordami fra dieci minuti" and who goes to sleep when it
+   * gets dark.
+   */
+  private wallClock(at: Date): { hour: number; minute: number; text: string } {
+    const tz = this.deps.timezone ?? "Europe/Rome";
+    const parts = new Intl.DateTimeFormat("it-IT", {
+      timeZone: tz,
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(at);
+    const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? "";
+    return {
+      hour: Number(get("hour")),
+      minute: Number(get("minute")),
+      text: `${get("weekday")} ${get("day")} ${get("month")}, ore ${get("hour")}:${get("minute")}`,
+    };
+  }
 
   /**
    * The last turns of *this* conversation (§5.5 block 5).
@@ -130,6 +162,38 @@ export class ChatService {
   public async handle(request: ChatRequest, at: Date = new Date()): Promise<ChatResponse> {
     const { db, embedder, llm, psyche, dataKey } = this.deps;
 
+    // ADR-028: «ricordami di buttare l'acqua alle 13» is a fixed shape in a
+    // fixed language. It is answered here, before the provider is ever
+    // reached: instant, and it costs nothing. A reminder is filed as a desire
+    // with a clock on it, and initiative voices it when the moment comes.
+    const wall = this.wallClock(at);
+    const reminder = parseReminder(request.text, wall.hour, wall.minute);
+    if (reminder !== undefined) {
+      await db.insert(desires).values({
+        text: reminder.task,
+        status: "pending",
+        dueAt: new Date(at.getTime() + reminder.inMinutes * 60_000),
+      });
+      const reply = confirmReminder(reminder);
+      // the exchange still goes into the biography, encrypted like every other
+      await db.insert(messages).values([
+        {
+          ts: at,
+          channel: request.channel,
+          role: "user",
+          beingId: request.beingId ?? null,
+          text: encryptText(request.text, dataKey),
+        },
+        {
+          ts: new Date(at.getTime() + 1),
+          channel: request.channel,
+          role: "assistant",
+          text: encryptText(reply, dataKey),
+        },
+      ]);
+      return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+    }
+
     if (request.beingId !== undefined) {
       const found = await db
         .select({ id: beings.id })
@@ -167,6 +231,7 @@ export class ChatService {
       {
         channel: request.channel,
         dynamicSystem: buildDynamicSystem(
+          wall.text,
           view,
           diaryRows[0],
           retrieved,

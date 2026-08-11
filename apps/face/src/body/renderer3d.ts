@@ -19,7 +19,30 @@ import { ACTIVITY_IT, Wanderer } from "./wander.js";
 const GLANCE_EVERY_MS = 4200;
 const GLANCE_SPREAD_MS = 3500;
 const GLANCE_LASTS_MS = 700;
-const CAMERA_HOME = new THREE.Vector3(0.85, 2.15, 8.6);
+
+const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
+/**
+ * Framing (ADR-028). He used to fill nine tenths of the screen, which left him
+ * nowhere to be.
+ *
+ * How much room he needs depends on how much there is: on a phone held in one
+ * hand a tenth of the frame is a speck, and on a desktop a quarter is a poster.
+ * So the share is chosen from the viewport, and the camera distance is solved
+ * from the share rather than pinned to a number.
+ */
+const SHARE_ON_PHONE = 0.25;
+const SHARE_ON_DESKTOP = 0.1;
+const PHONE_WIDTH = 640;
+const DESKTOP_WIDTH = 1280;
+/**
+ * Calibration: at this distance he occupies one unit of frame height. Measured
+ * against the real render, not derived — the camera looks down, so the naive
+ * trigonometry is wrong by enough to matter.
+ */
+const DISTANCE_FOR_FULL_FRAME = 4.8;
+/** The camera rides this fraction of its own distance above the floor. */
+const CAMERA_RISE = 0.2;
+const LOOK_AT_Y = 1.25;
 
 export interface Webgl3dOptions {
   traits?: Traits;
@@ -56,6 +79,9 @@ export class Webgl3dFace implements FaceRenderer {
   private posture = "in piedi";
   /** bench only: pins the posture so the combinations can be seen one by one */
   private forced: Posture | undefined;
+  /** where the camera wants to be, recomputed on every resize */
+  private readonly home = new THREE.Vector3(1.1, 2.6, 13);
+  private distance = 13;
 
   public constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -65,9 +91,9 @@ export class Webgl3dFace implements FaceRenderer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-    this.camera.position.copy(CAMERA_HOME);
-    this.camera.lookAt(0, 1.1, 0);
+    this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
+    this.camera.position.set(1.1, 2.6, 13);
+    this.camera.lookAt(0, LOOK_AT_Y, 0);
 
     this.scene.add(new THREE.HemisphereLight(0xfff1f4, 0x2a1b20, 1.5));
     const key = new THREE.DirectionalLight(0xffffff, 2.1);
@@ -158,6 +184,18 @@ export class Webgl3dFace implements FaceRenderer {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+
+    // share of the frame he should take, from the width of the frame itself
+    const t = clamp01((w - PHONE_WIDTH) / (DESKTOP_WIDTH - PHONE_WIDTH));
+    const share = SHARE_ON_PHONE + (SHARE_ON_DESKTOP - SHARE_ON_PHONE) * t;
+    this.distance = DISTANCE_FOR_FULL_FRAME / share;
+    this.home.set(this.distance * 0.085, this.distance * CAMERA_RISE, this.distance);
+
+    // the world is as big as the frame allows: at a tenth of the screen there
+    // is genuinely somewhere to walk to, which is the whole point of the pen
+    const visibleHalfWidth =
+      Math.tan((this.camera.fov * Math.PI) / 360) * this.distance * this.camera.aspect;
+    this.wanderer.setPen(Math.max(1.5, visibleHalfWidth * 0.55), Math.max(0.9, this.distance * 0.14));
   }
 
   private frame(now: number): void {
@@ -223,8 +261,12 @@ export class Webgl3dFace implements FaceRenderer {
     );
 
     // the camera follows just enough that he never leaves the frame
-    this.camera.position.x += (CAMERA_HOME.x + loco.x * 0.42 - this.camera.position.x) * 0.05;
-    this.camera.lookAt(loco.x * 0.55, 1.1, 0);
+    // follows less than before: with room to walk, a camera that chases him
+    // cancels the walking out
+    this.camera.position.x += (this.home.x + loco.x * 0.22 - this.camera.position.x) * 0.04;
+    this.camera.position.y += (this.home.y - this.camera.position.y) * 0.08;
+    this.camera.position.z += (this.home.z - this.camera.position.z) * 0.08;
+    this.camera.lookAt(loco.x * 0.3, LOOK_AT_Y, 0);
     this.renderer.render(this.scene, this.camera);
   }
 }

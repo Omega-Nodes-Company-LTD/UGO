@@ -1,7 +1,7 @@
 ---
 title: "Quando comincia lui"
 description: "UGO non aspetta sempre che sia tu a parlare: si fa vivo, ti chiama e ogni tanto ti fa una domanda sua. Come funziona e come si spegne."
-version: "0.12.0"
+version: "0.13.0"
 last_updated: "2026-08-11"
 author: "ThinkPink Studio"
 ---
@@ -57,6 +57,31 @@ Queste regole valgono sempre, e sono più importanti di tutto il resto:
   ci sia qualcuno.
 - **Se non ha niente di vero da dire, non dice niente.** Preferisce un'orecchia che
   scatta a una frase inventata per riempire.
+
+## Chiedergli di ricordarti una cosa
+
+UGO adesso sa che ore sono, e puoi affidargli un promemoria parlandogli normalmente:
+
+- «**ricordami** di buttare l'acqua **alle 13**»
+- «**ricordami** di chiamare Ivan **fra 10 minuti**»
+- «**avvisami fra mezz'ora** di girare l'arrosto»
+- «**ricordami domani alle 15** di pagare la bolletta»
+- «**svegliami alle 6**»
+
+Ti risponde subito confermando l'orario. Quando arriva il momento te lo dice, e te lo
+dice **attribuito**: «ehi, mi avevi detto di ricordarti…». Poi la cosa è chiusa: non
+te la ripete.
+
+Due cose da sapere:
+
+- **Un promemoria vale più delle sue buone maniere.** Di notte UGO tace, ma se gli hai
+  chiesto la sveglia alle 6, alle 6 parla.
+- **Se non ha capito l'ora, non se lo segna.** Preferisce lasciar perdere piuttosto che
+  darti la sveglia a un'ora inventata. Se dici «ricordami più tardi» ti risponde
+  normalmente e basta: riprova con un orario o con «fra N minuti».
+
+Le forme che ancora **non** capisce: «lunedì prossimo», «fra un quarto d'ora», «alle
+sette e mezza». Usa i numeri.
 
 ## Spegnerlo
 

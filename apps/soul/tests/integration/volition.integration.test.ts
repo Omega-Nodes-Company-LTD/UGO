@@ -204,6 +204,41 @@ describe("initiative", () => {
     if (report.acted !== undefined) expect(report.acted).not.toBe("askQuestion");
   });
 
+  it("gives back a reminder the owner asked for, even in the quiet hours", async () => {
+    // "svegliami alle 6" means alle 6: an explicit instruction outranks the
+    // politeness rule that keeps him silent at night (ADR-028)
+    await db.insert(desires).values({
+      text: "buttare l'acqua",
+      status: "pending",
+      dueAt: new Date(Date.now() - 60_000),
+    });
+    const { volition, heard } = await buildVolition({ hour: 3 });
+    const report = await volition.tick();
+
+    expect(report.acted).toBe("reminder");
+    expect(heard.filter((m) => m.type === "speak")).toMatchObject([
+      { text: expect.stringContaining("buttare l'acqua") as unknown },
+    ]);
+    const rows = await db.select({ status: desires.status }).from(desires);
+    expect(rows).toMatchObject([{ status: "done" }]);
+  });
+
+  it("does not blurt out a reminder before its time", async () => {
+    await db.insert(desires).values({
+      text: "girare l'arrosto",
+      status: "pending",
+      dueAt: new Date(Date.now() + 30 * 60_000),
+    });
+    const { volition, heard } = await buildVolition({});
+    await volition.tick();
+
+    expect(
+      heard.filter((m) => m.type === "speak" && m.text.includes("arrosto")),
+    ).toHaveLength(0);
+    const rows = await db.select({ status: desires.status }).from(desires);
+    expect(rows).toMatchObject([{ status: "pending" }]);
+  });
+
   it("scores whether the last initiative actually helped", async () => {
     await db.insert(desires).values({ text: "Una domanda?", status: "pending" });
     const { volition } = await buildVolition({});

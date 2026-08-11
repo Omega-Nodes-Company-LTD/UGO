@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.12.0"
+version: "0.13.0"
 last_updated: "2026-08-11"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -795,6 +795,40 @@ integrazione** su Postgres reale (dice il desiderio e non lo ripete, tace di not
 non parte due volte di fila, inventa una domanda sul modello locale, ripiega su un
 atto muto quando il modello è giù, e si dà un voto).
 
+## 6-terdecies. Lo spazio, l'orologio e i promemoria (ADR-028)
+
+Tre osservazioni del proprietario dopo il primo giorno col corpo nuovo, tutte giuste.
+
+**Occupava il 90% dello schermo**, quindi non aveva dove stare. Ora la quota è
+**responsiva** — un quarto sotto i 640 px di canvas, **un decimo** sopra i 1280,
+interpolata in mezzo — la distanza della camera è *risolta dalla quota* invece che
+fissata, e **il recinto del vagabondaggio cresce con l'inquadratura**: a un decimo di
+schermo c'è davvero dove andare. Misurato: 0,25 su 390×844, 0,11 su un canvas da 1423.
+
+**Non sapeva che ore fossero.** L'orologio della casa entra nel blocco **dinamico** del
+prompt e in nessun altro posto: un'ora dentro un blocco `[CACHED]` invaliderebbe la
+cache a ogni chiamata.
+
+**I promemoria**: «ricordami di buttare l'acqua alle 13» funziona, e non costa niente.
+
+| Scelta | Perché |
+|---|---|
+| Un promemoria **è** un desiderio con `due_at` | `desires` conteneva già intenzioni che sopravvivono alla notte; una colonna nullable invece di una tabella |
+| Riconoscimento **locale e deterministico** | Cinque forme fisse in una lingua fissa: zero token, risposta istantanea, testabile per esempi |
+| **Fallisce chiuso** | Un promemoria all'ora sbagliata è peggio di uno mai preso: l'ambiguo prosegue come conversazione normale |
+| Scavalca ore di silenzio e pavimento | «Svegliami alle 6» vuol dire alle 6: un'istruzione esplicita batte l'educazione |
+| Restituito **attribuito** | «Mi avevi detto di ricordarti…», non un ordine suo |
+
+Migrazione `0010_desire-due-at`: colonna nullable, istantanea su DB vivo.
+
+**Il difetto trovato dai test:** l'elisione italiana. `un'ora` non veniva riconosciuta
+perché la regex non prevedeva l'apostrofo fra numero e unità — cioè **la forma più
+comune di tutte** cadeva. Una revisione a occhio non lo vede, un esempio sì.
+
+Verifiche: **44 unit** (di cui 26 sui promemoria e sull'iniziativa) + **10 di
+integrazione** su Postgres reale, incluse «restituisce il promemoria anche di notte» e
+«non lo spiffera prima dell'ora».
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -818,6 +852,7 @@ atto muto quando il modello è giù, e si dà un voto).
 | Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
 | `Webgl3dFace` importato staticamente | Un dispositivo che usa il fallback 2D scarica lo stesso i 138 kB di three.js | Import dinamico in `createFace`, che diventa asincrono: piccolo, ma tocca l'ordine di avvio di `main.ts` |
 | Batteria del corpo 3D mai misurata | È il vincolo della Fase 4, e nessun numero lo copre | Una giornata sul 3a Pro; il fallback 2D è già lì se il numero è brutto |
+| **Uscire davvero** | La modalità portable esiste, ma UGO non sa di essere uscito: nessuna pressione la cerca, nessun desiderio si chiude quando succede | Un desiderio «voglio uscire» che si soddisfa quando il corpo passa in portable: piccolo, e chiude il cerchio con ADR-027 |
 | **Sa cominciare, non sa declinare** | Teso o esausto risponde comunque, sempre, subito: l'unica cosa che lo zittisce è il budget esaurito, che è il rifiuto di un contabile | Il passo gemello di ADR-027: risposta più corta, o dopo, o un grugnito — con interruttore del proprietario |
 | **Un solo ciclo di iniziativa** per tutto soul | Con più gosini in casa due creature parlerebbero addosso l'una all'altra | Per esemplare, insieme ad ADR-019 fase 3 |
 | Stato faccia di soul **per processo**, non per connessione | Due schede aperte si vedono lo stesso stato; gli e2e devono ordinarsi (`z-body.e2e.spec.ts`) | Diventa reale con più corpi per casa (ADR-019 fase 3): lì lo stato va per esemplare |

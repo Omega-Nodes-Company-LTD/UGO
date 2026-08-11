@@ -26,9 +26,13 @@ export interface WanderOutput extends Locomotion {
   activity: Activity;
 }
 
-/** The pen: past this he leaves the frame. */
-const RADIUS_X = 1.5;
-const RADIUS_Z = 0.9;
+/**
+ * The pen. Widened together with the camera pull-back (ADR-028): the point of
+ * wandering is that there is somewhere to wander to, and at the old radius he
+ * crossed his whole world in four steps.
+ */
+const DEFAULT_RADIUS_X = 3.4;
+const DEFAULT_RADIUS_Z = 1.7;
 const SPEED = 0.85; // units/second at full stride
 const TURN_RATE = 2.2; // rad/second
 
@@ -56,6 +60,14 @@ export class Wanderer {
    *  ever after. Found by the cross-fade test, not by review. */
   private lastNow: number | undefined;
   private grounded = false;
+  private radiusX = DEFAULT_RADIUS_X;
+  private radiusZ = DEFAULT_RADIUS_Z;
+
+  /** The renderer sizes the pen to the frame: a bigger view is a bigger world. */
+  public setPen(radiusX: number, radiusZ: number): void {
+    this.radiusX = radiusX;
+    this.radiusZ = radiusZ;
+  }
 
   /** True while something is actually moving — portable mode respects it. */
   public get moving(): boolean {
@@ -112,7 +124,7 @@ export class Wanderer {
     this.z += Math.cos(this.heading) * speed * dt;
     this.phase += speed * 7 * dt;
 
-    if ((this.x / RADIUS_X) ** 2 + (this.z / RADIUS_Z) ** 2 > 1) {
+    if ((this.x / this.radiusX) ** 2 + (this.z / this.radiusZ) ** 2 > 1) {
       this.target = Math.atan2(-this.x, -this.z);
       this.activity = "walking";
       this.until = now + 1400;

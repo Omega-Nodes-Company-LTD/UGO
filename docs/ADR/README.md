@@ -33,4 +33,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [025](./025-consolidamento-su-inattivita.md) | Consolidamento su inattività | Accettata |
 | [026](./026-corpo-tridimensionale-e-strati-espressivi.md) | Il corpo di casa in tre dimensioni, e i tre strati espressivi | Accettata |
 | [027](./027-iniziativa.md) | L'iniziativa: UGO può cominciare lui | Accettata |
-| 028 | *(prossimo numero disponibile)* | — |
+| [028](./028-lo-spazio-l-orologio-e-i-promemoria.md) | Lo spazio, l'orologio e i promemoria | Accettata |
+| 029 | *(prossimo numero disponibile)* | — |
