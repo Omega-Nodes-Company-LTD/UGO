@@ -50,6 +50,13 @@
       "when": 1786460822758,
       "tag": "0006_memory-validity",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786466057321,
+      "tag": "0007_memory-hybrid-search",
+      "breakpoints": true
     }
   ]
 }

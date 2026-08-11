@@ -8,3 +8,12 @@ import { customType } from "drizzle-orm/pg-core";
 export const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType: () => "bytea",
 });
+
+/**
+ * A Postgres full-text index vector. Only ever written by the database itself,
+ * as a generated column, so nothing in TypeScript should be able to set it —
+ * hence `never` on the write side.
+ */
+export const tsvector = customType<{ data: string; driverData: string; notNull: true }>({
+  dataType: () => "tsvector",
+});

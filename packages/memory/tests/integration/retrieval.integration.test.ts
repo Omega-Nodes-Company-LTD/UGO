@@ -75,10 +75,17 @@ describe("write + semantic search on real infrastructure", () => {
     });
     const results = await searchMemories(db, embedder, "che caffè preferisce?", 2);
     const ids = results.map((r) => r.id);
-    // both texts are the top-similarity candidates; importance 0.05 must
-    // push the low one out of the top-k while the high one stays first
+    // the two texts are near-identical, so similarity cannot separate them:
+    // only importance can, and it puts the 0.95 one first
     expect(ids[0]).toBe(high.id);
-    expect(ids).not.toContain(low.id);
+    expect(ids.indexOf(high.id)).toBeLessThan(
+      ids.includes(low.id) ? ids.indexOf(low.id) : Number.MAX_SAFE_INTEGER,
+    );
+    // This used to also assert that importance pushed the low one out of the
+    // top-2 entirely. It no longer does, and not because importance stopped
+    // mattering: the ADR-022 threshold now drops the unrelated memories this
+    // test used to compete against, so there is room in the top-2 for both.
+
   });
 
   it("rejects embeddings of the wrong dimension at the client boundary", async () => {

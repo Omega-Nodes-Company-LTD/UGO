@@ -3,6 +3,7 @@ import { index, jsonb, pgTable, real, text, timestamp, uuid, vector } from "driz
 import { EMBEDDING_DIMENSIONS } from "@ugo/shared";
 import { memoryKind } from "./enums.js";
 import { gosinoId } from "./self.js";
+import { tsvector } from "./types.js";
 
 // Semantic memory (PROGETTO §5.4): retrieval re-ranks by
 // similarity × importance × recency; last_accessed keeps used memories alive.
@@ -41,11 +42,27 @@ export const memories = pgTable(
     /** the memory that took its place, when there is one */
     supersededBy: uuid("superseded_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Lexical index over the same text (ADR-022). Two configurations in one
+     * vector: `italian` stems and drops stopwords, which is right for ordinary
+     * sentences and wrong for «Ferretti» or «GK492NR»; `simple` keeps every
+     * token whole. Weighted A and B so a stemmed match still outranks a raw one.
+     *
+     * Generated, not maintained by a trigger, and the difference is a privacy
+     * property rather than a preference: `ForgetService.redactMemories`
+     * rewrites `text` during erasure, and a trigger that someone disabled would
+     * leave the erased name inside the index, findable. A STORED generated
+     * column cannot diverge from its row.
+     */
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      sql`setweight(to_tsvector('italian', coalesce("text", '')), 'A') || setweight(to_tsvector('simple', coalesce("text", '')), 'B')`,
+    ),
   },
   (table) => [
     index("memories_embedding_hnsw_idx").using("hnsw", table.embedding.op("vector_cosine_ops")),
     index("memories_kind_idx").on(table.kind),
     // retrieval asks for the living ones on every single turn
     index("memories_alive_idx").on(table.gosinoId, table.invalidatedAt),
+    index("memories_search_gin_idx").using("gin", table.searchVector),
   ],
 );

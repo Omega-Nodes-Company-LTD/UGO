@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.10.0"
-last_updated: "2026-08-10"
+version: "0.11.0"
+last_updated: "2026-08-11"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -479,6 +479,111 @@ sezione di jobs: ora sì. Quei segreti vanno considerati compromessi e ruotati (
 chiavi in chiaro nel log di build»); su `UGO_DATA_KEY` la rotazione è gratis solo finché il
 database è vuoto, ed è esattamente il momento in cui siamo.
 
+## 6-undecies. Il banco di prova della memoria (backlog, gruppo 1)
+
+Il backlog chiedeva di poter **misurare** se UGO ricorda bene: «oggi non sappiamo misurare se
+ricorda bene: temporale, contraddizioni, astensione». Fino a qui ogni cambio al recupero si poteva
+argomentare, non dimostrare.
+
+- `packages/memory/src/metrics.ts` — `recallAtK`, `reciprocalRank`, `benchReport`. Funzioni pure,
+  accanto a `rerank.ts`, con unit test propri. `recallAtK` **solleva** su una domanda senza
+  risposta: quella appartiene all'astensione, e restituire 0 o 1 in silenzio inclinerebbe la media
+  della suite nella direzione che il chiamante ha indovinato.
+- Corpus fisso di 22 ricordi e 13 domande in italiano reale (`tests/integration/bench/`), su cinque
+  famiglie: temporale, contraddizione, semantica, lessicale, astensione. Orologio fermo e
+  `created_at`/`valid_from` espliciti, perché il re-rank decade con τ=30 giorni e un «adesso» che
+  scorre farebbe driftare i punteggi ogni giorno.
+- Il banco **non tocca `retrieval.ts`**. Era la tentazione — aggiungere la soglia di astensione
+  «perché altrimenti non si misura» — ed è esattamente ciò che rende un banco inutile: uno scritto
+  dopo la feature misura sempre la feature.
+
+**Il banco ha trovato due cose alla prima esecuzione**, ed è servito a questo:
+
+1. **Il fattore di recency domina il re-rank.** `similarità × importanza × recency` con
+   `recency = e^(-età/30gg)`: a 120 giorni vale 0.018, a 5 giorni vale 0.85 — una penalità di 46×
+   contro due fattori limitati a 1. Un ricordo più vecchio di qualche mese è **irraggiungibile per
+   quanto sia pertinente**. Misurato: alla domanda «come si chiama il gatto?» il ricordo giusto ha
+   la similarità più alta del corpus (0.676 contro 0.608) e non compare fra i primi cinque.
+   Escluso che sia colpa degli embedding: verificati anche i prefissi di attività di
+   `nomic-embed-text`, non è quello. **Tocca una formula di PROGETTO §5.4: è una decisione, non una
+   correzione**, e non è un punto del backlog — è una scoperta.
+2. **L'astensione non esiste.** `searchMemories` non ha soglia e restituisce sempre `k` righe: non
+   risponde male alle domande senza risposta, non ha il modo di tacere. `searchTranscripts` una
+   soglia ce l'ha (`MIN_SIMILARITY = 0.5`).
+
+Ciò che invece regge: un ricordo invalidato non riemerge mai (recall 1.00 — la 0006 mantiene la
+promessa), e fra due ricordi vivi che si smentiscono vince il più recente e importante (MRR 1.00).
+
+Baseline e lettura completa: `packages/memory/tests/integration/bench/BASELINE.md`. Le soglie di non
+regressione stanno in `FLOORS`, fissate ai valori **misurati**; salgono e non scendono. Il difetto
+della recency è anche un test eseguibile («buries an old memory under recent noise»), che fallirà il
+giorno in cui il ranking verrà corretto: è il suo scopo.
+
+Verifiche: 11 unit puri sulle metriche, 6 di integrazione su Postgres+pgvector e Ollama reali.
+
+## 6-duodecies. Il tempo non passa allo stesso modo per tutti i ricordi (ADR-021)
+
+La prima scoperta del banco è diventata una decisione. τ smette di essere una costante globale di 30
+giorni e diventa una proprietà del `kind`: `episode` 30, `insight` 180, `preference` 365, `fact` 730.
+
+L'argomento che ha reso la decisione facile: il decadimento faceva **due lavori insieme** — «questo
+ricordo non serve più» e «questo ricordo non è più vero» — perché prima della migrazione `0006` un
+fatto non poteva morire, poteva solo sbiadire. Da quando l'obsolescenza ha il suo meccanismo
+esplicito (`invalidated_at`, `superseded_by`), il decadimento può tornare a significare solo il
+primo, che è una durata diversa per un episodio e per un fatto.
+
+Nessuna migrazione, nessuna colonna, nessuna firma cambiata: `RerankCandidate` porta già `kind`. È
+un cambio di comportamento a schema invariato.
+
+**Il guadagno, sullo stesso corpus e con lo stesso comando**: `semantica` da recall 0.00 a **1.00**,
+`lessicale` da 0.00 a **0.75**, `temporale` da MRR 0.50 a **1.00**. Notevole che sia salita anche
+`lessicale`: parte di quello che sembrava un problema di ricerca lessicale era un problema di età —
+la targa `GK492NR` ora è prima per la query `GK492NR`, senza una riga di full-text.
+
+**Il costo, misurato e non ipotizzato**: un τ per tipo rende il fattore di recency non confrontabile
+fra tipi (un episodio di 12 giorni sta a 0.67, un fatto di 120 a 0.85), quindi **i fatti scavalcano
+sistematicamente gli episodi**. Alla domanda «cosa si è rotto in casa?» i primi cinque sono tutti
+`fact` e la lavatrice rotta dodici giorni prima non c'è. Dentro lo stesso tipo l'ordine resta giusto.
+È in backlog come punto proprio, ed è registrato come test eseguibile: chi tocca il ranking la
+prossima volta lo scopre da un fallimento, non da un file di documentazione.
+
+PROGETTO §5.4 aggiornato. Verifiche: 20 unit puri su `rerank`, 8 di integrazione sul banco.
+
+## 6-terdecies. Un nome proprio non si trova per somiglianza (ADR-022)
+
+Ricerca ibrida: `memories` guadagna una colonna `tsvector` generata (migrazione `0007`) e un indice
+GIN; il recupero interroga due bracci — vettoriale e lessicale — li fonde per rango con RRF e applica
+una soglia **disgiuntiva** (vicinanza semantica **oppure** corrispondenza lessicale).
+
+Tre scelte che meritano di essere ricordate:
+
+- **Colonna generata, non trigger.** `ForgetService.redactMemories` riscrive `memories.text` durante
+  l'oblio: un indice mantenuto da trigger, se il trigger venisse disabilitato, terrebbe il nome
+  cancellato dentro l'indice full-text e cercarlo lo ritroverebbe. Una colonna `STORED` non può
+  divergere dalla riga. Verificato su Postgres reale.
+- **`italian` + `simple` in un vettore solo**, con pesi A/B: il primo fa stemming e toglie le
+  stopword, il secondo conserva `GK492NR` e «Ferretti» come token interi.
+- **RRF invece di somma pesata**: il coseno sta in `[0,1]`, `ts_rank_cd` è illimitata; fonderle per
+  punteggio richiede una normalizzazione instabile proprio quando un braccio è vuoto.
+
+**Guadagno**: `lessicale` da recall 0.75 a **1.00** e MRR da 0.58 a **0.80** — `GK492NR` è primo, e
+«chi è il tecnico Ferretti?» trova il ricordo che lo nomina pur parlando di caldaie. `semantica` da
+MRR 0.54 a **0.65**.
+
+**Quel che il banco ha smentito**: ADR-022 doveva anche risolvere l'astensione, e non la risolve. Le
+migliori similarità delle domande **senza** risposta (0.604 · 0.637 · 0.672) si **sovrappongono** a
+quelle delle domande con risposta (0.624–0.893). Nessun taglio assoluto le separa; quello che
+«farebbe passare» il corpus, 0.675, sarebbe quattro millesimi di margine tarati sul test. La soglia
+resta a 0.5 — lo stesso valore di `searchTranscripts` — e fa solo il lavoro che una soglia può fare.
+A 0.6 tagliava anche la risposta episodica giusta. **L'astensione torna in backlog come punto
+proprio**, e chiede un meccanismo che non sia una soglia sul coseno.
+
+Nessun contratto di API cambia: `searchMemories` mantiene la firma, quindi `chatService` e
+`GET /v1/memories?q=` guadagnano la ricerca ibrida senza una riga di modifica.
+
+Verifiche: 32 unit puri (`fusion`, `rerank`, `metrics`), 20 di integrazione in `@ugo/memory`, 13 in
+`@ugo/db`, 92 in `soul` — nessuna regressione.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -486,6 +591,10 @@ database è vuoto, ed è esattamente il momento in cui siamo.
 | esbuild MODERATE via drizzle-kit (dev-only) | Basso | Bump drizzle-kit quando esce il fix |
 | Python 3.11 nell'ambiente vs 3.12 in spec | Nullo fino a Fase 3 | Pin 3.12 nel Dockerfile di `ops/jobs` |
 | Chiave dati e database sulla stessa macchina (ADR-017) | La cifratura a riposo copre backup/snapshot/dump, non root sul server vivo | Copia offline di `UGO_DATA_KEY` obbligatoria (runbook §1.7); un KMS ha senso solo se il ferro diventa più di uno |
+| ~~Il recency del re-rank seppellisce i ricordi vecchi~~ | — | **Chiuso** da ADR-021 (§6-duodecies): τ per `kind` |
+| **I fatti scavalcano gli episodi** (§6-duodecies) | Medio: una domanda su un episodio riceve cinque fatti. Conseguenza misurata di ADR-021 | Riapre la *forma* della formula, non i suoi valori: la recency moltiplicativa non è confrontabile fra tipi. Da valutare col banco quando si tocca il ranking la prossima volta |
+| **Il recupero non sa tacere** (§6-terdecies) | A una domanda senza risposta UGO riceve comunque ricordi irrilevanti nel prompt | **Non risolvibile con una soglia**: misurato in ADR-022, le bande di similarità con e senza risposta si sovrappongono. Serve un criterio relativo, una verifica del modello, o un embedder che separi meglio |
+| **`memories.text` in chiaro con un indice che ne dipende** (ADR-022) | Cifrare i ricordi non sarebbe più una migrazione di colonna: sarebbe rinunciare alla ricerca lessicale | Impegno consapevole rispetto a CLAUDE.md regola 6. `messages` e `transcript_segments` restano ciphertext e fuori dalla ricerca ibrida |
 | Encoder vocale MFCC, non neurale | Separa poche voci in casa; su rumore reale sarà più fragile | Vendorizzare pyannote/WeSpeaker dietro la porta `VoiceEncoder`; `recognition_profiles.model` impedisce di confondere i centroidi |
 | Perimetro biometrico non formalizzato | Nessuno finché l'enrollment resta sul corpo di casa | Rispondere alla domanda §6-quater prima di estendere il riconoscimento fuori casa |
 | Guscio Android: **deciso, non ancora costruito** | Il corpo di casa gira come PWA installata (sufficiente nel dock); **il corpo in giro non può ancora registrare a schermo spento** | ADR-018 **accettato**, adozione in due tempi: Tempo 1 (PWA + wake lock) fatto; Tempo 2 (APK Capacitor) quando si apre davvero la Fase 4. Serve la toolchain Android, non verificabile nella CI attuale |
@@ -503,8 +612,11 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
    ±0.02 clampata; ADR-013: voce in stanza via corpo di casa come interim).
 2. ~~Runbook Coolify~~ — **generato**: [`OPS_COOLIFY.md`](./OPS_COOLIFY.md); mancano solo i valori
    dei placeholder angolari (elenco chiesto al proprietario).
-3. **Primo deploy** sul server seguendo il runbook: lì si chiudono cache-hit reale, pull modelli,
-   cron del sogno, stack Vexa + Meet di prova.
+3. ~~Primo deploy~~ — **fatto** (proprietario, 2026-08-11), con pochi dati veri a bordo: una
+   ventina di scambi di conversazione; per come è andato il primo tentativo, §6-decies. Restano da chiudere sul server vivo: cache-hit reale, pull
+   dei modelli, cron del sogno, stack Vexa + Meet di prova. **Conseguenza operativa**: le migrazioni
+   di schema non girano più su un database vuoto. Costano ancora poco a questo volume, e la finestra
+   per i cambi strutturali (fra i quali la caduta dei `DEFAULT` del gruppo 5) non resterà aperta.
 4. **Col telefono**: installare la PWA (runbook §10), STT/TTS reali, MediaPipe/camera, Vosk wake
    word. Il guscio Capacitor (ADR-018 Tempo 2) parte quando serve registrare a schermo spento.
 5. **Fase 6 — Gusci**: sessione dedicata; il proprietario ha già dei design da una sessione chat
@@ -514,8 +626,10 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
    Restano da fare, dopo il deploy: popolare il branco reale, fare l'enrollment delle voci di casa,
    e documentare in `/documentation` le funzioni una volta che l'utente potrà usarle davvero.
 
-Da qui in avanti non resta software da scrivere prima del deploy: tutto ciò che manca richiede
-**hardware o rete reale** — il server, il telefono, il guscio.
+Non è più vero che «non resta software da scrivere»: quella frase valeva prima dell'analisi
+competitiva del 2026-08-10, che ha prodotto [`BACKLOG.md`](./BACKLOG.md) e circa venticinque punti
+aperti. Resta vero che le **validazioni** delle fasi 2/4/5 richiedono hardware o rete reale — il
+telefono, il guscio, lo stack Vexa.
 
 ## Prossimi Passi
 
