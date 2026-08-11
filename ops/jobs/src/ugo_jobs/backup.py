@@ -5,6 +5,7 @@ pg_dump (custom format) → AES-256-GCM → ugo-backup/pg/<date>.dump.enc,
 
 from __future__ import annotations
 
+import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -33,6 +34,14 @@ def _s3_client(cfg: JobsConfig):  # noqa: ANN202 — boto3 has no useful static 
     )
 
 
+def _redact(text: str) -> str:
+    """Strip credentials from anything pg_dump echoes back.
+
+    postgres://ugo:hunter2@db:5432/ugo → postgres://ugo:***@db:5432/ugo
+    """
+    return re.sub(r"(?<=://)([^:/@\s]+):([^@/\s]+)(?=@)", r"\1:***", text)
+
+
 def _dump_database(database_url: str) -> bytes:
     completed = subprocess.run(
         ["pg_dump", "--format=custom", f"--dbname={database_url}"],
@@ -41,8 +50,14 @@ def _dump_database(database_url: str) -> bytes:
         timeout=600,
     )
     if completed.returncode != 0:
-        # stderr may mention host/db names but never row contents
-        raise RuntimeError(f"pg_dump failed (exit {completed.returncode})")
+        # The reason lives in stderr, and throwing it away turned every failure
+        # into a guess. It may mention host and database names — never row
+        # contents — so it is safe to surface once the password is removed.
+        reason = _redact(completed.stderr.decode("utf-8", "replace")).strip()
+        detail = " · ".join(line for line in reason.splitlines() if line.strip())[:800]
+        raise RuntimeError(
+            f"pg_dump failed (exit {completed.returncode}): {detail or 'no output on stderr'}"
+        )
     return completed.stdout
 
 
