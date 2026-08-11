@@ -1,0 +1,274 @@
+{
+  "note": "Corpus fisso del banco di prova (backlog, gruppo 1). Italiano reale, non lorem: la similarita su testo finto non misura nulla. Le date sono relative al giorno del banco, in giorni indietro.",
+  "memories": [
+    {
+      "key": "ivan-lavoro-vecchio",
+      "kind": "fact",
+      "text": "Ivan lavora alla ditta di trasporti Ferrari come autista.",
+      "importance": 0.6,
+      "createdDaysAgo": 400,
+      "validFromDaysAgo": 400,
+      "invalidatedDaysAgo": 30
+    },
+    {
+      "key": "ivan-lavoro-nuovo",
+      "kind": "fact",
+      "text": "Da marzo Ivan lavora alla Metalmeccanica Bruni di Parma come magazziniere.",
+      "importance": 0.7,
+      "createdDaysAgo": 30,
+      "validFromDaysAgo": 30,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "riunione-martedi",
+      "kind": "fact",
+      "text": "La riunione settimanale del team si tiene il martedi mattina.",
+      "importance": 0.5,
+      "createdDaysAgo": 200,
+      "validFromDaysAgo": 200,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "riunione-giovedi",
+      "kind": "fact",
+      "text": "La riunione settimanale del team si fa il giovedi alle nove.",
+      "importance": 0.75,
+      "createdDaysAgo": 5,
+      "validFromDaysAgo": 5,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "gatto-bruno",
+      "kind": "fact",
+      "text": "Il gatto di casa si chiama Bruno e dorme sempre sopra il router.",
+      "importance": 0.8,
+      "createdDaysAgo": 120,
+      "validFromDaysAgo": 120,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "caffe-preferenza",
+      "kind": "preference",
+      "text": "Il caffe lo prendo amaro, senza zucchero, e mai dopo le sei di sera.",
+      "importance": 0.6,
+      "createdDaysAgo": 90,
+      "validFromDaysAgo": 90,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "targa-auto",
+      "kind": "fact",
+      "text": "La targa della macchina di casa e GK492NR.",
+      "importance": 0.7,
+      "createdDaysAgo": 150,
+      "validFromDaysAgo": 150,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "caldaia-modello",
+      "kind": "fact",
+      "text": "La caldaia in bagno e una Vaillant ecoTEC VMW 246, installata dal tecnico Ferretti.",
+      "importance": 0.65,
+      "createdDaysAgo": 220,
+      "validFromDaysAgo": 220,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "sofia-allergia",
+      "kind": "fact",
+      "text": "Sofia e allergica ai crostacei e porta sempre con se l autoiniettore.",
+      "importance": 0.9,
+      "createdDaysAgo": 300,
+      "validFromDaysAgo": 300,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "compleanno-nonna",
+      "kind": "fact",
+      "text": "Il compleanno della nonna Teresa e il quattordici novembre.",
+      "importance": 0.7,
+      "createdDaysAgo": 250,
+      "validFromDaysAgo": 250,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "lavatrice-rumore",
+      "kind": "episode",
+      "text": "La lavatrice ha fatto un rumore strano durante la centrifuga e si e fermata a meta.",
+      "importance": 0.4,
+      "createdDaysAgo": 12,
+      "validFromDaysAgo": 12,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "dentista-appuntamento",
+      "kind": "episode",
+      "text": "Ho spostato l appuntamento dal dentista perche si sovrapponeva alla consegna.",
+      "importance": 0.45,
+      "createdDaysAgo": 20,
+      "validFromDaysAgo": 20,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "vicino-cane",
+      "kind": "episode",
+      "text": "Il cane del vicino ha abbaiato tutta la notte e non sono riuscito a dormire.",
+      "importance": 0.35,
+      "createdDaysAgo": 40,
+      "validFromDaysAgo": 40,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "musica-preferenza",
+      "kind": "preference",
+      "text": "Mentre lavoro preferisco il silenzio, la musica con le parole mi distrae.",
+      "importance": 0.55,
+      "createdDaysAgo": 70,
+      "validFromDaysAgo": 70,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "orto-pomodori",
+      "kind": "episode",
+      "text": "Ho piantato i pomodori nell orto dietro casa, quest anno anche i peperoni.",
+      "importance": 0.4,
+      "createdDaysAgo": 60,
+      "validFromDaysAgo": 60,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "bici-riparazione",
+      "kind": "episode",
+      "text": "Ho portato la bici a riparare, la catena saltava sulla corona piccola.",
+      "importance": 0.35,
+      "createdDaysAgo": 55,
+      "validFromDaysAgo": 55,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "insight-mattina",
+      "kind": "insight",
+      "text": "Le cose difficili gli riescono meglio la mattina presto, dopo pranzo si arena.",
+      "importance": 0.6,
+      "createdDaysAgo": 45,
+      "validFromDaysAgo": 45,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "fornitore-consegna",
+      "kind": "episode",
+      "text": "La consegna del fornitore e stata spostata a giovedi pomeriggio.",
+      "importance": 0.45,
+      "createdDaysAgo": 18,
+      "validFromDaysAgo": 18,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "pioggia-parma",
+      "kind": "episode",
+      "text": "Su Parma ha piovuto tutto il fine settimana e la cantina si e allagata.",
+      "importance": 0.3,
+      "createdDaysAgo": 80,
+      "validFromDaysAgo": 80,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "libreria-montaggio",
+      "kind": "episode",
+      "text": "Ho montato la libreria in salotto, mancavano due viti nella confezione.",
+      "importance": 0.3,
+      "createdDaysAgo": 100,
+      "validFromDaysAgo": 100,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "cena-preferenza",
+      "kind": "preference",
+      "text": "A cena mangia leggero, di solito verdura e formaggio, mai carne rossa.",
+      "importance": 0.5,
+      "createdDaysAgo": 110,
+      "validFromDaysAgo": 110,
+      "invalidatedDaysAgo": null
+    },
+    {
+      "key": "wifi-nome",
+      "kind": "fact",
+      "text": "La rete wifi di casa si chiama Cinghiale e il router e in corridoio.",
+      "importance": 0.55,
+      "createdDaysAgo": 130,
+      "validFromDaysAgo": 130,
+      "invalidatedDaysAgo": null
+    }
+  ],
+  "questions": [
+    {
+      "query": "dove lavora Ivan?",
+      "family": "temporale",
+      "relevant": ["ivan-lavoro-nuovo"],
+      "note": "il lavoro vecchio e ritirato: non deve tornare fuori"
+    },
+    {
+      "query": "quando e la riunione settimanale del team?",
+      "family": "contraddizione",
+      "relevant": ["riunione-giovedi"],
+      "note": "due ricordi vivi si smentiscono: deve vincere il piu recente e importante"
+    },
+    {
+      "query": "come si chiama il gatto?",
+      "family": "semantica",
+      "relevant": ["gatto-bruno"]
+    },
+    {
+      "query": "come prende il caffe?",
+      "family": "semantica",
+      "relevant": ["caffe-preferenza"]
+    },
+    {
+      "query": "Sofia puo mangiare i gamberi?",
+      "family": "semantica",
+      "relevant": ["sofia-allergia"]
+    },
+    {
+      "query": "quando e il compleanno della nonna?",
+      "family": "semantica",
+      "relevant": ["compleanno-nonna"]
+    },
+    {
+      "query": "GK492NR",
+      "family": "lessicale",
+      "relevant": ["targa-auto"],
+      "note": "bersaglio del punto 2: un codice si trova male con la sola similarita"
+    },
+    {
+      "query": "che modello e la caldaia Vaillant ecoTEC VMW 246?",
+      "family": "lessicale",
+      "relevant": ["caldaia-modello"]
+    },
+    {
+      "query": "chi e il tecnico Ferretti?",
+      "family": "lessicale",
+      "relevant": ["caldaia-modello"],
+      "note": "nome proprio citato dentro un ricordo che parla d altro"
+    },
+    {
+      "query": "come si chiama la rete wifi Cinghiale?",
+      "family": "lessicale",
+      "relevant": ["wifi-nome"]
+    },
+    {
+      "query": "qual e il codice IBAN del conto corrente?",
+      "family": "astensione",
+      "relevant": []
+    },
+    {
+      "query": "quanto costa l abbonamento annuale del treno?",
+      "family": "astensione",
+      "relevant": []
+    },
+    {
+      "query": "in che anno e stata costruita la cattedrale di Chartres?",
+      "family": "astensione",
+      "relevant": []
+    }
+  ]
+}

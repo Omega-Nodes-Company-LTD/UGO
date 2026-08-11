@@ -19,7 +19,8 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ⬜️ | **Ricerca ibrida BM25 + vettoriale** | un nome proprio o un codice si trovano male con la sola similarità |
 | ⬜️ | **Consolidamento su inattività** (sleep-time compute) | il sogno esiste, manca il trigger quando UGO è fermo da un po' |
 | ⬜️ | **Grafo della memoria nel pannello** | vedere come i ricordi si legano, non solo leggerli in fila |
-| ⬜️ | **Banco di prova della memoria** | oggi non sappiamo *misurare* se ricorda bene: temporale, contraddizioni, astensione |
+| ✅ | **Banco di prova della memoria** | corpus fisso, cinque famiglie, soglie ai valori misurati: `packages/memory/tests/integration/bench/BASELINE.md` |
+| ⬜️ | **Il recency non seppellisca i ricordi vecchi** | *trovato dal banco*: `e^(-età/30gg)` penalizza 46× a 120 giorni, e similarità e importanza sono limitate a 1 — un fatto stabile diventa irraggiungibile. Tocca PROGETTO §5.4: serve una decisione |
 
 ## Gruppo 2 — Proattività (UGO che si fa vivo)
 

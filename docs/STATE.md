@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.10.0"
-last_updated: "2026-08-10"
+version: "0.11.0"
+last_updated: "2026-08-11"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -479,6 +479,48 @@ sezione di jobs: ora sì. Quei segreti vanno considerati compromessi e ruotati (
 chiavi in chiaro nel log di build»); su `UGO_DATA_KEY` la rotazione è gratis solo finché il
 database è vuoto, ed è esattamente il momento in cui siamo.
 
+## 6-undecies. Il banco di prova della memoria (backlog, gruppo 1)
+
+Il backlog chiedeva di poter **misurare** se UGO ricorda bene: «oggi non sappiamo misurare se
+ricorda bene: temporale, contraddizioni, astensione». Fino a qui ogni cambio al recupero si poteva
+argomentare, non dimostrare.
+
+- `packages/memory/src/metrics.ts` — `recallAtK`, `reciprocalRank`, `benchReport`. Funzioni pure,
+  accanto a `rerank.ts`, con unit test propri. `recallAtK` **solleva** su una domanda senza
+  risposta: quella appartiene all'astensione, e restituire 0 o 1 in silenzio inclinerebbe la media
+  della suite nella direzione che il chiamante ha indovinato.
+- Corpus fisso di 22 ricordi e 13 domande in italiano reale (`tests/integration/bench/`), su cinque
+  famiglie: temporale, contraddizione, semantica, lessicale, astensione. Orologio fermo e
+  `created_at`/`valid_from` espliciti, perché il re-rank decade con τ=30 giorni e un «adesso» che
+  scorre farebbe driftare i punteggi ogni giorno.
+- Il banco **non tocca `retrieval.ts`**. Era la tentazione — aggiungere la soglia di astensione
+  «perché altrimenti non si misura» — ed è esattamente ciò che rende un banco inutile: uno scritto
+  dopo la feature misura sempre la feature.
+
+**Il banco ha trovato due cose alla prima esecuzione**, ed è servito a questo:
+
+1. **Il fattore di recency domina il re-rank.** `similarità × importanza × recency` con
+   `recency = e^(-età/30gg)`: a 120 giorni vale 0.018, a 5 giorni vale 0.85 — una penalità di 46×
+   contro due fattori limitati a 1. Un ricordo più vecchio di qualche mese è **irraggiungibile per
+   quanto sia pertinente**. Misurato: alla domanda «come si chiama il gatto?» il ricordo giusto ha
+   la similarità più alta del corpus (0.676 contro 0.608) e non compare fra i primi cinque.
+   Escluso che sia colpa degli embedding: verificati anche i prefissi di attività di
+   `nomic-embed-text`, non è quello. **Tocca una formula di PROGETTO §5.4: è una decisione, non una
+   correzione**, e non è un punto del backlog — è una scoperta.
+2. **L'astensione non esiste.** `searchMemories` non ha soglia e restituisce sempre `k` righe: non
+   risponde male alle domande senza risposta, non ha il modo di tacere. `searchTranscripts` una
+   soglia ce l'ha (`MIN_SIMILARITY = 0.5`).
+
+Ciò che invece regge: un ricordo invalidato non riemerge mai (recall 1.00 — la 0006 mantiene la
+promessa), e fra due ricordi vivi che si smentiscono vince il più recente e importante (MRR 1.00).
+
+Baseline e lettura completa: `packages/memory/tests/integration/bench/BASELINE.md`. Le soglie di non
+regressione stanno in `FLOORS`, fissate ai valori **misurati**; salgono e non scendono. Il difetto
+della recency è anche un test eseguibile («buries an old memory under recent noise»), che fallirà il
+giorno in cui il ranking verrà corretto: è il suo scopo.
+
+Verifiche: 11 unit puri sulle metriche, 6 di integrazione su Postgres+pgvector e Ollama reali.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -486,6 +528,8 @@ database è vuoto, ed è esattamente il momento in cui siamo.
 | esbuild MODERATE via drizzle-kit (dev-only) | Basso | Bump drizzle-kit quando esce il fix |
 | Python 3.11 nell'ambiente vs 3.12 in spec | Nullo fino a Fase 3 | Pin 3.12 nel Dockerfile di `ops/jobs` |
 | Chiave dati e database sulla stessa macchina (ADR-017) | La cifratura a riposo copre backup/snapshot/dump, non root sul server vivo | Copia offline di `UGO_DATA_KEY` obbligatoria (runbook §1.7); un KMS ha senso solo se il ferro diventa più di uno |
+| **Il recency del re-rank seppellisce i ricordi vecchi** (§6-undecies) | Alto: un fatto biografico stabile non più toccato da qualche mese non riemerge, per quanto sia pertinente. Misurato dal banco di prova | Decisione, non correzione: la formula è in PROGETTO §5.4. Opzioni da valutare con i numeri del banco — pavimento sul fattore, τ per `kind` (un `fact` non invecchia come un `episode`), o recency additiva invece che moltiplicativa |
+| **Il recupero non sa tacere** (§6-undecies) | `searchMemories` restituisce sempre `k` righe: a una domanda senza risposta UGO riceve comunque cinque ricordi irrilevanti nel prompt | Soglia disgiuntiva insieme alla ricerca ibrida (vicinanza semantica **oppure** match lessicale); il precedente è `MIN_SIMILARITY` in `transcripts.ts` |
 | Encoder vocale MFCC, non neurale | Separa poche voci in casa; su rumore reale sarà più fragile | Vendorizzare pyannote/WeSpeaker dietro la porta `VoiceEncoder`; `recognition_profiles.model` impedisce di confondere i centroidi |
 | Perimetro biometrico non formalizzato | Nessuno finché l'enrollment resta sul corpo di casa | Rispondere alla domanda §6-quater prima di estendere il riconoscimento fuori casa |
 | Guscio Android: **deciso, non ancora costruito** | Il corpo di casa gira come PWA installata (sufficiente nel dock); **il corpo in giro non può ancora registrare a schermo spento** | ADR-018 **accettato**, adozione in due tempi: Tempo 1 (PWA + wake lock) fatto; Tempo 2 (APK Capacitor) quando si apre davvero la Fase 4. Serve la toolchain Android, non verificabile nella CI attuale |
@@ -503,8 +547,11 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
    ±0.02 clampata; ADR-013: voce in stanza via corpo di casa come interim).
 2. ~~Runbook Coolify~~ — **generato**: [`OPS_COOLIFY.md`](./OPS_COOLIFY.md); mancano solo i valori
    dei placeholder angolari (elenco chiesto al proprietario).
-3. **Primo deploy** sul server seguendo il runbook: lì si chiudono cache-hit reale, pull modelli,
-   cron del sogno, stack Vexa + Meet di prova.
+3. ~~Primo deploy~~ — **fatto** (proprietario, 2026-08-11), con pochi dati veri a bordo: una
+   ventina di scambi di conversazione; per come è andato il primo tentativo, §6-decies. Restano da chiudere sul server vivo: cache-hit reale, pull
+   dei modelli, cron del sogno, stack Vexa + Meet di prova. **Conseguenza operativa**: le migrazioni
+   di schema non girano più su un database vuoto. Costano ancora poco a questo volume, e la finestra
+   per i cambi strutturali (fra i quali la caduta dei `DEFAULT` del gruppo 5) non resterà aperta.
 4. **Col telefono**: installare la PWA (runbook §10), STT/TTS reali, MediaPipe/camera, Vosk wake
    word. Il guscio Capacitor (ADR-018 Tempo 2) parte quando serve registrare a schermo spento.
 5. **Fase 6 — Gusci**: sessione dedicata; il proprietario ha già dei design da una sessione chat
@@ -514,8 +561,10 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
    Restano da fare, dopo il deploy: popolare il branco reale, fare l'enrollment delle voci di casa,
    e documentare in `/documentation` le funzioni una volta che l'utente potrà usarle davvero.
 
-Da qui in avanti non resta software da scrivere prima del deploy: tutto ciò che manca richiede
-**hardware o rete reale** — il server, il telefono, il guscio.
+Non è più vero che «non resta software da scrivere»: quella frase valeva prima dell'analisi
+competitiva del 2026-08-10, che ha prodotto [`BACKLOG.md`](./BACKLOG.md) e circa venticinque punti
+aperti. Resta vero che le **validazioni** delle fasi 2/4/5 richiedono hardware o rete reale — il
+telefono, il guscio, lo stack Vexa.
 
 ## Prossimi Passi
 
