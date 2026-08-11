@@ -487,6 +487,8 @@ Da qui in avanti non resta software da scrivere prima del deploy: tutto ciò che
 
 ## Prossimi Passi
 
+- **Il lavoro deciso e non ancora fatto: [`BACKLOG.md`](./BACKLOG.md)** — un punto per commit,
+  un gruppo per pull request
 - Manuale per chi usa UGO: [`documentation/index.md`](../documentation/index.md)
 - Architettura e razionale delle scelte: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 - Specifica completa e fonte di verità: [`PROGETTO.md`](./PROGETTO.md)
