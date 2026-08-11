@@ -521,6 +521,34 @@ giorno in cui il ranking verrà corretto: è il suo scopo.
 
 Verifiche: 11 unit puri sulle metriche, 6 di integrazione su Postgres+pgvector e Ollama reali.
 
+## 6-duodecies. Il tempo non passa allo stesso modo per tutti i ricordi (ADR-021)
+
+La prima scoperta del banco è diventata una decisione. τ smette di essere una costante globale di 30
+giorni e diventa una proprietà del `kind`: `episode` 30, `insight` 180, `preference` 365, `fact` 730.
+
+L'argomento che ha reso la decisione facile: il decadimento faceva **due lavori insieme** — «questo
+ricordo non serve più» e «questo ricordo non è più vero» — perché prima della migrazione `0006` un
+fatto non poteva morire, poteva solo sbiadire. Da quando l'obsolescenza ha il suo meccanismo
+esplicito (`invalidated_at`, `superseded_by`), il decadimento può tornare a significare solo il
+primo, che è una durata diversa per un episodio e per un fatto.
+
+Nessuna migrazione, nessuna colonna, nessuna firma cambiata: `RerankCandidate` porta già `kind`. È
+un cambio di comportamento a schema invariato.
+
+**Il guadagno, sullo stesso corpus e con lo stesso comando**: `semantica` da recall 0.00 a **1.00**,
+`lessicale` da 0.00 a **0.75**, `temporale` da MRR 0.50 a **1.00**. Notevole che sia salita anche
+`lessicale`: parte di quello che sembrava un problema di ricerca lessicale era un problema di età —
+la targa `GK492NR` ora è prima per la query `GK492NR`, senza una riga di full-text.
+
+**Il costo, misurato e non ipotizzato**: un τ per tipo rende il fattore di recency non confrontabile
+fra tipi (un episodio di 12 giorni sta a 0.67, un fatto di 120 a 0.85), quindi **i fatti scavalcano
+sistematicamente gli episodi**. Alla domanda «cosa si è rotto in casa?» i primi cinque sono tutti
+`fact` e la lavatrice rotta dodici giorni prima non c'è. Dentro lo stesso tipo l'ordine resta giusto.
+È in backlog come punto proprio, ed è registrato come test eseguibile: chi tocca il ranking la
+prossima volta lo scopre da un fallimento, non da un file di documentazione.
+
+PROGETTO §5.4 aggiornato. Verifiche: 20 unit puri su `rerank`, 8 di integrazione sul banco.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -528,7 +556,8 @@ Verifiche: 11 unit puri sulle metriche, 6 di integrazione su Postgres+pgvector e
 | esbuild MODERATE via drizzle-kit (dev-only) | Basso | Bump drizzle-kit quando esce il fix |
 | Python 3.11 nell'ambiente vs 3.12 in spec | Nullo fino a Fase 3 | Pin 3.12 nel Dockerfile di `ops/jobs` |
 | Chiave dati e database sulla stessa macchina (ADR-017) | La cifratura a riposo copre backup/snapshot/dump, non root sul server vivo | Copia offline di `UGO_DATA_KEY` obbligatoria (runbook §1.7); un KMS ha senso solo se il ferro diventa più di uno |
-| **Il recency del re-rank seppellisce i ricordi vecchi** (§6-undecies) | Alto: un fatto biografico stabile non più toccato da qualche mese non riemerge, per quanto sia pertinente. Misurato dal banco di prova | Decisione, non correzione: la formula è in PROGETTO §5.4. Opzioni da valutare con i numeri del banco — pavimento sul fattore, τ per `kind` (un `fact` non invecchia come un `episode`), o recency additiva invece che moltiplicativa |
+| ~~Il recency del re-rank seppellisce i ricordi vecchi~~ | — | **Chiuso** da ADR-021 (§6-duodecies): τ per `kind` |
+| **I fatti scavalcano gli episodi** (§6-duodecies) | Medio: una domanda su un episodio riceve cinque fatti. Conseguenza misurata di ADR-021 | Riapre la *forma* della formula, non i suoi valori: la recency moltiplicativa non è confrontabile fra tipi. Da valutare col banco quando si tocca il ranking la prossima volta |
 | **Il recupero non sa tacere** (§6-undecies) | `searchMemories` restituisce sempre `k` righe: a una domanda senza risposta UGO riceve comunque cinque ricordi irrilevanti nel prompt | Soglia disgiuntiva insieme alla ricerca ibrida (vicinanza semantica **oppure** match lessicale); il precedente è `MIN_SIMILARITY` in `transcripts.ts` |
 | Encoder vocale MFCC, non neurale | Separa poche voci in casa; su rumore reale sarà più fragile | Vendorizzare pyannote/WeSpeaker dietro la porta `VoiceEncoder`; `recognition_profiles.model` impedisce di confondere i centroidi |
 | Perimetro biometrico non formalizzato | Nessuno finché l'enrollment resta sul corpo di casa | Rispondere alla domanda §6-quater prima di estendere il riconoscimento fuori casa |

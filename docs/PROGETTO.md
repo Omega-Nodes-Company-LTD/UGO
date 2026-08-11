@@ -205,7 +205,7 @@ Transizioni corpo-casa: `lights_off && ora>22` → `sleeping`; volto rilevato da
 ### 5.4 Memoria
 
 - **Episodica**: `events` + `messages` append-only. Non si cancella (salvo GDPR), si compatta.
-- **Semantica**: `memories` con importanza e decadimento d'accesso. Retrieval: top-k pgvector (k=6 casa, k=10 riunioni) con re-rank `similarità × importanza × recency`; `last_accessed` aggiornato a ogni uso (i ricordi usati restano vivi).
+- **Semantica**: `memories` con importanza e decadimento d'accesso. Retrieval: top-k pgvector (k=6 casa, k=10 riunioni) con re-rank `similarità × importanza × recency`; `last_accessed` aggiornato a ogni uso (i ricordi usati restano vivi). Il decadimento è `e^(-età/τ)` con **τ per tipo di ricordo** — `episode` 30 giorni, `insight` 180, `preference` 365, `fact` 730 (**ADR-021**): un fatto non sbiadisce, viene invalidato, e da quando `invalidated_at` esiste (§5.2) il decadimento non deve più approssimare l'obsolescenza.
 - **Consolidamento**: solo nel job notturno (§5.6). Di giorno si scrive grezzo, si legge consolidato.
 
 ### 5.5 Assemblaggio prompt e disciplina di caching

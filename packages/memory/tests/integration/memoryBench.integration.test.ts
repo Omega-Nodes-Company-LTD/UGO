@@ -67,19 +67,20 @@ const daysAgo = (days: number): Date => new Date(NOW.getTime() - days * MS_PER_D
  * Non-regression floors, one per family: measured, not wished for. They rise
  * and never fall, and each move records the backlog point that caused it.
  *
- * Baseline 2026-08-11 — semantic-only retrieval. See ./bench/BASELINE.md for
- * what these numbers mean and why three families sit at zero. In short:
- * `astensione` is 0 because `searchMemories` has no threshold and cannot
- * return nothing; `semantica` and `lessicale` are 0 because the recency factor
- * dominates the product and buries any memory older than a few months,
- * however well it matches. A floor of 0 asserts nothing on purpose — it
- * records a fact rather than pretending to guard one.
+ * Raised 2026-08-11 by ADR-021 (τ per kind), which took `semantica` from 0 to
+ * a full recall and `temporale` from MRR 0.5 to 1. See ./bench/BASELINE.md for
+ * the before and after on the same corpus and the same command.
+ *
+ * `astensione` stays at 0: `searchMemories` has no threshold and cannot return
+ * nothing. That one belongs to "ricerca ibrida BM25 + vettoriale". A floor of 0
+ * asserts nothing on purpose — it records a fact rather than pretending to
+ * guard one.
  */
 const FLOORS: Record<Family, { recallAtK: number; mrr: number }> = {
-  temporale: { recallAtK: 1, mrr: 0.5 },
+  temporale: { recallAtK: 1, mrr: 1 },
   contraddizione: { recallAtK: 1, mrr: 1 },
-  semantica: { recallAtK: 0, mrr: 0 },
-  lessicale: { recallAtK: 0, mrr: 0 },
+  semantica: { recallAtK: 1, mrr: 0.54 },
+  lessicale: { recallAtK: 0.75, mrr: 0.58 },
   astensione: { recallAtK: 0, mrr: 0 },
 };
 
@@ -207,20 +208,50 @@ describe("banco di prova della memoria", () => {
     expect(found.map((memory) => memory.id)).not.toContain(retired);
   });
 
-  it("buries an old memory under recent noise, however well it matches", async () => {
-    // The finding this bench was built to surface. "Il gatto di casa si chiama
-    // Bruno" has the highest cosine similarity in the corpus for this question
-    // (0.676 measured, against 0.608 for the best of the rest) and does not
-    // come back at all: at 120 days its recency factor is e^-4 ≈ 0.018, while
-    // a five-day-old irrelevant memory sits at 0.85. Similarity and importance
-    // are both bounded by 1, so no amount of either can recover a 46× penalty.
-    //
-    // When the ranking is fixed this test will fail. That is the point of it.
+  it("recalls a stable fact nobody has asked about in months (ADR-021)", async () => {
+    // The finding this bench was built to surface, now the other way round.
+    // "Il gatto di casa si chiama Bruno" is 120 days old and has the highest
+    // cosine similarity in the corpus for this question (0.676 measured,
+    // against 0.608 for the best of the rest). Under a global τ=30d it did not
+    // come back at all — a 46× age penalty against two factors bounded by 1.
+    // A fact now decays over 730 days, so relevance decides again.
     const cat = idByKey.get("gatto-bruno");
     expect(cat).toBeDefined();
     const found = await searchMemories(db, embedder, "come si chiama il gatto?", K, NOW);
     await db.update(memories).set({ lastAccessed: null });
-    expect(found.map((memory) => memory.id)).not.toContain(cat);
+    expect(found[0]?.id).toBe(cat);
+  });
+
+  it("still lets an episode fade, which is what the decay is for", async () => {
+    // ADR-021 lengthens τ for facts, not for everything: within a kind, what
+    // happened last month still loses to what happened last week. Asked for the
+    // whole living corpus, because facts now sit above episodes in any mixed
+    // ranking — see the next test, which is about exactly that.
+    const stale = idByKey.get("libreria-montaggio"); // episode, 100 days
+    const fresh = idByKey.get("lavatrice-rumore"); // episode, 12 days
+    const everything = corpus.memories.length;
+    const found = await searchMemories(db, embedder, "cosa si è rotto in casa?", everything, NOW);
+    await db.update(memories).set({ lastAccessed: null });
+    const ids = found.map((memory) => memory.id);
+    expect(ids).toContain(fresh);
+    expect(ids).toContain(stale);
+    expect(ids.indexOf(fresh ?? "")).toBeLessThan(ids.indexOf(stale ?? ""));
+  });
+
+  it("now ranks facts above episodes even when the question is about an episode", async () => {
+    // The cost of ADR-021, measured rather than assumed. A per-kind τ makes the
+    // recency factor incomparable across kinds: a 12-day episode sits at 0.67
+    // while a 120-day fact sits at 0.85, so a mixed ranking fills up with facts.
+    // Asked "cosa si è rotto in casa?", the top five are the cat, the meeting,
+    // the number plate, the allergy and the wifi — and the broken washing
+    // machine is not among them.
+    //
+    // Recorded as a test, not just as prose, because it is a real trade-off and
+    // whoever changes the ranking next should be told by a failure, not by
+    // reading BASELINE.md.
+    const found = await searchMemories(db, embedder, "cosa si è rotto in casa?", K, NOW);
+    await db.update(memories).set({ lastAccessed: null });
+    expect(found.every((memory) => memory.kind === "fact")).toBe(true);
   });
 
   it("has no way to abstain yet: an unanswerable question still gets answers", async () => {
