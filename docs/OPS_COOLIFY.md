@@ -199,14 +199,14 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
    `UGO_FACE_DIR` è già impostata nel Dockerfile, non aggiungerla fra le variabili.
 7. **Deploy**. Risultato atteso: **Running (healthy)**.
 
-### 2.5 jobs (il sogno, cron 02:30)
+### 2.5 jobs (il sogno, che si sveglia da solo alle 02:30)
 
 1. Tipo: **Application → Dockerfile**. Stesso repo, Dockerfile: `ops/docker/jobs.Dockerfile`.
 2. Variabili: `DATABASE_URL` (come soul) · `OLLAMA_URL` · `OLLAMA_EMBED_MODEL=nomic-embed-text` ·
    `OLLAMA_BATCH_MODEL` (**lascialo vuoto**, vedi sotto) · `UGO_DATA_KEY=<UGO_DATA_KEY>` · `S3_ENDPOINT` ·
    `S3_ACCESS_KEY` · `S3_SECRET_KEY` · `S3_BUCKET_AUDIO=ugo-audio` · `S3_BUCKET_BACKUP=ugo-backup` ·
-   `UGO_WHISPER_MODEL=large-v3` · `UGO_AUDIO_RETENTION_DAYS=90` · `HF_TOKEN=<HF_TOKEN>` (opzionale:
-   senza, la diarizzazione degrada a mono-speaker) · `TZ=Europe/Rome`.
+   `UGO_WHISPER_MODEL=large-v3` · `UGO_AUDIO_RETENTION_DAYS=90` · `TZ=Europe/Rome` ·
+   `UGO_DREAM_AT=02:30` (facoltativa: è già il default).
 3. **Chi fa la riflessione notturna.** Ogni notte UGO rilegge la giornata e ne ricava ricordi, diario
    e desideri. Serve un modello linguistico, e hai due strade:
    - **`OLLAMA_BATCH_MODEL=qwen3:30b-a3b`** (scaricato al §2.3) → la riflessione è **gratis** e non
@@ -217,12 +217,21 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
    In entrambi i casi la rete di sicurezza c'è: se il modello locale non risponde, il sogno passa
    all'API da solo e la notte non salta. È una variabile d'ambiente, non una decisione strutturale:
    puoi cambiare idea quando vuoi.
-4. In **Scheduled Tasks** aggiungi un task: comando `python -m ugo_jobs.dream`, frequenza
-   `30 2 * * *` (Coolify usa il fuso del server: verifica che sia Europe/Rome, altrimenti converti).
-5. Disattiva l'avvio continuo del container (il job gira solo a schedulazione). Limite RAM: 8 GB
-   (whisper large-v3 su CPU). **Deploy** dell'immagine.
-6. Prova manuale: **Execute Command** → `python -m ugo_jobs.dream --date <IERI>`. Risultato atteso:
-   una riga JSON `{"dream_report": …}` senza errori.
+4. **Non serve nessuna Scheduled Task.** Il container si sveglia da solo alle 02:30 del fuso che
+   gli hai dato in `TZ`. Se vuoi un'altra ora, imposta `UGO_DREAM_AT=03:15` — formato `HH:MM`, e un
+   valore che non si legge blocca l'avvio invece di essere ignorato.
+5. Limite RAM: 8 GB (whisper large-v3 su CPU). **Deploy** dell'immagine. Nei log deve comparire
+   subito una riga `{"scheduler": {"at": "02:30", "timezone": "Europe/Rome"}}`: da lì in poi il
+   container resta in attesa, e **non deve riavviarsi**.
+
+   > **Se lo vedi riavviarsi in continuazione stampando `{"dream_report": …}` e morendo**, stai
+   > girando un'immagine precedente al 2026-08-11: allora il container eseguiva il sogno una volta
+   > e usciva, e Coolify — che lo tratta come un servizio — lo faceva ripartire all'infinito.
+   > Fai un **redeploy** e il ciclo si ferma.
+6. Prova manuale, senza aspettare la notte: **Execute Command** →
+   `python -m ugo_jobs.dream --date <IERI>`. Risultato atteso: una riga JSON `{"dream_report": …}`
+   senza errori. Se ogni passo dice `skipped (already done)`, il sogno di quella data era già stato
+   fatto: è il comportamento giusto, non un errore — per rifarlo davvero, scegli un'altra data.
 
 ### 2.6 vexa (stack riunioni)
 
@@ -515,7 +524,6 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 |---|---|
 | `<ANTHROPIC_API_KEY>` | console Anthropic. È l'unica spesa ricorrente: il budget la tiene sotto controllo |
 | `<S3_ENDPOINT>` `<S3_ACCESS_KEY>` `<S3_SECRET_KEY>` `<S3_REGION>` | il tuo provider S3, con permessi **solo** sui due bucket (§3). I nomi standard AWS (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`) vanno bene |
-| `<HF_TOKEN>` | Hugging Face, facoltativo: senza, la diarizzazione degrada a un solo interlocutore |
 | `<VEXA_API_URL>` `<VEXA_API_KEY>` | dallo stack Vexa, se e quando lo installi (§2.6) |
 
 ### Scelte tue

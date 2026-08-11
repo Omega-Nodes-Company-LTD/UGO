@@ -144,8 +144,9 @@ jobs:
             MAJOR=\$(pg_dump --version | sed -E 's/.* ([0-9]+).*/\1/') &&
             echo \"pg_dump major: \$MAJOR\" &&
             [ \"\$MAJOR\" -ge 16 ] &&
+            python -c 'from ugo_jobs.scheduler import next_run_at, parse_at' &&
             test \"\$(whoami)\" = ugo &&
-            echo 'dream imports, pg_dump new enough to dump our server, non-root'"
+            echo 'dream imports, scheduler imports, pg_dump new enough, non-root'"
 
   apk:
     # ADR-018 said the Android toolchain was not verifiable here, and that a

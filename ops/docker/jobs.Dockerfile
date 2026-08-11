@@ -37,6 +37,9 @@ COPY ops/jobs/src ./src
 RUN pip install --no-cache-dir .
 
 USER ugo
-# Fase 4 will add faster-whisper/whisperX layers; the cron schedule lives in
-# Coolify (02:30 Europe/Rome), not in the image.
-ENTRYPOINT ["python", "-m", "ugo_jobs.dream"]
+# The container stays up and dreams on its own hour (UGO_DREAM_AT, default
+# 02:30 in TZ). It used to run the dream once and exit, which made every
+# platform that treats this as a service restart it in a loop — and Coolify's
+# scheduled tasks need a running container to exec into anyway.
+# A single run is still one command away: `python -m ugo_jobs.dream --date …`.
+ENTRYPOINT ["python", "-m", "ugo_jobs.scheduler"]

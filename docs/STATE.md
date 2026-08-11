@@ -400,6 +400,30 @@ attribuita qui.
 Cosa manca al guscio: il codice nativo che *usa* quei permessi — foreground service col microfono,
 lock task, avvio al boot, radio BLE per l'incontro. I permessi ci sono, l'implementazione no.
 
+## 6-octies. Il sogno si porta dentro il proprio orologio
+
+Il contenitore dei job eseguiva il sogno **una volta e usciva**, e l'orario viveva in una casella di
+Coolify. Due conseguenze, entrambe viste in produzione:
+
+1. Coolify tratta la risorsa come un servizio e riavvia tutto ciò che esce → **ciclo di riavvio
+   infinito**, con il rapporto del sogno stampato all'infinito.
+2. Le *Scheduled Tasks* di Coolify eseguono un comando **dentro** il container in esecuzione: se
+   quello esce, non c'è nulla in cui entrare. Il runbook diceva di usarle **e** di disattivare
+   l'avvio continuo: due istruzioni che si annullavano a vicenda.
+
+È la stessa lezione delle migrazioni, già imparata una volta in questo progetto: ciò che il
+programma deve garantire non può vivere in una configurazione che qualcuno dimentica di riempire.
+`ugo_jobs.scheduler` è ora l'entrypoint: dorme fino a `UGO_DREAM_AT` (default `02:30` nel fuso di
+`TZ`), sogna, e ricomincia. Una notte andata male viene registrata e non abbatte il processo — i
+marcatori per passo rendono il tentativo successivo innocuo.
+
+Verificato costruendo l'immagine e lasciandola girare: stampa
+`{"scheduler": {"at": "02:30", "timezone": "Europe/Rome"}}` e resta `running` con `restarts=0`.
+
+Tolto anche `HF_TOKEN` da `.env.example` e dal runbook: **nessuna riga di codice lo legge**. La
+diarizzazione con pyannote resta un lavoro futuro (PROGETTO §5.6.1), e una variabile che promette
+una funzione inesistente è peggio che assente.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
