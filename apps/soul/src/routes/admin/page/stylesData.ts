@@ -84,7 +84,9 @@ export const ADMIN_DATA_STYLES = `
   /* --- what he started himself, and the council -------------------------- */
   .deed { background: var(--surface-2); border-radius: var(--r); padding: .55rem .75rem; margin: .35rem 0; }
   .deed .when { font-size: .72rem; color: var(--ink-3); float: right; }
-  .deed .act { font-weight: 600; font-size: .875rem; }
+  .deed .act { font-weight: 600; font-size: .875rem; display: flex; align-items: center; gap: .5rem; }
+  /* «disfa» sta in fondo alla riga: è l'azione distruttiva, non il titolo */
+  .deed .act .room-del { margin-left: auto; font-size: .72rem; padding: .15rem .5rem; }
   .deed .deed-act { font-weight: 400; color: var(--ink-2); }
   .deed .because { font-size: .82rem; color: var(--ink-2); font-style: italic; }
   .voice { background: var(--surface-2); border-radius: var(--r); padding: .7rem .85rem; margin: .45rem 0; }

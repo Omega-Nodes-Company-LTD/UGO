@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.22.0"
+version: "0.23.0"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1189,6 +1189,29 @@ che batte lo `[hidden]` del browser: un pannello "chiuso" restava in scena. Avev
 cancello di `/admin`, ha morso il registro. Ora c'è **una** regola globale invece di una per
 pannello — trovato aprendo e chiudendo il pannello vero in un browser vero, non leggendo il CSS.
 
+### La stanza diventa una cosa (ADR-039)
+
+Il proprietario: «magari da admin devo poterle creare e dove sposto i gosini deve essere
+dropdown». Le due richieste sono la stessa: finché la stanza **era** la stringa in
+`gosini.location_label`, non esisteva niente da mettere in un elenco — e una stanza vuota
+spariva insieme al suo ultimo abitante, portandosi via l'indirizzo `/?stanza=`.
+
+Nasce la tabella `rooms` (`0011_rooms-catalogue`, con backfill scritto a mano dalle etichette
+esistenti). `location_label` **resta il nome** e non diventa una chiave esterna: il nome è
+l'indirizzo che il corpo usa e la documentazione promette. A tenerle insieme c'è una regola
+sola — **nessuno scrive un'etichetta che il catalogo non conosce**: nascita e spostamento
+rispondono 400 a una stanza inesistente e salvano la grafia del catalogo, così «studio» e
+«Studio» non diventano due posti. Disfare una stanza **sfratta** chi ci abitava invece di
+cancellarlo, e sfratta prima di cancellare.
+
+Nel pannello: «Fai una stanza», l'elenco con «vuota» e «disfa», e «in che stanza» come
+`select` sia nello spostamento sia nella nascita. Sul corpo il selettore mostra anche le
+stanze vuote. La logica sta in `RoomCatalogue`, fuori dalle rotte (rule 10).
+
+Verificato contro Postgres vero (12 test) e guidando il pannello in un browser vero: nome con
+lo spazio → indirizzo codificato, due grafie → una stanza sola, annullare la conferma non
+disfa niente.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1216,6 +1239,7 @@ pannello — trovato aprendo e chiudendo il pannello vero in un browser vero, no
 | **Il sogno è ancora uno per tutta la casa** | Diario e ricordi notturni non sono per esemplare | ADR-019 fase 3: job per esemplare |
 | ~~Due esemplari **sullo stesso schermo**~~ | — | **Chiuso** da ADR-036: un dispositivo incarna una **stanza**, e ci vede tutti quelli che ci vivono |
 | **Il registro del corpo è in chiaro** (ADR-038) | 80 righe di conversazione nel `localStorage` del dispositivo, fuori da ogni garanzia di cifratura | Consapevole e dichiarato: tetto corto, per stanza, «svuota» in un clic. Cifrarlo richiederebbe una chiave sul chiosco, cioè spostare il problema |
+| **Rinominare una stanza non si può** (ADR-039) | Con `location_label` denormalizzato costerebbe un aggiornamento in due punti | Non è stato chiesto. È il giorno in cui la chiave esterna `room_id` va riconsiderata, e non prima |
 | **Più gosini in una stanza senza copertura e2e** | Il caso a due creature è verificato a mano, non in CI: il setup non gira in questa sandbox | Un `beforeAll` che fa nascere due gosini nella stessa stanza e apre `?stanza=`; da fare quando l'e2e torna eseguibile in locale |
 | `came_home` non produce niente di visibile | Un'uscita non lascia un ricordo di dov'è stato | Il sogno legge già quegli eventi: è il posto naturale |
 | **Sa cominciare, non sa declinare** | Teso o esausto risponde comunque, sempre, subito: l'unica cosa che lo zittisce è il budget esaurito, che è il rifiuto di un contabile | Il passo gemello di ADR-027: risposta più corta, o dopo, o un grugnito — con interruttore del proprietario |

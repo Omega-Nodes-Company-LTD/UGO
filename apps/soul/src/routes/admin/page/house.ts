@@ -41,9 +41,20 @@ export const HOUSE_PAGES = `
   </div>
 
   <div class="block">
+    <h2>Fai una stanza</h2>
+    <p class="lede">Una stanza esiste anche se non ci vive ancora nessuno: falla prima,
+       poi decidi chi ci va. L'indirizzo è <code>/?stanza=&lt;nome&gt;</code>.</p>
+    <div class="row">
+      <div><label for="room-name">Come si chiama</label>
+        <input id="room-name" data-testid="room-name" placeholder="cucina" maxlength="40"></div>
+      <button id="room-go" data-testid="room-go">Falla</button>
+    </div>
+  </div>
+
+  <div class="block">
     <h2>Chi sta dove</h2>
-    <p class="lede">L'indirizzo di una stanza è <code>/?stanza=&lt;nome&gt;</code>. Chi non sta
-       in nessuna stanza non compare su nessun dispositivo finché non gliene dai una.</p>
+    <p class="lede">Chi non sta in nessuna stanza non compare su nessun dispositivo finché
+       non gliene dai una.</p>
     <div id="rooms-list" data-testid="rooms-list"></div>
     <div id="rooms-msg"></div>
   </div>
@@ -53,12 +64,12 @@ export const HOUSE_PAGES = `
     <div class="row">
       <div><label for="move-who">Chi</label><select id="move-who" data-testid="move-who"></select></div>
       <div><label for="move-room">In che stanza</label>
-        <input id="move-room" data-testid="move-room" list="rooms-known" placeholder="cucina">
-        <datalist id="rooms-known"></datalist></div>
+        <select id="move-room" data-testid="move-room"></select></div>
       <button id="move-go" data-testid="move-go">Spostalo</button>
     </div>
-    <p class="lede" style="margin-top:.7rem">Lascia il campo vuoto per toglierlo da ogni stanza.
-       Lo spostamento è immediato: non perde né umore né ricordi, cambia solo dove lo vedi.</p>
+    <p class="lede" style="margin-top:.7rem">Scegli <b>— nessuna stanza —</b> per toglierlo da
+       ogni schermo. Lo spostamento è immediato: non perde né umore né ricordi, cambia solo
+       dove lo vedi.</p>
   </div>
 </section>
 

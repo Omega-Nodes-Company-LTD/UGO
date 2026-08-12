@@ -20,6 +20,13 @@ const DIALS = [
 /** Left untouched, a dial stays undefined and the archetype keeps the last word. */
 const dialTouched = new Set();
 
+/** ADR-039: the rooms are a list now, so being born into one is a choice. */
+async function drawBirthRooms() {
+  const known = (await call("/v1/rooms", {})).rooms ?? [];
+  $("new-where").innerHTML = '<option value="">— nessuna stanza —</option>' +
+    known.map((r) => '<option value="' + escape(r.room) + '">' + escape(r.room) + "</option>").join("");
+}
+
 function drawDials() {
   if ($("new-dials").children.length > 0) return;
   $("new-dials").innerHTML = DIALS.map((d) =>
@@ -57,7 +64,8 @@ $("new-go").addEventListener("click", async () => {
       }),
     });
     say("new-msg", "È nato " + born.name + ": " + born.persona, "ok");
-    $("new-name").value = ""; $("new-where").value = "";
+    $("new-name").value = "";
+    await drawBirthRooms();
     await loadGosini();
     WHO = born.id;
     location.hash = "#/g/" + born.id + "/stato";

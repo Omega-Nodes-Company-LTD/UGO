@@ -35,13 +35,23 @@ pagina e ritrovarti dov'eri, o tenerti un segnalibro sulla pagina di uno solo.
 `/?stanza=cucina` su un tablet e quel tablet diventa il corpo della cucina — chi ci vive
 compare lì, uno o diversi insieme.
 
-Da **Le stanze** vedi chi sta dove e li sposti. Spostare qualcuno è immediato e non gli
-costa niente: non perde umore né ricordi, cambia solo su quale schermo lo vedi. Chi non sta
-in nessuna stanza compare sotto «Senza stanza» e non appare su nessun dispositivo finché
-non gliene dai una.
+Da **Le stanze** le fai, vedi chi sta dove e li sposti. **Una stanza esiste anche se non ci
+vive ancora nessuno**: falla prima — «Fai una stanza» — e poi decidi chi ci va. Nell'elenco
+compare come «vuota», e puoi già puntarci uno schermo.
 
-Sullo schermo, in basso, c'è un **selettore della stanza**: compare appena ne esiste più di
-una, e da lì decidi cosa mostra quel dispositivo senza toccare l'indirizzo. Accanto c'è
+«In che stanza» è un **elenco di stanze vere**, non un campo da riempire: se una stanza non c'è,
+falla, invece di scriverne il nome e ritrovarti con «cucina» e «Cucina» che sono due posti
+diversi. Vale anche quando ne fai nascere uno.
+
+**Disfare** una stanza non cancella nessuno: chi ci viveva resta senza stanza — non compare più
+su nessuno schermo finché non gliene dai un'altra. Il pannello te lo chiede prima e poi te lo dice.
+
+Spostare qualcuno è immediato e non gli costa niente: non perde umore né ricordi, cambia solo
+su quale schermo lo vedi. Chi non sta in nessuna stanza compare sotto «Senza stanza».
+
+Sullo schermo, in basso, c'è un **selettore della stanza**: compare appena ne esiste una, e da
+lì decidi cosa mostra quel dispositivo senza toccare l'indirizzo — anche una stanza vuota, che
+in quel caso mostra un pavimento e basta. Accanto c'è
 **💬 detto**, il registro di quello che è stato detto lì — la nuvoletta dura sei secondi,
 quello resta ([il corpo di UGO](./il-corpo-di-ugo.md#cosa-%C3%A8-stato-detto)).
 
@@ -54,8 +64,8 @@ tutti c'è [il consiglio](#il-consiglio), che usa i modelli locali e non tocca i
 
 ## Fai nascere un gosino
 
-Da **+ Fanne nascere uno**. Servono un nome e, se vuoi, la stanza — che poi usi
-per chiamarlo da un dispositivo: `/?gosino=studio`.
+Da **+ Fanne nascere uno**. Servono un nome e, se vuoi, la stanza — scelta da un elenco,
+quindi falla prima in **Le stanze** se non c'è ancora. Puoi anche lasciarlo senza e dargliela dopo.
 
 Il carattere si sceglie con un archetipo (curiosone, pigrone, affettuoso,
 brontolone, timidone) oppure con le manopole. **Le manopole che non tocchi

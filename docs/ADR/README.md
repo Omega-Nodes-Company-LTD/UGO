@@ -44,4 +44,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [036](./036-la-stanza-e-l-unita.md) | La stanza è l'unità, non la creatura | Accettata |
 | [037](./037-chi-parla-e-che-stanza-e.md) | Chi parla, e che stanza è questa | Accettata |
 | [038](./038-cosa-e-stato-detto.md) | Cosa è stato detto: il corpo tiene un registro | Accettata |
-| 039 | *(prossimo numero disponibile)* | — |
+| [039](./039-la-stanza-e-una-cosa.md) | La stanza è una cosa, non una grafia | Accettata |
+| 040 | *(prossimo numero disponibile)* | — |
