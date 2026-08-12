@@ -6,6 +6,7 @@ import { ScreenAwake } from "./wakelock.js";
 import { createFace } from "./body/createFace.js";
 import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
+import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noiseGate.js";
 import { mountLogPanel } from "./logPanel.js";
 import { Speech } from "./speech.js";
 import { worthSending } from "./heard.js";
@@ -30,6 +31,7 @@ const speakText = requireElement("#speak-text");
 const connStatus = requireElement("#conn");
 const micButton = requireElement("#btn-mic");
 const roomPick = requireElement("#room-pick") as HTMLSelectElement;
+const earPick = requireElement("#ear-pick") as HTMLSelectElement;
 const logPanel = requireElement("#log");
 const logLines = requireElement("#log-lines");
 const earsButton = requireElement("#btn-ears");
@@ -150,6 +152,30 @@ async function loadRooms(): Promise<void> {
   roomPick.hidden = false;
 }
 
+/**
+ * How easily he startles (ADR-041).
+ *
+ * Kept on the device and per room, not on the creature: the same creature in a
+ * quiet study and in a kitchen with a television needs two different answers,
+ * and it is the room that differs. The setting outlives a reload, because a
+ * threshold you have to set again every morning is not a setting.
+ */
+const EAR_KEY = `ugo_ears_${params.get("stanza") ?? "casa"}`;
+
+function savedSensitivity(): NoiseSensitivity {
+  const stored = localStorage.getItem(EAR_KEY);
+  return stored !== null && stored in SENSITIVITIES
+    ? (stored as NoiseSensitivity)
+    : DEFAULT_SENSITIVITY;
+}
+
+earPick.value = savedSensitivity();
+earPick.addEventListener("change", () => {
+  const chosen = earPick.value as NoiseSensitivity;
+  localStorage.setItem(EAR_KEY, chosen);
+  sensors.setNoiseSensitivity(chosen);
+});
+
 roomPick.addEventListener("change", () => {
   const next = new URL(location.href);
   if (roomPick.value === "") next.searchParams.delete("stanza");
@@ -251,6 +277,7 @@ const sensors = new Sensors(
     // zero-token local reaction: he jumps before soul has heard about it
     renderer.reflex("noise");
   },
+  savedSensitivity(),
 );
 
 canvas.addEventListener("pointerdown", () => {
@@ -273,11 +300,19 @@ canvas.addEventListener("pointerdown", () => {
  */
 function startListening(): void {
   if (!speech.sttAvailable()) return;
-  const started = speech.listen((text) => {
-    if (!worthSending(text, { spoken: speech.spokenLast() })) return;
-    setLocalState("listening");
-    sendToSoul({ type: "heard_text", text });
-  });
+  const started = speech.listen(
+    (text) => {
+      if (!worthSending(text, { spoken: speech.spokenLast() })) return;
+      setLocalState("listening");
+      sendToSoul({ type: "heard_text", text });
+    },
+    // ADR-041: the recognizer heard a VOICE. Whatever the level meter is about
+    // to make of that sound, it is not a bang — this is the one signal that
+    // stops "sente ogni mia parola come botto" without also making him deaf.
+    () => {
+      sensors.heardAVoice();
+    },
+  );
   if (started) app.dataset.ears = "on";
 }
 

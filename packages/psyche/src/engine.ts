@@ -45,6 +45,49 @@ export function varsAt(
 /** Below this a cause is not worth showing to anybody. */
 const MIN_VISIBLE = 0.005;
 
+/**
+ * What the most recent thing to happen actually landed as (ADR-040).
+ *
+ * The label needs this, not the accumulated total. Habituation makes the tenth
+ * bang add almost nothing, and that — how much the *last* blow was worth — is
+ * precisely the difference between being startled and being used to it. Asking
+ * the total instead is how a fully habituated creature stayed described as
+ * terrified: his stress was legitimately elevated and nothing said it was old
+ * news.
+ */
+export interface LastBlow {
+  cause: string | undefined;
+  /** what it added AFTER habituation, so a repetition reads as a repetition */
+  amount: number;
+  agoMs: number;
+}
+
+/**
+ * The strongest blow still inside `withinMs` — not simply the most recent one.
+ *
+ * The difference is the whole behaviour: bangs come in bursts, and twenty
+ * seconds after a real fright the *latest* transient is the second bang, which
+ * habituation has already made tiny. Reading that one would have him shrug off
+ * a fright he is still in the middle of. What is true of him right now is the
+ * biggest thing that just happened to him.
+ */
+export function lastBlowAt(state: PsycheState, at: Date, withinMs: number): LastBlow | undefined {
+  const atMs = at.getTime();
+  let strongest: PsycheTransient | undefined;
+  for (const transient of state.transients) {
+    if (atMs - transient.appliedAtMs > withinMs) continue;
+    if (strongest === undefined || Math.abs(transient.amount) > Math.abs(strongest.amount)) {
+      strongest = transient;
+    }
+  }
+  if (strongest === undefined) return undefined;
+  return {
+    cause: strongest.cause,
+    amount: Math.abs(strongest.amount),
+    agoMs: Math.max(0, atMs - strongest.appliedAtMs),
+  };
+}
+
 export interface VariableBreakdown {
   /** where the variable rests when nothing is happening to it */
   baseline: number;

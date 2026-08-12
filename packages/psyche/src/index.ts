@@ -16,10 +16,12 @@ export {
 export {
   varsAt,
   breakdownAt,
+  lastBlowAt,
   applyPerturbations,
   stateFromSnapshot,
   type Perturbation,
   type VariableBreakdown,
+  type LastBlow,
 } from "./engine.js";
 export { EVENT_PERTURBATIONS, perturbationsForEvent } from "./events.js";
-export { pickLabel, labelPhrase } from "./labels.js";
+export { pickLabel, labelPhrase, STARTLE_WINDOW_MS } from "./labels.js";

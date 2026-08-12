@@ -2,6 +2,7 @@ import websocket from "@fastify/websocket";
 import type { ServerToFaceMessage } from "@ugo/shared";
 import type { FastifyInstance } from "fastify";
 import type { FaceGateway } from "../services/faceGateway.js";
+import { whoAnswers, type Candidate } from "../services/whoAnswers.js";
 
 /**
  * WS `/v1/face` (PROGETTO §5.7): bidirectional channel with the home body.
@@ -84,7 +85,9 @@ export async function registerFaceWs(
         raw({ ...message, who });
       };
       member.gateway.registerSender(send); // ADR-013: in-room voice for meetings
-      return { member, send };
+      // ADR-040: `id` and `traits` are what choosing a speaker reads, so they
+      // travel with the sender rather than being looked up again
+      return { member, send, id: member.id, traits: member.traits };
     });
 
     // the roster comes first: the body draws one creature per entry
@@ -151,11 +154,17 @@ export function tagFor(id: string): string | undefined {
 /**
  * The senses belong to the room; speech belongs to one, for the budget.
  *
- * Generic over whatever the caller is holding, because this decides HOW MANY
- * and never looks inside: constraining it to a member type would have been a
- * type that lied about what the function reads.
+ * ADR-040: "one" used to mean `slice(0, 1)`, and the roster comes back ordered
+ * by `bornAt` — so the eldest answered every sentence and nobody else ever
+ * spoke. Which one it is, is a question about character, and `whoAnswers`
+ * settles it from the genome.
+ *
+ * `roll` is injected so a test can ask about the distribution instead of
+ * hoping. Undefined means draw one: the caller in production wants a creature
+ * that is not perfectly predictable.
  */
-export function forFrame<T>(text: string, senders: T[]): T[] {
+export function forFrame<T extends Candidate>(text: string, senders: T[], roll?: number): T[] {
+  const one = (): T[] => whoAnswers(senders, roll ?? Math.random());
   let type: unknown;
   try {
     type = (JSON.parse(text) as { type?: unknown }).type;
@@ -163,5 +172,5 @@ export function forFrame<T>(text: string, senders: T[]): T[] {
     return senders.slice(0, 1); // unparseable: let one gateway produce the error
   }
   if (typeof type === "string" && SENSED_BY_THE_ROOM.has(type)) return senders;
-  return senders.slice(0, 1);
+  return one();
 }

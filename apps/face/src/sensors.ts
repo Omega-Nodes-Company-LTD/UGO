@@ -1,5 +1,8 @@
 import type { FaceToServerMessage } from "@ugo/shared/face";
-import { NoiseGate } from "./noiseGate.js";
+import { NoiseGate, DEFAULT_SENSITIVITY, type NoiseSensitivity } from "./noiseGate.js";
+
+/** How long after a voice a sound is still that voice, and not a bang. */
+const VOICE_HUSH_MS = 1_500;
 
 type SendFn = (message: FaceToServerMessage) => void;
 
@@ -13,18 +16,34 @@ const LIGHT_PERIOD_MS = 60_000;
  * user gesture (mic permission) — nothing records silently.
  */
 export class Sensors {
-  private readonly noise = new NoiseGate();
+  private readonly noise = new NoiseGate(DEFAULT_SENSITIVITY);
   private lastShakeAt = 0;
   private audioContext: AudioContext | undefined;
 
   public constructor(
     private readonly send: SendFn,
     private readonly onLocalStartle: () => void,
-  ) {}
+    sensitivity: NoiseSensitivity = DEFAULT_SENSITIVITY,
+  ) {
+    this.noise.setSensitivity(sensitivity);
+  }
 
   /** The room's learned noise floor, for the debug readout. */
   public noiseFloor(): number {
     return Math.round(this.noise.floor);
+  }
+
+  /** How easily he startles (ADR-041). Changing it does not unlearn the room. */
+  public setNoiseSensitivity(sensitivity: NoiseSensitivity): void {
+    this.noise.setSensitivity(sensitivity);
+  }
+
+  /**
+   * That was a voice, not a bang. Held a little past the words themselves,
+   * because `onspeechend` arrives before the room stops ringing.
+   */
+  public heardAVoice(): void {
+    this.noise.hushUntil(performance.now() + VOICE_HUSH_MS);
   }
 
   /** microphone level meter → noise events, judged against the room (ADR-029) */

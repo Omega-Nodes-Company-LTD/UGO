@@ -95,7 +95,8 @@
          there and arrives live: showing it twice only hid half of each. */
       #app[data-log="on"] #speak-text { opacity: 0; }
 
-      #room-pick {
+      #room-pick,
+      #ear-pick {
         background: #21212e;
         color: #cfcfe0;
         border: 1px solid #3a3a4c;
@@ -192,6 +193,15 @@
         <button id="btn-rec" data-testid="btn-rec" type="button" hidden>● REC</button>
         <button id="btn-privacy" data-testid="btn-privacy" type="button" hidden>😴 privacy</button>
         <button id="btn-card" data-testid="btn-card" type="button" hidden>🪪 QR</button>
+        <!-- ADR-041: quanto facilmente si spaventa. Sta qui e non nel pannello
+             perché è una proprietà della STANZA, non della creatura: la stessa
+             creatura in cucina e in studio ha bisogno di due soglie. -->
+        <select id="ear-pick" data-testid="ear-pick" title="quanto forte deve essere per spaventarlo">
+          <option value="alta">👂 sensibile</option>
+          <option value="media">👂 normale</option>
+          <option value="bassa">👂 stanza rumorosa</option>
+          <option value="spenta">👂 non si spaventa</option>
+        </select>
         <!-- ADR-037: which room this device is. Hidden until there is more
              than one to choose from — a picker with one option is furniture. -->
         <select id="room-pick" data-testid="room-pick" title="che stanza è questo schermo" hidden></select>
