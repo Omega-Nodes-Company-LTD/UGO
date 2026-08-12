@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.18.0"
+version: "0.19.0"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1042,6 +1042,48 @@ Verifiche: 25 unit sul motore della psiche, 5 di integrazione su Postgres reale 
 giusto per l'esemplare giusto, le parti che tornano col totale, i giornali separati,
 l'interruttore che torna all'env, il 401 senza token), più i tre test che compilano il
 pannello assemblato e verificano che ogni `$("id")` esista davvero.
+
+## 6-novodecies. Il pannello ha due livelli (ADR-035)
+
+Verdetto del proprietario: **fa cagare**, e mancava il modo di creare più UGO ognuno con le
+sue specifiche. I due giudizi hanno la stessa radice: il pannello era **una pagina sola che
+scorre**, e «Come sta» è una domanda **su qualcuno** — un elenco piatto di sezioni non ha
+dove mettere il qualcuno. La tendina di ADR-034 era un cerotto: sceglie di chi parli senza
+cambiare l'indirizzo, quindi «guarda com'è messo Nino» non si poteva mandare a nessuno.
+
+**Due livelli.** La casa (sommario, branco, consiglio, riunioni e legami, conti, dati — le
+cose che ADR-019 tiene in comune) e ogni gosino (`#/g/<id>/stato`). Rail a sinistra con i
+due gruppi e le sotto-pagine sotto l'esemplare aperto. **L'indirizzo è lo stato**: una
+pagina si ricarica dov'era e un link si manda. Del markup per-creatura esiste una copia
+sola, ridipinta per chi l'indirizzo nomina.
+
+**Il sistema visivo rifatto**: un carattere solo (via il Palatino da display sopra dati
+tabulari), cromatura neutra con l'argilla riservata ai marchi dei dati e all'azione
+primaria (prima era tutto una gradazione del rosso, quindi non spiccava niente perché
+spiccava tutto), righelli da 1px invece di dodici cartoline con l'ombra.
+
+**La nascita.** `POST /v1/gosini` esisteva da ADR-031 e si raggiungeva solo con curl: «una
+famiglia può avere più UGO» era vero del database e falso di qualunque cosa il proprietario
+potesse fare. Nome, stanza, archetipo e cinque manopole; una manopola non toccata resta
+indefinita, così l'archetipo mantiene l'ultima parola. E la rotta **ricarica il registro**:
+senza, il nuovo nato non avrebbe runtime fino al riavvio e `resolve()` ripiega sul più
+anziano — il pannello avrebbe risposto sul nuovo **con l'umore del vecchio, in silenzio**.
+Terza volta in tre ADR che questa famiglia di guasti si ripresenta.
+
+**`/v1/memories` scopata per esemplare**, altrimenti metterla sotto un gosino dichiarava una
+separazione che non c'era.
+
+**Sessione persistente**, scelta alla porta: spuntato resta sul dispositivo fino a «Esci»,
+non spuntato muore con la scheda. `localStorage` allarga davvero la finestra di esposizione
+e la mitigazione onesta è l'uscita esplicita, detta in chiaro sulla porta.
+
+Tre difetti trovati **guardando lo schermo**, non leggendo il codice: `display:grid` batteva
+`[hidden]` e la porta restava aperta sopra il pannello; il rail alto 100vh finiva il colore
+a metà pagina (il fondo va dipinto sulla colonna, non sull'elemento); le manopole sono
+`<label>` e ereditavano il micro-maiuscolo delle didascalie, sbordando.
+
+I test e2e ora navigano — `openPanel` apre il branco, il resto clicca il rail. Cliccato e
+non indirizzato per id: l'id lo semina una migrazione.
 
 ## 7. Debito tecnico e rischi aperti
 

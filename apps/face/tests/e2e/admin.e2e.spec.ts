@@ -56,7 +56,27 @@ const openPanel = async (page: Page): Promise<void> => {
   await page.goto(`${soulHttp()}/admin`);
   await page.getByTestId("token").fill(token());
   await page.getByTestId("save-token").click();
-  await expect(page.getByTestId("pack-rows")).toBeVisible();
+  // ADR-035: the panel has pages now, and it opens on the house summary.
+  // Most of what these tests touch lives on the pack page, so that is where
+  // "open the panel" means to be.
+  await goHouse(page, "branco");
+};
+
+/** Clicks a rail entry for one of the house pages and waits for it to be on. */
+const goHouse = async (page: Page, name: string): Promise<void> => {
+  await page.locator(`.rail a[data-nav="${name}"]`).click();
+  await expect(page.locator(`section.page[data-page="${name}"]`)).toBeVisible();
+};
+
+/**
+ * Opens the first exemplar's page. Clicked rather than addressed by id: the
+ * id is seeded by a migration and hard-coding it here would make these tests
+ * fail for a reason that has nothing to do with what they assert.
+ */
+const goGosino = async (page: Page, sub: string): Promise<void> => {
+  await page.locator('.rail a[href^="#/g/"]').first().click();
+  await page.locator(`.rail a[data-nav="g:${sub}"]`).click();
+  await expect(page.locator(`section.page[data-page="${sub}"]`)).toBeVisible();
 };
 
 test("a wrong token does not let anybody in", async ({ page }) => {
@@ -135,6 +155,7 @@ test("a correction reaches UGO and the panel says so", async ({ page }) => {
 
 test("the panel shows the money and the cache without any SQL", async ({ page }) => {
   await openPanel(page);
+  await goHouse(page, "casa");
   await expect(page.getByTestId("stats")).toContainText("speso oggi");
   await expect(page.getByTestId("stats")).toContainText("risparmio cache");
   await expect(page.getByTestId("stats")).toContainText("ricordi");
@@ -192,6 +213,7 @@ test("relations between the others can be declared and removed", async ({ page }
 
 test("the whole soul can be downloaded, and a being erased for good", async ({ page }) => {
   await openPanel(page);
+  await goHouse(page, "dati");
   await addBeing(page, "Carlo Esposito");
 
   const download = page.waitForEvent("download");
@@ -212,12 +234,14 @@ test("the whole soul can be downloaded, and a being erased for good", async ({ p
 
 test("the panel shows whether the machinery underneath is alive", async ({ page }) => {
   await openPanel(page);
+  await goHouse(page, "casa");
   await expect(page.getByTestId("health")).toContainText("db");
   await expect(page.getByTestId("health")).toContainText("ollama");
 });
 
 test("what UGO remembers can be read, and searched the way he would", async ({ page }) => {
   await openPanel(page);
+  await goGosino(page, "memoria");
 
   // give him something to remember, through the front door
   await page.evaluate(async () => {
@@ -239,6 +263,7 @@ test("what UGO remembers can be read, and searched the way he would", async ({ p
 
 test("the memory graph draws what UGO has connected, and says so in words", async ({ page }) => {
   await openPanel(page);
+  await goHouse(page, "riunioni");
 
   // somebody for the memories to be about
   await addBeing(page, "Ivan Bianchi");
@@ -256,6 +281,7 @@ test("the memory graph draws what UGO has connected, and says so in words", asyn
 
 test("meetings are listed, and a bad link is refused with a reason", async ({ page }) => {
   await openPanel(page);
+  await goHouse(page, "riunioni");
   await expect(page.getByTestId("meet-list")).toContainText("Nessuna riunione");
 
   await page.getByTestId("meet-join").click();
@@ -270,6 +296,7 @@ test("meetings are listed, and a bad link is refused with a reason", async ({ pa
 
 test("the mood is the first thing on the page, drawn and not just numbered", async ({ page }) => {
   await openPanel(page);
+  await goGosino(page, "stato");
 
   // the hero: what kind of creature has been living here, before any accounting
   await expect(page.getByTestId("mood-label")).not.toHaveText("—");
@@ -291,10 +318,7 @@ test("the mood is the first thing on the page, drawn and not just numbered", asy
 
 test("spending is shown against its limit, with the numbers reachable", async ({ page }) => {
   await openPanel(page);
-  await expect(page.getByTestId("stats").locator(".tile")).toHaveCount(4);
-  // state is a word too, never colour alone
-  await expect(page.getByTestId("stats").locator(".pill")).toHaveText(/budget|limite/);
-
+  await goHouse(page, "conti");
   const spend = page.getByTestId("spend-chart");
   await expect(spend).toBeVisible();
   await expect(spend.locator("svg.chart, p.empty")).toHaveCount(1);
@@ -305,6 +329,7 @@ test("spending is shown against its limit, with the numbers reachable", async ({
 
 test("each service says what it is doing in words, not only in colour", async ({ page }) => {
   await openPanel(page);
+  await goHouse(page, "casa");
   const pills = page.getByTestId("health").locator(".pill");
   await expect(pills).toHaveCount(3);
   await expect(pills.filter({ hasText: "db" })).toContainText("risponde");

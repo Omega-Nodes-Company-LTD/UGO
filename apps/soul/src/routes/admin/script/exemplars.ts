@@ -1,32 +1,11 @@
-/** Which of them you are looking at, and why each variable reads what it does. */
+/**
+ * Why each variable reads what it reads (ADR-034).
+ *
+ * Navigation and `forWho` moved to the router with ADR-035; what is left here
+ * is the one thing this file was always about — turning a breakdown into a
+ * line a person can read.
+ */
 export const EXEMPLARS_JS = `
-// --- chi stai guardando ----------------------------------------------------
-// ADR-034: before this, /v1/psyche answered from the unscoped instance, so with
-// two gosini the panel showed whoever had snapshotted last — a mood belonging
-// to nobody. Every read below now names its owner.
-let WHO = "";
-
-async function loadGosini() {
-  let list = [];
-  try { list = (await call("/v1/gosini", {})).gosini ?? []; } catch { /* one-exemplar house */ }
-  // a chooser with a single choice is furniture: hide it
-  $("who-pick").hidden = list.length < 2;
-  if (list.length === 0) return;
-  if (WHO === "" || !list.some((g) => g.id === WHO)) WHO = list[0].id;
-  $("who").innerHTML = list.map((g) =>
-    '<option value="' + g.id + '"' + (g.id === WHO ? " selected" : "") + ">" +
-    escape(g.name) + (g.where ? " · " + escape(g.where) : "") + "</option>").join("");
-}
-
-const forWho = (path) => WHO === "" ? path : path + (path.includes("?") ? "&" : "?") + "gosino=" + encodeURIComponent(WHO);
-
-$("who").addEventListener("change", async (event) => {
-  WHO = event.target.value;
-  await section(loadPsyche, "stats-msg");
-  await section(loadVolition, "volition-msg");
-});
-
-// --- da cosa arriva l'umore ------------------------------------------------
 // The event names are the psyche's own vocabulary (packages/psyche/events.ts).
 // Anything not listed is shown raw rather than hidden: an unlabelled cause is
 // a gap in this map, and pretending it does not exist would be worse.

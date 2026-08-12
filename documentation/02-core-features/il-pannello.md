@@ -7,11 +7,43 @@ description: "Come sta, cosa ha deciso da solo, e come chiedere a tutti quanti i
 
 Apri `/admin`, incolla il token, e vedi la casa. Niente terminale, niente SQL.
 
-## Chi stai guardando
+## Resta collegato
 
-Se in casa c'è più di un gosino, in alto compare **stai guardando**. Tutto quello
-che leggi sotto — umore, iniziative, desideri — è di quello lì. Con un solo
-gosino la tendina non c'è: sarebbe una scelta con un'opzione sola.
+Alla porta c'è **resta collegato su questo dispositivo**. Spuntato, non ti
+richiede il token ogni volta che apri una scheda: resti dentro finché non premi
+**Esci** nella colonna a sinistra. Toglilo su un computer che non è tuo — il
+token vale come una chiave di casa, e chiunque possa far girare qualcosa su
+quel browser lo può leggere.
+
+## Due livelli: la casa, e ogni gosino
+
+La colonna a sinistra è divisa in due, e non è un dettaglio grafico.
+
+**La casa** è quello che i gosini si dividono: il branco, il budget, l'orologio,
+i dati. Se hai due gosini non hanno due branchi né due portafogli — ne hanno uno.
+
+**Ogni gosino** ha le sue pagine: come sta, cosa ha deciso lui, cosa ricorda.
+Clicca il suo nome e sotto compaiono. Sono cose sue: l'umore di Ugo non è quello
+di Nino, e nemmeno i ricordi.
+
+L'indirizzo dice sempre dove sei — `#/g/.../stato` — quindi puoi ricaricare la
+pagina e ritrovarti dov'eri, o tenerti un segnalibro sulla pagina di uno solo.
+
+## Fai nascere un gosino
+
+Da **+ Fanne nascere uno**. Servono un nome e, se vuoi, la stanza — che poi usi
+per chiamarlo da un dispositivo: `/?gosino=studio`.
+
+Il carattere si sceglie con un archetipo (curiosone, pigrone, affettuoso,
+brontolone, timidone) oppure con le manopole. **Le manopole che non tocchi
+restano dell'archetipo**, quindi puoi partire da «pigrone» e alzargli solo la
+curiosità.
+
+Il carattere è la **versione 1** del suo genoma e non si modifica: cambiarlo
+vuol dire farne una versione nuova, non spostare un cursore. Sceglilo con
+un minimo di calma.
+
+Appena nato ha già il suo apparato: puoi entrare nella sua pagina subito.
 
 ## Come sta adesso
 

@@ -31,6 +31,12 @@ export interface CouncilRoutesDeps {
   /** the household every new exemplar is born into (ADR-019) */
   householdId: () => Promise<string>;
   guard: PreHandler;
+  /**
+   * ADR-035: a newborn with no runtime is worse than an error. `resolve()`
+   * falls back to the eldest, so without this the panel would answer every
+   * question about the new one with the OLD one's mood, and say nothing.
+   */
+  registry?: { reload: () => Promise<void> };
 }
 
 export function registerCouncilRoutes(app: FastifyInstance, deps: CouncilRoutesDeps): void {
@@ -62,7 +68,15 @@ export function registerCouncilRoutes(app: FastifyInstance, deps: CouncilRoutesD
       mutationNote: archetype === undefined ? "nato a mano" : `archetipo: ${archetype}`,
     });
 
-    return reply.status(201).send({ id, name, persona: character.persona });
+    // he exists in the database; now give him an apparatus to be himself with
+    await deps.registry?.reload();
+
+    return reply.status(201).send({
+      id,
+      name,
+      persona: character.persona,
+      ...(locationLabel !== undefined && { where: locationLabel }),
+    });
   });
 
   app.get("/v1/gosini", { preHandler: deps.guard }, async (_request, reply) => {

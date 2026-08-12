@@ -123,7 +123,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // the archive is about memories and meetings, and had no business being
     // gated on the species map: it was registered there only because both
     // arrived in the same afternoon
-    registerArchiveRoutes(app, { db: options.db, chat: v1.chat, guard });
+    registerArchiveRoutes(app, {
+      db: options.db,
+      chat: v1.chat,
+      guard,
+      ...(registry !== undefined && { registry }),
+    });
     registerMemoryGraphRoutes(app, { db: options.db, guard });
     if (speciesMap !== undefined) {
       registerPackRoutes(app, {
@@ -135,7 +140,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       registerAdminRoutes(app);
     }
     if (council !== undefined) {
-      registerCouncilRoutes(app, { db: options.db, guard, ...council });
+      registerCouncilRoutes(app, {
+        db: options.db,
+        guard,
+        ...council,
+        ...(registry !== undefined && { registry }),
+      });
     }
     if (stats !== undefined) {
       registerStatsRoute(app, { db: options.db, ...stats, guard });
