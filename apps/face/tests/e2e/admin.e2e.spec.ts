@@ -45,6 +45,10 @@ const seedVoiceProfile = async (beingId: string): Promise<void> => {
  * ahead of the repaint — which is exactly how this helper came to exist.
  */
 const addBeing = async (page: Page, displayName: string, species = "human"): Promise<void> => {
+  // the pack form lives on the pack page and the caller may be anywhere by now
+  // (ADR-035 gave the panel pages). Going there is the helper's job, not the
+  // caller's: relying on call order is how two of these broke.
+  await goHouse(page, "branco");
   await page.getByTestId("being-name").fill(displayName);
   await page.getByTestId("being-species").fill(species);
   await expect(page.getByTestId("add-being")).toBeEnabled();
@@ -213,8 +217,8 @@ test("relations between the others can be declared and removed", async ({ page }
 
 test("the whole soul can be downloaded, and a being erased for good", async ({ page }) => {
   await openPanel(page);
-  await goHouse(page, "dati");
   await addBeing(page, "Carlo Esposito");
+  await goHouse(page, "dati");
 
   const download = page.waitForEvent("download");
   await page.getByTestId("export").click();
@@ -263,10 +267,11 @@ test("what UGO remembers can be read, and searched the way he would", async ({ p
 
 test("the memory graph draws what UGO has connected, and says so in words", async ({ page }) => {
   await openPanel(page);
-  await goHouse(page, "riunioni");
 
-  // somebody for the memories to be about
+  // somebody for the memories to be about — added on the pack page, which is
+  // where openPanel leaves you, before moving to the page under test
   await addBeing(page, "Ivan Bianchi");
+  await goHouse(page, "riunioni");
 
   await page.getByTestId("graph-go").click();
 
