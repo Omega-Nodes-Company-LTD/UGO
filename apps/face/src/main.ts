@@ -135,8 +135,11 @@ async function loadRooms(): Promise<void> {
   roomPick.innerHTML = rooms
     .map((r) => {
       const chosen = r.room.toLowerCase() === current ? " selected" : "";
+      // ADR-039: a room can be empty now, and "cucina · " with nothing after
+      // the separator reads like a bug rather than like an empty room
       const names = r.gosini.map((g) => g.name).join(", ");
-      return `<option value="${r.room}"${chosen}>${r.room} · ${names}</option>`;
+      const who = names === "" ? " · vuota" : ` · ${names}`;
+      return `<option value="${r.room}"${chosen}>${r.room}${who}</option>`;
     })
     .join("");
   // an explicit "nobody in particular" entry, so the choice is reversible

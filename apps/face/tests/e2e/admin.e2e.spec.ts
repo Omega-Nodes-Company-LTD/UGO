@@ -341,3 +341,37 @@ test("each service says what it is doing in words, not only in colour", async ({
   // mqtt is deliberately unconfigured on this deployment, and says so
   await expect(pills.filter({ hasText: "mqtt" })).toContainText("non configurato");
 });
+
+/**
+ * ADR-039: the rooms are a catalogue, not a spelling. What matters end to end
+ * is that a room made here **survives having nobody in it** — the reason to
+ * make one in advance — and that moving somebody is a choice from a list.
+ */
+test("a room is made empty, filled from a list, and unmade without losing anybody", async ({
+  page,
+}) => {
+  await openPanel(page);
+  await goHouse(page, "stanze");
+
+  await page.getByTestId("room-name").fill("officina");
+  await page.getByTestId("room-go").click();
+  const officina = page.getByTestId("rooms-list").locator(".deed").filter({ hasText: "officina" });
+  await expect(officina).toHaveCount(1);
+  // nobody lives there and it is a room anyway: that is the whole point
+  await expect(officina).toContainText("vuota");
+
+  // "in che stanza" is a list of real rooms now, not a field to type into
+  const where = page.getByTestId("move-room");
+  await expect(where.locator("option")).toContainText(["— nessuna stanza —", "officina"]);
+
+  await page.getByTestId("move-who").selectOption({ index: 0 });
+  await where.selectOption("officina");
+  await page.getByTestId("move-go").click();
+  await expect(officina).not.toContainText("vuota");
+
+  // unmaking it evicts rather than deletes: he is still here, on no screen
+  page.once("dialog", (dialog) => void dialog.accept());
+  await officina.getByTestId("room-del").click();
+  await expect(page.getByTestId("rooms-list").filter({ hasText: "officina" })).toHaveCount(0);
+  await expect(page.getByTestId("rooms-list")).toContainText("Senza stanza");
+});

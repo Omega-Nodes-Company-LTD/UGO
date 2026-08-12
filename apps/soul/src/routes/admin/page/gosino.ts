@@ -104,10 +104,11 @@ export const GOSINO_PAGES = `
     <div class="row">
       <div><label for="new-name">Nome</label><input id="new-name" data-testid="new-name" placeholder="Nino"></div>
       <div><label for="new-where">In che stanza</label>
-        <input id="new-where" data-testid="new-where" placeholder="studio"></div>
+        <select id="new-where" data-testid="new-where"></select></div>
     </div>
-    <p class="lede" style="margin-top:.7rem">La stanza serve a chiamarlo da un dispositivo:
-       <code>/?gosino=studio</code>. Puoi lasciarla vuota e usare il nome.</p>
+    <p class="lede" style="margin-top:.7rem">La stanza decide su quale schermo lo vedi:
+       <code>/?stanza=&lt;nome&gt;</code>. Se non ce n'è ancora nessuna, falla in
+       <b>Le stanze</b> — oppure lascia <b>— nessuna stanza —</b> e dagliela dopo.</p>
 
     <h3>Che carattere ha</h3>
     <p class="lede">Un archetipo è un punto di partenza. Le manopole qui sotto vincono

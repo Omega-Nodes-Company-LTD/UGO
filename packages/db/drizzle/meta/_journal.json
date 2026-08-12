@@ -78,6 +78,13 @@
       "when": 1786483392260,
       "tag": "0010_desire-due-at",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786552634126,
+      "tag": "0011_rooms-catalogue",
+      "breakpoints": true
     }
   ]
 }

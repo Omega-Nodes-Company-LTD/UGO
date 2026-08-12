@@ -73,6 +73,7 @@ async function openPage(page) {
     await section(loadRelations, "rel-msg");
   } else if (page === "nascita") {
     drawDials();
+    await section(drawBirthRooms, "new-msg");
   } else if (page === "stato") {
     // the 48-hour series lives on /v1/stats, so the plot needs it too
     await section(loadPsyche, "stats-msg");

@@ -6,6 +6,7 @@ import {
   events,
   gosini,
   households,
+  rooms,
   runMigrations,
   type DbClient,
 } from "@ugo/db";
@@ -69,6 +70,12 @@ beforeAll(async () => {
     .returning({ id: gosini.id });
   ugo = born[0]?.id ?? "";
   nino = born[1]?.id ?? "";
+  // ADR-039: a label only means something if the room is in the catalogue —
+  // which is the state the backfill migration leaves an existing house in
+  await db.insert(rooms).values([
+    { householdId: found, name: "cucina", slug: "cucina" },
+    { householdId: found, name: "studio", slug: "studio" },
+  ]);
 
   registry = await GosinoRegistry.load({
     db,
