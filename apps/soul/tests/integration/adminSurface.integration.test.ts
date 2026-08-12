@@ -90,6 +90,7 @@ beforeAll(async () => {
       psyche: registry.resolve(undefined)?.psyche as never,
       registry,
       initiative: new InitiativeSwitch(() => true),
+      stats: { dailyBudgetUsd: 0.5, timezone: "Europe/Rome" },
       internalToken: TOKEN,
     },
   });
@@ -185,6 +186,43 @@ describe("what the panel can see", () => {
     // null gives UGO_INITIATIVE the last word again
     const back = (await flip(null)).json<{ enabled: boolean; overridden: boolean }>();
     expect(back).toMatchObject({ enabled: true, overridden: false });
+  });
+
+  it("gives each his own 48-hour series, not the two of them interleaved", async () => {
+    // The failure this catches is not "the wrong creature's history": it is a
+    // CHIMERA. Both exemplars snapshot into one table, so an unscoped query
+    // returns their moods interleaved as a single series, and the sparklines
+    // draw steps nobody ever lived.
+    const ugoPsyche = registry.all().find((r) => r.id === ugo)?.psyche;
+    const ninoPsyche = registry.all().find((r) => r.id === nino)?.psyche;
+    if (ugoPsyche === undefined || ninoPsyche === undefined) throw new Error("no runtime");
+    await ugoPsyche.applyEventType("loud_noise");
+    await ugoPsyche.snapshot();
+    await ninoPsyche.applyEventType("went_out");
+    await ninoPsyche.snapshot();
+
+    const his = (await get(`/v1/stats?gosino=${ugo}`)).json<{
+      mood: { vars: { stress: number; noia: number } }[];
+    }>();
+    const theirs = (await get(`/v1/stats?gosino=${nino}`)).json<{
+      mood: { vars: { stress: number; noia: number } }[];
+    }>();
+
+    expect(his.mood.length).toBeGreaterThan(0);
+    expect(theirs.mood.length).toBeGreaterThan(0);
+    // Ugo has been startled and Nino has been out: no point of one series may
+    // carry the other's signature
+    expect(Math.max(...his.mood.map((m) => m.vars.stress))).toBeGreaterThan(
+      Math.max(...theirs.mood.map((m) => m.vars.stress)),
+    );
+    expect(Math.min(...theirs.mood.map((m) => m.vars.noia))).toBeLessThan(
+      Math.min(...his.mood.map((m) => m.vars.noia)),
+    );
+
+    // and unscoped still shows the whole house, which is the single-exemplar
+    // reading and must not change
+    const all = (await get("/v1/stats")).json<{ mood: unknown[] }>();
+    expect(all.mood.length).toBeGreaterThanOrEqual(his.mood.length + theirs.mood.length);
   });
 
   it("refuses to show any of it without the token", async () => {

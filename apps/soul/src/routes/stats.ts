@@ -1,7 +1,7 @@
 import { budgetLedger, events, memories, messages, psycheSnapshots, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 /**
  * Operational visibility (SECURITY_COMPLIANCE §2: incident handling needs
@@ -17,12 +17,17 @@ export interface StatsDeps {
   dailyBudgetUsd: number;
   timezone: string;
   guard: PreHandler;
+  /**
+   * ADR-034: the mood series belongs to one creature. Spend, counts and dreams
+   * do not — they are the household's (ADR-019) — so only the series narrows.
+   */
+  registry?: { resolve: (query: string | undefined) => { id: string } | undefined };
 }
 
 export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void {
   // guarded: spend, counts and dream activity together describe when the
   // house is awake and how much it talks — operational, but nobody else's
-  app.get("/v1/stats", { preHandler: deps.guard }, async (_request, reply) => {
+  app.get("/v1/stats", { preHandler: deps.guard }, async (request, reply) => {
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: deps.timezone }).format(new Date());
 
     const [spend] = await deps.db
@@ -67,10 +72,24 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
 
     // The mood over the last two days: the one series that says what kind of
     // creature has been living here, rather than what it cost.
+    // Scoped, because two exemplars snapshot into the same table: unfiltered,
+    // this returned BOTH their moods interleaved as one series — not merely the
+    // wrong creature's history but a chimera of two, which is why the
+    // sparklines drew steps nobody had lived.
+    // NB: `resolve` never answers undefined — it falls back to the eldest —
+    // so the ABSENCE of the parameter has to be checked here. Absent means
+    // the whole house (ADR-032), not "whoever is oldest".
+    const asked = (request.query as { gosino?: string }).gosino;
+    const who = asked === undefined || asked === "" ? undefined : deps.registry?.resolve(asked);
     const mood = await deps.db
       .select({ ts: psycheSnapshots.ts, vars: psycheSnapshots.vars, label: psycheSnapshots.label })
       .from(psycheSnapshots)
-      .where(sql`${psycheSnapshots.ts} >= now() - interval '48 hours'`)
+      .where(
+        and(
+          sql`${psycheSnapshots.ts} >= now() - interval '48 hours'`,
+          who === undefined ? undefined : eq(psycheSnapshots.gosinoId, who.id),
+        ),
+      )
       .orderBy(psycheSnapshots.ts);
 
     const [lastDream] = await deps.db

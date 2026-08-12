@@ -148,7 +148,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       });
     }
     if (stats !== undefined) {
-      registerStatsRoute(app, { db: options.db, ...stats, guard });
+      registerStatsRoute(app, {
+        db: options.db,
+        ...stats,
+        guard,
+        ...(registry !== undefined && { registry }),
+      });
     }
     if (face !== undefined) {
       app.register(async (instance) => {

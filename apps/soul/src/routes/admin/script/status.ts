@@ -64,7 +64,10 @@ $("spark-row").addEventListener("click", (event) => {
 });
 
 async function loadStats() {
-  const s = await call("/v1/stats", {});
+  // forWho is the plain path on a house page and the scoped one on a
+  // creature's: the tiles and the spend are the household's either way,
+  // and only the 48-hour series narrows
+  const s = await call(forWho("/v1/stats"), {});
   const usd = (n) => "$" + Number(n).toFixed(3);
   const spent = s.budget.spentUsd;
   const state = s.budget.degraded ? "critical" : spent > s.budget.limitUsd * 0.8 ? "warning" : "good";

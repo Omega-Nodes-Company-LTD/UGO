@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.19.0"
+version: "0.19.1"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1084,6 +1084,20 @@ a metà pagina (il fondo va dipinto sulla colonna, non sull'elemento); le manopo
 
 I test e2e ora navigano — `openPanel` apre il branco, il resto clicca il rail. Cliccato e
 non indirizzato per id: l'id lo semina una migrazione.
+
+### Correzione: la serie a 48 ore era una chimera
+
+Segnalata dal proprietario guardando due gosini nel pannello: le sparkline di Silvio erano
+identiche a quelle di ugo-prime, mentre le sue barre dicevano tutt'altro. La serie viene da
+`/v1/stats`, che **non aveva alcun filtro**: entrambi salvano snapshot nella stessa tabella,
+quindi la linea non era «la storia della creatura sbagliata» ma **le due intrecciate** — i
+gradini che le sparkline disegnavano non li aveva vissuti nessuno.
+
+Ora `/v1/stats?gosino=` restringe la sola serie; spesa, conteggi e sogni restano della casa
+(ADR-019). E una trappola trovata scrivendo il test: **`resolve()` non risponde mai
+`undefined`** — ripiega sul più anziano — quindi l'assenza del parametro va controllata
+prima, altrimenti «non scopato» diventa in silenzio «il più vecchio» invece di «tutti»
+(ADR-032). Corretto anche in `/v1/memories`, che aveva lo stesso difetto.
 
 ## 7. Debito tecnico e rischi aperti
 

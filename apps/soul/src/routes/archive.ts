@@ -59,8 +59,10 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
       });
     }
     const { kind, q, limit } = parsed.data;
+    // absent means the whole house (ADR-032); `resolve` would otherwise fall
+    // back to the eldest and quietly answer as him
     const asked = (request.query as { gosino?: string }).gosino;
-    const who = deps.registry?.resolve(asked);
+    const who = asked === undefined || asked === "" ? undefined : deps.registry?.resolve(asked);
     const chat = who?.chat ?? deps.chat;
 
     // with a query it is a semantic search — the same re-ranking the chat
