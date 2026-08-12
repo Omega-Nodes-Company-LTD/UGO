@@ -28,15 +28,31 @@ async function call(path, options) {
   return body;
 }
 
+/**
+ * Runs a section loader without letting it take the panel down with it.
+ *
+ * The panel is what the owner uses when something is already wrong, so one
+ * broken section must cost exactly that section. Before this, every loader sat
+ * on the critical path of logging in: a section that threw left a blank page
+ * and a token prompt, which reads as "UGO is gone".
+ */
+async function section(load, where) {
+  try { await load(); }
+  catch (error) { if (where) say(where, "Questa parte non si è caricata: " + error.message, "err"); }
+}
+
 // --- accesso ---------------------------------------------------------------
 $("save-token").addEventListener("click", async () => {
   sessionStorage.setItem("ugo_token", $("token").value.trim());
   try {
     await call("/v1/stats", {});
     $("app").hidden = false; $("auth-hero").hidden = true; $("mood-hero").hidden = false;
-    await refresh();
-    await loadPsyche();
-    await loadHealth();
+    await section(refresh, "pack-msg");
+    // the exemplar has to be chosen before anything is read for him
+    await section(loadGosini, "stats-msg");
+    await section(loadPsyche, "stats-msg");
+    await section(loadVolition, "volition-msg");
+    await section(loadHealth, "stats-msg");
   } catch (error) {
     say("auth-msg", error.status === 401 ? "Token non valido." : "Non riesco a parlare con UGO: " + error.message, "err");
   }

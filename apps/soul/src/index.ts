@@ -16,6 +16,7 @@ import { IdleConsolidation } from "./services/idleConsolidation.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { CouncilService } from "./services/council/councilService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
+import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { buildServer } from "./server.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -142,6 +143,10 @@ const hourOf = (at: Date): number =>
 
 // ADR-032: one runtime per exemplar. Everything that makes him himself — mood,
 // memories, thread, initiative — is his; the house is shared.
+// ADR-034: the durable setting is UGO_INITIATIVE; this only holds the
+// runtime override /admin can flip, and it is lost on restart on purpose.
+const initiative = new InitiativeSwitch(() => env.UGO_INITIATIVE === "on");
+
 const registry = await GosinoRegistry.load({
   db,
   embedder,
@@ -151,7 +156,7 @@ const registry = await GosinoRegistry.load({
   timezone: env.TZ,
   pack,
   localModelUp: () => localTextUp,
-  initiativeEnabled: () => env.UGO_INITIATIVE === "on",
+  initiativeEnabled: () => initiative.on(),
   hourOf,
 });
 
@@ -180,6 +185,7 @@ const app = buildServer({
     speciesMap,
     stats: { dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD, timezone: env.TZ },
     registry,
+    initiative,
     ...(env.UGO_INTERNAL_TOKEN !== undefined && { internalToken: env.UGO_INTERNAL_TOKEN }),
     ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),
     ...(audio !== undefined && { audio }),

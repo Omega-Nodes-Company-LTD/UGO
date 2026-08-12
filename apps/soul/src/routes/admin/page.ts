@@ -54,7 +54,16 @@ export const ADMIN_PAGE = `<!doctype html>
     font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-text-size-adjust: 100%;
   }
-  .shell { max-width: 60rem; margin: 0 auto; padding: 0 1rem 5rem; }
+  .shell { max-width: 72rem; margin: 0 auto; padding: 0 1rem 5rem; }
+  /* on a wide screen the state and its history sit side by side instead of
+     making the reader scroll between the number and its shape */
+  @media (min-width: 60rem) {
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.6rem; align-items: start; }
+    .split > * { min-width: 0; }
+    /* only side by side does the second column start at the top; stacked,
+       the heading still needs air above it */
+    .split .split-head { margin-top: 0; }
+  }
 
   /* --- hero: the mood, because that is what this creature is ------------- */
   header.hero { padding: 2rem 0 1.25rem; }
@@ -104,9 +113,13 @@ export const ADMIN_PAGE = `<!doctype html>
   .pill.good { color: var(--good); } .pill.warning { color: var(--warning); } .pill.critical { color: var(--critical); }
 
   /* --- charts ------------------------------------------------------------ */
-  .plot { position: relative; margin-top: .6rem; }
+  .plot { position: relative; margin-top: .4rem; }
+  .plot-title { margin: 1.1rem 0 0; font-size: .82rem; color: var(--muted); }
+  .plot-title b { color: var(--ink); font-weight: 600; }
   .chart { width: 100%; height: auto; display: block; overflow: visible; }
   .chart .grid { stroke: var(--rule); stroke-width: 1; }
+  /* axis labels are the difference between a picture and an instrument */
+  .chart .tick { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
   .chart .area { fill: var(--data-soft); }
   .chart .line { fill: none; stroke: var(--data); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .chart .endpoint { fill: var(--data); stroke: var(--card); stroke-width: 2; }
@@ -118,6 +131,33 @@ export const ADMIN_PAGE = `<!doctype html>
   .tip { position: absolute; top: 0; background: var(--ink); color: var(--paper); font-size: .75rem;
          padding: .2rem .45rem; border-radius: .3rem; pointer-events: none; white-space: nowrap; }
   .empty { color: var(--muted); font-size: .9rem; margin: .5rem 0; }
+  /* a caveat that travels with a drawn chart, not instead of one */
+  .note { color: var(--muted); font-size: .8rem; margin: .35rem 0 0; }
+
+  /* --- small multiples: six shapes, one colour, no legend ---------------- */
+  .sparks { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: .5rem; margin-top: .6rem; }
+  .spark-card { display: block; width: 100%; text-align: left; padding: .5rem .6rem .3rem;
+                background: var(--sunk); border: 1px solid transparent; border-radius: .55rem;
+                color: inherit; font-weight: 400; cursor: pointer; }
+  .spark-card:hover { border-color: var(--rule); }
+  .spark-card.on { border-color: var(--data); background: var(--data-soft); }
+  .spark-card small { display: block; font-size: .72rem; text-transform: uppercase;
+                      letter-spacing: .07em; color: var(--muted); }
+  .spark-card b { display: block; font-size: 1.15rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
+  .spark { display: block; width: 100%; height: 34px; }
+  .spark-line { fill: none; stroke: var(--data); stroke-width: 1.5; stroke-linejoin: round; }
+  .spark-area { fill: var(--data-soft); }
+  .spark-end { fill: var(--data); }
+  .spark-empty { color: var(--muted); font-size: .8rem; }
+
+  /* --- ranked horizontal bars: the labels are words, so they lie flat ---- */
+  /* capped: a count of 2 does not deserve a bar the width of the page */
+  .hbar { display: grid; grid-template-columns: 9rem minmax(0, 22rem) 2rem; align-items: center;
+          gap: .6rem; margin: .3rem 0; font-size: .85rem; }
+  .hbar-name { color: var(--muted); }
+  .hbar-track { display: block; height: 9px; background: var(--sunk); border-radius: 4px; }
+  .hbar-track > i { display: block; height: 100%; background: var(--data); border-radius: 4px; }
+  .hbar-num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
   details.table { margin-top: .6rem; } details.table summary { cursor: pointer; color: var(--muted); font-size: .82rem; }
   details.table table { width: 100%; border-collapse: collapse; font-size: .82rem; margin-top: .5rem;
                         font-variant-numeric: tabular-nums; }
@@ -130,6 +170,22 @@ export const ADMIN_PAGE = `<!doctype html>
   .meter { position: relative; display: block; height: 7px; background: var(--sunk); border-radius: 4px; }
   .meter > i { display: block; height: 100%; background: var(--data); border-radius: 4px; }
   .meter .baseline { position: absolute; top: -3px; width: 1px; height: 13px; background: var(--muted); opacity: .55; }
+  /* the causes sit under their own bar, in the bar's column, so the eye reads
+     "questa barra, per questi motivi" without a legend */
+  .why { grid-column: 2 / 4; font-size: .74rem; color: var(--muted); margin: -.1rem 0 .35rem; }
+  .why b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .why .rest { opacity: .7; }
+
+  /* --- what he started himself, and the council -------------------------- */
+  .deed { background: var(--sunk); border-radius: .6rem; padding: .6rem .8rem; margin: .4rem 0; }
+  .deed .when { font-size: .74rem; color: var(--muted); float: right; }
+  .deed .act { font-weight: 600; }
+  .deed .because { font-size: .85rem; color: var(--muted); font-style: italic; }
+  .deed .deed-act { font-weight: 400; color: var(--muted); }
+  .voice { background: var(--sunk); border-radius: .6rem; padding: .7rem .9rem; margin: .5rem 0; }
+  .voice h4 { margin: 0 0 .3rem; font-family: var(--serif); font-size: .95rem; }
+  .voice .said { margin: .2rem 0; }
+  .voice .again { margin: .4rem 0 0; padding-left: .7rem; border-left: 2px solid var(--data); }
 
   /* --- the pack ---------------------------------------------------------- */
   .pack { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .75rem; }
@@ -177,12 +233,20 @@ export const ADMIN_PAGE = `<!doctype html>
   <div class="mood" id="mood-hero" hidden>
     <b id="mood-label" data-testid="mood-label">—</b>
     <span id="mood-phrase" data-testid="mood-phrase"></span>
+    <!-- ADR-034: with more than one of them in the house, every reading below
+         belongs to somebody. Hidden while there is only one, because a chooser
+         with a single choice is furniture. -->
+    <label id="who-pick" hidden style="margin-left:auto;display:flex;align-items:center;gap:.4rem">
+      <span style="font-size:.8rem;color:var(--muted)">stai guardando</span>
+      <select id="who" data-testid="who"></select>
+    </label>
   </div>
 </header>
 
 <div id="app" hidden>
   <nav class="tabs">
-    <a href="#ora">Come sta</a><a href="#branco">Il branco</a><a href="#voce">Voce</a>
+    <a href="#ora">Come sta</a><a href="#volonta">Cosa ha deciso lui</a>
+    <a href="#branco">Il branco</a><a href="#consiglio">Il consiglio</a><a href="#voce">Voce</a>
     <a href="#memoria">Memoria</a><a href="#conti">Conti</a><a href="#dati">I dati</a>
   </nav>
 
@@ -190,15 +254,60 @@ export const ADMIN_PAGE = `<!doctype html>
     <h2>Come sta adesso</h2>
     <p class="lede">Sei variabili che si muovono da sole e tornano piano al loro punto di riposo —
        il trattino verticale su ogni barra.</p>
-    <div id="psyche-bars" data-testid="psyche-bars"></div>
-    <h3>L'umore nelle ultime 48 ore</h3>
-    <div class="plot" id="mood-chart" data-testid="mood-chart"></div>
+    <div class="split">
+      <div>
+        <div id="psyche-bars" data-testid="psyche-bars"></div>
+      </div>
+      <div>
+        <h3 class="split-head">Come si sono mosse nelle ultime 48 ore</h3>
+        <p class="lede">Sei riquadri invece di sei linee sovrapposte: così nessuna variabile
+           ha bisogno di un colore suo per essere riconosciuta. Tocca quella da vedere in grande.</p>
+        <div class="sparks" id="spark-row" data-testid="spark-row"></div>
+        <p class="plot-title">In grande: <b id="mood-pick-name">umore</b></p>
+        <div class="plot" id="mood-chart" data-testid="mood-chart"></div>
+      </div>
+    </div>
     <div id="health" data-testid="health" style="margin-top:1rem;display:flex;gap:.4rem;flex-wrap:wrap"></div>
     <div class="row" style="margin-top:.8rem">
       <button id="refresh" class="ghost" data-testid="refresh" style="flex:0 0 auto">Aggiorna</button>
       <button id="dream" class="ghost" data-testid="dream" style="flex:0 0 auto">Fallo sognare adesso</button>
     </div>
     <div id="stats-msg"></div>
+  </section>
+
+  <section id="volonta">
+    <h2>Cosa ha deciso lui</h2>
+    <p class="lede">Non le risposte: le volte in cui ha cominciato lui. Ogni riga porta la
+       spinta che l'ha mosso, con le sue parole.</p>
+    <div class="row" style="align-items:center;gap:.6rem">
+      <button id="init-toggle" class="ghost" data-testid="init-toggle" style="flex:0 0 auto">—</button>
+      <span id="init-state" data-testid="init-state" class="lede" style="margin:0"></span>
+    </div>
+    <div id="volition-msg"></div>
+    <h3>Desideri in sospeso</h3>
+    <p class="lede">Quello che si è ripromesso di dirti, e i promemoria che gli hai chiesto.</p>
+    <div id="desire-list" data-testid="desire-list"></div>
+    <h3>Cosa lo muove</h3>
+    <p class="lede">Quante volte ogni spinta l'ha fatto cominciare. Risponde a una domanda
+       che l'elenco qui sotto non risponde: è solo che si annoia, o gli manchi?</p>
+    <div id="driver-chart" data-testid="driver-chart"></div>
+
+    <h3>Le ultime iniziative</h3>
+    <div id="initiative-list" data-testid="initiative-list"></div>
+  </section>
+
+  <section id="consiglio">
+    <h2>Il consiglio</h2>
+    <p class="lede">Una domanda a tutti quanti. Il primo giro è cieco — nessuno sente gli altri
+       prima di parlare — poi si ascoltano e possono cambiare idea. Solo modelli locali:
+       un consiglio non tocca il budget.</p>
+    <div class="row">
+      <div style="flex:1"><label for="council-q">La domanda</label>
+        <input id="council-q" data-testid="council-q" placeholder="Meglio il fango o il divano?"></div>
+      <button id="council-go" data-testid="council-go" style="flex:0 0 auto;align-self:end">Convoca</button>
+    </div>
+    <div id="council-msg"></div>
+    <div id="council-out" data-testid="council-out"></div>
   </section>
 
   <section id="branco">

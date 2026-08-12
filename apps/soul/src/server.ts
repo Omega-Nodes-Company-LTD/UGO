@@ -18,6 +18,8 @@ import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
+import { registerVolitionRoutes } from "./routes/volition.js";
+import type { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import type { FaceGateway } from "./services/faceGateway.js";
 import type { MeetingsService } from "./services/meetingsService.js";
 import type { ExportService } from "./services/privacy/exportService.js";
@@ -41,6 +43,8 @@ export interface ServerOptions extends HealthDeps {
     council?: { council: CouncilService; householdId: () => Promise<string> };
     /** ADR-032: the per-exemplar runtimes a socket can ask to be */
     registry?: GosinoRegistry;
+    /** ADR-034: the runtime override on UGO_INITIATIVE, for /admin */
+    initiative?: InitiativeSwitch;
     /** bearer token protecting destructive/expensive routes */
     internalToken?: string;
     dreamTriggerUrl?: string;
@@ -82,12 +86,25 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       speciesMap,
       council,
       registry,
+      initiative,
       internalToken,
       dreamTriggerUrl,
       ...v1
     } = options.features;
     const guard = createAuthGuard(internalToken);
-    registerV1Routes(app, { db: options.db, ...v1 });
+    registerV1Routes(app, {
+      db: options.db,
+      ...v1,
+      ...(registry !== undefined && { registry }),
+    });
+    if (initiative !== undefined) {
+      registerVolitionRoutes(app, {
+        db: options.db,
+        guard,
+        initiative,
+        ...(registry !== undefined && { registry }),
+      });
+    }
     registerDebugChatRoute(app);
     registerJobsRoutes(app, {
       db: options.db,

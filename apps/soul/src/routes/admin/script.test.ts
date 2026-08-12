@@ -26,6 +26,24 @@ describe("the assembled panel script", () => {
     expect(duplicates).toEqual([]);
   });
 
+  /**
+   * Found by looking at the rendered panel, not by reading the code: one 404
+   * on a route this server had not registered left the whole page blank,
+   * because the loaders were an awaited chain on the critical path of logging
+   * in. Everything after the first failure never ran.
+   *
+   * The panel is what the owner opens when something is ALREADY wrong, so a
+   * section that breaks must cost that section and nothing else.
+   */
+  it("loads every section behind the guard, so one broken section is not a blank page", () => {
+    const login = /\$\("save-token"\)\.addEventListener[\s\S]*?\n\}\);/.exec(ADMIN_SCRIPT)?.[0] ?? "";
+    expect(login, "the login handler moved or was renamed").not.toBe("");
+    const unguarded = [...login.matchAll(/await (\w+)\(/g)]
+      .map((match) => match[1])
+      .filter((name) => name !== "section" && name !== "call");
+    expect(unguarded).toEqual([]);
+  });
+
   it("wires every element the script reaches for", () => {
     const ids = new Set([...ADMIN_PAGE.matchAll(/id="([^"]+)"/g)].map((match) => match[1]));
     const wanted = [...ADMIN_SCRIPT.matchAll(/\$\("([^"]+)"\)/g)].map((match) => match[1]);

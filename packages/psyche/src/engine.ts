@@ -42,6 +42,64 @@ export function varsAt(
   return vars;
 }
 
+/** Below this a cause is not worth showing to anybody. */
+const MIN_VISIBLE = 0.005;
+
+export interface VariableBreakdown {
+  /** where the variable rests when nothing is happening to it */
+  baseline: number;
+  /** what it actually reads, after clamping — the number on the bar */
+  value: number;
+  /**
+   * Live causes, largest first. `cause` is undefined for the single collapsed
+   * transient a restart leaves behind (`stateFromSnapshot`): honest, because
+   * after a restart nobody knows what it was any more.
+   */
+  causes: { cause: string | undefined; amount: number }[];
+}
+
+/**
+ * Why each variable reads what it reads (ADR-034).
+ *
+ * `varsAt` answers "how stressed is he", which stops being useful the moment
+ * the answer is worrying: the next question is always *from what*, and until
+ * now that could only be reconstructed by hand from the events table.
+ *
+ * NB: `value` is clamped and the causes are not, so a variable pinned at 1 has
+ * causes summing past it. That is not a rounding error, it is the interesting
+ * case — it says how far past the top he would be if there were room.
+ */
+export function breakdownAt(
+  state: PsycheState,
+  at: Date,
+  hourOfDay?: number,
+  overrides?: BaselineOverrides,
+): Record<PsycheVariable, VariableBreakdown> {
+  const hour = hourOfDay ?? at.getHours();
+  const atMs = at.getTime();
+  const out = {} as Record<PsycheVariable, VariableBreakdown>;
+  for (const variable of PSYCHE_VARIABLES) {
+    const baseline = baselineFor(variable, hour, overrides);
+    const byCause = new Map<string | undefined, number>();
+    let total = 0;
+    for (const transient of state.transients) {
+      if (transient.variable !== variable) continue;
+      const contribution = decayedContribution(transient, atMs);
+      total += contribution;
+      byCause.set(transient.cause, (byCause.get(transient.cause) ?? 0) + contribution);
+    }
+    out[variable] = {
+      baseline,
+      value: clamp01(baseline + total),
+      causes: [...byCause]
+        .map(([cause, amount]) => ({ cause, amount }))
+        .filter((entry) => Math.abs(entry.amount) >= MIN_VISIBLE)
+        .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)),
+    };
+  }
+  return out;
+}
+
 export interface Perturbation {
   variable: PsycheVariable;
   amount: number;

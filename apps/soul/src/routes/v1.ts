@@ -8,12 +8,15 @@ import {
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BeingNotFoundError, type ChatService } from "../services/chatService.js";
+import type { GosinoRegistry } from "../services/pack/runtimes.js";
 import type { PsycheService } from "../services/psycheService.js";
 
 export interface V1Deps {
   db: DbClient;
   chat: ChatService;
   psyche: PsycheService;
+  /** ADR-032: present once the house can hold more than one of them */
+  registry?: GosinoRegistry;
 }
 
 /** RFC 7807 problem responses (PROGETTO §5.7). */
@@ -43,9 +46,22 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
     }
   });
 
-  app.get("/v1/psyche", async (_request, reply) => {
-    const { vars, label, phrase } = deps.psyche.current();
-    return reply.send({ vars, label, phrase });
+  app.get("/v1/psyche", async (request, reply) => {
+    // ADR-034: with more than one exemplar under the roof, an unscoped read
+    // returned whichever of them had snapshotted last — a mood belonging to
+    // nobody. Absent `gosino` still means the house's own single creature.
+    const asked = (request.query as { gosino?: string }).gosino;
+    const who = deps.registry?.resolve(asked);
+    const psyche = who?.psyche ?? deps.psyche;
+    const at = new Date();
+    const { vars, label, phrase } = psyche.current(at);
+    return reply.send({
+      vars,
+      label,
+      phrase,
+      breakdown: psyche.breakdown(at),
+      ...(who !== undefined && { who: { id: who.id, name: who.name, where: who.where } }),
+    });
   });
 
   app.post("/v1/events", async (request, reply) => {

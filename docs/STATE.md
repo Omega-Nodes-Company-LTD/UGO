@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.17.0"
+version: "0.18.0"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -988,6 +988,60 @@ Verifiche: 9 unit sul gate (i due nuovi sono «regge una conversazione» e «sen
 un botto vero sopra quella conversazione» — senza il secondo avrei solo reso sordo un
 animale), 20 unit sul motore della psiche, 18 test di integrazione su Postgres reale
 per le suite che toccano la psiche.
+
+## 6-octodecies. Il pannello sa di chi parla (ADR-034)
+
+ADR-032 aveva dato a ognuno la sua psiche; `/admin` era rimasto indietro, e in un modo
+che **non si vede**. `GET /v1/psyche` leggeva `deps.psyche`, l'istanza singola del boot:
+senza `gosinoId` la restore non filtra niente e pesca **lo snapshot più recente chiunque
+l'abbia scritto**. Con due gosini il pannello mostrava un umore che non era di nessuno,
+saltando dall'uno all'altro. Nessuna eccezione, nessun log: la firma esatta di un difetto
+di scope, stessa famiglia della trappola del ramo lessicale.
+
+Ora ogni lettura dichiara di chi è (`?gosino=`, con `who` nella risposta) e il selettore
+in cima governa tutte le sezioni — e **sparisce quando l'esemplare è uno solo**.
+
+**`breakdownAt`**, funzione pura: per ogni variabile la linea di riposo e i contributi
+vivi **raggruppati per causa**. Possibile solo perché ADR-033 aveva messo `cause` sul
+transitorio per l'abituazione — il campo c'era, bastava leggerlo dall'altro verso. Sotto
+ogni barra compare l'aritmetica (`riposa a 0,30 · rumore +0,44 · caldo +0,15`), con la
+linea di riposo **sua** (baseline adattive, ADR-012) e non la costante di specie,
+altrimenti i conti scritti sotto non tornerebbero col trattino disegnato sopra. Le cause
+non sono clampate mentre il valore sì: una variabile inchiodata dice `sarebbe 1,24, è al
+massimo`, che è il caso interessante, non un arrotondamento.
+
+**«Cosa ha deciso lui»**: il giornale delle iniziative col loro `because`, i desideri in
+sospeso, i promemoria. ADR-027 scriveva quel campo *espressamente perché un'iniziativa si
+potesse spiegare dopo il fatto*, e per cinque ADR non l'ha riletto nessuno. Più
+l'interruttore: `UGO_INITIATIVE` resta la configurazione durevole, `InitiativeSwitch`
+tiene solo un override **a runtime**, perso al riavvio di proposito — un silenzio chiesto
+alle undici di sera non deve valere ancora la settimana dopo.
+
+**Il consiglio** è convocabile dal pannello, con la trascrizione a due giri visibilmente
+staccati: senza quello stacco sembra una chat e sparisce la parte interessante, cioè chi
+si è mosso e dopo aver sentito cosa.
+
+E `section(load, dove)`: prima ogni loader stava sul percorso critico del login, quindi
+**una sezione che lanciava lasciava pagina bianca e richiesta del token** — si legge come
+«UGO non c'è più». Il pannello è ciò che apri quando qualcosa già non va.
+
+**I grafici, guardati davvero.** Il pannello è stato renderizzato e fotografato con dati
+finti, non solo compilato, e tre difetti sono emersi solo così. Il grafico della spesa si
+scalava **sul budget invece che sui dati**: tre centesimi contro un limite di cinquanta
+disegnavano ogni barra come una sbavatura di 7 pixel sul fondo, e l'unica domanda a cui
+il grafico serve — *oggi è diverso dagli altri giorni?* — restava senza risposta. Nessun
+asse da nessuna parte: un grafico senza asse dice «è salito» e si rifiuta di dire da
+quanto a quanto. E una sola serie storica, l'umore; ora ci sono **sei small multiples**
+che fanno da selettore per il grafico grande — non sei linee sullo stesso asse, che
+richiederebbero sei tinte e smetterebbero di funzionare per un daltonico.
+
+E ancora fotografando: gli id inglesi degli atti (`askQuestion`, `askToGoOut`) finivano
+sotto gli occhi del proprietario, contro la regola 10.
+
+Verifiche: 25 unit sul motore della psiche, 5 di integrazione su Postgres reale (l'umore
+giusto per l'esemplare giusto, le parti che tornano col totale, i giornali separati,
+l'interruttore che torna all'env, il 401 senza token), più i tre test che compilano il
+pannello assemblato e verificano che ogni `$("id")` esista davvero.
 
 ## 7. Debito tecnico e rischi aperti
 
