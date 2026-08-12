@@ -28,6 +28,7 @@ const moodLabel = requireElement("#mood-label");
 const speakText = requireElement("#speak-text");
 const connStatus = requireElement("#conn");
 const micButton = requireElement("#btn-mic");
+const roomPick = requireElement("#room-pick") as HTMLSelectElement;
 const earsButton = requireElement("#btn-ears");
 
 const params = new URLSearchParams(location.search);
@@ -51,6 +52,8 @@ const speech = new Speech();
 let lastPresenceAt = 0;
 /** who is in this room (ADR-036); one nameless entry until the roster lands */
 let residents: { id: string; name: string }[] = [];
+const nameOf = (who: string | undefined): string | undefined =>
+  residents.find((r) => r.id === who)?.name;
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Nobody named means the whole room, which is also the one-creature case. */
@@ -59,14 +62,59 @@ function setLocalState(state: FaceState, who?: string): void {
   renderer.setState(state, who);
 }
 
-function showSpeech(text: string): void {
-  speakText.textContent = text;
+/**
+ * ADR-037: with more than one creature in the room the bubble has to say who
+ * spoke. A room where you can hear a sentence and not tell which of them said
+ * it is worse than a room with one creature in it.
+ */
+function showSpeech(text: string, who?: string): void {
+  const name = residents.length > 1 ? nameOf(who) : undefined;
+  speakText.textContent = name === undefined ? text : `${name}: ${text}`;
   speakText.classList.add("visible");
   clearTimeout(speakTimer);
   speakTimer = setTimeout(() => {
     speakText.classList.remove("visible");
   }, 6000);
 }
+
+/**
+ * Which room this screen is (ADR-037).
+ *
+ * The room used to be settable only by editing the query string, which is not
+ * an interface — the owner asked for exactly this. Switching reloads rather
+ * than reconnecting in place: the socket, the senses and the renderer are all
+ * built around one room at boot, and pretending to swap them live would be a
+ * lot of moving parts for a control used twice a year.
+ */
+async function loadRooms(): Promise<void> {
+  let rooms: { room: string; gosini: { name: string }[] }[] = [];
+  try {
+    const res = await fetch(`${soulHttp}/v1/rooms`);
+    rooms = ((await res.json()) as { rooms?: typeof rooms }).rooms ?? [];
+  } catch {
+    return; // no soul yet: the picker simply does not appear
+  }
+  if (rooms.length < 2) return;
+  const current = params.get("stanza")?.toLowerCase();
+  roomPick.innerHTML = rooms
+    .map((r) => {
+      const chosen = r.room.toLowerCase() === current ? " selected" : "";
+      const names = r.gosini.map((g) => g.name).join(", ");
+      return `<option value="${r.room}"${chosen}>${r.room} · ${names}</option>`;
+    })
+    .join("");
+  if (current === undefined) {
+    roomPick.insertAdjacentHTML("afterbegin", '<option value="" selected>— stanza —</option>');
+  }
+  roomPick.hidden = false;
+}
+
+roomPick.addEventListener("change", () => {
+  const next = new URL(location.href);
+  if (roomPick.value === "") next.searchParams.delete("stanza");
+  else next.searchParams.set("stanza", roomPick.value);
+  location.assign(next.toString());
+});
 
 function onServerMessage(message: ServerToFaceMessage): void {
   switch (message.type) {
@@ -84,8 +132,12 @@ function onServerMessage(message: ServerToFaceMessage): void {
       return;
     }
     case "speak":
-      showSpeech(message.text);
-      speech.speak(message.text);
+      showSpeech(message.text, message.who);
+      speech.speak(message.text, message.who);
+      // and the others turn to look at whoever is talking: a room where
+      // nobody reacts to anybody is two creatures in the same picture, not
+      // two creatures in the same room
+      renderer.attendTo?.(message.who);
       return;
     case "glyph":
       glyph.play(message.pattern);
@@ -223,6 +275,8 @@ startPointerGaze(canvas, (target) => {
 });
 renderer.start();
 void socket.start();
+// the picker asks the soul which rooms exist; it never blocks the body
+void loadRooms();
 
 
 // ---- portable mode wiring (§4.2) ------------------------------------------

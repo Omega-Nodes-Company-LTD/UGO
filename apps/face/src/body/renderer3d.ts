@@ -180,6 +180,27 @@ export class Webgl3dFace implements FaceRenderer {
     };
   };
 
+  /**
+   * Somebody is speaking (ADR-037): everybody else turns to look at him.
+   *
+   * The gaze is aimed from where he actually is, so the two on the left of the
+   * room look right and the one on the right looks left — and they perk up,
+   * because being spoken to near you is worth noticing. Zero tokens: this is
+   * the body reacting to the body, the soul is not consulted.
+   */
+  public attendTo(who: string | undefined): void {
+    const speaker = who === undefined ? undefined : this.people.get(who);
+    if (speaker === undefined || this.people.size < 2) return;
+    for (const person of this.people.values()) {
+      if (person === speaker) continue;
+      const dx = speaker.position.x - person.position.x;
+      // the pen is a couple of units wide, so a unit of distance is most of a
+      // full turn of the eyes: clamped, or he would look through his own skull
+      person.setGaze({ x: clamp01(Math.abs(dx) / 2) * Math.sign(dx), y: 0 });
+      person.reflex("earPerk");
+    }
+  }
+
   /** Nobody named means everybody: a bang is heard by the whole room. */
   private pick(who: string | undefined): Inhabitant[] {
     if (who === undefined || who === "") return [...this.people.values()];

@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.20.0"
+version: "0.21.0"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1140,6 +1140,26 @@ sopra**. Ora i tratti si fondono sui default.
 Verifiche: 5 unit sull'instradamento dei frame, 8 di integrazione su Postgres reale
 (spostamento senza perdere la psiche, stanza svuotata, confronto insensibile a maiuscole),
 più il render fotografato con una, due e tre creature.
+
+### Correzione: la stanza era un meccanismo senza interfaccia (ADR-037)
+
+Il proprietario, guardando due creature: «non interagiscono, non posso scegliere la stanza
+dall'interfaccia, e non si sa chi dice cosa, sia come voce che come scritta». Tre buchi
+veri: ADR-036 aveva costruito il meccanismo — due runtime, due corpi, due corsie — e
+nessuna delle tre cose che lo rendono utilizzabile.
+
+**Chi parla.** La nuvoletta porta il nome quando in stanza c'è più di uno, e `voiceOf(id)`
+dà a ciascuno tono e ritmo propri, derivati dall'id quindi identici a ogni riconnessione e
+su ogni dispositivo. Forbice stretta: distinguibili, ma tutti ancora porcetti.
+
+**La stanza.** `GET /v1/rooms` **non protetta** — serve al corpo, e il corpo non ha il token
+operatore. Espone etichette e nomi di creature, la stessa classe di `whoami`. Il selettore
+compare solo con più di una stanza e ricarica invece di riconnettersi: socket, sensi e
+renderer sono costruiti attorno a una stanza al boot.
+
+**L'interazione.** Chi parla viene guardato dagli altri, che drizzano le orecchie. È il
+corpo che reagisce al corpo: zero token, nessun modello consultato. Era la differenza fra
+due creature nella stessa immagine e due nella stessa stanza.
 
 ## 7. Debito tecnico e rischi aperti
 
