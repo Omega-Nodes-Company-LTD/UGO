@@ -20,6 +20,8 @@ export function resolveSoulUrl(
   override?: string | null,
   /** ADR-032: which exemplar this device wants — id, name or room */
   gosino?: string | null,
+  /** ADR-036: the room this device is the body of; wins over a named exemplar */
+  stanza?: string | null,
 ): string {
   const base = (() => {
     if (override !== undefined && override !== null && override !== "") return override;
@@ -29,8 +31,13 @@ export function resolveSoulUrl(
     }
     return `${scheme}//${location.host}/v1/face`;
   })();
+  // the room wins: a device that says which room it is in is describing
+  // itself, while a named exemplar is describing who to fetch
+  const join = (url: string, key: string, value: string): string =>
+    `${url}${url.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
+  if (stanza !== undefined && stanza !== null && stanza !== "") return join(base, "stanza", stanza);
   if (gosino === undefined || gosino === null || gosino === "") return base;
-  return `${base}${base.includes("?") ? "&" : "?"}gosino=${encodeURIComponent(gosino)}`;
+  return join(base, "gosino", gosino);
 }
 
 /** HTTP base of the same soul, for the REST routes the face calls. */

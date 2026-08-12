@@ -170,8 +170,10 @@ const app = buildServer({
     // ADR-031: more than one exemplar, and a way to ask them all at once.
     // Local model only: a room full of pigs arguing must never touch the
     // API budget.
-    council: {
-      council: new CouncilService({ db, local: localText }),
+    council: { council: new CouncilService({ db, local: localText }) },
+    // ADR-036: the population is its own surface — a house can hold several
+    // creatures and never convene a council
+    gosini: {
       householdId: async () => {
         const rows = await db.select({ id: households.id }).from(households).limit(1);
         const first = rows[0]?.id;

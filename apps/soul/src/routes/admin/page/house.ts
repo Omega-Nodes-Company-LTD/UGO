@@ -32,6 +32,36 @@ export const HOUSE_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="stanze">
+  <div class="page-head">
+    <p class="eyebrow">La casa</p>
+    <h1>Le stanze</h1>
+    <p>Un dispositivo mostra <b>una stanza</b>, non una creatura: chi ci vive compare lì,
+       da solo o insieme agli altri. Spostarli è come cambia chi vedi su quale schermo.</p>
+  </div>
+
+  <div class="block">
+    <h2>Chi sta dove</h2>
+    <p class="lede">L'indirizzo di una stanza è <code>/?stanza=&lt;nome&gt;</code>. Chi non sta
+       in nessuna stanza non compare su nessun dispositivo finché non gliene dai una.</p>
+    <div id="rooms-list" data-testid="rooms-list"></div>
+    <div id="rooms-msg"></div>
+  </div>
+
+  <div class="block">
+    <h2>Spostane uno</h2>
+    <div class="row">
+      <div><label for="move-who">Chi</label><select id="move-who" data-testid="move-who"></select></div>
+      <div><label for="move-room">In che stanza</label>
+        <input id="move-room" data-testid="move-room" list="rooms-known" placeholder="cucina">
+        <datalist id="rooms-known"></datalist></div>
+      <button id="move-go" data-testid="move-go">Spostalo</button>
+    </div>
+    <p class="lede" style="margin-top:.7rem">Lascia il campo vuoto per toglierlo da ogni stanza.
+       Lo spostamento è immediato: non perde né umore né ricordi, cambia solo dove lo vedi.</p>
+  </div>
+</section>
+
 <section class="page" data-page="branco">
   <div class="page-head">
     <p class="eyebrow">La casa</p>

@@ -38,6 +38,7 @@ let app: FastifyInstance;
 let registry: GosinoRegistry;
 let ugo: string;
 let nino: string;
+let householdId: string;
 
 const idleEmbedder: EmbeddingsClient = {
   embed: (texts) => Promise.resolve(texts.map(() => Array.from({ length: 768 }, () => 0))),
@@ -56,13 +57,14 @@ beforeAll(async () => {
   db = createDbClient(pg.getConnectionUri());
 
   const houses = await db.select({ id: households.id }).from(households).limit(1);
-  const householdId = houses[0]?.id;
-  if (householdId === undefined) throw new Error("the migrations seed one household");
+  const found = houses[0]?.id;
+  if (found === undefined) throw new Error("the migrations seed one household");
+  householdId = found;
   const born = await db
     .insert(gosini)
     .values([
-      { householdId, name: "Ugo", locationLabel: "cucina" },
-      { householdId, name: "Nino", locationLabel: "studio" },
+      { householdId: found, name: "Ugo", locationLabel: "cucina" },
+      { householdId: found, name: "Nino", locationLabel: "studio" },
     ])
     .returning({ id: gosini.id });
   ugo = born[0]?.id ?? "";
@@ -90,6 +92,8 @@ beforeAll(async () => {
       psyche: registry.resolve(undefined)?.psyche as never,
       registry,
       initiative: new InitiativeSwitch(() => true),
+      stats: { dailyBudgetUsd: 0.5, timezone: "Europe/Rome" },
+      gosini: { householdId: () => Promise.resolve(householdId) },
       internalToken: TOKEN,
     },
   });
@@ -185,6 +189,85 @@ describe("what the panel can see", () => {
     // null gives UGO_INITIATIVE the last word again
     const back = (await flip(null)).json<{ enabled: boolean; overridden: boolean }>();
     expect(back).toMatchObject({ enabled: true, overridden: false });
+  });
+
+  it("gives each his own 48-hour series, not the two of them interleaved", async () => {
+    // The failure this catches is not "the wrong creature's history": it is a
+    // CHIMERA. Both exemplars snapshot into one table, so an unscoped query
+    // returns their moods interleaved as a single series, and the sparklines
+    // draw steps nobody ever lived.
+    const ugoPsyche = registry.all().find((r) => r.id === ugo)?.psyche;
+    const ninoPsyche = registry.all().find((r) => r.id === nino)?.psyche;
+    if (ugoPsyche === undefined || ninoPsyche === undefined) throw new Error("no runtime");
+    await ugoPsyche.applyEventType("loud_noise");
+    await ugoPsyche.snapshot();
+    await ninoPsyche.applyEventType("went_out");
+    await ninoPsyche.snapshot();
+
+    const his = (await get(`/v1/stats?gosino=${ugo}`)).json<{
+      mood: { vars: { stress: number; noia: number } }[];
+    }>();
+    const theirs = (await get(`/v1/stats?gosino=${nino}`)).json<{
+      mood: { vars: { stress: number; noia: number } }[];
+    }>();
+
+    expect(his.mood.length).toBeGreaterThan(0);
+    expect(theirs.mood.length).toBeGreaterThan(0);
+    // Ugo has been startled and Nino has been out: no point of one series may
+    // carry the other's signature
+    expect(Math.max(...his.mood.map((m) => m.vars.stress))).toBeGreaterThan(
+      Math.max(...theirs.mood.map((m) => m.vars.stress)),
+    );
+    expect(Math.min(...theirs.mood.map((m) => m.vars.noia))).toBeLessThan(
+      Math.min(...his.mood.map((m) => m.vars.noia)),
+    );
+
+    // and unscoped still shows the whole house, which is the single-exemplar
+    // reading and must not change
+    const all = (await get("/v1/stats")).json<{ mood: unknown[] }>();
+    expect(all.mood.length).toBeGreaterThanOrEqual(his.mood.length + theirs.mood.length);
+  });
+
+  it("moves one between rooms without costing him his mind", async () => {
+    // The trap this catches: `reload()` used to SKIP an exemplar it already
+    // held, so a move updated the database and left the registry pointing at
+    // the old room — the dock kept showing the previous occupants. Rebuilding
+    // him instead would have been the opposite mistake: a living psyche thrown
+    // away to change a label.
+    const before = registry.all().find((r) => r.id === nino)?.psyche;
+    if (before === undefined) throw new Error("no runtime");
+    await before.applyEventType("loud_noise");
+    const rattled = before.current().vars.stress;
+
+    const moved = await app.inject({
+      method: "PATCH",
+      url: `/v1/gosini/${nino}`,
+      headers: { authorization: `Bearer ${TOKEN}` },
+      payload: { locationLabel: "cucina" },
+    });
+    expect(moved.statusCode).toBe(200);
+
+    // the registry knows, so the kitchen dock now shows two
+    expect(registry.inRoom("cucina").map((r) => r.name).sort()).toEqual(["Nino", "Ugo"]);
+    expect(registry.inRoom("studio")).toHaveLength(0);
+    // matching is forgiving: the label is typed by a person twice
+    expect(registry.inRoom("  CUCINA ")).toHaveLength(2);
+
+    // and he is the same creature: same object, same stress, nothing rebuilt
+    const after = registry.all().find((r) => r.id === nino)?.psyche;
+    expect(after).toBe(before);
+    expect(after?.current().vars.stress).toBeCloseTo(rattled, 5);
+  });
+
+  it("takes him out of every room when the label is emptied", async () => {
+    await app.inject({
+      method: "PATCH",
+      url: `/v1/gosini/${nino}`,
+      headers: { authorization: `Bearer ${TOKEN}` },
+      payload: { locationLabel: "" },
+    });
+    expect(registry.inRoom("cucina").map((r) => r.name)).toEqual(["Ugo"]);
+    expect(registry.rooms().flatMap((r) => r.gosini.map((g) => g.name))).not.toContain("Nino");
   });
 
   it("refuses to show any of it without the token", async () => {

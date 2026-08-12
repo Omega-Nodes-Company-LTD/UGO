@@ -26,9 +26,10 @@ import { VolitionService } from "../volition/volitionService.js";
  */
 
 export interface GosinoRuntime {
-  id: string;
+  readonly id: string;
+  /** mutable: a rename or a move must not cost him his living psyche (ADR-036) */
   name: string;
-  /** "cucina", "studio" — how a device asks for this one by hand */
+  /** "cucina", "studio" — the room whose device shows him (ADR-036) */
   where: string | undefined;
   character: Character;
   psyche: PsycheService;
@@ -126,8 +127,18 @@ export class GosinoRegistry {
       .where(isNull(gosini.retiredAt))
       .orderBy(gosini.bornAt);
     for (const row of rows) {
-      if (this.byId.has(row.id)) continue;
-      this.byId.set(row.id, await buildRuntime(this.deps, row));
+      const living = this.byId.get(row.id);
+      if (living === undefined) {
+        this.byId.set(row.id, await buildRuntime(this.deps, row));
+        continue;
+      }
+      // ADR-036: he is already here, so his psyche, his thread and his pending
+      // initiative stay exactly as they are — rebuilding would throw away a
+      // living mind to change a label. Only what a move can change is copied
+      // over; skipping the row entirely (as this used to) left `where` stale,
+      // so a creature moved from the panel kept answering the old room's dock.
+      living.name = row.name;
+      living.where = row.where ?? undefined;
     }
     // the eldest is the default: on a device that names nobody, the exemplar
     // that has always been there is the one that answers
@@ -136,6 +147,38 @@ export class GosinoRegistry {
 
   public all(): GosinoRuntime[] {
     return [...this.byId.values()];
+  }
+
+  /**
+   * Everyone who lives in a room (ADR-036).
+   *
+   * The room is what a device shows, not the creature: a dock in the kitchen is
+   * the kitchen's body, and whoever is in the kitchen appears on it. Matching is
+   * case- and space-insensitive because the label is typed by a person twice —
+   * once at the birth form and once in a URL — and "Studio" must find "studio".
+   *
+   * An unknown room gives back nobody rather than falling back to the eldest:
+   * showing the wrong creature is worse than showing an empty room, which at
+   * least tells the truth about what is there.
+   */
+  public inRoom(room: string): GosinoRuntime[] {
+    const wanted = room.trim().toLowerCase();
+    return this.all().filter((runtime) => runtime.where?.trim().toLowerCase() === wanted);
+  }
+
+  /** The rooms that have somebody in them, in the order they were settled. */
+  public rooms(): { room: string; gosini: GosinoRuntime[] }[] {
+    const byRoom = new Map<string, GosinoRuntime[]>();
+    for (const runtime of this.all()) {
+      const room = runtime.where?.trim();
+      if (room === undefined || room === "") continue;
+      const key = room.toLowerCase();
+      byRoom.set(key, [...(byRoom.get(key) ?? []), runtime]);
+    }
+    return [...byRoom.values()].map((gosini) => ({
+      room: gosini[0]?.where?.trim() ?? "",
+      gosini,
+    }));
   }
 
   /**

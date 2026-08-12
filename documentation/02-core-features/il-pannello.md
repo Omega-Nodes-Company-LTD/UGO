@@ -29,6 +29,23 @@ di Nino, e nemmeno i ricordi.
 L'indirizzo dice sempre dove sei — `#/g/.../stato` — quindi puoi ricaricare la
 pagina e ritrovarti dov'eri, o tenerti un segnalibro sulla pagina di uno solo.
 
+## Le stanze
+
+**Un dispositivo mostra una stanza, non una creatura.** È la cosa da capire per prima: apri
+`/?stanza=cucina` su un tablet e quel tablet diventa il corpo della cucina — chi ci vive
+compare lì, uno o diversi insieme.
+
+Da **Le stanze** vedi chi sta dove e li sposti. Spostare qualcuno è immediato e non gli
+costa niente: non perde umore né ricordi, cambia solo su quale schermo lo vedi. Chi non sta
+in nessuna stanza compare sotto «Senza stanza» e non appare su nessun dispositivo finché
+non gliene dai una.
+
+Se in una stanza ce n'è più di uno, li vedi tutti insieme sullo stesso pavimento, ognuno con
+la sua andatura. **Il rumore lo sentono tutti** — è la stanza che l'ha sentito, ed è
+interessante proprio perché ognuno reagisce a modo suo. Quando invece parli, ti risponde
+uno solo: farli rispondere tutti costerebbe una chiamata a testa per ogni frase. Per sentirli
+tutti c'è [il consiglio](#il-consiglio), che usa i modelli locali e non tocca il budget.
+
 ## Fai nascere un gosino
 
 Da **+ Fanne nascere uno**. Servono un nome e, se vuoi, la stanza — che poi usi

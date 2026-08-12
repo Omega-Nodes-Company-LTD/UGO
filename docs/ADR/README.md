@@ -41,4 +41,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [033](./033-l-abitudine-al-fracasso.md) | L'abitudine al fracasso: la stanza si muove, e il decimo botto non è il primo | Accettata |
 | [034](./034-il-pannello-sa-di-chi-parla.md) | Il pannello sa di chi parla, e da cosa arriva l'umore | Accettata |
 | [035](./035-il-pannello-ha-due-livelli.md) | Il pannello ha due livelli, e una sessione che dura | Accettata |
-| 036 | *(prossimo numero disponibile)* | — |
+| [036](./036-la-stanza-e-l-unita.md) | La stanza è l'unità, non la creatura | Accettata |
+| 037 | *(prossimo numero disponibile)* | — |
