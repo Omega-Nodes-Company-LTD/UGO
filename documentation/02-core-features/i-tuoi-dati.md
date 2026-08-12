@@ -1,7 +1,7 @@
 ---
 title: "I tuoi dati"
 description: "Dove vivono i dati di UGO, come portarli via in un file solo e come far dimenticare una persona per sempre."
-version: "0.10.0"
+version: "0.11.0"
 last_updated: "2026-08-12"
 author: "ThinkPink Studio"
 ---
@@ -40,6 +40,26 @@ database senza la chiave si porterebbe a casa dei caratteri illeggibili.
 
 Nei registri tecnici non compaiono mai né nomi né contenuti: solo codici. Chi assiste il sistema può
 vedere che una conversazione è avvenuta, non cosa vi è stato detto.
+
+## Ti riconosce, e come
+
+UGO può riconoscerti **dalla voce** mentre parli e **dal volto** se guardi lo schermo. Sono
+dati biometrici, cioè la categoria che il GDPR protegge di più, quindi le regole sono strette
+e vale la pena conoscerle.
+
+- **Si accende, non si subisce.** Senza il servizio di riconoscimento configurato, UGO risponde
+  senza sapere chi ha davanti — è come ha sempre funzionato. E chi vive in casa può starci
+  senza essere riconosciuto: il consenso è **di ogni persona**, non della casa.
+- **Non conserva né la tua voce né la tua faccia.** Tiene solo un vettore di numeri, cifrato,
+  da cui non si ricostruisce né l'audio né la foto. La registrazione dell'arruolamento viene
+  cancellata dopo l'uso, e sullo schermo gira una finestra di cinque secondi che **si
+  sovrascrive da sola**: non c'è un archivio che cresce.
+- **I minori non si arruolano**, e chi ha chiesto di non essere ripreso o ascoltato viene
+  fermato *prima* che si calcoli qualsiasi cosa — non dopo.
+- **Quando non è sicuro, chiede.** Non tira a indovinare: un nome sbagliato detto con
+  sicurezza costa più di una domanda. E se voce e volto dicono due persone diverse, non ne
+  sceglie una.
+- **Cancellare una persona cancella anche il suo riconoscimento**, voce e volto insieme.
 
 ## Portare via tutto
 

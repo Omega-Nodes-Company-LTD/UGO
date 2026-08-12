@@ -4,6 +4,7 @@ import { LlmClient, OllamaEmbeddingsClient,
   OllamaTextClient,
 } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
+import { RecognitionClient } from "./services/recognitionClient.js";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
 import { FaceGateway } from "./services/faceGateway.js";
@@ -147,6 +148,22 @@ const hourOf = (at: Date): number =>
 // runtime override /admin can flip, and it is lost on restart on purpose.
 const initiative = new InitiativeSwitch(() => env.UGO_INITIATIVE === "on");
 
+// ADR-045: il servizio di percezione, se c'è. Senza, tutto continua come
+// prima — UGO risponde senza sapere chi ha davanti, che è il comportamento di
+// ogni versione fino a ieri.
+const houseId = async (): Promise<string> => {
+  const rows = await db.select({ id: households.id }).from(households).limit(1);
+  return rows[0]?.id ?? "";
+};
+const recognition =
+  env.UGO_RECOGNITION_URL === undefined || env.UGO_INTERNAL_TOKEN === undefined
+    ? undefined
+    : new RecognitionClient({
+        baseUrl: env.UGO_RECOGNITION_URL,
+        token: env.UGO_INTERNAL_TOKEN,
+        householdId: await houseId(),
+      });
+
 const registry = await GosinoRegistry.load({
   db,
   embedder,
@@ -158,6 +175,7 @@ const registry = await GosinoRegistry.load({
   localModelUp: () => localTextUp,
   initiativeEnabled: () => initiative.on(),
   hourOf,
+  ...(recognition !== undefined && { recognition }),
 });
 
 const app = buildServer({

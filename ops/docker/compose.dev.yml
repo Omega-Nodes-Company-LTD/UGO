@@ -96,6 +96,34 @@ services:
       postgres:
         condition: service_healthy
 
+  # ADR-045: il riconoscimento che risponde nello stesso secondo. Tiene gli
+  # encoder in memoria — caricarli a ogni richiesta significherebbe secondi,
+  # cioè non farlo. Sulla rete interna e basta: **nessuna porta pubblicata**,
+  # perché un servizio che dice chi sei non deve essere raggiungibile da fuori.
+  percezione:
+    build:
+      context: ../..
+      dockerfile: ops/docker/percezione.Dockerfile
+    profiles: [percezione]
+    networks: [backend]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
+      UGO_DATA_KEY: ${UGO_DATA_KEY:?missing UGO_DATA_KEY}
+      UGO_INTERNAL_TOKEN: ${UGO_INTERNAL_TOKEN:?missing UGO_INTERNAL_TOKEN}
+      # i pesi si montano, non si scaricano al primo turno di conversazione
+      UGO_VOICE_MODEL_DIR: /models/spkrec-ecapa-voxceleb
+      UGO_FACE_MODEL: /models/arcface/model.onnx
+      TZ: ${TZ:-Europe/Rome}
+    volumes:
+      - ${UGO_MODELS_DIR:-./models}:/models:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    user: "10001:10001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # one-shot: applies drizzle migrations (the only sanctioned way to touch
   # the schema, CLAUDE.md rule 5) using the same image as soul
   migrate:

@@ -23,6 +23,14 @@ export interface FaceGatewayDeps {
   now?: () => Date;
   /** hour extractor in project TZ; defaults to local hours */
   hourOf?: (at: Date) => number;
+  /**
+   * ADR-045: chi sta parlando. Facoltativo — una casa senza il servizio di
+   * percezione, o che non vuole la biometria, continua a funzionare
+   * esattamente come prima: UGO risponde senza sapere chi ha davanti.
+   */
+  recognition?: {
+    byVoice: (audioBase64: string) => Promise<{ beingId?: string | undefined } | undefined>;
+  };
 }
 
 export type FaceSender = (message: ServerToFaceMessage) => void;
@@ -172,7 +180,18 @@ export class FaceGateway {
     switch (message.type) {
       case "heard_text": {
         this.setState("thinking", send);
-        const response = await this.deps.chat.handle({ channel: "home", text: message.text }, at);
+        // ADR-045: il pezzo che mancava. `chat.handle` accetta un `beingId` da
+        // sempre e ha sempre ricevuto `undefined`, perché sul percorso dal vivo
+        // non arrivava audio e nessuno lo identificava — quindi il prompt
+        // diceva a UGO, a ogni turno, di non tirare a indovinare chi fossi.
+        const who =
+          message.audio === undefined
+            ? undefined
+            : (await this.deps.recognition?.byVoice(message.audio))?.beingId;
+        const response = await this.deps.chat.handle(
+          { channel: "home", text: message.text, ...(who !== undefined && { beingId: who }) },
+          at,
+        );
         this.setState("talking", send);
         send({ type: "speak", text: response.reply });
         this.pushMood(send);

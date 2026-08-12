@@ -42,6 +42,11 @@ MATCH_THRESHOLDS: dict[str, tuple[float, float]] = {
     # a 0.85, EER 11.8%). Resta solo perché i vecchi profili dichiarano questo
     # modello finché non ci si riarruola, e vanno rifiutati, non creduti.
     "mfcc-stats-v1": (1.01, 1.01),
+    # ADR-045, misurato su LFW: 40 persone, 4080 confronti. EER 0,98% a 0,158.
+    # 0.30 → FAR 0,00%, FRR 0,98%. Il volto separa meglio della voce perché la
+    # foto non ha rumore di stanza, ma è disponibile molto più di rado: serve
+    # che qualcuno guardi la camera.
+    "arcface-w600k-r50-v1": (0.30, 0.20),
 }
 
 #: usata quando un profilo dichiara un modello che non conosciamo: non fidarsi

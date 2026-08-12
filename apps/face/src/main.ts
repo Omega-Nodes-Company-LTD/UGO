@@ -305,7 +305,11 @@ function startListening(): void {
     (text) => {
       if (!worthSending(text, { spoken: speech.spokenLast() })) return;
       setLocalState("listening");
-      sendToSoul({ type: "heard_text", text });
+      // ADR-045: la voce che l'ha detta viaggia con la frase, così soul può
+      // sapere CHI sta parlando. Assente se il microfono è spento: allora è
+      // esattamente il messaggio di prima.
+      const voice = sensors.lastVoice();
+      sendToSoul({ type: "heard_text", text, ...(voice !== undefined && { audio: voice }) });
     },
     // ADR-041: the recognizer heard a VOICE. Whatever the level meter is about
     // to make of that sound, it is not a bang — this is the one signal that
@@ -318,6 +322,9 @@ function startListening(): void {
 }
 
 function stopListening(): void {
+  // ADR-045: le orecchie spente devono anche dimenticare, o "spento" vorrebbe
+  // dire solo "non manda"
+  sensors.forgetVoice();
   speech.stopListening();
   app.dataset.ears = "off";
   setLocalState("idle");

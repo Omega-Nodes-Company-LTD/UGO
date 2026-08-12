@@ -49,6 +49,10 @@ export interface RuntimeDeps {
   localModelUp: () => boolean;
   initiativeEnabled: () => boolean;
   hourOf: (at: Date) => number;
+  /** ADR-045: chi sta parlando. Assente = UGO risponde senza sapere chi hai davanti. */
+  recognition?: {
+    byVoice: (audioBase64: string) => Promise<{ beingId?: string | undefined } | undefined>;
+  };
 }
 
 /** Builds the whole apparatus for one exemplar. */
@@ -75,7 +79,13 @@ async function buildRuntime(
     gosinoId: row.id,
     ...(deps.pack !== undefined && { pack: deps.pack }),
   });
-  const gateway = new FaceGateway({ db: deps.db, psyche, chat, gosinoId: row.id });
+  const gateway = new FaceGateway({
+    db: deps.db,
+    psyche,
+    chat,
+    gosinoId: row.id,
+    ...(deps.recognition !== undefined && { recognition: deps.recognition }),
+  });
   const volition = new VolitionService({
     db: deps.db,
     gosinoId: row.id,
