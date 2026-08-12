@@ -133,7 +133,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       registerMeetingsRoutes(app, meetings, guard);
     }
     if (privacy !== undefined) {
-      registerPrivacyRoutes(app, { ...privacy, guard });
+      registerPrivacyRoutes(app, { db: options.db, ...privacy, guard });
     }
     // the archive is about memories and meetings, and had no business being
     // gated on the species map: it was registered there only because both

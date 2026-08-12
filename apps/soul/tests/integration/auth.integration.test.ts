@@ -1,6 +1,14 @@
 import { randomBytes } from "node:crypto";
 import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { budgetLedger, createDbClient, events, beings, runMigrations, type DbClient } from "@ugo/db";
+import {
+  budgetLedger,
+  createDbClient,
+  events,
+  beings,
+  runMigrations,
+  PRIME_HOUSEHOLD_ID,
+  type DbClient,
+} from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
@@ -39,8 +47,6 @@ function build(token: string | undefined): FastifyInstance {
   });
 }
 
-let casa: TestHouse;
-
 beforeAll(async () => {
   const postgres = await startPostgres();
   pg = postgres.container;
@@ -48,7 +54,6 @@ beforeAll(async () => {
   db = createDbClient(postgres.url);
   guarded = build(TOKEN);
   open = build(undefined);
-  casa = await createHouse(db, "casa-guard", { name: "casa del guard" });
 });
 
 afterAll(async () => {
@@ -131,27 +136,28 @@ describe("the tokens of a house, over HTTP", () => {
 
   it("lets a house's own owner token through", async () => {
     const issued = await issueToken(db, {
-      householdId: casa.id,
+      householdId: PRIME_HOUSEHOLD_ID,
       role: "owner",
       label: "telefono di casa",
     });
     expect((await exportWith(guarded, issued.token)).statusCode).toBe(200);
   });
 
-  // authority is a separate question from identity, and it is answered by the
-  // routes (canAdminister), not by the guard: a member is *someone*
-  it("recognises a member token too", async () => {
+  // identity and authority are different layers: the guard recognises a member
+  // (401 would mean "who are you?"), and the route refuses them (ADR-019 §104
+  // — a member reads and talks, but does not export)
+  it("recognises a member token and still refuses it the export", async () => {
     const issued = await issueToken(db, {
-      householdId: casa.id,
+      householdId: PRIME_HOUSEHOLD_ID,
       role: "member",
       label: "tablet della cucina",
     });
-    expect((await exportWith(guarded, issued.token)).statusCode).toBe(200);
+    expect((await exportWith(guarded, issued.token)).statusCode).toBe(403);
   });
 
   it("stops recognising a token the moment it is revoked", async () => {
     const issued = await issueToken(db, {
-      householdId: casa.id,
+      householdId: PRIME_HOUSEHOLD_ID,
       role: "owner",
       label: "telefono smarrito",
     });
@@ -163,7 +169,7 @@ describe("the tokens of a house, over HTTP", () => {
 
   it("refuses a token that has already expired", async () => {
     const issued = await issueToken(db, {
-      householdId: casa.id,
+      householdId: PRIME_HOUSEHOLD_ID,
       role: "owner",
       label: "ospite di ieri",
       expiresAt: new Date(Date.now() - 60_000),
@@ -180,8 +186,8 @@ describe("the tokens of a house, over HTTP", () => {
   // otherwise every dev request would look like an anonymous operator
   it("prefers a real token over the development fallback", async () => {
     const issued = await issueToken(db, {
-      householdId: casa.id,
-      role: "member",
+      householdId: PRIME_HOUSEHOLD_ID,
+      role: "owner",
       label: "sviluppo",
     });
     expect((await exportWith(open, issued.token)).statusCode).toBe(200);
@@ -339,5 +345,71 @@ describe("GET /v1/stats", () => {
     }>();
     expect(body.budget.degraded).toBe(true);
     expect(body.budget.remainingUsd).toBe(0);
+  });
+});
+
+/**
+ * The test that did not exist: nothing ever sent a real HTTP request carrying
+ * one house's token at another house's data. It runs last on purpose — from
+ * the moment a second family exists, an operator must say which house it
+ * means, and the tests above rely on there being only one.
+ */
+describe("un token non attraversa il confine", () => {
+  let vicini: TestHouse;
+  let loroToken: string;
+
+  beforeAll(async () => {
+    vicini = await createHouse(db, "casa-vicini-auth", { name: "i vicini" });
+    loroToken = (
+      await issueToken(db, { householdId: vicini.id, role: "owner", label: "telefono dei vicini" })
+    ).token;
+  });
+
+  const exportOf = async (token: string, casa?: string) =>
+    guarded.inject({
+      method: "GET",
+      url: casa === undefined ? "/v1/privacy/export" : `/v1/privacy/export?casa=${casa}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+  it("exports the neighbours' house when the neighbours ask", async () => {
+    const response = await exportOf(loroToken);
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toContain(PRIME_HOUSEHOLD_ID);
+  });
+
+  it("answers 404 — not 403 — when they ask for someone else's house", async () => {
+    // 403 would confirm that the house exists; a probe must learn nothing
+    expect((await exportOf(loroToken, PRIME_HOUSEHOLD_ID)).statusCode).toBe(404);
+    expect((await exportOf(loroToken, crypto.randomUUID())).statusCode).toBe(404);
+  });
+
+  it("stops guessing for the operator once there is more than one house", async () => {
+    // the same request answered 200 while a single family lived here
+    const response = await exportOf(TOKEN);
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ detail: string }>().detail).toContain("casa");
+
+    // saying which house is all it takes
+    expect((await exportOf(TOKEN, PRIME_HOUSEHOLD_ID)).statusCode).toBe(200);
+    expect((await exportOf(TOKEN, vicini.id)).statusCode).toBe(200);
+  });
+
+  it("refuses to erase across the fence, and says only 'not found'", async () => {
+    const [loro] = await db
+      .insert(beings)
+      .values({ householdId: vicini.id, displayName: "Chi Sta Di La", aliases: [] })
+      .returning({ id: beings.id });
+    if (loro === undefined) throw new Error("being was not created");
+
+    const response = await guarded.inject({
+      method: "POST",
+      url: `/v1/privacy/forget?casa=${PRIME_HOUSEHOLD_ID}`,
+      headers: { authorization: `Bearer ${TOKEN}` },
+      payload: { beingId: loro.id, confirm: true },
+    });
+    expect(response.statusCode).toBe(404);
+    // and they are still there
+    expect(await db.select().from(beings).where(eq(beings.id, loro.id))).toHaveLength(1);
   });
 });

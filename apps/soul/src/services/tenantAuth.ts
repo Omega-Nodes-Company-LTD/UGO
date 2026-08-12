@@ -145,6 +145,25 @@ export function canAdminister(context: TenantContext): boolean {
   return context.role === "owner" || context.role === "operator";
 }
 
+/**
+ * The only house there is, when there is only one.
+ *
+ * ADR-019 §107 promises that no existing deployment breaks: those run on the
+ * legacy shared secret, which resolves to an `operator` with no house of its
+ * own, and they have exactly one house. Rather than guessing with the
+ * `limit 1` this codebase used to guess with, the rule is explicit and it
+ * stops applying the moment a second family exists — from then on an operator
+ * must say which house it means, and gets a 400 until it does.
+ */
+export async function soleHousehold(db: DbClient): Promise<string | undefined> {
+  const rows = await db
+    .select({ id: households.id })
+    .from(households)
+    .where(isNull(households.closedAt))
+    .limit(2);
+  return rows.length === 1 ? rows[0]?.id : undefined;
+}
+
 /** The house a request works on, or undefined when an operator has not said. */
 export async function householdOf(
   db: DbClient,
