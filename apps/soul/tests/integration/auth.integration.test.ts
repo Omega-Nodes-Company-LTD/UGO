@@ -1,13 +1,16 @@
 import { randomBytes } from "node:crypto";
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { budgetLedger, createDbClient, events, beings, runMigrations, type DbClient } from "@ugo/db";
+import { startPostgres } from "@ugo/factories";
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertProductionSecrets, soulEnvSchema } from "../../src/config/env.js";
 import { ExportService } from "../../src/services/privacy/exportService.js";
 import { ForgetService } from "../../src/services/privacy/forgetService.js";
+import { issueToken, revokeToken } from "../../src/services/tenantAuth.js";
 import { buildServer } from "../../src/server.js";
+import { createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 // Real server, real database: the guard is exercised over the actual HTTP
 // stack, including the 401 body shape and the audit trail it must not break.
@@ -36,12 +39,16 @@ function build(token: string | undefined): FastifyInstance {
   });
 }
 
+let casa: TestHouse;
+
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  await runMigrations(pg.getConnectionUri());
-  db = createDbClient(pg.getConnectionUri());
+  const postgres = await startPostgres();
+  pg = postgres.container;
+  await runMigrations(postgres.url);
+  db = createDbClient(postgres.url);
   guarded = build(TOKEN);
   open = build(undefined);
+  casa = await createHouse(db, "casa-guard", { name: "casa del guard" });
 });
 
 afterAll(async () => {
@@ -103,6 +110,85 @@ describe("internal token guard", () => {
   it("stays open in development, where no token is configured", async () => {
     const response = await open.inject({ method: "GET", url: "/v1/privacy/export" });
     expect(response.statusCode).toBe(200);
+  });
+});
+
+/**
+ * ADR-019 phase 2: the anagraph of tokens built in phase 1 was wired to
+ * nothing — `TenantResolver` was only ever exercised below the HTTP layer.
+ * These are the first tests that put a real house's token on a real request.
+ */
+describe("the tokens of a house, over HTTP", () => {
+  const exportWith = async (
+    app: FastifyInstance,
+    token: string,
+  ): Promise<{ statusCode: number }> =>
+    app.inject({
+      method: "GET",
+      url: "/v1/privacy/export",
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+  it("lets a house's own owner token through", async () => {
+    const issued = await issueToken(db, {
+      householdId: casa.id,
+      role: "owner",
+      label: "telefono di casa",
+    });
+    expect((await exportWith(guarded, issued.token)).statusCode).toBe(200);
+  });
+
+  // authority is a separate question from identity, and it is answered by the
+  // routes (canAdminister), not by the guard: a member is *someone*
+  it("recognises a member token too", async () => {
+    const issued = await issueToken(db, {
+      householdId: casa.id,
+      role: "member",
+      label: "tablet della cucina",
+    });
+    expect((await exportWith(guarded, issued.token)).statusCode).toBe(200);
+  });
+
+  it("stops recognising a token the moment it is revoked", async () => {
+    const issued = await issueToken(db, {
+      householdId: casa.id,
+      role: "owner",
+      label: "telefono smarrito",
+    });
+    expect((await exportWith(guarded, issued.token)).statusCode).toBe(200);
+
+    expect(await revokeToken(db, issued.id)).toBe(true);
+    expect((await exportWith(guarded, issued.token)).statusCode).toBe(401);
+  });
+
+  it("refuses a token that has already expired", async () => {
+    const issued = await issueToken(db, {
+      householdId: casa.id,
+      role: "owner",
+      label: "ospite di ieri",
+      expiresAt: new Date(Date.now() - 60_000),
+    });
+    expect((await exportWith(guarded, issued.token)).statusCode).toBe(401);
+  });
+
+  // the promise of ADR-019 §107: the old shared secret keeps working
+  it("keeps honouring the pre-ADR-019 shared secret", async () => {
+    expect((await exportWith(guarded, TOKEN)).statusCode).toBe(200);
+  });
+
+  // in development the server is open, but a real token must still be *read*,
+  // otherwise every dev request would look like an anonymous operator
+  it("prefers a real token over the development fallback", async () => {
+    const issued = await issueToken(db, {
+      householdId: casa.id,
+      role: "member",
+      label: "sviluppo",
+    });
+    expect((await exportWith(open, issued.token)).statusCode).toBe(200);
+    expect(await revokeToken(db, issued.id)).toBe(true);
+    // revoked, and the open server falls back to development rather than 401:
+    // that is the documented development posture, not an accident
+    expect((await exportWith(open, issued.token)).statusCode).toBe(200);
   });
 });
 

@@ -1,7 +1,7 @@
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js";
-import { createAuthGuard } from "./routes/guard.js";
+import { createAuthGuard, registerTenantResolution } from "./routes/guard.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerArchiveRoutes } from "./routes/archive.js";
@@ -81,6 +81,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       done(null, payload);
     },
   );
+  // health answers before anyone asks who is calling: it must not depend on
+  // authentication to say the database is gone
   registerHealthRoute(app, options);
   if (options.features !== undefined) {
     const {
@@ -98,7 +100,13 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       dreamTriggerUrl,
       ...v1
     } = options.features;
-    const guard = createAuthGuard(internalToken);
+    // first, and before every route below it: Fastify binds onRequest hooks to
+    // the routes declared after them
+    registerTenantResolution(app, {
+      db: options.db,
+      ...(internalToken !== undefined && { legacyToken: internalToken }),
+    });
+    const guard = createAuthGuard();
     registerV1Routes(app, {
       db: options.db,
       ...v1,
