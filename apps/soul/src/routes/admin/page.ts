@@ -54,7 +54,16 @@ export const ADMIN_PAGE = `<!doctype html>
     font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-text-size-adjust: 100%;
   }
-  .shell { max-width: 60rem; margin: 0 auto; padding: 0 1rem 5rem; }
+  .shell { max-width: 72rem; margin: 0 auto; padding: 0 1rem 5rem; }
+  /* on a wide screen the state and its history sit side by side instead of
+     making the reader scroll between the number and its shape */
+  @media (min-width: 60rem) {
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.6rem; align-items: start; }
+    .split > * { min-width: 0; }
+    /* only side by side does the second column start at the top; stacked,
+       the heading still needs air above it */
+    .split .split-head { margin-top: 0; }
+  }
 
   /* --- hero: the mood, because that is what this creature is ------------- */
   header.hero { padding: 2rem 0 1.25rem; }
@@ -104,9 +113,13 @@ export const ADMIN_PAGE = `<!doctype html>
   .pill.good { color: var(--good); } .pill.warning { color: var(--warning); } .pill.critical { color: var(--critical); }
 
   /* --- charts ------------------------------------------------------------ */
-  .plot { position: relative; margin-top: .6rem; }
+  .plot { position: relative; margin-top: .4rem; }
+  .plot-title { margin: 1.1rem 0 0; font-size: .82rem; color: var(--muted); }
+  .plot-title b { color: var(--ink); font-weight: 600; }
   .chart { width: 100%; height: auto; display: block; overflow: visible; }
   .chart .grid { stroke: var(--rule); stroke-width: 1; }
+  /* axis labels are the difference between a picture and an instrument */
+  .chart .tick { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
   .chart .area { fill: var(--data-soft); }
   .chart .line { fill: none; stroke: var(--data); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .chart .endpoint { fill: var(--data); stroke: var(--card); stroke-width: 2; }
@@ -118,6 +131,31 @@ export const ADMIN_PAGE = `<!doctype html>
   .tip { position: absolute; top: 0; background: var(--ink); color: var(--paper); font-size: .75rem;
          padding: .2rem .45rem; border-radius: .3rem; pointer-events: none; white-space: nowrap; }
   .empty { color: var(--muted); font-size: .9rem; margin: .5rem 0; }
+
+  /* --- small multiples: six shapes, one colour, no legend ---------------- */
+  .sparks { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: .5rem; margin-top: .6rem; }
+  .spark-card { display: block; width: 100%; text-align: left; padding: .5rem .6rem .3rem;
+                background: var(--sunk); border: 1px solid transparent; border-radius: .55rem;
+                color: inherit; font-weight: 400; cursor: pointer; }
+  .spark-card:hover { border-color: var(--rule); }
+  .spark-card.on { border-color: var(--data); background: var(--data-soft); }
+  .spark-card small { display: block; font-size: .72rem; text-transform: uppercase;
+                      letter-spacing: .07em; color: var(--muted); }
+  .spark-card b { display: block; font-size: 1.15rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
+  .spark { display: block; width: 100%; height: 34px; }
+  .spark-line { fill: none; stroke: var(--data); stroke-width: 1.5; stroke-linejoin: round; }
+  .spark-area { fill: var(--data-soft); }
+  .spark-end { fill: var(--data); }
+  .spark-empty { color: var(--muted); font-size: .8rem; }
+
+  /* --- ranked horizontal bars: the labels are words, so they lie flat ---- */
+  /* capped: a count of 2 does not deserve a bar the width of the page */
+  .hbar { display: grid; grid-template-columns: 9rem minmax(0, 22rem) 2rem; align-items: center;
+          gap: .6rem; margin: .3rem 0; font-size: .85rem; }
+  .hbar-name { color: var(--muted); }
+  .hbar-track { display: block; height: 9px; background: var(--sunk); border-radius: 4px; }
+  .hbar-track > i { display: block; height: 100%; background: var(--data); border-radius: 4px; }
+  .hbar-num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
   details.table { margin-top: .6rem; } details.table summary { cursor: pointer; color: var(--muted); font-size: .82rem; }
   details.table table { width: 100%; border-collapse: collapse; font-size: .82rem; margin-top: .5rem;
                         font-variant-numeric: tabular-nums; }
@@ -141,6 +179,7 @@ export const ADMIN_PAGE = `<!doctype html>
   .deed .when { font-size: .74rem; color: var(--muted); float: right; }
   .deed .act { font-weight: 600; }
   .deed .because { font-size: .85rem; color: var(--muted); font-style: italic; }
+  .deed .deed-act { font-weight: 400; color: var(--muted); }
   .voice { background: var(--sunk); border-radius: .6rem; padding: .7rem .9rem; margin: .5rem 0; }
   .voice h4 { margin: 0 0 .3rem; font-family: var(--serif); font-size: .95rem; }
   .voice .said { margin: .2rem 0; }
@@ -213,9 +252,19 @@ export const ADMIN_PAGE = `<!doctype html>
     <h2>Come sta adesso</h2>
     <p class="lede">Sei variabili che si muovono da sole e tornano piano al loro punto di riposo —
        il trattino verticale su ogni barra.</p>
-    <div id="psyche-bars" data-testid="psyche-bars"></div>
-    <h3>L'umore nelle ultime 48 ore</h3>
-    <div class="plot" id="mood-chart" data-testid="mood-chart"></div>
+    <div class="split">
+      <div>
+        <div id="psyche-bars" data-testid="psyche-bars"></div>
+      </div>
+      <div>
+        <h3 class="split-head">Come si sono mosse nelle ultime 48 ore</h3>
+        <p class="lede">Sei riquadri invece di sei linee sovrapposte: così nessuna variabile
+           ha bisogno di un colore suo per essere riconosciuta. Tocca quella da vedere in grande.</p>
+        <div class="sparks" id="spark-row" data-testid="spark-row"></div>
+        <p class="plot-title">In grande: <b id="mood-pick-name">umore</b></p>
+        <div class="plot" id="mood-chart" data-testid="mood-chart"></div>
+      </div>
+    </div>
     <div id="health" data-testid="health" style="margin-top:1rem;display:flex;gap:.4rem;flex-wrap:wrap"></div>
     <div class="row" style="margin-top:.8rem">
       <button id="refresh" class="ghost" data-testid="refresh" style="flex:0 0 auto">Aggiorna</button>
@@ -236,6 +285,11 @@ export const ADMIN_PAGE = `<!doctype html>
     <h3>Desideri in sospeso</h3>
     <p class="lede">Quello che si è ripromesso di dirti, e i promemoria che gli hai chiesto.</p>
     <div id="desire-list" data-testid="desire-list"></div>
+    <h3>Cosa lo muove</h3>
+    <p class="lede">Quante volte ogni spinta l'ha fatto cominciare. Risponde a una domanda
+       che l'elenco qui sotto non risponde: è solo che si annoia, o gli manchi?</p>
+    <div id="driver-chart" data-testid="driver-chart"></div>
+
     <h3>Le ultime iniziative</h3>
     <div id="initiative-list" data-testid="initiative-list"></div>
   </section>

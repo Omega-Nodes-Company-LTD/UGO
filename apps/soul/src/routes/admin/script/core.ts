@@ -47,7 +47,7 @@ $("save-token").addEventListener("click", async () => {
   try {
     await call("/v1/stats", {});
     $("app").hidden = false; $("auth-hero").hidden = true; $("mood-hero").hidden = false;
-    await refresh();
+    await section(refresh, "pack-msg");
     // the exemplar has to be chosen before anything is read for him
     await section(loadGosini, "stats-msg");
     await section(loadPsyche, "stats-msg");

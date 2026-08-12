@@ -96,6 +96,28 @@ bianca e la richiesta del token**, che si legge come «UGO non c'è più». Il
 pannello è ciò che il proprietario apre quando qualcosa già non va, quindi è
 esattamente il momento in cui non deve sparire tutto insieme.
 
+### 6. I grafici, guardati davvero
+
+Il pannello è stato **renderizzato e fotografato** con dati finti, non solo
+compilato. Tre difetti sono emersi solo così:
+
+- **Il grafico della spesa si scalava sul budget, non sui dati.** Con tre
+  centesimi spesi contro un limite di cinquanta, ogni barra era una sbavatura
+  di 7 pixel sul fondo: l'unica domanda a cui il grafico serve — *oggi è
+  diverso dagli altri giorni?* — diventava senza risposta. Ora la scala segue i
+  dati, e quando il limite finisce fuori scala **lo si dice a parole** invece
+  di schiacciare tutto per farcelo stare.
+- **Nessun asse, da nessuna parte.** Un grafico senza asse dice «è salito» e si
+  rifiuta di dire da quanto a quanto: è la differenza fra un'illustrazione e
+  uno strumento.
+- **Una sola serie storica**, l'umore. Ora ci sono **sei small multiples** — non
+  sei linee sullo stesso asse, che richiederebbero sei tinte e smetterebbero di
+  funzionare per un daltonico — e fanno da selettore per il grafico grande.
+
+Più «Cosa lo muove»: barre orizzontali ordinate delle spinte, orizzontali
+perché le etichette sono parole e «una cosa non detta» non sta sotto una barra
+verticale senza far girare la testa al lettore.
+
 ## Conseguenze
 
 - Con due gosini il pannello smette di mostrare una creatura che non esiste.
@@ -107,6 +129,9 @@ esattamente il momento in cui non deve sparire tutto insieme.
   `packages/psyche/events.ts`. Una causa senza etichetta viene mostrata
   **grezza** invece che nascosta: una mappa incompleta è un buco da vedere, non
   da mascherare.
+- Gli id degli atti (`askQuestion`, `askToGoOut`) erano identificatori inglesi
+  del codice sotto gli occhi del proprietario: ora hanno un nome italiano, con
+  ripiego sull'id grezzo se la mappa è incompleta.
 - Le rotte nuove sono protette dal guard: il giornale delle iniziative dice
   cosa succede in casa.
 

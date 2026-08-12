@@ -1025,6 +1025,19 @@ E `section(load, dove)`: prima ogni loader stava sul percorso critico del login,
 **una sezione che lanciava lasciava pagina bianca e richiesta del token** — si legge come
 «UGO non c'è più». Il pannello è ciò che apri quando qualcosa già non va.
 
+**I grafici, guardati davvero.** Il pannello è stato renderizzato e fotografato con dati
+finti, non solo compilato, e tre difetti sono emersi solo così. Il grafico della spesa si
+scalava **sul budget invece che sui dati**: tre centesimi contro un limite di cinquanta
+disegnavano ogni barra come una sbavatura di 7 pixel sul fondo, e l'unica domanda a cui
+il grafico serve — *oggi è diverso dagli altri giorni?* — restava senza risposta. Nessun
+asse da nessuna parte: un grafico senza asse dice «è salito» e si rifiuta di dire da
+quanto a quanto. E una sola serie storica, l'umore; ora ci sono **sei small multiples**
+che fanno da selettore per il grafico grande — non sei linee sullo stesso asse, che
+richiederebbero sei tinte e smetterebbero di funzionare per un daltonico.
+
+E ancora fotografando: gli id inglesi degli atti (`askQuestion`, `askToGoOut`) finivano
+sotto gli occhi del proprietario, contro la regola 10.
+
 Verifiche: 25 unit sul motore della psiche, 5 di integrazione su Postgres reale (l'umore
 giusto per l'esemplare giusto, le parti che tornano col totale, i giornali separati,
 l'interruttore che torna all'env, il 401 senza token), più i tre test che compilano il

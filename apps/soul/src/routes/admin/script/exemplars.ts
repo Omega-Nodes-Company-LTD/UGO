@@ -43,7 +43,9 @@ const signed = (n) => (n > 0 ? "+" : "−") + Math.abs(n).toFixed(2);
 
 /** "riposa a 0,30 · rumore +0,44 · caldo +0,15" — the arithmetic of the bar. */
 function whyLine(breakdown) {
-  if (!breakdown) return "";
+  // nothing acting on it: the tick on the bar already says where it rests,
+  // and a line repeating that is a row of noise per calm variable
+  if (!breakdown || breakdown.causes.length === 0) return "";
   const parts = ['<span class="rest">riposa a ' + breakdown.baseline.toFixed(2) + "</span>"];
   for (const c of breakdown.causes) {
     parts.push(escape(causeName(c.cause)) + " <b>" + signed(c.amount) + "</b>");

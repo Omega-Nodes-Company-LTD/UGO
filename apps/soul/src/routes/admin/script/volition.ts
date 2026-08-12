@@ -9,6 +9,15 @@ const ACT_LABEL = {
   initiative_flat: "e non è servito", reminder_voiced: "ti ha ricordato una cosa",
   wants_out: "ha chiesto di uscire",
 };
+/** The acts' own ids are English code identifiers: the owner reads Italian. */
+const ACT_LABEL_IT = {
+  lookOver: "ti ha guardato", earPerk: "ha drizzato le orecchie",
+  comeCloser: "si è avvicinato", nudge: "ti ha dato una spinta",
+  sigh: "ha sospirato", callFromAcross: "ti ha chiamato",
+  sayDesire: "ti ha detto una cosa che aveva in mente",
+  askToGoOut: "ha chiesto di uscire", askQuestion: "ti ha fatto una domanda",
+  reminder: "un promemoria",
+};
 const DRIVER_LABEL = {
   boredom: "noia", loneliness: "solitudine", curiosity: "curiosità",
   unspoken: "una cosa non detta", worry: "preoccupazione", outing: "voglia di uscire",
@@ -45,6 +54,18 @@ async function loadVolition() {
         (d.dueAt ? "per " + when(d.dueAt) : escape(d.dueHint ?? "quando capita")) +
         '</span><div class="act">' + escape(d.text) + "</div></div>").join("");
 
+  // what actually moves him, ranked. One line of arithmetic answers a question
+  // the list cannot: is he lonely, or just bored?
+  const counts = new Map();
+  for (const row of data.journal) {
+    const driver = row.payload?.driver;
+    if (driver === undefined) continue;
+    counts.set(driver, (counts.get(driver) ?? 0) + 1);
+  }
+  hbar($("driver-chart"), [...counts]
+    .map(([id, value]) => ({ label: DRIVER_LABEL[id] ?? id, value }))
+    .sort((a, b) => b.value - a.value));
+
   $("initiative-list").innerHTML = data.journal.length === 0
     ? '<p class="lede">Non ha ancora cominciato niente da solo.</p>'
     : data.journal.map((row) => {
@@ -52,7 +73,7 @@ async function loadVolition() {
         const driver = p.driver ? (DRIVER_LABEL[p.driver] ?? p.driver) : "";
         return '<div class="deed"><span class="when">' + when(row.ts) + "</span>" +
           '<div class="act">' + escape(ACT_LABEL[row.type] ?? row.type) +
-          (p.act ? " · " + escape(p.act) : "") + "</div>" +
+          (p.act ? ' <span class="deed-act">' + escape(ACT_LABEL_IT[p.act] ?? p.act) + "</span>" : "") + "</div>" +
           (p.because ? '<div class="because">« ' + escape(p.because) + " »</div>" : "") +
           (driver ? '<div class="because">spinto da: ' + escape(driver) + "</div>" : "") +
           "</div>";

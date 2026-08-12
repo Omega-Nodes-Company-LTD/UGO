@@ -38,9 +38,13 @@ async function refresh() {
     $(select).innerHTML = pack.map((b) => '<option value="' + b.id + '">' + escape(b.displayName) + "</option>").join("");
   }
   if (mine !== refreshSeq) return;
-  await loadRelations();
-  await loadMeetings();
-  await loadStats();
+  // Each of these is its own section, so each fails on its own. They used to
+  // be an awaited chain hanging off the pack: one 404 anywhere in it — a route
+  // not registered on this server, a slow job — and everything after it never
+  // ran, which is how the whole panel came up blank because of relations.
+  await section(loadRelations, "pack-msg");
+  await section(loadMeetings, "meet-msg");
+  await section(loadStats, "stats-msg");
 }
 
 // tutele: cambiarle è un'azione, non una preferenza salvata da qualche parte
