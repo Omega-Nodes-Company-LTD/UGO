@@ -98,6 +98,56 @@ describe("perturbation application", () => {
     expect(state.transients.length).toBeLessThan(5);
   });
 
+  it("habituates to a bang instead of piling stress up to the maximum", () => {
+    // A creature that is startled twenty times is not twenty times as
+    // frightened: the tenth bang is barely news. Without this, a noisy
+    // afternoon pins him at 1.0 — the whole psyche stops meaning anything,
+    // because every reading is the same reading.
+    let state = emptyState();
+    const start = NOON.getTime();
+    for (let i = 0; i < 20; i += 1) {
+      state = applyPerturbations(
+        state,
+        perturbationsForEvent("loud_noise"),
+        new Date(start + i * 15_000),
+        "loud_noise",
+      );
+    }
+    const vars = varsAt(state, new Date(start + 20 * 15_000), 12);
+    expect(vars.stress).toBeLessThan(0.8);
+    expect(vars.stress).toBe(varsAt(state, new Date(start + 20 * 15_000), 12).stress);
+    // but he is genuinely rattled: habituation is not indifference
+    expect(vars.stress).toBeGreaterThan(BASELINES.stress + 0.2);
+  });
+
+  it("lets the first bang land at full force", () => {
+    const once = applyPerturbations(
+      emptyState(),
+      perturbationsForEvent("loud_noise"),
+      NOON,
+      "loud_noise",
+    );
+    expect(varsAt(once, NOON, 12).stress).toBeCloseTo(BASELINES.stress + 0.2, 5);
+  });
+
+  it("is frightened again once the room has been quiet for a while", () => {
+    let state = emptyState();
+    const start = NOON.getTime();
+    for (let i = 0; i < 10; i += 1) {
+      state = applyPerturbations(
+        state,
+        perturbationsForEvent("loud_noise"),
+        new Date(start + i * 15_000),
+        "loud_noise",
+      );
+    }
+    // an hour of quiet later (τ 15 min: nothing is left of it)
+    const calm = new Date(start + 3_600_000);
+    const before = varsAt(state, calm, 12).stress;
+    const again = applyPerturbations(state, perturbationsForEvent("loud_noise"), calm, "loud_noise");
+    expect(varsAt(again, calm, 12).stress - before).toBeCloseTo(0.2, 2);
+  });
+
   it("is deterministic: same events, same time, same vars", () => {
     const build = (): number =>
       varsAt(

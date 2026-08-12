@@ -47,6 +47,36 @@ export interface Perturbation {
   amount: number;
   /** overrides the variable's τ (e.g. a noise spike decays in 15 min) */
   tauHours?: number;
+  /**
+   * The most this event type may hold on this variable at once — habituation
+   * (ADR-033). Without it, repetition simply sums: twenty bangs pin `stress`
+   * at 1.0 and hold it there for a quarter of an hour, which is both wrong
+   * about animals and useless as a signal, because every reading of a pinned
+   * variable is the same reading.
+   *
+   * Undefined means no habituation, which is the right default: being spoken
+   * to a hundred times SHOULD add up.
+   */
+  ceiling?: number;
+}
+
+/** Below this a habituated perturbation is not worth recording at all. */
+const MIN_AMOUNT = 0.005;
+
+/** How much of this same event is still live on this variable. */
+function alreadyPresent(
+  transients: readonly PsycheTransient[],
+  variable: PsycheVariable,
+  cause: string | undefined,
+  atMs: number,
+): number {
+  let sum = 0;
+  for (const transient of transients) {
+    if (transient.variable === variable && transient.cause === cause) {
+      sum += decayedContribution(transient, atMs);
+    }
+  }
+  return Math.abs(sum);
 }
 
 /** Apply perturbations at a point in time, pruning spent transients. */
@@ -60,12 +90,26 @@ export function applyPerturbations(
   const kept = state.transients.filter(
     (t) => atMs - t.appliedAtMs < t.tauHours * PRUNE_TAU_MULTIPLE * MS_PER_HOUR,
   );
-  const added: PsycheTransient[] = perturbations.map((p) => ({
-    variable: p.variable,
-    amount: p.amount,
-    tauHours: p.tauHours ?? TAU_HOURS[p.variable],
-    appliedAtMs: atMs,
-  }));
+  const added: PsycheTransient[] = [];
+  for (const perturbation of perturbations) {
+    let amount = perturbation.amount;
+    if (perturbation.ceiling !== undefined) {
+      // diminishing returns rather than a wall: each repetition lands in
+      // proportion to the room left under the ceiling, so the second bang is
+      // half the first and the eighth is not worth writing down
+      const present = alreadyPresent(kept, perturbation.variable, eventType, atMs);
+      const room = Math.max(0, perturbation.ceiling - present);
+      amount = perturbation.amount * (room / perturbation.ceiling);
+      if (Math.abs(amount) < MIN_AMOUNT) continue;
+    }
+    added.push({
+      variable: perturbation.variable,
+      amount,
+      tauHours: perturbation.tauHours ?? TAU_HOURS[perturbation.variable],
+      appliedAtMs: atMs,
+      ...(eventType !== undefined && { cause: eventType }),
+    });
+  }
   return {
     transients: [...kept, ...added],
     lastEventType: eventType ?? state.lastEventType,

@@ -15,16 +15,26 @@ const SOUL_DEV_PORT = 3000;
 
 export type SoulLocation = Pick<Location, "protocol" | "hostname" | "host" | "port">;
 
-export function resolveSoulUrl(location: SoulLocation, override?: string | null): string {
-  if (override !== undefined && override !== null && override !== "") return override;
-  const scheme = location.protocol === "https:" ? "wss:" : "ws:";
-  if (DEV_PORTS.has(location.port)) {
-    return `${scheme}//${location.hostname}:${String(SOUL_DEV_PORT)}/v1/face`;
-  }
-  return `${scheme}//${location.host}/v1/face`;
+export function resolveSoulUrl(
+  location: SoulLocation,
+  override?: string | null,
+  /** ADR-032: which exemplar this device wants — id, name or room */
+  gosino?: string | null,
+): string {
+  const base = (() => {
+    if (override !== undefined && override !== null && override !== "") return override;
+    const scheme = location.protocol === "https:" ? "wss:" : "ws:";
+    if (DEV_PORTS.has(location.port)) {
+      return `${scheme}//${location.hostname}:${String(SOUL_DEV_PORT)}/v1/face`;
+    }
+    return `${scheme}//${location.host}/v1/face`;
+  })();
+  if (gosino === undefined || gosino === null || gosino === "") return base;
+  return `${base}${base.includes("?") ? "&" : "?"}gosino=${encodeURIComponent(gosino)}`;
 }
 
 /** HTTP base of the same soul, for the REST routes the face calls. */
 export function soulHttpBase(soulUrl: string): string {
-  return soulUrl.replace(/^ws/, "http").replace(/\/v1\/face$/, "");
+  // the query string is the socket's business, not the REST base's
+  return soulUrl.replace(/^ws/, "http").replace(/\?.*$/, "").replace(/\/v1\/face$/, "");
 }

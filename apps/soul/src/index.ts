@@ -1,6 +1,8 @@
 import { resolve } from "node:path";
-import { createDbClient, runMigrations } from "@ugo/db";
-import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { createDbClient, households, runMigrations } from "@ugo/db";
+import { LlmClient, OllamaEmbeddingsClient,
+  OllamaTextClient,
+} from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
@@ -12,6 +14,8 @@ import { ForgetService } from "./services/privacy/forgetService.js";
 import { PsycheService } from "./services/psycheService.js";
 import { IdleConsolidation } from "./services/idleConsolidation.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
+import { CouncilService } from "./services/council/councilService.js";
+import { GosinoRegistry } from "./services/pack/runtimes.js";
 import { buildServer } from "./server.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -113,6 +117,44 @@ const meetings =
       })
     : undefined;
 
+// ADR-027: initiative. Until now every single thing UGO said was a reply.
+const localText = new OllamaTextClient(
+  env.OLLAMA_URL,
+  env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
+);
+let localTextUp = false;
+const probeLocal = (): void => {
+  localText
+    .available()
+    .then((up) => {
+      localTextUp = up;
+    })
+    .catch(() => {
+      localTextUp = false;
+    });
+};
+probeLocal();
+const localProbeTimer = setInterval(probeLocal, 10 * 60_000);
+localProbeTimer.unref();
+
+const hourOf = (at: Date): number =>
+  Number(at.toLocaleString("it-IT", { hour: "2-digit", hour12: false, timeZone: env.TZ }));
+
+// ADR-032: one runtime per exemplar. Everything that makes him himself — mood,
+// memories, thread, initiative — is his; the house is shared.
+const registry = await GosinoRegistry.load({
+  db,
+  embedder,
+  llm,
+  local: localText,
+  dataKey,
+  timezone: env.TZ,
+  pack,
+  localModelUp: () => localTextUp,
+  initiativeEnabled: () => env.UGO_INITIATIVE === "on",
+  hourOf,
+});
+
 const app = buildServer({
   db,
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
@@ -120,11 +162,24 @@ const app = buildServer({
   ollamaUrl: env.OLLAMA_URL,
   features: {
     chat,
+    // ADR-031: more than one exemplar, and a way to ask them all at once.
+    // Local model only: a room full of pigs arguing must never touch the
+    // API budget.
+    council: {
+      council: new CouncilService({ db, local: localText }),
+      householdId: async () => {
+        const rows = await db.select({ id: households.id }).from(households).limit(1);
+        const first = rows[0]?.id;
+        if (first === undefined) throw new Error("no household: run the migrations");
+        return first;
+      },
+    },
     psyche,
     face,
     privacy,
     speciesMap,
     stats: { dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD, timezone: env.TZ },
+    registry,
     ...(env.UGO_INTERNAL_TOKEN !== undefined && { internalToken: env.UGO_INTERNAL_TOKEN }),
     ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),
     ...(audio !== undefined && { audio }),
@@ -141,6 +196,30 @@ if (meetings !== undefined) {
   }, MEETINGS_POLL_MS);
   pollTimer.unref();
 }
+
+const volitionTimer = setInterval(() => {
+  // every exemplar decides for himself, and they are staggered so two of them
+  // never speak on top of each other
+  registry.all().forEach((runtime, index) => {
+    setTimeout(
+      () => {
+        runtime.volition
+          .tick()
+          .then((report) => {
+            // IDs only, never the words he said (rule 6)
+            if (report.acted !== undefined) {
+              app.log.info({ act: report.acted, gosino: runtime.id }, "initiative");
+            }
+          })
+          .catch((error: unknown) => {
+            app.log.warn(error, "initiative tick failed");
+          });
+      },
+      index * 7_000,
+    ).unref();
+  });
+}, env.UGO_INITIATIVE_TICK_MINUTES * 60_000);
+volitionTimer.unref();
 
 // §5.3: loneliness and neglect are perturbations no sensor can emit
 const solitude = new SolitudeMonitor({ db, psyche });
@@ -196,6 +275,8 @@ const shutdown = (signal: NodeJS.Signals): void => {
   app.log.info({ signal }, "shutting down");
   clearInterval(snapshotTimer);
   clearInterval(solitudeTimer);
+  clearInterval(volitionTimer);
+  clearInterval(localProbeTimer);
   void Promise.allSettled([app.close(), db.$client.end()]).then(() => {
     process.exit(0);
   });

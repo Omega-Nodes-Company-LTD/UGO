@@ -42,3 +42,27 @@ describe("soulHttpBase", () => {
     expect(soulHttpBase("ws://127.0.0.1:3000/v1/face")).toBe("http://127.0.0.1:3000");
   });
 });
+
+describe("choosing which exemplar this device is (ADR-032)", () => {
+  const prod = { protocol: "https:", hostname: "ugo.tail", host: "ugo.tail", port: "" };
+
+  it("asks for nobody in particular when the device does not name one", () => {
+    expect(resolveSoulUrl(prod, null, null)).toBe("wss://ugo.tail/v1/face");
+    expect(resolveSoulUrl(prod, null, "")).toBe("wss://ugo.tail/v1/face");
+  });
+
+  it("carries the name through, escaped", () => {
+    expect(resolveSoulUrl(prod, null, "cucina")).toBe("wss://ugo.tail/v1/face?gosino=cucina");
+    expect(resolveSoulUrl(prod, null, "sala da pranzo")).toContain("gosino=sala%20da%20pranzo");
+  });
+
+  it("appends to an override that already has a query string", () => {
+    expect(resolveSoulUrl(prod, "wss://altro/v1/face?x=1", "studio")).toBe(
+      "wss://altro/v1/face?x=1&gosino=studio",
+    );
+  });
+
+  it("keeps the REST base clean: the query belongs to the socket", () => {
+    expect(soulHttpBase("wss://ugo.tail/v1/face?gosino=cucina")).toBe("https://ugo.tail");
+  });
+});

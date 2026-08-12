@@ -1,8 +1,8 @@
-import { NOISE_ALERT_DB, type FaceToServerMessage } from "@ugo/shared/face";
+import type { FaceToServerMessage } from "@ugo/shared/face";
+import { NoiseGate } from "./noiseGate.js";
 
 type SendFn = (message: FaceToServerMessage) => void;
 
-const NOISE_COOLDOWN_MS = 2000;
 const SHAKE_COOLDOWN_MS = 3000;
 const SHAKE_THRESHOLD = 18; // m/s² beyond gravity-ish
 const LIGHT_PERIOD_MS = 60_000;
@@ -13,7 +13,7 @@ const LIGHT_PERIOD_MS = 60_000;
  * user gesture (mic permission) — nothing records silently.
  */
 export class Sensors {
-  private lastNoiseAt = 0;
+  private readonly noise = new NoiseGate();
   private lastShakeAt = 0;
   private audioContext: AudioContext | undefined;
 
@@ -22,9 +22,19 @@ export class Sensors {
     private readonly onLocalStartle: () => void,
   ) {}
 
-  /** microphone level meter → noise events over threshold */
+  /** The room's learned noise floor, for the debug readout. */
+  public noiseFloor(): number {
+    return Math.round(this.noise.floor);
+  }
+
+  /** microphone level meter → noise events, judged against the room (ADR-029) */
   public async startMicrophone(): Promise<void> {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Automatic gain control is ON by default, and it is what made a silent
+    // room read as a loud one: AGC amplifies quiet input until it fills the
+    // range. For a level meter we want what the room actually did.
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { autoGainControl: false, noiseSuppression: false, echoCancellation: false },
+    });
     this.audioContext = new AudioContext();
     const source = this.audioContext.createMediaStreamSource(stream);
     const analyser = this.audioContext.createAnalyser();
@@ -38,12 +48,13 @@ export class Sensors {
       for (const sample of buffer) sum += sample * sample;
       const rms = Math.sqrt(sum / buffer.length);
       // rough SPL estimate: enough for "sudden loud noise", not metrology
+      // uncalibrated on purpose: the gate only ever uses differences, which
+      // is what lets the same code work on any microphone
       const db = Math.max(0, 94 + 20 * Math.log10(rms + 1e-8));
-      const now = performance.now();
-      if (db >= NOISE_ALERT_DB && now - this.lastNoiseAt > NOISE_COOLDOWN_MS) {
-        this.lastNoiseAt = now;
+      const reading = this.noise.push(db, performance.now());
+      if (reading.startled) {
         this.onLocalStartle();
-        this.send({ type: "noise", db: Math.round(db) });
+        this.send({ type: "noise", db: Math.round(reading.db) });
       }
       requestAnimationFrame(tick);
     };

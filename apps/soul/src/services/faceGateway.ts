@@ -3,17 +3,19 @@ import {
   DARKNESS_LUX,
   GLYPH_FOR_STATE,
   NIGHT_START_HOUR,
-  NOISE_ALERT_DB,
   faceToServerSchema,
   type FaceState,
   type FaceToServerMessage,
+  type GlyphPattern,
   type ServerToFaceMessage,
 } from "@ugo/shared";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import type { ChatService } from "./chatService.js";
 import type { PsycheService } from "./psycheService.js";
 
 export interface FaceGatewayDeps {
+  /** ADR-032: which exemplar this gateway is the body of */
+  gosinoId?: string;
   db: DbClient;
   chat: ChatService;
   psyche: PsycheService;
@@ -32,6 +34,8 @@ export type FaceSender = (message: ServerToFaceMessage) => void;
  */
 export class FaceGateway {
   private state: FaceState = "idle";
+  /** which shell the body is in; a change is an event, not a setting */
+  private mode: "home" | "portable" = "home";
   private readonly senders = new Set<FaceSender>();
 
   public constructor(private readonly deps: FaceGatewayDeps) {}
@@ -54,6 +58,29 @@ export class FaceGateway {
     }
   }
 
+  /**
+   * ADR-027: soul decides an initiative, the body performs it. A face that
+   * does not know the gesture drops it — the decision must not depend on which
+   * renderer happens to be running.
+   */
+  public broadcastGesture(id: string): void {
+    for (const send of this.senders) {
+      send({ type: "gesture", id });
+    }
+  }
+
+  /** The one act that carries across the room without being looked at. */
+  public broadcastGlyph(pattern: GlyphPattern): void {
+    for (const send of this.senders) {
+      send({ type: "glyph", pattern });
+    }
+  }
+
+  /** True when at least one body is connected: someone could plausibly see him. */
+  public hasBody(): boolean {
+    return this.senders.size > 0;
+  }
+
   public currentState(): FaceState {
     return this.state;
   }
@@ -72,8 +99,31 @@ export class FaceGateway {
     return this.deps.hourOf?.(at) ?? at.getHours();
   }
 
+  /** Did he ask to go out in the last few hours? (ADR-030) */
+  private async askedToGoOutRecently(at: Date): Promise<boolean> {
+    const since = new Date(at.getTime() - 6 * 3_600_000);
+    const rows = await this.deps.db
+      .select({ id: events.id })
+      .from(events)
+      .where(and(eq(events.type, "wants_out"), gte(events.ts, since), this.mine(events)))
+      .limit(1);
+    return rows.length > 0;
+  }
+
   private async recordEvent(type: string, payload: Record<string, unknown>): Promise<void> {
-    await this.deps.db.insert(events).values({ source: "face", type, payload });
+    await this.deps.db.insert(events).values({
+      source: "face",
+      type,
+      payload,
+      ...(this.deps.gosinoId !== undefined && { gosinoId: this.deps.gosinoId }),
+    });
+  }
+
+  /** Scopes a query to this exemplar; undefined in a single-exemplar house. */
+  private mine(column: { gosinoId: unknown }): ReturnType<typeof eq> | undefined {
+    return this.deps.gosinoId === undefined
+      ? undefined
+      : eq(column.gosinoId as never, this.deps.gosinoId);
   }
 
   private setState(state: FaceState, send: FaceSender): void {
@@ -95,7 +145,7 @@ export class FaceGateway {
     const pending = await this.deps.db
       .select({ id: desires.id, text: desires.text })
       .from(desires)
-      .where(eq(desires.status, "pending"))
+      .where(and(eq(desires.status, "pending"), this.mine(desires)))
       .orderBy(asc(desires.createdAt))
       .limit(1);
     const desire = pending[0];
@@ -149,7 +199,12 @@ export class FaceGateway {
       }
       case "noise": {
         await this.recordEvent("noise", { db: message.db });
-        if (message.db >= NOISE_ALERT_DB) {
+        // ADR-029: the body is the one holding the room's noise floor, so a
+        // `noise` frame already means "this startled me". Re-judging it here
+        // against an absolute threshold threw away the only calibrated
+        // information in the system — and on a phone with AGC, an
+        // uncalibrated number means nothing anyway.
+        {
           await this.deps.psyche.applyEventType("loud_noise", at);
           if (this.state !== "sleeping") this.setState("alert", send);
           this.pushMood(send);
@@ -160,6 +215,27 @@ export class FaceGateway {
         await this.recordEvent("tap", {});
         if (this.state === "sleeping") this.setState("idle", send);
         else this.setState("alert", send);
+        this.pushMood(send);
+        return;
+      }
+      case "mode": {
+        // ADR-030: he could ask to go out and never learn that he had been
+        // taken. The body is the only thing that knows which shell it is in.
+        if (message.mode === this.mode) return;
+        this.mode = message.mode;
+        if (message.mode === "portable") {
+          const asked = await this.askedToGoOutRecently(at);
+          await this.recordEvent("went_out", { asked });
+          await this.deps.psyche.applyEventType("went_out", at);
+          // he asked, and he was taken: that is worth saying out loud
+          if (asked) {
+            for (const other of this.senders) other({ type: "gesture", id: "spin" });
+            send({ type: "speak", text: "Grunf! Si esce!" });
+          }
+        } else {
+          await this.recordEvent("came_home", {});
+          await this.deps.psyche.applyEventType("came_home", at);
+        }
         this.pushMood(send);
         return;
       }

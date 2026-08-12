@@ -32,4 +32,11 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [024](./024-il-sogno-collega-i-ricordi-agli-esseri.md) | Il sogno collega i ricordi agli esseri | Accettata |
 | [025](./025-consolidamento-su-inattivita.md) | Consolidamento su inattività | Accettata |
 | [026](./026-corpo-tridimensionale-e-strati-espressivi.md) | Il corpo di casa in tre dimensioni, e i tre strati espressivi | Accettata |
-| 027 | *(prossimo numero disponibile)* | — |
+| [027](./027-iniziativa.md) | L'iniziativa: UGO può cominciare lui | Accettata |
+| [028](./028-lo-spazio-l-orologio-e-i-promemoria.md) | Lo spazio, l'orologio e i promemoria | Accettata |
+| [029](./029-il-rumore-si-giudica-sulla-stanza.md) | Il rumore si giudica sulla stanza, non su una soglia | Accettata |
+| [030](./030-uscire.md) | Uscire: chiederlo, e accorgersi di essere stato accontentato | Accettata |
+| [031](./031-il-consiglio.md) | Il consiglio: più esemplari, e il genoma che pilota | Accettata |
+| [032](./032-un-runtime-per-esemplare.md) | Un runtime per esemplare: due gosini erano una creatura con due nomi | Accettata |
+| [033](./033-l-abitudine-al-fracasso.md) | L'abitudine al fracasso: la stanza si muove, e il decimo botto non è il primo | Accettata |
+| 034 | *(prossimo numero disponibile)* | — |

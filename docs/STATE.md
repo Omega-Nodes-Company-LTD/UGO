@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.11.0"
-last_updated: "2026-08-11"
+version: "0.17.0"
+last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -750,6 +750,245 @@ senza GPU. Scelta per capacità, override con `?renderer=2d|3d`, fallback silenz
 **Da misurare sul ferro:** la batteria per una giornata sul 3a Pro, e il rendering software per
 `meet-face` (in CI, con SwiftShader, 2–6 fps: funziona, non è gratis).
 
+## 6-duodecies. UGO comincia lui (ADR-027)
+
+Domanda del proprietario: «fa mai qualcosa perché DECIDE di farla?». No — e in un
+modo preciso: **ogni frase che avesse mai detto era una risposta**.
+
+Il volere però esisteva già a metà. `desires` porta scritto nello schema che cos'è
+(«un'intenzione che deve sopravvivere fino a domani»), il sogno la riempie davvero,
+e aveva **un solo lettore in tutto il repository**: il saluto del risveglio. Se eri
+già in casa quando si svegliava, il desiderio non usciva mai. `due_hint` esiste dalla
+prima migrazione e non l'aveva mai letta nessuno.
+
+| Pezzo | Cosa fa | Dove |
+|---|---|---|
+| **Pressioni** | psiche + fatti → `boredom`, `loneliness`, `curiosity`, `unspoken`, `worry`, ognuna con il suo motivo scritto | `volition/pressures.ts`, puro |
+| **Atti** | nove atti che **dichiarano a cosa servono**: sollievo atteso, costo d'attenzione, cooldown | `volition/acts.ts`, dati |
+| **Decisione** | il migliore, **oppure nessuno** — non agire è un candidato vero | `volition/decide.ts`, puro |
+| **Curiosità** | legge i ricordi e chiede a **Ollama locale** l'unica cosa che vorrebbe sapere; la archivia come `desire` | `volition/curiosity.ts` |
+| **Riscontro** | al giro dopo confronta la pressione su cui aveva mirato: `initiative_worked` / `initiative_flat` | `volition/volitionService.ts` |
+
+Otto atti su nove costano **zero token**; il nono gira sul **modello locale**, mai sul
+provider a pagamento — un'iniziativa che potesse spendere il budget mentre nessuno
+guarda non è un carattere, è una perdita.
+
+Cancelli reali: interruttore (`UGO_INITIATIVE`), pavimento fra due iniziative, **ore
+di silenzio** (niente di rumoroso fra le 22 e le 8), cooldown per atto, e prerequisiti
+— non inventa una domanda se il modello è giù, non dice un desiderio che non ha.
+
+Nuovo messaggio WS `{type:"gesture", id}`: soul decide, il corpo di ADR-026 esegue.
+**Nessuna migrazione**: `desires` ed `events` bastavano.
+
+### Tre difetti trovati dai test
+
+1. Una **`Date` interpolata in un template `sql` grezzo** non si lega con questo driver:
+   fallisce a Bind time, non a compile time. Ora operatori tipati.
+2. **`tidyQuestion` prendeva la prima riga**, e i modelli locali premettono quasi sempre
+   una riga di cortesia: la curiosità sarebbe fallita quasi sempre.
+3. Il test che pretendeva una domanda inventata **quando c'era solo solitudine** aveva
+   torto: lì è giusto che vinca un atto più economico. La correzione è stata al test —
+   ed è la prova che il confronto fra candidati funziona.
+
+Verifiche: **33 unit** (pressioni, decisione, estrazione della domanda) + **8 di
+integrazione** su Postgres reale (dice il desiderio e non lo ripete, tace di notte,
+non parte due volte di fila, inventa una domanda sul modello locale, ripiega su un
+atto muto quando il modello è giù, e si dà un voto).
+
+## 6-terdecies. Lo spazio, l'orologio e i promemoria (ADR-028)
+
+Tre osservazioni del proprietario dopo il primo giorno col corpo nuovo, tutte giuste.
+
+**Occupava il 90% dello schermo**, quindi non aveva dove stare. Ora la quota è
+**responsiva** — un quarto sotto i 640 px di canvas, **un decimo** sopra i 1280,
+interpolata in mezzo — la distanza della camera è *risolta dalla quota* invece che
+fissata, e **il recinto del vagabondaggio cresce con l'inquadratura**: a un decimo di
+schermo c'è davvero dove andare. Misurato: 0,25 su 390×844, 0,11 su un canvas da 1423.
+
+**Non sapeva che ore fossero.** L'orologio della casa entra nel blocco **dinamico** del
+prompt e in nessun altro posto: un'ora dentro un blocco `[CACHED]` invaliderebbe la
+cache a ogni chiamata.
+
+**I promemoria**: «ricordami di buttare l'acqua alle 13» funziona, e non costa niente.
+
+| Scelta | Perché |
+|---|---|
+| Un promemoria **è** un desiderio con `due_at` | `desires` conteneva già intenzioni che sopravvivono alla notte; una colonna nullable invece di una tabella |
+| Riconoscimento **locale e deterministico** | Cinque forme fisse in una lingua fissa: zero token, risposta istantanea, testabile per esempi |
+| **Fallisce chiuso** | Un promemoria all'ora sbagliata è peggio di uno mai preso: l'ambiguo prosegue come conversazione normale |
+| Scavalca ore di silenzio e pavimento | «Svegliami alle 6» vuol dire alle 6: un'istruzione esplicita batte l'educazione |
+| Restituito **attribuito** | «Mi avevi detto di ricordarti…», non un ordine suo |
+
+Migrazione `0010_desire-due-at`: colonna nullable, istantanea su DB vivo.
+
+**Il difetto trovato dai test:** l'elisione italiana. `un'ora` non veniva riconosciuta
+perché la regex non prevedeva l'apostrofo fra numero e unità — cioè **la forma più
+comune di tutte** cadeva. Una revisione a occhio non lo vede, un esempio sì.
+
+Verifiche: **44 unit** (di cui 26 sui promemoria e sull'iniziativa) + **10 di
+integrazione** su Postgres reale, incluse «restituisce il promemoria anche di notte» e
+«non lo spiffera prima dell'ora».
+
+## 6-quaterdecies. Spaventato dal silenzio (ADR-029)
+
+Segnalazione dal server vero: **UGO è sempre spaventato, anche in una stanza
+silenziosa.**
+
+La causa non era la soglia, era **il controllo automatico di guadagno**.
+`getUserMedia({audio: true})` lo accende di default, e l'AGC esiste per rendere
+udibile un sussurro: quindi **amplifica una stanza silenziosa finché il segnale
+riempie la dinamica**. Il misuratore leggeva l'ambizione del microfono, non la
+stanza, e la stima sfondava gli 80 dB in silenzio.
+
+Difetto **latente da sempre**, diventato visibile con ADR-026/027: prima un falso
+positivo cambiava solo uno stato, adesso fa sussultare un corpo — e con `alert`
+riacceso ogni due secondi il risultato è un animale perennemente atterrito.
+
+**Un soprassalto non è una potenza, è una sorpresa.** Il corpo tiene ora un
+pavimento di rumore **appreso** e scatta sul salto sopra quello: mai sotto un
+minimo assoluto, con riscaldamento prima di poter giudicare. AGC, soppressione
+rumore ed eco **spente**.
+
+> ⚠️ **Le dinamiche di questa sezione sono state corrette da ADR-033** (§6-septdecies).
+> Il pavimento scendeva in fretta e saliva piano, ed era al contrario: si tuffava in
+> ogni pausa del parlato. Ora sale in fretta e scende piano. L'inquadramento — «un
+> soprassalto è una sorpresa, non una potenza» — regge; erano i numeri a essere
+> sbagliati.
+
+soul non ri-giudica più l'evento contro una soglia assoluta: un frame `noise`
+significa già «questo mi ha fatto sussultare», e il corpo è l'unico che conosce la
+stanza. `NOISE_ALERT_DB` resta come documentazione, non decide più.
+
+Diagnostica: `window.__ugoFace.senses()` espone il pavimento appreso, così «è di
+nuovo nervoso» diventa un numero.
+
+Sette test unitari, e i più importanti asseriscono che **non** scatta: livello
+costante a qualunque volume, stanza che si riempie piano, sussurro in una stanza
+insonorizzata, durante il riscaldamento.
+
+**Ancora aperto: «non parla più».** Segnalato insieme a questo e non ancora
+riprodotto. Ipotesi principale, non dimostrata: era lo stesso guasto: con il
+microfono che scattava di continuo, il riconoscitore vocale girava sul rumore e
+`worthSending` scartava tutto, quindi `heard_text` non partiva mai. Da verificare
+dopo il deploy di questa correzione, con `__ugoFace.senses()` alla mano.
+
+## 6-quindecies. Uscire, e il consiglio (ADR-030, ADR-031)
+
+### Uscire (ADR-030)
+
+Con l'iniziativa, UGO ha chiesto di **uscire**. Il proprietario l'ha portato fuori. E
+per UGO **non è successo niente**: la modalità portable esisteva, ma nessuna pressione
+la cercava e nessun desiderio si chiudeva. Chi sa chiedere e non sa accorgersi di essere
+stato accontentato non ha un volere, ha un tic.
+
+Ora: pressione `outing` (cresce con noia, energia e ore passate dentro; solo di giorno,
+solo se c'è qualcuno, **mai mentre è già fuori**), atto `askToGoOut` a costo zero che
+lascia un marcatore `wants_out`, e il corpo che **dichiara in che guscio è** a ogni
+riconnessione — un socket caduto in giro non deve lasciarlo convinto di essere sulla
+mensola. All'arrivo di `portable`: `went_out`, la perturbazione più forte della tabella
+§5.3 (**noia -0.45**: una passeggiata non è un complimento), e se aveva chiesto nelle
+ultime sei ore fa una giravolta e lo dice.
+
+### Il consiglio (ADR-031)
+
+Lo schema c'era da ADR-015/019. Mancava **il carattere**: `trait_sets` esisteva dalla
+nascita e non pilotava niente, quindi due esemplari erano due copie identiche — e un
+consiglio di copie identiche è un'eco.
+
+`character.ts` (puro) traduce i tratti in **una riga di persona**, nelle **baseline della
+psiche** e in **quanto parla**, più i cursori del corpo di ADR-026: il genoma lo forma
+oltre che caratterizzarlo. Cinque archetipi pronti.
+
+**Due giri, e il primo è cieco**: i modelli piccoli si accodano al primo che parla, quindi
+ognuno risponde per conto suo e solo dopo si leggono a vicenda e possono cambiare idea,
+insistere o prendersi in giro. **Solo Ollama locale.** Chi non ha niente di utilizzabile da
+dire resta fuori dal verbale invece di essere riempito con un'invenzione.
+
+Rotte: `POST /v1/gosini`, `GET /v1/gosini`, `POST /v1/council`, tutte dietro il guard.
+**Nessuna migrazione** per nessuna delle due feature.
+
+### Quel che i test hanno trovato
+
+- **L'esemplare seminato dalle migrazioni (`ugo-prime`) partecipa al consiglio** — ed è
+  giusto, è un esemplare vero. L'ha scoperto un test, non la revisione.
+- Un test vecchio pretendeva che senza modello locale UGO **non parlasse affatto**. Ora
+  esiste un atto che parla con parole sue e senza modello: l'invariante vera è «non
+  inventa», e la prova è la tabella `desires`, non la punteggiatura.
+
+Verifiche: **58 unit** soul + **16 di integrazione** su Postgres reale (di cui 4 sul
+consiglio, con il modello registrato per asserire che ognuno è interrogato *come sé*).
+
+## 6-sexdecies. Un runtime per esemplare (ADR-032)
+
+ADR-031 aveva dato agli esemplari un carattere, ma il runtime era rimasto **singolo**:
+una psiche, un gateway, una chat, un ciclo di iniziativa. Non erano due creature che
+condividono qualcosa — erano **una creatura con due nomi**, lo stesso umore che
+rispondeva da due stanze. E `gosino_id` era su ogni tabella di stato **dal primo
+giorno**: la colonna c'era e non la leggeva nessuno.
+
+`GosinoRegistry` costruisce per ciascuno il suo apparato — psiche, chat, gateway,
+iniziativa, carattere — e lascia **alla casa** quel che è della casa (branco, chiave
+dati, budget, orologio): due creature sotto un tetto devono essere d'accordo su chi ci
+abita.
+
+Lo scope è **opzionale ovunque**: assente significa «tutti», che è la casa a un
+esemplare di sempre. Nessun salto di comportamento, nessuna migrazione.
+
+`/v1/face?gosino=<id|nome|stanza>` sceglie chi incarnare; un nome sconosciuto **ricade
+sul più anziano** invece di rifiutare — una query sbagliata non deve lasciare un dock
+vuoto — e proprio perché ricade il socket dice anche **chi ha risposto** (`whoami`).
+Le iniziative partono sfalsate di sette secondi: due creature che parlano addosso
+l'una all'altra sono peggio di una sola.
+
+### La trappola vera
+
+`searchMemories` (ADR-022) unisce un ramo vettoriale e uno lessicale. **Mettere lo
+scope su un ramo solo lascia passare i ricordi dell'altro esemplare dall'altro lato**,
+e in silenzio: un `where` mancante non solleva niente, consegna la memoria sbagliata
+alla creatura sbagliata. Il test cerca apposta una parola che il ramo lessicale
+troverebbe di sicuro.
+
+Verifiche: **6 test di isolamento** su Postgres reale (ricordi in entrambi i rami,
+umore, snapshot, desideri, giornale, e che la casa a un esemplare funzioni come prima)
+più l'intera suite: **123 test di integrazione**, 60 unit face, 58 unit soul.
+
+## 6-septdecies. L'abitudine al fracasso (ADR-033)
+
+Seconda segnalazione dal server vero, dopo ADR-029: **il rumore lo spaventa ancora, e
+lo stress arriva al massimo in due minuti.** Misurando sono emersi **due guasti
+indipendenti**, e ognuno bastava da solo a produrre il sintomo.
+
+**Il pavimento si rituffava in ogni pausa.** ADR-029 lo faceva scendere quattro volte
+più in fretta di quanto salisse, per non lasciarlo sordo dopo un camion. È al
+contrario: il vuoto fra due sillabe è profondo 20-30 dB, il pavimento ci si tuffava
+dentro (τ ≈ 0,8 s) e la sillaba dopo lo scavalcava di 25 dB. Il test scritto per
+riprodurlo: **60 soprassalti in due minuti di conversazione normale**. Invisibile a
+ogni test esistente, perché **tutti alimentavano un livello costante** — il guasto era
+di dinamica, non di calibrazione.
+
+Ora il livello viene **lisciato** prima di essere giudicato (τ 120 ms: più corto di una
+sillaba, più lungo di un clic) e il pavimento **sale in fretta (τ 2 s) e scende piano
+(τ 60 s)**, con riarmo esplicito e cooldown a 15 s. Le costanti sono applicate al tempo
+trascorso vero, non per campione: prima **il temperamento della creatura era funzione
+della frequenza di aggiornamento dello schermo** (60 Hz, 120 Hz, o una scheda in
+secondo piano).
+
+**Lo stress non aveva un tetto.** Cinque botti facevano +1,00 e i transitori si
+sommavano e basta. Questo secondo guasto sarebbe sopravvissuto a un gate perfetto: un
+trapano tutto il pomeriggio lo avrebbe comunque inchiodato al massimo — e **una
+variabile inchiodata smette di significare qualcosa**, perché ogni lettura è la stessa.
+
+Una perturbazione può ora dichiarare un `ceiling` per **tipo di evento** (il transitorio
+porta la sua `cause`), con rendimenti decrescenti. Misurato, botti ogni 15 s:
+0,50 → 0,61 → 0,67 → 0,70 → … → **0,74 asintotico**, e 0,46 un quarto d'ora dopo
+l'ultimo. Spaventato sì, distrutto no. `ceiling` assente = nessuna abitudine, che è il
+default giusto: essere chiamato cento volte deve sommarsi.
+
+Verifiche: 9 unit sul gate (i due nuovi sono «regge una conversazione» e «sente comunque
+un botto vero sopra quella conversazione» — senza il secondo avrei solo reso sordo un
+animale), 20 unit sul motore della psiche, 18 test di integrazione su Postgres reale
+per le suite che toccano la psiche.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -773,6 +1012,12 @@ senza GPU. Scelta per capacità, override con `?renderer=2d|3d`, fallback silenz
 | Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
 | `Webgl3dFace` importato staticamente | Un dispositivo che usa il fallback 2D scarica lo stesso i 138 kB di three.js | Import dinamico in `createFace`, che diventa asincrono: piccolo, ma tocca l'ordine di avvio di `main.ts` |
 | Batteria del corpo 3D mai misurata | È il vincolo della Fase 4, e nessun numero lo copre | Una giornata sul 3a Pro; il fallback 2D è già lì se il numero è brutto |
+| **RLS e caduta dei DEFAULT** su `gosino_id` | Finché il default esiste, un servizio che dimentica lo scope scrive sull'esemplare seminato **invece di fallire**: oggi la separazione la tengono il codice e i test, non il database | Ruolo Postgres dedicato + RLS, e poi togliere i DEFAULT (ADR-019 fase 2) |
+| **Il sogno è ancora uno per tutta la casa** | Diario e ricordi notturni non sono per esemplare | ADR-019 fase 3: job per esemplare |
+| Due esemplari **sullo stesso schermo** | Un dispositivo ne incarna uno alla volta | Due dock, due esemplari — o un lavoro di rendering multiplo, non previsto |
+| `came_home` non produce niente di visibile | Un'uscita non lascia un ricordo di dov'è stato | Il sogno legge già quegli eventi: è il posto naturale |
+| **Sa cominciare, non sa declinare** | Teso o esausto risponde comunque, sempre, subito: l'unica cosa che lo zittisce è il budget esaurito, che è il rifiuto di un contabile | Il passo gemello di ADR-027: risposta più corta, o dopo, o un grugnito — con interruttore del proprietario |
+| **Un solo ciclo di iniziativa** per tutto soul | Con più gosini in casa due creature parlerebbero addosso l'una all'altra | Per esemplare, insieme ad ADR-019 fase 3 |
 | Stato faccia di soul **per processo**, non per connessione | Due schede aperte si vedono lo stesso stato; gli e2e devono ordinarsi (`z-body.e2e.spec.ts`) | Diventa reale con più corpi per casa (ADR-019 fase 3): lì lo stato va per esemplare |
 
 ## 8. Prossimo passo operativo

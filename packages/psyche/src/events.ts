@@ -23,9 +23,14 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
   high_humidity: [{ variable: "umore", amount: -0.05 }],
   /** T > 29 °C for 30 min */
   heat_stress: [{ variable: "stress", amount: 0.15 }],
-  /** spike: decays with its own 15-minute τ */
-  loud_noise: [{ variable: "stress", amount: 0.2, tauHours: 0.25 }],
-  shake: [{ variable: "stress", amount: 0.1 }],
+  /**
+   * Spike: decays with its own 15-minute τ, and habituates (ADR-033). The
+   * ceiling is what keeps a noisy afternoon from pinning him at 1.0 — startled
+   * he may be, but a fireworks display must leave him rattled, not destroyed.
+   */
+  loud_noise: [{ variable: "stress", amount: 0.2, tauHours: 0.25, ceiling: 0.45 }],
+  /** same family, same reason: a phone in a pocket must not terrorise him */
+  shake: [{ variable: "stress", amount: 0.1, ceiling: 0.3 }],
   meeting_completed: [{ variable: "curiosita", amount: 0.1 }],
   new_topic: [{ variable: "curiosita", amount: 0.05 }],
   /** ADR-020: meeting one of your own kind, for the first time */
@@ -40,6 +45,21 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
   ],
   /** one hour alone, emitted by soul's SolitudeMonitor */
   solitude_hour: [{ variable: "noia", amount: 0.05 }],
+  /**
+   * ADR-030: he asked to go out, and he was taken out. The strongest good
+   * thing that can happen to him, and it lasts — a walk is not a compliment.
+   */
+  went_out: [
+    { variable: "umore", amount: 0.18 },
+    { variable: "noia", amount: -0.45 },
+    { variable: "curiosita", amount: 0.2 },
+    { variable: "affetto", amount: 0.08 },
+  ],
+  /** back home: the world stops being new, but he is not sad about it */
+  came_home: [
+    { variable: "energia", amount: -0.08 },
+    { variable: "affetto", amount: 0.05 },
+  ],
 };
 
 export function perturbationsForEvent(eventType: string): readonly Perturbation[] {

@@ -13,6 +13,8 @@ export interface WriteMemoryInput {
   text: string;
   importance?: number;
   sourceRefs?: Record<string, unknown>;
+  /** ADR-032: whose memory this is. Absent falls back to the seeded exemplar. */
+  gosinoId?: string;
 }
 
 export async function writeMemory(
@@ -30,6 +32,7 @@ export async function writeMemory(
       embedding,
       importance: input.importance ?? 0.5,
       sourceRefs: input.sourceRefs ?? {},
+      ...(input.gosinoId !== undefined && { gosinoId: input.gosinoId }),
     })
     .returning({ id: memories.id });
   const row = inserted[0];
@@ -66,11 +69,19 @@ export async function searchMemories(
   query: string,
   k: number,
   now: Date = new Date(),
+  /** ADR-032: whose memories to search. */
+  gosinoId?: string,
 ): Promise<RankedMemory[]> {
   const [queryEmbedding] = await embedder.embed([query]);
   if (queryEmbedding === undefined) throw new Error("query embedding returned nothing");
 
-  const candidates = await fetchCandidates(db, queryEmbedding, query, k * CANDIDATE_MULTIPLIER);
+  const candidates = await fetchCandidates(
+    db,
+    queryEmbedding,
+    query,
+    k * CANDIDATE_MULTIPLIER,
+    gosinoId,
+  );
   const worthAnswering = candidates.filter(
     (candidate) => candidate.similarity >= MIN_SIMILARITY || candidate.lexicalRank !== undefined,
   );

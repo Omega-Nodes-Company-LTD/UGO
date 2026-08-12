@@ -17,6 +17,24 @@ export const soulEnvSchema = z.object({
   MQTT_PASS: optionalNonEmpty,
   OLLAMA_URL: z.url(),
   OLLAMA_EMBED_MODEL: z.string().min(1).default("nomic-embed-text"),
+  // ADR-027: the model that gives UGO the words for a question of his own.
+  // Local on purpose — an initiative must never be able to spend the API
+  // budget. Falls back to the dream's model, already pulled on the server.
+  // the dream's model is already pulled on the server, so it is the default
+  // here too; point TEXT at something smaller for snappier questions
+  OLLAMA_BATCH_MODEL: z.string().min(1).default("qwen3:30b-a3b"),
+  OLLAMA_TEXT_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  // Initiative off by default is the wrong default for a companion, but it is
+  // the right one for a machine that just learned to speak first.
+  UGO_INITIATIVE: z
+    .preprocess((value) => (value === "" ? undefined : value), z.enum(["on", "off"]).default("on")),
+  UGO_INITIATIVE_TICK_MINUTES: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().int().min(1).default(4),
+  ),
   ANTHROPIC_API_KEY: z.string().min(1),
   /** override for network-level test stubs; defaults to the official API */
   ANTHROPIC_BASE_URL: z.url().optional(),

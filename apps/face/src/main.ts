@@ -31,7 +31,10 @@ const micButton = requireElement("#btn-mic");
 const earsButton = requireElement("#btn-ears");
 
 const params = new URLSearchParams(location.search);
-const soulUrl = resolveSoulUrl(location, params.get("soul"));
+// ADR-032: `?gosino=cucina` picks which exemplar this device is the body of;
+// without it the dock gets the eldest, which is what a single-exemplar house
+// has always shown
+const soulUrl = resolveSoulUrl(location, params.get("soul"), params.get("gosino"));
 // portable mode (§4.2): NFC tag in the shell sets ?mode=portable; manual fallback
 const portableMode = params.get("mode") === "portable";
 const soulHttp = soulHttpBase(soulUrl);
@@ -79,6 +82,16 @@ function onServerMessage(message: ServerToFaceMessage): void {
     case "glyph":
       glyph.play(message.pattern);
       return;
+    case "whoami":
+      // an unknown name falls back to the default, so the dock says whose face
+      // this actually is instead of quietly showing somebody else
+      app.dataset.gosino = message.name;
+      return;
+    case "gesture":
+      // ADR-027: soul decided, the body performs. Unknown ids are dropped by
+      // the player, so an older face and a newer soul stay compatible.
+      renderer.reflex(message.id);
+      return;
   }
 }
 
@@ -87,6 +100,10 @@ const socket = new FaceSocket(soulUrl, {
   onConnected: (connected) => {
     app.dataset.connected = String(connected);
     connStatus.textContent = connected ? "connesso" : "disconnesso";
+    // ADR-030: declare which shell this is on every (re)connection, not once
+    // at boot — a socket that dropped while out must not leave soul thinking
+    // he is still on the shelf.
+    if (connected) socket.send({ type: "mode", mode: portableMode ? "portable" : "home" });
   },
 });
 
@@ -190,6 +207,7 @@ startPointerGaze(canvas, (target) => {
 renderer.start();
 void socket.start();
 
+
 // ---- portable mode wiring (§4.2) ------------------------------------------
 const portable = new PortableController(
   soulHttp,
@@ -251,6 +269,8 @@ declare global {
       queued: () => number;
       queuedFresh: () => Promise<number>;
       awake: () => { available: boolean; held: boolean };
+      /** what the room sounds like to him, for diagnosing a jumpy UGO */
+      senses: () => { noiseFloor: number; listening: boolean };
     };
     __ugoGlyph: { current: () => string | undefined; available: () => boolean };
     __ugoBody: {
@@ -276,6 +296,7 @@ window.__ugoFace = {
   queued: () => socket.queuedCount(),
   queuedFresh: () => socket.queuedCountFresh(),
   awake: () => ({ available: awake.available(), held: awake.held() }),
+  senses: () => ({ noiseFloor: sensors.noiseFloor(), listening: speech.isListening() }),
 };
 window.__ugoBody = {
   debug: () => renderer.debug(),
