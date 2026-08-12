@@ -2,6 +2,13 @@ import { faker } from "@faker-js/faker/locale/it";
 import { embeddingFromSeed } from "./embedding.js";
 
 export interface BeingFactoryInput {
+  /**
+   * ADR-019: a being belongs to a house, never to the server. Optional only
+   * while the `DEFAULT` on `beings.household_id` is still there as a
+   * backwards-compatibility net; the day it drops, leaving this out stops
+   * compiling — which is the point.
+   */
+  householdId?: string;
   displayName: string;
   species: string;
   kind: "resident" | "visitor" | "unknown";

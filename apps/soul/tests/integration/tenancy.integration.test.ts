@@ -1,4 +1,4 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   accessTokens,
   beings,
@@ -13,13 +13,8 @@ import {
   PRIME_HOUSEHOLD_ID,
   type DbClient,
 } from "@ugo/db";
-import {
-  encryptText,
-  decryptText,
-  generateDataKey,
-  unwrapDataKey,
-  wrapDataKey,
-} from "@ugo/shared";
+import { startPostgres } from "@ugo/factories";
+import { encryptText, decryptText, unwrapDataKey } from "@ugo/shared";
 import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -31,6 +26,7 @@ import {
   revokeToken,
   TenantResolver,
 } from "../../src/services/tenantAuth.js";
+import { addBeing, createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 /**
  * ADR-019, and the only version of this test worth writing: two real families
@@ -42,45 +38,16 @@ let container: StartedPostgreSqlContainer;
 let db: DbClient;
 const masterKey = randomBytes(32);
 
-interface House {
-  id: string;
-  gosinoId: string;
-  dataKey: Buffer;
-}
-
-async function createHouse(slug: string, name: string): Promise<House> {
-  const dataKey = generateDataKey();
-  const [house] = await db
-    .insert(households)
-    .values({ slug, name, wrappedDataKey: wrapDataKey(dataKey, masterKey) })
-    .returning({ id: households.id });
-  if (house === undefined) throw new Error("household was not created");
-  const [exemplar] = await db
-    .insert(gosini)
-    .values({ householdId: house.id, name: `ugo-${slug}`, generation: 0 })
-    .returning({ id: gosini.id });
-  if (exemplar === undefined) throw new Error("exemplar was not created");
-  return { id: house.id, gosinoId: exemplar.id, dataKey };
-}
-
-async function addBeing(house: House, displayName: string): Promise<string> {
-  const [being] = await db
-    .insert(beings)
-    .values({ householdId: house.id, displayName })
-    .returning({ id: beings.id });
-  if (being === undefined) throw new Error("being was not created");
-  return being.id;
-}
-
-let casa: House;
-let vicini: House;
+let casa: TestHouse;
+let vicini: TestHouse;
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  await runMigrations(container.getConnectionUri());
-  db = createDbClient(container.getConnectionUri());
-  casa = await createHouse("casa-rossi", "casa Rossi");
-  vicini = await createHouse("casa-bianchi", "casa Bianchi");
+  const pg = await startPostgres();
+  container = pg.container;
+  await runMigrations(pg.url);
+  db = createDbClient(pg.url);
+  casa = await createHouse(db, "casa-rossi", { name: "casa Rossi", masterKey });
+  vicini = await createHouse(db, "casa-bianchi", { name: "casa Bianchi", masterKey });
 });
 
 afterAll(async () => {
@@ -107,7 +74,7 @@ describe("the migration leaves the first family exactly where it was", () => {
 
 describe("two families under one roof of iron", () => {
   it("refuses a bond between one house's exemplar and another's being", async () => {
-    const ivan = await addBeing(casa, "Ivan");
+    const ivan = await addBeing(db, casa, "Ivan");
     // the database says no — not a service, not a code review, the database
     await expect(
       db.insert(bonds).values({
@@ -123,8 +90,8 @@ describe("two families under one roof of iron", () => {
   });
 
   it("refuses a relation that would link two families", async () => {
-    const nostro = await addBeing(casa, "Paola");
-    const loro = await addBeing(vicini, "Giulia");
+    const nostro = await addBeing(db, casa, "Paola");
+    const loro = await addBeing(db, vicini, "Giulia");
     await expect(
       db
         .insert(relations)
@@ -140,7 +107,7 @@ describe("two families under one roof of iron", () => {
       .values({ householdId: casa.id, name: "ugo-studio", locationLabel: "studio" })
       .returning({ id: gosini.id });
     if (studio === undefined) throw new Error("second exemplar was not created");
-    const sofia = await addBeing(casa, "Sofia");
+    const sofia = await addBeing(db, casa, "Sofia");
 
     await db
       .insert(bonds)

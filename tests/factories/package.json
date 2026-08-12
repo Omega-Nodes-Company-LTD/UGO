@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@faker-js/faker": "^10.5.0",
+    "@testcontainers/postgresql": "^12.1.0",
     "@ugo/shared": "workspace:*",
     "testcontainers": "^12.1.0"
   },

@@ -38,6 +38,40 @@ def apply_drizzle_migrations(conn: psycopg.Connection) -> None:
     conn.commit()
 
 
+def make_house(conn: psycopg.Connection, slug: str) -> str:
+    """ADR-019: one way to make a house, on this side of the fence too.
+
+    The TypeScript suites share `tests/integration/helpers/tenancy.ts`; Python
+    cannot import that, so the rule it enforces is repeated here rather than
+    re-invented per test file. Both write the same columns on purpose: a test
+    that builds its tenant differently from production proves nothing.
+    """
+    return str(
+        conn.execute(
+            "insert into households (slug, name) values (%s, %s) returning id", (slug, slug)
+        ).fetchone()[0]
+    )
+
+
+def make_gosino(conn: psycopg.Connection, household_id: str, name: str) -> str:
+    """A second exemplar under the same roof is the normal case, not an edge one."""
+    return str(
+        conn.execute(
+            "insert into gosini (household_id, name) values (%s, %s) returning id",
+            (household_id, name),
+        ).fetchone()[0]
+    )
+
+
+def make_being(conn: psycopg.Connection, household_id: str, name: str) -> str:
+    return str(
+        conn.execute(
+            "insert into beings (household_id, display_name) values (%s, %s) returning id",
+            (household_id, name),
+        ).fetchone()[0]
+    )
+
+
 @pytest.fixture(scope="session")
 def pg_url() -> str:
     with PostgresContainer("pgvector/pgvector:pg16", driver=None) as container:
