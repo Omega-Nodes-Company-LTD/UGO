@@ -12,7 +12,8 @@ const PSYCHE_BASELINE = { umore: 0.55, affetto: 0.5, noia: 0.4, stress: 0.3, cur
 
 async function loadPsyche() {
   const psyche = await call(forWho("/v1/psyche"), {});
-  $("mood-label").textContent = (psyche.who ? psyche.who.name + " · " : "") + psyche.label;
+  // the name is already the eyebrow above: the headline is the mood alone
+  $("mood-label").textContent = psyche.label;
   $("mood-phrase").textContent = psyche.phrase;
   // the adaptive baseline (ADR-012) wins over the species constant: the tick on
   // the bar has to be HIS resting point, or the arithmetic under it won't add up
@@ -105,14 +106,9 @@ async function loadHealth() {
 }
 
 $("refresh").addEventListener("click", async () => {
-  try {
-    await section(refresh, "pack-msg");
-    await section(loadGosini, "stats-msg");
-    await section(loadPsyche, "stats-msg");
-    await section(loadVolition, "volition-msg");
-    await section(loadHealth, "stats-msg");
-    say("stats-msg", "Aggiornato.", "ok");
-  } catch (error) { say("stats-msg", error.message, "err"); }
+  await section(refresh, "pack-msg");
+  await section(loadGosini, "stats-msg");
+  await go();
 });
 
 $("dream").addEventListener("click", async () => {

@@ -1,5 +1,5 @@
 import { meetings, memories, type DbClient } from "@ugo/db";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { MEMORY_KINDS } from "@ugo/shared";
@@ -38,6 +38,13 @@ export interface ArchiveDeps {
   db: DbClient;
   chat: ChatService;
   guard: PreHandler;
+  /**
+   * ADR-035: memories belong to one creature (ADR-032), so the panel's memory
+   * page belongs to one too. Without this the search would answer with the
+   * default exemplar's recall under another one's name — the same silent
+   * mis-attribution `/v1/psyche` had.
+   */
+  registry?: { resolve: (query: string | undefined) => { chat: ChatService; id: string } | undefined };
 }
 
 export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): void {
@@ -52,11 +59,14 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
       });
     }
     const { kind, q, limit } = parsed.data;
+    const asked = (request.query as { gosino?: string }).gosino;
+    const who = deps.registry?.resolve(asked);
+    const chat = who?.chat ?? deps.chat;
 
     // with a query it is a semantic search — the same re-ranking the chat
     // uses, so what you see here is what UGO would actually recall
     if (q !== undefined) {
-      const found = await deps.chat.search(q, Math.min(limit, 20));
+      const found = await chat.search(q, Math.min(limit, 20));
       return reply.send({
         mode: "search",
         memories: found.map(({ id, text, kind: memoryKind, score, createdAt }) => ({
@@ -82,7 +92,10 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         invalidatedReason: memories.invalidatedReason,
       })
       .from(memories)
-      .where(kind === undefined ? undefined : eq(memories.kind, kind))
+      .where(and(
+        kind === undefined ? undefined : eq(memories.kind, kind),
+        who === undefined ? undefined : eq(memories.gosinoId, who.id),
+      ))
       .orderBy(desc(memories.createdAt))
       .limit(limit);
     return reply.send({ mode: "recent", memories: rows });

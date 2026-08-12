@@ -1,7 +1,27 @@
 /** Helpers and the way in: token handling, HTTP, and messages. */
 export const CORE_JS = `
 const $ = (id) => document.getElementById(id);
-const token = () => sessionStorage.getItem("ugo_token") ?? "";
+
+/**
+ * Where the token lives (ADR-035).
+ *
+ * It used to be sessionStorage only — typed again on every new tab, which for
+ * a panel you glance at from the sofa is a wall, not a protection. The owner
+ * chooses at the door now: ticked, it survives on this device until "Esci";
+ * unticked, it dies with the tab, which is what you want on a machine that is
+ * not yours. localStorage is a real widening of the window — anything that can
+ * run script on this origin can read it — and the honest mitigation is the
+ * explicit way out, said in those words on the door.
+ */
+const KEY = "ugo_token";
+const store = () => (localStorage.getItem(KEY) === null ? sessionStorage : localStorage);
+const token = () => localStorage.getItem(KEY) ?? sessionStorage.getItem(KEY) ?? "";
+const keepToken = (value, persist) => {
+  localStorage.removeItem(KEY); sessionStorage.removeItem(KEY);
+  (persist ? localStorage : sessionStorage).setItem(KEY, value);
+};
+const dropToken = () => { localStorage.removeItem(KEY); sessionStorage.removeItem(KEY); };
+
 // content-type only when there IS a body: Fastify rejects an empty body sent
 // as application/json, which silently broke every DELETE from this panel
 const headers = (hasBody, contentType) => ({
@@ -38,23 +58,41 @@ async function call(path, options) {
  */
 async function section(load, where) {
   try { await load(); }
-  catch (error) { if (where) say(where, "Questa parte non si è caricata: " + error.message, "err"); }
+  catch (error) { if (where && $(where)) say(where, "Questa parte non si è caricata: " + error.message, "err"); }
 }
 
 // --- accesso ---------------------------------------------------------------
+/** Everything the panel needs whoever you are and wherever you land. */
+async function boot() {
+  $("app").hidden = false;
+  $("gate").hidden = true;
+  await section(refresh, "pack-msg");
+  await section(loadGosini, "stats-msg");
+  await go();
+}
+
 $("save-token").addEventListener("click", async () => {
-  sessionStorage.setItem("ugo_token", $("token").value.trim());
+  keepToken($("token").value.trim(), $("stay").checked);
   try {
     await call("/v1/stats", {});
-    $("app").hidden = false; $("auth-hero").hidden = true; $("mood-hero").hidden = false;
-    await section(refresh, "pack-msg");
-    // the exemplar has to be chosen before anything is read for him
-    await section(loadGosini, "stats-msg");
-    await section(loadPsyche, "stats-msg");
-    await section(loadVolition, "volition-msg");
-    await section(loadHealth, "stats-msg");
+    await boot();
   } catch (error) {
+    dropToken();
     say("auth-msg", error.status === 401 ? "Token non valido." : "Non riesco a parlare con UGO: " + error.message, "err");
   }
+});
+
+$("logout").addEventListener("click", () => {
+  dropToken();
+  location.hash = "";
+  location.reload();
+});
+
+// a token kept from last time gets you straight in — and if it has been
+// revoked meanwhile, you land on the door instead of on a broken panel
+window.addEventListener("DOMContentLoaded", async () => {
+  if (token() === "") return;
+  try { await call("/v1/stats", {}); await boot(); }
+  catch { dropToken(); }
 });
 `;

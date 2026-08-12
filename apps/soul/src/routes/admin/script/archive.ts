@@ -9,7 +9,7 @@ async function loadMemories() {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (kind) params.set("kind", kind);
-  const data = await call("/v1/memories?" + params.toString(), {});
+  const data = await call(forWho("/v1/memories?" + params.toString()), {});
   $("mem-list").innerHTML = data.memories.map((m) => {
     const retired = m.invalidatedAt != null;
     // the search view re-ranks like the chat does, so it only ever shows

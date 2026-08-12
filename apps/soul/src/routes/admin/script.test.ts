@@ -36,11 +36,14 @@ describe("the assembled panel script", () => {
    * section that breaks must cost that section and nothing else.
    */
   it("loads every section behind the guard, so one broken section is not a blank page", () => {
-    const login = /\$\("save-token"\)\.addEventListener[\s\S]*?\n\}\);/.exec(ADMIN_SCRIPT)?.[0] ?? "";
-    expect(login, "the login handler moved or was renamed").not.toBe("");
-    const unguarded = [...login.matchAll(/await (\w+)\(/g)]
+    // `boot` is the critical path: what it awaits runs before anything is on
+    // screen, so an unguarded loader there is a blank page and a token prompt.
+    // `go` is the router and guards each page's loaders itself.
+    const boot = /async function boot\(\)[\s\S]*?\n\}/.exec(ADMIN_SCRIPT)?.[0] ?? "";
+    expect(boot, "the boot sequence moved or was renamed").not.toBe("");
+    const unguarded = [...boot.matchAll(/await (\w+)\(/g)]
       .map((match) => match[1])
-      .filter((name) => name !== "section" && name !== "call");
+      .filter((name) => name !== "section" && name !== "go");
     expect(unguarded).toEqual([]);
   });
 
