@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { createDbClient, runMigrations } from "@ugo/db";
+import { createDbClient, households, runMigrations } from "@ugo/db";
 import { LlmClient, OllamaEmbeddingsClient,
   OllamaTextClient,
 } from "@ugo/memory";
@@ -16,6 +16,7 @@ import { IdleConsolidation } from "./services/idleConsolidation.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { Curiosity } from "./services/volition/curiosity.js";
 import { VolitionService } from "./services/volition/volitionService.js";
+import { CouncilService } from "./services/council/councilService.js";
 import { buildServer } from "./server.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -117,6 +118,26 @@ const meetings =
       })
     : undefined;
 
+// ADR-027: initiative. Until now every single thing UGO said was a reply.
+const localText = new OllamaTextClient(
+  env.OLLAMA_URL,
+  env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
+);
+let localTextUp = false;
+const probeLocal = (): void => {
+  localText
+    .available()
+    .then((up) => {
+      localTextUp = up;
+    })
+    .catch(() => {
+      localTextUp = false;
+    });
+};
+probeLocal();
+const localProbeTimer = setInterval(probeLocal, 10 * 60_000);
+localProbeTimer.unref();
+
 const app = buildServer({
   db,
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
@@ -124,6 +145,18 @@ const app = buildServer({
   ollamaUrl: env.OLLAMA_URL,
   features: {
     chat,
+    // ADR-031: more than one exemplar, and a way to ask them all at once.
+    // Local model only: a room full of pigs arguing must never touch the
+    // API budget.
+    council: {
+      council: new CouncilService({ db, local: localText }),
+      householdId: async () => {
+        const rows = await db.select({ id: households.id }).from(households).limit(1);
+        const first = rows[0]?.id;
+        if (first === undefined) throw new Error("no household: run the migrations");
+        return first;
+      },
+    },
     psyche,
     face,
     privacy,
@@ -145,26 +178,6 @@ if (meetings !== undefined) {
   }, MEETINGS_POLL_MS);
   pollTimer.unref();
 }
-
-// ADR-027: initiative. Until now every single thing UGO said was a reply.
-const localText = new OllamaTextClient(
-  env.OLLAMA_URL,
-  env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
-);
-let localTextUp = false;
-const probeLocal = (): void => {
-  localText
-    .available()
-    .then((up) => {
-      localTextUp = up;
-    })
-    .catch(() => {
-      localTextUp = false;
-    });
-};
-probeLocal();
-const localProbeTimer = setInterval(probeLocal, 10 * 60_000);
-localProbeTimer.unref();
 
 const volition = new VolitionService({
   db,

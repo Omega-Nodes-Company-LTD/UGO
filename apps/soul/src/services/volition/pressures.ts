@@ -16,6 +16,7 @@ export const PRESSURE_IDS = [
   "curiosity", // there is something he does not understand
   "unspoken", // he is holding a desire from last night's dream
   "worry", // stressed, and looking for contact
+  "outing", // he wants to go out, and he can say so (ADR-030)
 ] as const;
 
 export type PressureId = (typeof PRESSURE_IDS)[number];
@@ -52,6 +53,10 @@ export interface WorldFacts {
   bodyPresent: boolean;
   /** hour of day in the project timezone */
   hour: number;
+  /** minutes since he was last taken out; Infinity if never */
+  minutesSinceOuting: number;
+  /** he is out right now: wanting to go out is already satisfied */
+  outNow: boolean;
 }
 
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
@@ -108,6 +113,23 @@ export function pressures(vars: Vars, facts: WorldFacts): Pressure[] {
         ? "è l'ora che si era segnato"
         : `${String(facts.pendingDesires)} cose da chiedere, ancora in canna`,
     });
+  }
+
+  // Wanting out. It needs legs and daylight, so it does not build at night or
+  // in a flattened UGO — and it is nonsense while he is already out.
+  if (!facts.outNow && facts.hour >= 9 && facts.hour <= 19) {
+    const restless = clamp((vars.noia - 0.4) * 1.6, 0, 1) * clamp(vars.energia * 1.3, 0, 1);
+    const stale = saturating(Math.min(facts.minutesSinceOuting, 6 * 24 * 60), 8 * 60);
+    const magnitude = clamp(restless * 0.55 + stale * 0.55, 0, 1) * (facts.bodyPresent ? 1 : 0);
+    if (magnitude > 0.25) {
+      out.push({
+        id: "outing",
+        magnitude,
+        because: Number.isFinite(facts.minutesSinceOuting)
+          ? `non esce da ${String(Math.round(facts.minutesSinceOuting / 60))} ore`
+          : "non è mai uscito",
+      });
+    }
   }
 
   // Stress does not want conversation; it wants someone nearby.

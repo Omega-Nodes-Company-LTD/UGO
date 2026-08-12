@@ -37,6 +37,9 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("noise"), db: z.number().min(0) }),
   z.object({ type: z.literal("tap") }),
   z.object({ type: z.literal("shake") }),
+  // ADR-030: which body he is in right now. Until this existed UGO could ask
+  // to go out and never find out that he had been taken.
+  z.object({ type: z.literal("mode"), mode: z.enum(["home", "portable"]) }),
 ]);
 export type FaceToServerMessage = z.infer<typeof faceToServerSchema>;
 

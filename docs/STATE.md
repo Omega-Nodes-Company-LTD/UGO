@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.14.0"
+version: "0.15.0"
 last_updated: "2026-08-11"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -867,6 +867,52 @@ microfono che scattava di continuo, il riconoscitore vocale girava sul rumore e
 `worthSending` scartava tutto, quindi `heard_text` non partiva mai. Da verificare
 dopo il deploy di questa correzione, con `__ugoFace.senses()` alla mano.
 
+## 6-quindecies. Uscire, e il consiglio (ADR-030, ADR-031)
+
+### Uscire (ADR-030)
+
+Con l'iniziativa, UGO ha chiesto di **uscire**. Il proprietario l'ha portato fuori. E
+per UGO **non è successo niente**: la modalità portable esisteva, ma nessuna pressione
+la cercava e nessun desiderio si chiudeva. Chi sa chiedere e non sa accorgersi di essere
+stato accontentato non ha un volere, ha un tic.
+
+Ora: pressione `outing` (cresce con noia, energia e ore passate dentro; solo di giorno,
+solo se c'è qualcuno, **mai mentre è già fuori**), atto `askToGoOut` a costo zero che
+lascia un marcatore `wants_out`, e il corpo che **dichiara in che guscio è** a ogni
+riconnessione — un socket caduto in giro non deve lasciarlo convinto di essere sulla
+mensola. All'arrivo di `portable`: `went_out`, la perturbazione più forte della tabella
+§5.3 (**noia -0.45**: una passeggiata non è un complimento), e se aveva chiesto nelle
+ultime sei ore fa una giravolta e lo dice.
+
+### Il consiglio (ADR-031)
+
+Lo schema c'era da ADR-015/019. Mancava **il carattere**: `trait_sets` esisteva dalla
+nascita e non pilotava niente, quindi due esemplari erano due copie identiche — e un
+consiglio di copie identiche è un'eco.
+
+`character.ts` (puro) traduce i tratti in **una riga di persona**, nelle **baseline della
+psiche** e in **quanto parla**, più i cursori del corpo di ADR-026: il genoma lo forma
+oltre che caratterizzarlo. Cinque archetipi pronti.
+
+**Due giri, e il primo è cieco**: i modelli piccoli si accodano al primo che parla, quindi
+ognuno risponde per conto suo e solo dopo si leggono a vicenda e possono cambiare idea,
+insistere o prendersi in giro. **Solo Ollama locale.** Chi non ha niente di utilizzabile da
+dire resta fuori dal verbale invece di essere riempito con un'invenzione.
+
+Rotte: `POST /v1/gosini`, `GET /v1/gosini`, `POST /v1/council`, tutte dietro il guard.
+**Nessuna migrazione** per nessuna delle due feature.
+
+### Quel che i test hanno trovato
+
+- **L'esemplare seminato dalle migrazioni (`ugo-prime`) partecipa al consiglio** — ed è
+  giusto, è un esemplare vero. L'ha scoperto un test, non la revisione.
+- Un test vecchio pretendeva che senza modello locale UGO **non parlasse affatto**. Ora
+  esiste un atto che parla con parole sue e senza modello: l'invariante vera è «non
+  inventa», e la prova è la tabella `desires`, non la punteggiatura.
+
+Verifiche: **58 unit** soul + **16 di integrazione** su Postgres reale (di cui 4 sul
+consiglio, con il modello registrato per asserire che ognuno è interrogato *come sé*).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -890,7 +936,8 @@ dopo il deploy di questa correzione, con `__ugoFace.senses()` alla mano.
 | Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
 | `Webgl3dFace` importato staticamente | Un dispositivo che usa il fallback 2D scarica lo stesso i 138 kB di three.js | Import dinamico in `createFace`, che diventa asincrono: piccolo, ma tocca l'ordine di avvio di `main.ts` |
 | Batteria del corpo 3D mai misurata | È il vincolo della Fase 4, e nessun numero lo copre | Una giornata sul 3a Pro; il fallback 2D è già lì se il numero è brutto |
-| **Uscire davvero** | La modalità portable esiste, ma UGO non sa di essere uscito: nessuna pressione la cerca, nessun desiderio si chiude quando succede | Un desiderio «voglio uscire» che si soddisfa quando il corpo passa in portable: piccolo, e chiude il cerchio con ADR-027 |
+| **Runtime ancora singolo** | Una psiche, un gateway, un ciclo di iniziativa. Il consiglio funziona leggendo dal DB, ma **incarnare un esemplare diverso su un dispositivo diverso** (`?gosino=cucina`, due sullo schermo) non è fatto: ogni esemplare in più è una voce nel consiglio, non un corpo in casa | ADR-019 fase 2/3: servizi e rotte che passano casa ed esemplare ovunque, RLS, caduta dei DEFAULT |
+| `came_home` non produce niente di visibile | Un'uscita non lascia un ricordo di dov'è stato | Il sogno legge già quegli eventi: è il posto naturale |
 | **Sa cominciare, non sa declinare** | Teso o esausto risponde comunque, sempre, subito: l'unica cosa che lo zittisce è il budget esaurito, che è il rifiuto di un contabile | Il passo gemello di ADR-027: risposta più corta, o dopo, o un grugnito — con interruttore del proprietario |
 | **Un solo ciclo di iniziativa** per tutto soul | Con più gosini in casa due creature parlerebbero addosso l'una all'altra | Per esemplare, insieme ad ADR-019 fase 3 |
 | Stato faccia di soul **per processo**, non per connessione | Due schede aperte si vedono lo stesso stato; gli e2e devono ordinarsi (`z-body.e2e.spec.ts`) | Diventa reale con più corpi per casa (ADR-019 fase 3): lì lo stato va per esemplare |

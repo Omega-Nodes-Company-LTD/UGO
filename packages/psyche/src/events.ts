@@ -40,6 +40,21 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
   ],
   /** one hour alone, emitted by soul's SolitudeMonitor */
   solitude_hour: [{ variable: "noia", amount: 0.05 }],
+  /**
+   * ADR-030: he asked to go out, and he was taken out. The strongest good
+   * thing that can happen to him, and it lasts — a walk is not a compliment.
+   */
+  went_out: [
+    { variable: "umore", amount: 0.18 },
+    { variable: "noia", amount: -0.45 },
+    { variable: "curiosita", amount: 0.2 },
+    { variable: "affetto", amount: 0.08 },
+  ],
+  /** back home: the world stops being new, but he is not sad about it */
+  came_home: [
+    { variable: "energia", amount: -0.08 },
+    { variable: "affetto", amount: 0.05 },
+  ],
 };
 
 export function perturbationsForEvent(eventType: string): readonly Perturbation[] {

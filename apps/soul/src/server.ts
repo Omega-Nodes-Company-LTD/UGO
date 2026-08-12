@@ -12,6 +12,8 @@ import { registerStatsRoute } from "./routes/stats.js";
 import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceStatic } from "./routes/faceStatic.js";
 import { registerFaceWs } from "./routes/faceWs.js";
+import { registerCouncilRoutes } from "./routes/council.js";
+import type { CouncilService } from "./services/council/councilService.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
@@ -34,6 +36,8 @@ export interface ServerOptions extends HealthDeps {
     stats?: { dailyBudgetUsd: number; timezone: string };
     /** the pack surface (ADR-014); the Umwelt map comes from configuration */
     speciesMap?: SpeciesMap;
+    /** ADR-031: more than one exemplar in the house, and a way to ask them all */
+    council?: { council: CouncilService; householdId: () => Promise<string> };
     /** bearer token protecting destructive/expensive routes */
     internalToken?: string;
     dreamTriggerUrl?: string;
@@ -73,6 +77,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       privacy,
       stats,
       speciesMap,
+      council,
       internalToken,
       dreamTriggerUrl,
       ...v1
@@ -107,6 +112,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         ...(audio !== undefined && { audio }),
       });
       registerAdminRoutes(app);
+    }
+    if (council !== undefined) {
+      registerCouncilRoutes(app, { db: options.db, guard, ...council });
     }
     if (stats !== undefined) {
       registerStatsRoute(app, { db: options.db, ...stats, guard });

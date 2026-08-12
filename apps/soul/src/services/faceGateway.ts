@@ -9,7 +9,7 @@ import {
   type GlyphPattern,
   type ServerToFaceMessage,
 } from "@ugo/shared";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import type { ChatService } from "./chatService.js";
 import type { PsycheService } from "./psycheService.js";
 
@@ -32,6 +32,8 @@ export type FaceSender = (message: ServerToFaceMessage) => void;
  */
 export class FaceGateway {
   private state: FaceState = "idle";
+  /** which shell the body is in; a change is an event, not a setting */
+  private mode: "home" | "portable" = "home";
   private readonly senders = new Set<FaceSender>();
 
   public constructor(private readonly deps: FaceGatewayDeps) {}
@@ -93,6 +95,17 @@ export class FaceGateway {
 
   private hour(at: Date): number {
     return this.deps.hourOf?.(at) ?? at.getHours();
+  }
+
+  /** Did he ask to go out in the last few hours? (ADR-030) */
+  private async askedToGoOutRecently(at: Date): Promise<boolean> {
+    const since = new Date(at.getTime() - 6 * 3_600_000);
+    const rows = await this.deps.db
+      .select({ id: events.id })
+      .from(events)
+      .where(and(eq(events.type, "wants_out"), gte(events.ts, since)))
+      .limit(1);
+    return rows.length > 0;
   }
 
   private async recordEvent(type: string, payload: Record<string, unknown>): Promise<void> {
@@ -188,6 +201,27 @@ export class FaceGateway {
         await this.recordEvent("tap", {});
         if (this.state === "sleeping") this.setState("idle", send);
         else this.setState("alert", send);
+        this.pushMood(send);
+        return;
+      }
+      case "mode": {
+        // ADR-030: he could ask to go out and never learn that he had been
+        // taken. The body is the only thing that knows which shell it is in.
+        if (message.mode === this.mode) return;
+        this.mode = message.mode;
+        if (message.mode === "portable") {
+          const asked = await this.askedToGoOutRecently(at);
+          await this.recordEvent("went_out", { asked });
+          await this.deps.psyche.applyEventType("went_out", at);
+          // he asked, and he was taken: that is worth saying out loud
+          if (asked) {
+            for (const other of this.senders) other({ type: "gesture", id: "spin" });
+            send({ type: "speak", text: "Grunf! Si esce!" });
+          }
+        } else {
+          await this.recordEvent("came_home", {});
+          await this.deps.psyche.applyEventType("came_home", at);
+        }
         this.pushMood(send);
         return;
       }

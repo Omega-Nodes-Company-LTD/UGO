@@ -197,11 +197,15 @@ describe("initiative", () => {
       importance: 0.5,
       embedding: Array.from({ length: 768 }, () => 0.01),
     });
-    const { volition, heard } = await buildVolition({ localAnswer: undefined, localUp: false });
+    const { volition } = await buildVolition({ localAnswer: undefined, localUp: false });
     const report = await volition.tick();
-    // he may still move: what he must not do is speak
-    expect(heard.filter((m) => m.type === "speak")).toHaveLength(0);
-    if (report.acted !== undefined) expect(report.acted).not.toBe("askQuestion");
+    // he may still move, and he may still say one of HIS OWN fixed lines
+    // (asking to go out needs no model). What he must not do is invent.
+    expect(report.acted).not.toBe("askQuestion");
+    // `desires` is the ground truth for "he invented something": his own fixed
+    // lines are questions too, so punctuation proves nothing
+    const invented = await db.select().from(desires);
+    expect(invented).toHaveLength(0);
   });
 
   it("gives back a reminder the owner asked for, even in the quiet hours", async () => {
@@ -237,6 +241,31 @@ describe("initiative", () => {
     ).toHaveLength(0);
     const rows = await db.select({ status: desires.status }).from(desires);
     expect(rows).toMatchObject([{ status: "pending" }]);
+  });
+
+  it("asks to go out when he has been indoors too long, and leaves a marker", async () => {
+    await seedPsyche({ noia: 0.95, energia: 0.9 });
+    const { volition, heard } = await buildVolition({ hour: 11 });
+    const report = await volition.tick();
+
+    expect(report.acted).toBe("askToGoOut");
+    expect(heard.filter((m) => m.type === "speak")).toMatchObject([
+      { text: expect.stringContaining("fuori") as unknown },
+    ]);
+    // the marker is what turns "he was carried somewhere" into "he was taken
+    // out": without it going portable is just a change of shell (ADR-030)
+    const asked = await db.select().from(events).where(eq(events.type, "wants_out"));
+    expect(asked).toHaveLength(1);
+  });
+
+  it("stops wanting out once he is out", async () => {
+    await seedPsyche({ noia: 0.95, energia: 0.9 });
+    await db.insert(events).values({ source: "system", type: "went_out", payload: {} });
+    const { volition, heard } = await buildVolition({ hour: 11 });
+    const report = await volition.tick();
+
+    expect(report.acted).not.toBe("askToGoOut");
+    expect(heard.filter((m) => m.type === "speak" && m.text.includes("fuori"))).toHaveLength(0);
   });
 
   it("scores whether the last initiative actually helped", async () => {

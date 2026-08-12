@@ -35,4 +35,6 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [027](./027-iniziativa.md) | L'iniziativa: UGO può cominciare lui | Accettata |
 | [028](./028-lo-spazio-l-orologio-e-i-promemoria.md) | Lo spazio, l'orologio e i promemoria | Accettata |
 | [029](./029-il-rumore-si-giudica-sulla-stanza.md) | Il rumore si giudica sulla stanza, non su una soglia | Accettata |
-| 030 | *(prossimo numero disponibile)* | — |
+| [030](./030-uscire.md) | Uscire: chiederlo, e accorgersi di essere stato accontentato | Accettata |
+| [031](./031-il-consiglio.md) | Il consiglio: più esemplari, e il genoma che pilota | Accettata |
+| 032 | *(prossimo numero disponibile)* | — |

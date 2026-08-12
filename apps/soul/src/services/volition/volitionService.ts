@@ -25,6 +25,9 @@ const PRESENCE_EVENT_TYPES = ["face_seen", "tap", "heard_text", "lead_contact"] 
 /** How far back to look for his own past initiatives, for the cooldowns. */
 const HISTORY_MIN = 180;
 
+/** What he says when he wants out. Fixed text, zero tokens, ADR-030. */
+const ASK_TO_GO_OUT = "Grunf... mi porti fuori un po'?";
+
 const isGlyphPattern = (value: string | undefined): value is GlyphPattern =>
   value !== undefined && (GLYPH_PATTERNS as readonly string[]).includes(value);
 
@@ -165,6 +168,17 @@ export class VolitionService {
     };
   }
 
+  /** Is he out right now? The last of the two shell events wins (ADR-030). */
+  private async lastMode(): Promise<"home" | "out"> {
+    const rows = await this.deps.db
+      .select({ type: events.type })
+      .from(events)
+      .where(inArray(events.type, ["went_out", "came_home"]))
+      .orderBy(desc(events.ts))
+      .limit(1);
+    return rows[0]?.type === "went_out" ? "out" : "home";
+  }
+
   private async record(type: string, payload: Record<string, unknown>): Promise<void> {
     await this.deps.db.insert(events).values({ source: "system", type, payload });
   }
@@ -207,6 +221,15 @@ export class VolitionService {
         await db.update(desires).set({ status: "done" }).where(eq(desires.id, desire.id));
         return true;
       }
+      case "askOut": {
+        // his own words, not the model's: asking to go out costs nothing
+        this.deps.gateway.broadcastSpeak(ASK_TO_GO_OUT);
+        this.deps.gateway.broadcastGesture("leanIn");
+        // the marker the gateway looks for when the body turns portable: it is
+        // what turns "he was carried somewhere" into "he was taken out"
+        await this.record("wants_out", {});
+        return true;
+      }
       case "askQuestion": {
         const question = await this.deps.curiosity?.wonder();
         if (question === undefined) return false;
@@ -225,11 +248,13 @@ export class VolitionService {
     const at = this.now();
     const vars: Vars = this.deps.psyche.current(at).vars;
 
-    const [alone, sinceInitiative, sinceAct, desire] = await Promise.all([
+    const [alone, sinceInitiative, sinceAct, desire, sinceOuting, lastMode] = await Promise.all([
       this.minutesAlone(at),
       this.minutesSince(["initiative_taken"], at),
       this.sinceAct(at),
       this.pendingDesire(at),
+      this.minutesSince(["went_out"], at),
+      this.lastMode(),
     ]);
 
     const facts: WorldFacts = {
@@ -239,6 +264,8 @@ export class VolitionService {
       desireIsDue: desire.due,
       bodyPresent: this.deps.gateway.hasBody(),
       hour: this.hour(at),
+      minutesSinceOuting: sinceOuting,
+      outNow: lastMode === "out",
     };
 
     const list = pressures(vars, facts);

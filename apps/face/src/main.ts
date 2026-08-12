@@ -92,6 +92,10 @@ const socket = new FaceSocket(soulUrl, {
   onConnected: (connected) => {
     app.dataset.connected = String(connected);
     connStatus.textContent = connected ? "connesso" : "disconnesso";
+    // ADR-030: declare which shell this is on every (re)connection, not once
+    // at boot — a socket that dropped while out must not leave soul thinking
+    // he is still on the shelf.
+    if (connected) socket.send({ type: "mode", mode: portableMode ? "portable" : "home" });
   },
 });
 
@@ -194,6 +198,7 @@ startPointerGaze(canvas, (target) => {
 });
 renderer.start();
 void socket.start();
+
 
 // ---- portable mode wiring (§4.2) ------------------------------------------
 const portable = new PortableController(

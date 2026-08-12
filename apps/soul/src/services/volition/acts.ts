@@ -18,7 +18,8 @@ export type ActKind =
   | "gesture" // the body performs it; nothing is said
   | "glyph" // the LEDs across the room
   | "speakDesire" // says a desire the dream already wrote: zero tokens
-  | "askQuestion"; // invents a question on the local model
+  | "askQuestion" // invents a question on the local model
+  | "askOut"; // asks to be taken out (ADR-030)
 
 export interface Act {
   id: string;
@@ -115,6 +116,17 @@ export const ACTS: readonly Act[] = [
     cooldownMin: 20,
     needsBody: true,
     needsDesire: true,
+  },
+  {
+    id: "askToGoOut",
+    it: "chiede di uscire",
+    kind: "askOut",
+    // nothing else discharges `outing`: only actually going out does, and this
+    // is the one act that can make that happen
+    relieves: { outing: 0.55, boredom: 0.5, loneliness: 0.3 },
+    intrusive: 0.65,
+    cooldownMin: 180,
+    needsBody: true,
   },
   {
     id: "askQuestion",

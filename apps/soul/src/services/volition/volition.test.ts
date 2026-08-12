@@ -26,6 +26,8 @@ const JUST_SEEN: WorldFacts = {
   desireIsDue: false,
   bodyPresent: true,
   hour: 15,
+  minutesSinceOuting: 30,
+  outNow: false,
 };
 
 const OPEN_GATES: Gates = {
@@ -83,6 +85,34 @@ describe("pressures", () => {
     )) {
       expect(pressure.because.length).toBeGreaterThan(4);
     }
+  });
+});
+
+describe("wanting to go out", () => {
+  it("builds with the days indoors, and asks only in daylight", () => {
+    const wants = (facts: Partial<WorldFacts>): number =>
+      pressures({ ...CALM, noia: 0.8 }, { ...JUST_SEEN, ...facts }).find((p) => p.id === "outing")
+        ?.magnitude ?? 0;
+    expect(wants({ minutesSinceOuting: 30 })).toBeLessThan(wants({ minutesSinceOuting: 2000 }));
+    // at three in the morning nobody is taking a pig for a walk
+    expect(wants({ minutesSinceOuting: 5000, hour: 3 })).toBe(0);
+  });
+
+  it("stops wanting out the moment he is out", () => {
+    const facts = { ...JUST_SEEN, minutesSinceOuting: 5000 };
+    expect(pressures({ ...CALM, noia: 0.9 }, facts).some((p) => p.id === "outing")).toBe(true);
+    expect(
+      pressures({ ...CALM, noia: 0.9 }, { ...facts, outNow: true }).some((p) => p.id === "outing"),
+    ).toBe(false);
+  });
+
+  it("asks nobody when nobody is there", () => {
+    expect(
+      pressures(
+        { ...CALM, noia: 0.9 },
+        { ...JUST_SEEN, minutesSinceOuting: 5000, bodyPresent: false },
+      ).some((p) => p.id === "outing"),
+    ).toBe(false);
   });
 });
 
