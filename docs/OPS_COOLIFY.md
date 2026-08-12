@@ -170,24 +170,29 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
 Opzionale, e *deliberatamente* opzionale: senza, UGO risponde senza sapere chi ha davanti —
 com'è sempre stato. **La biometria si accende, non si subisce** (ADR-045).
 
-Se la vuoi:
+1. Tipo: **Application → Dockerfile**. Dockerfile: `ops/docker/percezione.Dockerfile`.
+   Build context: root del repo.
+2. **Nessun dominio e nessuna porta pubblicata.** Parla solo con soul, sulla rete interna: un
+   servizio che dice chi sei non deve essere raggiungibile da fuori.
+3. **Volume persistente su `/models`**, scrivibile. È l'unica cosa da ricordare: il container si
+   scarica i pesi da solo al primo avvio (~250 MB) e li verifica; senza volume li riscarica a
+   ogni redeploy. Se il volume non è scrivibile il container si ferma subito e lo scrive nei log,
+   invece di partire e riscaricare tutto ogni volta in silenzio.
+4. Variabili: `DATABASE_URL` (come soul) · `UGO_DATA_KEY=<UGO_DATA_KEY>` ·
+   `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` (lo stesso di soul: il servizio lo pretende anche
+   sulla rete interna, perché non deve fidarsi della rete) · `TZ=Europe/Rome`.
+5. **Il primo avvio è lento**: scarica i pesi prima di aprire la porta, quindi il healthcheck
+   resta rosso per un paio di minuti. È voluto — nessuna frase può arrivare a un servizio senza
+   pesi. Dai riavvii successivi parte in un attimo.
+6. Su soul, aggiungi: `UGO_RECOGNITION_URL=http://<HOST_PERCEZIONE>:8000`. E basta: non c'è
+   niente da lanciare a mano, né qui né altrove.
+7. Verifica: `curl -s http://<HOST_PERCEZIONE>:8000/health` → `voice: true` e `face: true`. Un
+   `false` significa che quel modello non ha caricato: guarda i log del container.
 
-1. Volume persistente su `/models`, e `UGO_MODELS_DIR` che ci punta. Senza volume i pesi
-   (~250 MB) si riscaricano a ogni redeploy.
-2. Alza il profilo: `docker compose --profile percezione up -d`. Il servizio `modelli` parte per
-   primo, scarica i pesi e **verifica lo SHA-256 di ognuno**; `percezione` non parte finché non
-   ha finito bene. Non c'è niente da scaricare a mano: era un passo del runbook e i passi del
-   runbook un giorno si saltano.
-3. È idempotente: al secondo deploy dice `= (già a posto)` e non scarica niente.
-4. Se uno SHA non torna, **si ferma e non usa quel file**. Non è pignoleria: gli EER dichiarati
-   negli ADR (voce 0,63%, volto 0,98%) valgono per *quei* pesi, e un modello cambiato a monte
-   diventerebbe un riconoscimento che sbaglia in silenzio.
-5. Su soul: `UGO_RECOGNITION_URL=http://percezione:8000`. `UGO_INTERNAL_TOKEN` è lo stesso di
-   soul — il servizio lo pretende anche sulla rete interna, perché un servizio che dice chi sei
-   non deve fidarsi della rete.
-6. Verifica: dalla shell di soul, `curl -s http://percezione:8000/health` → `voice: true` e
-   `face: true`. Un `false` significa che quel modello non ha caricato: guarda i log di
-   `percezione`, non quelli di `modelli`.
+**Se il container non parte**, i log dicono quale delle tre cose è: volume non scrivibile,
+download fallito, o **SHA che non corrisponde**. L'ultimo non è pignoleria: gli EER dichiarati
+negli ADR (voce 0,63%, volto 0,98%) valgono per *quei* pesi, e un modello cambiato a monte
+diventerebbe un riconoscimento che sbaglia in silenzio. Meglio un container che non parte.
 
 **Il primo giro vero**: arruola due voci di casa e confronta con i numeri del banco. Se in casa
 tua vanno peggio, il banco (`python -m ugo_jobs.voice_bench --corpus <dir>`) è lo strumento per

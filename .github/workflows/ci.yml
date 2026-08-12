@@ -133,6 +133,29 @@ jobs:
             test -f /app/public/manifest.webmanifest &&
             ls /app/public/icon-512.png &&
             echo 'face bundle present'"
+      # ADR-047: questa immagine non era costruita da nessuna parte — non in CI
+      # e non in locale (il proxy TLS della sandbox blocca download.pytorch.org).
+      # Un Dockerfile mai costruito è un Dockerfile che si scopre rotto al
+      # deploy, che è esattamente il motivo per cui questo job esiste.
+      - name: build percezione image
+        run: docker build -f ops/docker/percezione.Dockerfile -t ugo-percezione:ci .
+      - name: percezione has its encoders and its entrypoint
+        run: |
+          docker run --rm --entrypoint sh ugo-percezione:ci -c "
+            python -c 'import torch, speechbrain, onnxruntime, fastapi' &&
+            python -c 'from ugo_jobs.ecapa import EcapaVoiceEncoder; from ugo_jobs.arcface import ArcFaceEncoder' &&
+            test -x /usr/local/bin/entrypoint.sh &&
+            test -x /usr/local/bin/fetch-models.sh &&
+            echo 'percezione pronta'"
+      # senza volume scrivibile il container deve FERMARSI, non partire e
+      # riscaricare 250 MB a ogni riavvio in silenzio
+      - name: percezione refuses to start without a writable models volume
+        run: |
+          if docker run --rm --read-only --tmpfs /tmp ugo-percezione:ci; then
+            echo "è partita senza volume: non doveva" >&2
+            exit 1
+          fi
+          echo "si è fermata, come deve"
       - name: build jobs image
         run: docker build -f ops/docker/jobs.Dockerfile -t ugo-jobs:ci .
       # --entrypoint: the image's entrypoint IS the dream, so a bare command

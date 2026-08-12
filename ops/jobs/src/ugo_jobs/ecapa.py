@@ -42,10 +42,21 @@ MIN_SECONDS = 1.0
 
 @lru_cache(maxsize=1)
 def _classifier():  # noqa: ANN202 — il tipo vive dentro speechbrain
-    """Caricato una volta sola: il modello in memoria è tutto il punto."""
+    """Caricato una volta sola: il modello in memoria è tutto il punto.
+
+    Se i pesi sono già sul disco, la `source` è **la cartella locale** e non il
+    nome su HuggingFace. Non è un'ottimizzazione: con il nome remoto
+    speechbrain contatta comunque l'hub per confrontare i file, e allora il
+    servizio dipenderebbe dalla rete a ogni avvio — che è precisamente ciò che
+    ADR-047 promette di no. Con la cartella non esce niente.
+    """
+    from pathlib import Path
+
     from speechbrain.inference.speaker import EncoderClassifier
 
-    return EncoderClassifier.from_hparams(source=MODEL_SOURCE, savedir=MODEL_CACHE)
+    local = Path(MODEL_CACHE)
+    source = str(local) if (local / "hyperparams.yaml").is_file() else MODEL_SOURCE
+    return EncoderClassifier.from_hparams(source=source, savedir=MODEL_CACHE)
 
 
 class EcapaVoiceEncoder:
