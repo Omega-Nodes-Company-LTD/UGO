@@ -165,6 +165,34 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
 8. Prova dalla shell di soul: `curl -s http://<HOST_OLLAMA>:11434/api/tags` → deve elencare
    `nomic-embed-text`.
 
+### 2.3-bis · percezione (riconoscimento delle persone)
+
+Opzionale, e *deliberatamente* opzionale: senza, UGO risponde senza sapere chi ha davanti —
+com'è sempre stato. **La biometria si accende, non si subisce** (ADR-045).
+
+Se la vuoi:
+
+1. Volume persistente su `/models`, e `UGO_MODELS_DIR` che ci punta. Senza volume i pesi
+   (~250 MB) si riscaricano a ogni redeploy.
+2. Alza il profilo: `docker compose --profile percezione up -d`. Il servizio `modelli` parte per
+   primo, scarica i pesi e **verifica lo SHA-256 di ognuno**; `percezione` non parte finché non
+   ha finito bene. Non c'è niente da scaricare a mano: era un passo del runbook e i passi del
+   runbook un giorno si saltano.
+3. È idempotente: al secondo deploy dice `= (già a posto)` e non scarica niente.
+4. Se uno SHA non torna, **si ferma e non usa quel file**. Non è pignoleria: gli EER dichiarati
+   negli ADR (voce 0,63%, volto 0,98%) valgono per *quei* pesi, e un modello cambiato a monte
+   diventerebbe un riconoscimento che sbaglia in silenzio.
+5. Su soul: `UGO_RECOGNITION_URL=http://percezione:8000`. `UGO_INTERNAL_TOKEN` è lo stesso di
+   soul — il servizio lo pretende anche sulla rete interna, perché un servizio che dice chi sei
+   non deve fidarsi della rete.
+6. Verifica: dalla shell di soul, `curl -s http://percezione:8000/health` → `voice: true` e
+   `face: true`. Un `false` significa che quel modello non ha caricato: guarda i log di
+   `percezione`, non quelli di `modelli`.
+
+**Il primo giro vero**: arruola due voci di casa e confronta con i numeri del banco. Se in casa
+tua vanno peggio, il banco (`python -m ugo_jobs.voice_bench --corpus <dir>`) è lo strumento per
+dire *di quanto* invece di litigare a impressioni.
+
 ### 2.4 soul-api
 
 1. Tipo: **Application → Dockerfile**. Sorgente: repo `<REPO_URL>`, branch di produzione.
