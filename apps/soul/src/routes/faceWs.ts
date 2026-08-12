@@ -1,8 +1,10 @@
 import websocket from "@fastify/websocket";
 import type { ServerToFaceMessage } from "@ugo/shared";
+import type { DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { FaceGateway } from "../services/faceGateway.js";
 import { whoAnswers, type Candidate } from "../services/whoAnswers.js";
+import { resolveHousehold } from "./scope.js";
 
 /**
  * WS `/v1/face` (PROGETTO §5.7): bidirectional channel with the home body.
@@ -55,87 +57,126 @@ const asMember = (entry: RegistryEntry): RoomMember => ({
 export async function registerFaceWs(
   app: FastifyInstance,
   fallback: FaceGateway,
+  db: DbClient,
   registry?: {
-    resolve: (query: string | undefined) => RegistryEntry | undefined;
-    inRoom: (room: string) => RegistryEntry[];
+    resolve: (query: string | undefined, householdId: string) => RegistryEntry | undefined;
+    inRoom: (room: string, householdId: string) => RegistryEntry[];
   },
 ): Promise<void> {
   await app.register(websocket);
   app.get("/v1/face", { websocket: true }, (socket, request) => {
     const query = request.query as { gosino?: string; stanza?: string } | undefined;
-    const members = pickMembers(registry, fallback, query);
 
-    const raw = (message: ServerToFaceMessage): void => {
-      if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
-    };
-
-    // one tagged sender per creature: the body has to know which of them moved
-    const senders = members.map((member) => {
-      const send = (message: ServerToFaceMessage): void => {
-        // the roster is the room's, not any one creature's: it is the only
-        // frame that never carries a `who`. Nor does anything in a house that
-        // has no registry — `who: ""` would be noise standing for "the only
-        // one", and this keeps the single-creature wire format byte-identical
-        // to what every face before rooms already speaks.
-        const who = tagFor(member.id);
-        if (message.type === "roster" || who === undefined) {
-          raw(message);
-          return;
-        }
-        raw({ ...message, who });
-      };
-      member.gateway.registerSender(send); // ADR-013: in-room voice for meetings
-      // ADR-040: `id` and `traits` are what choosing a speaker reads, so they
-      // travel with the sender rather than being looked up again
-      return { member, send, id: member.id, traits: member.traits };
-    });
-
-    // the roster comes first: the body draws one creature per entry
-    raw({
-      type: "roster",
-      ...(query?.stanza !== undefined && { room: query.stanza }),
-      gosini: members.map((m) => ({
-        id: m.id,
-        name: m.name,
-        ...(m.traits !== undefined && { traits: m.traits }),
-      })),
-    });
-
-    for (const { member, send } of senders) {
-      send({ type: "state", state: member.gateway.currentState() });
-      const view = member.gateway.psycheView();
-      send({ type: "mood", label: view.label, vars: view.vars });
-      send({ type: "whoami", name: member.name });
-    }
-
+    // Which house this body is the body of has to be asked of the database
+    // (a token may speak for one house, or an operator for the only one), and
+    // that is a round trip. Frames that land during it are held rather than
+    // dropped: a face reconnecting mid-sentence would otherwise lose it, and
+    // "he ignored me once after a reconnect" is not a bug anyone can report.
+    let deliver: ((text: string) => void) | undefined;
+    const waiting: string[] = [];
     socket.on("message", (incoming: Buffer | string) => {
       const text = String(incoming);
-      const targets = forFrame(text, senders);
-      for (const { member, send } of targets) {
-        void member.gateway.handleRaw(text, send).catch(() => {
-          // never let a single bad frame take the socket down; IDs-only logging
-          app.log.warn({ gosino: member.id }, "face frame handling failed");
-        });
+      if (deliver === undefined) waiting.push(text);
+      else deliver(text);
+    });
+
+    void (async () => {
+      // no token means no house, and the single fallback creature answers —
+      // exactly the behaviour of every version before ADR-019
+      const scope = await resolveHousehold(db, request);
+      const members = pickMembers(
+        registry,
+        fallback,
+        query,
+        scope.ok ? scope.householdId : undefined,
+      );
+
+      const raw = (message: ServerToFaceMessage): void => {
+        if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
+      };
+
+      // one tagged sender per creature: the body has to know which of them moved
+      const senders = members.map((member) => {
+        const send = (message: ServerToFaceMessage): void => {
+          // the roster is the room's, not any one creature's: it is the only
+          // frame that never carries a `who`. Nor does anything in a house that
+          // has no registry — `who: ""` would be noise standing for "the only
+          // one", and this keeps the single-creature wire format byte-identical
+          // to what every face before rooms already speaks.
+          const who = tagFor(member.id);
+          if (message.type === "roster" || who === undefined) {
+            raw(message);
+            return;
+          }
+          raw({ ...message, who });
+        };
+        member.gateway.registerSender(send); // ADR-013: in-room voice for meetings
+        // ADR-040: `id` and `traits` are what choosing a speaker reads, so they
+        // travel with the sender rather than being looked up again
+        return { member, send, id: member.id, traits: member.traits };
+      });
+
+      const release = (): void => {
+        for (const { member, send } of senders) member.gateway.unregisterSender(send);
+      };
+      // it may have gone while we were asking the database who lives here
+      if (socket.readyState !== socket.OPEN) {
+        release();
+        return;
       }
-    });
-    socket.on("close", () => {
-      for (const { member, send } of senders) member.gateway.unregisterSender(send);
-    });
+      socket.on("close", release);
+
+      // the roster comes first: the body draws one creature per entry
+      raw({
+        type: "roster",
+        ...(query?.stanza !== undefined && { room: query.stanza }),
+        gosini: members.map((m) => ({
+          id: m.id,
+          name: m.name,
+          ...(m.traits !== undefined && { traits: m.traits }),
+        })),
+      });
+
+      for (const { member, send } of senders) {
+        send({ type: "state", state: member.gateway.currentState() });
+        const view = member.gateway.psycheView();
+        send({ type: "mood", label: view.label, vars: view.vars });
+        send({ type: "whoami", name: member.name });
+      }
+
+      deliver = (text: string): void => {
+        const targets = forFrame(text, senders);
+        for (const { member, send } of targets) {
+          void member.gateway.handleRaw(text, send).catch(() => {
+            // never let a single bad frame take the socket down; IDs-only logging
+            app.log.warn({ gosino: member.id }, "face frame handling failed");
+          });
+        }
+      };
+      for (const held of waiting.splice(0)) deliver(held);
+    })();
   });
 }
 
 /** Who this socket is the body of: a room, one named creature, or the default. */
 function pickMembers(
-  registry: Parameters<typeof registerFaceWs>[2],
+  registry: Parameters<typeof registerFaceWs>[3],
   fallback: FaceGateway,
   query: { gosino?: string; stanza?: string } | undefined,
+  householdId: string | undefined,
 ): RoomMember[] {
-  if (registry !== undefined && query?.stanza !== undefined && query.stanza !== "") {
+  if (
+    registry !== undefined &&
+    householdId !== undefined &&
+    query?.stanza !== undefined &&
+    query.stanza !== ""
+  ) {
     // an empty room stays empty: showing the wrong creature is worse than
     // showing nobody, which at least tells the truth about what is there
-    return registry.inRoom(query.stanza).map(asMember);
+    return registry.inRoom(query.stanza, householdId).map(asMember);
   }
-  const chosen = registry?.resolve(query?.gosino);
+  const chosen =
+    householdId === undefined ? undefined : registry?.resolve(query?.gosino, householdId);
   if (chosen !== undefined) return [asMember(chosen)];
   return [{ id: "", name: "UGO", gateway: fallback }];
 }

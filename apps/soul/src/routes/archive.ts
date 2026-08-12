@@ -1,15 +1,19 @@
 import { meetings, memories, type DbClient } from "@ugo/db";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { MEMORY_KINDS } from "@ugo/shared";
 import type { ChatService } from "../services/chatService.js";
 import type { PreHandler } from "./guard.js";
+import { exemplarsOf, householdScope } from "./scope.js";
 
 /**
  * Windows onto what UGO has accumulated, and the two corrections a person
  * needs when he has got something wrong: "non è più vero" and "non doveva
- * esserci". Guarded — these return stored content, not just counts, and on a
+ * esserci". Guarded, and since ADR-019 phase 2 scoped: reading, correcting and
+ * destroying a memory all stop at the house's edge, and a memory of another
+ * house answers 404 rather than admitting it exists. Guarded — these return
+ * stored content, not just counts, and on a
  * rented box (ADR-017) the tailnet is the only other thing in front of them.
  *
  * This is a window, not the way to use the memory: the way is to ask him.
@@ -44,7 +48,12 @@ export interface ArchiveDeps {
    * default exemplar's recall under another one's name — the same silent
    * mis-attribution `/v1/psyche` had.
    */
-  registry?: { resolve: (query: string | undefined) => { chat: ChatService; id: string } | undefined };
+  registry?: {
+    resolve: (
+      query: string | undefined,
+      householdId: string,
+    ) => { chat: ChatService; id: string } | undefined;
+  };
 }
 
 export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): void {
@@ -58,11 +67,17 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         detail: z.prettifyError(parsed.error),
       });
     }
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
+    const mine = exemplarsOf(deps.db, householdId);
     const { kind, q, limit } = parsed.data;
     // absent means the whole house (ADR-032); `resolve` would otherwise fall
     // back to the eldest and quietly answer as him
     const asked = (request.query as { gosino?: string }).gosino;
-    const who = asked === undefined || asked === "" ? undefined : deps.registry?.resolve(asked);
+    const who =
+      asked === undefined || asked === ""
+        ? undefined
+        : deps.registry?.resolve(asked, householdId);
     const chat = who?.chat ?? deps.chat;
 
     // with a query it is a semantic search — the same re-ranking the chat
@@ -96,7 +111,8 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
       .from(memories)
       .where(and(
         kind === undefined ? undefined : eq(memories.kind, kind),
-        who === undefined ? undefined : eq(memories.gosinoId, who.id),
+        // absent narrows to the house, never to "everything"
+        who === undefined ? inArray(memories.gosinoId, mine) : eq(memories.gosinoId, who.id),
       ))
       .orderBy(desc(memories.createdAt))
       .limit(limit);
@@ -120,6 +136,8 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         .type("application/problem+json")
         .send({ type: "about:blank", title: "Invalid correction", status: 400 });
     }
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
     const [updated] = await deps.db
       .update(memories)
       .set(
@@ -133,7 +151,8 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
               ...(parsed.data.reason !== undefined && { invalidatedReason: parsed.data.reason }),
             },
       )
-      .where(eq(memories.id, id))
+      // a memory of another house answers 404, like one that does not exist
+      .where(and(eq(memories.id, id), inArray(memories.gosinoId, exemplarsOf(deps.db, householdId))))
       .returning({ id: memories.id, invalidatedAt: memories.invalidatedAt });
     if (updated === undefined) {
       return reply
@@ -154,15 +173,19 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         .type("application/problem+json")
         .send({ type: "about:blank", title: "Invalid memory id", status: 400 });
     }
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
     const gone = await deps.db
       .delete(memories)
-      .where(eq(memories.id, id))
+      .where(and(eq(memories.id, id), inArray(memories.gosinoId, exemplarsOf(deps.db, householdId))))
       .returning({ id: memories.id });
     request.log.info({ memoryId: id, existed: gone.length > 0 }, "memory destroyed");
     return reply.send({ destroyed: gone.length > 0 });
   });
 
-  app.get("/v1/meetings", { preHandler: deps.guard }, async (_request, reply) => {
+  app.get("/v1/meetings", { preHandler: deps.guard }, async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
     const rows = await deps.db
       .select({
         id: meetings.id,
@@ -173,6 +196,7 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         status: meetings.status,
       })
       .from(meetings)
+      .where(inArray(meetings.gosinoId, exemplarsOf(deps.db, householdId)))
       .orderBy(desc(meetings.startedAt))
       .limit(RECENT_LIMIT);
     return reply.send({ meetings: rows });

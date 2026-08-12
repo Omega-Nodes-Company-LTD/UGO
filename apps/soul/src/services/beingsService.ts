@@ -1,6 +1,14 @@
-import { beings, corrections, events, recognitionProfiles, relations, type DbClient } from "@ugo/db";
+import {
+  beings,
+  corrections,
+  events,
+  gosini,
+  recognitionProfiles,
+  relations,
+  type DbClient,
+} from "@ugo/db";
 import { SYMMETRIC_RELATION_TYPES, type RelationType } from "@ugo/shared";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 /**
  * Mutations on the pack (ADR-014/016). The interesting rule lives here rather
@@ -32,19 +40,42 @@ export interface UpdateReport {
 }
 
 export class BeingsService {
+  /**
+   * ADR-019 phase 2: the house is the boundary, and it is not optional. The
+   * exemplar a correction is attributed to used to be `PRIME_GOSINO_ID`
+   * regardless of who was asking — so a correction made in one house was
+   * recorded against another house's creature. It is the house's eldest now;
+   * attributing it to the exemplar that was actually spoken to is phase 3.
+   */
   public constructor(
     private readonly db: DbClient,
-    private readonly gosinoId: string,
+    private readonly householdId: string,
   ) {}
 
+  private async eldestExemplar(): Promise<string> {
+    const [eldest] = await this.db
+      .select({ id: gosini.id })
+      .from(gosini)
+      .where(eq(gosini.householdId, this.householdId))
+      .orderBy(asc(gosini.bornAt))
+      .limit(1);
+    if (eldest === undefined) throw new Error(`household ${this.householdId} has no exemplar`);
+    return eldest.id;
+  }
+
+  /** A being of this house, or nothing — never one of the neighbours' by id. */
+  private mine(beingId: string) {
+    return and(eq(beings.id, beingId), eq(beings.householdId, this.householdId));
+  }
+
   public async update(beingId: string, patch: BeingPatch, at = new Date()): Promise<UpdateReport> {
-    const [existing] = await this.db.select().from(beings).where(eq(beings.id, beingId));
+    const [existing] = await this.db.select().from(beings).where(this.mine(beingId));
     if (existing === undefined) throw new BeingNotFoundError(beingId);
 
     const [updated] = await this.db
       .update(beings)
       .set(patch)
-      .where(eq(beings.id, beingId))
+      .where(this.mine(beingId))
       .returning({ isMinor: beings.isMinor, noAudio: beings.noAudio });
 
     let biometricsDestroyed = 0;
@@ -53,6 +84,7 @@ export class BeingsService {
       if (biometricsDestroyed > 0) {
         // audit with ids and counts only, never a name (NIS2)
         await this.db.insert(events).values({
+          gosinoId: await this.eldestExemplar(),
           ts: at,
           source: "system",
           type: "biometrics_withdrawn",
@@ -65,9 +97,23 @@ export class BeingsService {
 
   /** "Cancella la mia voce ma resto nel branco": the middle ground erasure. */
   public async destroyVoice(beingId: string): Promise<number> {
+    // recognition_profiles has no tenant column of its own: it reaches the
+    // house through its being (ADR-046 gives it one directly)
     const removed = await this.db
       .delete(recognitionProfiles)
-      .where(and(eq(recognitionProfiles.beingId, beingId), eq(recognitionProfiles.modality, "voice")))
+      .where(
+        and(
+          eq(recognitionProfiles.beingId, beingId),
+          eq(recognitionProfiles.modality, "voice"),
+          inArray(
+            recognitionProfiles.beingId,
+            this.db
+              .select({ id: beings.id })
+              .from(beings)
+              .where(eq(beings.householdId, this.householdId)),
+          ),
+        ),
+      )
       .returning({ id: recognitionProfiles.id });
     return removed.length;
   }
@@ -84,7 +130,7 @@ export class BeingsService {
     const b = swap ? beingA : beingB;
     await this.db
       .insert(relations)
-      .values({ beingA: a, beingB: b, type, strength })
+      .values({ householdId: this.householdId, beingA: a, beingB: b, type, strength })
       .onConflictDoUpdate({
         target: [relations.beingA, relations.beingB, relations.type],
         set: { strength },
@@ -92,7 +138,9 @@ export class BeingsService {
   }
 
   public async unlink(relationId: string): Promise<void> {
-    await this.db.delete(relations).where(eq(relations.id, relationId));
+    await this.db
+      .delete(relations)
+      .where(and(eq(relations.id, relationId), eq(relations.householdId, this.householdId)));
   }
 
   public async listRelations(): Promise<
@@ -106,7 +154,8 @@ export class BeingsService {
         type: relations.type,
         strength: relations.strength,
       })
-      .from(relations);
+      .from(relations)
+      .where(eq(relations.householdId, this.householdId));
   }
 
   public async recentCorrections(limit = 10): Promise<
@@ -120,7 +169,15 @@ export class BeingsService {
         createdAt: corrections.createdAt,
       })
       .from(corrections)
-      .where(eq(corrections.gosinoId, this.gosinoId))
+      .where(
+        inArray(
+          corrections.gosinoId,
+          this.db
+            .select({ id: gosini.id })
+            .from(gosini)
+            .where(eq(gosini.householdId, this.householdId)),
+        ),
+      )
       .limit(limit);
   }
 }

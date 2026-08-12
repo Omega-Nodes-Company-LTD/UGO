@@ -1,10 +1,11 @@
 import { gosini, traitSets, type DbClient } from "@ugo/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ARCHETYPES, characterFrom, traitsSchema } from "../services/council/character.js";
 import { RoomCatalogue } from "../services/roomCatalogue.js";
 import type { PreHandler } from "./guard.js";
+import { householdScope } from "./scope.js";
 
 /**
  * The population: who exists, who is born, and which room they live in
@@ -35,7 +36,6 @@ const newRoomSchema = z.object({ name: z.string().min(1).max(40) });
 export interface GosiniRoutesDeps {
   db: DbClient;
   /** the household every new exemplar is born into (ADR-019) */
-  householdId: () => Promise<string>;
   guard: PreHandler;
   /**
    * ADR-035/036: a newborn with no runtime, or a mover whose room the registry
@@ -61,15 +61,19 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
    * ADR-039: the catalogue is the source, not the residents. A room the owner
    * made and has not filled yet is still a room you can point a screen at.
    */
-  app.get("/v1/rooms", async (_request, reply) => {
-    return reply.send({ rooms: await catalogue.list() });
+  app.get("/v1/rooms", async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
+    return reply.send({ rooms: await catalogue.list(householdId) });
   });
 
   /** Making a room (ADR-039). Guarded: `GET` is for the body, this is not. */
   app.post("/v1/rooms", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = newRoomSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const made = await catalogue.create(await deps.householdId(), parsed.data.name);
+    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
+    const made = await catalogue.create(householdId, parsed.data.name);
     if (made === undefined) return reply.status(400).send({ error: "invalid body" });
     return reply.status(made.created ? 201 : 200).send(made);
   });
@@ -80,7 +84,9 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
    */
   app.delete("/v1/rooms/:id", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const gone = await catalogue.remove(id);
+    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
+    const gone = await catalogue.remove(householdId, id);
     if (gone === undefined) return reply.status(404).send({ error: "non esiste" });
     // the registry holds `where`: a creature evicted here must stop being
     // handed to the dock that used to show him
@@ -91,13 +97,17 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
   app.post("/v1/gosini", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = newGosinoSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
+    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
     const { name, locationLabel, archetype, traits } = parsed.data;
 
     // ADR-039: a room he is born into has to be one that exists. Silently
-    // creating it here would have made the catalogue grow by typo.
+    // creating it here would have made the catalogue grow by typo — and, since
+    // ADR-019 phase 2, one that exists *in this house*: the neighbours' kitchen
+    // used to vouch for a label here.
     let where: string | undefined;
     if (locationLabel !== undefined) {
-      where = await catalogue.named(locationLabel);
+      where = await catalogue.named(householdId, locationLabel);
       if (where === undefined) return reply.status(400).send({ error: "stanza sconosciuta" });
     }
 
@@ -108,7 +118,7 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
     const created = await deps.db
       .insert(gosini)
       .values({
-        householdId: await deps.householdId(),
+        householdId,
         name,
         ...(where !== undefined && { locationLabel: where }),
       })
@@ -135,10 +145,13 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
     });
   });
 
-  app.get("/v1/gosini", { preHandler: deps.guard }, async (_request, reply) => {
+  app.get("/v1/gosini", { preHandler: deps.guard }, async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
     const rows = await deps.db
       .select({ id: gosini.id, name: gosini.name, where: gosini.locationLabel })
-      .from(gosini);
+      .from(gosini)
+      .where(eq(gosini.householdId, householdId));
     const out = [];
     for (const row of rows) {
       const traits = await deps.db
@@ -162,13 +175,15 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
     const parsed = moveSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
+    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
     const asked = parsed.data.locationLabel.trim();
 
     // ADR-039: empty still means "out of every room"; anything else has to name
     // a room that exists, and is stored the way the catalogue spells it
     let room: string | null = null;
     if (asked !== "") {
-      const known = await catalogue.named(asked);
+      const known = await catalogue.named(householdId, asked);
       if (known === undefined) return reply.status(400).send({ error: "stanza sconosciuta" });
       room = known;
     }
@@ -176,7 +191,7 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
     const moved = await deps.db
       .update(gosini)
       .set({ locationLabel: room })
-      .where(eq(gosini.id, id))
+      .where(and(eq(gosini.id, id), eq(gosini.householdId, householdId)))
       .returning({ id: gosini.id, name: gosini.name, where: gosini.locationLabel });
     const row = moved[0];
     if (row === undefined) return reply.status(404).send({ error: "non esiste" });

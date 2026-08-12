@@ -45,8 +45,10 @@ export interface ServerOptions extends HealthDeps {
     /**
      * ADR-036: the population — born, listed, moved between rooms. Independent
      * of the council: a house can have several creatures and never convene one.
+     * ADR-019 phase 2 removed its `householdId` dependency: which house a birth
+     * belongs to is a property of the request, not of the process.
      */
-    gosini?: { householdId: () => Promise<string> };
+    gosini?: Record<string, never>;
     /** ADR-032: the per-exemplar runtimes a socket can ask to be */
     registry?: GosinoRegistry;
     /** ADR-034: the runtime override on UGO_INITIATIVE, for /admin */
@@ -175,7 +177,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (face !== undefined) {
       app.register(async (instance) => {
-        await registerFaceWs(instance, face, registry);
+        await registerFaceWs(instance, face, options.db, registry);
       });
     }
   }

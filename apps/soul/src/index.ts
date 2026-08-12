@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
-import { createDbClient, households, runMigrations } from "@ugo/db";
+import { createDbClient, gosini, households, runMigrations } from "@ugo/db";
+import { asc, eq } from "drizzle-orm";
 import { LlmClient, OllamaEmbeddingsClient,
   OllamaTextClient,
 } from "@ugo/memory";
@@ -69,7 +70,32 @@ const llm = new LlmClient({
   timezone: env.TZ,
 });
 const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
-const pack = new PackService(db, speciesMap);
+
+/**
+ * The house the boot-time fallback apparatus belongs to.
+ *
+ * Every route resolves its own house from the request (ADR-019 phase 2); this
+ * is only for the single `chat`/`psyche`/`face` built before the registry
+ * exists, which answers when nothing else has been resolved. Ordered by
+ * `created_at` on purpose: the two `limit 1` queries this replaces had no
+ * `order by`, so with two families which one you got depended on the plan.
+ */
+const [bootstrapHouse] = await db
+  .select({ id: households.id })
+  .from(households)
+  .orderBy(asc(households.createdAt))
+  .limit(1);
+if (bootstrapHouse === undefined) throw new Error("no household: run the migrations");
+const bootstrapHouseholdId = bootstrapHouse.id;
+const [bootstrapExemplar] = await db
+  .select({ id: gosini.id })
+  .from(gosini)
+  .where(eq(gosini.householdId, bootstrapHouseholdId))
+  .orderBy(asc(gosini.bornAt))
+  .limit(1);
+if (bootstrapExemplar === undefined) throw new Error("no exemplar: run the migrations");
+
+const pack = new PackService(db, speciesMap, bootstrapExemplar.id, bootstrapHouseholdId);
 const chat = new ChatService({
   db,
   embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
@@ -151,18 +177,19 @@ const initiative = new InitiativeSwitch(() => env.UGO_INITIATIVE === "on");
 // ADR-045: il servizio di percezione, se c'è. Senza, tutto continua come
 // prima — UGO risponde senza sapere chi ha davanti, che è il comportamento di
 // ogni versione fino a ieri.
-const houseId = async (): Promise<string> => {
-  const rows = await db.select({ id: households.id }).from(households).limit(1);
-  return rows[0]?.id ?? "";
-};
+const recognitionUrl = env.UGO_RECOGNITION_URL;
+const recognitionToken = env.UGO_INTERNAL_TOKEN;
+// one client per house: the biometric centroids are the house's, and a single
+// client would compare one family's voice against another's profiles
 const recognition =
-  env.UGO_RECOGNITION_URL === undefined || env.UGO_INTERNAL_TOKEN === undefined
+  recognitionUrl === undefined || recognitionToken === undefined
     ? undefined
-    : new RecognitionClient({
-        baseUrl: env.UGO_RECOGNITION_URL,
-        token: env.UGO_INTERNAL_TOKEN,
-        householdId: await houseId(),
-      });
+    : (householdId: string): RecognitionClient =>
+        new RecognitionClient({
+          baseUrl: recognitionUrl,
+          token: recognitionToken,
+          householdId,
+        });
 
 const registry = await GosinoRegistry.load({
   db,
@@ -171,7 +198,7 @@ const registry = await GosinoRegistry.load({
   local: localText,
   dataKey,
   timezone: env.TZ,
-  pack,
+  speciesMap,
   localModelUp: () => localTextUp,
   initiativeEnabled: () => initiative.on(),
   hourOf,
@@ -191,14 +218,7 @@ const app = buildServer({
     council: { council: new CouncilService({ db, local: localText }) },
     // ADR-036: the population is its own surface — a house can hold several
     // creatures and never convene a council
-    gosini: {
-      householdId: async () => {
-        const rows = await db.select({ id: households.id }).from(households).limit(1);
-        const first = rows[0]?.id;
-        if (first === undefined) throw new Error("no household: run the migrations");
-        return first;
-      },
-    },
+    gosini: {},
     psyche,
     face,
     privacy,
@@ -226,7 +246,7 @@ if (meetings !== undefined) {
 const volitionTimer = setInterval(() => {
   // every exemplar decides for himself, and they are staggered so two of them
   // never speak on top of each other
-  registry.all().forEach((runtime, index) => {
+  registry.everywhere().forEach((runtime, index) => {
     setTimeout(
       () => {
         runtime.volition

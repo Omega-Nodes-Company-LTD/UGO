@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { CouncilService } from "../services/council/councilService.js";
 import type { PreHandler } from "./guard.js";
+import { householdScope } from "./scope.js";
 
 /**
  * The council (ADR-031): one question to all of them at once.
@@ -27,7 +28,9 @@ export function registerCouncilRoutes(app: FastifyInstance, deps: CouncilRoutesD
   app.post("/v1/council", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = councilSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const result = await deps.council.deliberate(parsed.data.question);
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
+    const result = await deps.council.deliberate(parsed.data.question, householdId);
     if (result.voices.length === 0) {
       // the local model is down or said nothing usable: say so, do not invent
       return reply.status(503).send({ error: "nessuno ha risposto: il modello locale è giù?" });

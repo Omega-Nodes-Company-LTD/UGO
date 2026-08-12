@@ -90,11 +90,11 @@ beforeAll(async () => {
     logger: false,
     features: {
       chat: undefined as never,
-      psyche: registry.resolve(undefined)?.psyche as never,
+      psyche: registry.resolve(undefined, householdId)?.psyche as never,
       registry,
       initiative: new InitiativeSwitch(() => true),
       stats: { dailyBudgetUsd: 0.5, timezone: "Europe/Rome" },
-      gosini: { householdId: () => Promise.resolve(householdId) },
+      gosini: {},
       internalToken: TOKEN,
     },
   });
@@ -203,7 +203,7 @@ describe("unmaking a room", () => {
     // he is still here, simply on no device — the state of one never given a room
     const still = await db.select({ where: gosini.locationLabel }).from(gosini);
     expect(still.some((row) => row.where === "ripostiglio")).toBe(false);
-    const registered = registry.all().find((r) => r.id === ugo);
+    const registered = registry.everywhere().find((r) => r.id === ugo);
     expect(registered?.where).toBeUndefined();
   });
 

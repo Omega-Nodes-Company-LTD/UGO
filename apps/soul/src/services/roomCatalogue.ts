@@ -13,20 +13,28 @@ import { and, eq, isNull, sql } from "drizzle-orm";
  * (`/?stanza=cucina`) that the body uses and the documentation promises. What
  * keeps the two from drifting is `named()`: nothing writes a label this does
  * not recognise.
+ *
+ * ADR-019 phase 2: every method takes the house. `create()` already did;
+ * `list()`, `named()` and `remove()` did not — and `named()` is what validates
+ * a birth and a move, so a kitchen next door would have vouched for a label
+ * here. `remove()` was the worst of the three: it evicted by slug across
+ * **every** house, so unmaking one family's "cucina" turned another family's
+ * creature out of theirs.
  */
 export class RoomCatalogue {
   public constructor(private readonly db: DbClient) {}
 
   /** Every room, with whoever lives in it — including the ones nobody does. */
-  public async list(): Promise<{ id: string; room: string; gosini: Resident[] }[]> {
+  public async list(householdId: string): Promise<{ id: string; room: string; gosini: Resident[] }[]> {
     const known = await this.db
       .select({ id: rooms.id, name: rooms.name, slug: rooms.slug })
       .from(rooms)
+      .where(eq(rooms.householdId, householdId))
       .orderBy(rooms.slug);
     const residents = await this.db
       .select({ id: gosini.id, name: gosini.name, where: gosini.locationLabel })
       .from(gosini)
-      .where(isNull(gosini.retiredAt));
+      .where(and(isNull(gosini.retiredAt), eq(gosini.householdId, householdId)));
 
     const byRoom = new Map<string, Resident[]>();
     for (const row of residents) {
@@ -48,13 +56,13 @@ export class RoomCatalogue {
    * "Cucina" has to store whatever the room is actually called, or the label
    * and the room drift apart by capital letter.
    */
-  public async named(label: string): Promise<string | undefined> {
+  public async named(householdId: string, label: string): Promise<string | undefined> {
     const slug = slugOfRoom(label);
     if (slug === "") return undefined;
     const found = await this.db
       .select({ name: rooms.name })
       .from(rooms)
-      .where(eq(rooms.slug, slug))
+      .where(and(eq(rooms.householdId, householdId), eq(rooms.slug, slug)))
       .limit(1);
     return found[0]?.name;
   }
@@ -98,11 +106,14 @@ export class RoomCatalogue {
    * the labels point at a room that still exists, which is recoverable. The
    * other order leaves them pointing at nothing.
    */
-  public async remove(id: string): Promise<{ room: string; evicted: number } | undefined> {
+  public async remove(
+    householdId: string,
+    id: string,
+  ): Promise<{ room: string; evicted: number } | undefined> {
     const found = await this.db
       .select({ name: rooms.name, slug: rooms.slug })
       .from(rooms)
-      .where(eq(rooms.id, id))
+      .where(and(eq(rooms.householdId, householdId), eq(rooms.id, id)))
       .limit(1);
     const room = found[0];
     if (room === undefined) return undefined;
@@ -110,7 +121,12 @@ export class RoomCatalogue {
     const evicted = await this.db
       .update(gosini)
       .set({ locationLabel: null })
-      .where(sql`lower(btrim(${gosini.locationLabel})) = ${room.slug}`)
+      .where(
+        and(
+          eq(gosini.householdId, householdId),
+          sql`lower(btrim(${gosini.locationLabel})) = ${room.slug}`,
+        ),
+      )
       .returning({ id: gosini.id });
     await this.db.delete(rooms).where(eq(rooms.id, id));
     return { room: room.name, evicted: evicted.length };

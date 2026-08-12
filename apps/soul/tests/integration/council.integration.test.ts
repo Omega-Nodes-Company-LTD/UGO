@@ -92,7 +92,7 @@ describe("the council", () => {
       Ugo: "Andiamo subito, dai!",
       Nino: "Mah. Si sta bene anche qui.",
     });
-    const result = await new CouncilService({ db, local: client }).deliberate("Usciamo?");
+    const result = await new CouncilService({ db, local: client }).deliberate("Usciamo?", householdId);
 
     expect(result.voices.map((v) => v.name).sort()).toEqual(["Nino", "Ugo"]);
     expect(result.voices.find((v) => v.name === "Ugo")?.where).toBe("cucina");
@@ -113,7 +113,7 @@ describe("the council", () => {
 
   it("holds the first round blind: nobody sees another answer before speaking", async () => {
     const { client, prompts } = recorder({ Ugo: "Sì", Nino: "No" });
-    await new CouncilService({ db, local: client }).deliberate("Piove?");
+    await new CouncilService({ db, local: client }).deliberate("Piove?", householdId);
     for (const prompt of prompts.slice(0, 2)) {
       expect(prompt).not.toContain("Gli altri hanno detto");
     }
@@ -124,7 +124,7 @@ describe("the council", () => {
       Ugo: "Il fango è la cosa migliore del mondo.",
       Nino: "Il fango è sopravvalutato.",
     });
-    const result = await new CouncilService({ db, local: client }).deliberate("Meglio il fango?");
+    const result = await new CouncilService({ db, local: client }).deliberate("Meglio il fango?", householdId);
 
     const second = prompts.filter((p) => p.includes("Gli altri hanno detto"));
     expect(second).toHaveLength(2);
@@ -138,7 +138,7 @@ describe("the council", () => {
 
   it("leaves out whoever had nothing usable to say, instead of inventing for him", async () => {
     const { client } = recorder({ Ugo: "Direi di sì.", Nino: undefined });
-    const result = await new CouncilService({ db, local: client }).deliberate("Tutto bene?");
+    const result = await new CouncilService({ db, local: client }).deliberate("Tutto bene?", householdId);
     expect(result.voices.map((v) => v.name)).toEqual(["Ugo"]);
     // and with a single voice there is nothing to deliberate about
     expect(result.changedMind).toBe(false);

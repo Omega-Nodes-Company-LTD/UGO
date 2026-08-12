@@ -1,21 +1,27 @@
 import { randomBytes } from "node:crypto";
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
+  beings,
+  budgetLedger,
   createDbClient,
   desires,
   events,
   gosini,
   households,
+  memories,
+  relations,
   rooms,
   runMigrations,
   type DbClient,
 } from "@ugo/db";
+import { startPostgres } from "@ugo/factories";
 import type { EmbeddingsClient, LocalTextClient } from "@ugo/memory";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GosinoRegistry } from "../../src/services/pack/runtimes.js";
 import { InitiativeSwitch } from "../../src/services/volition/initiativeSwitch.js";
 import { buildServer } from "../../src/server.js";
+import { addBeing, createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 /**
  * What /admin can actually see (ADR-034).
@@ -53,9 +59,10 @@ const get = (url: string) =>
   app.inject({ method: "GET", url, headers: { authorization: `Bearer ${TOKEN}` } });
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  await runMigrations(pg.getConnectionUri());
-  db = createDbClient(pg.getConnectionUri());
+  const postgres = await startPostgres();
+  pg = postgres.container;
+  await runMigrations(postgres.url);
+  db = createDbClient(postgres.url);
 
   const houses = await db.select({ id: households.id }).from(households).limit(1);
   const found = houses[0]?.id;
@@ -96,11 +103,11 @@ beforeAll(async () => {
     logger: false,
     features: {
       chat: undefined as never,
-      psyche: registry.resolve(undefined)?.psyche as never,
+      psyche: registry.resolve(undefined, householdId)?.psyche as never,
       registry,
       initiative: new InitiativeSwitch(() => true),
       stats: { dailyBudgetUsd: 0.5, timezone: "Europe/Rome" },
-      gosini: { householdId: () => Promise.resolve(householdId) },
+      gosini: {},
       internalToken: TOKEN,
     },
   });
@@ -114,7 +121,7 @@ afterAll(async () => {
 
 describe("what the panel can see", () => {
   it("answers with the mood of the exemplar you asked for, not of whoever moved last", async () => {
-    const ugoPsyche = registry.all().find((r) => r.id === ugo)?.psyche;
+    const ugoPsyche = registry.everywhere().find((r) => r.id === ugo)?.psyche;
     if (ugoPsyche === undefined) throw new Error("Ugo has no runtime");
     for (let i = 0; i < 3; i += 1) await ugoPsyche.applyEventType("loud_noise");
 
@@ -203,8 +210,8 @@ describe("what the panel can see", () => {
     // CHIMERA. Both exemplars snapshot into one table, so an unscoped query
     // returns their moods interleaved as a single series, and the sparklines
     // draw steps nobody ever lived.
-    const ugoPsyche = registry.all().find((r) => r.id === ugo)?.psyche;
-    const ninoPsyche = registry.all().find((r) => r.id === nino)?.psyche;
+    const ugoPsyche = registry.everywhere().find((r) => r.id === ugo)?.psyche;
+    const ninoPsyche = registry.everywhere().find((r) => r.id === nino)?.psyche;
     if (ugoPsyche === undefined || ninoPsyche === undefined) throw new Error("no runtime");
     await ugoPsyche.applyEventType("loud_noise");
     await ugoPsyche.snapshot();
@@ -241,7 +248,7 @@ describe("what the panel can see", () => {
     // the old room — the dock kept showing the previous occupants. Rebuilding
     // him instead would have been the opposite mistake: a living psyche thrown
     // away to change a label.
-    const before = registry.all().find((r) => r.id === nino)?.psyche;
+    const before = registry.everywhere().find((r) => r.id === nino)?.psyche;
     if (before === undefined) throw new Error("no runtime");
     await before.applyEventType("loud_noise");
     const rattled = before.current().vars.stress;
@@ -255,13 +262,13 @@ describe("what the panel can see", () => {
     expect(moved.statusCode).toBe(200);
 
     // the registry knows, so the kitchen dock now shows two
-    expect(registry.inRoom("cucina").map((r) => r.name).sort()).toEqual(["Nino", "Ugo"]);
-    expect(registry.inRoom("studio")).toHaveLength(0);
+    expect(registry.inRoom("cucina", householdId).map((r) => r.name).sort()).toEqual(["Nino", "Ugo"]);
+    expect(registry.inRoom("studio", householdId)).toHaveLength(0);
     // matching is forgiving: the label is typed by a person twice
-    expect(registry.inRoom("  CUCINA ")).toHaveLength(2);
+    expect(registry.inRoom("  CUCINA ", householdId)).toHaveLength(2);
 
     // and he is the same creature: same object, same stress, nothing rebuilt
-    const after = registry.all().find((r) => r.id === nino)?.psyche;
+    const after = registry.everywhere().find((r) => r.id === nino)?.psyche;
     expect(after).toBe(before);
     expect(after?.current().vars.stress).toBeCloseTo(rattled, 5);
   });
@@ -273,12 +280,95 @@ describe("what the panel can see", () => {
       headers: { authorization: `Bearer ${TOKEN}` },
       payload: { locationLabel: "" },
     });
-    expect(registry.inRoom("cucina").map((r) => r.name)).toEqual(["Ugo"]);
-    expect(registry.rooms().flatMap((r) => r.gosini.map((g) => g.name))).not.toContain("Nino");
+    expect(registry.inRoom("cucina", householdId).map((r) => r.name)).toEqual(["Ugo"]);
+    expect(registry.rooms(householdId).flatMap((r) => r.gosini.map((g) => g.name))).not.toContain("Nino");
   });
 
   it("refuses to show any of it without the token", async () => {
     const naked = await app.inject({ method: "GET", url: "/v1/volition" });
     expect(naked.statusCode).toBe(401);
+  });
+});
+
+/**
+ * ADR-019 phase 2, and the reason the whole commit exists: the panel used to
+ * read the *database*, not the house. Every assertion below is a pair — what
+ * is mine is there, what is theirs is not — because a scoped query that
+ * returns nothing at all would pass a one-sided test.
+ *
+ * Last in the file on purpose: from the moment a second family exists, an
+ * operator has to say which house it means, and every test above relies on
+ * there being only one.
+ */
+describe("il pannello guarda una casa sola", () => {
+  let vicini: TestHouse;
+  let loroBeing: string;
+  const mine = (url: string) =>
+    get(url.includes("?") ? `${url}&casa=${householdId}` : `${url}?casa=${householdId}`);
+  const theirs = (url: string) =>
+    get(url.includes("?") ? `${url}&casa=${vicini.id}` : `${url}?casa=${vicini.id}`);
+
+  beforeAll(async () => {
+    vicini = await createHouse(db, "casa-vicini-pannello", { name: "i vicini" });
+    loroBeing = await addBeing(db, vicini, "Persona Dei Vicini");
+    await db.insert(beings).values({ householdId, displayName: "Persona Nostra" });
+    await db.insert(memories).values([
+      { gosinoId: vicini.gosinoId, kind: "fact", text: "i vicini hanno un gatto", importance: 0.5 },
+      { gosinoId: ugo, kind: "fact", text: "noi abbiamo una lavatrice rotta", importance: 0.5 },
+    ]);
+    await db.insert(budgetLedger).values([
+      {
+        householdId: vicini.id,
+        gosinoId: vicini.gosinoId,
+        date: "2026-01-20",
+        provider: "anthropic",
+        model: "claude-haiku-4-5",
+        costUsd: "9.000000",
+      },
+    ]);
+    await db.insert(relations).values({
+      householdId: vicini.id,
+      beingA: loroBeing,
+      beingB: await addBeing(db, vicini, "Altro Vicino"),
+      type: "cares_for",
+    });
+  });
+
+  it("counts the memories of this house and not of the street", async () => {
+    const ours = (await mine("/v1/stats")).json<{ counts: { memories: number } }>();
+    const them = (await theirs("/v1/stats")).json<{ counts: { memories: number } }>();
+    expect(ours.counts.memories).toBeGreaterThan(0);
+    expect(them.counts.memories).toBe(1);
+    // nine dollars next door must not appear on our bill
+    expect((await mine("/v1/stats")).body).not.toContain("9.0");
+  });
+
+  it("lists our pack, our creatures and our relations — never theirs", async () => {
+    const pack = (await mine("/v1/pack")).body;
+    expect(pack).toContain("Persona Nostra");
+    expect(pack).not.toContain("Persona Dei Vicini");
+
+    const creatures = (await mine("/v1/gosini")).body;
+    expect(creatures).toContain("Ugo");
+    expect(creatures).not.toContain(vicini.gosinoId);
+
+    expect((await mine("/v1/relations")).body).not.toContain(loroBeing);
+    expect((await theirs("/v1/relations")).body).toContain(loroBeing);
+  });
+
+  it("keeps the archive and the graph on this side of the fence", async () => {
+    const archive = (await mine("/v1/memories")).body;
+    expect(archive).toContain("lavatrice");
+    expect(archive).not.toContain("gatto");
+
+    const graph = (await mine("/v1/memories/graph")).body;
+    expect(graph).not.toContain(loroBeing);
+    expect(graph).not.toContain(vicini.gosinoId);
+  });
+
+  it("stops guessing once there is more than one house", async () => {
+    // the same request answered 200 while a single family lived here
+    expect((await get("/v1/stats")).statusCode).toBe(400);
+    expect((await get(`/v1/stats?casa=${crypto.randomUUID()}`)).statusCode).toBe(404);
   });
 });
