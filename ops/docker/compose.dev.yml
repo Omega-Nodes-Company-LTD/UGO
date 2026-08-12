@@ -96,6 +96,26 @@ services:
       postgres:
         condition: service_healthy
 
+  # ADR-046: i pesi del riconoscimento, scaricati al deploy invece che a mano.
+  # One-shot come `migrate`, e per la stessa ragione: un passo del runbook è un
+  # passo che un giorno qualcuno salta — e allora `percezione` parte, risponde
+  # 503 e nessuno capisce perché UGO ha smesso di riconoscere le persone.
+  # Idempotente (non riscarica ciò che c'è) e verificato con SHA-256: quelli
+  # sono gli sha dei pesi su cui i banchi hanno misurato gli EER, e un modello
+  # cambiato a monte non deve diventare un riconoscimento che sbaglia in
+  # silenzio. È l'unico servizio che scrive su /models.
+  modelli:
+    image: curlimages/curl:8.11.1
+    profiles: [percezione]
+    networks: [edge]
+    entrypoint: ["sh", "/fetch-models.sh"]
+    environment:
+      MODELS_DIR: /models
+    volumes:
+      - ./fetch-models.sh:/fetch-models.sh:ro
+      - ${UGO_MODELS_DIR:-./models}:/models
+    restart: "no"
+
   # ADR-045: il riconoscimento che risponde nello stesso secondo. Tiene gli
   # encoder in memoria — caricarli a ogni richiesta significherebbe secondi,
   # cioè non farlo. Sulla rete interna e basta: **nessuna porta pubblicata**,
@@ -123,6 +143,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # non parte finché i pesi non ci sono e non sono quelli giusti: meglio un
+      # servizio che non parte di uno che parte e risponde 503 a ogni frase
+      modelli:
+        condition: service_completed_successfully
 
   # one-shot: applies drizzle migrations (the only sanctioned way to touch
   # the schema, CLAUDE.md rule 5) using the same image as soul

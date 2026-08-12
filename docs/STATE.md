@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.26.0"
+version: "0.27.0"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1304,6 +1304,17 @@ misurato su LFW, **EER 0,98%**, soglia 0,30 (FAR 0,00%, FRR 0,98%). La fusione f
 mai l'audio o le immagini; minori e opt-out fermati a monte; consenso per persona; cancellazione
 già nel perimetro di `forgetService`; e **senza `UGO_RECOGNITION_URL` non si riconosce nessuno**
 — la biometria si accende, non si subisce.
+
+**I pesi si scaricano al deploy** (ADR-046). Erano due `curl` nel runbook, cioè un passo che un
+giorno qualcuno salta — e allora `percezione` parte, risponde 503 a ogni frase e nessuno collega
+quel 503 a «UGO ha smesso di riconoscere» tre settimane dopo. Ora un one-shot `modelli` come
+`migrate`, con `service_completed_successfully`: **non parte se i pesi non ci sono e non sono
+quelli giusti**. Idempotente, con `--retry`, e con **SHA-256 verificato** — che non è pignoleria:
+gli EER dichiarati valgono per *quei* pesi, e un modello cambiato a monte rimetterebbe al punto
+di partenza, cioè un sistema di cui affermiamo un errore che non è più quello misurato.
+Verificato eseguendolo: scarica, poi dice «già a posto», riprende un file corrotto, e su SHA
+sbagliato esce con 1 senza lasciare il file — prova che ha trovato un difetto vero, il `while`
+in pipeline che girava in subshell e non avrebbe propagato l'uscita.
 
 ## 7. Debito tecnico e rischi aperti
 
