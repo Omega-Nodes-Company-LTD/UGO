@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.27.0"
+version: "0.28.0"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1315,6 +1315,19 @@ di partenza, cioè un sistema di cui affermiamo un errore che non è più quello
 Verificato eseguendolo: scarica, poi dice «già a posto», riprende un file corrotto, e su SHA
 sbagliato esce con 1 senza lasciare il file — prova che ha trovato un difetto vero, il `while`
 in pipeline che girava in subshell e non avrebbe propagato l'uscita.
+
+**Correzione: il container si prepara da solo** (ADR-047, sostituisce il meccanismo di ADR-046).
+Il proprietario: «io non devo mai lanciare codice. tanto più che è un container». Errore mio di
+inquadramento: questo progetto si deploya come *Application → Dockerfile* in Coolify, e non
+esiste un momento in cui qualcuno digita `docker compose`. Avevo spostato il passo manuale dal
+runbook al compose credendo di averlo eliminato — l'avevo solo cambiato di posto, e un passo che
+esiste dove nessuno lancia comandi è un passo che non verrà mai eseguito.
+
+Ora l'entrypoint del container scarica e verifica i pesi e **poi** esegue uvicorn. Non ribalta
+ADR-045: quello vietava di scaricare *durante una conversazione*, e qui il download avviene prima
+che la porta esista. Corretto anche il dettaglio che rendeva falsa quell'affermazione:
+`from_hparams` con la `source` remota contatta l'hub anche a file presenti — ora la source è la
+cartella locale, verificato caricando il modello con la rete tolta.
 
 ## 7. Debito tecnico e rischi aperti
 
