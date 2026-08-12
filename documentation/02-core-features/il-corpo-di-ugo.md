@@ -1,7 +1,7 @@
 ---
 title: "Il corpo di UGO"
 description: "Come si muove il porcetto sullo schermo: le posture, il vagabondaggio, i piccoli gesti e cosa raccontano del suo umore."
-version: "0.13.0"
+version: "0.14.0"
 last_updated: "2026-08-12"
 author: "ThinkPink Studio"
 ---
@@ -92,6 +92,18 @@ resto — la televisione, la lavatrice, la strada.
 
 Con **non si spaventa** continua a sentire la stanza — serve al resto — semplicemente non
 salta mai.
+
+## Ti guarda, e ti riconosce
+
+Quando accendi i sensi, UGO apre anche la camera: le pupille seguono la tua faccia invece del
+dito. Il riconoscimento del volto gira **dentro il telefono** — il video non esce di lì.
+
+Se il dispositivo non ce la fa (camera negata, browser vecchio), torna a seguire il puntatore
+e tutto il resto continua a funzionare.
+
+E può riconoscerti: dalla voce mentre parli, dal volto se guardi lo schermo. Quando non è
+sicuro **te lo chiede** invece di sbagliare nome. Cosa tiene e cosa no è scritto in
+[i tuoi dati](./i-tuoi-dati.md#ti-riconosce-e-come).
 
 ## Cosa è stato detto
 

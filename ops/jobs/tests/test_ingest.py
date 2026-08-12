@@ -10,6 +10,7 @@ import subprocess
 from dataclasses import replace
 
 import boto3
+import numpy as np
 import psycopg
 import pytest
 
@@ -112,8 +113,14 @@ def test_a_known_voice_gets_a_name_and_a_stranger_does_not(audio_env, tmp_path) 
 
     from ugo_jobs.enrollment import enroll_voice
 
+    from test_enrollment import FakeVoiceEncoder
+
     cfg, client = audio_env
     key = parse_data_key(TEST_DATA_KEY)
+    # una sola voce nel corpus di prova: qualunque spezzone la incontri, la
+    # riconosce. Ciò che il test misura è a CHI viene attribuita.
+    coder = FakeVoiceEncoder({})
+    coder.encode = lambda samples: np.asarray([1.0, 0.0, 0.0], dtype=np.float32)  # type: ignore[method-assign]
 
     wav = tmp_path / "voce.wav"
     subprocess.run(["espeak-ng", "-v", "it", PHRASE, "-w", str(wav)], check=True, timeout=60)
@@ -131,8 +138,18 @@ def test_a_known_voice_gets_a_name_and_a_stranger_does_not(audio_env, tmp_path) 
         parlante = _being(conn, nostra, "Francesco")
         # the neighbours enrol the very same voice, in their own house
         sosia = _being(conn, vicini, "Un vicino")
-        enroll_voice(conn, gosino_id=gosino, being_id=parlante, samples=samples, data_key=key)
-        enroll_voice(conn, gosino_id=gosino, being_id=sosia, samples=samples, data_key=key)
+        # ADR-043: con un encoder finto ma deterministico. Il modello vero pesa
+        # 2 GB e non è ciò che questo test prova: qui si prova **l'attribuzione**
+        # — chi viene nominato e chi no — e soprattutto che la voce identica
+        # arruolata dai vicini non venga attribuita qui (ADR-019).
+        enroll_voice(
+            conn, gosino_id=gosino, being_id=parlante, samples=samples,
+            data_key=key, encoder=coder,
+        )
+        enroll_voice(
+            conn, gosino_id=gosino, being_id=sosia, samples=samples,
+            data_key=key, encoder=coder,
+        )
         conn.commit()
 
     scoped = replace(cfg, household_id=nostra, gosino_id=gosino)
@@ -140,7 +157,7 @@ def test_a_known_voice_gets_a_name_and_a_stranger_does_not(audio_env, tmp_path) 
     client.upload_file(str(wav), cfg.s3_bucket_audio, new_key)
 
     with psycopg.connect(scoped.database_url) as conn:
-        run_ingest(conn, scoped, "2026-08-07")
+        run_ingest(conn, scoped, "2026-08-07", encoder=coder)
         rows = conn.execute(
             """select s.being_id from transcript_segments s
                  join meetings m on m.id = s.meeting_id

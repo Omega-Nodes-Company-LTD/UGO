@@ -47,4 +47,8 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [039](./039-la-stanza-e-una-cosa.md) | La stanza è una cosa, non una grafia | Accettata |
 | [040](./040-l-abitudine-vale-anche-per-le-parole.md) | L'abitudine vale anche per le parole, e a rispondere non è sempre il più vecchio | Accettata |
 | [041](./041-una-voce-non-e-un-botto.md) | Una voce non è un botto, e quanto è rumorosa la stanza lo sai tu | Accettata |
-| 042 | *(prossimo numero disponibile)* | — |
+| [042](./042-il-riconoscimento-si-misura.md) | Il riconoscimento si misura, o non è riconoscimento | Accettata |
+| [043](./043-la-soglia-viene-dalla-curva.md) | La soglia viene dalla curva, e sotto c'è una domanda | Accettata |
+| [044](./044-la-camera-si-accende.md) | La camera si accende | Accettata |
+| [045](./045-riconoscere-davvero.md) | Riconoscere davvero: dal vivo, col volto, e il perimetro che ne segue | Accettata |
+| 046 | *(prossimo numero disponibile)* | — |

@@ -31,7 +31,20 @@ export const GLYPH_FOR_STATE: Readonly<Record<FaceState, GlyphPattern | undefine
 
 /** face → server */
 export const faceToServerSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("heard_text"), text: z.string().min(1).max(2000) }),
+  z.object({
+    type: z.literal("heard_text"),
+    text: z.string().min(1).max(2000),
+    /**
+     * ADR-045: la voce che ha detto la frase, PCM int16 a 16 kHz in base64.
+     *
+     * Facoltativa perché il riconoscimento è facoltativo: un corpo senza
+     * microfono aperto, o una casa che non vuole la biometria, manda solo il
+     * testo e tutto continua a funzionare. Il tetto sta a ~4 s di parlato, che
+     * è più che sufficiente per identificare e molto meno di quanto serva per
+     * ricostruire una conversazione da questo campo.
+     */
+    audio: z.string().max(200_000).optional(),
+  }),
   z.object({ type: z.literal("face_seen") }),
   z.object({ type: z.literal("light"), lux: z.number().min(0) }),
   z.object({ type: z.literal("noise"), db: z.number().min(0) }),

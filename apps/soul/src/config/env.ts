@@ -64,6 +64,10 @@ export const soulEnvSchema = z.object({
   // Mandatory in production: an unguarded erasure endpoint is not a risk
   // worth carrying just because the tailnet is usually enough.
   UGO_INTERNAL_TOKEN: optionalNonEmpty,
+  // ADR-045: il servizio di percezione (voce e volto). Assente = UGO risponde
+  // senza sapere chi ha davanti, che è il comportamento di ogni versione fino
+  // a ieri: la biometria si accende, non si subisce.
+  UGO_RECOGNITION_URL: optionalNonEmpty,
   // optional HTTP trigger of the jobs runner, for POST /v1/jobs/dream
   UGO_JOBS_TRIGGER_URL: z.preprocess(
     (value) => (value === "" ? undefined : value),

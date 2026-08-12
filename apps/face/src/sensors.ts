@@ -1,5 +1,6 @@
 import type { FaceToServerMessage } from "@ugo/shared/face";
 import { NoiseGate, DEFAULT_SENSITIVITY, type NoiseSensitivity } from "./noiseGate.js";
+import { VoiceClip } from "./voiceClip.js";
 
 /** How long after a voice a sound is still that voice, and not a bang. */
 const VOICE_HUSH_MS = 1_500;
@@ -17,6 +18,8 @@ const LIGHT_PERIOD_MS = 60_000;
  */
 export class Sensors {
   private readonly noise = new NoiseGate(DEFAULT_SENSITIVITY);
+  /** ADR-045: gli ultimi secondi, per sapere CHI ha parlato */
+  private clip: VoiceClip | undefined;
   private lastShakeAt = 0;
   private audioContext: AudioContext | undefined;
 
@@ -36,6 +39,20 @@ export class Sensors {
   /** How easily he startles (ADR-041). Changing it does not unlearn the room. */
   public setNoiseSensitivity(sensitivity: NoiseSensitivity): void {
     this.noise.setSensitivity(sensitivity);
+  }
+
+  /**
+   * Gli ultimi secondi di parlato, se ce ne sono (ADR-045). `undefined` quando
+   * il microfono è spento o la finestra è ancora troppo corta — e allora la
+   * frase parte senza voce, che è esattamente il comportamento di prima.
+   */
+  public lastVoice(): string | undefined {
+    return this.clip?.take();
+  }
+
+  /** Butta la finestra: privacy mode, orecchie spente. */
+  public forgetVoice(): void {
+    this.clip?.forget();
   }
 
   /**
@@ -60,6 +77,7 @@ export class Sensors {
     analyser.fftSize = 2048;
     source.connect(analyser);
     const buffer = new Float32Array(analyser.fftSize);
+    this.clip = new VoiceClip(this.audioContext.sampleRate);
 
     const tick = (): void => {
       analyser.getFloatTimeDomainData(buffer);
@@ -69,6 +87,10 @@ export class Sensors {
       // rough SPL estimate: enough for "sudden loud noise", not metrology
       // uncalibrated on purpose: the gate only ever uses differences, which
       // is what lets the same code work on any microphone
+      // l'anello gira sempre: quando il riconoscitore consegna il testo, la
+      // frase è già passata, e cominciare a registrare lì prenderebbe il
+      // silenzio dopo invece della voce
+      this.clip?.push(buffer);
       const db = Math.max(0, 94 + 20 * Math.log10(rms + 1e-8));
       const reading = this.noise.push(db, performance.now());
       if (reading.startled) {

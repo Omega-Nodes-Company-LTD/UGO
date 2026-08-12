@@ -18,6 +18,16 @@ test = [
     "pytest>=8.3",
     "testcontainers[postgres,minio]>=4.8",
 ]
+# ADR-042: il riconoscimento vocale vero. Separato dal resto perché si porta
+# dietro torch (~2 GB): il job notturno che scrive il diario non lo deve pagare.
+voice = [
+    "torch>=2.4",
+    "speechbrain>=1.0",
+]
+# solo per il banco di misura: legge il flac del corpus senza altri strati
+bench = [
+    "soundfile>=0.12",
+]
 
 [build-system]
 requires = ["setuptools>=68"]

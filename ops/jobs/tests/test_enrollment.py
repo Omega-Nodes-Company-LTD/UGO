@@ -39,6 +39,46 @@ IVAN = (120, 700, 1220, 2600)
 PAOLA = (210, 480, 1800, 3400)
 
 
+class FakeVoiceEncoder:
+    """Un encoder che restituisce vettori che decidiamo noi (ADR-043).
+
+    Serve perché il modello vero pesa 2 GB e la CI non lo deve scaricare per
+    verificare una **decisione**: quello che va provato qui è la logica delle
+    soglie — riconosciuto, forse, nessuno — non la qualità dell'encoder, che ha
+    il suo banco (`voice_bench`) e i suoi numeri.
+
+    Dichiara il nome del modello vero perché è da lì che vengono le soglie
+    calibrate: un finto nome prenderebbe le soglie del modello sconosciuto e il
+    test proverebbe una cosa diversa da quella che gira in casa.
+    """
+
+    def __init__(self, vectors: dict[int, list[float]]) -> None:
+        self._vectors = vectors
+
+    @property
+    def model(self) -> str:
+        return "ecapa-voxceleb-v1"
+
+    @property
+    def dimensions(self) -> int:
+        return 3
+
+    def encode(self, samples: np.ndarray) -> np.ndarray:
+        # la prima cifra del campione fa da etichetta: è un finto encoder, e
+        # deve solo essere deterministico e distinguibile
+        key = int(round(float(samples[0]) * 1000))
+        return np.asarray(self._vectors[key], dtype=np.float32)
+
+
+def _said(label: int) -> np.ndarray:
+    """Una 'frase' riconoscibile dal finto encoder."""
+    return np.full(16_000, label / 1000, dtype=np.float32)
+
+
+#: tre voci ortogonali: coseno 1.0 con sé stesse, 0.0 fra loro
+ORTHOGONAL = {1: [1.0, 0.0, 0.0], 2: [0.0, 1.0, 0.0], 3: [0.0, 0.0, 1.0]}
+
+
 @pytest.fixture()
 def conn(pg_url: str):  # noqa: ANN201
     with psycopg.connect(pg_url) as connection:
@@ -58,23 +98,101 @@ def _being(conn: psycopg.Connection, name: str, **flags: object) -> str:
 
 
 def test_two_voices_enrolled_are_told_apart(conn: psycopg.Connection) -> None:
+    """La decisione, con le soglie vere e un encoder che controlliamo noi.
+
+    Prima questo test arruolava due segnali sintetici con l'encoder MFCC e ne
+    concludeva che «due voci si distinguono». Era esso stesso parte
+    dell'illusione: quell'encoder, misurato su voce vera, accetta il 60% degli
+    estranei (ADR-042). Un test che passa su un classificatore rotto non stava
+    proteggendo niente.
+    """
     key = parse_data_key(TEST_DATA_KEY)
+    coder = FakeVoiceEncoder(ORTHOGONAL)
     ivan = _being(conn, "Ivan T.")
     paola = _being(conn, "Paola T.")
 
-    # three sessions each, as a real enrollment would go
-    for seed in (1, 2, 3):
-        enroll_voice(conn, gosino_id=PRIME, being_id=ivan, samples=_voice(IVAN, seed), data_key=key)
-        enroll_voice(
-            conn, gosino_id=PRIME, being_id=paola, samples=_voice(PAOLA, seed + 10), data_key=key
-        )
-
-    assert identify_voice(conn, samples=_voice(IVAN, 99), data_key=key, household_id=PRIME_HOUSE).being_id == ivan
-    # a quieter take of the same voice is still the same person
-    assert (
-        identify_voice(conn, samples=_voice(IVAN, 98, gain=0.4), data_key=key, household_id=PRIME_HOUSE).being_id == ivan
+    enroll_voice(
+        conn, gosino_id=PRIME, being_id=ivan, samples=_said(1), data_key=key, encoder=coder
     )
-    assert identify_voice(conn, samples=_voice(PAOLA, 97), data_key=key, household_id=PRIME_HOUSE).being_id == paola
+    enroll_voice(
+        conn, gosino_id=PRIME, being_id=paola, samples=_said(2), data_key=key, encoder=coder
+    )
+
+    heard = identify_voice(
+        conn, samples=_said(1), data_key=key, household_id=PRIME_HOUSE, encoder=coder
+    )
+    assert heard.being_id == ivan
+    assert heard.candidate_being_id is None
+
+    assert (
+        identify_voice(
+            conn, samples=_said(2), data_key=key, household_id=PRIME_HOUSE, encoder=coder
+        ).being_id
+        == paola
+    )
+
+
+def test_a_stranger_is_nobody_not_even_a_candidate(conn: psycopg.Connection) -> None:
+    """Il migliore fra un mucchio di estranei è un estraneo.
+
+    Prima veniva restituito comunque come `candidate_being_id`, con confidenza
+    0.02: rumore travestito da quasi-riconoscimento, che a valle diventa una
+    domanda su qualcuno che non c'è.
+    """
+    key = parse_data_key(TEST_DATA_KEY)
+    coder = FakeVoiceEncoder(ORTHOGONAL)
+    enroll_voice(
+        conn, gosino_id=PRIME, being_id=_being(conn, "Ivan T."), samples=_said(1),
+        data_key=key, encoder=coder,
+    )
+
+    # ortogonale a tutto ciò che conosce: coseno 0
+    heard = identify_voice(
+        conn, samples=_said(3), data_key=key, household_id=PRIME_HOUSE, encoder=coder
+    )
+
+    assert heard.being_id is None
+    assert heard.candidate_being_id is None
+
+
+def test_a_near_miss_becomes_a_question_and_not_a_name(conn: psycopg.Connection) -> None:
+    """Fra le due soglie: «sei tu?» invece di «sei tu» (ADR-016)."""
+    key = parse_data_key(TEST_DATA_KEY)
+    # 0.38: sopra `maybe` (0.30) e sotto `match` (0.45)
+    near = FakeVoiceEncoder({1: [1.0, 0.0, 0.0], 9: [0.38, 0.925, 0.0]})
+    ivan = _being(conn, "Ivan T.")
+    enroll_voice(
+        conn, gosino_id=PRIME, being_id=ivan, samples=_said(1), data_key=key, encoder=near
+    )
+
+    heard = identify_voice(
+        conn, samples=_said(9), data_key=key, household_id=PRIME_HOUSE, encoder=near
+    )
+
+    assert heard.being_id is None
+    assert heard.candidate_being_id == ivan
+
+
+def test_a_profile_from_a_retired_model_is_never_matched(conn: psycopg.Connection) -> None:
+    """Un centroide MFCC non va creduto: quel modello non riconosce persone.
+
+    Sopravvive nel database finché la persona non si riarruola, e finché c'è
+    deve essere rifiutato — non confrontato con una soglia più severa, proprio
+    rifiutato, perché nessuna soglia rende quel classificatore affidabile.
+    """
+    key = parse_data_key(TEST_DATA_KEY)
+    ivan = _being(conn, "Ivan T.")
+    enroll_voice(conn, gosino_id=PRIME, being_id=ivan, samples=_voice(IVAN, 1), data_key=key)
+
+    # la stessa identica voce, con lo stesso encoder di prima
+    heard = identify_voice(
+        conn, samples=_voice(IVAN, 1), data_key=key, household_id=PRIME_HOUSE
+    )
+
+    # nemmeno come candidato: non è un "quasi", è un modello da cui non si
+    # accettano risposte finché la persona non si riarruola
+    assert heard.being_id is None
+    assert heard.candidate_being_id is None
 
 
 def test_an_unknown_voice_is_not_guessed(conn: psycopg.Connection) -> None:

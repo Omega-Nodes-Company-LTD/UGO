@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.24.0"
+version: "0.26.0"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1246,6 +1246,65 @@ dopo il sogno» è **recupero di ricordi**, non riconoscimento: il sogno lega ri
 (ADR-024), quelli freschi vengono recuperati e ti nominano, poi la recency li fa scendere.
 Serve una decisione di prodotto su come il corpo dice a soul chi sta parlando.
 
+### Il riconoscimento si misura (ADR-042)
+
+«Deve riconoscere le persone DAVVERO, altrimenti a che cazzo serve?» Due guasti diversi: sul
+percorso dal vivo **non passa audio** (il browser manda testo), e quello che chiamavamo
+riconoscimento vocale **non lo era**.
+
+Costruito prima il **banco** (`ugo_jobs.voice_bench`, LibriSpeech, voce vera) e fatto girare
+sull'encoder esistente, così il punto di partenza è documentato:
+
+| encoder | dim | EER | FAR @ 0.85 | FRR @ 0.85 |
+|---|---|---|---|---|
+| `mfcc-stats-v1` | 24 | **11,84%** | **60,0%** | 2,5% |
+| `ecapa-voxceleb-v1` | 192 | **0,63%** | 0,0% | 66,9% |
+
+Alla soglia **in produzione** il vecchio accettava sei estranei su dieci. Non era tarato male:
+non misurava la persona. La colonna destra insegna la seconda cosa — **0,85 è sbagliato per
+entrambi**, perché una soglia coseno non significa niente indipendentemente dallo spazio degli
+embedding. Quindi cambiare encoder e ricalibrare sono **un'unica operazione**, ed è il motivo
+per cui l'innesto in produzione non è in questo pezzo.
+
+`EcapaVoiceEncoder` sta dietro il `VoiceEncoder` Protocol che già c'era, e
+`recognition_profiles.model` invalida da solo i vecchi centroidi: tutti si riarruolano.
+
+**Prossimi pezzi, in ordine**: soglia dalla curva + banda «non sono sicuro» + più embedding a
+persona → servizio residente `ugo-voice` e audio dal corpo (il `beingId` entra in
+`chat.handle`, che il parametro ce l'ha già e riceve sempre `undefined`) → la camera accesa
+davvero con MediaPipe (oggi `startCameraGaze` ripiega sul `FaceDetector` nativo, che non
+esiste più in nessun browser spedito: **la camera non si è mai accesa**, le pupille seguono il
+dito) → riconoscimento del volto col suo banco → fusione voce+volto → perimetro biometrico
+formalizzato.
+
+### Riconoscere davvero (ADR-043, ADR-044, ADR-045)
+
+Il seguito di ADR-042, e i numeri sono tutti misurati, mai supposti.
+
+**Soglie dalla curva** (ADR-043), per modello e non più costanti. ECAPA a **0,45**: FAR 0,23%,
+FRR 1,88%. Sotto, una banda a 0,30 in cui **chiede invece di indovinare**; sotto ancora, nessuno
+— prima il migliore fra un mucchio di estranei tornava come candidato con confidenza 0,02. I
+profili `mfcc-stats-v1` sono **rifiutati**: nessuna soglia salva un EER dell'11,8%. Misurato e
+scartato: tenere gli embedding separati invece del centroide (stesso EER, niente tabella in più).
+
+**La camera si accende** (ADR-044). `main.ts` chiamava `startCameraGaze` con due argomenti
+invece di tre, quindi il `FaceLocator` non veniva mai iniettato e si ripiegava sul
+`FaceDetector` nativo — API ritirata. **La camera non si era mai accesa**: le pupille seguivano
+il dito. Ora BlazeFace via MediaPipe, **nel browser**: il video non esce dal telefono.
+
+**Il vivo, il volto, la fusione** (ADR-045). `chat.handle` accettava un `beingId` da sempre e
+riceveva sempre `undefined`. Ora: un anello circolare di 5 s nel corpo (che **non accumula** —
+è ciò che rende vero dire che non registra la stanza), l'audio che viaggia col testo, e
+`ugo-percezione` che tiene gli encoder in memoria dietro la rete interna. Volto: ArcFace
+misurato su LFW, **EER 0,98%**, soglia 0,30 (FAR 0,00%, FRR 0,98%). La fusione fonde
+**decisioni** e non punteggi — due coseni di spazi diversi non si sommano — e in disaccordo
+**non sceglie**: chiede.
+
+**Perimetro biometrico formalizzato**, che era in tabella da ADR-016: solo centroidi cifrati,
+mai l'audio o le immagini; minori e opt-out fermati a monte; consenso per persona; cancellazione
+già nel perimetro di `forgetService`; e **senza `UGO_RECOGNITION_URL` non si riconosce nessuno**
+— la biometria si accende, non si subisce.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1259,8 +1318,8 @@ Serve una decisione di prodotto su come il corpo dice a soul chi sta parlando.
 | **`memories.text` in chiaro con un indice che ne dipende** (ADR-022) | Cifrare i ricordi non sarebbe più una migrazione di colonna: sarebbe rinunciare alla ricerca lessicale | Impegno consapevole rispetto a CLAUDE.md regola 6. `messages` e `transcript_segments` restano ciphertext e fuori dalla ricerca ibrida |
 | **drizzle-kit non genera `CREATE TYPE` per un enum nuovo** (§6-quindecies) | Una migrazione che sembra corretta fallisce sul database vero | Aggiunto a mano nella `0009`, con la nota nel file. Seconda trappola dopo l'ordinamento delle FK composte (ADR-019): le migrazioni generate vanno **sempre** provate contro Postgres, mai lette e basta |
 | **La normalizzazione dei tipi simmetrici vive in due lingue** (ADR-024) | Una regola sola, scritta in TypeScript (`BeingsService.link`) e in Python (`entities.py`) | Il check constraint `relations_symmetric_normalized` è la rete sotto entrambe. Da unificare se nasce un terzo scrittore |
-| Encoder vocale MFCC, non neurale | Separa poche voci in casa; su rumore reale sarà più fragile | Vendorizzare pyannote/WeSpeaker dietro la porta `VoiceEncoder`; `recognition_profiles.model` impedisce di confondere i centroidi |
-| Perimetro biometrico non formalizzato | Nessuno finché l'enrollment resta sul corpo di casa | Rispondere alla domanda §6-quater prima di estendere il riconoscimento fuori casa |
+| ~~Encoder vocale MFCC, non neurale~~ | **Molto peggio di quanto scritto qui**: misurato, FAR 60% alla soglia in produzione | **Misurato e sostituito** da ADR-042 (ECAPA-TDNN, EER 0,63%). Resta da innestare in produzione insieme alla soglia calibrata |
+| ~~Perimetro biometrico non formalizzato~~ | — | **Chiuso** da ADR-045, e non poteva restare aperto: 192 e 512 dimensioni sono molto più identificanti dei 24 di prima |
 | Guscio Android: **deciso, non ancora costruito** | Il corpo di casa gira come PWA installata (sufficiente nel dock); **il corpo in giro non può ancora registrare a schermo spento** | ADR-018 **accettato**, adozione in due tempi: Tempo 1 (PWA + wake lock) fatto; Tempo 2 (APK Capacitor) quando si apre davvero la Fase 4. Serve la toolchain Android, non verificabile nella CI attuale |
 | Wake word senza asset del modello (~40 MB) | Interfaccia pronta, riconoscimento non attivo | Vendorizzare Vosk small-it sul device (validazione Fase 2 on-device) |
 | MediaPipe non ancora innestato in `FaceLocator` | Gaze resta sul fallback puntatore dove manca `FaceDetector` | Validare col Nothing 3a Pro e vendorizzare BlazeFace |
@@ -1273,7 +1332,9 @@ Serve una decisione di prodotto su come il corpo dice a soul chi sta parlando.
 | **Il sogno è ancora uno per tutta la casa** | Diario e ricordi notturni non sono per esemplare | ADR-019 fase 3: job per esemplare |
 | ~~Due esemplari **sullo stesso schermo**~~ | — | **Chiuso** da ADR-036: un dispositivo incarna una **stanza**, e ci vede tutti quelli che ci vivono |
 | **Il registro del corpo è in chiaro** (ADR-038) | 80 righe di conversazione nel `localStorage` del dispositivo, fuori da ogni garanzia di cifratura | Consapevole e dichiarato: tetto corto, per stanza, «svuota» in un clic. Cifrarlo richiederebbe una chiave sul chiosco, cioè spostare il problema |
-| **UGO non sa chi ha davanti in chat** (ADR-040) | Ogni turno `unidentifiedPresent` è vero e il prompt gli vieta di indovinare: non ti riconosce mai, per costruzione | Decisione di prodotto aperta: un «sono io» sul corpo, l'audio mandato per l'identificazione, o dedurlo dal branco quando c'è un solo umano. ADR-016 vieta di tirare a indovinare, quindi non c'è un default silenzioso |
+| ~~UGO non sa chi ha davanti in chat~~ | — | **Chiuso** da ADR-045: l'audio viaggia con la frase, `ugo-percezione` identifica, il `beingId` entra in `chat.handle` |
+| **Il giro completo del riconoscimento non è provato end-to-end** (ADR-045) | I pezzi sono misurati e testati, il giro con audio vero attraverso il servizio vero no: richiede l'immagine da 2 GB costruita e i pesi montati | Da fare al primo deploy, con due voci di casa arruolate. È il momento in cui i numeri del banco vanno confrontati con la stanza vera |
+| **Il rilevamento del volto non è provato su un volto vero** (ADR-044) | Verificato che la pipeline si apre e gira; su un volto no | Serve un dispositivo vero: qui non ci sono né ffmpeg né un corpus di volti per una camera finta credibile |
 | **Rinominare una stanza non si può** (ADR-039) | Con `location_label` denormalizzato costerebbe un aggiornamento in due punti | Non è stato chiesto. È il giorno in cui la chiave esterna `room_id` va riconsiderata, e non prima |
 | **Più gosini in una stanza senza copertura e2e** | Il caso a due creature è verificato a mano, non in CI: il setup non gira in questa sandbox | Un `beforeAll` che fa nascere due gosini nella stessa stanza e apre `?stanza=`; da fare quando l'e2e torna eseguibile in locale |
 | `came_home` non produce niente di visibile | Un'uscita non lascia un ricordo di dov'è stato | Il sogno legge già quegli eventi: è il posto naturale |
