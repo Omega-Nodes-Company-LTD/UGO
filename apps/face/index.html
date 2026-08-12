@@ -11,6 +11,13 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <title>UGO</title>
     <style>
+      /* `hidden` has to win. Every panel here sets its own display on an id
+         selector, which outranks the browser's `[hidden] { display: none }`
+         and leaves a "closed" panel sitting on screen. This has now bitten
+         the gate and the scroll: one rule instead of one per panel. */
+      [hidden] {
+        display: none !important;
+      }
       html,
       body {
         margin: 0;
@@ -59,7 +66,47 @@
       #speak-text.visible {
         opacity: 1;
       }
+      #log {
+        position: absolute; right: 1rem; bottom: 4.5rem; width: min(26rem, calc(100% - 2rem));
+        max-height: min(60vh, 30rem); display: flex; flex-direction: column;
+        background: #14141ae6; backdrop-filter: blur(10px); border: 1px solid #ffffff1f;
+        border-radius: .8rem; color: #f2f0ec; font-size: .9rem; overflow: hidden;
+      }
+      #log header {
+        display: flex; align-items: center; gap: .5rem; padding: .6rem .8rem;
+        border-bottom: 1px solid #ffffff14;
+      }
+      #log header b { flex: 1; font-size: .85rem; font-weight: 600; }
+      #log header button {
+        font-size: .75rem; padding: .25rem .6rem; font-family: inherit;
+        background: #21212e; color: #cfcfe0; border: 1px solid #3a3a4c;
+        border-radius: 999px; cursor: pointer;
+      }
+      #log ol { margin: 0; padding: .5rem .8rem 1rem; list-style: none; overflow-y: auto; }
+      #log li { padding: .3rem 0; border-bottom: 1px solid #ffffff0f; line-height: 1.4; }
+      #log li:last-child { border-bottom: 0; }
+      #log .when { color: #ffffff66; font-size: .72rem; margin-right: .4rem;
+                   font-variant-numeric: tabular-nums; }
+      #log .who { font-weight: 600; }
+      #log li.mine .who { color: #b9c7ff; }
+      #log .empty { color: #ffffff66; padding: .6rem 0; }
+      /* the bubble is the same sentence, six seconds of it, and the scroll
+         sits right on top of it. With the scroll open the line is already
+         there and arrives live: showing it twice only hid half of each. */
+      #app[data-log="on"] #speak-text { opacity: 0; }
+
+      #room-pick {
+        background: #21212e;
+        color: #cfcfe0;
+        border: 1px solid #3a3a4c;
+        border-radius: 999px;
+        padding: 0.4rem 0.7rem;
+        font: inherit;
+        font-size: 0.8rem;
+        max-width: 12rem;
+      }
       #btn-mic,
+      #btn-log,
       #btn-ears {
         background: #21212e;
         color: #cfcfe0;
@@ -128,6 +175,14 @@
         <canvas id="qr-canvas" data-testid="qr-canvas" width="240" height="240"></canvas>
         <button id="btn-qr-close" data-testid="btn-qr-close" type="button">Chiudi</button>
       </div>
+      <aside id="log" data-testid="log" hidden>
+        <header>
+          <b>Cosa è stato detto</b>
+          <button id="log-clear" data-testid="log-clear" type="button">svuota</button>
+          <button id="log-close" data-testid="log-close" type="button">chiudi</button>
+        </header>
+        <ol id="log-lines" data-testid="log-lines"></ol>
+      </aside>
       <div id="hud">
         <span id="mood-label" data-testid="mood-label"></span>
         <button id="btn-mic" data-testid="btn-mic" class="home-only" type="button">🎤 attiva sensi</button>
@@ -140,6 +195,10 @@
         <!-- ADR-037: which room this device is. Hidden until there is more
              than one to choose from — a picker with one option is furniture. -->
         <select id="room-pick" data-testid="room-pick" title="che stanza è questo schermo" hidden></select>
+        <!-- ADR-038: la nuvoletta dura sei secondi; questo resta. -->
+        <button id="btn-log" data-testid="btn-log" type="button" title="cosa è stato detto">
+          💬 detto
+        </button>
         <span id="conn" data-testid="conn-status">disconnesso</span>
       </div>
     </div>

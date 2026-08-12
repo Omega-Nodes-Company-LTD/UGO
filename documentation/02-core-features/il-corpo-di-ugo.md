@@ -1,8 +1,8 @@
 ---
 title: "Il corpo di UGO"
 description: "Come si muove il porcetto sullo schermo: le posture, il vagabondaggio, i piccoli gesti e cosa raccontano del suo umore."
-version: "0.11.0"
-last_updated: "2026-08-11"
+version: "0.12.0"
+last_updated: "2026-08-12"
 author: "ThinkPink Studio"
 ---
 
@@ -75,6 +75,23 @@ Ogni parte del corpo racconta una cosa diversa, e ognuna ha la sua:
 
 Se il muso è girato dall'altra parte e gli occhi vagano, non è rotto: è annoiato. Parlagli.
 
+## Cosa è stato detto
+
+La nuvoletta dura sei secondi. Se eri nell'altra stanza, quella frase è passata — e con
+più gosini nella stessa stanza passa in fretta, perché parlano uno dopo l'altro.
+
+In basso c'è **💬 detto**: apre il registro di quello che è stato detto su questo
+schermo, con l'ora e il nome di chi ha parlato. Le tue righe sono marcate «tu».
+Si apre e si chiude quando vuoi, e resta lì anche se ricarichi la pagina.
+
+Un paio di cose da sapere:
+
+- **Tiene le ultime ottanta righe**, non tutto. È testo di conversazione in chiaro su
+  questo dispositivo, e una coda breve è un conto, un archivio è un altro. La memoria
+  vera di UGO è un'altra cosa e sta cifrata sul server.
+- **Ogni stanza ha il suo**: il tablet della cucina non ti mostra quello dello studio.
+- **«svuota» svuota davvero**, ed è l'unica copia che questo schermo tiene.
+
 ## Se il porcetto non compare in 3D
 
 Su alcuni dispositivi vecchi UGO appare come **muso disegnato in piatto**, senza corpo né zampe.
@@ -87,4 +104,5 @@ Puoi forzare una delle due versioni aggiungendo `?renderer=3d` o `?renderer=2d` 
 
 - [Parlare con UGO](./parlare-con-ugo.md) — la conversazione, la memoria e il budget
 - [In giro](./in-giro.md) — il corpo indossabile e la modalità a basso consumo
+- [Il pannello](./il-pannello.md) — le stanze, chi ci vive e come spostarli
 - [Problemi comuni](../04-troubleshooting/problemi-comuni.md)

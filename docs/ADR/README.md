@@ -43,4 +43,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [035](./035-il-pannello-ha-due-livelli.md) | Il pannello ha due livelli, e una sessione che dura | Accettata |
 | [036](./036-la-stanza-e-l-unita.md) | La stanza è l'unità, non la creatura | Accettata |
 | [037](./037-chi-parla-e-che-stanza-e.md) | Chi parla, e che stanza è questa | Accettata |
-| 038 | *(prossimo numero disponibile)* | — |
+| [038](./038-cosa-e-stato-detto.md) | Cosa è stato detto: il corpo tiene un registro | Accettata |
+| 039 | *(prossimo numero disponibile)* | — |

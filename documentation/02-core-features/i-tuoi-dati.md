@@ -1,8 +1,8 @@
 ---
 title: "I tuoi dati"
 description: "Dove vivono i dati di UGO, come portarli via in un file solo e come far dimenticare una persona per sempre."
-version: "0.9.0"
-last_updated: "2026-08-09"
+version: "0.10.0"
+last_updated: "2026-08-12"
 author: "ThinkPink Studio"
 ---
 
@@ -27,6 +27,13 @@ mai.
 | File audio originali             | archivio di casa          | 90 giorni, poi cancellati          |
 | Ricordi ed embedding             | database di casa          | sbiadiscono se non li usi          |
 | Backup notturni                  | archivio di casa, cifrati | 30 giorni                          |
+| Registro «cosa è stato detto»    | **sullo schermo**, in chiaro | ultime 80 righe, finché non svuoti |
+
+Una riga di quella tabella è diversa dalle altre: il **registro sullo schermo**. È la
+comodità di ritrovare una frase persa senza cambiare dispositivo, e il prezzo è che le
+ultime ottanta righe stanno in chiaro nella memoria del browser di quel dispositivo —
+non sul server, non cifrate. Per questo è corto e per questo c'è **svuota** dentro al
+registro stesso. Su un tablet condiviso, o quando presti lo schermo, svuotalo.
 
 Il testo è cifrato con una chiave tenuta **separata dal database**: chi rubasse una copia del
 database senza la chiave si porterebbe a casa dei caratteri illeggibili.

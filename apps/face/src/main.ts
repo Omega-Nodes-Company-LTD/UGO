@@ -6,6 +6,7 @@ import { ScreenAwake } from "./wakelock.js";
 import { createFace } from "./body/createFace.js";
 import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
+import { mountLogPanel } from "./logPanel.js";
 import { Speech } from "./speech.js";
 import { worthSending } from "./heard.js";
 import { FaceSocket } from "./ws.js";
@@ -29,6 +30,8 @@ const speakText = requireElement("#speak-text");
 const connStatus = requireElement("#conn");
 const micButton = requireElement("#btn-mic");
 const roomPick = requireElement("#room-pick") as HTMLSelectElement;
+const logPanel = requireElement("#log");
+const logLines = requireElement("#log-lines");
 const earsButton = requireElement("#btn-ears");
 
 const params = new URLSearchParams(location.search);
@@ -54,12 +57,41 @@ let lastPresenceAt = 0;
 let residents: { id: string; name: string }[] = [];
 const nameOf = (who: string | undefined): string | undefined =>
   residents.find((r) => r.id === who)?.name;
+/** each creature's mood, so the caption can name all of them (ADR-038) */
+const moods = new Map<string, string>();
+
+/** What was said, kept and reopenable (ADR-038). */
+const { remember } = mountLogPanel(
+  {
+    app,
+    panel: logPanel,
+    lines: logLines,
+    toggle: requireElement("#btn-log"),
+    close: requireElement("#log-close"),
+    clear: requireElement("#log-clear"),
+  },
+  params.get("stanza"),
+);
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Nobody named means the whole room, which is also the one-creature case. */
 function setLocalState(state: FaceState, who?: string): void {
-  app.dataset.state = state;
+  // the shell's own state drives the page chrome (privacy, sleep). With several
+  // in the room it follows whoever is most awake, so one sleeping creature does
+  // not put the whole screen to bed.
+  if (who !== undefined) states.set(who, state);
+  app.dataset.state = liveliest(state);
   renderer.setState(state, who);
+}
+
+const states = new Map<string, FaceState>();
+/** The most awake state in the room: a screen is asleep only if everybody is. */
+const LIVELINESS: FaceState[] = ["sleeping", "idle", "alert", "listening", "thinking", "talking"];
+function liveliest(fallback: FaceState): FaceState {
+  if (residents.length < 2) return fallback;
+  let best = 0;
+  for (const state of states.values()) best = Math.max(best, LIVELINESS.indexOf(state));
+  return LIVELINESS[best] ?? fallback;
 }
 
 /**
@@ -94,7 +126,11 @@ async function loadRooms(): Promise<void> {
   } catch {
     return; // no soul yet: the picker simply does not appear
   }
-  if (rooms.length < 2) return;
+  // shown as soon as ONE room exists. Hiding it below two was wrong twice
+  // over: a screen that shows a room must say WHICH room even when there is
+  // only one, and a house that puts everybody in the same room had no way to
+  // pick it at all.
+  if (rooms.length === 0) return;
   const current = params.get("stanza")?.toLowerCase();
   roomPick.innerHTML = rooms
     .map((r) => {
@@ -103,9 +139,11 @@ async function loadRooms(): Promise<void> {
       return `<option value="${r.room}"${chosen}>${r.room} · ${names}</option>`;
     })
     .join("");
-  if (current === undefined) {
-    roomPick.insertAdjacentHTML("afterbegin", '<option value="" selected>— stanza —</option>');
-  }
+  // an explicit "nobody in particular" entry, so the choice is reversible
+  roomPick.insertAdjacentHTML(
+    "afterbegin",
+    `<option value=""${current === undefined ? " selected" : ""}>— nessuna stanza —</option>`,
+  );
   roomPick.hidden = false;
 }
 
@@ -122,16 +160,26 @@ function onServerMessage(message: ServerToFaceMessage): void {
       setLocalState(message.state, message.who);
       return;
     case "mood": {
-      // with several in the room the caption would flicker between their moods,
-      // so it follows the first — the others show theirs in how they move
-      if (message.who === undefined || message.who === residents[0]?.id) {
-        moodLabel.textContent = message.label;
-      }
+      // ADR-038: one caption for a room of several was a caption about nobody.
+      // Each creature's mood is kept and the line lists them all by name.
+      if (message.who !== undefined) moods.set(message.who, message.label);
+      moodLabel.textContent =
+        residents.length > 1
+          ? residents
+              .map((r) => `${r.name}: ${moods.get(r.id) ?? "—"}`)
+              .join("  ·  ")
+          : message.label;
       // every psyche variable reaches the body now, not just umore and stress
       renderer.setMood(message.label, message.vars, message.who);
       return;
     }
     case "speak":
+      remember({
+        who: nameOf(message.who) ?? "UGO",
+        text: message.text,
+        at: Date.now(),
+        mine: false,
+      });
       showSpeech(message.text, message.who);
       speech.speak(message.text, message.who);
       // and the others turn to look at whoever is talking: a room where
@@ -176,6 +224,20 @@ const socket = new FaceSocket(soulUrl, {
   },
 });
 
+/**
+ * The one door out (ADR-038). What the room was heard to say is half the
+ * conversation, and the scroll records it here rather than at the microphone:
+ * a sentence typed in, or replayed from the offline queue, is still something
+ * that was said in this room, and hooking the recorder to one input would have
+ * kept only the half that came through that input.
+ */
+function sendToSoul(message: FaceToServerMessage): void {
+  if (message.type === "heard_text") {
+    remember({ who: "tu", text: message.text, at: Date.now(), mine: true });
+  }
+  socket.send(message);
+}
+
 // local zero-token reactions: startle immediately, tell soul right after
 const sensors = new Sensors(
   (message) => {
@@ -211,7 +273,7 @@ function startListening(): void {
   const started = speech.listen((text) => {
     if (!worthSending(text, { spoken: speech.spokenLast() })) return;
     setLocalState("listening");
-    socket.send({ type: "heard_text", text });
+    sendToSoul({ type: "heard_text", text });
   });
   if (started) app.dataset.ears = "on";
 }
@@ -362,7 +424,7 @@ declare global {
 }
 window.__ugoFace = {
   send: (message) => {
-    socket.send(message);
+    sendToSoul(message);
   },
   queued: () => socket.queuedCount(),
   queuedFresh: () => socket.queuedCountFresh(),
