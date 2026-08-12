@@ -37,6 +37,8 @@ export interface FaceRenderer {
   reflex(kind: string, who?: string): void;
   /** who is in the room; a renderer that shows one may keep the first */
   setResidents?(residents: readonly Resident[]): void;
+  /** somebody is speaking: the rest of the room turns to look at him */
+  attendTo?(who: string | undefined): void;
   start(): void;
   stop(): void;
   /** what the body is currently doing, for the e2e hooks */

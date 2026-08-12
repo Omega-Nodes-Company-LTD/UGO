@@ -1,4 +1,22 @@
 /**
+ * A voice, derived from an id (ADR-037).
+ *
+ * Deterministic, so the same creature always sounds the same — a voice that
+ * changed on reconnect would be worse than one voice for everybody. Spread is
+ * deliberately narrow: far enough apart to tell two speakers apart, close
+ * enough that everybody still sounds like a small pig.
+ */
+export function voiceOf(who: string | undefined): { pitch: number; rate: number } {
+  if (who === undefined || who === "") return { pitch: 1.35, rate: 1.05 };
+  let hash = 0;
+  for (const char of who) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return {
+    pitch: 1.15 + ((hash % 41) / 40) * 0.45,
+    rate: 0.95 + (((hash >>> 8) % 21) / 20) * 0.25,
+  };
+}
+
+/**
  * On-device voice (ADR-006): system STT/TTS, zero cloud, zero cost.
  * MVP activation is tap/presence (wake word arrives in Fase 3).
  */
@@ -124,14 +142,23 @@ export class Speech {
     this.recognition?.stop();
   }
 
-  /** pitched-up Italian voice: carattere da porcetto */
-  public speak(text: string): void {
+  /**
+   * Pitched-up Italian voice: carattere da porcetto.
+   *
+   * ADR-037: `who` gives each creature a voice of its own. With two of them in
+   * a room a single voice made the conversation unfollowable — you could hear
+   * that somebody spoke and not which one. Derived from the id, so it is the
+   * same voice every time and on every device, and centred on the original
+   * pitch so a house with one creature still sounds exactly as it did.
+   */
+  public speak(text: string, who?: string): void {
     this.lastSpoken = text;
     if (!("speechSynthesis" in globalThis)) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "it-IT";
-    utterance.pitch = 1.35;
-    utterance.rate = 1.05;
+    const timbre = voiceOf(who);
+    utterance.pitch = timbre.pitch;
+    utterance.rate = timbre.rate;
     this.speaking = true;
     // the tail matters: the room keeps a little reverb, and the recognizer is
     // still chewing on the last syllable when `onend` fires

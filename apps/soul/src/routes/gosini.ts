@@ -1,5 +1,5 @@
 import { gosini, traitSets, type DbClient } from "@ugo/db";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ARCHETYPES, characterFrom, traitsSchema } from "../services/council/character.js";
@@ -43,6 +43,34 @@ export interface GosiniRoutesDeps {
 }
 
 export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDeps): void {
+  /**
+   * The rooms, and who is in them (ADR-037). **Not guarded**, unlike everything
+   * else in this file, because the body needs it and the body has no operator
+   * token: a dock must be able to offer "which room am I?" without one.
+   *
+   * What it exposes is room labels and creature names — the same class of thing
+   * `whoami` has always sent down an unguarded socket on this tailnet. It says
+   * nothing about the household: no people, no memories, no spend.
+   */
+  app.get("/v1/rooms", async (_request, reply) => {
+    const rows = await deps.db
+      .select({ id: gosini.id, name: gosini.name, where: gosini.locationLabel })
+      .from(gosini)
+      .where(isNull(gosini.retiredAt));
+    const byRoom = new Map<string, { room: string; gosini: { id: string; name: string }[] }>();
+    for (const row of rows) {
+      const room = row.where?.trim();
+      if (room === undefined || room === "") continue;
+      const key = room.toLowerCase();
+      const seen = byRoom.get(key);
+      byRoom.set(key, {
+        room,
+        gosini: [...(seen?.gosini ?? []), { id: row.id, name: row.name }],
+      });
+    }
+    return reply.send({ rooms: [...byRoom.values()] });
+  });
+
   app.post("/v1/gosini", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = newGosinoSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });

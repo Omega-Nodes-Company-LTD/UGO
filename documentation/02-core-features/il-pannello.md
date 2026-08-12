@@ -40,8 +40,12 @@ costa niente: non perde umore né ricordi, cambia solo su quale schermo lo vedi.
 in nessuna stanza compare sotto «Senza stanza» e non appare su nessun dispositivo finché
 non gliene dai una.
 
+Sullo schermo, in alto, c'è un **selettore della stanza**: compare appena ne esiste più di
+una, e da lì decidi cosa mostra quel dispositivo senza toccare l'indirizzo.
+
 Se in una stanza ce n'è più di uno, li vedi tutti insieme sullo stesso pavimento, ognuno con
-la sua andatura. **Il rumore lo sentono tutti** — è la stanza che l'ha sentito, ed è
+la sua andatura. **Quando uno parla, il suo nome è nella nuvoletta e la sua voce è diversa
+da quella degli altri** — e gli altri si girano a guardarlo. **Il rumore lo sentono tutti** — è la stanza che l'ha sentito, ed è
 interessante proprio perché ognuno reagisce a modo suo. Quando invece parli, ti risponde
 uno solo: farli rispondere tutti costerebbe una chiamata a testa per ogni frase. Per sentirli
 tutti c'è [il consiglio](#il-consiglio), che usa i modelli locali e non tocca il budget.
