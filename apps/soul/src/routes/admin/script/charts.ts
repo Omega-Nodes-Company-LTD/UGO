@@ -160,8 +160,10 @@ function barChart(host, bars, options = {}) {
   host.appendChild(svg);
 
   if (reference !== undefined && !inScale) {
+    // NOT class "empty": that means "there is nothing to draw", and this note
+    // travels WITH a drawn chart. Reusing it told the e2e the plot was missing.
     const note = document.createElement("p");
-    note.className = "empty";
+    note.className = "note";
     note.textContent = "Il limite giornaliero è " + format(reference) +
       ": molto sopra questa scala, quindi non è disegnato.";
     host.appendChild(note);

@@ -131,6 +131,8 @@ export const ADMIN_PAGE = `<!doctype html>
   .tip { position: absolute; top: 0; background: var(--ink); color: var(--paper); font-size: .75rem;
          padding: .2rem .45rem; border-radius: .3rem; pointer-events: none; white-space: nowrap; }
   .empty { color: var(--muted); font-size: .9rem; margin: .5rem 0; }
+  /* a caveat that travels with a drawn chart, not instead of one */
+  .note { color: var(--muted); font-size: .8rem; margin: .35rem 0 0; }
 
   /* --- small multiples: six shapes, one colour, no legend ---------------- */
   .sparks { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: .5rem; margin-top: .6rem; }
