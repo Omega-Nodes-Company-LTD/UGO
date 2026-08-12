@@ -1,5 +1,7 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, events, messages, runMigrations, type DbClient } from "@ugo/db";
+import { createDbClient, events, messages, runMigrations, type DbClient,
+  PRIME_GOSINO_ID,
+} from "@ugo/db";
 import { encryptText } from "@ugo/shared";
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
@@ -20,7 +22,7 @@ let db: DbClient;
 
 async function freshMonitor(): Promise<{ monitor: SolitudeMonitor; psyche: PsycheService }> {
   const psyche = await PsycheService.restore(db, NOW);
-  return { monitor: new SolitudeMonitor({ db, psyche }), psyche };
+  return { monitor: new SolitudeMonitor({ db, gosinoId: PRIME_GOSINO_ID, psyche }), psyche };
 }
 
 beforeAll(async () => {

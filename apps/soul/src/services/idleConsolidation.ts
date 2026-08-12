@@ -1,5 +1,5 @@
 import { events, messages, type DbClient } from "@ugo/db";
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 /**
  * Sleep-time compute (backlog gruppo 1, ADR-025): when nobody has been around
@@ -32,6 +32,12 @@ export interface IdleConsolidationOptions {
 
 export interface IdleConsolidationDeps {
   db: DbClient;
+  /**
+   * Whose quiet this is (ADR-019 phase 2). Unscoped, a house being busy kept
+   * the neighbours' creature from ever consolidating, and one marker stood for
+   * everybody.
+   */
+  gosinoId: string;
   options: IdleConsolidationOptions;
   /** The jobs runner; without one the request is only recorded. */
   trigger?: (mode: "light") => Promise<void>;
@@ -65,13 +71,18 @@ export class IdleConsolidation {
       db
         .select({ ts: events.ts })
         .from(events)
-        .where(inArray(events.type, [...PRESENCE_EVENT_TYPES]))
+        .where(
+          and(
+            inArray(events.type, [...PRESENCE_EVENT_TYPES]),
+            eq(events.gosinoId, this.deps.gosinoId),
+          ),
+        )
         .orderBy(desc(events.ts))
         .limit(1),
       db
         .select({ ts: messages.ts })
         .from(messages)
-        .where(eq(messages.role, "user"))
+        .where(and(eq(messages.role, "user"), eq(messages.gosinoId, this.deps.gosinoId)))
         .orderBy(desc(messages.ts))
         .limit(1),
     ]);
@@ -89,7 +100,10 @@ export class IdleConsolidation {
       .select({ id: events.id })
       .from(events)
       .where(
-        sql`${events.type} = 'idle_consolidation_requested' and ${events.ts} >= ${since.toISOString()}`,
+        and(
+          eq(events.gosinoId, this.deps.gosinoId),
+          sql`${events.type} = 'idle_consolidation_requested' and ${events.ts} >= ${since.toISOString()}`,
+        ),
       )
       .limit(1);
     return rows.length > 0;
@@ -130,6 +144,7 @@ export class IdleConsolidation {
     }
 
     await db.insert(events).values({
+      gosinoId: this.deps.gosinoId,
       ts: at,
       source: "system",
       type: "idle_consolidation_requested",

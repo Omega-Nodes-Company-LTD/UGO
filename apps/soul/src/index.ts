@@ -61,14 +61,17 @@ if (env.UGO_AUTO_MIGRATE) {
 
 const db = createDbClient(env.DATABASE_URL);
 const psyche = await PsycheService.restore(db);
-const llm = new LlmClient({
-  db,
-  apiKey: env.ANTHROPIC_API_KEY,
-  model: env.UGO_CHAT_MODEL,
-  dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
-  ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
-  timezone: env.TZ,
-});
+const llmFor = (householdId: string, gosinoId: string): LlmClient =>
+  new LlmClient({
+    db,
+    apiKey: env.ANTHROPIC_API_KEY,
+    model: env.UGO_CHAT_MODEL,
+    dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
+    householdId,
+    gosinoId,
+    ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
+    timezone: env.TZ,
+  });
 const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
 
 /**
@@ -96,6 +99,7 @@ const [bootstrapExemplar] = await db
 if (bootstrapExemplar === undefined) throw new Error("no exemplar: run the migrations");
 
 const pack = new PackService(db, speciesMap, bootstrapExemplar.id, bootstrapHouseholdId);
+const llm = llmFor(bootstrapHouseholdId, bootstrapExemplar.id);
 const chat = new ChatService({
   db,
   embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
@@ -129,6 +133,7 @@ const meetings =
   env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined
     ? new MeetingsService({
         db,
+        gosinoId: bootstrapExemplar.id,
         embedder,
         llm,
         dataKey,
@@ -194,7 +199,7 @@ const recognition =
 const registry = await GosinoRegistry.load({
   db,
   embedder,
-  llm,
+  llm: llmFor,
   local: localText,
   dataKey,
   timezone: env.TZ,
@@ -268,7 +273,7 @@ const volitionTimer = setInterval(() => {
 volitionTimer.unref();
 
 // §5.3: loneliness and neglect are perturbations no sensor can emit
-const solitude = new SolitudeMonitor({ db, psyche });
+const solitude = new SolitudeMonitor({ db, gosinoId: bootstrapExemplar.id, psyche });
 const SOLITUDE_TICK_MS = 15 * 60_000;
 const solitudeTimer = setInterval(() => {
   solitude.tick().catch((error: unknown) => {
@@ -283,6 +288,7 @@ if (env.UGO_IDLE_CONSOLIDATION_MINUTES > 0) {
   const triggerUrl = env.UGO_JOBS_TRIGGER_URL;
   const idle = new IdleConsolidation({
     db,
+    gosinoId: bootstrapExemplar.id,
     options: {
       idleMinutes: env.UGO_IDLE_CONSOLIDATION_MINUTES,
       nightGuardMinutes: 60,

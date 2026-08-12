@@ -1,5 +1,5 @@
 import { events, messages, type DbClient } from "@ugo/db";
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { PsycheService } from "./psycheService.js";
 
 /**
@@ -22,6 +22,14 @@ const PRESENCE_EVENT_TYPES = ["face_seen", "tap", "heard_text", "lead_contact"] 
 export interface SolitudeMonitorDeps {
   db: DbClient;
   psyche: PsycheService;
+  /**
+   * Whose loneliness this is (ADR-015, ADR-019 phase 2). Unscoped, the monitor
+   * read the whole database: somebody talking to the creature next door
+   * counted as company here, and the marker written by one exemplar silenced
+   * the clock for every other. One loop per exemplar is phase 3; this at least
+   * makes the one that exists belong to somebody.
+   */
+  gosinoId: string;
 }
 
 export interface TickReport {
@@ -38,7 +46,12 @@ export class SolitudeMonitor {
       const rows = await db
         .select({ ts: events.ts })
         .from(events)
-        .where(inArray(events.type, [...PRESENCE_EVENT_TYPES]))
+        .where(
+          and(
+            inArray(events.type, [...PRESENCE_EVENT_TYPES]),
+            eq(events.gosinoId, this.deps.gosinoId),
+          ),
+        )
         .orderBy(desc(events.ts))
         .limit(1);
       return rows[0]?.ts;
@@ -46,7 +59,7 @@ export class SolitudeMonitor {
     const rows = await db
       .select({ ts: messages.ts })
       .from(messages)
-      .where(eq(messages.role, "user"))
+      .where(and(eq(messages.role, "user"), eq(messages.gosinoId, this.deps.gosinoId)))
       .orderBy(desc(messages.ts))
       .limit(1);
     return rows[0]?.ts;
@@ -56,7 +69,12 @@ export class SolitudeMonitor {
     const rows = await this.deps.db
       .select({ id: events.id })
       .from(events)
-      .where(sql`${events.type} = ${type} and ${events.ts} >= ${since.toISOString()}`)
+      .where(
+        and(
+          eq(events.gosinoId, this.deps.gosinoId),
+          sql`${events.type} = ${type} and ${events.ts} >= ${since.toISOString()}`,
+        ),
+      )
       .limit(1);
     return rows.length > 0;
   }
@@ -80,7 +98,13 @@ export class SolitudeMonitor {
     // an hour alone: noia +0.05, at most once per hour
     if (lastContact !== undefined && at.getTime() - lastContact.getTime() >= HOUR_MS) {
       if (!(await this.lastMarker("solitude_hour", new Date(at.getTime() - HOUR_MS)))) {
-        await db.insert(events).values({ ts: at, source: "system", type: "solitude_hour", payload: {} });
+        await db.insert(events).values({
+          gosinoId: this.deps.gosinoId,
+          ts: at,
+          source: "system",
+          type: "solitude_hour",
+          payload: {},
+        });
         await psyche.applyEventType("solitude_hour", at);
         report.solitudeApplied = true;
       }
@@ -90,7 +114,13 @@ export class SolitudeMonitor {
     const ignoredSince = lastUserMessage;
     if (ignoredSince !== undefined && at.getTime() - ignoredSince.getTime() >= DAY_MS) {
       if (!(await this.lastMarker("ignored_day", new Date(at.getTime() - DAY_MS)))) {
-        await db.insert(events).values({ ts: at, source: "system", type: "ignored_day", payload: {} });
+        await db.insert(events).values({
+          gosinoId: this.deps.gosinoId,
+          ts: at,
+          source: "system",
+          type: "ignored_day",
+          payload: {},
+        });
         await psyche.applyEventType("ignored_day", at);
         report.ignoredApplied = true;
       }

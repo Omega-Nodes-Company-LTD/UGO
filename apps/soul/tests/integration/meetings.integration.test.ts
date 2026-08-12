@@ -9,6 +9,7 @@ import {
   messages,
   runMigrations,
   transcriptSegments,
+  PRIME_GOSINO_ID,
   type DbClient,
 } from "@ugo/db";
 import {
@@ -55,6 +56,7 @@ beforeAll(async () => {
   const embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
   service = new MeetingsService({
     db,
+    gosinoId: PRIME_GOSINO_ID,
     embedder,
     llm: new LlmClient({
       db,

@@ -51,7 +51,13 @@ export interface GosinoRuntime {
 export interface RuntimeDeps {
   db: DbClient;
   embedder: EmbeddingsClient;
-  llm: LlmClient;
+  /**
+   * ADR-019 phase 2: a client per exemplar, because the ledger row says both
+   * which house pays and which creature spent it. One client for the whole
+   * process wrote every row against the seeded house — so a second family's
+   * conversation drained the first one's day and its ceiling was never read.
+   */
+  llm: (householdId: string, gosinoId: string) => LlmClient;
   local: LocalTextClient;
   dataKey: Buffer;
   timezone: string;
@@ -92,7 +98,7 @@ async function buildRuntime(
   const chat = new ChatService({
     db: deps.db,
     embedder: deps.embedder,
-    llm: deps.llm,
+    llm: deps.llm(row.householdId, row.id),
     psyche,
     dataKey: deps.dataKey,
     timezone: deps.timezone,

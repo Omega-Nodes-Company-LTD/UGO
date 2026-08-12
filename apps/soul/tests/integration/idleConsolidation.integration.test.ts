@@ -1,5 +1,7 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, events, messages, runMigrations, type DbClient } from "@ugo/db";
+import { createDbClient, events, messages, runMigrations, type DbClient,
+  PRIME_GOSINO_ID,
+} from "@ugo/db";
 import { encryptText } from "@ugo/shared";
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
@@ -23,6 +25,7 @@ function build(
   const triggered: string[] = [];
   const idle = new IdleConsolidation({
     db,
+    gosinoId: PRIME_GOSINO_ID,
     options: {
       idleMinutes: overrides.idleMinutes ?? 90,
       nightGuardMinutes: 60,
@@ -133,6 +136,7 @@ describe("consolidamento su inattività (ADR-025)", () => {
     await sawSomeone(ago(200 * MINUTE));
     const idle = new IdleConsolidation({
       db,
+      gosinoId: PRIME_GOSINO_ID,
       options: {
         idleMinutes: 90,
         nightGuardMinutes: 60,

@@ -9,6 +9,7 @@ import {
   messages,
   runMigrations,
   type DbClient,
+  PRIME_GOSINO_ID,
 } from "@ugo/db";
 import {
   EMBED_MODEL,
@@ -136,7 +137,7 @@ describe("una giornata di vita", () => {
     // the last user message is backdated: nobody spoke to him for 30 hours
     await db.update(messages).set({ ts: new Date(DAY_START.getTime() - 30 * HOUR) });
     const { psyche } = await wake(20);
-    const monitor = new SolitudeMonitor({ db, psyche });
+    const monitor = new SolitudeMonitor({ db, gosinoId: PRIME_GOSINO_ID, psyche });
     const before = psyche.current(at(13)).vars.umore;
 
     const report = await monitor.tick(at(13));

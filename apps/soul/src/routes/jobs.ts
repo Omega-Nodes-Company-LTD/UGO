@@ -1,6 +1,7 @@
 import { events, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
+import { eldestExemplarOf, householdScope } from "./scope.js";
 
 /**
  * `POST /v1/jobs/dream` (PROGETTO §5.7): manual trigger for the night job.
@@ -22,11 +23,17 @@ export interface JobsRouteDeps {
 
 export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): void {
   app.post("/v1/jobs/dream", { preHandler: deps.guard }, async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
     const body = (request.body ?? {}) as { date?: unknown };
     const date = typeof body.date === "string" ? body.date : undefined;
-    await deps.db
-      .insert(events)
-      .values({ source: "system", type: "dream_requested", payload: date !== undefined ? { date } : {} });
+    await deps.db.insert(events).values({
+      gosinoId: await eldestExemplarOf(deps.db, householdId),
+      source: "system",
+      type: "dream_requested",
+      // who asked belongs in `audit_log` (ADR-047), not in an event payload
+      payload: date !== undefined ? { date } : {},
+    });
 
     if (deps.dreamTriggerUrl === undefined) {
       return reply.code(202).send({
