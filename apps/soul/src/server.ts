@@ -13,6 +13,7 @@ import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceStatic } from "./routes/faceStatic.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerCouncilRoutes } from "./routes/council.js";
+import { registerGosiniRoutes } from "./routes/gosini.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
@@ -39,8 +40,13 @@ export interface ServerOptions extends HealthDeps {
     stats?: { dailyBudgetUsd: number; timezone: string };
     /** the pack surface (ADR-014); the Umwelt map comes from configuration */
     speciesMap?: SpeciesMap;
-    /** ADR-031: more than one exemplar in the house, and a way to ask them all */
-    council?: { council: CouncilService; householdId: () => Promise<string> };
+    /** ADR-031: a way to ask all of them at once. Local models only. */
+    council?: { council: CouncilService };
+    /**
+     * ADR-036: the population — born, listed, moved between rooms. Independent
+     * of the council: a house can have several creatures and never convene one.
+     */
+    gosini?: { householdId: () => Promise<string> };
     /** ADR-032: the per-exemplar runtimes a socket can ask to be */
     registry?: GosinoRegistry;
     /** ADR-034: the runtime override on UGO_INITIATIVE, for /admin */
@@ -85,6 +91,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       stats,
       speciesMap,
       council,
+      gosini,
       registry,
       initiative,
       internalToken,
@@ -139,13 +146,16 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       });
       registerAdminRoutes(app);
     }
-    if (council !== undefined) {
-      registerCouncilRoutes(app, {
+    if (gosini !== undefined) {
+      registerGosiniRoutes(app, {
         db: options.db,
         guard,
-        ...council,
+        ...gosini,
         ...(registry !== undefined && { registry }),
       });
+    }
+    if (council !== undefined) {
+      registerCouncilRoutes(app, { db: options.db, guard, ...council });
     }
     if (stats !== undefined) {
       registerStatsRoute(app, {

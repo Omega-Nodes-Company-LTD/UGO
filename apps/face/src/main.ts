@@ -31,10 +31,11 @@ const micButton = requireElement("#btn-mic");
 const earsButton = requireElement("#btn-ears");
 
 const params = new URLSearchParams(location.search);
-// ADR-032: `?gosino=cucina` picks which exemplar this device is the body of;
-// without it the dock gets the eldest, which is what a single-exemplar house
-// has always shown
-const soulUrl = resolveSoulUrl(location, params.get("soul"), params.get("gosino"));
+// ADR-036: `?stanza=cucina` makes this device the body of a ROOM — whoever
+// lives there appears on it, one or several. `?gosino=` (ADR-032) still names
+// one exactly; without either, the dock gets the eldest, which is what a
+// single-exemplar house has always shown.
+const soulUrl = resolveSoulUrl(location, params.get("soul"), params.get("gosino"), params.get("stanza"));
 // portable mode (§4.2): NFC tag in the shell sets ?mode=portable; manual fallback
 const portableMode = params.get("mode") === "portable";
 const soulHttp = soulHttpBase(soulUrl);
@@ -48,11 +49,14 @@ const renderer = createFace(canvas, {
 const glyph = new GlyphDriver(app);
 const speech = new Speech();
 let lastPresenceAt = 0;
+/** who is in this room (ADR-036); one nameless entry until the roster lands */
+let residents: { id: string; name: string }[] = [];
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
 
-function setLocalState(state: FaceState): void {
+/** Nobody named means the whole room, which is also the one-creature case. */
+function setLocalState(state: FaceState, who?: string): void {
   app.dataset.state = state;
-  renderer.setState(state);
+  renderer.setState(state, who);
 }
 
 function showSpeech(text: string): void {
@@ -67,12 +71,16 @@ function showSpeech(text: string): void {
 function onServerMessage(message: ServerToFaceMessage): void {
   switch (message.type) {
     case "state":
-      setLocalState(message.state);
+      setLocalState(message.state, message.who);
       return;
     case "mood": {
-      moodLabel.textContent = message.label;
+      // with several in the room the caption would flicker between their moods,
+      // so it follows the first — the others show theirs in how they move
+      if (message.who === undefined || message.who === residents[0]?.id) {
+        moodLabel.textContent = message.label;
+      }
       // every psyche variable reaches the body now, not just umore and stress
-      renderer.setMood(message.label, message.vars);
+      renderer.setMood(message.label, message.vars, message.who);
       return;
     }
     case "speak":
@@ -87,10 +95,19 @@ function onServerMessage(message: ServerToFaceMessage): void {
       // this actually is instead of quietly showing somebody else
       app.dataset.gosino = message.name;
       return;
+    case "roster":
+      // ADR-036: who lives in this room. The body draws one creature per entry,
+      // and keeps the ones already here so a reconnect does not make them
+      // all flinch.
+      residents = message.gosini;
+      app.dataset.room = message.room ?? "";
+      app.dataset.gosino = message.gosini.map((g) => g.name).join(", ");
+      renderer.setResidents?.(message.gosini);
+      return;
     case "gesture":
       // ADR-027: soul decided, the body performs. Unknown ids are dropped by
       // the player, so an older face and a newer soul stay compatible.
-      renderer.reflex(message.id);
+      renderer.reflex(message.id, message.who);
       return;
   }
 }

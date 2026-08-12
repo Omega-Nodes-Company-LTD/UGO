@@ -95,6 +95,8 @@ export const ADMIN_STYLES = `
   .rail a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
   .rail .dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--data); flex: 0 0 auto; }
   .rail .rail-note { padding: .35rem .55rem; font-size: .78rem; color: var(--ink-3); }
+  /* the room is what a device shows, so the rail names it beside him */
+  .rail .rail-where { margin-left: auto; font-size: .72rem; color: var(--ink-3); }
 
   main { padding: 1.75rem clamp(1rem, 4vw, 2.5rem) 5rem; max-width: 68rem; }
 

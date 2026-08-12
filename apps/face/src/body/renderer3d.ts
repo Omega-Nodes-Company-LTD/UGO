@@ -1,24 +1,18 @@
 import * as THREE from "three";
 import type { FaceState } from "@ugo/shared/face";
-import { Autonomy } from "./autonomy.js";
-import { POSTURE_IT, type Posture } from "./channels.js";
-import type { FaceRenderer } from "./faceRenderer.js";
-import { GesturePlayer } from "./gestures.js";
-import { DEFAULT_TRAITS, Pig, type Traits } from "./pig.js";
-import { NEUTRAL_VARS, type PsycheVars, computePose } from "./pose.js";
-import { PostureMixer, choosePosture } from "./posture.js";
-import { ACTIVITY_IT, Wanderer } from "./wander.js";
+import type { Posture } from "./channels.js";
+import type { FaceRenderer, Resident } from "./faceRenderer.js";
+import { Inhabitant } from "./inhabitant.js";
+import type { Traits } from "./pig.js";
+import type { PsycheVars } from "./pose.js";
 
 /**
- * The WebGL body: scene, lights, and the loop that stacks the three layers.
+ * The WebGL room: scene, lights, camera, and the clock.
  *
- * Everything expressive lives in the pure modules next door; this file only
- * owns the clock, the blink timer and the camera.
+ * Everything expressive lives in the pure modules next door, and everything
+ * that belongs to a CREATURE lives in `Inhabitant` — because since ADR-036 a
+ * device shows a room, and a room can hold more than one of them.
  */
-
-const GLANCE_EVERY_MS = 4200;
-const GLANCE_SPREAD_MS = 3500;
-const GLANCE_LASTS_MS = 700;
 
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 /**
@@ -54,32 +48,16 @@ export class Webgl3dFace implements FaceRenderer {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
-  private readonly pig: Pig;
-  private readonly player = new GesturePlayer();
-  private readonly autonomy: Autonomy;
-  private readonly wanderer = new Wanderer();
-  private readonly postures = new PostureMixer();
   private readonly observer: ResizeObserver;
 
-  private state: FaceState = "idle";
-  private vars: PsycheVars = { ...NEUTRAL_VARS };
-  private label = "";
-  private gaze = { x: 0, y: 0 };
-  private eased = { x: 0, y: 0 };
-  private glance = { x: 0, y: 0 };
-  private glanceUntil = 0;
-  private nextGlanceAt = 0;
-  private blinkUntil = 0;
-  private nextBlinkAt = 0;
+  /** insertion order is the order they stand in, left to right */
+  private readonly people = new Map<string, Inhabitant>();
   private lowPower = false;
   private wandering: boolean;
   private raf = 0;
   private lastDrawAt = 0;
-  private activity = "fermo";
-  private posture = "in piedi";
-  /** bench only: pins the posture so the combinations can be seen one by one */
-  private forced: Posture | undefined;
-  /** where the camera wants to be, recomputed on every resize */
+  private readonly traits: Traits | undefined;
+
   private readonly home = new THREE.Vector3(1.1, 2.6, 13);
   private distance = 13;
 
@@ -88,6 +66,7 @@ export class Webgl3dFace implements FaceRenderer {
     options: Webgl3dOptions = {},
   ) {
     this.wandering = options.wander ?? true;
+    this.traits = options.traits;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
@@ -103,10 +82,10 @@ export class Webgl3dFace implements FaceRenderer {
     rim.position.set(-4, 2, -3);
     this.scene.add(rim);
 
-    this.pig = new Pig(options.traits ?? DEFAULT_TRAITS);
-    this.scene.add(this.pig.object);
+    // until the room says who lives in it, there is one nameless creature —
+    // the single-exemplar house, and every face built before rooms existed
+    this.setResidents([{ id: "", name: "UGO" }]);
 
-    this.autonomy = new Autonomy(this.player);
     this.observer = new ResizeObserver(() => {
       this.resize();
     });
@@ -114,22 +93,47 @@ export class Webgl3dFace implements FaceRenderer {
     this.resize();
   }
 
-  public setState(state: FaceState): void {
-    if (state === this.state) return;
-    // waking up is worth a gesture: he does not just pop his eyes open
-    if (this.state === "sleeping" && state !== "sleeping") {
-      this.autonomy.reflex("wake", performance.now());
+  /**
+   * Who is in the room. Creatures already here keep their bodies — and so
+   * their mood, their posture and whatever they were in the middle of — so a
+   * roster arriving on reconnect does not make everybody flinch.
+   */
+  public setResidents(residents: readonly Resident[]): void {
+    const wanted = new Set(residents.map((r) => r.id));
+    for (const [id, person] of this.people) {
+      if (wanted.has(id)) continue;
+      this.scene.remove(person.object);
+      person.dispose();
+      this.people.delete(id);
     }
-    this.state = state;
+    for (const resident of residents) {
+      if (this.people.has(resident.id)) continue;
+      const person = new Inhabitant(
+        resident.id,
+        resident.name,
+        resident.traits ?? this.traits,
+        this.wandering,
+      );
+      this.people.set(resident.id, person);
+      this.scene.add(person.object);
+    }
+    // resize, not layout: how far the camera stands depends on HOW MANY are in
+    // the room, and laying out lanes against the old distance put the third
+    // creature outside the frame — visible only as a shadow with no pig on it
+    this.resize();
   }
 
-  public setMood(label: string, vars: Partial<PsycheVars>): void {
-    this.label = label;
-    this.vars = { ...this.vars, ...vars };
+  public setState(state: FaceState, who?: string): void {
+    for (const person of this.pick(who)) person.setState(state);
   }
 
+  public setMood(label: string, vars: Partial<PsycheVars>, who?: string): void {
+    for (const person of this.pick(who)) person.setMood(label, vars);
+  }
+
+  /** The room is looked at, so everybody in it looks back. */
   public setGaze(target: { x: number; y: number }): void {
-    this.gaze = target;
+    for (const person of this.people.values()) person.setGaze(target);
   }
 
   public setLowPower(on: boolean): void {
@@ -138,21 +142,19 @@ export class Webgl3dFace implements FaceRenderer {
 
   public setWandering(on: boolean): void {
     this.wandering = on;
+    for (const person of this.people.values()) person.setWandering(on);
   }
 
   /** Pins the posture (bench); `undefined` hands it back to the driver. */
   public forcePosture(posture: Posture | undefined): void {
-    this.forced = posture;
+    for (const person of this.people.values()) person.forcePosture(posture);
   }
 
-  public reflex(kind: string): void {
-    this.autonomy.reflex(kind, performance.now());
+  public reflex(kind: string, who?: string): void {
+    for (const person of this.pick(who)) person.reflex(kind);
   }
 
   public start(): void {
-    const now = performance.now();
-    this.nextGlanceAt = now + GLANCE_EVERY_MS;
-    this.nextBlinkAt = now + 2500;
     const loop = (t: number): void => {
       this.raf = requestAnimationFrame(loop);
       this.frame(t);
@@ -163,19 +165,46 @@ export class Webgl3dFace implements FaceRenderer {
   public stop(): void {
     cancelAnimationFrame(this.raf);
     this.observer.disconnect();
-    this.pig.dispose();
+    for (const person of this.people.values()) person.dispose();
+    this.people.clear();
     this.renderer.dispose();
   }
 
-  public readonly debug = (): Record<string, string | number> => ({
-    renderer: "3d",
-    state: this.state,
-    posture: this.posture,
-    activity: this.activity,
-    mood: this.label,
-    gesture: this.player.currentId ?? "",
-    lastGesture: this.player.lastPlayed ?? "",
-  });
+  public readonly debug = (): Record<string, string | number> => {
+    const [first] = [...this.people.values()];
+    return {
+      renderer: "3d",
+      residents: this.people.size,
+      names: [...this.people.values()].map((p) => p.name).join(","),
+      ...(first?.debug() ?? {}),
+    };
+  };
+
+  /** Nobody named means everybody: a bang is heard by the whole room. */
+  private pick(who: string | undefined): Inhabitant[] {
+    if (who === undefined || who === "") return [...this.people.values()];
+    const one = this.people.get(who);
+    return one === undefined ? [] : [one];
+  }
+
+  /** Gives each creature its own slice of the floor, so nobody overlaps. */
+  private layout(): void {
+    const people = [...this.people.values()];
+    if (people.length === 0) return;
+    const visibleHalfWidth =
+      Math.tan((this.camera.fov * Math.PI) / 360) * this.distance * this.camera.aspect;
+    // a crowd stands closer together than one creature roams alone, so the
+    // camera does not have to retreat as far to hold them
+    const spread = people.length === 1 ? 0.55 : 0.42;
+    const half = Math.max(1.5, visibleHalfWidth * spread);
+    const depth = Math.max(0.9, this.distance * 0.14);
+    const slice = (half * 2) / people.length;
+    people.forEach((person, index) => {
+      // centre of his lane, measured from the middle of the room
+      const centre = -half + slice * (index + 0.5);
+      person.setLane(centre, Math.max(0.5, slice * 0.4), depth);
+    });
+  }
 
   private resize(): void {
     const w = this.canvas.clientWidth;
@@ -188,85 +217,35 @@ export class Webgl3dFace implements FaceRenderer {
     // share of the frame he should take, from the width of the frame itself
     const t = clamp01((w - PHONE_WIDTH) / (DESKTOP_WIDTH - PHONE_WIDTH));
     const share = SHARE_ON_PHONE + (SHARE_ON_DESKTOP - SHARE_ON_PHONE) * t;
-    this.distance = DISTANCE_FOR_FULL_FRAME / share;
+    // ...and the frame has to hold all of them: two creatures at one creature's
+    // distance would each be cropped at the shoulder. Gently, though — pulling
+    // back also makes them SHORTER, and √n turned a room of three into three
+    // specks. They stand closer together instead (see `layout`).
+    const crowd = 1 + 0.3 * Math.max(0, this.people.size - 1);
+    this.distance = (DISTANCE_FOR_FULL_FRAME / share) * crowd;
     this.home.set(this.distance * 0.085, this.distance * CAMERA_RISE, this.distance);
-
-    // the world is as big as the frame allows: at a tenth of the screen there
-    // is genuinely somewhere to walk to, which is the whole point of the pen
-    const visibleHalfWidth =
-      Math.tan((this.camera.fov * Math.PI) / 360) * this.distance * this.camera.aspect;
-    this.wanderer.setPen(Math.max(1.5, visibleHalfWidth * 0.55), Math.max(0.9, this.distance * 0.14));
+    this.layout();
   }
 
   private frame(now: number): void {
     // Portable mode (§4.2): if nothing is actually moving, stop drawing. Not a
     // throttled game loop — no frame at all until something changes.
-    const busy =
-      this.state === "talking" ||
-      this.state === "listening" ||
-      this.player.busy ||
-      this.wanderer.moving ||
-      this.postures.settling;
+    const busy = [...this.people.values()].some((person) => person.busy);
     if (this.lowPower && !busy && now - this.lastDrawAt < 500) return;
     this.lastDrawAt = now;
 
-    // the gaze arrives late, and now and then wanders off on its own: a pupil
-    // welded to the target reads as a stare, not as attention
-    if (now > this.nextGlanceAt) {
-      this.glanceUntil = now + GLANCE_LASTS_MS;
-      this.nextGlanceAt = now + GLANCE_EVERY_MS + Math.random() * GLANCE_SPREAD_MS;
-      this.glance = { x: (Math.random() - 0.5) * 1.4, y: (Math.random() - 0.5) * 0.8 };
+    let sumX = 0;
+    for (const person of this.people.values()) {
+      person.step(now);
+      sumX += person.position.x;
     }
-    const looking = now < this.glanceUntil ? this.glance : this.gaze;
-    this.eased.x += (looking.x - this.eased.x) * 0.12;
-    this.eased.y += (looking.y - this.eased.y) * 0.12;
-
-    if (now > this.nextBlinkAt) {
-      this.blinkUntil = now + 130;
-      this.nextBlinkAt = now + 2500 + Math.random() * 3200;
-    }
-
-    const weights = this.postures.step(now);
-    const loco = this.wanderer.step(
-      now,
-      this.state,
-      this.vars.noia,
-      this.vars.energia,
-      weights.standing,
-      this.wandering,
-    );
-    this.postures.set(
-      this.forced ??
-        choosePosture(this.state, this.vars, this.wanderer.wantsToMove, this.postures.current),
-      now,
-    );
-    this.autonomy.tick(now, this.state, this.vars, this.postures.current);
-
-    this.activity = ACTIVITY_IT[loco.activity];
-    this.posture = POSTURE_IT[this.postures.current];
-    this.pig.object.position.set(loco.x, 0, loco.z);
-    this.pig.object.rotation.y = loco.heading;
-
-    this.pig.apply(
-      computePose({
-        state: this.state,
-        vars: this.vars,
-        posture: weights,
-        gaze: this.eased,
-        tMs: now,
-        blink: now < this.blinkUntil ? 1 : 0,
-        locomotion: loco,
-        gesture: this.player.sample(now),
-      }),
-    );
-
-    // the camera follows just enough that he never leaves the frame
-    // follows less than before: with room to walk, a camera that chases him
-    // cancels the walking out
-    this.camera.position.x += (this.home.x + loco.x * 0.22 - this.camera.position.x) * 0.04;
+    // the camera follows the middle of the room, and only just enough: with
+    // room to walk, a camera that chases cancels the walking out
+    const centre = this.people.size === 0 ? 0 : sumX / this.people.size;
+    this.camera.position.x += (this.home.x + centre * 0.22 - this.camera.position.x) * 0.04;
     this.camera.position.y += (this.home.y - this.camera.position.y) * 0.08;
     this.camera.position.z += (this.home.z - this.camera.position.z) * 0.08;
-    this.camera.lookAt(loco.x * 0.3, LOOK_AT_Y, 0);
+    this.camera.lookAt(centre * 0.3, LOOK_AT_Y, 0);
     this.renderer.render(this.scene, this.camera);
   }
 }

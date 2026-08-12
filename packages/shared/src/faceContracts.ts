@@ -43,24 +43,45 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
 ]);
 export type FaceToServerMessage = z.infer<typeof faceToServerSchema>;
 
-/** server → face */
+/**
+ * server → face
+ *
+ * ADR-036: every frame carries `who`, because a socket is attached to a ROOM
+ * and a room can hold more than one creature. Without it a body could not tell
+ * which of the two just sighed. Optional, so a single-creature house — and any
+ * face built before rooms existed — keeps working untouched.
+ */
 export const serverToFaceSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("mood"),
     label: z.string(),
     vars: z.record(z.string(), z.number()),
+    who: z.string().optional(),
   }),
-  z.object({ type: z.literal("speak"), text: z.string() }),
-  z.object({ type: z.literal("state"), state: z.enum(FACE_STATES) }),
-  z.object({ type: z.literal("glyph"), pattern: z.enum(GLYPH_PATTERNS) }),
+  z.object({ type: z.literal("speak"), text: z.string(), who: z.string().optional() }),
+  z.object({ type: z.literal("state"), state: z.enum(FACE_STATES), who: z.string().optional() }),
+  z.object({ type: z.literal("glyph"), pattern: z.enum(GLYPH_PATTERNS), who: z.string().optional() }),
   // ADR-027: soul decides an initiative, the body performs it. The id is a
   // gesture from the body's own catalogue; a face that does not know it
   // ignores it rather than failing — the decision must never depend on the
   // renderer that happens to be running.
-  z.object({ type: z.literal("gesture"), id: z.string().min(1).max(64) }),
+  z.object({ type: z.literal("gesture"), id: z.string().min(1).max(64), who: z.string().optional() }),
   // ADR-032: which exemplar answered this socket. A device that asked for
   // "cucina" and got the default has to be able to tell.
-  z.object({ type: z.literal("whoami"), name: z.string().min(1).max(40) }),
+  z.object({ type: z.literal("whoami"), name: z.string().min(1).max(40), who: z.string().optional() }),
+  // ADR-036: who lives in the room this socket is attached to. The body draws
+  // one creature per entry, so this arrives before anything else.
+  z.object({
+    type: z.literal("roster"),
+    room: z.string().optional(),
+    gosini: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(40),
+        traits: z.record(z.string(), z.number()).optional(),
+      }),
+    ),
+  }),
 ]);
 export type ServerToFaceMessage = z.infer<typeof serverToFaceSchema>;
 

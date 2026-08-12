@@ -36,7 +36,9 @@ function drawRail(page) {
           '<a href="#/g/' + g.id + "/" + p + '" data-nav="g:' + p + '" style="padding-left:1.6rem">' +
           PAGE_TITLE[p] + "</a>").join("");
         return '<a href="#/g/' + g.id + '/stato" data-nav="g:' + g.id + '">' +
-          '<span class="dot" aria-hidden="true"></span>' + escape(g.name) + "</a>" + sub;
+          '<span class="dot" aria-hidden="true"></span>' + escape(g.name) +
+          (g.where ? ' <span class="rail-where">' + escape(g.where) + "</span>" : "") +
+          "</a>" + sub;
       }).join("");
 
   for (const link of document.querySelectorAll(".rail a")) link.removeAttribute("aria-current");
@@ -65,6 +67,8 @@ async function openPage(page) {
     await section(loadStats, "stats-msg");
   } else if (page === "riunioni") {
     await section(loadMeetings, "meet-msg");
+  } else if (page === "stanze") {
+    await section(loadRooms, "rooms-msg");
   } else if (page === "branco") {
     await section(loadRelations, "rel-msg");
   } else if (page === "nascita") {

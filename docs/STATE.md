@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.19.1"
+version: "0.20.0"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1098,6 +1098,48 @@ Ora `/v1/stats?gosino=` restringe la sola serie; spesa, conteggi e sogni restano
 `undefined`** — ripiega sul più anziano — quindi l'assenza del parametro va controllata
 prima, altrimenti «non scopato» diventa in silenzio «il più vecchio» invece di «tutti»
 (ADR-032). Corretto anche in `/v1/memories`, che aveva lo stesso difetto.
+
+## 6-vicies. La stanza è l'unità (ADR-036)
+
+Il proprietario ha chiesto come mettere due gosini insieme, e poi ha dato il modello giusto:
+**assegnarli a una stanza, e decidere dall'interfaccia quale stanza guardo.** ADR-032 aveva
+legato il socket a un esemplare — la stanza era una delle tre chiavi per pescarne uno, non
+una cosa in sé — quindi «più insieme» non era esprimibile e cambiare chi vedi su un
+dispositivo voleva dire modificare un URL a mano.
+
+Rovesciato: **un dispositivo è il corpo di una stanza.** `/v1/face?stanza=cucina` attacca la
+connessione a tutti i runtime che ci vivono; ogni frame porta un `who` e il primo è un
+`roster`. Una stanza sconosciuta resta vuota, perché mostrare la creatura sbagliata è peggio
+che mostrare nessuno.
+
+**I sensi sono della stanza, la parola è di uno.** Rumore, luce, tocco, urto e volti si
+diramano a tutti i presenti — è la stanza che ha sentito il botto, e vedere due creature
+reagire diversamente allo stesso rumore è tutto il motivo per metterle insieme. `heard_text`
+va a uno solo: diramarlo moltiplicherebbe ogni frase per il numero di presenti in chiamate
+al provider (regola 3). Farli parlare tutti è il consiglio, che gira su modelli locali.
+
+**Il corpo ospita più creature.** Estratto `Inhabitant`; il renderer tiene solo scena, luci,
+telecamera e orologio. Senza la separazione il secondo gosino avrebbe condiviso battito di
+ciglia e postura del primo — due corpi che si muovono come uno, il guasto che ADR-032 aveva
+tolto dall'anima. Corsie separate sul pavimento, occhiate sfalsate.
+
+**Spostarli** con `PATCH /v1/gosini/:id`. Trappola trovata col test: `reload()` **saltava**
+chi era già presente, quindi lo spostamento aggiornava il database e lasciava il registro
+sulla stanza vecchia; ma ricostruirlo sarebbe stato l'errore opposto, buttare via una psiche
+viva per cambiare un'etichetta. Ora si aggiorna solo ciò che uno spostamento può cambiare.
+
+**Le rotte della popolazione escono da `council.ts`**, dove stavano solo perché arrivate lo
+stesso pomeriggio: spostare una creatura era raggiungibile solo su un server con un consiglio
+configurato.
+
+Due difetti visti **guardando il render**: la disposizione delle corsie usava la distanza
+della telecamera vecchia e lasciava il terzo fuori campo; e i tratti parziali dimensionavano
+un arto da `undefined`, rendendo **una creatura senza corpo — un'ombra per terra e niente
+sopra**. Ora i tratti si fondono sui default.
+
+Verifiche: 5 unit sull'instradamento dei frame, 8 di integrazione su Postgres reale
+(spostamento senza perdere la psiche, stanza svuotata, confronto insensibile a maiuscole),
+più il render fotografato con una, due e tre creature.
 
 ## 7. Debito tecnico e rischi aperti
 
