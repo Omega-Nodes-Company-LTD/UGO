@@ -51,4 +51,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [043](./043-la-soglia-viene-dalla-curva.md) | La soglia viene dalla curva, e sotto c'è una domanda | Accettata |
 | [044](./044-la-camera-si-accende.md) | La camera si accende | Accettata |
 | [045](./045-riconoscere-davvero.md) | Riconoscere davvero: dal vivo, col volto, e il perimetro che ne segue | Accettata |
-| 046 | *(prossimo numero disponibile)* | — |
+| [046](./046-il-confine-e-del-database.md) | Il confine è del database, non della nostra attenzione | Accettata |
+| 047 | *(prossimo numero disponibile)* | — |

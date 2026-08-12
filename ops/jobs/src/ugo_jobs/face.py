@@ -62,13 +62,17 @@ def enroll_face(
 
     conn.execute(
         """insert into recognition_profiles
-             (being_id, modality, model, dimensions, payload, sample_count, updated_at)
-           values (%s, %s, %s, %s, %s, %s, now())
+             (being_id, household_id, modality, model, dimensions, payload,
+              sample_count, updated_at)
+           values (%s, (select household_id from beings where id = %s),
+                   %s, %s, %s, %s, %s, now())
            on conflict (being_id, modality) do update
              set model = excluded.model, dimensions = excluded.dimensions,
                  payload = excluded.payload, sample_count = excluded.sample_count,
                  updated_at = now()""",
         (
+            being_id,
+            # ADR-046: la casa viene dall'essere, non da un parametro
             being_id,
             MODALITY,
             coder.model,  # type: ignore[attr-defined]

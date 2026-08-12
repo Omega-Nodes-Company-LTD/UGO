@@ -152,6 +152,7 @@ export class PeerService {
     if (being === undefined) throw new Error("visitor was not created");
 
     await this.db.insert(recognitionProfiles).values({
+      householdId: input.householdId,
       beingId: being.id,
       modality: "tag",
       model: PEER_MODEL,

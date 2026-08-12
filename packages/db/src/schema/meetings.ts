@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { index, pgTable, jsonb, real, text, timestamp, uuid, vector } from "drizzle-orm/pg-core";
 import { EMBEDDING_DIMENSIONS } from "@ugo/shared";
 import { beings } from "./beings.js";
+import { householdId } from "./households.js";
 import { gosinoId } from "./self.js";
 
 export const meetings = pgTable("meetings", {
@@ -27,6 +28,13 @@ export const transcriptSegments = pgTable(
     meetingId: uuid("meeting_id")
       .notNull()
       .references(() => meetings.id, { onDelete: "cascade" }),
+    /**
+     * ADR-046: which house, on the row itself. It used to be reachable only
+     * through `meeting_id → meetings.gosino_id → gosini`, and a Row Level
+     * Security policy with a two-level subquery stops being obviously correct.
+     * Written in the same statement as the segment, always from its meeting.
+     */
+    householdId: householdId(),
     /** diarization's own label ("SPEAKER_01"): who, before we know who */
     speaker: text("speaker"),
     /**

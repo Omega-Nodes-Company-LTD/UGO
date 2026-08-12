@@ -134,6 +134,7 @@ const meetings =
     ? new MeetingsService({
         db,
         gosinoId: bootstrapExemplar.id,
+        householdId: bootstrapHouseholdId,
         embedder,
         llm,
         dataKey,

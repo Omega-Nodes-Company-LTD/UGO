@@ -128,6 +128,7 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
 
     // version 1 of the genome, immutable from here: a change is a new version
     await deps.db.insert(traitSets).values({
+      householdId,
       gosinoId: id,
       version: 1,
       traits: character.traits,

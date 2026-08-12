@@ -68,6 +68,8 @@ export interface MeetingsDeps {
    * were transcribed into the first one's biography.
    */
   gosinoId: string;
+  /** ADR-046: `transcript_segments` carries the house on the row now */
+  householdId: string;
   embedder: EmbeddingsClient;
   llm: LlmClient;
   dataKey: Buffer;
@@ -237,6 +239,7 @@ export class MeetingsService {
       await this.deps.db.insert(transcriptSegments).values(
         fresh.map((segment, index) => ({
           meetingId: ref.meetingId,
+          householdId: this.deps.householdId,
           speaker: segment.speaker ?? null,
           t0: segment.start ?? 0,
           t1: segment.end ?? segment.start ?? 0,

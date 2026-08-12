@@ -142,11 +142,16 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, enc
         conn.execute(
             """
             insert into transcript_segments
-                (meeting_id, speaker, being_id, t0, t1, text, embedding)
-            values (%s, %s, %s, %s, %s, %s, %s)
+                (meeting_id, household_id, speaker, being_id, t0, t1, text, embedding)
+            values (%s,
+                    (select g.household_id from meetings m
+                       join gosini g on g.id = m.gosino_id
+                      where m.id = %s),
+                    %s, %s, %s, %s, %s, %s)
             """,
             # mono-speaker fallback: no diarization without HF_TOKEN (§11)
-            (meeting_id, None, being_id, t0, t1,
+            # ADR-046: la casa viene dalla riunione, non da un parametro
+            (meeting_id, meeting_id, None, being_id, t0, t1,
              encrypt_text(text, key_bytes), json.dumps(vector)),
         )
     conn.commit()

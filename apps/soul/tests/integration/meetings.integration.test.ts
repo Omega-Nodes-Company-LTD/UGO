@@ -10,6 +10,7 @@ import {
   runMigrations,
   transcriptSegments,
   PRIME_GOSINO_ID,
+  PRIME_HOUSEHOLD_ID,
   type DbClient,
 } from "@ugo/db";
 import {
@@ -57,6 +58,7 @@ beforeAll(async () => {
   service = new MeetingsService({
     db,
     gosinoId: PRIME_GOSINO_ID,
+    householdId: PRIME_HOUSEHOLD_ID,
     embedder,
     llm: new LlmClient({
       db,
