@@ -29,12 +29,20 @@ TEST_DATA_KEY = base64.b64encode(bytes(range(32))).decode()
 
 
 def apply_drizzle_migrations(conn: psycopg.Connection) -> None:
-    """Same SQL files as production (environment parity), applied in order."""
+    """Same SQL files as production (environment parity), applied in order.
+
+    ADR-046: a file is sent whole rather than split on the drizzle marker.
+    Splitting was a naive text search, so the first migration containing a
+    ``DO $$ ... $$`` block — which is how you write "create this role if it is
+    not there" — would have been cut in half here and nowhere else: the 67
+    pytest would have gone red while every TypeScript test stayed green,
+    against the same SQL. psycopg sends a multi-statement string in one
+    implicit transaction, which is what the drizzle migrator does too.
+    """
     for sql_file in sorted(DRIZZLE_DIR.glob("*.sql")):
-        for statement in sql_file.read_text().split("--> statement-breakpoint"):
-            statement = statement.strip()
-            if statement:
-                conn.execute(statement)  # type: ignore[arg-type]
+        script = sql_file.read_text().replace("--> statement-breakpoint", "")
+        if script.strip():
+            conn.execute(script)  # type: ignore[arg-type]
     conn.commit()
 
 

@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema/index.js";
@@ -19,4 +20,28 @@ function buildClient(databaseUrl: string) {
     connect_timeout: 10,
   });
   return drizzle(pool, { schema, casing: "snake_case" });
+}
+
+/**
+ * Runs `work` inside a transaction that has declared which house it is about
+ * (ADR-046). This is the only place `app.household_id` is ever set, and the
+ * only thing the Row Level Security policies read.
+ *
+ * **`SET LOCAL`, not `SET`.** The pool reuses connections: a plain `SET` would
+ * outlive the request and the next one would inherit the previous caller's
+ * house — which is precisely the failure RLS exists to make impossible. `SET
+ * LOCAL` is undone when the transaction ends, whether it commits or not.
+ *
+ * The value is passed as a bound parameter rather than interpolated: it
+ * arrives from a request, and `set_config` takes it as data instead of as SQL.
+ */
+export async function withHousehold<T>(
+  db: DbClient,
+  householdId: string,
+  work: (tx: DbClient) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('app.household_id', ${householdId}, true)`);
+    return work(tx as unknown as DbClient);
+  });
 }

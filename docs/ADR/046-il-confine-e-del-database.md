@@ -116,6 +116,27 @@ perché il pool riusa le connessioni — un `SET` normale sopravviverebbe alla
 richiesta e la successiva erediterebbe la casa della precedente, che è
 esattamente il guasto che RLS dovrebbe impedire.
 
+### 7. Due tabelle restano leggibili, e va detto perché
+
+`access_tokens` e `households` sono le tabelle che **stabiliscono** lo scope:
+risolvere un token è ciò che decide di che casa si parla, e `householdOf()`
+verifica che la casa esista prima che `app.household_id` esista. Una politica
+restrittiva su di esse farebbe rispondere 404 a ogni richiesta.
+
+Restano quindi leggibili dal ruolo applicativo, e scrivibili solo sulla propria
+casa. Cosa si espone: in `access_tokens` solo SHA-256, mai un token; in
+`households` slug, nome, fuso, lingua, tetto di spesa e la DEK **avvolta** sotto
+la KEK. Non è un'esposizione nuova — un processo solo che serve più case ha
+comunque la KEK in ambiente (ADR-017, ADR-019 §90) — ma è il punto in cui
+l'isolamento è applicativo e non del database, e chi legge questo ADR deve
+saperlo.
+
+**Conseguenza per il tempo 2**: `GosinoRegistry` carica al boot gli esemplari di
+tutte le case, e come `ugo_app` senza casa impostata non ne vedrebbe nessuno.
+Dovrà elencare le case e poi caricare ciascuna dentro `withHousehold`. Non è un
+difetto di RLS: è RLS che rende visibile una lettura trasversale che prima non
+si vedeva.
+
 ## Conseguenze
 
 - Il deploy guadagna un passo, e il runbook lo descrive: creare `ugo_app`,
