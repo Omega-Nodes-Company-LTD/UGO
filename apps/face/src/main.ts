@@ -1,5 +1,6 @@
 import type { FaceState, FaceToServerMessage, ServerToFaceMessage } from "@ugo/shared/face";
 import { startCameraGaze, startPointerGaze } from "./gaze.js";
+import { openFaceLocator } from "./faceLocator.js";
 import { GlyphDriver } from "./glyph.js";
 import { PortableController } from "./portable.js";
 import { ScreenAwake } from "./wakelock.js";
@@ -336,6 +337,11 @@ micButton.addEventListener("click", () => {
     await sensors.startMicrophone().catch(() => undefined);
     sensors.startMotion();
     sensors.startLight();
+    // ADR-044: il locator ORA viene passato. Prima non lo passava nessuno, e
+    // `startCameraGaze` ripiegava sul `FaceDetector` nativo — un'API ritirata,
+    // che in ogni browser spedito fallisce: la camera non si accendeva mai e
+    // le pupille seguivano il dito.
+    const locator = await openFaceLocator();
     const camera = await startCameraGaze(
       (target) => {
         if (target !== null) renderer.setGaze(target);
@@ -347,6 +353,7 @@ micButton.addEventListener("click", () => {
           socket.send({ type: "face_seen" });
         }
       },
+      locator,
     ).catch(() => null);
     if (camera === null) {
       // universal fallback: pupils follow pointer/touch

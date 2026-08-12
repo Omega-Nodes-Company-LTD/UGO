@@ -9,6 +9,10 @@ export default tseslint.config(
       "**/.turbo/**",
       "**/coverage/**",
       "packages/db/drizzle/**",
+      // ADR-044: il wasm di MediaPipe, copiato qui da vite. È binario generato
+      // da un altro progetto: analizzarlo produce 1400 errori su codice che non
+      // possiamo cambiare e non abbiamo scritto.
+      "apps/face/public/vision/**",
     ],
   },
   eslint.configs.recommended,

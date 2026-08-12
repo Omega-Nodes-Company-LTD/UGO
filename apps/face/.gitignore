@@ -1,0 +1,6 @@
+
+# ADR-044: il wasm di MediaPipe lo copia vite da node_modules (35 MB di
+# binario generato che npm versiona già). Il modello .tflite invece è
+# vendorizzato: 225 KB e non arriva da npm.
+public/vision/*
+!public/vision/*.tflite
