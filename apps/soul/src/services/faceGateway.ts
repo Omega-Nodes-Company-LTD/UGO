@@ -3,7 +3,6 @@ import {
   DARKNESS_LUX,
   GLYPH_FOR_STATE,
   NIGHT_START_HOUR,
-  NOISE_ALERT_DB,
   faceToServerSchema,
   type FaceState,
   type FaceToServerMessage,
@@ -173,7 +172,12 @@ export class FaceGateway {
       }
       case "noise": {
         await this.recordEvent("noise", { db: message.db });
-        if (message.db >= NOISE_ALERT_DB) {
+        // ADR-029: the body is the one holding the room's noise floor, so a
+        // `noise` frame already means "this startled me". Re-judging it here
+        // against an absolute threshold threw away the only calibrated
+        // information in the system — and on a phone with AGC, an
+        // uncalibrated number means nothing anyway.
+        {
           await this.deps.psyche.applyEventType("loud_noise", at);
           if (this.state !== "sleeping") this.setState("alert", send);
           this.pushMood(send);

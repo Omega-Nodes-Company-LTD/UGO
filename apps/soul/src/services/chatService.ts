@@ -82,6 +82,20 @@ export class ChatService {
    */
   private wallClock(at: Date): { hour: number; minute: number; text: string } {
     const tz = this.deps.timezone ?? "Europe/Rome";
+    try {
+      return this.formatClock(at, tz);
+    } catch {
+      // a bad timezone, or an ICU build without the Italian locale, must not
+      // be able to swallow a reply: he loses the date, not his voice
+      return {
+        hour: at.getHours(),
+        minute: at.getMinutes(),
+        text: at.toISOString().slice(11, 16),
+      };
+    }
+  }
+
+  private formatClock(at: Date, tz: string): { hour: number; minute: number; text: string } {
     const parts = new Intl.DateTimeFormat("it-IT", {
       timeZone: tz,
       weekday: "long",
@@ -92,9 +106,14 @@ export class ChatService {
       hour12: false,
     }).formatToParts(at);
     const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? "";
+    const hour = Number(get("hour"));
+    const minute = Number(get("minute"));
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) throw new Error("unusable clock");
     return {
-      hour: Number(get("hour")),
-      minute: Number(get("minute")),
+      // some ICU builds render midnight as "24": the rest of the system
+      // expects 0..23, and an out-of-range hour silently breaks quiet hours
+      hour: hour % 24,
+      minute,
       text: `${get("weekday")} ${get("day")} ${get("month")}, ore ${get("hour")}:${get("minute")}`,
     };
   }

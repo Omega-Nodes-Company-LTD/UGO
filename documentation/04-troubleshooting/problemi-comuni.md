@@ -94,3 +94,24 @@ fa niente.
 - [Primo avvio](../01-getting-started/primo-avvio.md) — rifare il setup da zero.
 - [Parlare con UGO](../02-core-features/parlare-con-ugo.md) — come funzionano memoria e umore.
 - [I tuoi dati](../02-core-features/i-tuoi-dati.md) — esportare o cancellare.
+
+## UGO sussulta in continuazione, anche quando c'è silenzio
+
+Se ti sembra spaventato senza motivo, prima di tutto: **non è rotto e non è nervoso**,
+sta imparando com'è fatta la stanza.
+
+Quando accendi il microfono, UGO ascolta per qualche secondo per capire quanto è
+silenziosa la tua stanza. Solo dopo comincia a sussultare, e lo fa per i rumori
+**improvvisi rispetto a quella stanza** — non per un volume fisso. Quindi in una stanza
+già rumorosa serve un botto più forte, e in una silenziosa basta molto meno.
+
+Due conseguenze normali:
+
+- **Nei primi secondi non sussulta mai.** Se batti le mani appena acceso, non reagisce.
+- **Una festa non lo terrorizza.** Se la stanza si riempie piano, si abitua invece di
+  spaventarsi a ogni risata.
+
+Se continua a sussultare per niente anche dopo un minuto, la causa è quasi sempre il
+microfono: qualcosa lo sta amplificando (una cuffia con riduzione rumore, un mixer, un
+altro programma che tiene il microfono aperto). Chiudi gli altri programmi che usano il
+microfono e ricarica la pagina.

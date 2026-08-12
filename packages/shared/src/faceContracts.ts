@@ -59,6 +59,12 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
 export type ServerToFaceMessage = z.infer<typeof serverToFaceSchema>;
 
 /** Local-reaction thresholds shared by face (zero-token logic) and soul. */
+/**
+ * Kept as documentation of what "loud" means physically, but no longer a
+ * decision: since ADR-029 the startle is judged by the body against the
+ * room's own learned floor, because an uncalibrated phone microphone with
+ * automatic gain control makes an absolute number meaningless.
+ */
 export const NOISE_ALERT_DB = 80;
 export const DARKNESS_LUX = 10;
 export const NIGHT_START_HOUR = 22;

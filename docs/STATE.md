@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.13.0"
+version: "0.14.0"
 last_updated: "2026-08-11"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -828,6 +828,44 @@ comune di tutte** cadeva. Una revisione a occhio non lo vede, un esempio sì.
 Verifiche: **44 unit** (di cui 26 sui promemoria e sull'iniziativa) + **10 di
 integrazione** su Postgres reale, incluse «restituisce il promemoria anche di notte» e
 «non lo spiffera prima dell'ora».
+
+## 6-quaterdecies. Spaventato dal silenzio (ADR-029)
+
+Segnalazione dal server vero: **UGO è sempre spaventato, anche in una stanza
+silenziosa.**
+
+La causa non era la soglia, era **il controllo automatico di guadagno**.
+`getUserMedia({audio: true})` lo accende di default, e l'AGC esiste per rendere
+udibile un sussurro: quindi **amplifica una stanza silenziosa finché il segnale
+riempie la dinamica**. Il misuratore leggeva l'ambizione del microfono, non la
+stanza, e la stima sfondava gli 80 dB in silenzio.
+
+Difetto **latente da sempre**, diventato visibile con ADR-026/027: prima un falso
+positivo cambiava solo uno stato, adesso fa sussultare un corpo — e con `alert`
+riacceso ogni due secondi il risultato è un animale perennemente atterrito.
+
+**Un soprassalto non è una potenza, è una sorpresa.** Il corpo tiene ora un
+pavimento di rumore **appreso** e scatta sul salto sopra quello: +14 dB, mai sotto
+un minimo assoluto, con riscaldamento prima di poter giudicare, pavimento che
+**scende in fretta e sale piano** (un camion non lo lascia sordo, una festa alza
+l'asticella invece di spaventarlo). AGC, soppressione rumore ed eco **spente**.
+
+soul non ri-giudica più l'evento contro una soglia assoluta: un frame `noise`
+significa già «questo mi ha fatto sussultare», e il corpo è l'unico che conosce la
+stanza. `NOISE_ALERT_DB` resta come documentazione, non decide più.
+
+Diagnostica: `window.__ugoFace.senses()` espone il pavimento appreso, così «è di
+nuovo nervoso» diventa un numero.
+
+Sette test unitari, e i più importanti asseriscono che **non** scatta: livello
+costante a qualunque volume, stanza che si riempie piano, sussurro in una stanza
+insonorizzata, durante il riscaldamento.
+
+**Ancora aperto: «non parla più».** Segnalato insieme a questo e non ancora
+riprodotto. Ipotesi principale, non dimostrata: era lo stesso guasto: con il
+microfono che scattava di continuo, il riconoscitore vocale girava sul rumore e
+`worthSending` scartava tutto, quindi `heard_text` non partiva mai. Da verificare
+dopo il deploy di questa correzione, con `__ugoFace.senses()` alla mano.
 
 ## 7. Debito tecnico e rischi aperti
 

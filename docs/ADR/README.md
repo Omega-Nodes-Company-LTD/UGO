@@ -34,4 +34,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [026](./026-corpo-tridimensionale-e-strati-espressivi.md) | Il corpo di casa in tre dimensioni, e i tre strati espressivi | Accettata |
 | [027](./027-iniziativa.md) | L'iniziativa: UGO può cominciare lui | Accettata |
 | [028](./028-lo-spazio-l-orologio-e-i-promemoria.md) | Lo spazio, l'orologio e i promemoria | Accettata |
-| 029 | *(prossimo numero disponibile)* | — |
+| [029](./029-il-rumore-si-giudica-sulla-stanza.md) | Il rumore si giudica sulla stanza, non su una soglia | Accettata |
+| 030 | *(prossimo numero disponibile)* | — |

@@ -256,6 +256,8 @@ declare global {
       queued: () => number;
       queuedFresh: () => Promise<number>;
       awake: () => { available: boolean; held: boolean };
+      /** what the room sounds like to him, for diagnosing a jumpy UGO */
+      senses: () => { noiseFloor: number; listening: boolean };
     };
     __ugoGlyph: { current: () => string | undefined; available: () => boolean };
     __ugoBody: {
@@ -281,6 +283,7 @@ window.__ugoFace = {
   queued: () => socket.queuedCount(),
   queuedFresh: () => socket.queuedCountFresh(),
   awake: () => ({ available: awake.available(), held: awake.held() }),
+  senses: () => ({ noiseFloor: sensors.noiseFloor(), listening: speech.isListening() }),
 };
 window.__ugoBody = {
   debug: () => renderer.debug(),
