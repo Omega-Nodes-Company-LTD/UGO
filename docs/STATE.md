@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.23.0"
+version: "0.24.0"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1212,6 +1212,40 @@ Verificato contro Postgres vero (12 test) e guidando il pannello in un browser v
 lo spazio → indirizzo codificato, due grafie → una stanza sola, annullare la conferma non
 disfa niente.
 
+### Tre difetti visti dal proprietario, e cosa erano davvero (ADR-040, ADR-041)
+
+**«Sono tutti sempre spaventati dal fracasso».** ADR-033 aveva insegnato al *motore* che il
+decimo botto non è il primo e aveva lasciato l'*etichetta* a leggere solo `stress`, che
+l'assuefazione tiene alto apposta. Con base 0,30 e tetto 0,45 il plateau abituato stava a
+**0,75**, sopra lo **0,60** che le etichette chiamano ansia: oltre la linea per costruzione,
+due botti per arrivarci, dieci minuti di silenzio assoluto per uscirne. Misurato, non supposto.
+Ora l'etichetta guarda **quanto è valso l'ultimo colpo** (`lastBlowAt`, il più forte ancora
+dentro due minuti — non il più recente, perché a raffica il più recente è già minuscolo) e il
+tetto scende a 0,25 così il plateau finisce sotto la linea. La lezione: **una soglia e il
+valore che la attraversa vanno cambiati insieme**.
+
+**«Parla sempre UGO prime e mai l'altro».** `forFrame` faceva `senders.slice(0, 1)` su una
+lista ordinata per `bornAt`: «risponde uno» scritto come «risponde il primo». `whoAnswers`
+sceglie ora col peso del genoma (`talkativeness` 65%, `boldness` 35%), mai zero — un timido
+parla di rado, non mai. Una sola risposta per frase: la regola del budget non si tocca.
+
+**«Non può sentire ogni mia parola come botto».** Il difetto vero, di cui ADR-040 curava il
+sintomo. E non lo risolve nessuna soglia: una voce a un metro sta 25-30 dB sopra il pavimento
+di una stanza silenziosa, cioè quanto un botto. Due risposte: il **riconoscitore** dice
+«questa è una voce» (`hushUntil`) — l'unica informazione che un misuratore di livello non può
+produrre da sé, e che avevamo già in casa senza usarla — e la soglia diventa
+un'**impostazione per stanza** sul corpo (sensibile / normale / stanza rumorosa / non si
+spaventa), persistita. Un primo tentativo aveva alzato la soglia predefinita a 20 dB: non
+fermava il parlato (30 dB) e zittiva eventi veri da 18. I test l'hanno detto subito.
+
+**Aperto, non risolto**: UGO **non sa chi ha davanti** in chat. `heard_text` non porta nessun
+`beingId` e il corpo manda testo, non audio, quindi il riconoscimento vocale (che esiste, MFCC
+su registrazioni) non gira mai sul percorso dal vivo: `unidentifiedPresent` è **sempre** vero e
+il prompt gli dice a ogni turno di non tirare a indovinare. Il «mi riconosce un paio di minuti
+dopo il sogno» è **recupero di ricordi**, non riconoscimento: il sogno lega ricordi agli esseri
+(ADR-024), quelli freschi vengono recuperati e ti nominano, poi la recency li fa scendere.
+Serve una decisione di prodotto su come il corpo dice a soul chi sta parlando.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1239,6 +1273,7 @@ disfa niente.
 | **Il sogno è ancora uno per tutta la casa** | Diario e ricordi notturni non sono per esemplare | ADR-019 fase 3: job per esemplare |
 | ~~Due esemplari **sullo stesso schermo**~~ | — | **Chiuso** da ADR-036: un dispositivo incarna una **stanza**, e ci vede tutti quelli che ci vivono |
 | **Il registro del corpo è in chiaro** (ADR-038) | 80 righe di conversazione nel `localStorage` del dispositivo, fuori da ogni garanzia di cifratura | Consapevole e dichiarato: tetto corto, per stanza, «svuota» in un clic. Cifrarlo richiederebbe una chiave sul chiosco, cioè spostare il problema |
+| **UGO non sa chi ha davanti in chat** (ADR-040) | Ogni turno `unidentifiedPresent` è vero e il prompt gli vieta di indovinare: non ti riconosce mai, per costruzione | Decisione di prodotto aperta: un «sono io» sul corpo, l'audio mandato per l'identificazione, o dedurlo dal branco quando c'è un solo umano. ADR-016 vieta di tirare a indovinare, quindi non c'è un default silenzioso |
 | **Rinominare una stanza non si può** (ADR-039) | Con `location_label` denormalizzato costerebbe un aggiornamento in due punti | Non è stato chiesto. È il giorno in cui la chiave esterna `room_id` va riconsiderata, e non prima |
 | **Più gosini in una stanza senza copertura e2e** | Il caso a due creature è verificato a mano, non in CI: il setup non gira in questa sandbox | Un `beforeAll` che fa nascere due gosini nella stessa stanza e apre `?stanza=`; da fare quando l'e2e torna eseguibile in locale |
 | `came_home` non produce niente di visibile | Un'uscita non lascia un ricordo di dov'è stato | Il sogno legge già quegli eventi: è il posto naturale |

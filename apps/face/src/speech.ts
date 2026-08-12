@@ -33,6 +33,9 @@ interface SpeechRecognitionLike {
     | null;
   onend: (() => void) | null;
   onerror: (() => void) | null;
+  /** fires when the recognizer decides the sound it is hearing is a voice */
+  onspeechstart: (() => void) | null;
+  onspeechend: (() => void) | null;
 }
 
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
@@ -101,7 +104,7 @@ export class Speech {
    * and a creature that answers its own reply talks to nobody at the owner's
    * expense.
    */
-  public listen(onText: (text: string) => void): boolean {
+  public listen(onText: (text: string) => void, onVoice?: () => void): boolean {
     const Ctor = this.recognitionCtor();
     if (Ctor === undefined) return false;
     this.listening = true;
@@ -121,6 +124,12 @@ export class Speech {
           if (text.trim() !== "") onText(text);
         }
       };
+      // ADR-041: the recognizer knows something a level meter cannot — that
+      // the loud thing happening right now is somebody talking. Without this
+      // a threshold can only trade "startles at every word" against "never
+      // startles at all"; with it, neither trade is necessary.
+      recognition.onspeechstart = () => onVoice?.();
+      recognition.onspeechend = () => onVoice?.();
       // a session that ends — by timeout, silence or error — is restarted,
       // otherwise "always listening" quietly becomes "listened once"
       recognition.onerror = () => undefined;

@@ -11,7 +11,10 @@ import { forFrame, SENSED_BY_THE_ROOM, tagFor } from "./faceWs.js";
  * CLAUDE.md rule 3.
  */
 
-const senders = [{ member: { id: "ugo" } }, { member: { id: "nino" } }];
+const senders = [
+  { id: "ugo", member: { id: "ugo" }, traits: { talkativeness: 0.5, boldness: 0.5 } },
+  { id: "nino", member: { id: "nino" }, traits: { talkativeness: 0.5, boldness: 0.5 } },
+];
 
 describe("forFrame", () => {
   it("gives the senses to everyone: the ROOM heard the bang", () => {
@@ -21,9 +24,22 @@ describe("forFrame", () => {
   });
 
   it("gives speech to one, because every sentence would otherwise cost N calls", () => {
-    const heard = forFrame(JSON.stringify({ type: "heard_text", text: "ciao" }), senders);
+    const heard = forFrame(JSON.stringify({ type: "heard_text", text: "ciao" }), senders, 0.1);
     expect(heard).toHaveLength(1);
-    expect(heard[0]?.member.id).toBe("ugo");
+  });
+
+  /**
+   * ADR-040: this is the bug the owner saw. "One answers" was `slice(0, 1)`
+   * over a roster ordered by `bornAt`, so the eldest answered every sentence
+   * and the younger one was never heard from at all.
+   */
+  it("does not always give it to the same one", () => {
+    const spoke = new Set<string>();
+    for (const roll of [0.05, 0.3, 0.6, 0.95]) {
+      const heard = forFrame(JSON.stringify({ type: "heard_text", text: "ciao" }), senders, roll);
+      spoke.add(heard[0]?.member.id ?? "");
+    }
+    expect([...spoke].sort()).toEqual(["nino", "ugo"]);
   });
 
   it("does not choke on a frame that is not JSON", () => {
@@ -45,7 +61,7 @@ describe("forFrame", () => {
   });
 
   it("is harmless in a room with a single creature", () => {
-    const alone = [{ member: { id: "ugo" } }];
+    const alone = [{ id: "ugo", member: { id: "ugo" } }];
     expect(forFrame(JSON.stringify({ type: "noise", db: 70 }), alone)).toHaveLength(1);
     expect(forFrame(JSON.stringify({ type: "heard_text", text: "ciao" }), alone)).toHaveLength(1);
   });

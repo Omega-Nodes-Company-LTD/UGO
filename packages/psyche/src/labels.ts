@@ -1,22 +1,51 @@
+import type { LastBlow } from "./engine.js";
 import type { PsycheVars } from "./model.js";
 
 /**
  * Threshold mapping vars → short Italian label (PROGETTO §5.3).
- * Deterministic priority order; stress labels are flavoured by the event
- * that most recently raised stress.
+ *
+ * ADR-040: the startle labels are gated on the **last blow**, not on the total.
+ * ADR-033 taught the engine that the tenth bang is not the first, and then the
+ * label went on reading only `stress`, which habituation deliberately leaves
+ * elevated. The result was a creature permanently described as terrified: the
+ * habituated plateau sat above the anxiety threshold, so no amount of getting
+ * used to the noise could ever turn the word off. Being startled is an event,
+ * and an event is something that just happened and was worth noticing.
  */
-export function pickLabel(vars: PsycheVars, lastEventType?: string): string {
+
+/** After this, a bang is something that happened, not something happening. */
+export const STARTLE_WINDOW_MS = 120_000;
+
+/** Under this the blow was a repetition the creature has already absorbed. */
+const STARTLE_AMOUNT = 0.08;
+
+/** Events whose label is about the fright itself rather than the state. */
+const STARTLE_LABELS: Readonly<Record<string, string>> = {
+  heat_stress: "in ansia da caldo",
+  shake: "offeso per l'urto",
+  loud_noise: "spaventato dal fracasso",
+};
+
+function startled(blow: LastBlow | undefined): string | undefined {
+  if (blow?.cause === undefined) return undefined;
+  if (blow.agoMs > STARTLE_WINDOW_MS || blow.amount < STARTLE_AMOUNT) return undefined;
+  return STARTLE_LABELS[blow.cause];
+}
+
+export function pickLabel(vars: PsycheVars, lastEventType?: string, blow?: LastBlow): string {
+  // a fresh blow that actually landed speaks first: this is the moment it is
+  // true to say he jumped
+  const jumped = startled(blow);
+  if (jumped !== undefined) return jumped;
+
   if (vars.stress >= 0.6) {
-    switch (lastEventType) {
-      case "heat_stress":
-        return "in ansia da caldo";
-      case "shake":
-        return "offeso per l'urto";
-      case "loud_noise":
-        return "spaventato dal fracasso";
-      default:
-        return "in ansia";
+    // no blow to go on (a restart loses them) keeps the old flavouring, which
+    // is better than dropping the information entirely
+    if (blow === undefined && lastEventType !== undefined) {
+      const flavoured = STARTLE_LABELS[lastEventType];
+      if (flavoured !== undefined) return flavoured;
     }
+    return "in ansia";
   }
   if (vars.umore <= 0.4) return "mogio";
   if (vars.energia <= 0.25) return "in letargo";

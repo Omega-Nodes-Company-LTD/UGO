@@ -2,17 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   applyPerturbations,
   breakdownAt,
+  lastBlowAt,
   stateFromSnapshot,
   varsAt,
 } from "./engine.js";
 import { perturbationsForEvent } from "./events.js";
-import { labelPhrase, pickLabel } from "./labels.js";
+import { labelPhrase, pickLabel, STARTLE_WINDOW_MS } from "./labels.js";
 import {
   BASELINES,
   ENERGY_DAY_BASELINE,
   ENERGY_NIGHT_BASELINE,
   TAU_HOURS,
   emptyState,
+  type PsycheState,
 } from "./model.js";
 
 // Pure functions with injected time: legitimate unit-test territory
@@ -230,6 +232,78 @@ describe("labels", () => {
     expect(pickLabel(varsAt(pumped, NOON, 12))).toBe("gasato");
   });
 
+  /**
+   * ADR-040. This is the bug the owner saw: everybody permanently "spaventato
+   * dal fracasso". ADR-033 taught the ENGINE that the tenth bang is not the
+   * first and left the LABEL reading only `stress` — which habituation
+   * deliberately keeps elevated. The habituated plateau sat above the anxiety
+   * threshold, so getting used to the noise could never turn the word off.
+   */
+  describe("getting used to the noise", () => {
+    const bang = (state: PsycheState, at: Date): PsycheState =>
+      applyPerturbations(state, perturbationsForEvent("loud_noise"), at, "loud_noise");
+    const labelAt = (state: PsycheState, at: Date): string =>
+      pickLabel(varsAt(state, at, 12), state.lastEventType, lastBlowAt(state, at, STARTLE_WINDOW_MS));
+
+    it("jumps at the first bang", () => {
+      const state = bang(emptyState(), NOON);
+
+      expect(labelAt(state, NOON)).toBe("spaventato dal fracasso");
+    });
+
+    it("is still frightened during the burst, not only on its first instant", () => {
+      // twenty seconds later the LATEST transient is the second bang, which
+      // habituation has already made tiny — reading that one would have him
+      // shrug off a fright he is in the middle of
+      let state = bang(emptyState(), NOON);
+      const soon = new Date(NOON.getTime() + 20_000);
+      state = bang(state, soon);
+
+      expect(labelAt(state, soon)).toBe("spaventato dal fracasso");
+    });
+
+    it("stops being frightened once the bangs are old news", () => {
+      let state = bang(emptyState(), NOON);
+      for (let i = 1; i <= 10; i += 1) {
+        state = bang(state, new Date(NOON.getTime() + i * 20_000));
+      }
+      const after = new Date(NOON.getTime() + 10 * 20_000 + STARTLE_WINDOW_MS + 1_000);
+
+      expect(labelAt(state, after)).not.toBe("spaventato dal fracasso");
+    });
+
+    it("keeps the habituated plateau BELOW the line where he calls himself tense", () => {
+      // the actual defect: 0.30 baseline + a 0.45 ceiling put the plateau at
+      // 0.75, above the 0.60 that reads as anxiety. Getting used to something
+      // has to be able to end in "fine", or it is not getting used to it.
+      let state = emptyState();
+      for (let i = 0; i < 30; i += 1) state = bang(state, new Date(NOON.getTime() + i * 20_000));
+      const settled = new Date(NOON.getTime() + 30 * 20_000);
+
+      expect(varsAt(state, settled, 12).stress).toBeLessThan(0.6);
+      expect(labelAt(state, settled)).toBe("sereno");
+    });
+
+    it("is frightened again by a bang after the room has been quiet", () => {
+      let state = emptyState();
+      for (let i = 0; i < 10; i += 1) state = bang(state, new Date(NOON.getTime() + i * 20_000));
+      // half an hour of calm: the habituation has decayed with the transients
+      const later = new Date(NOON.getTime() + 40 * 60_000);
+      state = bang(state, later);
+
+      expect(labelAt(state, later)).toBe("spaventato dal fracasso");
+    });
+
+    it("still says something true when a restart has lost the blows", () => {
+      // `stateFromSnapshot` keeps the deviation, not the spikes; without a blow
+      // the old flavouring is better than dropping the information
+      const vars = { ...varsAt(emptyState(), NOON, 12), stress: 0.8 };
+
+      expect(pickLabel(vars, "loud_noise", undefined)).toBe("spaventato dal fracasso");
+      expect(pickLabel(vars, undefined, undefined)).toBe("in ansia");
+    });
+  });
+
   it("every label has an Italian phrase", () => {
     for (const label of ["sereno", "mogio", "gasato", "in ansia da caldo", "offeso per l'urto"]) {
       expect(labelPhrase(label).length).toBeGreaterThan(0);
@@ -255,8 +329,10 @@ describe("breakdownAt", () => {
     const stress = breakdownAt(state, NOON, 12).stress;
     expect(stress.baseline).toBeCloseTo(BASELINES.stress, 5);
     expect(stress.causes.map((c) => c.cause)).toEqual(["loud_noise", "heat_stress"]);
-    // the two bangs are one cause, summed, and habituation has already bitten
-    expect(stress.causes[0]?.amount).toBeCloseTo(0.311, 2);
+    // the two bangs are one cause, summed, and habituation has already bitten:
+    // 0.20 then 0.04, because ADR-040 lowered the ceiling to 0.25 to keep the
+    // habituated plateau under the line where he calls himself tense
+    expect(stress.causes[0]?.amount).toBeCloseTo(0.24, 2);
     expect(stress.causes[1]?.amount).toBeCloseTo(0.15, 5);
     expect(stress.value).toBeCloseTo(varsAt(state, NOON, 12).stress, 5);
   });

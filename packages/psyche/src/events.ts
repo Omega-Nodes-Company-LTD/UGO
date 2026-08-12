@@ -24,13 +24,21 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
   /** T > 29 °C for 30 min */
   heat_stress: [{ variable: "stress", amount: 0.15 }],
   /**
-   * Spike: decays with its own 15-minute τ, and habituates (ADR-033). The
-   * ceiling is what keeps a noisy afternoon from pinning him at 1.0 — startled
-   * he may be, but a fireworks display must leave him rattled, not destroyed.
+   * Spike: decays with its own 15-minute τ, and habituates (ADR-033).
+   *
+   * ADR-040 lowered the ceiling from 0.45. With a stress baseline of 0.30 it
+   * put the habituated plateau at 0.75 — **above** the 0.60 the labels call
+   * anxiety — so a creature perfectly used to a noisy kitchen was permanently
+   * described, and prompted, as a tense one. Getting used to something has to
+   * be able to end in "fine", or it is not getting used to it.
+   *
+   * 0.25 puts the plateau at 0.55: still visibly above rest, because a noisy
+   * room IS more stressful, and below the line where he starts saying so.
+   * The first bang still lands its full 0.20 — that one is a real fright.
    */
-  loud_noise: [{ variable: "stress", amount: 0.2, tauHours: 0.25, ceiling: 0.45 }],
+  loud_noise: [{ variable: "stress", amount: 0.2, tauHours: 0.25, ceiling: 0.25 }],
   /** same family, same reason: a phone in a pocket must not terrorise him */
-  shake: [{ variable: "stress", amount: 0.1, ceiling: 0.3 }],
+  shake: [{ variable: "stress", amount: 0.1, ceiling: 0.18 }],
   meeting_completed: [{ variable: "curiosita", amount: 0.1 }],
   new_topic: [{ variable: "curiosita", amount: 0.05 }],
   /** ADR-020: meeting one of your own kind, for the first time */

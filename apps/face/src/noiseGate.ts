@@ -29,14 +29,38 @@
  */
 
 /**
- * dB above the learned floor that counts as a bang. Slightly under the 14 dB
- * ADR-029 asked for, because the floor is chasing the level while a bang
- * develops and eats about a fifth of it: 12 against a moving floor is roughly
- * 14 of real step.
+ * How easily he startles (ADR-041).
+ *
+ * The owner: «non può sentire ogni mia parola come botto». He is right, and
+ * the uncomfortable part is that **no threshold fixes it**: a voice at a metre
+ * really does sit 25-30 dB over a quiet room's floor, which is what a bang is.
+ * Any level that still lets a dropped pan through lets a sentence through with
+ * it, and one high enough to stop speech has made him deaf to the pan.
+ *
+ * So the level is not asked to do that job. `hushUntil` is — the recognizer
+ * knows the loud thing happening right now is a voice, which is information no
+ * level meter can produce for itself. The threshold keeps doing what it always
+ * did (telling a bang from the room), and becomes a **setting** because how
+ * loud a room is, is a fact about the room: a study and a kitchen with a
+ * television in it do not want the same answer, and only the owner knows which
+ * one this screen is standing in.
  */
-const JUMP_DB = 12;
-/** Below this nothing is ever a startle, however quiet the room was. */
-const ABSOLUTE_FLOOR_DB = 45;
+export type NoiseSensitivity = "alta" | "media" | "bassa" | "spenta";
+
+export const SENSITIVITIES: Readonly<
+  Record<NoiseSensitivity, { jumpDb: number; floorDb: number }>
+> = {
+  /** the ADR-029 numbers: a quiet house where anything sudden matters */
+  alta: { jumpDb: 12, floorDb: 45 },
+  /** the default: a door, a dropped pan, a dog — a lived-in room */
+  media: { jumpDb: 14, floorDb: 50 },
+  /** a kitchen with a television in it, a workshop, a road outside */
+  bassa: { jumpDb: 22, floorDb: 60 },
+  /** he still hears the room, he simply never jumps at it */
+  spenta: { jumpDb: Infinity, floorDb: Infinity },
+};
+
+export const DEFAULT_SENSITIVITY: NoiseSensitivity = "media";
 /** Smoothing of the measured level: shorter than a syllable, longer than a click. */
 const LEVEL_TAU_MS = 120;
 /** The floor climbs into a noisy room in a second or two... */
@@ -47,8 +71,8 @@ const FLOOR_FALL_TAU_MS = 60_000;
 const WARMUP_MS = 3_000;
 /** Two bangs closer together than this are one bang. */
 const COOLDOWN_MS = 15_000;
-/** After firing, the level must fall back to within this of the floor to re-arm. */
-const REARM_DB = JUMP_DB / 2;
+/** After firing, the level must fall back to within this fraction of the step. */
+const REARM_FRACTION = 0.5;
 
 /** Fraction of the way to move towards a target after `dt` ms, given τ. */
 function follow(dtMs: number, tauMs: number): number {
@@ -64,6 +88,9 @@ export interface NoiseReading {
 }
 
 export class NoiseGate {
+  private jumpDb: number;
+  private floorDb: number;
+  private hushedUntilMs = -Infinity;
   private level = 0;
   private baseline = 0;
   private startedAtMs: number | undefined;
@@ -72,6 +99,31 @@ export class NoiseGate {
   private warm = false;
   /** false between a startle and the room settling down again */
   private armed = true;
+
+  public constructor(sensitivity: NoiseSensitivity = DEFAULT_SENSITIVITY) {
+    const chosen = SENSITIVITIES[sensitivity];
+    this.jumpDb = chosen.jumpDb;
+    this.floorDb = chosen.floorDb;
+  }
+
+  /** Change it without losing the room the gate has already learned. */
+  public setSensitivity(sensitivity: NoiseSensitivity): void {
+    const chosen = SENSITIVITIES[sensitivity];
+    this.jumpDb = chosen.jumpDb;
+    this.floorDb = chosen.floorDb;
+  }
+
+  /**
+   * "That was a voice, not a bang" — keep quiet until `untilMs`.
+   *
+   * The recognizer knows something the level meter cannot: that the loud thing
+   * currently happening is somebody talking. A threshold alone can only ever
+   * trade "startles at speech" against "never startles", and this is the
+   * information that makes the trade unnecessary.
+   */
+  public hushUntil(untilMs: number): void {
+    this.hushedUntilMs = Math.max(this.hushedUntilMs, untilMs);
+  }
 
   /**
    * @param db  a level in decibels — uncalibrated is fine, only differences
@@ -95,13 +147,14 @@ export class NoiseGate {
     this.warm = now - this.startedAtMs >= WARMUP_MS;
     // he cannot be startled twice by one continuous noise: the room has to
     // come back down before the next bang counts as a bang
-    if (!this.armed && jump < REARM_DB) this.armed = true;
+    if (!this.armed && jump < this.jumpDb * REARM_FRACTION) this.armed = true;
 
     const startled =
       this.warm &&
       this.armed &&
-      jump >= JUMP_DB &&
-      this.level >= ABSOLUTE_FLOOR_DB &&
+      now >= this.hushedUntilMs &&
+      jump >= this.jumpDb &&
+      this.level >= this.floorDb &&
       now - this.lastFiredAtMs >= COOLDOWN_MS;
     if (startled) {
       this.lastFiredAtMs = now;

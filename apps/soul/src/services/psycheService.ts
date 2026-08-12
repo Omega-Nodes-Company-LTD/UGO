@@ -5,7 +5,9 @@ import {
   emptyState,
   labelPhrase,
   perturbationsForEvent,
+  lastBlowAt,
   pickLabel,
+  STARTLE_WINDOW_MS,
   stateFromSnapshot,
   varsAt,
   type BaselineOverrides,
@@ -87,7 +89,10 @@ export class PsycheService {
 
   public current(at: Date = new Date()): PsycheView {
     const vars = varsAt(this.state, at, undefined, this.overrides);
-    const label = pickLabel(vars, this.state.lastEventType);
+    // ADR-040: what the LAST blow was worth, so a habituated creature stops
+    // being described as a frightened one
+    const blow = lastBlowAt(this.state, at, STARTLE_WINDOW_MS);
+    const label = pickLabel(vars, this.state.lastEventType, blow);
     return { vars, label, phrase: labelPhrase(label) };
   }
 

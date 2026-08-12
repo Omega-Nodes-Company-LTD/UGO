@@ -1,7 +1,7 @@
 ---
 title: "Il corpo di UGO"
 description: "Come si muove il porcetto sullo schermo: le posture, il vagabondaggio, i piccoli gesti e cosa raccontano del suo umore."
-version: "0.12.0"
+version: "0.13.0"
 last_updated: "2026-08-12"
 author: "ThinkPink Studio"
 ---
@@ -74,6 +74,24 @@ Ogni parte del corpo racconta una cosa diversa, e ognuna ha la sua:
 | **Quanto è accasciato** | L'energia |
 
 Se il muso è girato dall'altra parte e gli occhi vagano, non è rotto: è annoiato. Parlagli.
+
+## Quanto si spaventa
+
+In basso c'è un selettore con l'orecchio: **sensibile · normale · stanza rumorosa · non si
+spaventa**. Decide quanto forte deve essere un rumore, *rispetto a com'è di solito quella
+stanza*, perché lo faccia saltare.
+
+È una proprietà **della stanza**, non della creatura, ed è per questo che sta sullo schermo e
+non nel pannello: lo stesso porcetto in uno studio e in una cucina con la televisione accesa
+ha bisogno di due risposte diverse, e l'unico che sa in quale delle due sta quel tablet sei tu.
+La scelta resta anche se ricarichi.
+
+**La tua voce non conta come botto.** Quando i sensi sono accesi e stai parlando, lui sa che
+quello è parlato e non un rumore: non salta a ogni frase. Il selettore serve per tutto il
+resto — la televisione, la lavatrice, la strada.
+
+Con **non si spaventa** continua a sentire la stanza — serve al resto — semplicemente non
+salta mai.
 
 ## Cosa è stato detto
 

@@ -45,4 +45,6 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [037](./037-chi-parla-e-che-stanza-e.md) | Chi parla, e che stanza è questa | Accettata |
 | [038](./038-cosa-e-stato-detto.md) | Cosa è stato detto: il corpo tiene un registro | Accettata |
 | [039](./039-la-stanza-e-una-cosa.md) | La stanza è una cosa, non una grafia | Accettata |
-| 040 | *(prossimo numero disponibile)* | — |
+| [040](./040-l-abitudine-vale-anche-per-le-parole.md) | L'abitudine vale anche per le parole, e a rispondere non è sempre il più vecchio | Accettata |
+| [041](./041-una-voce-non-e-un-botto.md) | Una voce non è un botto, e quanto è rumorosa la stanza lo sai tu | Accettata |
+| 042 | *(prossimo numero disponibile)* | — |
