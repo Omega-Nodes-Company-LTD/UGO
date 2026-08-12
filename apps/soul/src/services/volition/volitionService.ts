@@ -33,6 +33,8 @@ const isGlyphPattern = (value: string | undefined): value is GlyphPattern =>
 
 export interface VolitionDeps {
   db: DbClient;
+  /** ADR-032: whose pressures these are */
+  gosinoId?: string;
   psyche: PsycheService;
   gateway: FaceGateway;
   curiosity?: Curiosity;
@@ -71,11 +73,18 @@ export class VolitionService {
     return this.deps.hourOf?.(at) ?? at.getHours();
   }
 
+  /** Scopes a query to this exemplar; undefined in a single-exemplar house. */
+  private mine(column: { gosinoId: unknown }): ReturnType<typeof eq> | undefined {
+    return this.deps.gosinoId === undefined
+      ? undefined
+      : eq(column.gosinoId as never, this.deps.gosinoId);
+  }
+
   private async minutesSince(types: readonly string[], at: Date): Promise<number> {
     const rows = await this.deps.db
       .select({ ts: events.ts })
       .from(events)
-      .where(inArray(events.type, [...types]))
+      .where(and(inArray(events.type, [...types]), this.mine(events)))
       .orderBy(desc(events.ts))
       .limit(1);
     const last = rows[0]?.ts;
@@ -89,7 +98,7 @@ export class VolitionService {
     const rows = await this.deps.db
       .select({ ts: messages.ts })
       .from(messages)
-      .where(eq(messages.role, "user"))
+      .where(and(eq(messages.role, "user"), this.mine(messages)))
       .orderBy(desc(messages.ts))
       .limit(1);
     const last = rows[0]?.ts;
@@ -110,6 +119,7 @@ export class VolitionService {
         and(
           eq(events.type, "initiative_taken"),
           gte(events.ts, new Date(at.getTime() - HISTORY_MIN * MIN)),
+          this.mine(events),
         ),
       )
       .orderBy(desc(events.ts));
@@ -135,7 +145,7 @@ export class VolitionService {
     const rows = await this.deps.db
       .select({ id: desires.id, text: desires.text, dueAt: desires.dueAt, dueHint: desires.dueHint })
       .from(desires)
-      .where(eq(desires.status, "pending"))
+      .where(and(eq(desires.status, "pending"), this.mine(desires)))
       .orderBy(asc(desires.createdAt));
 
     // A reminder the owner asked for outranks everything: it comes first, and
@@ -173,14 +183,19 @@ export class VolitionService {
     const rows = await this.deps.db
       .select({ type: events.type })
       .from(events)
-      .where(inArray(events.type, ["went_out", "came_home"]))
+      .where(and(inArray(events.type, ["went_out", "came_home"]), this.mine(events)))
       .orderBy(desc(events.ts))
       .limit(1);
     return rows[0]?.type === "went_out" ? "out" : "home";
   }
 
   private async record(type: string, payload: Record<string, unknown>): Promise<void> {
-    await this.deps.db.insert(events).values({ source: "system", type, payload });
+    await this.deps.db.insert(events).values({
+      source: "system",
+      type,
+      payload,
+      ...(this.deps.gosinoId !== undefined && { gosinoId: this.deps.gosinoId }),
+    });
   }
 
   /**

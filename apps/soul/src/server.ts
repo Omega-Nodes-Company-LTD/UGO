@@ -14,6 +14,7 @@ import { registerFaceStatic } from "./routes/faceStatic.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerCouncilRoutes } from "./routes/council.js";
 import type { CouncilService } from "./services/council/councilService.js";
+import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
@@ -38,6 +39,8 @@ export interface ServerOptions extends HealthDeps {
     speciesMap?: SpeciesMap;
     /** ADR-031: more than one exemplar in the house, and a way to ask them all */
     council?: { council: CouncilService; householdId: () => Promise<string> };
+    /** ADR-032: the per-exemplar runtimes a socket can ask to be */
+    registry?: GosinoRegistry;
     /** bearer token protecting destructive/expensive routes */
     internalToken?: string;
     dreamTriggerUrl?: string;
@@ -78,6 +81,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       stats,
       speciesMap,
       council,
+      registry,
       internalToken,
       dreamTriggerUrl,
       ...v1
@@ -121,7 +125,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (face !== undefined) {
       app.register(async (instance) => {
-        await registerFaceWs(instance, face);
+        await registerFaceWs(instance, face, registry);
       });
     }
   }

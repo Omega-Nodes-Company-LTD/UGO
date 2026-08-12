@@ -37,4 +37,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [029](./029-il-rumore-si-giudica-sulla-stanza.md) | Il rumore si giudica sulla stanza, non su una soglia | Accettata |
 | [030](./030-uscire.md) | Uscire: chiederlo, e accorgersi di essere stato accontentato | Accettata |
 | [031](./031-il-consiglio.md) | Il consiglio: più esemplari, e il genoma che pilota | Accettata |
-| 032 | *(prossimo numero disponibile)* | — |
+| [032](./032-un-runtime-per-esemplare.md) | Un runtime per esemplare: due gosini erano una creatura con due nomi | Accettata |
+| 033 | *(prossimo numero disponibile)* | — |

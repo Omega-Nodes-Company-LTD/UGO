@@ -14,9 +14,8 @@ import { ForgetService } from "./services/privacy/forgetService.js";
 import { PsycheService } from "./services/psycheService.js";
 import { IdleConsolidation } from "./services/idleConsolidation.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
-import { Curiosity } from "./services/volition/curiosity.js";
-import { VolitionService } from "./services/volition/volitionService.js";
 import { CouncilService } from "./services/council/councilService.js";
+import { GosinoRegistry } from "./services/pack/runtimes.js";
 import { buildServer } from "./server.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -138,6 +137,24 @@ probeLocal();
 const localProbeTimer = setInterval(probeLocal, 10 * 60_000);
 localProbeTimer.unref();
 
+const hourOf = (at: Date): number =>
+  Number(at.toLocaleString("it-IT", { hour: "2-digit", hour12: false, timeZone: env.TZ }));
+
+// ADR-032: one runtime per exemplar. Everything that makes him himself — mood,
+// memories, thread, initiative — is his; the house is shared.
+const registry = await GosinoRegistry.load({
+  db,
+  embedder,
+  llm,
+  local: localText,
+  dataKey,
+  timezone: env.TZ,
+  pack,
+  localModelUp: () => localTextUp,
+  initiativeEnabled: () => env.UGO_INITIATIVE === "on",
+  hourOf,
+});
+
 const app = buildServer({
   db,
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
@@ -162,6 +179,7 @@ const app = buildServer({
     privacy,
     speciesMap,
     stats: { dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD, timezone: env.TZ },
+    registry,
     ...(env.UGO_INTERNAL_TOKEN !== undefined && { internalToken: env.UGO_INTERNAL_TOKEN }),
     ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),
     ...(audio !== undefined && { audio }),
@@ -179,25 +197,27 @@ if (meetings !== undefined) {
   pollTimer.unref();
 }
 
-const volition = new VolitionService({
-  db,
-  psyche,
-  gateway: face,
-  curiosity: new Curiosity({ db, local: localText, dataKey, name: "UGO" }),
-  localModelUp: () => localTextUp,
-  enabled: () => env.UGO_INITIATIVE === "on",
-  hourOf: (at) => Number(at.toLocaleString("it-IT", { hour: "2-digit", hour12: false, timeZone: env.TZ })),
-});
 const volitionTimer = setInterval(() => {
-  volition
-    .tick()
-    .then((report) => {
-      // IDs only, never the words he said (rule 6)
-      if (report.acted !== undefined) app.log.info({ act: report.acted }, "initiative");
-    })
-    .catch((error: unknown) => {
-      app.log.warn(error, "initiative tick failed");
-    });
+  // every exemplar decides for himself, and they are staggered so two of them
+  // never speak on top of each other
+  registry.all().forEach((runtime, index) => {
+    setTimeout(
+      () => {
+        runtime.volition
+          .tick()
+          .then((report) => {
+            // IDs only, never the words he said (rule 6)
+            if (report.acted !== undefined) {
+              app.log.info({ act: report.acted, gosino: runtime.id }, "initiative");
+            }
+          })
+          .catch((error: unknown) => {
+            app.log.warn(error, "initiative tick failed");
+          });
+      },
+      index * 7_000,
+    ).unref();
+  });
 }, env.UGO_INITIATIVE_TICK_MINUTES * 60_000);
 volitionTimer.unref();
 

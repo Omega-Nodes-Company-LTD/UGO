@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.15.0"
+version: "0.16.0"
 last_updated: "2026-08-11"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -913,6 +913,40 @@ Rotte: `POST /v1/gosini`, `GET /v1/gosini`, `POST /v1/council`, tutte dietro il 
 Verifiche: **58 unit** soul + **16 di integrazione** su Postgres reale (di cui 4 sul
 consiglio, con il modello registrato per asserire che ognuno è interrogato *come sé*).
 
+## 6-sexdecies. Un runtime per esemplare (ADR-032)
+
+ADR-031 aveva dato agli esemplari un carattere, ma il runtime era rimasto **singolo**:
+una psiche, un gateway, una chat, un ciclo di iniziativa. Non erano due creature che
+condividono qualcosa — erano **una creatura con due nomi**, lo stesso umore che
+rispondeva da due stanze. E `gosino_id` era su ogni tabella di stato **dal primo
+giorno**: la colonna c'era e non la leggeva nessuno.
+
+`GosinoRegistry` costruisce per ciascuno il suo apparato — psiche, chat, gateway,
+iniziativa, carattere — e lascia **alla casa** quel che è della casa (branco, chiave
+dati, budget, orologio): due creature sotto un tetto devono essere d'accordo su chi ci
+abita.
+
+Lo scope è **opzionale ovunque**: assente significa «tutti», che è la casa a un
+esemplare di sempre. Nessun salto di comportamento, nessuna migrazione.
+
+`/v1/face?gosino=<id|nome|stanza>` sceglie chi incarnare; un nome sconosciuto **ricade
+sul più anziano** invece di rifiutare — una query sbagliata non deve lasciare un dock
+vuoto — e proprio perché ricade il socket dice anche **chi ha risposto** (`whoami`).
+Le iniziative partono sfalsate di sette secondi: due creature che parlano addosso
+l'una all'altra sono peggio di una sola.
+
+### La trappola vera
+
+`searchMemories` (ADR-022) unisce un ramo vettoriale e uno lessicale. **Mettere lo
+scope su un ramo solo lascia passare i ricordi dell'altro esemplare dall'altro lato**,
+e in silenzio: un `where` mancante non solleva niente, consegna la memoria sbagliata
+alla creatura sbagliata. Il test cerca apposta una parola che il ramo lessicale
+troverebbe di sicuro.
+
+Verifiche: **6 test di isolamento** su Postgres reale (ricordi in entrambi i rami,
+umore, snapshot, desideri, giornale, e che la casa a un esemplare funzioni come prima)
+più l'intera suite: **123 test di integrazione**, 60 unit face, 58 unit soul.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -936,7 +970,9 @@ consiglio, con il modello registrato per asserire che ognuno è interrogato *com
 | Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
 | `Webgl3dFace` importato staticamente | Un dispositivo che usa il fallback 2D scarica lo stesso i 138 kB di three.js | Import dinamico in `createFace`, che diventa asincrono: piccolo, ma tocca l'ordine di avvio di `main.ts` |
 | Batteria del corpo 3D mai misurata | È il vincolo della Fase 4, e nessun numero lo copre | Una giornata sul 3a Pro; il fallback 2D è già lì se il numero è brutto |
-| **Runtime ancora singolo** | Una psiche, un gateway, un ciclo di iniziativa. Il consiglio funziona leggendo dal DB, ma **incarnare un esemplare diverso su un dispositivo diverso** (`?gosino=cucina`, due sullo schermo) non è fatto: ogni esemplare in più è una voce nel consiglio, non un corpo in casa | ADR-019 fase 2/3: servizi e rotte che passano casa ed esemplare ovunque, RLS, caduta dei DEFAULT |
+| **RLS e caduta dei DEFAULT** su `gosino_id` | Finché il default esiste, un servizio che dimentica lo scope scrive sull'esemplare seminato **invece di fallire**: oggi la separazione la tengono il codice e i test, non il database | Ruolo Postgres dedicato + RLS, e poi togliere i DEFAULT (ADR-019 fase 2) |
+| **Il sogno è ancora uno per tutta la casa** | Diario e ricordi notturni non sono per esemplare | ADR-019 fase 3: job per esemplare |
+| Due esemplari **sullo stesso schermo** | Un dispositivo ne incarna uno alla volta | Due dock, due esemplari — o un lavoro di rendering multiplo, non previsto |
 | `came_home` non produce niente di visibile | Un'uscita non lascia un ricordo di dov'è stato | Il sogno legge già quegli eventi: è il posto naturale |
 | **Sa cominciare, non sa declinare** | Teso o esausto risponde comunque, sempre, subito: l'unica cosa che lo zittisce è il budget esaurito, che è il rifiuto di un contabile | Il passo gemello di ADR-027: risposta più corta, o dopo, o un grugnito — con interruttore del proprietario |
 | **Un solo ciclo di iniziativa** per tutto soul | Con più gosini in casa due creature parlerebbero addosso l'una all'altra | Per esemplare, insieme ad ADR-019 fase 3 |

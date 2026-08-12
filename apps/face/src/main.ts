@@ -31,7 +31,10 @@ const micButton = requireElement("#btn-mic");
 const earsButton = requireElement("#btn-ears");
 
 const params = new URLSearchParams(location.search);
-const soulUrl = resolveSoulUrl(location, params.get("soul"));
+// ADR-032: `?gosino=cucina` picks which exemplar this device is the body of;
+// without it the dock gets the eldest, which is what a single-exemplar house
+// has always shown
+const soulUrl = resolveSoulUrl(location, params.get("soul"), params.get("gosino"));
 // portable mode (§4.2): NFC tag in the shell sets ?mode=portable; manual fallback
 const portableMode = params.get("mode") === "portable";
 const soulHttp = soulHttpBase(soulUrl);
@@ -78,6 +81,11 @@ function onServerMessage(message: ServerToFaceMessage): void {
       return;
     case "glyph":
       glyph.play(message.pattern);
+      return;
+    case "whoami":
+      // an unknown name falls back to the default, so the dock says whose face
+      // this actually is instead of quietly showing somebody else
+      app.dataset.gosino = message.name;
       return;
     case "gesture":
       // ADR-027: soul decided, the body performs. Unknown ids are dropped by

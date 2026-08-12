@@ -1,7 +1,7 @@
 import { desires, memories, type DbClient } from "@ugo/db";
 import type { LocalTextClient } from "@ugo/memory";
 import { decryptText } from "@ugo/shared";
-import { and, desc, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 /**
  * Where a question comes from (ADR-027).
@@ -32,6 +32,8 @@ export interface CuriosityDeps {
   name: string;
   /** one line of character, from the genome (ADR-028) */
   persona?: string;
+  /** ADR-032: whose memories he reads back, and whose desire he files */
+  gosinoId?: string;
 }
 
 function buildPrompt(name: string, persona: string | undefined, facts: readonly string[]): string {
@@ -81,7 +83,14 @@ export class Curiosity {
     const rows = await this.deps.db
       .select({ text: memories.text })
       .from(memories)
-      .where(and(isNull(memories.invalidatedAt)))
+      .where(
+        and(
+          isNull(memories.invalidatedAt),
+          this.deps.gosinoId === undefined
+            ? undefined
+            : eq(memories.gosinoId, this.deps.gosinoId),
+        ),
+      )
       .orderBy(desc(memories.createdAt))
       .limit(HOW_MANY_MEMORIES);
     return rows.map((row) => decryptText(row.text, this.deps.dataKey));
@@ -102,7 +111,11 @@ export class Curiosity {
     if (raw === undefined) return undefined;
     const question = tidyQuestion(raw);
     if (question === undefined) return undefined;
-    await this.deps.db.insert(desires).values({ text: question, status: "pending" });
+    await this.deps.db.insert(desires).values({
+      text: question,
+      status: "pending",
+      ...(this.deps.gosinoId !== undefined && { gosinoId: this.deps.gosinoId }),
+    });
     return question;
   }
 }

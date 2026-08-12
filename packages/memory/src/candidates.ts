@@ -34,8 +34,16 @@ export async function fetchCandidates(
   queryEmbedding: readonly number[],
   queryText: string,
   limit: number,
+  /** ADR-032: whose memories. Omitted means "everyone's", which is only ever
+   *  right in a single-exemplar house — and the caller has to say so. */
+  gosinoId?: string,
 ): Promise<RerankCandidate[]> {
   const distance = cosineDistance(memories.embedding, [...queryEmbedding]);
+  // the filter is repeated in both arms on purpose: a hybrid query with the
+  // scope on only one side leaks the other exemplar's memories through the
+  // other arm, and it leaks them *silently*
+  const mine = gosinoId === undefined ? sql`` : sql` and gosino_id = ${gosinoId}`;
+  const mineAliased = gosinoId === undefined ? sql`` : sql` and m.gosino_id = ${gosinoId}`;
 
   // `websearch_to_tsquery` and not `to_tsquery`: it never throws on whatever a
   // person typed. On a query made only of stopwords it yields an empty tsquery,
@@ -49,14 +57,14 @@ export async function fetchCandidates(
     vector_arm as (
       select id, row_number() over (order by ${distance}) as rank
       from ${memories}
-      where embedding is not null and invalidated_at is null
+      where embedding is not null and invalidated_at is null${mine}
       order by ${distance}
       limit ${limit}
     ),
     lexical_arm as (
       select m.id, row_number() over (order by ts_rank_cd(m.search_vector, tsq.query) desc) as rank
       from ${memories} m, tsq
-      where m.invalidated_at is null and m.search_vector @@ tsq.query
+      where m.invalidated_at is null and m.search_vector @@ tsq.query${mineAliased}
       limit ${limit}
     )
     select ${memories.id}, ${memories.text}, ${memories.kind}, ${memories.importance},
@@ -66,7 +74,7 @@ export async function fetchCandidates(
     from ${memories}
     left join vector_arm v on v.id = ${memories.id}
     left join lexical_arm l on l.id = ${memories.id}
-    where v.id is not null or l.id is not null
+    where (v.id is not null or l.id is not null)${mine}
   `);
 
   return rows.map((row) => ({

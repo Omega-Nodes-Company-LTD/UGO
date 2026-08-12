@@ -11,7 +11,7 @@ import {
   type PsycheState,
   type PsycheVars,
 } from "@ugo/psyche";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 const varsSchema = z.object({
@@ -40,15 +40,26 @@ export class PsycheService {
     private readonly db: DbClient,
     initialState?: PsycheState,
     private readonly overrides: BaselineOverrides = {},
+    /**
+     * ADR-032: whose mood this is. Undefined means the seeded exemplar, which
+     * is what a single-exemplar house has always been — the column default.
+     */
+    private readonly gosinoId?: string,
   ) {
     this.state = initialState ?? emptyState();
   }
 
   /** Rebuild state + adaptive baselines (ADR-012) from the database. */
-  public static async restore(db: DbClient, at: Date = new Date()): Promise<PsycheService> {
+  public static async restore(
+    db: DbClient,
+    at: Date = new Date(),
+    gosinoId?: string,
+  ): Promise<PsycheService> {
+    const mine = gosinoId === undefined ? undefined : eq(psycheBaselines.gosinoId, gosinoId);
     const baselineRows = await db
       .select({ variable: psycheBaselines.variable, baseline: psycheBaselines.baseline })
-      .from(psycheBaselines);
+      .from(psycheBaselines)
+      .where(mine);
     const overrides: BaselineOverrides = {};
     for (const row of baselineRows) {
       if (["umore", "affetto", "noia", "stress", "curiosita"].includes(row.variable)) {
@@ -58,11 +69,17 @@ export class PsycheService {
     const rows = await db
       .select({ vars: psycheSnapshots.vars })
       .from(psycheSnapshots)
+      .where(gosinoId === undefined ? undefined : eq(psycheSnapshots.gosinoId, gosinoId))
       .orderBy(desc(psycheSnapshots.ts))
       .limit(1);
     const parsed = varsSchema.safeParse(rows[0]?.vars);
-    if (!parsed.success) return new PsycheService(db, undefined, overrides);
-    return new PsycheService(db, stateFromSnapshot(parsed.data, at, undefined, overrides), overrides);
+    if (!parsed.success) return new PsycheService(db, undefined, overrides, gosinoId);
+    return new PsycheService(
+      db,
+      stateFromSnapshot(parsed.data, at, undefined, overrides),
+      overrides,
+      gosinoId,
+    );
   }
 
   public current(at: Date = new Date()): PsycheView {
@@ -87,6 +104,11 @@ export class PsycheService {
 
   public async snapshot(at: Date = new Date()): Promise<void> {
     const { vars, label } = this.current(at);
-    await this.db.insert(psycheSnapshots).values({ ts: at, vars, label });
+    await this.db.insert(psycheSnapshots).values({
+      ts: at,
+      vars,
+      label,
+      ...(this.gosinoId !== undefined && { gosinoId: this.gosinoId }),
+    });
   }
 }

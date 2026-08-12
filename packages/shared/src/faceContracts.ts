@@ -58,6 +58,9 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
   // ignores it rather than failing — the decision must never depend on the
   // renderer that happens to be running.
   z.object({ type: z.literal("gesture"), id: z.string().min(1).max(64) }),
+  // ADR-032: which exemplar answered this socket. A device that asked for
+  // "cucina" and got the default has to be able to tell.
+  z.object({ type: z.literal("whoami"), name: z.string().min(1).max(40) }),
 ]);
 export type ServerToFaceMessage = z.infer<typeof serverToFaceSchema>;
 

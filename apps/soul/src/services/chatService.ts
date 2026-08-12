@@ -37,6 +37,11 @@ export interface ChatServiceDeps {
   pack?: PackService;
   /** the household's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
+  /**
+   * ADR-032: whose memories, whose thread, whose diary. Two exemplars in one
+   * house share the pack and the data key, and share nothing else.
+   */
+  gosinoId?: string;
 }
 
 /** Blocks 3+4 of the §5.5 prompt order — dynamic, therefore NEVER cached. */
@@ -72,6 +77,13 @@ function buildDynamicSystem(
 
 export class ChatService {
   public constructor(private readonly deps: ChatServiceDeps) {}
+
+  /** Scopes a query to this exemplar; undefined in a single-exemplar house. */
+  private mine(column: { gosinoId: unknown }): ReturnType<typeof eq> | undefined {
+    return this.deps.gosinoId === undefined
+      ? undefined
+      : eq(column.gosinoId as never, this.deps.gosinoId);
+  }
 
   /**
    * The wall clock in the household's timezone (ADR-028).
@@ -137,6 +149,7 @@ export class ChatService {
       .from(messages)
       .where(
         and(
+          this.mine(messages),
           eq(messages.channel, channel),
           gte(messages.ts, since),
           beingId === undefined
@@ -192,11 +205,14 @@ export class ChatService {
         text: reminder.task,
         status: "pending",
         dueAt: new Date(at.getTime() + reminder.inMinutes * 60_000),
+        ...(this.deps.gosinoId !== undefined && { gosinoId: this.deps.gosinoId }),
       });
       const reply = confirmReminder(reminder);
       // the exchange still goes into the biography, encrypted like every other
+      const owner = this.deps.gosinoId === undefined ? {} : { gosinoId: this.deps.gosinoId };
       await db.insert(messages).values([
         {
+          ...owner,
           ts: at,
           channel: request.channel,
           role: "user",
@@ -204,6 +220,7 @@ export class ChatService {
           text: encryptText(request.text, dataKey),
         },
         {
+          ...owner,
           ts: new Date(at.getTime() + 1),
           channel: request.channel,
           role: "assistant",
@@ -228,6 +245,7 @@ export class ChatService {
       request.text,
       K_BY_CHANNEL[request.channel],
       at,
+      this.deps.gosinoId,
     );
     // recordings made "in giro" are interrogable through chat (§4.2)
     const transcripts = await searchTranscripts(db, embedder, request.text, TRANSCRIPT_K);
@@ -242,6 +260,7 @@ export class ChatService {
     const diaryRows = await db
       .select({ date: diaryEntries.date, text: diaryEntries.text })
       .from(diaryEntries)
+      .where(this.mine(diaryEntries))
       .orderBy(desc(diaryEntries.date))
       .limit(1);
 
@@ -264,8 +283,11 @@ export class ChatService {
     );
 
     // biography is append-only and encrypted at rest (CLAUDE.md rule 6)
+    const owner =
+      this.deps.gosinoId === undefined ? {} : { gosinoId: this.deps.gosinoId };
     await db.insert(messages).values([
       {
+        ...owner,
         ts: at,
         channel: request.channel,
         role: "user",
@@ -273,6 +295,7 @@ export class ChatService {
         text: encryptText(request.text, dataKey),
       },
       {
+        ...owner,
         ts: new Date(at.getTime() + 1),
         channel: request.channel,
         role: "assistant",

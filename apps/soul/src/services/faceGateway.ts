@@ -14,6 +14,8 @@ import type { ChatService } from "./chatService.js";
 import type { PsycheService } from "./psycheService.js";
 
 export interface FaceGatewayDeps {
+  /** ADR-032: which exemplar this gateway is the body of */
+  gosinoId?: string;
   db: DbClient;
   chat: ChatService;
   psyche: PsycheService;
@@ -103,13 +105,25 @@ export class FaceGateway {
     const rows = await this.deps.db
       .select({ id: events.id })
       .from(events)
-      .where(and(eq(events.type, "wants_out"), gte(events.ts, since)))
+      .where(and(eq(events.type, "wants_out"), gte(events.ts, since), this.mine(events)))
       .limit(1);
     return rows.length > 0;
   }
 
   private async recordEvent(type: string, payload: Record<string, unknown>): Promise<void> {
-    await this.deps.db.insert(events).values({ source: "face", type, payload });
+    await this.deps.db.insert(events).values({
+      source: "face",
+      type,
+      payload,
+      ...(this.deps.gosinoId !== undefined && { gosinoId: this.deps.gosinoId }),
+    });
+  }
+
+  /** Scopes a query to this exemplar; undefined in a single-exemplar house. */
+  private mine(column: { gosinoId: unknown }): ReturnType<typeof eq> | undefined {
+    return this.deps.gosinoId === undefined
+      ? undefined
+      : eq(column.gosinoId as never, this.deps.gosinoId);
   }
 
   private setState(state: FaceState, send: FaceSender): void {
@@ -131,7 +145,7 @@ export class FaceGateway {
     const pending = await this.deps.db
       .select({ id: desires.id, text: desires.text })
       .from(desires)
-      .where(eq(desires.status, "pending"))
+      .where(and(eq(desires.status, "pending"), this.mine(desires)))
       .orderBy(asc(desires.createdAt))
       .limit(1);
     const desire = pending[0];
