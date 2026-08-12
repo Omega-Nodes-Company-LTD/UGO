@@ -1,6 +1,7 @@
 import { psycheBaselines, psycheSnapshots, type DbClient } from "@ugo/db";
 import {
   applyPerturbations,
+  breakdownAt,
   emptyState,
   labelPhrase,
   perturbationsForEvent,
@@ -9,7 +10,9 @@ import {
   varsAt,
   type BaselineOverrides,
   type PsycheState,
+  type PsycheVariable,
   type PsycheVars,
+  type VariableBreakdown,
 } from "@ugo/psyche";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -86,6 +89,15 @@ export class PsycheService {
     const vars = varsAt(this.state, at, undefined, this.overrides);
     const label = pickLabel(vars, this.state.lastEventType);
     return { vars, label, phrase: labelPhrase(label) };
+  }
+
+  /**
+   * Why each variable reads what it reads (ADR-034). The adaptive baselines go
+   * in too, so «riposa a 0,42» is his own resting point and not the species
+   * constant — otherwise the arithmetic on screen would not add up.
+   */
+  public breakdown(at: Date = new Date()): Record<PsycheVariable, VariableBreakdown> {
+    return breakdownAt(this.state, at, undefined, this.overrides);
   }
 
   /** Apply an event's perturbations; snapshot when the label transitions. */

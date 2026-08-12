@@ -9,13 +9,18 @@ const PSYCHE_LABEL = {
 const PSYCHE_BASELINE = { umore: 0.55, affetto: 0.5, noia: 0.4, stress: 0.3, curiosita: 0.5 };
 
 async function loadPsyche() {
-  const psyche = await call("/v1/psyche", {});
-  $("mood-label").textContent = psyche.label;
+  const psyche = await call(forWho("/v1/psyche"), {});
+  $("mood-label").textContent = (psyche.who ? psyche.who.name + " · " : "") + psyche.label;
   $("mood-phrase").textContent = psyche.phrase;
-  $("psyche-bars").innerHTML = Object.entries(psyche.vars).map(([name, value]) =>
-    '<div class="var"><span class="name">' + (PSYCHE_LABEL[name] ?? name) + "</span>" +
-    meter(value, PSYCHE_BASELINE[name]) +
-    '<span class="num">' + value.toFixed(2) + "</span></div>").join("");
+  // the adaptive baseline (ADR-012) wins over the species constant: the tick on
+  // the bar has to be HIS resting point, or the arithmetic under it won't add up
+  $("psyche-bars").innerHTML = Object.entries(psyche.vars).map(([name, value]) => {
+    const why = psyche.breakdown?.[name];
+    return '<div class="var"><span class="name">' + (PSYCHE_LABEL[name] ?? name) + "</span>" +
+      meter(value, why?.baseline ?? PSYCHE_BASELINE[name]) +
+      '<span class="num">' + value.toFixed(2) + "</span>" +
+      whyLine(why) + "</div>";
+  }).join("");
 }
 
 async function loadStats() {
@@ -63,7 +68,11 @@ async function loadHealth() {
 
 $("refresh").addEventListener("click", async () => {
   try {
-    await refresh(); await loadPsyche(); await loadHealth();
+    await refresh();
+    await section(loadGosini, "stats-msg");
+    await section(loadPsyche, "stats-msg");
+    await section(loadVolition, "volition-msg");
+    await section(loadHealth, "stats-msg");
     say("stats-msg", "Aggiornato.", "ok");
   } catch (error) { say("stats-msg", error.message, "err"); }
 });

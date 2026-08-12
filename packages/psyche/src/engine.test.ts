@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyPerturbations,
+  breakdownAt,
   stateFromSnapshot,
   varsAt,
 } from "./engine.js";
@@ -233,5 +234,74 @@ describe("labels", () => {
     for (const label of ["sereno", "mogio", "gasato", "in ansia da caldo", "offeso per l'urto"]) {
       expect(labelPhrase(label).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("breakdownAt", () => {
+  /**
+   * "Quanto è stressato" smette di servire nel momento esatto in cui la
+   * risposta preoccupa: la domanda dopo è sempre *da cosa*.
+   */
+  it("says what each cause is contributing, largest first", () => {
+    let state = applyPerturbations(
+      emptyState(),
+      perturbationsForEvent("heat_stress"),
+      NOON,
+      "heat_stress",
+    );
+    state = applyPerturbations(state, perturbationsForEvent("loud_noise"), NOON, "loud_noise");
+    state = applyPerturbations(state, perturbationsForEvent("loud_noise"), NOON, "loud_noise");
+
+    const stress = breakdownAt(state, NOON, 12).stress;
+    expect(stress.baseline).toBeCloseTo(BASELINES.stress, 5);
+    expect(stress.causes.map((c) => c.cause)).toEqual(["loud_noise", "heat_stress"]);
+    // the two bangs are one cause, summed, and habituation has already bitten
+    expect(stress.causes[0]?.amount).toBeCloseTo(0.311, 2);
+    expect(stress.causes[1]?.amount).toBeCloseTo(0.15, 5);
+    expect(stress.value).toBeCloseTo(varsAt(state, NOON, 12).stress, 5);
+  });
+
+  it("agrees with varsAt on every variable, which is the only thing that makes it trustworthy", () => {
+    let state = emptyState();
+    for (const event of ["went_out", "loud_noise", "conversation_turn", "heat_stress"]) {
+      state = applyPerturbations(state, perturbationsForEvent(event), NOON, event);
+    }
+    const later = hoursAfter(NOON, 3);
+    const vars = varsAt(state, later, 12);
+    const breakdown = breakdownAt(state, later, 12);
+    for (const [name, value] of Object.entries(vars)) {
+      expect(breakdown[name as keyof typeof vars].value, name).toBeCloseTo(value, 10);
+    }
+  });
+
+  it("keeps the causes uncapped when the value is pinned, so you can see how far past the top he is", () => {
+    const state = applyPerturbations(
+      emptyState(),
+      [{ variable: "stress", amount: 2 }],
+      NOON,
+      "assurdo",
+    );
+    const stress = breakdownAt(state, NOON, 12).stress;
+    expect(stress.value).toBe(1);
+    expect(stress.causes[0]?.amount).toBe(2);
+  });
+
+  it("hides causes too small to mean anything, and shows nothing at rest", () => {
+    expect(breakdownAt(emptyState(), NOON, 12).umore.causes).toEqual([]);
+    const whisper = applyPerturbations(
+      emptyState(),
+      [{ variable: "umore", amount: 0.001 }],
+      NOON,
+      "briciola",
+    );
+    expect(breakdownAt(whisper, NOON, 12).umore.causes).toEqual([]);
+  });
+
+  it("admits it does not know, after a restart", () => {
+    // a snapshot collapses everything into one nameless transient per variable
+    const restored = stateFromSnapshot(varsAt(emptyState(), NOON, 12), NOON, 12);
+    const shaken = applyPerturbations(restored, perturbationsForEvent("shake"), NOON, "shake");
+    const causes = breakdownAt(shaken, NOON, 12).stress.causes;
+    expect(causes.map((c) => c.cause)).toEqual(["shake"]);
   });
 });

@@ -15,9 +15,11 @@ export {
 } from "./model.js";
 export {
   varsAt,
+  breakdownAt,
   applyPerturbations,
   stateFromSnapshot,
   type Perturbation,
+  type VariableBreakdown,
 } from "./engine.js";
 export { EVENT_PERTURBATIONS, perturbationsForEvent } from "./events.js";
 export { pickLabel, labelPhrase } from "./labels.js";

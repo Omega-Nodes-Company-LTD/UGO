@@ -1,12 +1,15 @@
 import { ARCHIVE_JS } from "./script/archive.js";
 import { CHARTS_JS } from "./script/charts.js";
 import { CORE_JS } from "./script/core.js";
+import { COUNCIL_JS } from "./script/council.js";
 import { DATA_JS } from "./script/data.js";
+import { EXEMPLARS_JS } from "./script/exemplars.js";
 import { GRAPH_JS } from "./script/graph.js";
 import { PACK_JS } from "./script/pack.js";
 import { RELATIONS_JS } from "./script/relations.js";
 import { STATUS_JS } from "./script/status.js";
 import { VOICE_JS } from "./script/voice.js";
+import { VOLITION_JS } from "./script/volition.js";
 
 /**
  * Panel behaviour, split by area so no single file grows past what a person
@@ -25,4 +28,7 @@ export const ADMIN_SCRIPT = [
   GRAPH_JS,
   DATA_JS,
   STATUS_JS,
+  EXEMPLARS_JS,
+  VOLITION_JS,
+  COUNCIL_JS,
 ].join("\n");

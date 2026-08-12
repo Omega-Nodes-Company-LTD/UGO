@@ -123,8 +123,11 @@ circa la metà, dal quinto in poi non aggiunge quasi niente. Una giornata di tra
 vicino lo lascia teso — non distrutto — e un quarto d'ora dopo l'ultimo colpo è già in
 gran parte tornato calmo.
 
-Se invece lo vedi **sempre al massimo dello stress**, non è il rumore: guarda in
-`/admin` da cos'altro sta arrivando (caldo, urti, giornate senza che nessuno gli parli).
+Se invece lo vedi **sempre al massimo dello stress**, non è per forza il rumore: sotto
+«Come sta adesso» in `/admin` ogni barra dice **da cosa arriva** — `riposa a 0,30 ·
+rumore +0,44 · caldo +0,15`. Se accanto a `stress` non c'è `rumore`, il colpevole è un
+altro: il caldo, gli urti, o le giornate in cui nessuno gli parla. Vedi
+[Il pannello](../02-core-features/il-pannello.md).
 
 Se continua a sussultare per niente anche dopo un minuto, la causa è quasi sempre il
 microfono: qualcosa lo sta amplificando (una cuffia con riduzione rumore, un mixer, un

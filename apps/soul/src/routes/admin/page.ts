@@ -130,6 +130,21 @@ export const ADMIN_PAGE = `<!doctype html>
   .meter { position: relative; display: block; height: 7px; background: var(--sunk); border-radius: 4px; }
   .meter > i { display: block; height: 100%; background: var(--data); border-radius: 4px; }
   .meter .baseline { position: absolute; top: -3px; width: 1px; height: 13px; background: var(--muted); opacity: .55; }
+  /* the causes sit under their own bar, in the bar's column, so the eye reads
+     "questa barra, per questi motivi" without a legend */
+  .why { grid-column: 2 / 4; font-size: .74rem; color: var(--muted); margin: -.1rem 0 .35rem; }
+  .why b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .why .rest { opacity: .7; }
+
+  /* --- what he started himself, and the council -------------------------- */
+  .deed { background: var(--sunk); border-radius: .6rem; padding: .6rem .8rem; margin: .4rem 0; }
+  .deed .when { font-size: .74rem; color: var(--muted); float: right; }
+  .deed .act { font-weight: 600; }
+  .deed .because { font-size: .85rem; color: var(--muted); font-style: italic; }
+  .voice { background: var(--sunk); border-radius: .6rem; padding: .7rem .9rem; margin: .5rem 0; }
+  .voice h4 { margin: 0 0 .3rem; font-family: var(--serif); font-size: .95rem; }
+  .voice .said { margin: .2rem 0; }
+  .voice .again { margin: .4rem 0 0; padding-left: .7rem; border-left: 2px solid var(--data); }
 
   /* --- the pack ---------------------------------------------------------- */
   .pack { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .75rem; }
@@ -177,12 +192,20 @@ export const ADMIN_PAGE = `<!doctype html>
   <div class="mood" id="mood-hero" hidden>
     <b id="mood-label" data-testid="mood-label">—</b>
     <span id="mood-phrase" data-testid="mood-phrase"></span>
+    <!-- ADR-034: with more than one of them in the house, every reading below
+         belongs to somebody. Hidden while there is only one, because a chooser
+         with a single choice is furniture. -->
+    <label id="who-pick" hidden style="margin-left:auto;display:flex;align-items:center;gap:.4rem">
+      <span style="font-size:.8rem;color:var(--muted)">stai guardando</span>
+      <select id="who" data-testid="who"></select>
+    </label>
   </div>
 </header>
 
 <div id="app" hidden>
   <nav class="tabs">
-    <a href="#ora">Come sta</a><a href="#branco">Il branco</a><a href="#voce">Voce</a>
+    <a href="#ora">Come sta</a><a href="#volonta">Cosa ha deciso lui</a>
+    <a href="#branco">Il branco</a><a href="#consiglio">Il consiglio</a><a href="#voce">Voce</a>
     <a href="#memoria">Memoria</a><a href="#conti">Conti</a><a href="#dati">I dati</a>
   </nav>
 
@@ -199,6 +222,36 @@ export const ADMIN_PAGE = `<!doctype html>
       <button id="dream" class="ghost" data-testid="dream" style="flex:0 0 auto">Fallo sognare adesso</button>
     </div>
     <div id="stats-msg"></div>
+  </section>
+
+  <section id="volonta">
+    <h2>Cosa ha deciso lui</h2>
+    <p class="lede">Non le risposte: le volte in cui ha cominciato lui. Ogni riga porta la
+       spinta che l'ha mosso, con le sue parole.</p>
+    <div class="row" style="align-items:center;gap:.6rem">
+      <button id="init-toggle" class="ghost" data-testid="init-toggle" style="flex:0 0 auto">—</button>
+      <span id="init-state" data-testid="init-state" class="lede" style="margin:0"></span>
+    </div>
+    <div id="volition-msg"></div>
+    <h3>Desideri in sospeso</h3>
+    <p class="lede">Quello che si è ripromesso di dirti, e i promemoria che gli hai chiesto.</p>
+    <div id="desire-list" data-testid="desire-list"></div>
+    <h3>Le ultime iniziative</h3>
+    <div id="initiative-list" data-testid="initiative-list"></div>
+  </section>
+
+  <section id="consiglio">
+    <h2>Il consiglio</h2>
+    <p class="lede">Una domanda a tutti quanti. Il primo giro è cieco — nessuno sente gli altri
+       prima di parlare — poi si ascoltano e possono cambiare idea. Solo modelli locali:
+       un consiglio non tocca il budget.</p>
+    <div class="row">
+      <div style="flex:1"><label for="council-q">La domanda</label>
+        <input id="council-q" data-testid="council-q" placeholder="Meglio il fango o il divano?"></div>
+      <button id="council-go" data-testid="council-go" style="flex:0 0 auto;align-self:end">Convoca</button>
+    </div>
+    <div id="council-msg"></div>
+    <div id="council-out" data-testid="council-out"></div>
   </section>
 
   <section id="branco">
