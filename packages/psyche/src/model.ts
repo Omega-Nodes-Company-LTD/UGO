@@ -29,6 +29,12 @@ export interface PsycheTransient {
   amount: number;
   tauHours: number;
   appliedAtMs: number;
+  /**
+   * Which event type left it here. Habituation needs to recognise its own
+   * kind: the tenth bang is only unremarkable next to the nine before it,
+   * not next to a hot afternoon.
+   */
+  cause?: string | undefined;
 }
 
 export interface PsycheState {

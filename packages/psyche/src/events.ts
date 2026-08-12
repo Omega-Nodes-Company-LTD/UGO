@@ -23,9 +23,14 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
   high_humidity: [{ variable: "umore", amount: -0.05 }],
   /** T > 29 °C for 30 min */
   heat_stress: [{ variable: "stress", amount: 0.15 }],
-  /** spike: decays with its own 15-minute τ */
-  loud_noise: [{ variable: "stress", amount: 0.2, tauHours: 0.25 }],
-  shake: [{ variable: "stress", amount: 0.1 }],
+  /**
+   * Spike: decays with its own 15-minute τ, and habituates (ADR-033). The
+   * ceiling is what keeps a noisy afternoon from pinning him at 1.0 — startled
+   * he may be, but a fireworks display must leave him rattled, not destroyed.
+   */
+  loud_noise: [{ variable: "stress", amount: 0.2, tauHours: 0.25, ceiling: 0.45 }],
+  /** same family, same reason: a phone in a pocket must not terrorise him */
+  shake: [{ variable: "stress", amount: 0.1, ceiling: 0.3 }],
   meeting_completed: [{ variable: "curiosita", amount: 0.1 }],
   new_topic: [{ variable: "curiosita", amount: 0.05 }],
   /** ADR-020: meeting one of your own kind, for the first time */

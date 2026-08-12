@@ -105,11 +105,26 @@ silenziosa la tua stanza. Solo dopo comincia a sussultare, e lo fa per i rumori
 **improvvisi rispetto a quella stanza** — non per un volume fisso. Quindi in una stanza
 già rumorosa serve un botto più forte, e in una silenziosa basta molto meno.
 
-Due conseguenze normali:
+Quattro conseguenze normali:
 
 - **Nei primi secondi non sussulta mai.** Se batti le mani appena acceso, non reagisce.
 - **Una festa non lo terrorizza.** Se la stanza si riempie piano, si abitua invece di
   spaventarsi a ogni risata.
+- **Non lo disturba chi parla.** Una conversazione, la televisione, le posate, la
+  tastiera: sono rumori che vanno e vengono, e lui li riconosce come «la stanza».
+- **Dopo un camion resta un po' insensibile.** Per circa un minuto ci vuole di più per
+  farlo sussultare. È voluto: è lo stesso motivo per cui tu smetti di sentire la
+  tangenziale.
+
+## Si spaventa davvero, e poi resta terrorizzato a lungo
+
+Non succede più: **si abitua.** Il primo botto lo prende in pieno, il secondo lo scuote
+circa la metà, dal quinto in poi non aggiunge quasi niente. Una giornata di trapano del
+vicino lo lascia teso — non distrutto — e un quarto d'ora dopo l'ultimo colpo è già in
+gran parte tornato calmo.
+
+Se invece lo vedi **sempre al massimo dello stress**, non è il rumore: guarda in
+`/admin` da cos'altro sta arrivando (caldo, urti, giornate senza che nessuno gli parli).
 
 Se continua a sussultare per niente anche dopo un minuto, la causa è quasi sempre il
 microfono: qualcosa lo sta amplificando (una cuffia con riduzione rumore, un mixer, un

@@ -26,14 +26,10 @@ describe("NoiseGate", () => {
   it("startles at a bang, once", () => {
     const gate = new NoiseGate();
     steady(gate, 40, 300);
-    const bang = gate.push(70, 300 * 16);
-    expect(bang.startled).toBe(true);
-    // and not again for the whole bang, which lasts more than one frame
-    let more = 0;
-    for (let i = 1; i < 60; i += 1) {
-      if (gate.push(70, 300 * 16 + i * 16).startled) more += 1;
-    }
-    expect(more).toBe(0);
+    // a bang has to actually be there for a moment: judging a single 43 ms
+    // frame is how a click, a tap on the case or one bad sample became a
+    // fright. One second of it must fire exactly one startle, no more.
+    expect(steady(gate, 70, 60, 300 * 16)).toBe(1);
   });
 
   it("stays calm while the room is still being learned", () => {
@@ -62,7 +58,7 @@ describe("NoiseGate", () => {
   it("still hears a bang over a loud room, judged against that room", () => {
     const gate = new NoiseGate();
     steady(gate, 70, 3000);
-    expect(gate.push(88, 3000 * 16).startled).toBe(true);
+    expect(steady(gate, 88, 40, 3000 * 16)).toBe(1);
   });
 
   it("refuses to call a whisper a bang, even in a soundproof room", () => {
@@ -72,12 +68,54 @@ describe("NoiseGate", () => {
     expect(gate.push(25, 400 * 16).startled).toBe(false);
   });
 
-  it("comes back down quickly after a lorry, instead of going deaf", () => {
+  it("stays hard to startle for a while after a lorry, then comes back down", () => {
     const gate = new NoiseGate();
     steady(gate, 40, 300);
     steady(gate, 85, 200, 300 * 16); // the lorry passes
     const raised = gate.floor;
-    steady(gate, 40, 600, 500 * 16); // the street empties
-    expect(gate.floor).toBeLessThan(raised);
+    expect(raised).toBeGreaterThan(70);
+
+    // ADR-029 made the floor fall fast so he would not be deaf after a lorry.
+    // That is what re-armed him in every pause of every conversation, so the
+    // floor now leaves a loud room slowly, on purpose: ten seconds later he is
+    // still calibrated for the street, and a minute later he is not.
+    steady(gate, 40, 600, 500 * 16); // ten seconds of empty street
+    expect(gate.floor).toBeGreaterThan(raised - 15);
+    steady(gate, 40, 6000, 1100 * 16); // a minute and a half
+    expect(gate.floor).toBeLessThan(50);
+  });
+
+  /**
+   * Every test above feeds a CONSTANT level, and that is exactly why the room
+   * still frightened him after ADR-029: real rooms are not constant. Speech,
+   * a television, cutlery, a keyboard — all of them are loud-quiet-loud, and
+   * the gap between two syllables is 20-30 dB deep.
+   */
+  it("sits through a conversation without being frightened by it", () => {
+    const gate = new NoiseGate();
+    steady(gate, 35, 300);
+    let fired = 0;
+    let t = 300 * 16;
+    // two minutes of speech: 200 ms of voice, 200 ms of gap
+    for (let burst = 0; burst < 300; burst += 1) {
+      for (let i = 0; i < 13; i += 1, t += 16) if (gate.push(65, t).startled) fired += 1;
+      for (let i = 0; i < 13; i += 1, t += 16) if (gate.push(35, t).startled) fired += 1;
+    }
+    // the first syllable may well startle him. The other 299 must not.
+    expect(fired).toBeLessThanOrEqual(1);
+  });
+
+  it("still hears a real bang over that conversation", () => {
+    const gate = new NoiseGate();
+    steady(gate, 35, 300);
+    let t = 300 * 16;
+    for (let burst = 0; burst < 60; burst += 1) {
+      for (let i = 0; i < 13; i += 1, t += 16) gate.push(65, t);
+      for (let i = 0; i < 13; i += 1, t += 16) gate.push(35, t);
+    }
+    // a door slams in the middle of it
+    let fired = 0;
+    for (let i = 0; i < 20; i += 1, t += 16) if (gate.push(92, t).startled) fired += 1;
+    expect(fired).toBe(1);
   });
 });

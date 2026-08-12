@@ -38,4 +38,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [030](./030-uscire.md) | Uscire: chiederlo, e accorgersi di essere stato accontentato | Accettata |
 | [031](./031-il-consiglio.md) | Il consiglio: più esemplari, e il genoma che pilota | Accettata |
 | [032](./032-un-runtime-per-esemplare.md) | Un runtime per esemplare: due gosini erano una creatura con due nomi | Accettata |
-| 033 | *(prossimo numero disponibile)* | — |
+| [033](./033-l-abitudine-al-fracasso.md) | L'abitudine al fracasso: la stanza si muove, e il decimo botto non è il primo | Accettata |
+| 034 | *(prossimo numero disponibile)* | — |

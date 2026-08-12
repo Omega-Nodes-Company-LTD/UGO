@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.16.0"
-last_updated: "2026-08-11"
+version: "0.17.0"
+last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -845,10 +845,15 @@ positivo cambiava solo uno stato, adesso fa sussultare un corpo — e con `alert
 riacceso ogni due secondi il risultato è un animale perennemente atterrito.
 
 **Un soprassalto non è una potenza, è una sorpresa.** Il corpo tiene ora un
-pavimento di rumore **appreso** e scatta sul salto sopra quello: +14 dB, mai sotto
-un minimo assoluto, con riscaldamento prima di poter giudicare, pavimento che
-**scende in fretta e sale piano** (un camion non lo lascia sordo, una festa alza
-l'asticella invece di spaventarlo). AGC, soppressione rumore ed eco **spente**.
+pavimento di rumore **appreso** e scatta sul salto sopra quello: mai sotto un
+minimo assoluto, con riscaldamento prima di poter giudicare. AGC, soppressione
+rumore ed eco **spente**.
+
+> ⚠️ **Le dinamiche di questa sezione sono state corrette da ADR-033** (§6-septdecies).
+> Il pavimento scendeva in fretta e saliva piano, ed era al contrario: si tuffava in
+> ogni pausa del parlato. Ora sale in fretta e scende piano. L'inquadramento — «un
+> soprassalto è una sorpresa, non una potenza» — regge; erano i numeri a essere
+> sbagliati.
 
 soul non ri-giudica più l'evento contro una soglia assoluta: un frame `noise`
 significa già «questo mi ha fatto sussultare», e il corpo è l'unico che conosce la
@@ -946,6 +951,43 @@ troverebbe di sicuro.
 Verifiche: **6 test di isolamento** su Postgres reale (ricordi in entrambi i rami,
 umore, snapshot, desideri, giornale, e che la casa a un esemplare funzioni come prima)
 più l'intera suite: **123 test di integrazione**, 60 unit face, 58 unit soul.
+
+## 6-septdecies. L'abitudine al fracasso (ADR-033)
+
+Seconda segnalazione dal server vero, dopo ADR-029: **il rumore lo spaventa ancora, e
+lo stress arriva al massimo in due minuti.** Misurando sono emersi **due guasti
+indipendenti**, e ognuno bastava da solo a produrre il sintomo.
+
+**Il pavimento si rituffava in ogni pausa.** ADR-029 lo faceva scendere quattro volte
+più in fretta di quanto salisse, per non lasciarlo sordo dopo un camion. È al
+contrario: il vuoto fra due sillabe è profondo 20-30 dB, il pavimento ci si tuffava
+dentro (τ ≈ 0,8 s) e la sillaba dopo lo scavalcava di 25 dB. Il test scritto per
+riprodurlo: **60 soprassalti in due minuti di conversazione normale**. Invisibile a
+ogni test esistente, perché **tutti alimentavano un livello costante** — il guasto era
+di dinamica, non di calibrazione.
+
+Ora il livello viene **lisciato** prima di essere giudicato (τ 120 ms: più corto di una
+sillaba, più lungo di un clic) e il pavimento **sale in fretta (τ 2 s) e scende piano
+(τ 60 s)**, con riarmo esplicito e cooldown a 15 s. Le costanti sono applicate al tempo
+trascorso vero, non per campione: prima **il temperamento della creatura era funzione
+della frequenza di aggiornamento dello schermo** (60 Hz, 120 Hz, o una scheda in
+secondo piano).
+
+**Lo stress non aveva un tetto.** Cinque botti facevano +1,00 e i transitori si
+sommavano e basta. Questo secondo guasto sarebbe sopravvissuto a un gate perfetto: un
+trapano tutto il pomeriggio lo avrebbe comunque inchiodato al massimo — e **una
+variabile inchiodata smette di significare qualcosa**, perché ogni lettura è la stessa.
+
+Una perturbazione può ora dichiarare un `ceiling` per **tipo di evento** (il transitorio
+porta la sua `cause`), con rendimenti decrescenti. Misurato, botti ogni 15 s:
+0,50 → 0,61 → 0,67 → 0,70 → … → **0,74 asintotico**, e 0,46 un quarto d'ora dopo
+l'ultimo. Spaventato sì, distrutto no. `ceiling` assente = nessuna abitudine, che è il
+default giusto: essere chiamato cento volte deve sommarsi.
+
+Verifiche: 9 unit sul gate (i due nuovi sono «regge una conversazione» e «sente comunque
+un botto vero sopra quella conversazione» — senza il secondo avrei solo reso sordo un
+animale), 20 unit sul motore della psiche, 18 test di integrazione su Postgres reale
+per le suite che toccano la psiche.
 
 ## 7. Debito tecnico e rischi aperti
 
