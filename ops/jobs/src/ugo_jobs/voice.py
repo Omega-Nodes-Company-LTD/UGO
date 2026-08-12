@@ -22,9 +22,39 @@ FRAME_MS = 25
 HOP_MS = 10
 MEL_FILTERS = 26
 CEPSTRA = 13
-# cosine above this means "same voice". Deliberately cautious: a wrong name
-# said with confidence costs more than a question (ADR-016).
-DEFAULT_MATCH_THRESHOLD = 0.85
+# Le soglie **per modello**, prese dalla curva del banco (ADR-042/043).
+#
+# Una soglia coseno non significa niente indipendentemente dallo spazio degli
+# embedding: `0.85` era troppo permissiva per l'MFCC (FAR 60%!) e sarebbe troppo
+# severa per ECAPA, che a quel punto rifiuterebbe la persona giusta due volte su
+# tre. Tenerne una sola era il difetto, non il valore.
+#
+# `match` = "sei tu". `maybe` = "potresti essere tu, te lo chiedo". Sotto
+# `maybe` non c'è nessuno: il migliore di un mucchio di estranei è un estraneo,
+# e tenerlo come candidato produce solo domande su gente che non c'è.
+MATCH_THRESHOLDS: dict[str, tuple[float, float]] = {
+    # misurato: 20 parlanti, 3 frasi di arruolamento, 3200 confronti.
+    # 0.45 → FAR 0.23% (un estraneo accettato su ~430), FRR 1.9%.
+    # Sbilanciata verso i falsi rifiuti perché un nome sbagliato detto con
+    # sicurezza costa più di una domanda (ADR-016).
+    "ecapa-voxceleb-v1": (0.45, 0.30),
+    # non è un riconoscitore di persone: nessuna soglia lo rende tale (FAR 60%
+    # a 0.85, EER 11.8%). Resta solo perché i vecchi profili dichiarano questo
+    # modello finché non ci si riarruola, e vanno rifiutati, non creduti.
+    "mfcc-stats-v1": (1.01, 1.01),
+}
+
+#: usata quando un profilo dichiara un modello che non conosciamo: non fidarsi
+UNKNOWN_MODEL_THRESHOLDS = (1.01, 1.01)
+
+
+def thresholds_for(model: str) -> tuple[float, float]:
+    """(match, maybe) per questo modello. Sconosciuto = non si riconosce nessuno."""
+    return MATCH_THRESHOLDS.get(model, UNKNOWN_MODEL_THRESHOLDS)
+
+
+#: compatibilità con le firme che la prendono ancora come argomento
+DEFAULT_MATCH_THRESHOLD = 0.45
 
 
 class VoiceEncoder(Protocol):

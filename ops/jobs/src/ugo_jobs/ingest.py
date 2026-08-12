@@ -89,6 +89,7 @@ def _attribute(
     audio: np.ndarray | None,
     t0: float,
     t1: float,
+    encoder: object | None = None,
 ) -> str | None:
     """Who said this stretch, if the voiceprint is sure enough (ADR-016).
 
@@ -105,12 +106,16 @@ def _attribute(
         samples=piece,
         data_key=parse_data_key(cfg.data_key_b64),
         household_id=cfg.household_id,
+        # ADR-043: iniettabile perché il modello vero pesa 2 GB, e ciò che va
+        # provato qui è l'attribuzione — chi viene nominato e chi no — non la
+        # qualità dell'encoder, che ha il suo banco
+        encoder=encoder,
     )
     record_observation(conn, gosino_id=cfg.gosino_id, identification=identification)
     return identification.being_id
 
 
-def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str) -> int:  # noqa: ANN001
+def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, encoder=None) -> int:  # noqa: ANN001
     name = Path(key).name
     with tempfile.NamedTemporaryFile(suffix=Path(name).suffix) as handle:
         client.download_fileobj(cfg.s3_bucket_audio, key, handle)
@@ -133,7 +138,7 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str) -> 
     key_bytes = parse_data_key(cfg.data_key_b64)
     vectors = embed(cfg, [text for _t0, _t1, text in pieces])
     for (t0, t1, text), vector in zip(pieces, vectors):
-        being_id = _attribute(conn, cfg, audio, t0, t1)
+        being_id = _attribute(conn, cfg, audio, t0, t1, encoder)
         conn.execute(
             """
             insert into transcript_segments
@@ -167,7 +172,9 @@ def _prune_archive(cfg: JobsConfig, client) -> int:  # noqa: ANN001
     return pruned
 
 
-def run_ingest(conn: psycopg.Connection, cfg: JobsConfig, _dream_date: str) -> IngestResult:
+def run_ingest(
+    conn: psycopg.Connection, cfg: JobsConfig, _dream_date: str, encoder=None  # noqa: ANN001
+) -> IngestResult:
     client = _s3_client(cfg)
     try:
         client.head_bucket(Bucket=cfg.s3_bucket_audio)
@@ -179,7 +186,7 @@ def run_ingest(conn: psycopg.Connection, cfg: JobsConfig, _dream_date: str) -> I
     files = 0
     segments = 0
     for key in sorted(keys):
-        segments += _ingest_one(conn, cfg, client, key)
+        segments += _ingest_one(conn, cfg, client, key, encoder)
         files += 1
     pruned = _prune_archive(cfg, client)
     return IngestResult(files=files, segments=segments, pruned=pruned)

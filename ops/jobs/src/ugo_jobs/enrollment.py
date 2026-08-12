@@ -22,7 +22,7 @@ import psycopg
 
 from .crypto import decrypt_bytes, encrypt_bytes
 from .voice import (
-    DEFAULT_MATCH_THRESHOLD,
+    thresholds_for,
     MfccVoiceEncoder,
     VoiceEncoder,
     cosine,
@@ -135,13 +135,19 @@ def identify_voice(
     data_key: bytes,
     household_id: str,
     encoder: VoiceEncoder | None = None,
-    threshold: float = DEFAULT_MATCH_THRESHOLD,
+    threshold: float | None = None,
 ) -> Identification:
     """Best match above the threshold, otherwise nobody. UGO does not guess.
 
     Scoped to one house (ADR-019): an unscoped query here would happily match
     the neighbours' voice, which is the exact failure the whole tenancy work
     exists to prevent.
+
+    ADR-043: la soglia viene **dal modello**, non da una costante. E c'è una
+    seconda soglia sotto: fra le due il candidato si tiene per chiedere «sei
+    tu?», sotto non c'è nessuno. Prima, il migliore fra un mucchio di estranei
+    diventava comunque un candidato con confidenza 0.02 — rumore travestito da
+    quasi-riconoscimento.
     """
     coder = encoder or MfccVoiceEncoder()
     probe = coder.encode(samples)
@@ -158,8 +164,15 @@ def identify_voice(
         score = cosine(probe, unpack(decrypt_bytes(bytes(payload), data_key)))
         if score > best_score:
             best_id, best_score = str(being_id), score
+
+    match_at, maybe_at = thresholds_for(coder.model)
+    if threshold is not None:
+        match_at = threshold
     confidence = max(best_score, 0.0)
-    if best_id is None or best_score < threshold:
+    if best_id is None or best_score < maybe_at:
+        # nessuno: non c'è nemmeno qualcuno da nominare in una domanda
+        return Identification(being_id=None, candidate_being_id=None, confidence=confidence)
+    if best_score < match_at:
         return Identification(being_id=None, candidate_being_id=best_id, confidence=confidence)
     return Identification(being_id=best_id, candidate_being_id=None, confidence=confidence)
 
