@@ -26,15 +26,37 @@ interface RoomMember {
   id: string;
   name: string;
   gateway: FaceGateway;
+  /**
+   * His genome (ADR-015), so the body can build HIM and not a default pig.
+   * This was declared and never filled: the runtime carries it under
+   * `character.traits`, nothing mapped it across, and every creature in a room
+   * therefore rendered identical — the same pink pig twice, which is exactly
+   * what a room of several is supposed to stop looking like.
+   */
   traits?: Record<string, number>;
 }
+
+/** What the registry hands back for one creature. */
+interface RegistryEntry {
+  id: string;
+  name: string;
+  gateway: FaceGateway;
+  character?: { traits: Record<string, number> };
+}
+
+const asMember = (entry: RegistryEntry): RoomMember => ({
+  id: entry.id,
+  name: entry.name,
+  gateway: entry.gateway,
+  ...(entry.character !== undefined && { traits: entry.character.traits }),
+});
 
 export async function registerFaceWs(
   app: FastifyInstance,
   fallback: FaceGateway,
   registry?: {
-    resolve: (query: string | undefined) => { id: string; name: string; gateway: FaceGateway } | undefined;
-    inRoom: (room: string) => { id: string; name: string; gateway: FaceGateway }[];
+    resolve: (query: string | undefined) => RegistryEntry | undefined;
+    inRoom: (room: string) => RegistryEntry[];
   },
 ): Promise<void> {
   await app.register(websocket);
@@ -108,10 +130,10 @@ function pickMembers(
   if (registry !== undefined && query?.stanza !== undefined && query.stanza !== "") {
     // an empty room stays empty: showing the wrong creature is worse than
     // showing nobody, which at least tells the truth about what is there
-    return registry.inRoom(query.stanza);
+    return registry.inRoom(query.stanza).map(asMember);
   }
   const chosen = registry?.resolve(query?.gosino);
-  if (chosen !== undefined) return [chosen];
+  if (chosen !== undefined) return [asMember(chosen)];
   return [{ id: "", name: "UGO", gateway: fallback }];
 }
 

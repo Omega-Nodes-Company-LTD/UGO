@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.21.0"
+version: "0.22.0"
 last_updated: "2026-08-12"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1161,6 +1161,34 @@ renderer sono costruiti attorno a una stanza al boot.
 corpo che reagisce al corpo: zero token, nessun modello consultato. Era la differenza fra
 due creature nella stessa immagine e due nella stessa stanza.
 
+### Correzione: quello che il corpo non diceva (ADR-038)
+
+Il proprietario: «sarebbe utile il record chat restasse, così se perdo una frase o altro
+la ritrovo. anche a scomparsa, ma recuperabile». La nuvoletta dura sei secondi, e con più
+gosini nella stessa stanza le frasi si sovrappongono in fretta.
+
+**Il registro.** `apps/face/src/transcript.ts`: persistito in `localStorage`, **80 righe di
+tetto** applicate sia in scrittura sia in lettura, una chiave per stanza, svuotabile in un
+clic. Il tetto è la parte non negoziabile — è testo di conversazione **in chiaro** su un
+dispositivo, cioè un posto nuovo in cui vivono le stesse parole che la regola 6 fa cifrare
+sul server: una coda breve vale il rischio, un archivio no. Dichiarato in `i-tuoi-dati.md`.
+
+**Registrato all'uscita, non al microfono.** `sendToSoul()` è l'unica porta verso l'anima e
+intercetta lì `heard_text`: una frase digitata o rigiocata dalla coda offline è comunque
+qualcosa che è stato detto in quella stanza. Agganciare il registratore a un solo ingresso
+avrebbe tenuto solo la metà entrata da quell'ingresso — che è esattamente il bug che il
+primo e2e ha scoperto.
+
+Nella stessa consegna, due cose che il corpo sapeva e non diceva: la **didascalia dell'umore**
+ora nomina tutti i presenti (`Ugo: sereno · Nino: in ansia`) invece di mostrare l'ultima
+etichetta arrivata, e lo **stato della pagina** segue il più sveglio invece di lasciare che
+una creatura addormentata mandi a dormire tutto lo schermo.
+
+**`[hidden]` deve vincere.** Ogni pannello imposta il proprio `display` su un selettore di id,
+che batte lo `[hidden]` del browser: un pannello "chiuso" restava in scena. Aveva già morso il
+cancello di `/admin`, ha morso il registro. Ora c'è **una** regola globale invece di una per
+pannello — trovato aprendo e chiudendo il pannello vero in un browser vero, non leggendo il CSS.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1186,7 +1214,9 @@ due creature nella stessa immagine e due nella stessa stanza.
 | Batteria del corpo 3D mai misurata | È il vincolo della Fase 4, e nessun numero lo copre | Una giornata sul 3a Pro; il fallback 2D è già lì se il numero è brutto |
 | **RLS e caduta dei DEFAULT** su `gosino_id` | Finché il default esiste, un servizio che dimentica lo scope scrive sull'esemplare seminato **invece di fallire**: oggi la separazione la tengono il codice e i test, non il database | Ruolo Postgres dedicato + RLS, e poi togliere i DEFAULT (ADR-019 fase 2) |
 | **Il sogno è ancora uno per tutta la casa** | Diario e ricordi notturni non sono per esemplare | ADR-019 fase 3: job per esemplare |
-| Due esemplari **sullo stesso schermo** | Un dispositivo ne incarna uno alla volta | Due dock, due esemplari — o un lavoro di rendering multiplo, non previsto |
+| ~~Due esemplari **sullo stesso schermo**~~ | — | **Chiuso** da ADR-036: un dispositivo incarna una **stanza**, e ci vede tutti quelli che ci vivono |
+| **Il registro del corpo è in chiaro** (ADR-038) | 80 righe di conversazione nel `localStorage` del dispositivo, fuori da ogni garanzia di cifratura | Consapevole e dichiarato: tetto corto, per stanza, «svuota» in un clic. Cifrarlo richiederebbe una chiave sul chiosco, cioè spostare il problema |
+| **Più gosini in una stanza senza copertura e2e** | Il caso a due creature è verificato a mano, non in CI: il setup non gira in questa sandbox | Un `beforeAll` che fa nascere due gosini nella stessa stanza e apre `?stanza=`; da fare quando l'e2e torna eseguibile in locale |
 | `came_home` non produce niente di visibile | Un'uscita non lascia un ricordo di dov'è stato | Il sogno legge già quegli eventi: è il posto naturale |
 | **Sa cominciare, non sa declinare** | Teso o esausto risponde comunque, sempre, subito: l'unica cosa che lo zittisce è il budget esaurito, che è il rifiuto di un contabile | Il passo gemello di ADR-027: risposta più corta, o dopo, o un grugnito — con interruttore del proprietario |
 | **Un solo ciclo di iniziativa** per tutto soul | Con più gosini in casa due creature parlerebbero addosso l'una all'altra | Per esemplare, insieme ad ADR-019 fase 3 |

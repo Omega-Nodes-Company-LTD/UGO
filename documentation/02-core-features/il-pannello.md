@@ -40,11 +40,13 @@ costa niente: non perde umore né ricordi, cambia solo su quale schermo lo vedi.
 in nessuna stanza compare sotto «Senza stanza» e non appare su nessun dispositivo finché
 non gliene dai una.
 
-Sullo schermo, in alto, c'è un **selettore della stanza**: compare appena ne esiste più di
-una, e da lì decidi cosa mostra quel dispositivo senza toccare l'indirizzo.
+Sullo schermo, in basso, c'è un **selettore della stanza**: compare appena ne esiste più di
+una, e da lì decidi cosa mostra quel dispositivo senza toccare l'indirizzo. Accanto c'è
+**💬 detto**, il registro di quello che è stato detto lì — la nuvoletta dura sei secondi,
+quello resta ([il corpo di UGO](./il-corpo-di-ugo.md#cosa-%C3%A8-stato-detto)).
 
 Se in una stanza ce n'è più di uno, li vedi tutti insieme sullo stesso pavimento, ognuno con
-la sua andatura. **Quando uno parla, il suo nome è nella nuvoletta e la sua voce è diversa
+la sua andatura, e la scritta in basso a sinistra **li nomina tutti**: `Ugo: sereno · Nino: in ansia`. **Quando uno parla, il suo nome è nella nuvoletta e la sua voce è diversa
 da quella degli altri** — e gli altri si girano a guardarlo. **Il rumore lo sentono tutti** — è la stanza che l'ha sentito, ed è
 interessante proprio perché ognuno reagisce a modo suo. Quando invece parli, ti risponde
 uno solo: farli rispondere tutti costerebbe una chiamata a testa per ogni frase. Per sentirli

@@ -67,3 +67,36 @@ test("messages sent while offline survive a kiosk reload and flush on reconnect"
   await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "true");
   await expect.poll(() => page.evaluate(() => window.__ugoFace.queuedFresh())).toBe(0);
 });
+
+// ADR-038: the bubble lasts six seconds; miss it and the sentence was gone.
+// This asserts the two things that make the scroll worth having — a real
+// reply lands in it, and it is still there after the tab is reloaded.
+test("what was said stays in the scroll, and survives a reload", async ({ page }) => {
+  await openFace(page);
+  await expect(page.getByTestId("log")).toBeHidden();
+
+  await page.evaluate(() => {
+    window.__ugoFace.send({ type: "heard_text", text: "ciao UGO, mi senti?" });
+  });
+  await expect(page.getByTestId("speak-text")).toContainText("Grunf", { timeout: 30_000 });
+
+  await page.getByTestId("btn-log").click();
+  await expect(page.getByTestId("log")).toBeVisible();
+  const lines = page.getByTestId("log-lines").locator("li");
+  // both halves of the exchange: what the room said, and what came back
+  await expect(lines).toHaveCount(2);
+  await expect(lines.first()).toContainText("ciao UGO, mi senti?");
+  await expect(lines.last()).toContainText("Grunf");
+
+  await page.reload();
+  await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "true");
+  await expect(page.getByTestId("log")).toBeHidden();
+  await page.getByTestId("btn-log").click();
+  await expect(page.getByTestId("log-lines").locator("li")).toHaveCount(2);
+
+  // svuota is the only copy the body holds, so it has to empty for real
+  await page.getByTestId("log-clear").click();
+  await expect(page.getByTestId("log-lines").locator("li.empty")).toHaveCount(1);
+  await page.getByTestId("log-close").click();
+  await expect(page.getByTestId("log")).toBeHidden();
+});
