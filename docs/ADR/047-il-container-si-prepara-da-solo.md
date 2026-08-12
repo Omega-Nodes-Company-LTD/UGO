@@ -95,3 +95,11 @@ niente». Verificato caricando il modello con la rete tolta.
   cui quel job esiste, scritto nel suo stesso commento. Ora la CI la costruisce,
   verifica che gli encoder si importino, e che senza volume scrivibile il
   container **si fermi** invece di partire.
+- E la prima costruzione l'ha trovata subito rotta: `torch` veniva dall'indice
+  CPU e `torchaudio` — che speechbrain si tira dietro — da PyPI, dove è la
+  build legata a CUDA. Le due metà si installano senza un errore e poi
+  `import speechbrain` muore con «Could not load this library:
+  `_torchaudio.abi3.so`», un messaggio che non somiglia per niente alla sua
+  causa. Sarebbe stato un deploy fallito e un'ora di indagine. Ora `torchaudio`
+  è nello stesso comando e dallo stesso indice, e la build fa un `import` di
+  verifica: costa secondi e trasforma un guasto al deploy in una build rossa.

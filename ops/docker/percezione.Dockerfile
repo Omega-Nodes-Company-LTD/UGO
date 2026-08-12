@@ -35,14 +35,26 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # torch CPU dal suo indice: la ruota con CUDA pesa 2,5 GB in più per una
-# scheda che su questo ferro non esiste
+# scheda che su questo ferro non esiste.
+#
+# `torchaudio` va installato **qui**, dallo stesso indice e nello stesso
+# comando. Non è pignoleria: speechbrain se lo tira dietro come dipendenza, e
+# pip lo prenderebbe da PyPI — dove è la build legata a CUDA. Le due metà si
+# installano senza un errore e poi `import speechbrain` muore con «Could not
+# load this library: _torchaudio.abi3.so», che non somiglia per niente alla sua
+# causa. Trovato dalla CI la prima volta che ha costruito questa immagine.
 COPY ops/jobs/pyproject.toml ops/jobs/pyproject.toml
 COPY ops/jobs/src ops/jobs/src
-RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch \
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+       torch torchaudio \
   && pip install --no-cache-dir \
        "fastapi>=0.115" "uvicorn[standard]>=0.32" "speechbrain>=1.0" \
        "onnxruntime>=1.19" "psycopg[binary]>=3.2" "numpy>=1.26" "cryptography>=43.0" \
-  && pip install --no-cache-dir --no-deps ./ops/jobs
+  && pip install --no-cache-dir --no-deps ./ops/jobs \
+  # le due metà devono essere della stessa famiglia, e l'unico modo di saperlo
+  # è caricarle: un import qui costa secondi e trasforma un guasto al deploy in
+  # una build rossa
+  && python -c "import torch, torchaudio, speechbrain, onnxruntime; print('encoder ok')" 
 
 COPY ops/voice/app.py /app/app.py
 # lo stesso script provato a mano: idempotente, con --retry, e con lo SHA-256
