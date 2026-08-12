@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { forFrame, SENSED_BY_THE_ROOM } from "./faceWs.js";
+import { forFrame, SENSED_BY_THE_ROOM, tagFor } from "./faceWs.js";
 
 /**
  * Who a frame reaches (ADR-036).
@@ -34,6 +34,14 @@ describe("forFrame", () => {
 
   it("treats an unknown frame type as one creature's business, not the room's", () => {
     expect(forFrame(JSON.stringify({ type: "something_new" }), senders)).toHaveLength(1);
+  });
+
+  it("leaves the lone creature's frames untagged, as every older face expects", () => {
+    // `who: ""` would be noise standing for "the only one", and it broke three
+    // integration tests that compare the greeting frame exactly — rightly, so:
+    // a house with one creature must speak the wire format it always spoke.
+    expect(tagFor("")).toBeUndefined();
+    expect(tagFor("nino")).toBe("nino");
   });
 
   it("is harmless in a room with a single creature", () => {

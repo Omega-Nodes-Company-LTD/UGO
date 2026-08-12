@@ -50,8 +50,16 @@ export async function registerFaceWs(
     const senders = members.map((member) => {
       const send = (message: ServerToFaceMessage): void => {
         // the roster is the room's, not any one creature's: it is the only
-        // frame that never carries a `who`
-        raw(message.type === "roster" ? message : { ...message, who: member.id });
+        // frame that never carries a `who`. Nor does anything in a house that
+        // has no registry — `who: ""` would be noise standing for "the only
+        // one", and this keeps the single-creature wire format byte-identical
+        // to what every face before rooms already speaks.
+        const who = tagFor(member.id);
+        if (message.type === "roster" || who === undefined) {
+          raw(message);
+          return;
+        }
+        raw({ ...message, who });
       };
       member.gateway.registerSender(send); // ADR-013: in-room voice for meetings
       return { member, send };
@@ -105,6 +113,17 @@ function pickMembers(
   const chosen = registry?.resolve(query?.gosino);
   if (chosen !== undefined) return [chosen];
   return [{ id: "", name: "UGO", gateway: fallback }];
+}
+
+/**
+ * The `who` a frame should carry, if any.
+ *
+ * Empty means there is no registry and so no room: one nameless creature, the
+ * way it has always been. Tagging that with an empty string would be noise
+ * standing for "the only one".
+ */
+export function tagFor(id: string): string | undefined {
+  return id === "" ? undefined : id;
 }
 
 /**
