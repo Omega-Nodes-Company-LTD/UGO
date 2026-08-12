@@ -1329,6 +1329,12 @@ che la porta esista. Corretto anche il dettaglio che rendeva falsa quell'afferma
 `from_hparams` con la `source` remota contatta l'hub anche a file presenti — ora la source è la
 cartella locale, verificato caricando il modello con la rete tolta.
 
+E trovato un buco mentre lo chiudevo: l'immagine `percezione` **non era costruita da nessuna
+parte** — né in locale (proxy TLS) né in CI, che costruiva solo `soul` e `jobs`. Un Dockerfile
+mai costruito è un Dockerfile che si scopre rotto al deploy, che è il motivo per cui quel job
+esiste ed è scritto nel suo stesso commento. Ora la CI la costruisce e verifica che senza volume
+scrivibile il container si fermi.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

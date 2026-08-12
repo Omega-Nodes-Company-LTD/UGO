@@ -87,7 +87,11 @@ niente». Verificato caricando il modello con la rete tolta.
 - **Verificato** eseguendo l'entrypoint nei quattro casi: avvio normale
   (scarica, poi avvia uvicorn), secondo avvio (0,8 s, nessun download), volume
   non scrivibile da utente non-root (messaggio chiaro, uscita 1, uvicorn mai
-  avviato), SHA sbagliato (uscita 1, uvicorn mai avviato). **Non verificato**:
-  la build dell'immagine, che in questa sandbox fallisce sul proxy TLS —
-  `download.pytorch.org` presenta un certificato self-signed attraverso il
-  proxy. È un limite dell'ambiente, non del Dockerfile, e la CI lo costruisce.
+  avviato), SHA sbagliato (uscita 1, uvicorn mai avviato).
+- L'immagine **non era costruita da nessuna parte**: né qui (il proxy di questa
+  sandbox presenta un certificato self-signed a `download.pytorch.org`) né in
+  CI, che costruiva solo `soul` e `jobs`. Un Dockerfile mai costruito è un
+  Dockerfile che si scopre rotto al deploy — cioè precisamente il motivo per
+  cui quel job esiste, scritto nel suo stesso commento. Ora la CI la costruisce,
+  verifica che gli encoder si importino, e che senza volume scrivibile il
+  container **si fermi** invece di partire.
