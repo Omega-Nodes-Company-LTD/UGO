@@ -1,17 +1,18 @@
 import { randomBytes } from "node:crypto";
 import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
+  beings,
   createDbClient,
+  type DbClient,
   diaryEntries,
   events,
   meetings,
   memories,
   messages,
-  beings,
+  PRIME_GOSINO_ID,
+  PRIME_HOUSEHOLD_ID,
   runMigrations,
   transcriptSegments,
-  PRIME_HOUSEHOLD_ID,
-  type DbClient,
 } from "@ugo/db";
 import { EMBED_MODEL, startOllama, startPostgres, type OllamaHandle } from "@ugo/factories";
 import { OllamaEmbeddingsClient, searchMemories, writeMemory } from "@ugo/memory";
@@ -45,30 +46,31 @@ beforeAll(async () => {
 
   const [ivan] = await db
     .insert(beings)
-    .values({ displayName: "Ivan Bianchi", aliases: ["Ivan", "Vanni"], notes: "corriere DHL" })
+    .values({ householdId: PRIME_HOUSEHOLD_ID, displayName: "Ivan Bianchi", aliases: ["Ivan", "Vanni"], notes: "corriere DHL" })
     .returning({ id: beings.id });
   const [paola] = await db
     .insert(beings)
-    .values({ displayName: "Paola Verdi", aliases: ["Paola"] })
+    .values({ householdId: PRIME_HOUSEHOLD_ID, displayName: "Paola Verdi", aliases: ["Paola"] })
     .returning({ id: beings.id });
   if (ivan === undefined || paola === undefined) throw new Error("beings insert failed");
   beingId = ivan.id;
   strangerId = paola.id;
 
   await db.insert(messages).values([
-    { channel: "home", role: "user", beingId, text: encryptText("Ivan Bianchi ha portato il pacco", dataKey) },
-    { channel: "home", role: "assistant", text: encryptText("Grunf, ringrazio Ivan!", dataKey) },
+    { gosinoId: PRIME_GOSINO_ID, channel: "home", role: "user", beingId, text: encryptText("Ivan Bianchi ha portato il pacco", dataKey) },
+    { gosinoId: PRIME_GOSINO_ID, channel: "home", role: "assistant", text: encryptText("Grunf, ringrazio Ivan!", dataKey) },
     // a turn belonging to someone else that still names the erased person
-    { channel: "home", role: "user", beingId: strangerId, text: encryptText("Paola: ieri Vanni era di corsa", dataKey) },
-    { channel: "home", role: "user", beingId: strangerId, text: encryptText("Paola parla del meteo", dataKey) },
+    { gosinoId: PRIME_GOSINO_ID, channel: "home", role: "user", beingId: strangerId, text: encryptText("Paola: ieri Vanni era di corsa", dataKey) },
+    { gosinoId: PRIME_GOSINO_ID, channel: "home", role: "user", beingId: strangerId, text: encryptText("Paola parla del meteo", dataKey) },
   ]);
 
   const [meeting] = await db
     .insert(meetings)
-    .values({ platform: "ear", title: "consegna", status: "archived" })
+    .values({ gosinoId: PRIME_GOSINO_ID, platform: "ear", title: "consegna", status: "archived" })
     .returning({ id: meetings.id });
   if (meeting === undefined) throw new Error("meeting insert failed");
   await db.insert(transcriptSegments).values({
+    householdId: PRIME_HOUSEHOLD_ID,
     meetingId: meeting.id,
     speaker: "Ivan",
     t0: 0,
@@ -77,20 +79,24 @@ beforeAll(async () => {
   });
 
   await writeMemory(db, embedder, {
+    gosinoId: PRIME_GOSINO_ID,
     kind: "fact",
     text: "Il corriere DHL di zona si chiama Ivan Bianchi e passa il martedì.",
     importance: 0.9,
   });
   await writeMemory(db, embedder, {
+    gosinoId: PRIME_GOSINO_ID,
     kind: "fact",
     text: "La lavatrice fa un rumore strano in centrifuga.",
     importance: 0.5,
   });
   await db.insert(diaryEntries).values({
+    gosinoId: PRIME_GOSINO_ID,
     date: "2026-08-06",
     text: "Oggi Ivan ha portato un pacco e mi sono divertito.",
   });
   await db.insert(events).values({
+    gosinoId: PRIME_GOSINO_ID,
     source: "face",
     type: "face_seen",
     payload: { who: "Ivan", confidence: 0.8 },

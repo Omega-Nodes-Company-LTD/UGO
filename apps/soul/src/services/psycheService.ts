@@ -43,13 +43,15 @@ export class PsycheService {
 
   public constructor(
     private readonly db: DbClient,
+    /**
+     * ADR-032: whose mood this is. It used to be optional — «undefined vuol
+     * dire l'esemplare seminato» — and that sentence was true only because
+     * `psyche_snapshots.gosino_id` had a DEFAULT. ADR-048 tempo 2 dropped it,
+     * so the reading below is scoped and the writing says who it is.
+     */
+    private readonly gosinoId: string,
     initialState?: PsycheState,
     private readonly overrides: BaselineOverrides = {},
-    /**
-     * ADR-032: whose mood this is. Undefined means the seeded exemplar, which
-     * is what a single-exemplar house has always been — the column default.
-     */
-    private readonly gosinoId?: string,
   ) {
     this.state = initialState ?? emptyState();
   }
@@ -58,9 +60,9 @@ export class PsycheService {
   public static async restore(
     db: DbClient,
     at: Date = new Date(),
-    gosinoId?: string,
+    gosinoId: string,
   ): Promise<PsycheService> {
-    const mine = gosinoId === undefined ? undefined : eq(psycheBaselines.gosinoId, gosinoId);
+    const mine = eq(psycheBaselines.gosinoId, gosinoId);
     const baselineRows = await db
       .select({ variable: psycheBaselines.variable, baseline: psycheBaselines.baseline })
       .from(psycheBaselines)
@@ -74,16 +76,16 @@ export class PsycheService {
     const rows = await db
       .select({ vars: psycheSnapshots.vars })
       .from(psycheSnapshots)
-      .where(gosinoId === undefined ? undefined : eq(psycheSnapshots.gosinoId, gosinoId))
+      .where(eq(psycheSnapshots.gosinoId, gosinoId))
       .orderBy(desc(psycheSnapshots.ts))
       .limit(1);
     const parsed = varsSchema.safeParse(rows[0]?.vars);
-    if (!parsed.success) return new PsycheService(db, undefined, overrides, gosinoId);
+    if (!parsed.success) return new PsycheService(db, gosinoId, undefined, overrides);
     return new PsycheService(
       db,
+      gosinoId,
       stateFromSnapshot(parsed.data, at, undefined, overrides),
       overrides,
-      gosinoId,
     );
   }
 
@@ -125,7 +127,7 @@ export class PsycheService {
       ts: at,
       vars,
       label,
-      ...(this.gosinoId !== undefined && { gosinoId: this.gosinoId }),
+      gosinoId: this.gosinoId,
     });
   }
 }

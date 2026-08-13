@@ -40,8 +40,11 @@ export interface ChatServiceDeps {
   /**
    * ADR-032: whose memories, whose thread, whose diary. Two exemplars in one
    * house share the pack and the data key, and share nothing else.
+   *
+   * Obbligatorio da ADR-048 tempo 2: finché il `DEFAULT` esisteva, ometterlo
+   * scriveva sull'esemplare seminato **invece di fallire**.
    */
-  gosinoId?: string;
+  gosinoId: string;
 }
 
 /** Blocks 3+4 of the §5.5 prompt order — dynamic, therefore NEVER cached. */
@@ -78,11 +81,15 @@ function buildDynamicSystem(
 export class ChatService {
   public constructor(private readonly deps: ChatServiceDeps) {}
 
-  /** Scopes a query to this exemplar; undefined in a single-exemplar house. */
-  private mine(column: { gosinoId: unknown }): ReturnType<typeof eq> | undefined {
-    return this.deps.gosinoId === undefined
-      ? undefined
-      : eq(column.gosinoId as never, this.deps.gosinoId);
+  /**
+   * Scopes a query to this exemplar. It used to be allowed to answer
+   * `undefined` — «casa con un esemplare solo» — and an `undefined` inside an
+   * `and()` disappears, so that branch was a query across every creature on
+   * the server. ADR-048 tempo 2 removes the branch with the column DEFAULT
+   * that justified it.
+   */
+  private mine(column: { gosinoId: unknown }): ReturnType<typeof eq> {
+    return eq(column.gosinoId as never, this.deps.gosinoId);
   }
 
   /**
@@ -205,11 +212,11 @@ export class ChatService {
         text: reminder.task,
         status: "pending",
         dueAt: new Date(at.getTime() + reminder.inMinutes * 60_000),
-        ...(this.deps.gosinoId !== undefined && { gosinoId: this.deps.gosinoId }),
+        gosinoId: this.deps.gosinoId,
       });
       const reply = confirmReminder(reminder);
       // the exchange still goes into the biography, encrypted like every other
-      const owner = this.deps.gosinoId === undefined ? {} : { gosinoId: this.deps.gosinoId };
+      const owner = { gosinoId: this.deps.gosinoId };
       await db.insert(messages).values([
         {
           ...owner,
@@ -283,8 +290,7 @@ export class ChatService {
     );
 
     // biography is append-only and encrypted at rest (CLAUDE.md rule 6)
-    const owner =
-      this.deps.gosinoId === undefined ? {} : { gosinoId: this.deps.gosinoId };
+    const owner = { gosinoId: this.deps.gosinoId };
     await db.insert(messages).values([
       {
         ...owner,

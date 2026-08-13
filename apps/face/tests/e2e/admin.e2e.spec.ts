@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createDbClient, recognitionProfiles } from "@ugo/db";
+import { createDbClient, PRIME_HOUSEHOLD_ID, recognitionProfiles } from "@ugo/db";
 
 /**
  * The operator panel end to end: a real browser against the real soul started
@@ -27,6 +27,7 @@ const seedVoiceProfile = async (beingId: string): Promise<void> => {
   const db = createDbClient(url);
   try {
     await db.insert(recognitionProfiles).values({
+      householdId: PRIME_HOUSEHOLD_ID,
       beingId,
       modality: "voice",
       model: "mfcc-stats-v1",

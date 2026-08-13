@@ -31,6 +31,14 @@ EMBED_MODEL = "nomic-embed-text"
 
 TEST_DATA_KEY = base64.b64encode(bytes(range(32))).decode()
 
+#: Gli id seminati dalla prima migrazione (ADR-015, ADR-019). Erano il `DEFAULT`
+#: di ogni colonna tenant fino ad ADR-048 tempo 2; adesso che e' caduto, una
+#: fixture che non li nomina non scrive piu' niente — solleva. Stanno qui e non
+#: in tre file diversi perche' e' esattamente la copia divergente che il gruppo 5
+#: e' andato a togliere altrove.
+PRIME_GOSINO_ID = "00000000-0000-4000-8000-000000000001"
+PRIME_HOUSEHOLD_ID = "00000000-0000-4000-8000-000000000002"
+
 
 def apply_drizzle_migrations(conn: psycopg.Connection) -> None:
     """Same SQL files as production (environment parity), applied in order.

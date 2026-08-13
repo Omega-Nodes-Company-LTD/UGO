@@ -22,6 +22,21 @@ const MIN_SECONDS = 1;
 /** Quanto se ne manda: il parlato utile sta in fondo alla finestra. */
 const CLIP_SECONDS = 3;
 
+/**
+ * Il ritmo a cui parla tutto il resto del sistema: `ops/voice/app.py`,
+ * `voice.py` e `ingest.py` dichiarano tutti `SAMPLE_RATE = 16_000`.
+ *
+ * Il microfono no: un `AudioContext` consegna il ritmo del dispositivo, che è
+ * 44,1 o 48 kHz praticamente ovunque. Questo file **diceva** 16 kHz in un
+ * commento e spediva il ritmo nativo, e le due cose insieme facevano due
+ * danni: tre secondi a 48 kHz sono 384 000 caratteri di base64 contro i
+ * 200 000 che il contratto accetta — quindi ogni frase col microfono acceso
+ * veniva scartata in silenzio e UGO non rispondeva — e, quando invece ci
+ * stava, il riconoscitore leggeva un 48 kHz come se fosse 16 kHz, cioè una
+ * voce tre volte più lenta di quella che aveva parlato.
+ */
+export const TARGET_RATE = 16_000;
+
 export class VoiceClip {
   private readonly ring: Float32Array;
   private written = 0;
@@ -53,13 +68,23 @@ export class VoiceClip {
 
     const count = Math.min(wanted, have);
     const start = this.written - count;
-    const pcm = new Int16Array(count);
-    for (let i = 0; i < count; i += 1) {
-      const sample = this.ring[(start + i) % this.ring.length] ?? 0;
+    const at = (index: number): number => this.ring[(start + index) % this.ring.length] ?? 0;
+
+    // gli stessi secondi, contati a 16 kHz invece che al ritmo del microfono
+    const outCount = Math.max(1, Math.round((count * TARGET_RATE) / this.sampleRate));
+    const pcm = new Int16Array(outCount);
+    for (let out = 0; out < outCount; out += 1) {
+      // media della finestra sorgente, non il campione più vicino: scegliere
+      // e basta lascia entrare come voce l'alias di ciò che sta sopra gli
+      // 8 kHz, e la media fa da passa-basso povero ma onesto
+      const from = Math.floor((out * count) / outCount);
+      const to = Math.max(from + 1, Math.floor(((out + 1) * count) / outCount));
+      let sum = 0;
+      for (let index = from; index < to; index += 1) sum += at(index);
       // clamp prima di scalare: un microfono che satura non deve produrre
       // campioni che avvolgono e suonano come un'altra voce
-      const clamped = Math.max(-1, Math.min(1, sample));
-      pcm[i] = Math.round(clamped * 32_767);
+      const clamped = Math.max(-1, Math.min(1, sum / (to - from)));
+      pcm[out] = Math.round(clamped * 32_767);
     }
     return base64Of(new Uint8Array(pcm.buffer));
   }

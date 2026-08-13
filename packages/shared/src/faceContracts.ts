@@ -39,9 +39,15 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
      *
      * Facoltativa perché il riconoscimento è facoltativo: un corpo senza
      * microfono aperto, o una casa che non vuole la biometria, manda solo il
-     * testo e tutto continua a funzionare. Il tetto sta a ~4 s di parlato, che
-     * è più che sufficiente per identificare e molto meno di quanto serva per
-     * ricostruire una conversazione da questo campo.
+     * testo e tutto continua a funzionare.
+     *
+     * Il tetto è aritmetica, non un numero tondo: a 16 kHz (`SAMPLE_RATE` in
+     * `ops/voice/app.py`) tre secondi di int16 sono 96 000 byte, cioè 128 000
+     * caratteri di base64. 200 000 lascia margine e resta molto sotto quanto
+     * servirebbe per ricostruire una conversazione da questo campo. Un corpo
+     * che spedisse al ritmo nativo del microfono ne produrrebbe 384 000 e
+     * verrebbe rifiutato qui — è successo, e per mesi in silenzio: il
+     * ricampionamento sta in `apps/face/src/voiceClip.ts`.
      */
     audio: z.string().max(200_000).optional(),
   }),

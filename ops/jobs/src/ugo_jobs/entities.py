@@ -185,8 +185,9 @@ def _infer_relations(
 
     if written:
         conn.execute(
-            "insert into events (source, type, payload) values ('system', 'relations_inferred', %s)",
-            (json.dumps({"count": written}),),
+            "insert into events (gosino_id, source, type, payload)"
+            " values (%s, 'system', 'relations_inferred', %s)",
+            (cfg.gosino_id, json.dumps({"count": written})),
         )
     conn.commit()
     return written

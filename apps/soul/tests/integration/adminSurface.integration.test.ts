@@ -4,15 +4,16 @@ import {
   beings,
   budgetLedger,
   createDbClient,
+  type DbClient,
   desires,
   events,
   gosini,
   households,
   memories,
+  PRIME_GOSINO_ID,
   relations,
   rooms,
   runMigrations,
-  type DbClient,
 } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
 import { loadSpeciesMap } from "@ugo/shared";
@@ -166,7 +167,7 @@ describe("what the panel can see", () => {
         gosinoId: ugo,
         source: "system",
         type: "initiative_taken",
-        payload: { act: "nudge", driver: "loneliness", because: "è da un po' che non ci parliamo" },
+        payload: { gosinoId: PRIME_GOSINO_ID, act: "nudge", driver: "loneliness", because: "è da un po' che non ci parliamo" },
       },
     ]);
     await db.insert(desires).values([

@@ -41,7 +41,7 @@ function build(
 }
 
 const sawSomeone = async (at: Date): Promise<void> => {
-  await db.insert(events).values({ ts: at, source: "face", type: "face_seen", payload: {} });
+  await db.insert(events).values({ gosinoId: PRIME_GOSINO_ID, ts: at, source: "face", type: "face_seen", payload: {} });
 };
 
 beforeAll(async () => {
@@ -88,6 +88,7 @@ describe("consolidamento su inattività (ADR-025)", () => {
   it("counts a spoken message as company, not only a face", async () => {
     await sawSomeone(ago(300 * MINUTE));
     await db.insert(messages).values({
+      gosinoId: PRIME_GOSINO_ID,
       ts: ago(10 * MINUTE),
       channel: "home",
       role: "user",

@@ -1,7 +1,15 @@
 import { randomBytes } from "node:crypto";
 import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, meetings, runMigrations, transcriptSegments, type DbClient } from "@ugo/db";
+import {
+  createDbClient,
+  type DbClient,
+  meetings,
+  PRIME_GOSINO_ID,
+  PRIME_HOUSEHOLD_ID,
+  runMigrations,
+  transcriptSegments,
+} from "@ugo/db";
 import {
   EMBED_MODEL,
   startLlmStub,
@@ -56,8 +64,9 @@ beforeAll(async () => {
     new (await import("@aws-sdk/client-s3")).CreateBucketCommand({ Bucket: BUCKET }),
   );
 
-  const psyche = await PsycheService.restore(db);
+  const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const chat = new ChatService({
+    gosinoId: PRIME_GOSINO_ID,
     db,
     embedder,
     llm: new LlmClient({
@@ -138,12 +147,13 @@ describe("recordings interrogable through /chat (§4.2)", () => {
   it("feeds matching transcript segments, decrypted, into the dynamic block", async () => {
     const [meeting] = await db
       .insert(meetings)
-      .values({ platform: "ear", title: "giro-in-centro", status: "archived" })
+      .values({ gosinoId: PRIME_GOSINO_ID, platform: "ear", title: "giro-in-centro", status: "archived" })
       .returning({ id: meetings.id });
     if (meeting === undefined) throw new Error("meeting insert failed");
     const spoken = "Ivan ha detto che la consegna dei gusci slitta a giovedì prossimo.";
     const [embedding] = await embedder.embed([spoken]);
     await db.insert(transcriptSegments).values({
+      householdId: PRIME_HOUSEHOLD_ID,
       meetingId: meeting.id,
       t0: 12.5,
       t1: 16.0,

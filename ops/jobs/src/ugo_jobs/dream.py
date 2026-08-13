@@ -180,7 +180,7 @@ def _run_step(
             "baseline_adjusted": hygiene.baseline_adjusted,
         }
     elif step == "compaction":
-        compaction = run_compaction(conn)
+        compaction = run_compaction(conn, cfg.gosino_id)
         step_report[step] = {
             "days": compaction.days_compacted,
             "events_removed": compaction.events_removed,

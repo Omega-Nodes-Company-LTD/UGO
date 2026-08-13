@@ -41,10 +41,12 @@ def _write_memory(
     [embedding] = embed(cfg, [text])
     row = conn.execute(
         """
-        insert into memories (kind, text, embedding, importance, valid_from, source_refs)
-        values (%s, %s, %s, %s, %s, %s) returning id
+        insert into memories
+            (gosino_id, kind, text, embedding, importance, valid_from, source_refs)
+        values (%s, %s, %s, %s, %s, %s, %s) returning id
         """,
         (
+            cfg.gosino_id,
             kind,
             text,
             json.dumps(embedding),
@@ -362,9 +364,12 @@ def test_it_refuses_the_paid_fallback_once_the_day_is_spent(pg_url, cfg, batch_s
         )
         conn.execute(
             """
-            insert into budget_ledger (date, provider, model, tokens_in, tokens_out, cost_usd)
-            values (current_date, 'anthropic', 'claude-haiku-4-5', 1, 1, 99.0)
-            """
+            insert into budget_ledger
+                (household_id, gosino_id, date, provider, model,
+                 tokens_in, tokens_out, cost_usd)
+            values (%s, %s, current_date, 'anthropic', 'claude-haiku-4-5', 1, 1, 99.0)
+            """,
+            (cfg.household_id, cfg.gosino_id),
         )
         conn.commit()
 

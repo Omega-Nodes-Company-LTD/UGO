@@ -1,5 +1,12 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { budgetLedger, createDbClient, runMigrations, type DbClient } from "@ugo/db";
+import {
+  budgetLedger,
+  createDbClient,
+  PRIME_GOSINO_ID,
+  PRIME_HOUSEHOLD_ID,
+  runMigrations,
+  type DbClient,
+} from "@ugo/db";
 import { startLlmStub, type LlmStub } from "@ugo/factories";
 import { identityPrompt, rulesPrompt } from "@ugo/prompts";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -128,6 +135,8 @@ describe("the piggy bank (budget_ledger)", () => {
 
   it("degrades with the declared reply once the daily budget is spent", async () => {
     await db.insert(budgetLedger).values({
+      householdId: PRIME_HOUSEHOLD_ID,
+      gosinoId: PRIME_GOSINO_ID,
       date: today(),
       provider: "anthropic",
       model: MODEL,
@@ -149,6 +158,8 @@ describe("the piggy bank (budget_ledger)", () => {
 
   it("counts only today's spend toward the budget", async () => {
     await db.insert(budgetLedger).values({
+      householdId: PRIME_HOUSEHOLD_ID,
+      gosinoId: PRIME_GOSINO_ID,
       date: "2020-01-01",
       provider: "anthropic",
       model: MODEL,

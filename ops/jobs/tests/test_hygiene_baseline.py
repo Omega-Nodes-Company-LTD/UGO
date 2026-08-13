@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import psycopg
 
-from conftest import db_only_config
+from conftest import PRIME_GOSINO_ID, db_only_config
 from ugo_jobs.hygiene import run_hygiene
 
 HEAVY_DATE = "2026-08-01"
@@ -16,9 +16,9 @@ CALM_DATE = "2026-08-02"
 
 def _seed_day(conn: psycopg.Connection, date: str, umore: float) -> None:
     conn.execute(
-        "insert into psyche_snapshots (ts, vars, label) values "
-        f"('{date} 10:00:00+00', '{{\"umore\": {umore}}}', 'test'),"
-        f"('{date} 16:00:00+00', '{{\"umore\": {umore}}}', 'test')"
+        "insert into psyche_snapshots (gosino_id, ts, vars, label) values "
+        f"('{PRIME_GOSINO_ID}', '{date} 10:00:00+00', '{{\"umore\": {umore}}}', 'test'),"
+        f"('{PRIME_GOSINO_ID}', '{date} 16:00:00+00', '{{\"umore\": {umore}}}', 'test')"
     )
     conn.commit()
 

@@ -15,7 +15,7 @@ import pytest
 from ugo_jobs.config import JobsConfig
 from ugo_jobs.crypto import decrypt_bytes, decrypt_text, encrypt_text, parse_data_key
 from ugo_jobs.dream import run_dream
-from conftest import TEST_DATA_KEY
+from conftest import PRIME_GOSINO_ID, TEST_DATA_KEY
 
 DREAM_DATE = "2026-08-06"
 
@@ -56,27 +56,30 @@ def seed_golden_day(conn: psycopg.Connection, ollama_url: str) -> None:
 
     key = parse_data_key(TEST_DATA_KEY)
     conn.execute(
-        "insert into events (ts, source, type, payload) values "
-        f"('{DREAM_DATE} 09:00:00+00', 'face', 'face_seen', '{{}}'),"
-        f"('{DREAM_DATE} 15:30:00+00', 'face', 'noise', '{{\"db\": 92}}')"
+        "insert into events (gosino_id, ts, source, type, payload) values "
+        f"('{PRIME_GOSINO_ID}', '{DREAM_DATE} 09:00:00+00', 'face', 'face_seen', '{{}}'),"
+        f"('{PRIME_GOSINO_ID}', '{DREAM_DATE} 15:30:00+00', 'face', 'noise', '{{\"db\": 92}}')"
     )
     for ts, role, text in [
         (f"{DREAM_DATE} 09:01:00+00", "user", "ciao UGO, oggi arriva un pacco DHL"),
         (f"{DREAM_DATE} 09:01:10+00", "assistant", "Grunf, staro' attento al campanello."),
     ]:
         conn.execute(
-            "insert into messages (ts, channel, role, text) values (%s, 'home', %s, %s)",
-            (ts, role, encrypt_text(text, key)),
+            "insert into messages (gosino_id, ts, channel, role, text)"
+            " values (%s, %s, 'home', %s, %s)",
+            (PRIME_GOSINO_ID, ts, role, encrypt_text(text, key)),
         )
     conn.execute(
-        f"insert into psyche_snapshots (ts, vars, label) values "
-        f"('{DREAM_DATE} 15:31:00+00', '{{\"stress\": 0.7, \"umore\": 0.5}}', 'spaventato dal fracasso')"
+        f"insert into psyche_snapshots (gosino_id, ts, vars, label) values "
+        f"('{PRIME_GOSINO_ID}', '{DREAM_DATE} 15:31:00+00',"
+        f" '{{\"stress\": 0.7, \"umore\": 0.5}}', 'spaventato dal fracasso')"
     )
 
     # stale memory (never accessed, 60 days old) → must decay
     conn.execute(
-        "insert into memories (kind, text, importance, created_at) "
-        "values ('fact', 'ricordo stantio mai riletto', 0.5, now() - interval '60 days')"
+        "insert into memories (gosino_id, kind, text, importance, created_at) "
+        f"values ('{PRIME_GOSINO_ID}', 'fact', 'ricordo stantio mai riletto',"
+        " 0.5, now() - interval '60 days')"
     )
     # two identical texts → identical embeddings → similarity 1 → must merge
     embedding = httpx.post(
@@ -86,8 +89,14 @@ def seed_golden_day(conn: psycopg.Connection, ollama_url: str) -> None:
     ).json()["embeddings"][0]
     for importance in (0.4, 0.9):
         conn.execute(
-            "insert into memories (kind, text, embedding, importance) values ('episode', %s, %s, %s)",
-            ("la lavatrice fa un rumore strano", json.dumps(embedding), importance),
+            "insert into memories (gosino_id, kind, text, embedding, importance)"
+            " values (%s, 'episode', %s, %s, %s)",
+            (
+                PRIME_GOSINO_ID,
+                "la lavatrice fa un rumore strano",
+                json.dumps(embedding),
+                importance,
+            ),
         )
     conn.commit()
 

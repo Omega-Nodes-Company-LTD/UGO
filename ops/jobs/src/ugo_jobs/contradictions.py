@@ -190,7 +190,7 @@ def run_contradictions(
         if ordered is None:
             continue
         loser, winner = ordered
-        if _retire(conn, loser, winner, verdict):
+        if _retire(conn, loser, winner, verdict, cfg.gosino_id):
             superseded += 1
 
     conn.commit()
@@ -198,7 +198,11 @@ def run_contradictions(
 
 
 def _retire(
-    conn: psycopg.Connection, loser: _Candidate, winner: _Candidate, verdict: Verdict
+    conn: psycopg.Connection,
+    loser: _Candidate,
+    winner: _Candidate,
+    verdict: Verdict,
+    gosino_id: str,
 ) -> bool:
     """`and invalidated_at is null` makes this idempotent even if the dream
     crashed halfway and the same night runs twice."""
@@ -215,8 +219,10 @@ def _retire(
         return False
     # regola 6: ids and a number, never the contents
     conn.execute(
-        "insert into events (source, type, payload) values ('system', 'memory_superseded', %s)",
+        "insert into events (gosino_id, source, type, payload)"
+        " values (%s, 'system', 'memory_superseded', %s)",
         (
+            gosino_id,
             json.dumps(
                 {
                     "superseded_id": loser.memory_id,
