@@ -15,6 +15,7 @@ import {
   type DbClient,
 } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
+import { loadSpeciesMap } from "@ugo/shared";
 import type { EmbeddingsClient, LocalTextClient } from "@ugo/memory";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -111,6 +112,10 @@ beforeAll(async () => {
       registry,
       initiative: new InitiativeSwitch(() => true),
       stats: { dailyBudgetUsd: 0.5, timezone: "Europe/Rome" },
+      // il branco su HTTP: senza `speciesMap` il server non registra affatto
+      // /v1/pack, e la rotta assente risponde 404 come una casa non tua — due
+      // 404 che si somigliano e vogliono dire cose diverse
+      speciesMap: loadSpeciesMap(undefined),
       gosini: {},
       internalToken: TOKEN,
     },
