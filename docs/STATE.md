@@ -1454,6 +1454,39 @@ con `SET LOCAL app.household_id`, che è una decisione architetturale con un
 ADR suo. La caduta dei `DEFAULT` — che è la metà con la scadenza — è qui; il
 cambio di ruolo resta in §8 come punto separato.
 
+## 6-tervicies. Che versione sto guardando (diagnosi, non funzionalità)
+
+Il giro precedente è costato un pomeriggio per una ragione sola: **davanti al
+muso non c'era modo di sapere quale codice stesse eseguendo**. La correzione era
+mergiata, deployata e nel bundle — e l'unico modo di stabilirlo è stato
+ricostruire il bundle in locale e confrontare l'hash di vite con quello nel log
+di soul. Ogni ipotesi costava un giro di deploy per essere smentita.
+
+L'identità di una versione è il nome del bundle (`index-Bqlezltc.js`): è un hash
+del contenuto, quindi cambia esattamente quando cambia il codice e non serve
+ricordarsi niente al deploy. Il corpo lo legge da `import.meta.url`, soul lo
+legge dal disco e lo espone su `GET /v1/version`. Se differiscono, la pagina si
+ricarica da sola — all'avvio, ogni minuto e al ritorno sulla scheda. La versione
+è scritta accanto alla creatura, perché la domanda «è aggiornato?» arriva mentre
+sei davanti al chiosco, non davanti a un portatile.
+
+`shouldReload` non ricarica mai su una versione che non conosce: in sviluppo, o
+contro un soul più vecchio della rotta, un chiosco che si ricarica a vuoto
+mentre qualcuno gli parla è peggio del problema che risolve.
+
+### Due silenzi chiusi con lo stesso movimento
+
+- **`lastVoice()` poteva mangiarsi la frase.** ADR-045 dice che l'audio è
+  facoltativo, ma stava su una riga prima di `sendToSoul()` — e il registro
+  locale («cosa è stato detto») è scritto *dentro* `sendToSoul`. Un'eccezione lì
+  faceva sparire tutto, compresa la prova che qualcuno avesse parlato. Ora
+  degrada a solo-testo, che è il comportamento dichiarato;
+- **il riconoscitore del browser buttava via i propri errori** (`onerror = () =>
+  undefined`). Microfono negato o servizio irraggiungibile diventavano un
+  orecchio che non sente e non lo dice, con la sessione riavviata per sempre.
+  Ora i tre che contano finiscono nel registro; `no-speech` e `aborted` no,
+  perché arrivano per progetto a ogni pausa e seppellirebbero gli altri.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
