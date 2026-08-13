@@ -1,6 +1,31 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { FastifyInstance } from "fastify";
+
+/**
+ * Quale muso sto servendo (`GET /v1/version`).
+ *
+ * Non una variabile d'ambiente e non un numero da incrementare: il nome del
+ * bundle che vite ha prodotto, che è un hash del contenuto. Cambia esattamente
+ * quando cambia il codice, e il deploy non deve ricordarsi di niente.
+ *
+ * Esiste per una ragione precisa: davanti a un muso che non rispondeva non
+ * c'era modo di sapere se il dispositivo stesse eseguendo il codice appena
+ * rilasciato o quello vecchio ancora in cache, e ogni ipotesi costava un giro
+ * di deploy per essere smentita. Il corpo confronta questo con il proprio e si
+ * ricarica da solo.
+ */
+function servedBuildId(root: string): string {
+  try {
+    const assets = readdirSync(join(root, "assets"));
+    const main = assets.find((name) => /^index-[A-Za-z0-9_-]+\.js$/.test(name));
+    return /^index-([A-Za-z0-9_-]+)\.js$/.exec(main ?? "")?.[1] ?? "dev";
+  } catch {
+    // nessuna cartella `assets`: sviluppo, dove il muso lo serve vite
+    return "dev";
+  }
+}
 
 /**
  * Serve the built face from soul itself (ADR-018, Tempo 1).
@@ -16,5 +41,12 @@ export function registerFaceStatic(app: FastifyInstance, root: string): void {
     app.log.info({ root }, "face bundle absent: soul serves the API only");
     return;
   }
+  // letto una volta all'avvio: il contenuto della cartella non cambia sotto un
+  // processo vivo, e una `readdir` per richiesta sarebbe I/O per niente
+  const version = servedBuildId(root);
+  app.log.info({ version }, "serving the face bundle");
+  // aperta di proposito: la versione non è un segreto, e un corpo che deve
+  // sapere se è aggiornato non ha ancora nessun token in mano
+  app.get("/v1/version", () => ({ version }));
   app.register(fastifyStatic, { root, wildcard: false, index: ["index.html"] });
 }

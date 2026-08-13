@@ -32,13 +32,25 @@ interface SpeechRecognitionLike {
     | ((event: { resultIndex: number; results: { 0: { transcript: string } }[] } & Event) => void)
     | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
   /** fires when the recognizer decides the sound it is hearing is a voice */
   onspeechstart: (() => void) | null;
   onspeechend: (() => void) | null;
 }
 
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+
+/**
+ * Gli errori del riconoscitore che vale la pena mostrare.
+ *
+ * `no-speech` arriva a ogni pausa di silenzio e `aborted` a ogni riavvio di
+ * sessione — cioe' di continuo, per progetto. Riportarli seppellirebbe sotto
+ * il rumore i tre che contano davvero: microfono negato, microfono assente,
+ * servizio irraggiungibile.
+ */
+export function worthReporting(error: string): boolean {
+  return !["no-speech", "aborted"].includes(error);
+}
 
 /** Grace after the mouth stops, for room reverb and a slow recognizer. */
 const SPEECH_TAIL_MS = 800;
@@ -104,7 +116,17 @@ export class Speech {
    * and a creature that answers its own reply talks to nobody at the owner's
    * expense.
    */
-  public listen(onText: (text: string) => void, onVoice?: () => void): boolean {
+  public listen(
+    onText: (text: string) => void,
+    onVoice?: () => void,
+    /**
+     * Il riconoscitore si e' fermato per un motivo che vale la pena dire.
+     * `no-speech` e `aborted` non lo sono: il primo arriva a ogni pausa di
+     * silenzio e il secondo a ogni riavvio di sessione, e riportarli
+     * seppellirebbe quelli veri sotto il rumore.
+     */
+    onTrouble?: (what: string) => void,
+  ): boolean {
     const Ctor = this.recognitionCtor();
     if (Ctor === undefined) return false;
     this.listening = true;
@@ -131,8 +153,13 @@ export class Speech {
       recognition.onspeechstart = () => onVoice?.();
       recognition.onspeechend = () => onVoice?.();
       // a session that ends — by timeout, silence or error — is restarted,
-      // otherwise "always listening" quietly becomes "listened once"
-      recognition.onerror = () => undefined;
+      // otherwise "always listening" quietly becomes "listened once". Ma
+      // riavviare **e basta** vuol dire che un microfono negato o un servizio
+      // irraggiungibile diventano un orecchio che non sente e non lo dice.
+      recognition.onerror = (event) => {
+        const what = event.error ?? "sconosciuto";
+        if (worthReporting(what)) onTrouble?.(what);
+      };
       recognition.onend = () => {
         if (this.listening) setTimeout(session, 300);
       };

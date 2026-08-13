@@ -120,9 +120,14 @@
         border-color: #6a6a8c;
         color: #eaeaf5;
       }
-      #conn {
+      #conn,
+      #version {
         font-size: 0.75rem;
         opacity: 0.7;
+      }
+      #version {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        opacity: 0.45;
       }
       #rec-banner {
         position: absolute;
@@ -210,6 +215,10 @@
           💬 detto
         </button>
         <span id="conn" data-testid="conn-status">disconnesso</span>
+        <!-- quale muso stai guardando. Sta accanto alla creatura e non in una
+             pagina di diagnostica perché la domanda «è aggiornato?» arriva
+             mentre sei davanti al chiosco, non davanti a un portatile. -->
+        <span id="version" data-testid="version" title="versione del muso"></span>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

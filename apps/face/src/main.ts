@@ -7,6 +7,7 @@ import { ScreenAwake } from "./wakelock.js";
 import { createFace } from "./body/createFace.js";
 import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
+import { myBuildId, shouldReload } from "./version.js";
 import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noiseGate.js";
 import { mountLogPanel } from "./logPanel.js";
 import { Speech } from "./speech.js";
@@ -36,6 +37,7 @@ const earPick = requireElement("#ear-pick") as HTMLSelectElement;
 const logPanel = requireElement("#log");
 const logLines = requireElement("#log-lines");
 const earsButton = requireElement("#btn-ears");
+const versionLabel = requireElement("#version");
 
 const params = new URLSearchParams(location.search);
 // ADR-036: `?stanza=cucina` makes this device the body of a ROOM — whoever
@@ -75,6 +77,55 @@ const { remember } = mountLogPanel(
   },
   params.get("stanza"),
 );
+
+/**
+ * Qualcosa nel corpo non ha funzionato, e lo si vede senza un portatile.
+ *
+ * Finisce nello stesso registro di cio' che e' stato detto, con un nome che
+ * non si confonde con una creatura. Il posto giusto sarebbe una console; il
+ * posto **utile** e' lo schermo che hai davanti quando UGO non risponde.
+ */
+function trouble(what: string): void {
+  remember({ who: "⚠ il corpo", text: what, at: Date.now(), mine: false });
+}
+
+/**
+ * Quale muso stai guardando, e ricaricarlo da solo quando ne esce uno nuovo.
+ *
+ * Nasce da un pomeriggio perso: davanti a un muso che non rispondeva non c'era
+ * modo di sapere se il dispositivo eseguisse il codice appena rilasciato o
+ * quello vecchio ancora in cache, e ogni ipotesi costava un giro di deploy per
+ * essere smentita. Adesso la versione e' scritta accanto alla creatura, e
+ * quando soul ne serve una diversa la pagina si ricarica.
+ */
+const MY_BUILD = myBuildId();
+const VERSION_POLL_MS = 60_000;
+versionLabel.textContent = MY_BUILD;
+
+async function checkVersion(): Promise<void> {
+  try {
+    const response = await fetch(`${soulHttp}/v1/version`);
+    if (!response.ok) return;
+    const served = (await response.json()) as { version?: string };
+    if (!shouldReload(MY_BUILD, served.version)) return;
+    // ricaricare mentre qualcuno parla e' sgarbato, ma un muso vecchio che
+    // sembra nuovo e' peggio: lo si dice e lo si fa
+    trouble(`nuova versione (${served.version ?? "?"}): ricarico`);
+    location.reload();
+  } catch {
+    // soul irraggiungibile: e' gia' il lavoro del socket dirlo, e un secondo
+    // allarme per la stessa cosa e' rumore
+  }
+}
+
+void checkVersion();
+setInterval(() => void checkVersion(), VERSION_POLL_MS);
+// tornare sulla scheda dopo un deploy e' il momento in cui la domanda «sto
+// guardando roba vecchia?» si pone davvero
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") void checkVersion();
+});
+
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Nobody named means the whole room, which is also the one-creature case. */
@@ -308,7 +359,18 @@ function startListening(): void {
       // ADR-045: la voce che l'ha detta viaggia con la frase, così soul può
       // sapere CHI sta parlando. Assente se il microfono è spento: allora è
       // esattamente il messaggio di prima.
-      const voice = sensors.lastVoice();
+      // ADR-045 dice che l'audio e' FACOLTATIVO, ma stava su una riga che
+      // poteva mangiarsi la frase: `lastVoice()` prima di `sendToSoul()`, e
+      // un'eccezione li' faceva sparire tutto — nemmeno il registro locale, che
+      // e' scritto dentro `sendToSoul`. Degradare a solo-testo e' il
+      // comportamento dichiarato; perdere la frase non lo e' mai stato.
+      let voice: string | undefined;
+      try {
+        voice = sensors.lastVoice();
+      } catch {
+        voice = undefined;
+        trouble("la voce non si e' potuta ritagliare: mando solo il testo");
+      }
       sendToSoul({ type: "heard_text", text, ...(voice !== undefined && { audio: voice }) });
     },
     // ADR-041: the recognizer heard a VOICE. Whatever the level meter is about
@@ -316,6 +378,13 @@ function startListening(): void {
     // stops "sente ogni mia parola come botto" without also making him deaf.
     () => {
       sensors.heardAVoice();
+    },
+    // `onerror` era `() => undefined`: se Chrome rifiutava il microfono o non
+    // raggiungeva il proprio servizio, il corpo riavviava la sessione per
+    // sempre e non lo diceva a nessuno. Un orecchio che non sente e non lo
+    // dichiara e' indistinguibile da una stanza silenziosa.
+    (what) => {
+      trouble("il riconoscitore si e' fermato: " + what);
     },
   );
   if (started) app.dataset.ears = "on";
