@@ -87,7 +87,11 @@ beforeAll(async () => {
   registry = await GosinoRegistry.load({
     db,
     embedder: idleEmbedder,
-    llm: undefined as never,
+    // ADR-019 fase 2: `llm` e' una fabbrica per esemplare, non un client.
+    // Qui era `undefined as never`, che compilava finche' il client veniva solo
+    // conservato — e il giorno in cui ha cominciato a essere *chiamato* il cast
+    // ha nascosto il cambio di firma al compilatore. Lo ha trovato la CI.
+    llm: () => undefined as never,
     local: idleLocal,
     dataKey,
     timezone: "Europe/Rome",
