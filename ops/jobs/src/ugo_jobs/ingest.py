@@ -150,7 +150,7 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, enc
                     %s, %s, %s, %s, %s, %s)
             """,
             # mono-speaker fallback: no diarization without HF_TOKEN (§11)
-            # ADR-046: la casa viene dalla riunione, non da un parametro
+            # ADR-048: la casa viene dalla riunione, non da un parametro
             (meeting_id, meeting_id, None, being_id, t0, t1,
              encrypt_text(text, key_bytes), json.dumps(vector)),
         )

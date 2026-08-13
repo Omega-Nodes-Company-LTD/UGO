@@ -15,7 +15,7 @@ export const diaryEntries = pgTable(
     text: text("text").notNull(),
     moodSummary: jsonb("mood_summary").notNull().default({}),
   },
-  // ADR-046: the date used to be globally unique, so the second exemplar to
+  // ADR-048: the date used to be globally unique, so the second exemplar to
   // dream overwrote the first one's diary — `reflect.py` writes
   // `on conflict (date) do update`. Between two houses it did it across
   // families.

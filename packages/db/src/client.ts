@@ -24,7 +24,7 @@ function buildClient(databaseUrl: string) {
 
 /**
  * Runs `work` inside a transaction that has declared which house it is about
- * (ADR-046). This is the only place `app.household_id` is ever set, and the
+ * (ADR-048). This is the only place `app.household_id` is ever set, and the
  * only thing the Row Level Security policies read.
  *
  * **`SET LOCAL`, not `SET`.** The pool reuses connections: a plain `SET` would

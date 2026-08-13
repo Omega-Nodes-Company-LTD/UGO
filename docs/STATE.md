@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.27.0"
+version: "0.29.0"
 last_updated: "2026-08-13"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -1305,7 +1305,37 @@ mai l'audio o le immagini; minori e opt-out fermati a monte; consenso per person
 già nel perimetro di `forgetService`; e **senza `UGO_RECOGNITION_URL` non si riconosce nessuno**
 — la biometria si accende, non si subisce.
 
-## 6-vicies-semel. Il confine diventa del database (ADR-019 fase 2, ADR-046)
+**I pesi si scaricano al deploy** (ADR-046). Erano due `curl` nel runbook, cioè un passo che un
+giorno qualcuno salta — e allora `percezione` parte, risponde 503 a ogni frase e nessuno collega
+quel 503 a «UGO ha smesso di riconoscere» tre settimane dopo. Ora un one-shot `modelli` come
+`migrate`, con `service_completed_successfully`: **non parte se i pesi non ci sono e non sono
+quelli giusti**. Idempotente, con `--retry`, e con **SHA-256 verificato** — che non è pignoleria:
+gli EER dichiarati valgono per *quei* pesi, e un modello cambiato a monte rimetterebbe al punto
+di partenza, cioè un sistema di cui affermiamo un errore che non è più quello misurato.
+Verificato eseguendolo: scarica, poi dice «già a posto», riprende un file corrotto, e su SHA
+sbagliato esce con 1 senza lasciare il file — prova che ha trovato un difetto vero, il `while`
+in pipeline che girava in subshell e non avrebbe propagato l'uscita.
+
+**Correzione: il container si prepara da solo** (ADR-047, sostituisce il meccanismo di ADR-046).
+Il proprietario: «io non devo mai lanciare codice. tanto più che è un container». Errore mio di
+inquadramento: questo progetto si deploya come *Application → Dockerfile* in Coolify, e non
+esiste un momento in cui qualcuno digita `docker compose`. Avevo spostato il passo manuale dal
+runbook al compose credendo di averlo eliminato — l'avevo solo cambiato di posto, e un passo che
+esiste dove nessuno lancia comandi è un passo che non verrà mai eseguito.
+
+Ora l'entrypoint del container scarica e verifica i pesi e **poi** esegue uvicorn. Non ribalta
+ADR-045: quello vietava di scaricare *durante una conversazione*, e qui il download avviene prima
+che la porta esista. Corretto anche il dettaglio che rendeva falsa quell'affermazione:
+`from_hparams` con la `source` remota contatta l'hub anche a file presenti — ora la source è la
+cartella locale, verificato caricando il modello con la rete tolta.
+
+E trovato un buco mentre lo chiudevo: l'immagine `percezione` **non era costruita da nessuna
+parte** — né in locale (proxy TLS) né in CI, che costruiva solo `soul` e `jobs`. Un Dockerfile
+mai costruito è un Dockerfile che si scopre rotto al deploy, che è il motivo per cui quel job
+esiste ed è scritto nel suo stesso commento. Ora la CI la costruisce e verifica che senza volume
+scrivibile il container si fermi.
+
+## 6-vicies-semel. Il confine diventa del database (ADR-019 fase 2, ADR-048)
 
 Il gruppo 5 del backlog, i tre punti strutturali. La fase 1 aveva messo lo
 schema; questa ha scoperto che **lo schema non era collegato a niente**.
@@ -1341,7 +1371,7 @@ tre regole: il token della casa vale per la sua e `?casa=` altrove risponde
 casa è una sola, è quella — la promessa di ADR-019 §107, esplicita al posto del
 `limit 1`, e che si spegne da sé quando nasce la seconda.
 
-**RLS in due tempi** (ADR-046, scelta del proprietario): il tempo 1 crea
+**RLS in due tempi** (ADR-048, scelta del proprietario): il tempo 1 crea
 `ugo_app` e le politiche su tutte e 22 le tabelle, **senza `FORCE`** — quindi
 non si applicano al proprietario, `DATABASE_URL` è ancora sua, e in produzione
 oggi non cambia niente. Il tempo 2 (caduta dei `DEFAULT` + `DATABASE_URL_APP`)
@@ -1358,7 +1388,7 @@ fuso.
 I test di integrazione e gli e2e **non girano in questa sandbox**: manca il
 daemon Docker, quindi ogni Testcontainer fallisce. Verificati in locale
 `build`, `lint`, `typecheck`, unit test e `pnpm audit`. Tutto il resto — le due
-migrazioni comprese, che è precisamente ciò che ADR-046 dice di non dare per
+migrazioni comprese, che è precisamente ciò che ADR-048 dice di non dare per
 buono — va guardato girare in CI.
 
 ## 7. Debito tecnico e rischi aperti
@@ -1384,9 +1414,9 @@ buono — va guardato girare in CI.
 | Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
 | `Webgl3dFace` importato staticamente | Un dispositivo che usa il fallback 2D scarica lo stesso i 138 kB di three.js | Import dinamico in `createFace`, che diventa asincrono: piccolo, ma tocca l'ordine di avvio di `main.ts` |
 | Batteria del corpo 3D mai misurata | È il vincolo della Fase 4, e nessun numero lo copre | Una giornata sul 3a Pro; il fallback 2D è già lì se il numero è brutto |
-| ~~**RLS e caduta dei DEFAULT** su `gosino_id`~~ | — | **Metà chiuso** da ADR-046: il ruolo e le politiche ci sono (§6-vicies-semel). Restano la caduta dei `DEFAULT` e `DATABASE_URL_APP`, che sono il tempo 2 |
-| **RLS è presente e inerte in produzione** (ADR-046) | Finché `DATABASE_URL` è del proprietario le politiche non si applicano: il muro c'è nei test e non sul server | È il rollout in due tempi scelto apposta, non una svista. Il tempo 2 richiede prima che `GosinoRegistry` carichi una casa per volta dentro `withHousehold`, o come `ugo_app` non vedrà nessun esemplare (ADR-046 §7) |
-| **`households` e `access_tokens` restano leggibili al ruolo applicativo** | Sono le tabelle che *stabiliscono* lo scope, quindi non possono già conoscerlo: lì l'isolamento è applicativo e non del database | Dichiarato in ADR-046 §7. Ciò che vi si legge sono SHA-256 e una DEK avvolta sotto la KEK, che il processo ha comunque (ADR-017) |
+| ~~**RLS e caduta dei DEFAULT** su `gosino_id`~~ | — | **Metà chiuso** da ADR-048: il ruolo e le politiche ci sono (§6-vicies-semel). Restano la caduta dei `DEFAULT` e `DATABASE_URL_APP`, che sono il tempo 2 |
+| **RLS è presente e inerte in produzione** (ADR-048) | Finché `DATABASE_URL` è del proprietario le politiche non si applicano: il muro c'è nei test e non sul server | È il rollout in due tempi scelto apposta, non una svista. Il tempo 2 richiede prima che `GosinoRegistry` carichi una casa per volta dentro `withHousehold`, o come `ugo_app` non vedrà nessun esemplare (ADR-048 §7) |
+| **`households` e `access_tokens` restano leggibili al ruolo applicativo** | Sono le tabelle che *stabiliscono* lo scope, quindi non possono già conoscerlo: lì l'isolamento è applicativo e non del database | Dichiarato in ADR-048 §7. Ciò che vi si legge sono SHA-256 e una DEK avvolta sotto la KEK, che il processo ha comunque (ADR-017) |
 | **Il backup è ancora uno per tutto il database** | `pg_dump` non filtra per riga, e ADR-019 §164 vuole un backup per famiglia | Proposta non ancora implementata: tenere il dump come disaster recovery e aggiungere un export logico per casa (che è ciò che il GDPR chiede davvero, la portabilità) |
 | ~~**Il sogno è ancora uno per tutta la casa**~~ | — | **Chiuso**: `run_dream` cicla sugli esemplari, i marcatori portano il gosino, e l'igiene non fonde più attraverso il confine (§6-vicies-semel) |
 | ~~Due esemplari **sullo stesso schermo**~~ | — | **Chiuso** da ADR-036: un dispositivo incarna una **stanza**, e ci vede tutti quelli che ci vivono |
@@ -1426,16 +1456,16 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
 8. **Gruppo 5 del backlog — il vicinato**: i tre punti strutturali di ADR-019 fase 2 sono
    **chiusi** (§6-vicies-semel), e il primo pezzo della fase 3 con loro. In ordine, quel che
    resta di quel gruppo:
-   - **il tempo 2 di ADR-046** — caduta dei `DEFAULT` e `DATABASE_URL_APP` in servizio. È il
+   - **il tempo 2 di ADR-048** — caduta dei `DEFAULT` e `DATABASE_URL_APP` in servizio. È il
      punto con la scadenza, e richiede prima che `GosinoRegistry` carichi una casa per volta
-     dentro `withHousehold` (ADR-046 §7). Poi va **eseguito sul server**: creare `ugo_app`,
+     dentro `withHousehold` (ADR-048 §7). Poi va **eseguito sul server**: creare `ugo_app`,
      dargli una password, spostare la `DATABASE_URL_APP` di soul e dei job. Finché quel passo
      non è fatto, RLS non protegge niente in produzione;
-   - **audit log** (ADR-047 da scrivere): deciso 12 mesi, solo ID e verbi, append-only imposto
+   - **audit log** (ADR-049 da scrivere): deciso 12 mesi, solo ID e verbi, append-only imposto
      dai `GRANT`, che è ciò che il ruolo dedicato rende finalmente possibile;
    - **selettore di casa nel pannello e `ugo casa nuova`**: tutti i pezzi esistono
      (`generateDataKey`, `wrapDataKey`, `issueToken`), manca l'orchestrazione;
-   - **lingua e fuso dalla casa** (ADR-048 da scrivere): `households.locale` e `timezone`
+   - **lingua e fuso dalla casa** (ADR-050 da scrivere): `households.locale` e `timezone`
      esistono da `0003` e non li legge nessuno; l'italiano è in tre posti diversi;
    - **il genoma pilota il carattere**: `character.baselines` è calcolato e mai persistito,
      `maxWords` vale nel consiglio e non in chat, i sei cursori del corpo non arrivano al muso;

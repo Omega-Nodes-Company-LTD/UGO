@@ -251,7 +251,7 @@ describe("the pack", () => {
 });
 
 /**
- * ADR-046: the four tables that could not say which house they belonged to.
+ * ADR-048: the four tables that could not say which house they belonged to.
  * The interesting half is not that the column exists — it is that Postgres
  * refuses a row whose house disagrees with its parent's, so the two can never
  * drift apart by a forgotten line of code.

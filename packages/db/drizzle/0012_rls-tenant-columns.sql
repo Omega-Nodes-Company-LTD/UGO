@@ -1,4 +1,4 @@
--- ADR-046. RISCRITTA A MANO rispetto a quanto generato da drizzle-kit, e il
+-- ADR-048. RISCRITTA A MANO rispetto a quanto generato da drizzle-kit, e il
 -- perché va letto prima di rigenerarla:
 --
 --   1. drizzle-kit aggiunge le colonne con `DEFAULT '<casa-prime>' NOT NULL`,

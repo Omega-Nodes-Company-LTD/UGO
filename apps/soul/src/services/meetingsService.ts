@@ -68,7 +68,7 @@ export interface MeetingsDeps {
    * were transcribed into the first one's biography.
    */
   gosinoId: string;
-  /** ADR-046: `transcript_segments` carries the house on the row now */
+  /** ADR-048: `transcript_segments` carries the house on the row now */
   householdId: string;
   embedder: EmbeddingsClient;
   llm: LlmClient;

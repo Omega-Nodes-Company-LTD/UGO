@@ -1,4 +1,4 @@
--- ADR-046, tempo 1. SCRITTA A MANO: drizzle-kit non modella ruoli, GRANT né
+-- ADR-048, tempo 1. SCRITTA A MANO: drizzle-kit non modella ruoli, GRANT né
 -- politiche, e non ha nulla da generare qui.
 --
 -- Cosa fa e cosa NON fa. Nasce il ruolo applicativo, nascono le politiche, e

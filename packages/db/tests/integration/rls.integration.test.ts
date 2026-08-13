@@ -7,7 +7,7 @@ import { runMigrations } from "../../src/migrate.js";
 import { beings, gosini, households, memories } from "../../src/schema/index.js";
 
 /**
- * ADR-046: the net under the application scoping.
+ * ADR-048: the net under the application scoping.
  *
  * The only test worth writing here is the one that does the wrong thing on
  * purpose — a query with **no** `where household_id` — and checks that the

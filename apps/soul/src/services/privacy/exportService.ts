@@ -98,7 +98,7 @@ export class ExportService {
         rows(sql`select id, platform, title, started_at, ended_at, participants, audio_uri, status
                  from meetings where gosino_id in (${exemplars}) order by started_at nulls last`),
         // transcript_segments carries no tenant column of its own: it reaches
-        // the house through its meeting (ADR-046 gives it one directly)
+        // the house through its meeting (ADR-048 gives it one directly)
         rows(sql`select id, meeting_id, speaker, t0, t1, text from transcript_segments
                  where meeting_id in (select id from meetings where gosino_id in (${exemplars}))
                  order by meeting_id, t0`),

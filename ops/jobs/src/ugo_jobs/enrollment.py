@@ -123,7 +123,7 @@ def enroll_voice(
              set model = excluded.model, dimensions = excluded.dimensions,
                  payload = excluded.payload, sample_count = excluded.sample_count,
                  updated_at = now()""",
-        # ADR-046: la casa viene dall'essere, non da un parametro: cosi' non
+        # ADR-048: la casa viene dall'essere, non da un parametro: cosi' non
         # puo' essere sbagliata, e la chiave composta la rifiuterebbe comunque
         (being_id, being_id, MODALITY, coder.model, coder.dimensions,
          encrypt_bytes(pack(merged), data_key), total),

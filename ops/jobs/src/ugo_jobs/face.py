@@ -72,7 +72,7 @@ def enroll_face(
                  updated_at = now()""",
         (
             being_id,
-            # ADR-046: la casa viene dall'essere, non da un parametro
+            # ADR-048: la casa viene dall'essere, non da un parametro
             being_id,
             MODALITY,
             coder.model,  # type: ignore[attr-defined]

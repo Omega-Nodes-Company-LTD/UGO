@@ -113,7 +113,7 @@ export class ForgetService {
     // Audit trail with IDs and counts only — never the erased name (NIS2).
     // `events` is keyed by exemplar and an erasure is an act of the *house*, so
     // it lands on the house's oldest exemplar rather than on whichever one the
-    // DEFAULT would have picked. Its proper home is `audit_log` (ADR-047).
+    // DEFAULT would have picked. Its proper home is `audit_log` (ADR-049).
     const [eldest] = await this.exemplars(householdId).orderBy(asc(gosini.bornAt)).limit(1);
     if (eldest === undefined) throw new Error(`household ${householdId} has no exemplar`);
     await db.insert(events).values({
@@ -169,7 +169,7 @@ export class ForgetService {
   ): Promise<void> {
     const { db, dataKey } = this.deps;
     // transcript_segments has no tenant column of its own: it reaches the
-    // house through its meeting (ADR-046 gives it one directly)
+    // house through its meeting (ADR-048 gives it one directly)
     const rows = await db
       .select({
         id: transcriptSegments.id,

@@ -69,7 +69,7 @@ export const traitSets = pgTable(
       .notNull()
       .references(() => gosini.id, { onDelete: "cascade" }),
     /**
-     * ADR-046: the house on the row. The genome belongs to the exemplar
+     * ADR-048: the house on the row. The genome belongs to the exemplar
      * (ADR-019), but a Row Level Security policy has to read the tenant
      * without a join — and the composite key below makes the pair impossible
      * to get wrong.

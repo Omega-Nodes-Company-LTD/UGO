@@ -31,7 +31,7 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
       gosinoId: await eldestExemplarOf(deps.db, householdId),
       source: "system",
       type: "dream_requested",
-      // who asked belongs in `audit_log` (ADR-047), not in an event payload
+      // who asked belongs in `audit_log` (ADR-049), not in an event payload
       payload: date !== undefined ? { date } : {},
     });
 

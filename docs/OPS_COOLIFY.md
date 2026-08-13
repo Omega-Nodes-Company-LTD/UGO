@@ -165,6 +165,39 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
 8. Prova dalla shell di soul: `curl -s http://<HOST_OLLAMA>:11434/api/tags` → deve elencare
    `nomic-embed-text`.
 
+### 2.3-bis · percezione (riconoscimento delle persone)
+
+Opzionale, e *deliberatamente* opzionale: senza, UGO risponde senza sapere chi ha davanti —
+com'è sempre stato. **La biometria si accende, non si subisce** (ADR-045).
+
+1. Tipo: **Application → Dockerfile**. Dockerfile: `ops/docker/percezione.Dockerfile`.
+   Build context: root del repo.
+2. **Nessun dominio e nessuna porta pubblicata.** Parla solo con soul, sulla rete interna: un
+   servizio che dice chi sei non deve essere raggiungibile da fuori.
+3. **Volume persistente su `/models`**, scrivibile. È l'unica cosa da ricordare: il container si
+   scarica i pesi da solo al primo avvio (~250 MB) e li verifica; senza volume li riscarica a
+   ogni redeploy. Se il volume non è scrivibile il container si ferma subito e lo scrive nei log,
+   invece di partire e riscaricare tutto ogni volta in silenzio.
+4. Variabili: `DATABASE_URL` (come soul) · `UGO_DATA_KEY=<UGO_DATA_KEY>` ·
+   `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` (lo stesso di soul: il servizio lo pretende anche
+   sulla rete interna, perché non deve fidarsi della rete) · `TZ=Europe/Rome`.
+5. **Il primo avvio è lento**: scarica i pesi prima di aprire la porta, quindi il healthcheck
+   resta rosso per un paio di minuti. È voluto — nessuna frase può arrivare a un servizio senza
+   pesi. Dai riavvii successivi parte in un attimo.
+6. Su soul, aggiungi: `UGO_RECOGNITION_URL=http://<HOST_PERCEZIONE>:8000`. E basta: non c'è
+   niente da lanciare a mano, né qui né altrove.
+7. Verifica: `curl -s http://<HOST_PERCEZIONE>:8000/health` → `voice: true` e `face: true`. Un
+   `false` significa che quel modello non ha caricato: guarda i log del container.
+
+**Se il container non parte**, i log dicono quale delle tre cose è: volume non scrivibile,
+download fallito, o **SHA che non corrisponde**. L'ultimo non è pignoleria: gli EER dichiarati
+negli ADR (voce 0,63%, volto 0,98%) valgono per *quei* pesi, e un modello cambiato a monte
+diventerebbe un riconoscimento che sbaglia in silenzio. Meglio un container che non parte.
+
+**Il primo giro vero**: arruola due voci di casa e confronta con i numeri del banco. Se in casa
+tua vanno peggio, il banco (`python -m ugo_jobs.voice_bench --corpus <dir>`) è lo strumento per
+dire *di quanto* invece di litigare a impressioni.
+
 ### 2.4 soul-api
 
 1. Tipo: **Application → Dockerfile**. Sorgente: repo `<REPO_URL>`, branch di produzione.

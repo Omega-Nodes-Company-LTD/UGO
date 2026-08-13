@@ -110,12 +110,15 @@ services:
       DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
       UGO_DATA_KEY: ${UGO_DATA_KEY:?missing UGO_DATA_KEY}
       UGO_INTERNAL_TOKEN: ${UGO_INTERNAL_TOKEN:?missing UGO_INTERNAL_TOKEN}
-      # i pesi si montano, non si scaricano al primo turno di conversazione
+      # ADR-047: il container se li scarica all'avvio, PRIMA di aprire la
+      # porta — mai durante una conversazione
       UGO_VOICE_MODEL_DIR: /models/spkrec-ecapa-voxceleb
       UGO_FACE_MODEL: /models/arcface/model.onnx
       TZ: ${TZ:-Europe/Rome}
     volumes:
-      - ${UGO_MODELS_DIR:-./models}:/models:ro
+      # scrivibile: il container si procura da solo i pesi al primo avvio
+      # (ADR-047). Volume persistente, o li riscarica a ogni riavvio.
+      - ${UGO_MODELS_DIR:-./models}:/models
     read_only: true
     tmpfs:
       - /tmp

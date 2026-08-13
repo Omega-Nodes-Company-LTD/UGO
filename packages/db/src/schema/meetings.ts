@@ -29,7 +29,7 @@ export const transcriptSegments = pgTable(
       .notNull()
       .references(() => meetings.id, { onDelete: "cascade" }),
     /**
-     * ADR-046: which house, on the row itself. It used to be reachable only
+     * ADR-048: which house, on the row itself. It used to be reachable only
      * through `meeting_id → meetings.gosino_id → gosini`, and a Row Level
      * Security policy with a two-level subquery stops being obviously correct.
      * Written in the same statement as the segment, always from its meeting.

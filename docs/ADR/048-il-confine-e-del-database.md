@@ -1,4 +1,4 @@
-# ADR-046 — Il confine è del database, non della nostra attenzione
+# ADR-048 — Il confine è del database, non della nostra attenzione
 
 **Stato**: Accettata · **Data**: 2026-08-12 · **Ambito**: `packages/db`, `apps/soul`, `ops/docker`, runbook
 

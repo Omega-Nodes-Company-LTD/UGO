@@ -98,7 +98,7 @@ export class BeingsService {
   /** "Cancella la mia voce ma resto nel branco": the middle ground erasure. */
   public async destroyVoice(beingId: string): Promise<number> {
     // recognition_profiles has no tenant column of its own: it reaches the
-    // house through its being (ADR-046 gives it one directly)
+    // house through its being (ADR-048 gives it one directly)
     const removed = await this.db
       .delete(recognitionProfiles)
       .where(

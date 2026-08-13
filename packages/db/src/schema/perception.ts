@@ -41,7 +41,7 @@ export const recognitionProfiles = pgTable(
       .notNull()
       .references(() => beings.id, { onDelete: "cascade" }),
     /**
-     * ADR-046: the house on the row, so a policy does not have to join. The
+     * ADR-048: the house on the row, so a policy does not have to join. The
      * composite key below is what makes it impossible for it to drift from the
      * being's own house — Postgres refuses the pair, we do not remember to.
      */
@@ -130,7 +130,7 @@ export const memoryBeings = pgTable(
       .notNull()
       .references(() => beings.id, { onDelete: "cascade" }),
     /**
-     * ADR-046. Reachable before only through the memory and its exemplar — two
+     * ADR-048. Reachable before only through the memory and its exemplar — two
      * levels of subquery in a policy. Written by the dream in the same
      * statement as the link, and only between rows of one house (ADR-024).
      */

@@ -149,7 +149,7 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
     const mine = exemplarsOf(deps.db, householdId);
 
     // memory_beings has no tenant column of its own: it reaches the house
-    // through its memory (ADR-046 gives it one directly)
+    // through its memory (ADR-048 gives it one directly)
     const [links] = await deps.db
       .select({ total: sql<number>`count(*)::int` })
       .from(memoryBeings)
