@@ -16,7 +16,7 @@ import pytest
 
 from ugo_jobs.crypto import decrypt_text, parse_data_key
 from ugo_jobs.ingest import run_ingest
-from conftest import TEST_DATA_KEY
+from conftest import TEST_DATA_KEY, make_being, make_house
 from test_dream import make_config
 
 PHRASE = "Buongiorno a tutti, oggi parliamo del progetto dei gusci stampati"
@@ -86,23 +86,6 @@ def test_file_archived_and_second_run_is_noop(audio_env) -> None:  # noqa: ANN00
     assert before == after
 
 
-def _house(conn: psycopg.Connection, slug: str) -> str:
-    return str(
-        conn.execute(
-            "insert into households (slug, name) values (%s, %s) returning id", (slug, slug)
-        ).fetchone()[0]
-    )
-
-
-def _being(conn: psycopg.Connection, household_id: str, name: str) -> str:
-    return str(
-        conn.execute(
-            "insert into beings (household_id, display_name) values (%s, %s) returning id",
-            (household_id, name),
-        ).fetchone()[0]
-    )
-
-
 def test_a_known_voice_gets_a_name_and_a_stranger_does_not(audio_env, tmp_path) -> None:  # noqa: ANN001
     """ADR-016 wired end to end: enrolment was written and never called.
 
@@ -127,17 +110,17 @@ def test_a_known_voice_gets_a_name_and_a_stranger_does_not(audio_env, tmp_path) 
     samples = decode_audio(str(wav), sampling_rate=16_000)
 
     with psycopg.connect(cfg.database_url) as conn:
-        nostra = _house(conn, "casa-attribuzione")
-        vicini = _house(conn, "casa-vicini")
+        nostra = make_house(conn, "casa-attribuzione")
+        vicini = make_house(conn, "casa-vicini")
         gosino = str(
             conn.execute(
                 "insert into gosini (household_id, name) values (%s, %s) returning id",
                 (nostra, "ugo-attribuzione"),
             ).fetchone()[0]
         )
-        parlante = _being(conn, nostra, "Francesco")
+        parlante = make_being(conn, nostra, "Francesco")
         # the neighbours enrol the very same voice, in their own house
-        sosia = _being(conn, vicini, "Un vicino")
+        sosia = make_being(conn, vicini, "Un vicino")
         # ADR-043: con un encoder finto ma deterministico. Il modello vero pesa
         # 2 GB e non è ciò che questo test prova: qui si prova **l'attribuzione**
         # — chi viene nominato e chi no — e soprattutto che la voce identica

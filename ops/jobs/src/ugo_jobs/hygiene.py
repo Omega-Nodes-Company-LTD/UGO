@@ -10,6 +10,8 @@ from dataclasses import dataclass
 
 import psycopg
 
+from .config import JobsConfig
+
 DECAY_FACTOR = 0.9
 IMPORTANCE_FLOOR = 0.05
 STALE_DAYS = 30
@@ -21,9 +23,9 @@ UMORE_DEFAULT = 0.55
 UMORE_CLAMP = (0.35, 0.7)
 UMORE_LOW_DAY = 0.45
 UMORE_HIGH_DAY = 0.65
-# ADR-015: the baseline belongs to an exemplar. One today, so it is the seeded
-# one; when there are two, this is the argument the caller will have to pass.
-PRIME_GOSINO_ID = "00000000-0000-4000-8000-000000000001"
+# ADR-019 fase 3: l'argomento che il chiamante «avrebbe dovuto passare» adesso
+# lo passa. Il gosino cablato qui era la ragione per cui la deriva della
+# baseline valeva sempre e solo per l'esemplare seminato.
 
 
 @dataclass
@@ -33,30 +35,39 @@ class HygieneResult:
     baseline_adjusted: bool = False
 
 
-def _decay_stale(conn: psycopg.Connection) -> int:
+def _decay_stale(conn: psycopg.Connection, gosino_id: str) -> int:
     cursor = conn.execute(
         """
         update memories
         set importance = greatest(importance * %s, %s)
-        where coalesce(last_accessed, created_at) < now() - make_interval(days => %s)
+        where gosino_id = %s
+          and coalesce(last_accessed, created_at) < now() - make_interval(days => %s)
           and importance > %s
         """,
-        (DECAY_FACTOR, IMPORTANCE_FLOOR, STALE_DAYS, IMPORTANCE_FLOOR),
+        (DECAY_FACTOR, IMPORTANCE_FLOOR, gosino_id, STALE_DAYS, IMPORTANCE_FLOOR),
     )
     return cursor.rowcount
 
 
-def _merge_duplicates(conn: psycopg.Connection) -> int:
+def _merge_duplicates(conn: psycopg.Connection, gosino_id: str) -> int:
+    """Il difetto peggiore dell'intero job, e non era un errore di distrazione.
+
+    Il self-join non aveva `a.gosino_id = b.gosino_id`, quindi due esemplari —
+    a maggior ragione due case — che avevano vissuto la stessa cosa si vedevano
+    i ricordi fusi, e la riga sotto ne **cancella** uno. Non una lettura
+    sbagliata: una perdita di dati attraverso il confine fra famiglie.
+    """
     pairs = conn.execute(
         """
         select a.id, b.id, a.importance, b.importance
         from memories a
-        join memories b on a.id < b.id
-        where a.embedding is not null and b.embedding is not null
+        join memories b on a.id < b.id and a.gosino_id = b.gosino_id
+        where a.gosino_id = %s
+          and a.embedding is not null and b.embedding is not null
           and 1 - (a.embedding <=> b.embedding) > %s
         order by a.id
         """,
-        (DEDUP_SIMILARITY,),
+        (gosino_id, DEDUP_SIMILARITY),
     ).fetchall()
 
     removed: set[str] = set()
@@ -83,14 +94,14 @@ def _merge_duplicates(conn: psycopg.Connection) -> int:
     return merged
 
 
-def _adjust_umore_baseline(conn: psycopg.Connection, dream_date: str) -> bool:
+def _adjust_umore_baseline(conn: psycopg.Connection, dream_date: str, gosino_id: str) -> bool:
     """ADR-012: a heavy day nudges the umore baseline down, a bright one up."""
     row = conn.execute(
         """
         select avg((vars->>'umore')::numeric) from psyche_snapshots
-        where ts between %s and %s and vars ? 'umore'
+        where gosino_id = %s and ts between %s and %s and vars ? 'umore'
         """,
-        (f"{dream_date} 00:00:00+00", f"{dream_date} 23:59:59+00"),
+        (gosino_id, f"{dream_date} 00:00:00+00", f"{dream_date} 23:59:59+00"),
     ).fetchone()
     day_avg = row[0] if row is not None else None
     if day_avg is None:
@@ -98,7 +109,7 @@ def _adjust_umore_baseline(conn: psycopg.Connection, dream_date: str) -> bool:
 
     current_row = conn.execute(
         "select baseline from psyche_baselines where gosino_id = %s and variable = 'umore'",
-        (PRIME_GOSINO_ID,),
+        (gosino_id,),
     ).fetchone()
     current = float(current_row[0]) if current_row is not None else UMORE_DEFAULT
     if float(day_avg) <= UMORE_LOW_DAY:
@@ -118,14 +129,14 @@ def _adjust_umore_baseline(conn: psycopg.Connection, dream_date: str) -> bool:
         on conflict (gosino_id, variable)
         do update set baseline = excluded.baseline, updated_at = now()
         """,
-        (PRIME_GOSINO_ID, target),
+        (gosino_id, target),
     )
     return True
 
 
-def run_hygiene(conn: psycopg.Connection, dream_date: str) -> HygieneResult:
-    decayed = _decay_stale(conn)
-    merged = _merge_duplicates(conn)
-    adjusted = _adjust_umore_baseline(conn, dream_date)
+def run_hygiene(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> HygieneResult:
+    decayed = _decay_stale(conn, cfg.gosino_id)
+    merged = _merge_duplicates(conn, cfg.gosino_id)
+    adjusted = _adjust_umore_baseline(conn, dream_date, cfg.gosino_id)
     conn.commit()
     return HygieneResult(decayed=decayed, merged=merged, baseline_adjusted=adjusted)

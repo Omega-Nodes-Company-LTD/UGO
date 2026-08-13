@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -67,6 +68,13 @@ export const traitSets = pgTable(
     gosinoId: uuid("gosino_id")
       .notNull()
       .references(() => gosini.id, { onDelete: "cascade" }),
+    /**
+     * ADR-048: the house on the row. The genome belongs to the exemplar
+     * (ADR-019), but a Row Level Security policy has to read the tenant
+     * without a join — and the composite key below makes the pair impossible
+     * to get wrong.
+     */
+    householdId: householdId(),
     version: integer("version").notNull(),
     // jsonb precisely because this is the field meant to change shape:
     // typed columns would mean a migration per new trait
@@ -75,5 +83,12 @@ export const traitSets = pgTable(
     mutationNote: text("mutation_note"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [unique("trait_sets_gosino_version_uq").on(table.gosinoId, table.version)],
+  (table) => [
+    unique("trait_sets_gosino_version_uq").on(table.gosinoId, table.version),
+    foreignKey({
+      columns: [table.householdId, table.gosinoId],
+      foreignColumns: [gosini.householdId, gosini.id],
+      name: "trait_sets_household_gosino_fk",
+    }).onDelete("cascade"),
+  ],
 );

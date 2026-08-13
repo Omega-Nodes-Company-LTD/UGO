@@ -281,6 +281,9 @@ importers:
       '@faker-js/faker':
         specifier: ^10.5.0
         version: 10.5.0
+      '@testcontainers/postgresql':
+        specifier: ^12.1.0
+        version: 12.1.0
       '@ugo/shared':
         specifier: workspace:*
         version: link:../../packages/shared

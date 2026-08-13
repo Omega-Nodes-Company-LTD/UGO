@@ -1,19 +1,20 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   beings,
   bonds,
   createDbClient,
   gosini,
-  households,
   perceptionEvents,
   recognitionProfiles,
   runMigrations,
   type DbClient,
 } from "@ugo/db";
+import { startPostgres } from "@ugo/factories";
 import { advertise, generateDataKey, openCard } from "@ugo/shared";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PeerService } from "../../src/services/peerService.js";
+import { createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 /**
  * ADR-020 at the park: family Rossi's exemplar and family Bianchi's, meeting
@@ -25,31 +26,24 @@ let db: DbClient;
 
 const rossiKey = generateDataKey();
 const bianchiKey = generateDataKey();
-let rossi: { householdId: string; gosinoId: string };
-let bianchi: { householdId: string; gosinoId: string };
+let rossi: TestHouse;
+let bianchi: TestHouse;
 let peerRossi: PeerService;
 let peerBianchi: PeerService;
 
-async function house(slug: string): Promise<{ householdId: string; gosinoId: string }> {
-  const [h] = await db
-    .insert(households)
-    .values({ slug, name: slug })
-    .returning({ id: households.id });
-  if (h === undefined) throw new Error("no household");
-  const [g] = await db
-    .insert(gosini)
-    .values({ householdId: h.id, name: `ugo-${slug}` })
-    .returning({ id: gosini.id });
-  if (g === undefined) throw new Error("no exemplar");
-  return { householdId: h.id, gosinoId: g.id };
-}
+/** what PeerService asks for: the house it acts on behalf of, and which exemplar */
+const scope = (house: TestHouse): { householdId: string; gosinoId: string } => ({
+  householdId: house.id,
+  gosinoId: house.gosinoId,
+});
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  await runMigrations(container.getConnectionUri());
-  db = createDbClient(container.getConnectionUri());
-  rossi = await house("rossi");
-  bianchi = await house("bianchi");
+  const pg = await startPostgres();
+  container = pg.container;
+  await runMigrations(pg.url);
+  db = createDbClient(pg.url);
+  rossi = await createHouse(db, "rossi");
+  bianchi = await createHouse(db, "bianchi");
   peerRossi = new PeerService(db, rossiKey);
   peerBianchi = new PeerService(db, bianchiKey);
 });
@@ -81,14 +75,14 @@ describe("two strangers in a park", () => {
     await peerRossi.setEnabled(rossi.gosinoId, true);
     const theirs = await peerBianchi.advertisement(bianchi.gosinoId);
     expect(
-      await peerRossi.sighting({ ...rossi, seen: theirs }),
+      await peerRossi.sighting({ ...scope(rossi), seen: theirs }),
     ).toBeUndefined();
   });
 
   it("does not even look while encounters are switched off", async () => {
     await peerRossi.setEnabled(rossi.gosinoId, false);
     const theirs = await peerBianchi.advertisement(bianchi.gosinoId);
-    expect(await peerRossi.sighting({ ...rossi, seen: theirs })).toBeUndefined();
+    expect(await peerRossi.sighting({ ...scope(rossi), seen: theirs })).toBeUndefined();
     await peerRossi.setEnabled(rossi.gosinoId, true);
   });
 });
@@ -96,7 +90,7 @@ describe("two strangers in a park", () => {
 describe("after the owners introduce them", () => {
   it("takes the other in as a visitor of the pack, not as one of the family", async () => {
     const card = await peerBianchi.introductionCard(bianchi.gosinoId, "curioso");
-    const met = await peerRossi.accept({ ...rossi, card });
+    const met = await peerRossi.accept({ ...scope(rossi), card });
     if (met === undefined) throw new Error("the introduction should be accepted");
 
     expect(met.known).toBe(false);
@@ -109,7 +103,7 @@ describe("after the owners introduce them", () => {
     expect(visitor?.species).toBe("gosino");
     expect(visitor?.kind).toBe("visitor");
     // it lives in OUR house: it is our perception of them, not their data
-    expect(visitor?.householdId).toBe(rossi.householdId);
+    expect(visitor?.householdId).toBe(rossi.id);
   });
 
   it("recognizes them the next time, and the bond grows", async () => {
@@ -119,7 +113,7 @@ describe("after the owners introduce them", () => {
       .where(eq(bonds.gosinoId, rossi.gosinoId));
 
     const seen = await peerBianchi.advertisement(bianchi.gosinoId);
-    const greeted = await peerRossi.sighting({ ...rossi, seen });
+    const greeted = await peerRossi.sighting({ ...scope(rossi), seen });
     if (greeted === undefined) throw new Error("an acquaintance should be recognized");
 
     expect(greeted.known).toBe(true);
@@ -148,7 +142,7 @@ describe("after the owners introduce them", () => {
       .select({ payload: recognitionProfiles.payload, model: recognitionProfiles.model })
       .from(recognitionProfiles)
       .innerJoin(beings, eq(beings.id, recognitionProfiles.beingId))
-      .where(and(eq(beings.householdId, rossi.householdId), eq(beings.species, "gosino")));
+      .where(and(eq(beings.householdId, rossi.id), eq(beings.species, "gosino")));
     const theirs = await peerBianchi.keysFor(bianchi.gosinoId);
     expect(profile?.model).toBe("peer-rotation-v1");
     expect(profile?.payload.equals(theirs.rotationSecret)).toBe(false);
@@ -166,12 +160,12 @@ describe("the everyday card, and what it refuses", () => {
   it("refuses an introduction whose card was not signed by its own key", async () => {
     const card = await peerBianchi.introductionCard(bianchi.gosinoId, "curioso");
     const tampered = { ...card, card: { ...card.card, name: "ugo-di-un-impostore" } };
-    expect(await peerRossi.accept({ ...rossi, card: tampered })).toBeUndefined();
+    expect(await peerRossi.accept({ ...scope(rossi), card: tampered })).toBeUndefined();
   });
 
   it("refuses a plain greeting as an introduction: no secret, no acquaintance", async () => {
     const daily = await peerBianchi.greetingCard(bianchi.gosinoId, "sveglio");
-    expect(await peerRossi.accept({ ...rossi, card: daily })).toBeUndefined();
+    expect(await peerRossi.accept({ ...scope(rossi), card: daily })).toBeUndefined();
   });
 });
 
@@ -180,12 +174,12 @@ describe("forgetting", () => {
     const [visitor] = await db
       .select({ id: beings.id })
       .from(beings)
-      .where(and(eq(beings.householdId, rossi.householdId), eq(beings.species, "gosino")));
+      .where(and(eq(beings.householdId, rossi.id), eq(beings.species, "gosino")));
     if (visitor === undefined) throw new Error("there should be a visitor to forget");
 
     expect(await peerRossi.forget(visitor.id)).toBe(true);
     const seen = await peerBianchi.advertisement(bianchi.gosinoId);
-    expect(await peerRossi.sighting({ ...rossi, seen })).toBeUndefined();
+    expect(await peerRossi.sighting({ ...scope(rossi), seen })).toBeUndefined();
 
     // unilateral: the neighbours' own exemplar is untouched by our forgetting
     const theirs = await peerBianchi.keysFor(bianchi.gosinoId);
@@ -196,14 +190,14 @@ describe("forgetting", () => {
 describe("the neighbours cannot read what we wrote about them", () => {
   it("refuses our stored secret to the other household's key", async () => {
     const card = await peerBianchi.introductionCard(bianchi.gosinoId, "curioso");
-    const met = await peerRossi.accept({ ...rossi, card });
+    const met = await peerRossi.accept({ ...scope(rossi), card });
     if (met === undefined) throw new Error("should be accepted");
 
     // same rows, wrong key: the sighting simply finds nothing it can open
     const impostor = new PeerService(db, bianchiKey);
     await expect(
       impostor.sighting({
-        householdId: rossi.householdId,
+        householdId: rossi.id,
         gosinoId: rossi.gosinoId,
         seen: advertise((await peerBianchi.keysFor(bianchi.gosinoId)).rotationSecret, Date.now()),
       }),

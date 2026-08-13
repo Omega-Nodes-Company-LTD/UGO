@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from conftest import db_only_config
 from ugo_jobs.config import ConfigError
 from ugo_jobs.scheduler import next_run_at, parse_at, run_forever
 
@@ -68,12 +69,19 @@ def test_one_bad_night_does_not_kill_the_container(monkeypatch) -> None:  # noqa
         scheduler, "run_dream", lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("pg_dump"))
     )
     monkeypatch.setattr(scheduler, "yesterday", lambda _cfg: "2026-08-10")
+    # ADR-019 fase 3: il ciclo passa dalle case, e questo file non ha un
+    # database — quel che e' sotto prova qui e' che una notte storta non
+    # ammazzi il container, non come si elencano le famiglie
+    monkeypatch.setattr(
+        scheduler, "_houses", lambda _cfg: [scheduler._House("00000000-0000-4000-8000-000000000002", "Europe/Rome")]
+    )
 
-    class Cfg:
-        timezone = "Europe/Rome"
+    # una JobsConfig vera, perche' il ciclo ne fa una copia per casa
+    # (`dataclasses.replace`) e un finto oggetto non si lascia copiare
+    cfg = db_only_config("postgres://unused")
 
     exit_code = run_forever(
-        Cfg(),
+        cfg,
         "02:30",
         sleep=slept.append,
         now=lambda: datetime(2026, 8, 11, 2, 29, 30, tzinfo=ROME),

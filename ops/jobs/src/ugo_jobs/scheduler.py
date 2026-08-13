@@ -13,10 +13,14 @@ a configuration box someone forgets to fill. The dream keeps its own clock, so
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
+from dataclasses import dataclass, replace
 from datetime import datetime, time as clock, timedelta
 from zoneinfo import ZoneInfo
+
+import psycopg
 
 from .config import ConfigError, JobsConfig
 from .dream import run_dream, yesterday
@@ -49,6 +53,32 @@ def next_run_at(now: datetime, at: clock) -> datetime:
     return today + timedelta(days=1)
 
 
+@dataclass(frozen=True)
+class _House:
+    household_id: str
+    timezone: str
+
+
+def _houses(cfg: JobsConfig) -> list[_House]:
+    """Le case aperte, ciascuna col suo fuso.
+
+    Con `UGO_HOUSEHOLD_ID` impostata il job serve quella sola — che e' come si
+    schiera un container per famiglia. Senza, le serve tutte, che e' come gira
+    oggi il vicinato su un ferro solo.
+    """
+    with psycopg.connect(cfg.database_url) as conn:
+        if os.environ.get("UGO_HOUSEHOLD_ID"):
+            rows = conn.execute(
+                "select id, timezone from households where id = %s and closed_at is null",
+                (cfg.household_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "select id, timezone from households where closed_at is null order by created_at"
+            ).fetchall()
+    return [_House(str(row[0]), str(row[1])) for row in rows]
+
+
 def run_forever(
     cfg: JobsConfig,
     at_value: str = DEFAULT_AT,
@@ -73,8 +103,17 @@ def run_forever(
         if delay > 0:
             sleep(delay)
         try:
-            report = run_dream(cfg, yesterday(cfg))
-            print(json.dumps({"dream_report": report}), flush=True)
+            for house in _houses(cfg):
+                # ADR-019 fase 3: «le 02:30» non e' piu' un'ora sola. Ogni casa
+                # ha il suo fuso (`households.timezone`), quindi ogni casa ha
+                # il suo ieri — e sveglia il sogno con il proprio, non con
+                # quello del processo.
+                run_cfg = replace(cfg, household_id=house.household_id, timezone=house.timezone)
+                report = run_dream(run_cfg, yesterday(run_cfg))
+                print(
+                    json.dumps({"dream_report": report, "household": house.household_id}),
+                    flush=True,
+                )
         except Exception as error:  # noqa: BLE001 - one bad night is not the end
             # never crash the container: tomorrow's dream must still happen,
             # and the step markers make the retry a no-op for what succeeded

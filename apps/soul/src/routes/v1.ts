@@ -10,6 +10,7 @@ import { z } from "zod";
 import { BeingNotFoundError, type ChatService } from "../services/chatService.js";
 import type { GosinoRegistry } from "../services/pack/runtimes.js";
 import type { PsycheService } from "../services/psycheService.js";
+import { eldestExemplarOf, resolveHousehold } from "./scope.js";
 
 export interface V1Deps {
   db: DbClient;
@@ -51,7 +52,11 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
     // returned whichever of them had snapshotted last — a mood belonging to
     // nobody. Absent `gosino` still means the house's own single creature.
     const asked = (request.query as { gosino?: string }).gosino;
-    const who = deps.registry?.resolve(asked);
+    // this route is open to the body, which may carry no token at all: with no
+    // identity there is no house to narrow to, and the single fallback psyche
+    // answers exactly as it did before ADR-019
+    const scope = await resolveHousehold(deps.db, request);
+    const who = scope.ok ? deps.registry?.resolve(asked, scope.householdId) : undefined;
     const psyche = who?.psyche ?? deps.psyche;
     const at = new Date();
     const { vars, label, phrase } = psyche.current(at);
@@ -70,11 +75,25 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
       problem(reply, 400, "Invalid event", z.prettifyError(parsed.error));
       return;
     }
+    // the body sends these, and the body may carry no token: with no identity
+    // there is only one house to put an event in, and if there is more than
+    // one the dock has to be configured (ADR-019 phase 2)
+    const scope = await resolveHousehold(deps.db, request);
+    if (!scope.ok) {
+      problem(reply, scope.status, scope.title, scope.detail);
+      return;
+    }
+    const who = deps.registry?.resolve((request.query as { gosino?: string }).gosino, scope.householdId);
     const inserted = await deps.db
       .insert(events)
-      .values({ source: parsed.data.source, type: parsed.data.type, payload: parsed.data.payload })
+      .values({
+        gosinoId: who?.id ?? (await eldestExemplarOf(deps.db, scope.householdId)),
+        source: parsed.data.source,
+        type: parsed.data.type,
+        payload: parsed.data.payload,
+      })
       .returning({ id: events.id });
-    const view = await deps.psyche.applyEventType(parsed.data.type);
+    const view = await (who?.psyche ?? deps.psyche).applyEventType(parsed.data.type);
     // IDs only in responses/logs — the payload is never echoed back
     return reply.code(201).send({ id: inserted[0]?.id, moodLabel: view.label });
   });

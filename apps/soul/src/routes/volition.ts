@@ -1,10 +1,12 @@
 import { desires, events, type DbClient } from "@ugo/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, type SQL } from "drizzle-orm";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { GosinoRegistry } from "../services/pack/runtimes.js";
 import type { InitiativeSwitch } from "../services/volition/initiativeSwitch.js";
 import type { PreHandler } from "./guard.js";
+import { exemplarsOf, householdScope } from "./scope.js";
 
 /**
  * What he decided, and why (ADR-034).
@@ -37,27 +39,35 @@ export interface VolitionRoutesDeps {
 }
 
 /**
- * Narrows a query to one exemplar. Absent means everyone, which is the
- * single-exemplar house and must keep reading exactly as it did (ADR-032).
- * `gosino_id` is NOT NULL with the seeded exemplar as default, so there is no
- * unattributed prehistory to fall back to.
+ * Narrows a query to one exemplar, or — when nobody was named — to the house
+ * (ADR-019 phase 2). "Absent means everyone" used to mean everyone in the
+ * *database*: right while one family lived here, and a leak the day a second
+ * one arrived.
+ *
+ * The `as never` casts are gone with the column types: `gosino_id` was typed
+ * `unknown` by the schema helper, which is exactly what made a cast look
+ * necessary here.
  */
 function mine(
-  table: { gosinoId: unknown },
+  db: DbClient,
+  column: PgColumn,
   id: string | undefined,
-): ReturnType<typeof eq> | undefined {
-  return id === undefined ? undefined : eq(table.gosinoId as never, id);
+  householdId: string,
+): SQL | undefined {
+  return id === undefined ? inArray(column, exemplarsOf(db, householdId)) : eq(column, id);
 }
 
 export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoutesDeps): void {
   app.get("/v1/volition", { preHandler: deps.guard }, async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
     const asked = (request.query as { gosino?: string }).gosino;
-    const who = deps.registry?.resolve(asked);
+    const who = deps.registry?.resolve(asked, householdId);
 
     const journal = await deps.db
       .select({ ts: events.ts, type: events.type, payload: events.payload })
       .from(events)
-      .where(and(inArray(events.type, [...INITIATIVE_TYPES]), mine(events, who?.id)))
+      .where(and(inArray(events.type, [...INITIATIVE_TYPES]), mine(deps.db, events.gosinoId, who?.id, householdId)))
       .orderBy(desc(events.ts))
       .limit(20);
 
@@ -71,7 +81,7 @@ export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoute
         createdAt: desires.createdAt,
       })
       .from(desires)
-      .where(and(eq(desires.status, "pending"), mine(desires, who?.id)))
+      .where(and(eq(desires.status, "pending"), mine(deps.db, desires.gosinoId, who?.id, householdId)))
       .orderBy(desc(desires.createdAt))
       .limit(20);
 

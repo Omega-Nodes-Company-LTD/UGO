@@ -1,16 +1,19 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { BeingFactory } from "@ugo/factories";
 import { openEmbedding, parseDataKey, sealEmbedding } from "@ugo/shared";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createDbClient, type DbClient } from "../../src/client.js";
 import { runMigrations } from "../../src/migrate.js";
 import {
   PRIME_GOSINO_ID,
+  PRIME_HOUSEHOLD_ID,
   beings,
   bonds,
   corrections,
+  diaryEntries,
   gosini,
+  households,
   memories,
   memoryBeings,
   perceptionEvents,
@@ -246,3 +249,87 @@ describe("the pack", () => {
     expect(await db.select().from(memoryBeings)).toHaveLength(0);
   });
 });
+
+/**
+ * ADR-048: the four tables that could not say which house they belonged to.
+ * The interesting half is not that the column exists — it is that Postgres
+ * refuses a row whose house disagrees with its parent's, so the two can never
+ * drift apart by a forgotten line of code.
+ */
+describe("le colonne che rendono possibile RLS", () => {
+  it("refuses a genome that claims a house its creature does not live in", async () => {
+    const [altra] = await db
+      .insert(households)
+      .values({ slug: "casa-altrove", name: "altrove" })
+      .returning({ id: households.id });
+    if (altra === undefined) throw new Error("no household");
+
+    await expect(
+      db.insert(traitSets).values({
+        gosinoId: PRIME_GOSINO_ID,
+        householdId: altra.id,
+        version: 99,
+        traits: {},
+      }),
+    ).rejects.toThrow();
+
+    // and the honest pair goes in, so the test cannot pass on a typo
+    await expect(
+      db.insert(traitSets).values({
+        gosinoId: PRIME_GOSINO_ID,
+        householdId: PRIME_HOUSEHOLD_ID,
+        version: 98,
+        traits: {},
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("refuses a voiceprint filed under the wrong house", async () => {
+    const ivan = await insertBeing({ displayName: "Ivan Profilo" });
+    const [altra] = await db
+      .select({ id: households.id })
+      .from(households)
+      .where(ne(households.id, PRIME_HOUSEHOLD_ID))
+      .limit(1);
+    if (altra === undefined) throw new Error("no second household");
+
+    await expect(
+      db.insert(recognitionProfiles).values({
+        beingId: ivan.id,
+        householdId: altra.id,
+        modality: "voice",
+        model: "ecapa-voxceleb-v1",
+        dimensions: 4,
+        payload: sealEmbedding([0.1, 0.2, 0.3, 0.4], DATA_KEY),
+        sampleCount: 1,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("lets two exemplars keep a diary of the same day", async () => {
+    const [studio] = await db
+      .insert(gosini)
+      .values({ householdId: PRIME_HOUSEHOLD_ID, name: "ugo-diario" })
+      .returning({ id: gosini.id });
+    if (studio === undefined) throw new Error("no exemplar");
+
+    await db
+      .insert(diaryEntries)
+      .values({ gosinoId: PRIME_GOSINO_ID, date: "2026-08-12", text: "giornata mia" });
+    // the same date for somebody else used to be a unique violation, so the
+    // second creature to dream silently overwrote the first one's diary
+    await expect(
+      db
+        .insert(diaryEntries)
+        .values({ gosinoId: studio.id, date: "2026-08-12", text: "giornata sua" }),
+    ).resolves.toBeDefined();
+
+    // and the same exemplar still gets one entry per day
+    await expect(
+      db
+        .insert(diaryEntries)
+        .values({ gosinoId: PRIME_GOSINO_ID, date: "2026-08-12", text: "un doppione" }),
+    ).rejects.toThrow();
+  });
+});
+

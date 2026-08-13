@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.28.0"
-last_updated: "2026-08-12"
+version: "0.29.0"
+last_updated: "2026-08-13"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -1335,6 +1335,62 @@ mai costruito è un Dockerfile che si scopre rotto al deploy, che è il motivo p
 esiste ed è scritto nel suo stesso commento. Ora la CI la costruisce e verifica che senza volume
 scrivibile il container si fermi.
 
+## 6-vicies-semel. Il confine diventa del database (ADR-019 fase 2, ADR-048)
+
+Il gruppo 5 del backlog, i tre punti strutturali. La fase 1 aveva messo lo
+schema; questa ha scoperto che **lo schema non era collegato a niente**.
+
+`tenantAuth.ts` — 161 righe di ruoli, DEK, token, scadenze e revoca — era
+referenziato solo dal proprio file e da un test. `server.ts` usava ancora
+`createAuthGuard(UGO_INTERNAL_TOKEN)`, e la «casa corrente» era
+`select … from households limit 1` **senza `order by`**, in due punti: con due
+famiglie, quale casa ottenevi lo decideva il piano di Postgres.
+
+Sei perdite trovate mettendo lo scope, non revisionando:
+
+| Dove | Cosa faceva |
+|---|---|
+| `ExportService.exportAll()` | consegnava **l'intero database in chiaro**, 14 query senza un `where` |
+| `ForgetService` | redigeva il testo di tutte le case: dimenticare un Marco qui rediga il Marco della porta accanto |
+| `hygiene.py:50-60` | self-join senza `gosino_id`, e la riga dopo **cancella** un ricordo dei due |
+| `RoomCatalogue.remove()` | sfrattava per slug su tutte le case |
+| `GosinoRegistry` | caricava tutti i gosini del database |
+| `PRIME_GOSINO_ID` cablato | una correzione fatta in una casa finiva sulla creatura di un'altra |
+
+**Il difetto più istruttivo era nei tipi.** Gli helper `householdId()` e
+`gosinoId()` erano annotati `PgColumnBuilderBase`, quindi ogni colonna tenant
+dello schema aveva tipo `unknown` — e un `unknown` si confronta con qualunque
+cosa. Il compilatore non poteva vedere uno scope mancante, ed è una buona parte
+del perché la fase 1 è atterrata con le colonne al posto giusto e quasi niente
+che ci filtrasse sopra. Messo il tipo, il primo `tsc` ha elencato da solo i
+punti da sistemare.
+
+**Un solo posto dove si chiede di che casa è una richiesta** (`routes/scope.ts`),
+tre regole: il token della casa vale per la sua e `?casa=` altrove risponde
+**404** come una casa inesistente (BOLA); un operator deve dire quale; se la
+casa è una sola, è quella — la promessa di ADR-019 §107, esplicita al posto del
+`limit 1`, e che si spegne da sé quando nasce la seconda.
+
+**RLS in due tempi** (ADR-048, scelta del proprietario): il tempo 1 crea
+`ugo_app` e le politiche su tutte e 22 le tabelle, **senza `FORCE`** — quindi
+non si applicano al proprietario, `DATABASE_URL` è ancora sua, e in produzione
+oggi non cambia niente. Il tempo 2 (caduta dei `DEFAULT` + `DATABASE_URL_APP`)
+è un commit e un passo di runbook separati.
+
+**Il sogno cicla** (fase 3, primo pezzo): marcatori per esemplare — erano per
+data+passo, quindi il secondo esemplare non avrebbe sognato **mai**, in
+silenzio, ogni notte — igiene, riflessione e diario scopati, `config.py` che
+legge finalmente `UGO_HOUSEHOLD_ID`, scheduler che sveglia ogni casa col suo
+fuso.
+
+### Non verificato qui
+
+I test di integrazione e gli e2e **non girano in questa sandbox**: manca il
+daemon Docker, quindi ogni Testcontainer fallisce. Verificati in locale
+`build`, `lint`, `typecheck`, unit test e `pnpm audit`. Tutto il resto — le due
+migrazioni comprese, che è precisamente ciò che ADR-048 dice di non dare per
+buono — va guardato girare in CI.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1358,8 +1414,11 @@ scrivibile il container si fermi.
 | Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
 | `Webgl3dFace` importato staticamente | Un dispositivo che usa il fallback 2D scarica lo stesso i 138 kB di three.js | Import dinamico in `createFace`, che diventa asincrono: piccolo, ma tocca l'ordine di avvio di `main.ts` |
 | Batteria del corpo 3D mai misurata | È il vincolo della Fase 4, e nessun numero lo copre | Una giornata sul 3a Pro; il fallback 2D è già lì se il numero è brutto |
-| **RLS e caduta dei DEFAULT** su `gosino_id` | Finché il default esiste, un servizio che dimentica lo scope scrive sull'esemplare seminato **invece di fallire**: oggi la separazione la tengono il codice e i test, non il database | Ruolo Postgres dedicato + RLS, e poi togliere i DEFAULT (ADR-019 fase 2) |
-| **Il sogno è ancora uno per tutta la casa** | Diario e ricordi notturni non sono per esemplare | ADR-019 fase 3: job per esemplare |
+| ~~**RLS e caduta dei DEFAULT** su `gosino_id`~~ | — | **Metà chiuso** da ADR-048: il ruolo e le politiche ci sono (§6-vicies-semel). Restano la caduta dei `DEFAULT` e `DATABASE_URL_APP`, che sono il tempo 2 |
+| **RLS è presente e inerte in produzione** (ADR-048) | Finché `DATABASE_URL` è del proprietario le politiche non si applicano: il muro c'è nei test e non sul server | È il rollout in due tempi scelto apposta, non una svista. Il tempo 2 richiede prima che `GosinoRegistry` carichi una casa per volta dentro `withHousehold`, o come `ugo_app` non vedrà nessun esemplare (ADR-048 §7) |
+| **`households` e `access_tokens` restano leggibili al ruolo applicativo** | Sono le tabelle che *stabiliscono* lo scope, quindi non possono già conoscerlo: lì l'isolamento è applicativo e non del database | Dichiarato in ADR-048 §7. Ciò che vi si legge sono SHA-256 e una DEK avvolta sotto la KEK, che il processo ha comunque (ADR-017) |
+| **Il backup è ancora uno per tutto il database** | `pg_dump` non filtra per riga, e ADR-019 §164 vuole un backup per famiglia | Proposta non ancora implementata: tenere il dump come disaster recovery e aggiungere un export logico per casa (che è ciò che il GDPR chiede davvero, la portabilità) |
+| ~~**Il sogno è ancora uno per tutta la casa**~~ | — | **Chiuso**: `run_dream` cicla sugli esemplari, i marcatori portano il gosino, e l'igiene non fonde più attraverso il confine (§6-vicies-semel) |
 | ~~Due esemplari **sullo stesso schermo**~~ | — | **Chiuso** da ADR-036: un dispositivo incarna una **stanza**, e ci vede tutti quelli che ci vivono |
 | **Il registro del corpo è in chiaro** (ADR-038) | 80 righe di conversazione nel `localStorage` del dispositivo, fuori da ogni garanzia di cifratura | Consapevole e dichiarato: tetto corto, per stanza, «svuota» in un clic. Cifrarlo richiederebbe una chiave sul chiosco, cioè spostare il problema |
 | ~~UGO non sa chi ha davanti in chat~~ | — | **Chiuso** da ADR-045: l'audio viaggia con la frase, `ugo-percezione` identifica, il `beingId` entra in `chat.handle` |
@@ -1369,7 +1428,7 @@ scrivibile il container si fermi.
 | **Più gosini in una stanza senza copertura e2e** | Il caso a due creature è verificato a mano, non in CI: il setup non gira in questa sandbox | Un `beforeAll` che fa nascere due gosini nella stessa stanza e apre `?stanza=`; da fare quando l'e2e torna eseguibile in locale |
 | `came_home` non produce niente di visibile | Un'uscita non lascia un ricordo di dov'è stato | Il sogno legge già quegli eventi: è il posto naturale |
 | **Sa cominciare, non sa declinare** | Teso o esausto risponde comunque, sempre, subito: l'unica cosa che lo zittisce è il budget esaurito, che è il rifiuto di un contabile | Il passo gemello di ADR-027: risposta più corta, o dopo, o un grugnito — con interruttore del proprietario |
-| **Un solo ciclo di iniziativa** per tutto soul | Con più gosini in casa due creature parlerebbero addosso l'una all'altra | Per esemplare, insieme ad ADR-019 fase 3 |
+| **Un solo ciclo di iniziativa** per tutto soul | Con più gosini in casa due creature parlerebbero addosso l'una all'altra | Per esemplare, insieme ad ADR-019 fase 3. `SolitudeMonitor` e `IdleConsolidation` ora almeno appartengono a un esemplare invece di leggere l'intero database |
 | Stato faccia di soul **per processo**, non per connessione | Due schede aperte si vedono lo stesso stato; gli e2e devono ordinarsi (`z-body.e2e.spec.ts`) | Diventa reale con più corpi per casa (ADR-019 fase 3): lì lo stato va per esemplare |
 
 ## 8. Prossimo passo operativo
@@ -1393,6 +1452,24 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
 7. ~~Fondamenta del branco~~ — **chiuse** (§6-quater): schema, enrollment vocale e prompt.
    Restano da fare, dopo il deploy: popolare il branco reale, fare l'enrollment delle voci di casa,
    e documentare in `/documentation` le funzioni una volta che l'utente potrà usarle davvero.
+
+8. **Gruppo 5 del backlog — il vicinato**: i tre punti strutturali di ADR-019 fase 2 sono
+   **chiusi** (§6-vicies-semel), e il primo pezzo della fase 3 con loro. In ordine, quel che
+   resta di quel gruppo:
+   - **il tempo 2 di ADR-048** — caduta dei `DEFAULT` e `DATABASE_URL_APP` in servizio. È il
+     punto con la scadenza, e richiede prima che `GosinoRegistry` carichi una casa per volta
+     dentro `withHousehold` (ADR-048 §7). Poi va **eseguito sul server**: creare `ugo_app`,
+     dargli una password, spostare la `DATABASE_URL_APP` di soul e dei job. Finché quel passo
+     non è fatto, RLS non protegge niente in produzione;
+   - **audit log** (ADR-049 da scrivere): deciso 12 mesi, solo ID e verbi, append-only imposto
+     dai `GRANT`, che è ciò che il ruolo dedicato rende finalmente possibile;
+   - **selettore di casa nel pannello e `ugo casa nuova`**: tutti i pezzi esistono
+     (`generateDataKey`, `wrapDataKey`, `issueToken`), manca l'orchestrazione;
+   - **lingua e fuso dalla casa** (ADR-050 da scrivere): `households.locale` e `timezone`
+     esistono da `0003` e non li legge nessuno; l'italiano è in tre posti diversi;
+   - **il genoma pilota il carattere**: `character.baselines` è calcolato e mai persistito,
+     `maxWords` vale nel consiglio e non in chat, i sei cursori del corpo non arrivano al muso;
+   - **backup per famiglia**: `pg_dump` non filtra per riga (§7).
 
 Non è più vero che «non resta software da scrivere»: quella frase valeva prima dell'analisi
 competitiva del 2026-08-10, che ha prodotto [`BACKLOG.md`](./BACKLOG.md) e circa venticinque punti

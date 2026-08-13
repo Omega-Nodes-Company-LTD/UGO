@@ -125,10 +125,11 @@ def run_entities(
         for being_id, _ in hits:
             written = conn.execute(
                 """
-                insert into memory_beings (memory_id, being_id) values (%s, %s)
+                insert into memory_beings (memory_id, being_id, household_id)
+                values (%s, %s, (select household_id from beings where id = %s))
                 on conflict do nothing
                 """,
-                (memory_id, being_id),
+                (memory_id, being_id, being_id),
             ).rowcount
             linked_beings += written
 

@@ -1,7 +1,7 @@
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js";
-import { createAuthGuard } from "./routes/guard.js";
+import { createAuthGuard, registerTenantResolution } from "./routes/guard.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerArchiveRoutes } from "./routes/archive.js";
@@ -45,8 +45,10 @@ export interface ServerOptions extends HealthDeps {
     /**
      * ADR-036: the population — born, listed, moved between rooms. Independent
      * of the council: a house can have several creatures and never convene one.
+     * ADR-019 phase 2 removed its `householdId` dependency: which house a birth
+     * belongs to is a property of the request, not of the process.
      */
-    gosini?: { householdId: () => Promise<string> };
+    gosini?: Record<string, never>;
     /** ADR-032: the per-exemplar runtimes a socket can ask to be */
     registry?: GosinoRegistry;
     /** ADR-034: the runtime override on UGO_INITIATIVE, for /admin */
@@ -81,6 +83,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       done(null, payload);
     },
   );
+  // health answers before anyone asks who is calling: it must not depend on
+  // authentication to say the database is gone
   registerHealthRoute(app, options);
   if (options.features !== undefined) {
     const {
@@ -98,7 +102,13 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       dreamTriggerUrl,
       ...v1
     } = options.features;
-    const guard = createAuthGuard(internalToken);
+    // first, and before every route below it: Fastify binds onRequest hooks to
+    // the routes declared after them
+    registerTenantResolution(app, {
+      db: options.db,
+      ...(internalToken !== undefined && { legacyToken: internalToken }),
+    });
+    const guard = createAuthGuard();
     registerV1Routes(app, {
       db: options.db,
       ...v1,
@@ -125,7 +135,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       registerMeetingsRoutes(app, meetings, guard);
     }
     if (privacy !== undefined) {
-      registerPrivacyRoutes(app, { ...privacy, guard });
+      registerPrivacyRoutes(app, { db: options.db, ...privacy, guard });
     }
     // the archive is about memories and meetings, and had no business being
     // gated on the species map: it was registered there only because both
@@ -167,7 +177,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (face !== undefined) {
       app.register(async (instance) => {
-        await registerFaceWs(instance, face, registry);
+        await registerFaceWs(instance, face, options.db, registry);
       });
     }
   }

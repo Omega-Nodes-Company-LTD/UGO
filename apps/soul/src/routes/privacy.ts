@@ -1,10 +1,16 @@
+import type { DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { ExportService } from "../services/privacy/exportService.js";
 import { BeingNotFoundError, type ForgetService } from "../services/privacy/forgetService.js";
 import type { PreHandler } from "./guard.js";
+import { householdScope } from "./scope.js";
 
-/** Data-subject rights over HTTP (PROGETTO §7). Always behind the guard. */
+/**
+ * Data-subject rights over HTTP (PROGETTO §7). Always behind the guard, and
+ * since ADR-019 phase 2 always about **one house**: exporting or erasing is
+ * exactly where "the whole database" was the wrong default.
+ */
 
 const forgetRequestSchema = z.object({
   beingId: z.uuid(),
@@ -13,6 +19,7 @@ const forgetRequestSchema = z.object({
 });
 
 export interface PrivacyRouteDeps {
+  db: DbClient;
   forget: ForgetService;
   exporter: ExportService;
   guard: PreHandler;
@@ -29,8 +36,10 @@ export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDe
         detail: z.prettifyError(parsed.error),
       });
     }
+    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
     try {
-      const report = await deps.forget.forgetBeing(parsed.data.beingId);
+      const report = await deps.forget.forgetBeing(parsed.data.beingId, householdId);
       return await reply.send(report);
     } catch (error) {
       if (error instanceof BeingNotFoundError) {
@@ -43,8 +52,10 @@ export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDe
     }
   });
 
-  app.get("/v1/privacy/export", { preHandler: deps.guard }, async (_request, reply) => {
-    const bundle = await deps.exporter.exportAll();
+  app.get("/v1/privacy/export", { preHandler: deps.guard }, async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
+    const bundle = await deps.exporter.exportAll(householdId);
     return reply
       .header("content-disposition", 'attachment; filename="ugo-export.json"')
       .send(bundle);

@@ -62,6 +62,14 @@ export function parseMeetingUrl(rawUrl: string): { platform: string; nativeId: s
 
 export interface MeetingsDeps {
   db: DbClient;
+  /**
+   * Which creature goes to the meeting, and whose house pays (ADR-019 phase 2).
+   * Every write here used to fall on the `DEFAULT`, so a second family's calls
+   * were transcribed into the first one's biography.
+   */
+  gosinoId: string;
+  /** ADR-048: `transcript_segments` carries the house on the row now */
+  householdId: string;
   embedder: EmbeddingsClient;
   llm: LlmClient;
   dataKey: Buffer;
@@ -117,7 +125,13 @@ export class MeetingsService {
     if (!response.ok) throw new Error(`vexa join failed (status ${String(response.status)})`);
     const inserted = await this.deps.db
       .insert(meetings)
-      .values({ platform, title: title ?? null, status: "live", startedAt: new Date() })
+      .values({
+        gosinoId: this.deps.gosinoId,
+        platform,
+        title: title ?? null,
+        status: "live",
+        startedAt: new Date(),
+      })
       .returning({ id: meetings.id });
     const row = inserted[0];
     if (row === undefined) throw new Error("meeting insert returned no row");
@@ -138,9 +152,13 @@ export class MeetingsService {
 
     // a finished meeting is an experience, not just a closed row (§4.3):
     // it feeds curiosity and leaves a digest behind before the night job runs
-    await this.deps.db
-      .insert(events)
-      .values({ ts: at, source: "meet", type: "meeting_completed", payload: { meetingId: ref.meetingId } });
+    await this.deps.db.insert(events).values({
+      gosinoId: this.deps.gosinoId,
+      ts: at,
+      source: "meet",
+      type: "meeting_completed",
+      payload: { meetingId: ref.meetingId },
+    });
     await this.deps.psyche?.applyEventType("meeting_completed", at);
     await this.writeDigest(ref, at);
   }
@@ -190,6 +208,7 @@ export class MeetingsService {
     const digest = `Riunione "${title}" del ${at.toISOString().slice(0, 10)}: ${result.text}`;
     const [embedding] = await this.deps.embedder.embed([digest]);
     await this.deps.db.insert(memories).values({
+      gosinoId: this.deps.gosinoId,
       kind: "insight",
       text: digest,
       ...(embedding !== undefined && { embedding }),
@@ -220,6 +239,7 @@ export class MeetingsService {
       await this.deps.db.insert(transcriptSegments).values(
         fresh.map((segment, index) => ({
           meetingId: ref.meetingId,
+          householdId: this.deps.householdId,
           speaker: segment.speaker ?? null,
           t0: segment.start ?? 0,
           t1: segment.end ?? segment.start ?? 0,
@@ -257,6 +277,7 @@ export class MeetingsService {
       at,
     );
     await this.deps.db.insert(messages).values({
+      gosinoId: this.deps.gosinoId,
       ts: at,
       channel: "meeting",
       role: "assistant",

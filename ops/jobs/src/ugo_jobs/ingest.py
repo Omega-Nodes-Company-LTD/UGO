@@ -129,10 +129,10 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, enc
     archive_key = f"{ARCHIVE_PREFIX}{name}"
     meeting_id = conn.execute(
         """
-        insert into meetings (platform, title, started_at, status, audio_uri)
-        values ('ear', %s, %s, 'archived', %s) returning id
+        insert into meetings (gosino_id, platform, title, started_at, status, audio_uri)
+        values (%s, 'ear', %s, %s, 'archived', %s) returning id
         """,
-        (name, _started_at(key), f"s3://{cfg.s3_bucket_audio}/{archive_key}"),
+        (cfg.gosino_id, name, _started_at(key), f"s3://{cfg.s3_bucket_audio}/{archive_key}"),
     ).fetchone()[0]
 
     key_bytes = parse_data_key(cfg.data_key_b64)
@@ -142,11 +142,16 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, enc
         conn.execute(
             """
             insert into transcript_segments
-                (meeting_id, speaker, being_id, t0, t1, text, embedding)
-            values (%s, %s, %s, %s, %s, %s, %s)
+                (meeting_id, household_id, speaker, being_id, t0, t1, text, embedding)
+            values (%s,
+                    (select g.household_id from meetings m
+                       join gosini g on g.id = m.gosino_id
+                      where m.id = %s),
+                    %s, %s, %s, %s, %s, %s)
             """,
             # mono-speaker fallback: no diarization without HF_TOKEN (§11)
-            (meeting_id, None, being_id, t0, t1,
+            # ADR-048: la casa viene dalla riunione, non da un parametro
+            (meeting_id, meeting_id, None, being_id, t0, t1,
              encrypt_text(text, key_bytes), json.dumps(vector)),
         )
     conn.commit()

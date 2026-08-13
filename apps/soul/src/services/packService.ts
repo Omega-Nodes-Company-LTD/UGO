@@ -1,5 +1,4 @@
 import { beings, bonds, corrections, gosini, relations, traitSets, type DbClient } from "@ugo/db";
-import { PRIME_GOSINO_ID } from "@ugo/db";
 import { profileFor, type SpeciesMap } from "@ugo/shared";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 
@@ -7,6 +6,10 @@ import { and, desc, eq, inArray, or } from "drizzle-orm";
  * The pack as UGO needs to see it (ADR-014/016). Blocks 3-bis of §5.5: they
  * come after identity and psyche, before the conversation, and are never
  * cached — the pack is exactly the part that changes.
+ *
+ * ADR-019 phase 2: the house is now required rather than defaulted. What went
+ * into the prompt used to be looked up by being id alone, so a being id from
+ * anywhere resolved — and the relations block was the whole neighbourhood's.
  */
 
 const RECENT_CORRECTIONS = 5;
@@ -29,7 +32,8 @@ export class PackService {
   public constructor(
     private readonly db: DbClient,
     private readonly speciesMap: SpeciesMap,
-    private readonly gosinoId: string = PRIME_GOSINO_ID,
+    private readonly gosinoId: string,
+    private readonly householdId: string,
   ) {}
 
   /** "Chi sono io": which exemplar is speaking, and with which genome. */
@@ -64,7 +68,7 @@ export class PackService {
       })
       .from(beings)
       .leftJoin(bonds, and(eq(bonds.beingId, beings.id), eq(bonds.gosinoId, this.gosinoId)))
-      .where(inArray(beings.id, [...beingIds]));
+      .where(and(inArray(beings.id, [...beingIds]), eq(beings.householdId, this.householdId)));
     return rows.map((row) => ({
       ...row,
       familiarity: row.familiarity ?? 0,
@@ -81,7 +85,12 @@ export class PackService {
     const rows = await this.db
       .select({ a: relations.beingA, b: relations.beingB, type: relations.type })
       .from(relations)
-      .where(or(inArray(relations.beingA, ids), inArray(relations.beingB, ids)));
+      .where(
+        and(
+          eq(relations.householdId, this.householdId),
+          or(inArray(relations.beingA, ids), inArray(relations.beingB, ids)),
+        ),
+      );
     return rows;
   }
 

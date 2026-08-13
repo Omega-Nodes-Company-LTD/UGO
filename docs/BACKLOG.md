@@ -51,7 +51,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ⬜️ | **Emozione dal tono di voce** | la psiche reagisce a *eventi*, mai a *come stai tu* |
 | ⬜️ | **Chat di gruppo** | più interlocutori nella stessa conversazione; il branco è già modellato |
 | ⬜️ | **Input immagini** | mandagli una foto e la commenta |
-| ⬜️ | Riconoscimento facciale del proprietario | solo se il proprietario lo vuole: ADR-016 lo consente, lo schema è vuoto |
+| ✅ | **Riconoscimento facciale del proprietario** | **ADR-044/045**: ArcFace misurato su LFW (EER 0,98%, soglia 0,30), la camera si accende davvero, la fusione fonde decisioni e non punteggi. Restava scritto come da fare, e non lo era |
 | ⬜️ | Cattura schermo con OCR | valore alto, superficie privacy enorme: **serve una decisione, non un'implementazione** |
 
 ## Gruppo 5 — Il vicinato (ADR-019, fasi 2 e 3)
@@ -59,12 +59,12 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | | Punto | Note |
 |---|---|---|
 | ✅ | Fase 1: schema, chiavi per casa, token con ruoli, budget per casa | |
-| ⬜️ | **Servizi e rotte passano la casa ovunque** | oggi si appoggiano ai `DEFAULT` di retrocompatibilità |
-| ⬜️ | **RLS con ruolo Postgres dedicato** | la rete sotto lo scoping applicativo; cambia il deploy, va nel runbook |
-| ⬜️ | **Caduta dei `DEFAULT`** su `gosino_id` e `household_id` | finché ci sono, una scrittura dimenticata finisce nella casa prime |
-| ⬜️ | **Job per esemplare** | sogno, backup e ingest ragionano ancora sull'intero database |
+| ✅ | **Servizi e rotte passano la casa ovunque** | `TenantResolver` era scritto e **non lo chiamava nessuno**; la «casa corrente» era `select … from households limit 1` senza `order by`. Ora un solo `routes/scope.ts`, e una casa che non è tua risponde 404 come una che non esiste |
+| 🔨 | **RLS con ruolo Postgres dedicato** | **ADR-048**, tempo 1 fatto: ruolo `ugo_app`, politiche su tutte e 22 le tabelle, `withHousehold()` con `SET LOCAL`. Senza `FORCE`, quindi in produzione **inerte** finché non entra il tempo 2 |
+| ⬜️ | **Caduta dei `DEFAULT`** su `gosino_id` e `household_id` | tempo 2 di ADR-048. Prima serve che `GosinoRegistry` carichi una casa per volta dentro `withHousehold`, o come `ugo_app` non vedrà nessun esemplare (ADR-048 §7) |
+| 🔨 | **Job per esemplare** | il sogno cicla, i marcatori portano il gosino, l'igiene non fonde più attraverso il confine. **Manca il backup per famiglia**: `pg_dump` non filtra per riga |
 | ⬜️ | **Selettore di casa nel pannello** + provisioning di una famiglia | |
-| ⬜️ | **Audit log** | fondamenta per qualunque discorso di conformità |
+| ⬜️ | **Audit log** | fondamenta per qualunque discorso di conformità. Deciso: 12 mesi, solo ID e verbi, append-only imposto dai `GRANT` (ADR-049 da scrivere) |
 | ⬜️ | **Lingua per casa** | `households.locale` esiste e non pilota nulla |
 | ⬜️ | **Il genoma pilota il carattere** | `trait_sets` esiste dalla nascita e non fa niente: è ciò che rende due esemplari diversi *di carattere* e non solo di esperienza |
 
@@ -96,6 +96,13 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 - **Federazione fra case** — è il confine, non una funzione mancante (ADR-019).
 
 ---
+
+## Correzioni al file stesso
+
+Il gruppo 4 dava per aperto il riconoscimento facciale, chiuso da ADR-044/045 il
+giorno prima. Un backlog che non si corregge diventa una seconda verità: se un
+punto è stato fatto altrove, si segna qui, anche quando è stato fatto per un'altra
+strada.
 
 ## Come si lavora qui
 

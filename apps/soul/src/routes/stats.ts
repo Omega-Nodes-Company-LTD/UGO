@@ -1,7 +1,8 @@
 import { budgetLedger, events, memories, messages, psycheSnapshots, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { exemplarsOf, householdScope } from "./scope.js";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 /**
  * Operational visibility (SECURITY_COMPLIANCE §2: incident handling needs
@@ -10,6 +11,12 @@ import { and, desc, eq, sql } from "drizzle-orm";
  *
  * The cache-hit ratio is the number that decides whether the §5.5 discipline
  * is actually paying: cached input tokens over total input tokens.
+ *
+ * ADR-019 phase 2: every number here is one house's. The money was the loudest
+ * of the misses — `budget_ledger` has carried `household_id` and the index
+ * `budget_ledger_household_date_idx` since phase 1, and this route filtered on
+ * the date alone, so the panel showed the neighbourhood's spending and called
+ * it yours.
  */
 
 export interface StatsDeps {
@@ -21,13 +28,16 @@ export interface StatsDeps {
    * ADR-034: the mood series belongs to one creature. Spend, counts and dreams
    * do not — they are the household's (ADR-019) — so only the series narrows.
    */
-  registry?: { resolve: (query: string | undefined) => { id: string } | undefined };
+  registry?: { resolve: (query: string | undefined, householdId: string) => { id: string } | undefined };
 }
 
 export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void {
   // guarded: spend, counts and dream activity together describe when the
   // house is awake and how much it talks — operational, but nobody else's
   app.get("/v1/stats", { preHandler: deps.guard }, async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
+    const mine = exemplarsOf(deps.db, householdId);
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: deps.timezone }).format(new Date());
 
     const [spend] = await deps.db
@@ -40,20 +50,23 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
         cacheWrite: sql<string>`coalesce(sum(${budgetLedger.tokensCacheWrite}), 0)`,
       })
       .from(budgetLedger)
-      .where(eq(budgetLedger.date, today));
+      .where(and(eq(budgetLedger.householdId, householdId), eq(budgetLedger.date, today)));
 
     const [lifetime] = await deps.db
       .select({
         cacheRead: sql<string>`coalesce(sum(${budgetLedger.tokensCacheRead}), 0)`,
         tokensIn: sql<string>`coalesce(sum(${budgetLedger.tokensIn}), 0)`,
       })
-      .from(budgetLedger);
+      .from(budgetLedger)
+      .where(eq(budgetLedger.householdId, householdId));
 
+    // one round trip, as before, with the scope inside each subquery
+    const ours = sql`(select id from gosini where household_id = ${householdId})`;
     const [counts] = await deps.db
       .select({
-        memories: sql<string>`(select count(*) from ${memories})`,
-        messages: sql<string>`(select count(*) from ${messages})`,
-        events: sql<string>`(select count(*) from ${events})`,
+        memories: sql<string>`(select count(*) from ${memories} where ${memories.gosinoId} in ${ours})`,
+        messages: sql<string>`(select count(*) from ${messages} where ${messages.gosinoId} in ${ours})`,
+        events: sql<string>`(select count(*) from ${events} where ${events.gosinoId} in ${ours})`,
       })
       .from(sql`(select 1) as _`);
 
@@ -66,7 +79,12 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
         calls: sql<string>`count(*)`,
       })
       .from(budgetLedger)
-      .where(sql`${budgetLedger.date} >= current_date - interval '13 days'`)
+      .where(
+        and(
+          eq(budgetLedger.householdId, householdId),
+          sql`${budgetLedger.date} >= current_date - interval '13 days'`,
+        ),
+      )
       .groupBy(budgetLedger.date)
       .orderBy(budgetLedger.date);
 
@@ -80,14 +98,19 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
     // so the ABSENCE of the parameter has to be checked here. Absent means
     // the whole house (ADR-032), not "whoever is oldest".
     const asked = (request.query as { gosino?: string }).gosino;
-    const who = asked === undefined || asked === "" ? undefined : deps.registry?.resolve(asked);
+    const who =
+      asked === undefined || asked === ""
+        ? undefined
+        : deps.registry?.resolve(asked, householdId);
     const mood = await deps.db
       .select({ ts: psycheSnapshots.ts, vars: psycheSnapshots.vars, label: psycheSnapshots.label })
       .from(psycheSnapshots)
       .where(
         and(
           sql`${psycheSnapshots.ts} >= now() - interval '48 hours'`,
-          who === undefined ? undefined : eq(psycheSnapshots.gosinoId, who.id),
+          who === undefined
+            ? inArray(psycheSnapshots.gosinoId, mine)
+            : eq(psycheSnapshots.gosinoId, who.id),
         ),
       )
       .orderBy(psycheSnapshots.ts);
@@ -95,7 +118,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
     const [lastDream] = await deps.db
       .select({ ts: events.ts, payload: events.payload })
       .from(events)
-      .where(eq(events.type, "dream_step_completed"))
+      .where(and(eq(events.type, "dream_step_completed"), inArray(events.gosinoId, mine)))
       .orderBy(desc(events.ts))
       .limit(1);
 

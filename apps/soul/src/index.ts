@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
-import { createDbClient, households, runMigrations } from "@ugo/db";
+import { createDbClient, gosini, households, runMigrations } from "@ugo/db";
+import { asc, eq } from "drizzle-orm";
 import { LlmClient, OllamaEmbeddingsClient,
   OllamaTextClient,
 } from "@ugo/memory";
@@ -60,16 +61,45 @@ if (env.UGO_AUTO_MIGRATE) {
 
 const db = createDbClient(env.DATABASE_URL);
 const psyche = await PsycheService.restore(db);
-const llm = new LlmClient({
-  db,
-  apiKey: env.ANTHROPIC_API_KEY,
-  model: env.UGO_CHAT_MODEL,
-  dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
-  ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
-  timezone: env.TZ,
-});
+const llmFor = (householdId: string, gosinoId: string): LlmClient =>
+  new LlmClient({
+    db,
+    apiKey: env.ANTHROPIC_API_KEY,
+    model: env.UGO_CHAT_MODEL,
+    dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
+    householdId,
+    gosinoId,
+    ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
+    timezone: env.TZ,
+  });
 const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
-const pack = new PackService(db, speciesMap);
+
+/**
+ * The house the boot-time fallback apparatus belongs to.
+ *
+ * Every route resolves its own house from the request (ADR-019 phase 2); this
+ * is only for the single `chat`/`psyche`/`face` built before the registry
+ * exists, which answers when nothing else has been resolved. Ordered by
+ * `created_at` on purpose: the two `limit 1` queries this replaces had no
+ * `order by`, so with two families which one you got depended on the plan.
+ */
+const [bootstrapHouse] = await db
+  .select({ id: households.id })
+  .from(households)
+  .orderBy(asc(households.createdAt))
+  .limit(1);
+if (bootstrapHouse === undefined) throw new Error("no household: run the migrations");
+const bootstrapHouseholdId = bootstrapHouse.id;
+const [bootstrapExemplar] = await db
+  .select({ id: gosini.id })
+  .from(gosini)
+  .where(eq(gosini.householdId, bootstrapHouseholdId))
+  .orderBy(asc(gosini.bornAt))
+  .limit(1);
+if (bootstrapExemplar === undefined) throw new Error("no exemplar: run the migrations");
+
+const pack = new PackService(db, speciesMap, bootstrapExemplar.id, bootstrapHouseholdId);
+const llm = llmFor(bootstrapHouseholdId, bootstrapExemplar.id);
 const chat = new ChatService({
   db,
   embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
@@ -103,6 +133,8 @@ const meetings =
   env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined
     ? new MeetingsService({
         db,
+        gosinoId: bootstrapExemplar.id,
+        householdId: bootstrapHouseholdId,
         embedder,
         llm,
         dataKey,
@@ -151,27 +183,28 @@ const initiative = new InitiativeSwitch(() => env.UGO_INITIATIVE === "on");
 // ADR-045: il servizio di percezione, se c'è. Senza, tutto continua come
 // prima — UGO risponde senza sapere chi ha davanti, che è il comportamento di
 // ogni versione fino a ieri.
-const houseId = async (): Promise<string> => {
-  const rows = await db.select({ id: households.id }).from(households).limit(1);
-  return rows[0]?.id ?? "";
-};
+const recognitionUrl = env.UGO_RECOGNITION_URL;
+const recognitionToken = env.UGO_INTERNAL_TOKEN;
+// one client per house: the biometric centroids are the house's, and a single
+// client would compare one family's voice against another's profiles
 const recognition =
-  env.UGO_RECOGNITION_URL === undefined || env.UGO_INTERNAL_TOKEN === undefined
+  recognitionUrl === undefined || recognitionToken === undefined
     ? undefined
-    : new RecognitionClient({
-        baseUrl: env.UGO_RECOGNITION_URL,
-        token: env.UGO_INTERNAL_TOKEN,
-        householdId: await houseId(),
-      });
+    : (householdId: string): RecognitionClient =>
+        new RecognitionClient({
+          baseUrl: recognitionUrl,
+          token: recognitionToken,
+          householdId,
+        });
 
 const registry = await GosinoRegistry.load({
   db,
   embedder,
-  llm,
+  llm: llmFor,
   local: localText,
   dataKey,
   timezone: env.TZ,
-  pack,
+  speciesMap,
   localModelUp: () => localTextUp,
   initiativeEnabled: () => initiative.on(),
   hourOf,
@@ -191,14 +224,7 @@ const app = buildServer({
     council: { council: new CouncilService({ db, local: localText }) },
     // ADR-036: the population is its own surface — a house can hold several
     // creatures and never convene a council
-    gosini: {
-      householdId: async () => {
-        const rows = await db.select({ id: households.id }).from(households).limit(1);
-        const first = rows[0]?.id;
-        if (first === undefined) throw new Error("no household: run the migrations");
-        return first;
-      },
-    },
+    gosini: {},
     psyche,
     face,
     privacy,
@@ -226,7 +252,7 @@ if (meetings !== undefined) {
 const volitionTimer = setInterval(() => {
   // every exemplar decides for himself, and they are staggered so two of them
   // never speak on top of each other
-  registry.all().forEach((runtime, index) => {
+  registry.everywhere().forEach((runtime, index) => {
     setTimeout(
       () => {
         runtime.volition
@@ -248,7 +274,7 @@ const volitionTimer = setInterval(() => {
 volitionTimer.unref();
 
 // §5.3: loneliness and neglect are perturbations no sensor can emit
-const solitude = new SolitudeMonitor({ db, psyche });
+const solitude = new SolitudeMonitor({ db, gosinoId: bootstrapExemplar.id, psyche });
 const SOLITUDE_TICK_MS = 15 * 60_000;
 const solitudeTimer = setInterval(() => {
   solitude.tick().catch((error: unknown) => {
@@ -263,6 +289,7 @@ if (env.UGO_IDLE_CONSOLIDATION_MINUTES > 0) {
   const triggerUrl = env.UGO_JOBS_TRIGGER_URL;
   const idle = new IdleConsolidation({
     db,
+    gosinoId: bootstrapExemplar.id,
     options: {
       idleMinutes: env.UGO_IDLE_CONSOLIDATION_MINUTES,
       nightGuardMinutes: 60,

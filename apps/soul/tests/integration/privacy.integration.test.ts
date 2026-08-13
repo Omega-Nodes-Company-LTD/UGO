@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   createDbClient,
   diaryEntries,
@@ -10,9 +10,10 @@ import {
   beings,
   runMigrations,
   transcriptSegments,
+  PRIME_HOUSEHOLD_ID,
   type DbClient,
 } from "@ugo/db";
-import { EMBED_MODEL, startOllama, type OllamaHandle } from "@ugo/factories";
+import { EMBED_MODEL, startOllama, startPostgres, type OllamaHandle } from "@ugo/factories";
 import { OllamaEmbeddingsClient, searchMemories, writeMemory } from "@ugo/memory";
 import { decryptText, encryptText } from "@ugo/shared";
 import { eq } from "drizzle-orm";
@@ -20,6 +21,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ExportService } from "../../src/services/privacy/exportService.js";
 import { ForgetService, BeingNotFoundError } from "../../src/services/privacy/forgetService.js";
 import { REDACTION } from "../../src/services/privacy/redaction.js";
+import { addBeing, createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 // GDPR erasure on real infrastructure: real Postgres+pgvector and real
 // embeddings, because the whole point is that nothing identifying survives —
@@ -34,12 +36,11 @@ let beingId: string;
 let strangerId: string;
 
 beforeAll(async () => {
-  [pg, ollama] = await Promise.all([
-    new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
-  ]);
-  await runMigrations(pg.getConnectionUri());
-  db = createDbClient(pg.getConnectionUri());
+  const [postgres, ollamaHandle] = await Promise.all([startPostgres(), startOllama()]);
+  pg = postgres.container;
+  ollama = ollamaHandle;
+  await runMigrations(postgres.url);
+  db = createDbClient(postgres.url);
   embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
 
   const [ivan] = await db
@@ -104,7 +105,7 @@ afterAll(async () => {
 describe("forgetBeing — anonimizzazione irreversibile (§7)", () => {
   it("erases the person and every trace of the name, keeping the experience", async () => {
     const service = new ForgetService({ db, dataKey, embedder });
-    const report = await service.forgetBeing(beingId);
+    const report = await service.forgetBeing(beingId, PRIME_HOUSEHOLD_ID);
 
     expect(report.messagesRedacted).toBe(3); // includes the stranger's turn
     expect(report.segmentsRedacted).toBe(1);
@@ -160,13 +161,15 @@ describe("forgetBeing — anonimizzazione irreversibile (§7)", () => {
 
   it("rejects an unknown being id", async () => {
     const service = new ForgetService({ db, dataKey });
-    await expect(service.forgetBeing(crypto.randomUUID())).rejects.toThrow(BeingNotFoundError);
+    await expect(
+      service.forgetBeing(crypto.randomUUID(), PRIME_HOUSEHOLD_ID),
+    ).rejects.toThrow(BeingNotFoundError);
   });
 });
 
 describe("exportAll — portabilità (SECURITY §3)", () => {
   it("returns every table with message bodies decrypted", async () => {
-    const bundle = await new ExportService(db, dataKey).exportAll();
+    const bundle = await new ExportService(db, dataKey).exportAll(PRIME_HOUSEHOLD_ID);
     expect(bundle.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(bundle.beings).toHaveLength(1); // only the surviving being
     expect(bundle.messages).toHaveLength(4);
@@ -180,7 +183,82 @@ describe("exportAll — portabilità (SECURITY §3)", () => {
   });
 
   it("degrades gracefully when a row cannot be decrypted", async () => {
-    const bundle = await new ExportService(db, randomBytes(32)).exportAll();
+    const bundle = await new ExportService(db, randomBytes(32)).exportAll(PRIME_HOUSEHOLD_ID);
     expect(JSON.stringify(bundle.messages)).toContain("non decifrabile");
+  });
+});
+
+/**
+ * ADR-019 phase 2, and the reason this commit exists: before it, `exportAll`
+ * handed over the whole database in the clear and `forgetBeing` rewrote text
+ * in every house that happened to contain the same name.
+ */
+describe("il confine di casa", () => {
+  let vicini: TestHouse;
+  let loroIvan: string;
+  let nostroIvan: string;
+  const LORO_FRASE = "Ivan Neri ha innaffiato le piante";
+
+  beforeAll(async () => {
+    vicini = await createHouse(db, "casa-vicini-privacy", { name: "i vicini" });
+    loroIvan = await addBeing(db, vicini, "Ivan Neri");
+    await db.insert(messages).values({
+      gosinoId: vicini.gosinoId,
+      channel: "home",
+      role: "user",
+      beingId: loroIvan,
+      text: encryptText(LORO_FRASE, dataKey),
+    });
+    await db.insert(diaryEntries).values({
+      gosinoId: vicini.gosinoId,
+      date: "2026-08-07",
+      text: "Ivan Neri è passato anche oggi.",
+    });
+
+    // and one of ours, with a name that collides on purpose
+    const [ours] = await db
+      .insert(beings)
+      .values({ householdId: PRIME_HOUSEHOLD_ID, displayName: "Ivan Neri", aliases: ["Ivan"] })
+      .returning({ id: beings.id });
+    if (ours === undefined) throw new Error("our being was not created");
+    nostroIvan = ours.id;
+  });
+
+  it("refuses to erase a being of another house, and does not admit it exists", async () => {
+    const service = new ForgetService({ db, dataKey });
+    await expect(service.forgetBeing(loroIvan, PRIME_HOUSEHOLD_ID)).rejects.toThrow(
+      BeingNotFoundError,
+    );
+  });
+
+  it("erases our namesake without touching a word of theirs", async () => {
+    const service = new ForgetService({ db, dataKey });
+    await service.forgetBeing(nostroIvan, PRIME_HOUSEHOLD_ID);
+
+    const [theirMessage] = await db
+      .select({ text: messages.text })
+      .from(messages)
+      .where(eq(messages.gosinoId, vicini.gosinoId));
+    expect(decryptText(theirMessage?.text ?? "", dataKey)).toBe(LORO_FRASE);
+
+    const [theirDiary] = await db
+      .select({ text: diaryEntries.text })
+      .from(diaryEntries)
+      .where(eq(diaryEntries.gosinoId, vicini.gosinoId));
+    expect(theirDiary?.text).toContain("Ivan Neri");
+  });
+
+  it("exports one house and not a single id of the other", async () => {
+    const exporter = new ExportService(db, dataKey);
+    const ours = JSON.stringify(await exporter.exportAll(PRIME_HOUSEHOLD_ID));
+    expect(ours).not.toContain(vicini.gosinoId);
+    expect(ours).not.toContain(loroIvan);
+    expect(ours).not.toContain(LORO_FRASE);
+
+    // and the mirror image, so the test cannot pass by exporting nothing
+    const theirs = await exporter.exportAll(vicini.id);
+    expect(theirs.beings).toHaveLength(1);
+    expect(JSON.stringify(theirs.messages)).toContain(LORO_FRASE);
+    expect(JSON.stringify(theirs)).not.toContain(strangerId);
   });
 });

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import psycopg
 
+from conftest import db_only_config
 from ugo_jobs.hygiene import run_hygiene
 
 HEAVY_DATE = "2026-08-01"
@@ -25,7 +26,7 @@ def _seed_day(conn: psycopg.Connection, date: str, umore: float) -> None:
 def test_heavy_day_lowers_umore_baseline_with_clamp(pg_url: str) -> None:
     with psycopg.connect(pg_url) as conn:
         _seed_day(conn, HEAVY_DATE, 0.30)
-        result = run_hygiene(conn, HEAVY_DATE)
+        result = run_hygiene(conn, db_only_config(pg_url), HEAVY_DATE)
         assert result.baseline_adjusted is True
         row = conn.execute(
             "select baseline from psyche_baselines where variable = 'umore'"
@@ -35,7 +36,7 @@ def test_heavy_day_lowers_umore_baseline_with_clamp(pg_url: str) -> None:
 
         # many heavy days can never push below the clamp floor
         for _ in range(20):
-            run_hygiene(conn, HEAVY_DATE)
+            run_hygiene(conn, db_only_config(pg_url), HEAVY_DATE)
         row = conn.execute(
             "select baseline from psyche_baselines where variable = 'umore'"
         ).fetchone()
@@ -48,7 +49,7 @@ def test_average_day_leaves_the_baseline_alone(pg_url: str) -> None:
             "select baseline from psyche_baselines where variable = 'umore'"
         ).fetchone()
         _seed_day(conn, CALM_DATE, 0.55)
-        result = run_hygiene(conn, CALM_DATE)
+        result = run_hygiene(conn, db_only_config(pg_url), CALM_DATE)
         assert result.baseline_adjusted is False
         after = conn.execute(
             "select baseline from psyche_baselines where variable = 'umore'"

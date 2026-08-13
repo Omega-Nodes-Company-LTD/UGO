@@ -12,6 +12,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 import psycopg
@@ -21,6 +22,9 @@ from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.minio import MinioContainer
 from testcontainers.postgres import PostgresContainer
 
+if TYPE_CHECKING:
+    from ugo_jobs.config import JobsConfig
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DRIZZLE_DIR = REPO_ROOT / "packages" / "db" / "drizzle"
 EMBED_MODEL = "nomic-embed-text"
@@ -29,13 +33,82 @@ TEST_DATA_KEY = base64.b64encode(bytes(range(32))).decode()
 
 
 def apply_drizzle_migrations(conn: psycopg.Connection) -> None:
-    """Same SQL files as production (environment parity), applied in order."""
+    """Same SQL files as production (environment parity), applied in order.
+
+    ADR-048: a file is sent whole rather than split on the drizzle marker.
+    Splitting was a naive text search, so the first migration containing a
+    ``DO $$ ... $$`` block — which is how you write "create this role if it is
+    not there" — would have been cut in half here and nowhere else: the 67
+    pytest would have gone red while every TypeScript test stayed green,
+    against the same SQL. psycopg sends a multi-statement string in one
+    implicit transaction, which is what the drizzle migrator does too.
+    """
     for sql_file in sorted(DRIZZLE_DIR.glob("*.sql")):
-        for statement in sql_file.read_text().split("--> statement-breakpoint"):
-            statement = statement.strip()
-            if statement:
-                conn.execute(statement)  # type: ignore[arg-type]
+        script = sql_file.read_text().replace("--> statement-breakpoint", "")
+        if script.strip():
+            conn.execute(script)  # type: ignore[arg-type]
     conn.commit()
+
+
+def db_only_config(database_url: str, **overrides: object) -> "JobsConfig":
+    """A config for the dream steps that touch nothing but the database.
+
+    ADR-019 fase 3: `run_hygiene` now takes the whole config instead of a
+    hardcoded `PRIME_GOSINO_ID`, and the tests of those steps have no business
+    standing up MinIO and Ollama to say which exemplar they mean.
+    """
+    from ugo_jobs.config import JobsConfig
+
+    base = dict(
+        database_url=database_url,
+        ollama_url="http://127.0.0.1:1",
+        ollama_embed_model="nomic-embed-text",
+        ollama_batch_url="http://127.0.0.1:1",
+        ollama_batch_model="",
+        data_key_b64=TEST_DATA_KEY,
+        s3_endpoint="http://127.0.0.1:1",
+        s3_access_key="x",
+        s3_secret_key="x",
+        s3_bucket_backup="ugo-backup",
+        s3_bucket_audio="ugo-audio",
+        timezone="Europe/Rome",
+    )
+    base.update(overrides)
+    return JobsConfig(**base)  # type: ignore[arg-type]
+
+
+def make_house(conn: psycopg.Connection, slug: str) -> str:
+    """ADR-019: one way to make a house, on this side of the fence too.
+
+    The TypeScript suites share `tests/integration/helpers/tenancy.ts`; Python
+    cannot import that, so the rule it enforces is repeated here rather than
+    re-invented per test file. Both write the same columns on purpose: a test
+    that builds its tenant differently from production proves nothing.
+    """
+    return str(
+        conn.execute(
+            "insert into households (slug, name) values (%s, %s) returning id", (slug, slug)
+        ).fetchone()[0]
+    )
+
+
+def make_gosino(conn: psycopg.Connection, household_id: str, name: str) -> str:
+    """A second exemplar under the same roof is the normal case, not an edge one."""
+    return str(
+        conn.execute(
+            "insert into gosini (household_id, name) values (%s, %s) returning id",
+            (household_id, name),
+        ).fetchone()[0]
+    )
+
+
+def make_being(conn: psycopg.Connection, household_id: str, name: str) -> str:
+    return str(
+        conn.execute(
+            "insert into beings (household_id, display_name) values (%s, %s) returning id",
+            (household_id, name),
+        ).fetchone()[0]
+    )
 
 
 @pytest.fixture(scope="session")

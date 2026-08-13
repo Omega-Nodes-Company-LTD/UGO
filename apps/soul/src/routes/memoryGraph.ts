@@ -1,7 +1,8 @@
 import { beings, memories, memoryBeings, relations, type DbClient } from "@ugo/db";
-import { desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
+import { exemplarsOf, householdScope } from "./scope.js";
 
 /**
  * How the memories hang together, for the panel to draw (backlog gruppo 1).
@@ -14,6 +15,9 @@ import type { PreHandler } from "./guard.js";
  * Labels are short on purpose: a graph shows the shape of what he knows, and
  * the full text stays in the archive below it. A node carries enough to be
  * recognised and no more.
+ *
+ * ADR-019 phase 2: one house's shape. Unscoped, this drew the neighbourhood as
+ * a single graph — and unlike a wrong number, a wrong graph shows the names.
  */
 
 /** A domestic pack does not need more, and a browser drawing by hand does. */
@@ -46,7 +50,11 @@ function shorten(text: string): string {
 }
 
 export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGraphDeps): void {
-  app.get("/v1/memories/graph", { preHandler: deps.guard }, async (_request, reply) => {
+  app.get("/v1/memories/graph", { preHandler: deps.guard }, async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
+    const mine = exemplarsOf(deps.db, householdId);
+
     const memoryRows = await deps.db
       .select({
         id: memories.id,
@@ -56,12 +64,14 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
         supersededBy: memories.supersededBy,
       })
       .from(memories)
+      .where(inArray(memories.gosinoId, mine))
       .orderBy(desc(memories.createdAt))
       .limit(NODE_CAP);
 
     const beingRows = await deps.db
       .select({ id: beings.id, name: beings.displayName, species: beings.species })
-      .from(beings);
+      .from(beings)
+      .where(eq(beings.householdId, householdId));
 
     const nodes: GraphNode[] = [
       ...memoryRows.map((row) => ({
@@ -98,7 +108,8 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
         type: relations.type,
         source: relations.source,
       })
-      .from(relations);
+      .from(relations)
+      .where(eq(relations.householdId, householdId));
 
     const edges: GraphEdge[] = [
       ...aboutRows.map((row) => ({
@@ -132,18 +143,30 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
   });
 
   /** How many edges exist at all — the panel decides whether to offer the tab. */
-  app.get("/v1/memories/graph/size", { preHandler: deps.guard }, async (_request, reply) => {
+  app.get("/v1/memories/graph/size", { preHandler: deps.guard }, async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
+    const mine = exemplarsOf(deps.db, householdId);
+
+    // memory_beings has no tenant column of its own: it reaches the house
+    // through its memory (ADR-048 gives it one directly)
     const [links] = await deps.db
       .select({ total: sql<number>`count(*)::int` })
-      .from(memoryBeings);
+      .from(memoryBeings)
+      .where(
+        inArray(
+          memoryBeings.memoryId,
+          deps.db.select({ id: memories.id }).from(memories).where(inArray(memories.gosinoId, mine)),
+        ),
+      );
     const [supersessions] = await deps.db
       .select({ total: sql<number>`count(*)::int` })
       .from(memories)
-      .where(isNotNull(memories.supersededBy));
+      .where(and(isNotNull(memories.supersededBy), inArray(memories.gosinoId, mine)));
     const [inferred] = await deps.db
       .select({ total: sql<number>`count(*)::int` })
       .from(relations)
-      .where(eq(relations.source, "dream"));
+      .where(and(eq(relations.source, "dream"), eq(relations.householdId, householdId)));
     return reply.send({
       about: links?.total ?? 0,
       superseded: supersessions?.total ?? 0,

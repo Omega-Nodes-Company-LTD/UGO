@@ -1,6 +1,6 @@
 import { gosini, psycheSnapshots, traitSets, type DbClient } from "@ugo/db";
 import type { LocalTextClient } from "@ugo/memory";
-import { desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { type Character, characterFrom } from "./character.js";
 
 /**
@@ -122,7 +122,7 @@ export class CouncilService {
   public constructor(private readonly deps: CouncilDeps) {}
 
   /** Everyone still alive in the house, with their character and their mood. */
-  public async participants(): Promise<Participant[]> {
+  public async participants(householdId: string): Promise<Participant[]> {
     const rows = await this.deps.db
       .select({
         id: gosini.id,
@@ -130,7 +130,9 @@ export class CouncilService {
         where: gosini.locationLabel,
       })
       .from(gosini)
-      .where(isNull(gosini.retiredAt))
+      // ADR-019 phase 2: a council is a house's council. Unscoped, it seated
+      // the neighbours' creatures at the table and paid for their tokens.
+      .where(and(isNull(gosini.retiredAt), eq(gosini.householdId, householdId)))
       .limit(MAX_PARTICIPANTS);
 
     const out: Participant[] = [];
@@ -164,8 +166,8 @@ export class CouncilService {
    * Returns whatever came back — a participant whose model said nothing usable
    * is simply left out rather than filled in with an invention.
    */
-  public async deliberate(question: string): Promise<CouncilResult> {
-    const who = await this.participants();
+  public async deliberate(question: string, householdId: string): Promise<CouncilResult> {
+    const who = await this.participants(householdId);
     const voices: Voice[] = [];
 
     // round one: blind, and in parallel — they must not see each other yet

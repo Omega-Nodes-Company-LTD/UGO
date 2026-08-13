@@ -1,18 +1,26 @@
 import { sql } from "drizzle-orm";
-import { date, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { date, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { desireStatus } from "./enums.js";
 import { gosinoId } from "./self.js";
 
 // Products of the night job (PROGETTO §5.6): diary and desires.
-export const diaryEntries = pgTable("diary_entries", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  gosinoId: gosinoId(),
-  date: date("date").notNull().unique(),
-  text: text("text").notNull(),
-  moodSummary: jsonb("mood_summary").notNull().default({}),
-});
+export const diaryEntries = pgTable(
+  "diary_entries",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    gosinoId: gosinoId(),
+    date: date("date").notNull(),
+    text: text("text").notNull(),
+    moodSummary: jsonb("mood_summary").notNull().default({}),
+  },
+  // ADR-048: the date used to be globally unique, so the second exemplar to
+  // dream overwrote the first one's diary — `reflect.py` writes
+  // `on conflict (date) do update`. Between two houses it did it across
+  // families.
+  (table) => [unique("diary_entries_gosino_date_uq").on(table.gosinoId, table.date)],
+);
 
 // A desire is an intention that must survive until tomorrow: it lives in the
 // database, not in a prompt context (docs/ARCHITECTURE.md §6.4).

@@ -77,5 +77,20 @@ class JobsConfig:
             whisper_download_root=os.environ.get("UGO_WHISPER_DOWNLOAD_ROOT", ""),
             dream_at=os.environ.get("UGO_DREAM_AT", "02:30"),
             audio_retention_days=int(os.environ.get("UGO_AUDIO_RETENTION_DAYS", "90")),
+            # ADR-019 fase 3: i due campi esistevano dalla fase 1 e nessuna
+            # variabile d'ambiente li valorizzava, quindi il job era cablato su
+            # casa-prime e non c'era modo di dirgli altro se non dal codice.
+            **(
+                {"household_id": os.environ["UGO_HOUSEHOLD_ID"]}
+                if os.environ.get("UGO_HOUSEHOLD_ID")
+                else {}
+            ),
+            **(
+                {"gosino_id": os.environ["UGO_GOSINO_ID"]}
+                if os.environ.get("UGO_GOSINO_ID")
+                else {}
+            ),
+            # letto e mai usato: `backup_retention_days` restava al default
+            backup_retention_days=int(os.environ.get("UGO_BACKUP_RETENTION_DAYS", "30")),
             daily_budget_usd=float(os.environ.get("UGO_DAILY_BUDGET_USD", "0.50")),
         )

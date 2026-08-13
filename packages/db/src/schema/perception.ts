@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -11,6 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { beings } from "./beings.js";
+import { householdId } from "./households.js";
 import { gosini } from "./gosini.js";
 import { memories } from "./memories.js";
 import { correctionSignal, recognitionModality } from "./enums.js";
@@ -38,6 +40,12 @@ export const recognitionProfiles = pgTable(
     beingId: uuid("being_id")
       .notNull()
       .references(() => beings.id, { onDelete: "cascade" }),
+    /**
+     * ADR-048: the house on the row, so a policy does not have to join. The
+     * composite key below is what makes it impossible for it to drift from the
+     * being's own house — Postgres refuses the pair, we do not remember to.
+     */
+    householdId: householdId(),
     modality: recognitionModality("modality").notNull(),
     model: text("model").notNull(),
     dimensions: integer("dimensions").notNull(),
@@ -45,7 +53,14 @@ export const recognitionProfiles = pgTable(
     sampleCount: integer("sample_count").notNull().default(0),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [unique("recognition_profiles_being_modality_uq").on(table.beingId, table.modality)],
+  (table) => [
+    unique("recognition_profiles_being_modality_uq").on(table.beingId, table.modality),
+    foreignKey({
+      columns: [table.householdId, table.beingId],
+      foreignColumns: [beings.householdId, beings.id],
+      name: "recognition_profiles_household_being_fk",
+    }).onDelete("cascade"),
+  ],
 );
 
 /**
@@ -114,9 +129,21 @@ export const memoryBeings = pgTable(
     beingId: uuid("being_id")
       .notNull()
       .references(() => beings.id, { onDelete: "cascade" }),
+    /**
+     * ADR-048. Reachable before only through the memory and its exemplar — two
+     * levels of subquery in a policy. Written by the dream in the same
+     * statement as the link, and only between rows of one house (ADR-024).
+     */
+    householdId: householdId(),
   },
   (table) => [
     index("memory_beings_being_idx").on(table.beingId),
     unique("memory_beings_pk").on(table.memoryId, table.beingId),
+    // the being is already pinned to its house, so the pair cannot drift
+    foreignKey({
+      columns: [table.householdId, table.beingId],
+      foreignColumns: [beings.householdId, beings.id],
+      name: "memory_beings_household_being_fk",
+    }).onDelete("cascade"),
   ],
 );

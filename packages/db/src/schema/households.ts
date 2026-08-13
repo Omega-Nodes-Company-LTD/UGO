@@ -1,12 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-  numeric,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-  type PgColumnBuilderBase,
-} from "drizzle-orm/pg-core";
+import { numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { bytea } from "./types.js";
 
 /**
@@ -45,10 +38,25 @@ export const households = pgTable("households", {
 /** The bootstrap house, seeded alongside `ugo-prime` (ADR-015, ADR-019). */
 export const PRIME_HOUSEHOLD_ID = "00000000-0000-4000-8000-000000000002";
 
-/** The `household_id` column every tenant-scoped table carries. */
-export function householdId(): PgColumnBuilderBase {
+/**
+ * The `household_id` column every tenant-scoped table carries.
+ *
+ * The two-function shape exists to keep the column's *type*. Annotated
+ * `PgColumnBuilderBase` — as this was — every table built with the helper got a
+ * `household_id` of type `unknown`, so `eq(beings.householdId, x)` compiled
+ * against anything and a missing tenant filter was invisible to the compiler.
+ * That is a fair part of why ADR-019 phase 1 shipped with the columns in place
+ * and almost nothing filtering on them. The inner function keeps the precise
+ * builder type; the outer one satisfies `explicit-module-boundary-types`
+ * without throwing it away.
+ */
+function buildHouseholdId() {
   return uuid("household_id")
     .notNull()
     .default(PRIME_HOUSEHOLD_ID)
     .references(() => households.id);
+}
+
+export function householdId(): ReturnType<typeof buildHouseholdId> {
+  return buildHouseholdId();
 }

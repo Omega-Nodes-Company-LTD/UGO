@@ -85,6 +85,20 @@
       "when": 1786552634126,
       "tag": "0011_rooms-catalogue",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786578570706,
+      "tag": "0012_rls-tenant-columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786578571706,
+      "tag": "0013_row-level-security",
+      "breakpoints": true
     }
   ]
 }

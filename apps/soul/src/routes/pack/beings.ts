@@ -1,11 +1,4 @@
-import {
-  PRIME_GOSINO_ID,
-  beings,
-  bonds,
-  perceptionEvents,
-  recognitionProfiles,
-  type DbClient,
-} from "@ugo/db";
+import { beings, bonds, perceptionEvents, recognitionProfiles, type DbClient } from "@ugo/db";
 import { KNOWN_SPECIES, profileFor } from "@ugo/shared";
 import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -20,6 +13,7 @@ import {
   type PackRouteDeps,
 } from "./shared.js";
 import { putAudioObject } from "../audio.js";
+import { eldestExemplarOf, householdScope } from "../scope.js";
 
 /** Ten seconds of speech at Opus bitrates is well under this. */
 const MAX_ENROLLMENT_BYTES = 4 * 1024 * 1024;
@@ -28,12 +22,14 @@ const MAX_ENROLLMENT_BYTES = 4 * 1024 * 1024;
 export function registerBeingRoutes(
   app: FastifyInstance,
   deps: PackRouteDeps,
-  service: BeingsService,
+  serviceFor: (householdId: string) => BeingsService,
 ): void {
-  const gosinoId = deps.gosinoId ?? PRIME_GOSINO_ID;
   const db: DbClient = deps.db;
 
-  app.get("/v1/pack", async (_request, reply) => {
+  app.get("/v1/pack", async (request, reply) => {
+    const householdId = await householdScope(db, request, reply);
+    if (householdId === undefined) return reply;
+    const gosinoId = await eldestExemplarOf(db, householdId);
     const rows = await db
       .select({
         id: beings.id,
@@ -55,6 +51,7 @@ export function registerBeingRoutes(
         recognitionProfiles,
         and(eq(recognitionProfiles.beingId, beings.id), eq(recognitionProfiles.modality, "voice")),
       )
+      .where(eq(beings.householdId, householdId))
       .orderBy(desc(beings.createdAt));
     return reply.send({
       gosinoId,
@@ -78,10 +75,13 @@ export function registerBeingRoutes(
         .type("application/problem+json")
         .send(problem("Invalid being", 400, z.prettifyError(parsed.error)));
     }
+    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
     const { arrivalAt, notes, ...rest } = parsed.data;
     const [created] = await db
       .insert(beings)
       .values({
+        householdId,
         ...rest,
         ...(arrivalAt !== undefined && { arrivalAt }),
         ...(notes !== undefined && { notes }),
@@ -89,7 +89,11 @@ export function registerBeingRoutes(
       .returning({ id: beings.id });
     // the bond starts at zero: UGO is the newcomer, he has to earn it
     if (created !== undefined) {
-      await db.insert(bonds).values({ gosinoId, beingId: created.id });
+      await db.insert(bonds).values({
+        householdId,
+        gosinoId: await eldestExemplarOf(db, householdId),
+        beingId: created.id,
+      });
     }
     return reply.code(201).send({ id: created?.id });
   });
@@ -110,8 +114,10 @@ export function registerBeingRoutes(
           problem("Invalid being patch", 400, parsed.success ? undefined : z.prettifyError(parsed.error)),
         );
     }
+    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
     try {
-      return await reply.send(await service.update(id, parsed.data));
+      return await reply.send(await serviceFor(householdId).update(id, parsed.data));
     } catch (error) {
       if (error instanceof BeingNotFoundError) {
         return reply.code(404).type("application/problem+json").send(problem("Being not found", 404));
@@ -126,7 +132,9 @@ export function registerBeingRoutes(
     if (id === undefined) {
       return reply.code(400).type("application/problem+json").send(problem("Invalid being id", 400));
     }
-    return reply.send({ destroyed: await service.destroyVoice(id) });
+    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
+    return reply.send({ destroyed: await serviceFor(householdId).destroyVoice(id) });
   });
 
   app.post("/v1/beings/:id/enroll/voice", { preHandler: deps.guard }, async (request, reply) => {
@@ -138,10 +146,12 @@ export function registerBeingRoutes(
         .type("application/problem+json")
         .send(problem("Invalid enrollment request", 400));
     }
+    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
     const [being] = await db
       .select({ isMinor: beings.isMinor, noAudio: beings.noAudio })
       .from(beings)
-      .where(eq(beings.id, id));
+      .where(and(eq(beings.id, id), eq(beings.householdId, householdId)));
     if (being === undefined) {
       return reply.code(404).type("application/problem+json").send(problem("Being not found", 404));
     }
@@ -160,7 +170,7 @@ export function registerBeingRoutes(
         );
     }
     await db.insert(perceptionEvents).values({
-      gosinoId,
+      gosinoId: await eldestExemplarOf(db, householdId),
       modality: "audio_speech",
       beingId: id,
       observed: { kind: "enrollment_requested", object_key: parsed.data.objectKey, channel: "home" },
@@ -191,10 +201,12 @@ export function registerBeingRoutes(
             .type("application/problem+json")
             .send(problem("Invalid enrollment audio", 400));
         }
+        const householdId = await householdScope(db, request, reply, { requireAdmin: true });
+        if (householdId === undefined) return reply;
         const [being] = await db
           .select({ isMinor: beings.isMinor, noAudio: beings.noAudio })
           .from(beings)
-          .where(eq(beings.id, id));
+          .where(and(eq(beings.id, id), eq(beings.householdId, householdId)));
         if (being === undefined) {
           return reply
             .code(404)
@@ -219,7 +231,7 @@ export function registerBeingRoutes(
         const objectKey = `inbox/enroll_${id.slice(0, 8)}_${stamp}.webm`;
         await putAudioObject(storage, objectKey, body, "audio/webm");
         await db.insert(perceptionEvents).values({
-          gosinoId,
+          gosinoId: await eldestExemplarOf(db, householdId),
           modality: "audio_speech",
           beingId: id,
           observed: { kind: "enrollment_requested", object_key: objectKey, channel: "home" },

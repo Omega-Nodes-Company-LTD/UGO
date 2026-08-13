@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import replace
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -39,6 +40,18 @@ STEPS = (
     "backup",
 )
 
+#: ADR-019 fase 3: di chi e' ciascun passo. Non tutti hanno lo stesso perimetro,
+#: e trattarli allo stesso modo e' il modo di sbagliare in entrambe le
+#: direzioni — ripetere un backup per ogni creatura, o far sognare una sola.
+#:
+#:   per esemplare  memoria e psiche sono della creatura (ADR-019)
+#:   per casa       l'audio e' del branco, il backup e' della famiglia
+#:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
+#:                  particolare, ed e' manutenzione del database
+PER_EXEMPLAR = ("reflect", "contradictions", "entities", "hygiene")
+PER_HOUSEHOLD = ("ingest", "enroll", "backup")
+GLOBAL = ("compaction",)
+
 #: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
 #: is nothing new to transcribe if nobody has spoken), no backup (a backup is a
 #: nightly promise, not an idle-time chore), no reflection (the day is not over
@@ -59,74 +72,128 @@ def today(cfg: JobsConfig) -> str:
     return datetime.now(ZoneInfo(cfg.timezone)).date().isoformat()
 
 
+def exemplars_of(conn: psycopg.Connection, household_id: str) -> list[str]:
+    """Le creature vive di una casa, dalla piu' anziana.
+
+    L'equivalente TypeScript e' `GosinoRegistry.reload`; qui non esisteva
+    affatto, perche' il sogno non ha mai avuto bisogno di sapere che gli
+    esemplari potessero essere piu' di uno.
+    """
+    rows = conn.execute(
+        "select id from gosini where household_id = %s and retired_at is null order by born_at",
+        (household_id,),
+    ).fetchall()
+    return [str(row[0]) for row in rows]
+
+
 def run_dream(cfg: JobsConfig, dream_date: str, mode: str = FULL) -> dict[str, object]:
+    """Un sogno per casa, e dentro un sogno per esemplare.
+
+    Il passo per esemplare gira una volta per creatura, con la propria `cfg`;
+    quello per casa e quello globale una volta sola. Il marcatore porta il
+    gosino (`markers.py`), altrimenti il primo che finisce farebbe risultare
+    fatto il passo per tutti — e il secondo non sognerebbe mai.
+    """
     report: dict[str, object] = {"dream_date": dream_date, "mode": mode}
     with psycopg.connect(cfg.database_url) as conn:
+        exemplars = exemplars_of(conn, cfg.household_id)
+        if not exemplars:
+            report["error"] = "nessun esemplare in questa casa"
+            return report
+        report["exemplars"] = exemplars
         for step in steps_for(mode):
-            if step_done(conn, dream_date, step, mode):
-                # the backup is the one step whose result lives outside this
-                # database: trust the marker only if the object is still there
-                if step != "backup" or backup_exists(cfg, dream_date):
-                    report[step] = "skipped (already done)"
-                    continue
-                report["backup_missing"] = "marker said done, the bucket disagreed"
-
-            if step == "ingest":
-                ingest = run_ingest(conn, cfg, dream_date)
-                report[step] = {
-                    "files": ingest.files,
-                    "segments": ingest.segments,
-                    "pruned": ingest.pruned,
-                }
-            elif step == "enroll":
-                enrolled = run_enroll(conn, cfg)
-                report[step] = {
-                    "enrolled": enrolled.enrolled,
-                    "refused": enrolled.refused,
-                    "missing": enrolled.missing,
-                }
-            elif step == "reflect":
-                result = run_reflect(conn, cfg, dream_date)
-                report[step] = {
-                    "memories": result.memories_written,
-                    "desires": result.desires_written,
-                    "diary": result.diary_written,
-                }
-            elif step == "contradictions":
-                contradictions = run_contradictions(conn, cfg, dream_date)
-                report[step] = {
-                    "pairs": contradictions.pairs_examined,
-                    "superseded": contradictions.superseded,
-                }
-            elif step == "entities":
-                entities = run_entities(conn, cfg, dream_date)
-                report[step] = {
-                    "memories": entities.memories_linked,
-                    "beings": entities.beings_linked,
-                    "relations": entities.relations_inferred,
-                }
-            elif step == "hygiene":
-                hygiene = run_hygiene(conn, dream_date)
-                report[step] = {
-                    "decayed": hygiene.decayed,
-                    "merged": hygiene.merged,
-                    "baseline_adjusted": hygiene.baseline_adjusted,
-                }
-            elif step == "compaction":
-                compaction = run_compaction(conn)
-                report[step] = {
-                    "days": compaction.days_compacted,
-                    "events_removed": compaction.events_removed,
-                }
+            if step in PER_EXEMPLAR:
+                per: dict[str, object] = {}
+                for gosino_id in exemplars:
+                    per[gosino_id] = _run_step(
+                        conn, replace(cfg, gosino_id=gosino_id), dream_date, step, mode, report
+                    )
+                report[step] = per
             else:
-                backup = run_backup(cfg, dream_date)
-                report[step] = {
-                    "object": backup.object_key,
-                    "bytes": backup.encrypted_bytes,
-                    "pruned": backup.pruned,
-                }
-            mark_step_done(conn, dream_date, step, mode)
+                # per casa o globale: l'anziano porta il marcatore, perche'
+                # `events` e' indicizzata sull'esemplare e il passo va marcato
+                # una volta sola
+                report[step] = _run_step(
+                    conn, replace(cfg, gosino_id=exemplars[0]), dream_date, step, mode, report
+                )
     return report
+
+
+def _run_step(
+    conn: psycopg.Connection,
+    cfg: JobsConfig,
+    dream_date: str,
+    step: str,
+    mode: str,
+    report: dict[str, object],
+) -> object:
+    """Un passo, per un esemplare. `report` e' quello esterno: `backup_missing`
+    e' una nota sulla notte, non sul passo, e deve restare visibile."""
+    if step_done(conn, dream_date, step, mode, gosino_id=cfg.gosino_id):
+        # the backup is the one step whose result lives outside this
+        # database: trust the marker only if the object is still there
+        if step != "backup" or backup_exists(cfg, dream_date):
+            return "skipped (already done)"
+        report["backup_missing"] = "marker said done, the bucket disagreed"
+
+    step_report: dict[str, object] = {}
+
+    if step == "ingest":
+        ingest = run_ingest(conn, cfg, dream_date)
+        step_report[step] = {
+            "files": ingest.files,
+            "segments": ingest.segments,
+            "pruned": ingest.pruned,
+        }
+    elif step == "enroll":
+        enrolled = run_enroll(conn, cfg)
+        step_report[step] = {
+            "enrolled": enrolled.enrolled,
+            "refused": enrolled.refused,
+            "missing": enrolled.missing,
+        }
+    elif step == "reflect":
+        result = run_reflect(conn, cfg, dream_date)
+        step_report[step] = {
+            "memories": result.memories_written,
+            "desires": result.desires_written,
+            "diary": result.diary_written,
+        }
+    elif step == "contradictions":
+        contradictions = run_contradictions(conn, cfg, dream_date)
+        step_report[step] = {
+            "pairs": contradictions.pairs_examined,
+            "superseded": contradictions.superseded,
+        }
+    elif step == "entities":
+        entities = run_entities(conn, cfg, dream_date)
+        step_report[step] = {
+            "memories": entities.memories_linked,
+            "beings": entities.beings_linked,
+            "relations": entities.relations_inferred,
+        }
+    elif step == "hygiene":
+        hygiene = run_hygiene(conn, cfg, dream_date)
+        step_report[step] = {
+            "decayed": hygiene.decayed,
+            "merged": hygiene.merged,
+            "baseline_adjusted": hygiene.baseline_adjusted,
+        }
+    elif step == "compaction":
+        compaction = run_compaction(conn)
+        step_report[step] = {
+            "days": compaction.days_compacted,
+            "events_removed": compaction.events_removed,
+        }
+    else:
+        backup = run_backup(cfg, dream_date)
+        step_report[step] = {
+            "object": backup.object_key,
+            "bytes": backup.encrypted_bytes,
+            "pruned": backup.pruned,
+        }
+    mark_step_done(conn, dream_date, step, mode, gosino_id=cfg.gosino_id)
+    return step_report[step]
 
 
 def main() -> int:
