@@ -147,10 +147,25 @@ export async function registerFaceWs(
       deliver = (text: string): void => {
         const targets = forFrame(text, senders);
         for (const { member, send } of targets) {
-          void member.gateway.handleRaw(text, send).catch(() => {
-            // never let a single bad frame take the socket down; IDs-only logging
-            app.log.warn({ gosino: member.id }, "face frame handling failed");
-          });
+          void member.gateway
+            .handleRaw(text, send)
+            .then((accepted) => {
+              // `false` means the contract refused the frame, and until now
+              // nobody was listening for it: a `heard_text` whose voice clip
+              // was one byte over the cap was dropped here, in silence, and
+              // the only visible effect was UGO never answering. A refusal is
+              // as much a fault as a throw, and now says so.
+              if (!accepted) {
+                app.log.warn(
+                  { gosino: member.id, bytes: text.length },
+                  "face frame refused by the contract",
+                );
+              }
+            })
+            .catch(() => {
+              // never let a single bad frame take the socket down; IDs-only logging
+              app.log.warn({ gosino: member.id }, "face frame handling failed");
+            });
         }
       };
       for (const held of waiting.splice(0)) deliver(held);
