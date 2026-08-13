@@ -107,7 +107,10 @@ def test_crypto_interop_with_typescript() -> None:
 
 def test_dream_writes_diary_desires_memories(dream_env: JobsConfig) -> None:
     report = run_dream(dream_env, DREAM_DATE)
-    assert report["reflect"] == {"memories": 2, "desires": 1, "diary": True}
+    # ADR-019 fase 3: un passo per esemplare porta un esito per esemplare. Con
+    # una creatura sola la mappa ha una voce, e dirlo cosi' invece di
+    # appiattirla e' il punto: la forma del report dice cosa fa il sogno.
+    assert list(report["reflect"].values()) == [{"memories": 2, "desires": 1, "diary": True}]
 
     with psycopg.connect(dream_env.database_url) as conn:
         diary = conn.execute(
@@ -165,10 +168,10 @@ def test_second_run_duplicates_nothing(dream_env: JobsConfig) -> None:
             "memories": conn.execute("select count(*) from memories").fetchone()[0],
         }
     report = run_dream(dream_env, DREAM_DATE)
-    assert all(
-        report[step] == "skipped (already done)"
-        for step in ("ingest", "reflect", "hygiene", "compaction", "backup")
-    )
+    for step in ("ingest", "compaction", "backup"):
+        assert report[step] == "skipped (already done)", step
+    for step in ("reflect", "hygiene"):
+        assert list(report[step].values()) == ["skipped (already done)"], step
     with psycopg.connect(dream_env.database_url) as conn:
         after = {
             "diary": conn.execute("select count(*) from diary_entries").fetchone()[0],

@@ -12,6 +12,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 import psycopg
@@ -20,6 +21,9 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.minio import MinioContainer
 from testcontainers.postgres import PostgresContainer
+
+if TYPE_CHECKING:
+    from ugo_jobs.config import JobsConfig
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DRIZZLE_DIR = REPO_ROOT / "packages" / "db" / "drizzle"
@@ -44,6 +48,33 @@ def apply_drizzle_migrations(conn: psycopg.Connection) -> None:
         if script.strip():
             conn.execute(script)  # type: ignore[arg-type]
     conn.commit()
+
+
+def db_only_config(database_url: str, **overrides: object) -> "JobsConfig":
+    """A config for the dream steps that touch nothing but the database.
+
+    ADR-019 fase 3: `run_hygiene` now takes the whole config instead of a
+    hardcoded `PRIME_GOSINO_ID`, and the tests of those steps have no business
+    standing up MinIO and Ollama to say which exemplar they mean.
+    """
+    from ugo_jobs.config import JobsConfig
+
+    base = dict(
+        database_url=database_url,
+        ollama_url="http://127.0.0.1:1",
+        ollama_embed_model="nomic-embed-text",
+        ollama_batch_url="http://127.0.0.1:1",
+        ollama_batch_model="",
+        data_key_b64=TEST_DATA_KEY,
+        s3_endpoint="http://127.0.0.1:1",
+        s3_access_key="x",
+        s3_secret_key="x",
+        s3_bucket_backup="ugo-backup",
+        s3_bucket_audio="ugo-audio",
+        timezone="Europe/Rome",
+    )
+    base.update(overrides)
+    return JobsConfig(**base)  # type: ignore[arg-type]
 
 
 def make_house(conn: psycopg.Connection, slug: str) -> str:

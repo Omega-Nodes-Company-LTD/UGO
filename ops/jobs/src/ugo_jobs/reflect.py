@@ -69,17 +69,22 @@ def _collect_day(
     events_rows = conn.execute(
         """
         select type, payload from events
-        where ts between %s and %s and type <> 'dream_step_completed'
+        where gosino_id = %s and ts between %s and %s
+          and type <> 'dream_step_completed'
         order by ts asc limit 500
         """,
-        (start, end),
+        (cfg.gosino_id, start, end),
     ).fetchall()
     events_text = "\n".join(f"- {t}: {json.dumps(p, ensure_ascii=False)}" for t, p in events_rows)
 
     key = parse_data_key(cfg.data_key_b64)
     message_rows = conn.execute(
-        "select role, text from messages where ts between %s and %s order by ts asc limit 200",
-        (start, end),
+        """
+        select role, text from messages
+        where gosino_id = %s and ts between %s and %s
+        order by ts asc limit 200
+        """,
+        (cfg.gosino_id, start, end),
     ).fetchall()
     lines: list[str] = []
     for role, ciphertext in message_rows:
@@ -93,10 +98,10 @@ def _collect_day(
         select coalesce(ts.speaker, 'voce'), ts.text
         from transcript_segments ts
         join meetings m on m.id = ts.meeting_id
-        where m.started_at between %s and %s
+        where m.gosino_id = %s and m.started_at between %s and %s
         order by m.started_at asc, ts.t0 asc limit 300
         """,
-        (start, end),
+        (cfg.gosino_id, start, end),
     ).fetchall()
     transcript_lines: list[str] = []
     for speaker, ciphertext in segment_rows:
@@ -111,21 +116,25 @@ def _collect_day(
     )
 
 
-def _mood_summary(conn: psycopg.Connection, dream_date: str) -> dict[str, object]:
+def _mood_summary(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> dict[str, object]:
     start, end = _day_window(conn, dream_date)
     row = conn.execute(
         """
         select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) from (
           select k, round(avg((vars->>k)::numeric), 3) as v
           from psyche_snapshots, jsonb_object_keys(vars) as k
-          where ts between %s and %s group by k
+          where gosino_id = %s and ts between %s and %s group by k
         ) avgs
         """,
-        (start, end),
+        (cfg.gosino_id, start, end),
     ).fetchone()
     labels = conn.execute(
-        "select label from psyche_snapshots where ts between %s and %s order by ts desc limit 1",
-        (start, end),
+        """
+        select label from psyche_snapshots
+        where gosino_id = %s and ts between %s and %s
+        order by ts desc limit 1
+        """,
+        (cfg.gosino_id, start, end),
     ).fetchone()
     summary: dict[str, object] = dict(row[0]) if row is not None else {}
     if labels is not None:
@@ -149,10 +158,11 @@ def run_reflect(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> R
     for memory, embedding in zip(memories, embeddings):
         conn.execute(
             """
-            insert into memories (kind, text, embedding, importance, source_refs)
-            values (%s, %s, %s, %s, %s)
+            insert into memories (gosino_id, kind, text, embedding, importance, source_refs)
+            values (%s, %s, %s, %s, %s, %s)
             """,
             (
+                cfg.gosino_id,
                 memory.kind,
                 memory.text,
                 json.dumps(embedding),
@@ -163,15 +173,24 @@ def run_reflect(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> R
 
     conn.execute(
         """
-        insert into diary_entries (date, text, mood_summary) values (%s, %s, %s)
-        on conflict (date) do update set text = excluded.text, mood_summary = excluded.mood_summary
+        insert into diary_entries (gosino_id, date, text, mood_summary) values (%s, %s, %s, %s)
+        on conflict (gosino_id, date)
+          do update set text = excluded.text, mood_summary = excluded.mood_summary
         """,
-        (dream_date, output.diary, json.dumps(_mood_summary(conn, dream_date))),
+        (
+            cfg.gosino_id,
+            dream_date,
+            output.diary,
+            json.dumps(_mood_summary(conn, cfg, dream_date)),
+        ),
     )
 
     desires = output.desires[:MAX_DESIRES]
     for desire in desires:
-        conn.execute("insert into desires (text, status) values (%s, 'pending')", (desire,))
+        conn.execute(
+            "insert into desires (gosino_id, text, status) values (%s, %s, 'pending')",
+            (cfg.gosino_id, desire),
+        )
 
     conn.commit()
     return ReflectResult(

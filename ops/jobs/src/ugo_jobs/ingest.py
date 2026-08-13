@@ -129,10 +129,10 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, enc
     archive_key = f"{ARCHIVE_PREFIX}{name}"
     meeting_id = conn.execute(
         """
-        insert into meetings (platform, title, started_at, status, audio_uri)
-        values ('ear', %s, %s, 'archived', %s) returning id
+        insert into meetings (gosino_id, platform, title, started_at, status, audio_uri)
+        values (%s, 'ear', %s, %s, 'archived', %s) returning id
         """,
-        (name, _started_at(key), f"s3://{cfg.s3_bucket_audio}/{archive_key}"),
+        (cfg.gosino_id, name, _started_at(key), f"s3://{cfg.s3_bucket_audio}/{archive_key}"),
     ).fetchone()[0]
 
     key_bytes = parse_data_key(cfg.data_key_b64)
