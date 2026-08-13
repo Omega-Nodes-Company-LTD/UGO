@@ -7,9 +7,8 @@ from __future__ import annotations
 
 import psycopg
 
-PRIME_GOSINO_ID = "00000000-0000-4000-8000-000000000001"
-
 from ugo_jobs.compaction import SUMMARY_TYPE, run_compaction
+from conftest import PRIME_GOSINO_ID
 
 
 # anchored to midnight so the 24 hourly readings stay inside ONE calendar
@@ -22,25 +21,27 @@ def _seed(conn: psycopg.Connection) -> None:
     # 120 days ago: high-volume sensor traffic that has served its purpose
     for hour in range(24):
         conn.execute(
-            "insert into events (ts, source, type, payload) values "
-            f"({OLD_DAY} + make_interval(hours => %s), 'nano', 'env', %s)",
+            "insert into events (gosino_id, ts, source, type, payload) values "
+            f"('{PRIME_GOSINO_ID}', {OLD_DAY} + make_interval(hours => %s), 'nano', 'env', %s)",
             (hour, '{"t": 21.5}'),
         )
     for _ in range(5):
         conn.execute(
-            "insert into events (ts, source, type, payload) values "
-            f"({OLD_DAY} + interval '12 hours', 'face', 'noise', %s)",
+            "insert into events (gosino_id, ts, source, type, payload) values "
+            f"('{PRIME_GOSINO_ID}', {OLD_DAY} + interval '12 hours', 'face', 'noise', %s)",
             ('{"db": 88}',),
         )
     # same age, but these ARE the biography: they must survive untouched
     conn.execute(
-        "insert into events (ts, source, type, payload) values "
-        f"({OLD_DAY} + interval '12 hours', 'face', 'face_seen', '{{}}'),"
-        f"({OLD_DAY} + interval '12 hours', 'system', 'person_forgotten', '{{\"personId\": \"x\"}}')"
+        "insert into events (gosino_id, ts, source, type, payload) values "
+        f"('{PRIME_GOSINO_ID}', {OLD_DAY} + interval '12 hours', 'face', 'face_seen', '{{}}'),"
+        f"('{PRIME_GOSINO_ID}', {OLD_DAY} + interval '12 hours', 'system',"
+        f" 'person_forgotten', '{{\"personId\": \"x\"}}')"
     )
     # recent ambient traffic: too young to compact
     conn.execute(
-        "insert into events (ts, source, type, payload) values (now(), 'nano', 'env', '{\"t\": 22}')"
+        "insert into events (gosino_id, ts, source, type, payload) values "
+        f"('{PRIME_GOSINO_ID}', now(), 'nano', 'env', '{{\"t\": 22}}')"
     )
     conn.commit()
 

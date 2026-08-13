@@ -16,6 +16,7 @@ from test_dream import DREAM_DATE, make_config
 
 PROMPT_MARKER = "legami"
 HOUSEHOLD = "00000000-0000-4000-8000-000000000002"
+GOSINO = "00000000-0000-4000-8000-000000000001"
 
 
 def _clean(conn: psycopg.Connection) -> None:
@@ -51,8 +52,9 @@ def _being(conn: psycopg.Connection, name: str, aliases: list[str] | None = None
 
 def _memory(conn: psycopg.Connection, text: str, dream_date: str | None = DREAM_DATE) -> str:
     row = conn.execute(
-        "insert into memories (kind, text, source_refs) values ('fact', %s, %s) returning id",
-        (text, json.dumps({"dream_date": dream_date} if dream_date else {})),
+        "insert into memories (gosino_id, kind, text, source_refs)"
+        " values (%s, 'fact', %s, %s) returning id",
+        (GOSINO, text, json.dumps({"dream_date": dream_date} if dream_date else {})),
     ).fetchone()
     conn.commit()
     return str(row[0])

@@ -11,7 +11,7 @@ from testcontainers.postgres import PostgresContainer
 
 from ugo_jobs.backup import run_backup
 from ugo_jobs.restore import list_backups, run_restore
-from conftest import apply_drizzle_migrations
+from conftest import PRIME_GOSINO_ID, apply_drizzle_migrations
 from test_dream import make_config
 
 BACKUP_DATE = "2026-08-09"
@@ -23,12 +23,14 @@ def seeded_backup(pg_url: str, minio: dict[str, str], ollama_url: str, batch_stu
     cfg = make_config(pg_url, minio, ollama_url, batch_stub.base_url)
     with psycopg.connect(pg_url) as conn:
         conn.execute(
-            "insert into memories (kind, text, importance) values ('fact', %s, 0.77)",
-            (SECRET_FACT,),
+            "insert into memories (gosino_id, kind, text, importance)"
+            " values (%s, 'fact', %s, 0.77)",
+            (PRIME_GOSINO_ID, SECRET_FACT),
         )
         conn.execute(
-            "insert into diary_entries (date, text) values (%s, 'giornata di prova per il restore')",
-            (BACKUP_DATE,),
+            "insert into diary_entries (gosino_id, date, text)"
+            " values (%s, %s, 'giornata di prova per il restore')",
+            (PRIME_GOSINO_ID, BACKUP_DATE),
         )
         conn.commit()
     result = run_backup(cfg, BACKUP_DATE)

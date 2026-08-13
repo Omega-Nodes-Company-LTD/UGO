@@ -87,11 +87,11 @@ def conn(pg_url: str):  # noqa: ANN201
 
 
 def _being(conn: psycopg.Connection, name: str, **flags: object) -> str:
-    columns = ", ".join(["display_name", *flags.keys()])
-    placeholders = ", ".join(["%s"] * (1 + len(flags)))
+    columns = ", ".join(["household_id", "display_name", *flags.keys()])
+    placeholders = ", ".join(["%s"] * (2 + len(flags)))
     row = conn.execute(
         f"insert into beings ({columns}) values ({placeholders}) returning id",
-        (name, *flags.values()),
+        (PRIME_HOUSE, name, *flags.values()),
     ).fetchone()
     assert row is not None
     return str(row[0])

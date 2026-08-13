@@ -45,6 +45,23 @@ Dopo ogni modifica: `tsc --noEmit`, `eslint . --max-warnings=0`, build. Se rosso
    `is_minor`, `no_vision` e `no_audio` si applicano **a monte** della pipeline, non a valle.
 10. **File >200 righe** → estrai in servizi di dominio. Nomenclatura codice in inglese; testi rivolti a UGO/utente in italiano.
 11. **Docs vive**: a fine task aggiorna `docs/STATE.md` (cosa è fatto, cosa manca, decisioni prese); nuove decisioni architetturali → `docs/ADR/NNN-titolo.md`; feature visibili all'utente → `/documentation` secondo `DOCUMENTATION_STYLE.md`.
+12. **Il giro completo, sempre: BO + `/admin` + FE.** Un cambiamento non è finito quando il
+    backend compila. Le tre superfici vanno **percorse tutte e tre**, e per ognuna va detto
+    esplicitamente cosa si è fatto **o perché non serviva** — «non l'ho guardato» non è una
+    risposta ammessa.
+    - **BO** — `apps/soul/src` (rotte, servizi), `packages/*`, `packages/db/drizzle`, `ops/jobs`
+      (**inclusi `ops/jobs/tests`**: le fixture sono codice che scrive sul database, e un
+      vincolo nuovo le rompe esattamente come rompe la produzione);
+    - **`/admin`** — `apps/soul/src/routes/admin/` (`page.ts`, `script/*.ts`): se un dato ha
+      cambiato forma, scope o nome, il pannello lo mostra ancora com'era. Un pannello che
+      mostra il vecchio mondo è più dannoso di un pannello che non mostra niente;
+    - **FE** — `apps/face/src` (il corpo: muso, sensori, voce, WS). Attenzione ai **contratti
+      condivisi**: `packages/shared/src/faceContracts.ts` sta in mezzo, e i due lati possono
+      restare verdi separatamente mentre la giunzione è rotta — è precisamente come UGO ha
+      smesso di rispondere per mesi senza un solo test rosso (ADR-045, STATE §6-duovicies).
+    Sul FE ricorda anche che **soul serve il muso già costruito**: un cambiamento in
+    `apps/face` non arriva sul dispositivo finché il bundle non viene ricostruito, quindi
+    dichiaralo nelle note di rilascio.
 
 ## FLUSSO DI LAVORO PER OGNI TASK
 1. Leggi `docs/PROGETTO.md` (sezioni pertinenti) + `docs/STATE.md` + skill di area.
