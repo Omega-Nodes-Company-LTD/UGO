@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, memories, runMigrations, type DbClient } from "@ugo/db";
+import { createDbClient, memories, PRIME_GOSINO_ID, runMigrations, type DbClient } from "@ugo/db";
 import { EMBED_MODEL, startOllama, type OllamaHandle } from "@ugo/factories";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
@@ -109,6 +109,7 @@ beforeAll(async () => {
   const embeddings = await embedder.embed(corpus.memories.map((one) => one.text));
 
   const rows = corpus.memories.map((one, index) => ({
+    gosinoId: PRIME_GOSINO_ID,
     kind: one.kind,
     text: one.text,
     embedding: embeddings[index],

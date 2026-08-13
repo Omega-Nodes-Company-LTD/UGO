@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import psycopg
 
+PRIME_GOSINO_ID = "00000000-0000-4000-8000-000000000001"
+
 from ugo_jobs.compaction import SUMMARY_TYPE, run_compaction
 
 
@@ -46,7 +48,7 @@ def _seed(conn: psycopg.Connection) -> None:
 def test_old_ambient_days_collapse_into_one_summary(pg_url: str) -> None:
     with psycopg.connect(pg_url) as conn:
         _seed(conn)
-        result = run_compaction(conn)
+        result = run_compaction(conn, PRIME_GOSINO_ID)
         assert result.events_removed == 29  # 24 env + 5 noise
         assert result.days_compacted == 1
 
@@ -74,6 +76,6 @@ def test_old_ambient_days_collapse_into_one_summary(pg_url: str) -> None:
 
 def test_running_again_finds_nothing_left_to_do(pg_url: str) -> None:
     with psycopg.connect(pg_url) as conn:
-        result = run_compaction(conn)
+        result = run_compaction(conn, PRIME_GOSINO_ID)
         assert result.days_compacted == 0
         assert result.events_removed == 0

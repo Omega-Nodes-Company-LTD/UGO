@@ -1,13 +1,14 @@
 import { randomBytes } from "node:crypto";
 import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
+  beings,
   budgetLedger,
   createDbClient,
-  events,
-  beings,
-  runMigrations,
-  PRIME_HOUSEHOLD_ID,
   type DbClient,
+  events,
+  PRIME_GOSINO_ID,
+  PRIME_HOUSEHOLD_ID,
+  runMigrations,
 } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
 import type { FastifyInstance } from "fastify";
@@ -249,7 +250,7 @@ describe("erasure over HTTP", () => {
   it("requires explicit confirmation and reports a real result", async () => {
     const [person] = await db
       .insert(beings)
-      .values({ displayName: "Test Persona", aliases: [] })
+      .values({ householdId: PRIME_HOUSEHOLD_ID, displayName: "Test Persona", aliases: [] })
       .returning({ id: beings.id });
     if (person === undefined) throw new Error("insert failed");
 
@@ -288,6 +289,8 @@ describe("GET /v1/stats", () => {
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date());
     await db.insert(budgetLedger).values([
       {
+        householdId: PRIME_HOUSEHOLD_ID,
+        gosinoId: PRIME_GOSINO_ID,
         date: today,
         provider: "anthropic",
         model: "claude-haiku-4-5",
@@ -298,6 +301,8 @@ describe("GET /v1/stats", () => {
         costUsd: "0.100000",
       },
       {
+        householdId: PRIME_HOUSEHOLD_ID,
+        gosinoId: PRIME_GOSINO_ID,
         date: today,
         provider: "anthropic",
         model: "claude-haiku-4-5",
@@ -335,6 +340,8 @@ describe("GET /v1/stats", () => {
   it("flags the degraded state once the budget is gone", async () => {
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date());
     await db.insert(budgetLedger).values({
+      householdId: PRIME_HOUSEHOLD_ID,
+      gosinoId: PRIME_GOSINO_ID,
       date: today,
       provider: "anthropic",
       model: "claude-haiku-4-5",

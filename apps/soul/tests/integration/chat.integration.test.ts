@@ -3,10 +3,11 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import {
   budgetLedger,
   createDbClient,
+  type DbClient,
   memories,
   messages,
+  PRIME_GOSINO_ID,
   runMigrations,
-  type DbClient,
 } from "@ugo/db";
 import { EMBED_MODEL, startLlmStub, startOllama, type LlmStub, type OllamaHandle } from "@ugo/factories";
 import { DEGRADED_REPLY, LlmClient, OllamaEmbeddingsClient, writeMemory } from "@ugo/memory";
@@ -32,7 +33,7 @@ let embedder: OllamaEmbeddingsClient;
 
 /** A fresh "session": new services over the same database, like a restart. */
 async function buildSession(budgetUsd = 0.5): Promise<FastifyInstance> {
-  const psyche = await PsycheService.restore(db);
+  const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const llm = new LlmClient({
     db,
     apiKey: "test",
@@ -41,7 +42,7 @@ async function buildSession(budgetUsd = 0.5): Promise<FastifyInstance> {
     baseUrl: stub.baseUrl,
     timezone: "Europe/Rome",
   });
-  const chat = new ChatService({ db, embedder, llm, psyche, dataKey });
+  const chat = new ChatService({ gosinoId: PRIME_GOSINO_ID, db, embedder, llm, psyche, dataKey });
   return buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
@@ -70,6 +71,7 @@ afterAll(async () => {
 describe("POST /v1/chat — the minimal soul (Fase 1 DoD)", () => {
   it("remembers a fact across sessions: memory reaches the prompt, reply returns", async () => {
     await writeMemory(db, embedder, {
+      gosinoId: PRIME_GOSINO_ID,
       kind: "fact",
       text: "Il fattorino DHL si chiama Ivan e passa sempre il martedì.",
       importance: 0.9,
@@ -266,6 +268,7 @@ describe("a fact that stopped being true", () => {
     const app = await buildSession();
     const retired = await firstMemoryId(app);
     const replacement = await writeMemory(db, embedder, {
+      gosinoId: PRIME_GOSINO_ID,
       kind: "fact",
       text: "Da marzo i pacchi li porta un corriere diverso.",
       importance: 0.7,

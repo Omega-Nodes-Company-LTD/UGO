@@ -145,7 +145,12 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
     await writeMemory(
       db,
       new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL),
-      { kind: "fact", text: "La scorsa riunione si era deciso di stampare i gusci in PETG.", importance: 0.9 },
+      {
+        gosinoId: PRIME_GOSINO_ID,
+        kind: "fact",
+        text: "La scorsa riunione si era deciso di stampare i gusci in PETG.",
+        importance: 0.9,
+      },
     );
 
     llmStub.nextResponse = { text: "Nella scorsa call avevate scelto il PETG. Grunf." };

@@ -2,12 +2,13 @@ import { randomBytes } from "node:crypto";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   createDbClient,
+  type DbClient,
   desires,
   events,
   memories,
+  PRIME_GOSINO_ID,
   psycheSnapshots,
   runMigrations,
-  type DbClient,
 } from "@ugo/db";
 import type { LocalTextClient } from "@ugo/memory";
 import { encryptText, type ServerToFaceMessage } from "@ugo/shared";
@@ -52,6 +53,7 @@ afterEach(async () => {
 /** Puts UGO in a given mood by writing the snapshot the psyche restores from. */
 async function seedPsyche(overrides: Record<string, number>): Promise<void> {
   await db.insert(psycheSnapshots).values({
+    gosinoId: PRIME_GOSINO_ID,
     vars: {
       umore: 0.55,
       energia: 0.7,
@@ -83,18 +85,21 @@ async function buildVolition(options: {
   localAnswer?: string | undefined;
   localUp?: boolean;
 }): Promise<{ volition: VolitionService; gateway: FaceGateway; heard: ServerToFaceMessage[] }> {
-  const psyche = await PsycheService.restore(db);
+  const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const gateway = new FaceGateway({
+    gosinoId: PRIME_GOSINO_ID,
     db,
     psyche,
     chat: { handle: () => Promise.resolve({ reply: "" }) } as never,
   });
   const heard = connectBody(gateway);
   const volition = new VolitionService({
+    gosinoId: PRIME_GOSINO_ID,
     db,
     psyche,
     gateway,
     curiosity: new Curiosity({
+      gosinoId: PRIME_GOSINO_ID,
       db,
       local: localSaying(options.localAnswer),
       dataKey,
@@ -109,7 +114,7 @@ async function buildVolition(options: {
 
 describe("initiative", () => {
   it("says a desire the dream wrote, and never says it twice", async () => {
-    await db.insert(desires).values({ text: "Com'è andata la consegna DHL?", status: "pending" });
+    await db.insert(desires).values({ gosinoId: PRIME_GOSINO_ID, text: "Com'è andata la consegna DHL?", status: "pending" });
     const { volition, heard } = await buildVolition({});
 
     const first = await volition.tick();
@@ -124,7 +129,7 @@ describe("initiative", () => {
   });
 
   it("writes down what it did and why, so an initiative can be explained after", async () => {
-    await db.insert(desires).values({ text: "Chi era la persona di ieri?", status: "pending" });
+    await db.insert(desires).values({ gosinoId: PRIME_GOSINO_ID, text: "Chi era la persona di ieri?", status: "pending" });
     const { volition } = await buildVolition({});
     await volition.tick();
 
@@ -140,14 +145,14 @@ describe("initiative", () => {
   });
 
   it("keeps quiet at night: nothing that would wake the house", async () => {
-    await db.insert(desires).values({ text: "Ti va di uscire?", status: "pending" });
+    await db.insert(desires).values({ gosinoId: PRIME_GOSINO_ID, text: "Ti va di uscire?", status: "pending" });
     const { volition, heard } = await buildVolition({ hour: 3 });
     await volition.tick();
     expect(heard.filter((m) => m.type === "speak")).toHaveLength(0);
   });
 
   it("does nothing at all when the owner switched initiative off", async () => {
-    await db.insert(desires).values({ text: "Ti va di uscire?", status: "pending" });
+    await db.insert(desires).values({ gosinoId: PRIME_GOSINO_ID, text: "Ti va di uscire?", status: "pending" });
     const { volition, heard } = await buildVolition({ enabled: false });
     const report = await volition.tick();
     expect(report.acted).toBeUndefined();
@@ -157,8 +162,8 @@ describe("initiative", () => {
 
   it("does not start twice in a row: the floor between initiatives is real", async () => {
     await db.insert(desires).values([
-      { text: "Prima domanda?", status: "pending" },
-      { text: "Seconda domanda?", status: "pending" },
+      { gosinoId: PRIME_GOSINO_ID, text: "Prima domanda?", status: "pending" },
+      { gosinoId: PRIME_GOSINO_ID, text: "Seconda domanda?", status: "pending" },
     ]);
     const { volition, heard } = await buildVolition({});
     await volition.tick();
@@ -168,6 +173,7 @@ describe("initiative", () => {
 
   it("forms a question of its own on the local model, and files it as a desire", async () => {
     await db.insert(memories).values({
+      gosinoId: PRIME_GOSINO_ID,
       text: encryptText("il fattorino DHL si chiama Ivan", dataKey),
       kind: "fact",
       importance: 0.8,
@@ -192,6 +198,7 @@ describe("initiative", () => {
 
   it("falls back to a wordless act when the local model has nothing to say", async () => {
     await db.insert(memories).values({
+      gosinoId: PRIME_GOSINO_ID,
       text: encryptText("qualcosa", dataKey),
       kind: "fact",
       importance: 0.5,
@@ -212,6 +219,7 @@ describe("initiative", () => {
     // "svegliami alle 6" means alle 6: an explicit instruction outranks the
     // politeness rule that keeps him silent at night (ADR-028)
     await db.insert(desires).values({
+      gosinoId: PRIME_GOSINO_ID,
       text: "buttare l'acqua",
       status: "pending",
       dueAt: new Date(Date.now() - 60_000),
@@ -229,6 +237,7 @@ describe("initiative", () => {
 
   it("does not blurt out a reminder before its time", async () => {
     await db.insert(desires).values({
+      gosinoId: PRIME_GOSINO_ID,
       text: "girare l'arrosto",
       status: "pending",
       dueAt: new Date(Date.now() + 30 * 60_000),
@@ -260,7 +269,7 @@ describe("initiative", () => {
 
   it("stops wanting out once he is out", async () => {
     await seedPsyche({ noia: 0.95, energia: 0.9 });
-    await db.insert(events).values({ source: "system", type: "went_out", payload: {} });
+    await db.insert(events).values({ gosinoId: PRIME_GOSINO_ID, source: "system", type: "went_out", payload: {} });
     const { volition, heard } = await buildVolition({ hour: 11 });
     const report = await volition.tick();
 
@@ -269,7 +278,7 @@ describe("initiative", () => {
   });
 
   it("scores whether the last initiative actually helped", async () => {
-    await db.insert(desires).values({ text: "Una domanda?", status: "pending" });
+    await db.insert(desires).values({ gosinoId: PRIME_GOSINO_ID, text: "Una domanda?", status: "pending" });
     const { volition } = await buildVolition({});
     await volition.tick();
     await volition.tick(); // the second tick judges the first

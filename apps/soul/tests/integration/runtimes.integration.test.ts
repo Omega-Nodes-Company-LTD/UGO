@@ -1,13 +1,14 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   createDbClient,
+  type DbClient,
   desires,
   events,
   gosini,
   households,
+  PRIME_GOSINO_ID,
   psycheSnapshots,
   runMigrations,
-  type DbClient,
 } from "@ugo/db";
 import { searchMemories, writeMemory, type EmbeddingsClient } from "@ugo/memory";
 import { eq } from "drizzle-orm";
@@ -63,14 +64,14 @@ afterAll(async () => {
 describe("two exemplars in one house", () => {
   it("keeps their memories apart, in both arms of the hybrid search", async () => {
     await writeMemory(db, flatEmbedder, {
+      gosinoId: ugo,
       kind: "fact",
       text: "il fattorino si chiama Ivan",
-      gosinoId: ugo,
     });
     await writeMemory(db, flatEmbedder, {
+      gosinoId: nino,
       kind: "fact",
       text: "la vicina si chiama Paola",
-      gosinoId: nino,
     });
 
     // the lexical arm is the one that leaks if only the vector arm is scoped:
@@ -135,7 +136,7 @@ describe("two exemplars in one house", () => {
 
   it("keeps their journals apart, which is what the cooldowns read back", async () => {
     await db.insert(events).values([
-      { gosinoId: ugo, source: "system", type: "initiative_taken", payload: { act: "nudge" } },
+      { gosinoId: ugo, source: "system", type: "initiative_taken", payload: { gosinoId: PRIME_GOSINO_ID, act: "nudge" } },
     ]);
     const ninoHistory = await db
       .select({ id: events.id })

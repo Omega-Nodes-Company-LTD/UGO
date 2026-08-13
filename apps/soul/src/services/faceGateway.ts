@@ -14,8 +14,8 @@ import type { ChatService } from "./chatService.js";
 import type { PsycheService } from "./psycheService.js";
 
 export interface FaceGatewayDeps {
-  /** ADR-032: which exemplar this gateway is the body of */
-  gosinoId?: string;
+  /** ADR-032: which exemplar this gateway is the body of (ADR-048 tempo 2: required) */
+  gosinoId: string;
   db: DbClient;
   chat: ChatService;
   psyche: PsycheService;
@@ -123,15 +123,19 @@ export class FaceGateway {
       source: "face",
       type,
       payload,
-      ...(this.deps.gosinoId !== undefined && { gosinoId: this.deps.gosinoId }),
+      gosinoId: this.deps.gosinoId,
     });
   }
 
-  /** Scopes a query to this exemplar; undefined in a single-exemplar house. */
-  private mine(column: { gosinoId: unknown }): ReturnType<typeof eq> | undefined {
-    return this.deps.gosinoId === undefined
-      ? undefined
-      : eq(column.gosinoId as never, this.deps.gosinoId);
+  /**
+   * Scopes a query to this exemplar. It used to be allowed to answer
+   * `undefined` — «casa con un esemplare solo» — and an `undefined` inside an
+   * `and()` disappears, so that branch was a query across every creature on
+   * the server. ADR-048 tempo 2 removes the branch with the column DEFAULT
+   * that justified it.
+   */
+  private mine(column: { gosinoId: unknown }): ReturnType<typeof eq> {
+    return eq(column.gosinoId as never, this.deps.gosinoId);
   }
 
   private setState(state: FaceState, send: FaceSender): void {

@@ -51,9 +51,12 @@ export const PRIME_HOUSEHOLD_ID = "00000000-0000-4000-8000-000000000002";
  * without throwing it away.
  */
 function buildHouseholdId() {
+  // ADR-048 tempo 2: niente `.default()`. Finché c'era, una scrittura che
+  // dimenticava lo scope finiva nella casa seminata **invece di fallire** —
+  // silenziosamente, e nella casa sbagliata. Ora il tipo la rifiuta a
+  // compilazione e Postgres a runtime.
   return uuid("household_id")
     .notNull()
-    .default(PRIME_HOUSEHOLD_ID)
     .references(() => households.id);
 }
 

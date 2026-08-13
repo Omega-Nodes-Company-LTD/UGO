@@ -59,8 +59,9 @@ async function wake(hourOfDay: number): Promise<{
   sent: { type: string; text?: string }[];
   send: FaceSender;
 }> {
-  const psyche = await PsycheService.restore(db);
+  const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const chat = new ChatService({
+    gosinoId: PRIME_GOSINO_ID,
     db,
     embedder,
     llm: new LlmClient({
@@ -78,7 +79,7 @@ async function wake(hourOfDay: number): Promise<{
     sent.push(message);
   };
   return {
-    gateway: new FaceGateway({ db, chat, psyche, hourOf: () => hourOfDay }),
+    gateway: new FaceGateway({ gosinoId: PRIME_GOSINO_ID, db, chat, psyche, hourOf: () => hourOfDay }),
     psyche,
     chat,
     sent,
@@ -149,14 +150,17 @@ describe("una giornata di vita", () => {
     // the Python dream runs in its own container (covered by its own suite);
     // here we assert the contract it leaves behind for the morning after
     await db.insert(diaryEntries).values({
+      gosinoId: PRIME_GOSINO_ID,
       date: "2026-08-09",
       text: "Giornata piena: è passato Ivan, poi un tuono mi ha fatto sobbalzare. Grunf.",
     });
     await db.insert(desires).values({
+      gosinoId: PRIME_GOSINO_ID,
       text: "chiedigli se il pacco DHL è arrivato davvero",
       status: "pending",
     });
     await db.insert(memories).values({
+      gosinoId: PRIME_GOSINO_ID,
       kind: "fact",
       text: "Il corriere DHL si chiama Ivan e passa di martedì.",
       importance: 0.9,

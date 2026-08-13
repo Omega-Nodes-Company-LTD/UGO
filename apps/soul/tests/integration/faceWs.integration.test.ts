@@ -1,6 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, desires, events, runMigrations, type DbClient } from "@ugo/db";
+import {
+  createDbClient,
+  type DbClient,
+  desires,
+  events,
+  PRIME_GOSINO_ID,
+  runMigrations,
+} from "@ugo/db";
 import { EMBED_MODEL, startLlmStub, startOllama, type LlmStub, type OllamaHandle } from "@ugo/factories";
 import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import type { ServerToFaceMessage } from "@ugo/shared";
@@ -32,8 +39,9 @@ interface FaceTestClient {
 let app: FastifyInstance | undefined;
 
 async function startSoul(fakeHour: number): Promise<{ url: string; gateway: FaceGateway }> {
-  const psyche = await PsycheService.restore(db);
+  const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const chat = new ChatService({
+    gosinoId: PRIME_GOSINO_ID,
     db,
     embedder: new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL),
     llm: new LlmClient({
@@ -46,7 +54,7 @@ async function startSoul(fakeHour: number): Promise<{ url: string; gateway: Face
     psyche,
     dataKey: randomBytes(32),
   });
-  const gateway = new FaceGateway({ db, chat, psyche, hourOf: () => fakeHour });
+  const gateway = new FaceGateway({ gosinoId: PRIME_GOSINO_ID, db, chat, psyche, hourOf: () => fakeHour });
   app = buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
@@ -142,7 +150,7 @@ describe("WS /v1/face", () => {
   });
 
   it("goes to sleep with darkness after 22, wakes on face_seen with a desire greeting", async () => {
-    await db.insert(desires).values({ text: "chiedigli com'è andata dal cliente", status: "pending" });
+    await db.insert(desires).values({ gosinoId: PRIME_GOSINO_ID, text: "chiedigli com'è andata dal cliente", status: "pending" });
     const { url, gateway } = await startSoul(23);
     const face = await connectFace(url);
     await face.waitFor("state");

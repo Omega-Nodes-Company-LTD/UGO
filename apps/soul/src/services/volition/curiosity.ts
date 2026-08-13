@@ -33,7 +33,7 @@ export interface CuriosityDeps {
   /** one line of character, from the genome (ADR-028) */
   persona?: string;
   /** ADR-032: whose memories he reads back, and whose desire he files */
-  gosinoId?: string;
+  gosinoId: string;
 }
 
 function buildPrompt(name: string, persona: string | undefined, facts: readonly string[]): string {
@@ -86,9 +86,7 @@ export class Curiosity {
       .where(
         and(
           isNull(memories.invalidatedAt),
-          this.deps.gosinoId === undefined
-            ? undefined
-            : eq(memories.gosinoId, this.deps.gosinoId),
+          eq(memories.gosinoId, this.deps.gosinoId),
         ),
       )
       .orderBy(desc(memories.createdAt))
@@ -114,7 +112,7 @@ export class Curiosity {
     await this.deps.db.insert(desires).values({
       text: question,
       status: "pending",
-      ...(this.deps.gosinoId !== undefined && { gosinoId: this.deps.gosinoId }),
+      gosinoId: this.deps.gosinoId,
     });
     return question;
   }

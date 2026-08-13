@@ -1,5 +1,5 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, memories, runMigrations, type DbClient } from "@ugo/db";
+import { createDbClient, memories, PRIME_GOSINO_ID, runMigrations, type DbClient } from "@ugo/db";
 import { EMBED_MODEL, MemoryFactory, startOllama, type OllamaHandle } from "@ugo/factories";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -32,6 +32,7 @@ afterAll(async () => {
 describe("write + semantic search on real infrastructure", () => {
   it("stores a memory with a real 768d embedding", async () => {
     const { id } = await writeMemory(db, embedder, {
+      gosinoId: PRIME_GOSINO_ID,
       kind: "fact",
       text: "Il gatto di casa si chiama Bruno e dorme sul router.",
       importance: 0.8,
@@ -46,7 +47,12 @@ describe("write + semantic search on real infrastructure", () => {
       "Domani è prevista pioggia su Parma.",
       "La riunione con il fornitore è stata spostata a giovedì.",
     ]) {
-      await writeMemory(db, embedder, { kind: "episode", text: noise, importance: 0.5 });
+      await writeMemory(db, embedder, {
+        gosinoId: PRIME_GOSINO_ID,
+        kind: "episode",
+        text: noise,
+        importance: 0.5,
+      });
     }
 
     const results = await searchMemories(db, embedder, "come si chiama il gatto?", 3);
@@ -64,11 +70,13 @@ describe("write + semantic search on real infrastructure", () => {
   it("importance shifts the ranking (re-rank is not similarity-only)", async () => {
     // two near-identical texts, wildly different importance
     const low = await writeMemory(db, embedder, {
+      gosinoId: PRIME_GOSINO_ID,
       kind: "preference",
       text: "Al proprietario piace il caffè macchiato al mattino.",
       importance: 0.05,
     });
     const high = await writeMemory(db, embedder, {
+      gosinoId: PRIME_GOSINO_ID,
       kind: "preference",
       text: "Al proprietario piace il caffè macchiato la mattina.",
       importance: 0.95,
@@ -92,7 +100,7 @@ describe("write + semantic search on real infrastructure", () => {
     const bad = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
     // factory data is fine, but the dimension check is on real responses:
     // simulate a wrong-dim expectation by asking a bogus model name
-    await expect(bad.embed([MemoryFactory.create().text])).resolves.toHaveLength(1);
+    await expect(bad.embed([MemoryFactory.create({ gosinoId: PRIME_GOSINO_ID }).text])).resolves.toHaveLength(1);
     const wrongModel = new OllamaEmbeddingsClient(ollama.baseUrl, "no-such-model");
     await expect(wrongModel.embed(["x"])).rejects.toThrow();
   });

@@ -61,7 +61,8 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ✅ | Fase 1: schema, chiavi per casa, token con ruoli, budget per casa | |
 | ✅ | **Servizi e rotte passano la casa ovunque** | `TenantResolver` era scritto e **non lo chiamava nessuno**; la «casa corrente» era `select … from households limit 1` senza `order by`. Ora un solo `routes/scope.ts`, e una casa che non è tua risponde 404 come una che non esiste |
 | 🔨 | **RLS con ruolo Postgres dedicato** | **ADR-048**, tempo 1 fatto: ruolo `ugo_app`, politiche su tutte e 22 le tabelle, `withHousehold()` con `SET LOCAL`. Senza `FORCE`, quindi in produzione **inerte** finché non entra il tempo 2 |
-| ⬜️ | **Caduta dei `DEFAULT`** su `gosino_id` e `household_id` | tempo 2 di ADR-048. Prima serve che `GosinoRegistry` carichi una casa per volta dentro `withHousehold`, o come `ugo_app` non vedrà nessun esemplare (ADR-048 §7) |
+| ✅ | **Caduta dei `DEFAULT`** su `gosino_id` e `household_id` | Fatto: migrazione `0014`, diciannove colonne. Con essa cinque servizi hanno smesso di dichiarare l'esemplare facoltativo, e sei `mine()` hanno smesso di poter rispondere `undefined` — cioè di interrogare tutte le creature del server |
+| ⬜️ | **`withHousehold` per ogni richiesta, poi `DATABASE_URL_APP`** | L'altra metà del tempo 2, e serve un ADR: oggi `withHousehold` non è chiamato da nessuna parte in soul, quindi passare a `ugo_app` darebbe zero righe a ogni query — muto, non isolato |
 | 🔨 | **Job per esemplare** | il sogno cicla, i marcatori portano il gosino, l'igiene non fonde più attraverso il confine. **Manca il backup per famiglia**: `pg_dump` non filtra per riga |
 | ⬜️ | **Selettore di casa nel pannello** + provisioning di una famiglia | |
 | ⬜️ | **Audit log** | fondamenta per qualunque discorso di conformità. Deciso: 12 mesi, solo ID e verbi, append-only imposto dai `GRANT` (ADR-049 da scrivere) |

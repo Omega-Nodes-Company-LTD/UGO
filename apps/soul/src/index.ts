@@ -60,20 +60,6 @@ if (env.UGO_AUTO_MIGRATE) {
 }
 
 const db = createDbClient(env.DATABASE_URL);
-const psyche = await PsycheService.restore(db);
-const llmFor = (householdId: string, gosinoId: string): LlmClient =>
-  new LlmClient({
-    db,
-    apiKey: env.ANTHROPIC_API_KEY,
-    model: env.UGO_CHAT_MODEL,
-    dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
-    householdId,
-    gosinoId,
-    ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
-    timezone: env.TZ,
-  });
-const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
-
 /**
  * The house the boot-time fallback apparatus belongs to.
  *
@@ -97,6 +83,20 @@ const [bootstrapExemplar] = await db
   .orderBy(asc(gosini.bornAt))
   .limit(1);
 if (bootstrapExemplar === undefined) throw new Error("no exemplar: run the migrations");
+const psyche = await PsycheService.restore(db, new Date(), bootstrapExemplar.id);
+const llmFor = (householdId: string, gosinoId: string): LlmClient =>
+  new LlmClient({
+    db,
+    apiKey: env.ANTHROPIC_API_KEY,
+    model: env.UGO_CHAT_MODEL,
+    dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
+    householdId,
+    gosinoId,
+    ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
+    timezone: env.TZ,
+  });
+const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
+
 
 const pack = new PackService(db, speciesMap, bootstrapExemplar.id, bootstrapHouseholdId);
 const llm = llmFor(bootstrapHouseholdId, bootstrapExemplar.id);
@@ -107,12 +107,14 @@ const chat = new ChatService({
   psyche,
   dataKey: parseDataKey(env.UGO_DATA_KEY),
   pack,
+  gosinoId: bootstrapExemplar.id,
 });
 
 const face = new FaceGateway({
   db,
   chat,
   psyche,
+  gosinoId: bootstrapExemplar.id,
   // hour in project TZ so the sleep rule follows Europe/Rome, not the host
   hourOf: (at) =>
     Number(

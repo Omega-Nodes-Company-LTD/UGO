@@ -21,7 +21,7 @@ let pg: StartedPostgreSqlContainer;
 let db: DbClient;
 
 async function freshMonitor(): Promise<{ monitor: SolitudeMonitor; psyche: PsycheService }> {
-  const psyche = await PsycheService.restore(db, NOW);
+  const psyche = await PsycheService.restore(db, NOW, PRIME_GOSINO_ID);
   return { monitor: new SolitudeMonitor({ db, gosinoId: PRIME_GOSINO_ID, psyche }), psyche };
 }
 
@@ -43,13 +43,13 @@ afterEach(async () => {
 
 describe("solitude_hour", () => {
   it("does nothing while someone was around recently", async () => {
-    await db.insert(events).values({ ts: ago(10 * 60_000), source: "face", type: "face_seen", payload: {} });
+    await db.insert(events).values({ gosinoId: PRIME_GOSINO_ID, ts: ago(10 * 60_000), source: "face", type: "face_seen", payload: {} });
     const { monitor } = await freshMonitor();
     expect((await monitor.tick(NOW)).solitudeApplied).toBe(false);
   });
 
   it("raises noia after an hour alone and journals the event", async () => {
-    await db.insert(events).values({ ts: ago(2 * HOUR), source: "face", type: "face_seen", payload: {} });
+    await db.insert(events).values({ gosinoId: PRIME_GOSINO_ID, ts: ago(2 * HOUR), source: "face", type: "face_seen", payload: {} });
     const { monitor, psyche } = await freshMonitor();
     const before = psyche.current(NOW).vars.noia;
 
@@ -60,7 +60,7 @@ describe("solitude_hour", () => {
   });
 
   it("is idempotent within the hour, even across a restart", async () => {
-    await db.insert(events).values({ ts: ago(3 * HOUR), source: "face", type: "tap", payload: {} });
+    await db.insert(events).values({ gosinoId: PRIME_GOSINO_ID, ts: ago(3 * HOUR), source: "face", type: "tap", payload: {} });
     const first = await freshMonitor();
     expect((await first.monitor.tick(NOW)).solitudeApplied).toBe(true);
 
@@ -77,6 +77,7 @@ describe("solitude_hour", () => {
 describe("ignored_day", () => {
   it("lowers umore after a full day without being addressed", async () => {
     await db.insert(messages).values({
+      gosinoId: PRIME_GOSINO_ID,
       ts: ago(30 * HOUR),
       channel: "home",
       role: "user",
@@ -93,6 +94,7 @@ describe("ignored_day", () => {
 
   it("does not sulk twice on the same day", async () => {
     await db.insert(messages).values({
+      gosinoId: PRIME_GOSINO_ID,
       ts: ago(40 * HOUR),
       channel: "home",
       role: "user",
@@ -106,6 +108,7 @@ describe("ignored_day", () => {
 
   it("forgives immediately when the owner speaks again", async () => {
     await db.insert(messages).values({
+      gosinoId: PRIME_GOSINO_ID,
       ts: ago(5 * 60_000),
       channel: "home",
       role: "user",

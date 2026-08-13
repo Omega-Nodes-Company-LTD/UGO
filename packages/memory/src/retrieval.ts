@@ -13,8 +13,13 @@ export interface WriteMemoryInput {
   text: string;
   importance?: number;
   sourceRefs?: Record<string, unknown>;
-  /** ADR-032: whose memory this is. Absent falls back to the seeded exemplar. */
-  gosinoId?: string;
+  /**
+   * ADR-032: whose memory this is. It used to be optional, falling back to the
+   * seeded exemplar through the column DEFAULT; ADR-048 tempo 2 dropped that
+   * DEFAULT, so the fallback is now a `not-null violation` at runtime. Required
+   * here so it is a type error instead.
+   */
+  gosinoId: string;
 }
 
 export async function writeMemory(
@@ -27,12 +32,12 @@ export async function writeMemory(
   const inserted = await db
     .insert(memories)
     .values({
+      gosinoId: input.gosinoId,
       kind: input.kind,
       text: input.text,
       embedding,
       importance: input.importance ?? 0.5,
       sourceRefs: input.sourceRefs ?? {},
-      ...(input.gosinoId !== undefined && { gosinoId: input.gosinoId }),
     })
     .returning({ id: memories.id });
   const row = inserted[0];

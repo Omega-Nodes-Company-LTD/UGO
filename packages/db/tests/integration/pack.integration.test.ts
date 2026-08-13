@@ -52,8 +52,12 @@ beforeEach(async () => {
   await db.execute(sql`delete from gosini where id <> ${PRIME_GOSINO_ID}`);
 });
 
-const insertBeing = async (overrides: Parameters<typeof BeingFactory.create>[0] = {}) => {
-  const input = BeingFactory.create(overrides);
+const insertBeing = async (
+  overrides: Partial<Parameters<typeof BeingFactory.create>[0]> = {},
+) => {
+  // ADR-048 tempo 2: la casa non ha piu' un default, quindi la si dice. Qui e'
+  // sempre quella seminata, che e' l'unica che questi test conoscono.
+  const input = BeingFactory.create({ householdId: PRIME_HOUSEHOLD_ID, ...overrides });
   const [row] = await db.insert(beings).values(input).returning({ id: beings.id });
   if (row === undefined) throw new Error("insert failed");
   return { id: row.id, input };
@@ -86,14 +90,21 @@ describe("the pack", () => {
   it("lets two exemplars disagree about the same being", async () => {
     const [other] = await db
       .insert(gosini)
-      .values({ name: "ugo-officina", locationLabel: "officina", generation: 0 })
+      .values({
+        householdId: PRIME_HOUSEHOLD_ID,
+        name: "ugo-officina",
+        locationLabel: "officina",
+        generation: 0,
+      })
       .returning({ id: gosini.id });
     const ivan = await insertBeing({ displayName: "Ivan" });
     if (other === undefined) throw new Error("second exemplar not created");
 
+    // due esemplari, una casa sola: e' esattamente la promessa di ADR-014
+    const house = { householdId: PRIME_HOUSEHOLD_ID };
     await db.insert(bonds).values([
-      { gosinoId: PRIME_GOSINO_ID, beingId: ivan.id, familiarity: 0.9, affinity: 0.8 },
-      { gosinoId: other.id, beingId: ivan.id, familiarity: 0.1, affinity: -0.4 },
+      { ...house, gosinoId: PRIME_GOSINO_ID, beingId: ivan.id, familiarity: 0.9, affinity: 0.8 },
+      { ...house, gosinoId: other.id, beingId: ivan.id, familiarity: 0.1, affinity: -0.4 },
     ]);
 
     const [home] = await db
@@ -109,10 +120,10 @@ describe("the pack", () => {
 
     // one opinion per exemplar per being, and no impossible values
     await expect(
-      db.insert(bonds).values({ gosinoId: PRIME_GOSINO_ID, beingId: ivan.id }),
+      db.insert(bonds).values({ ...house, gosinoId: PRIME_GOSINO_ID, beingId: ivan.id }),
     ).rejects.toThrow();
     await expect(
-      db.insert(bonds).values({ gosinoId: other.id, beingId: ivan.id, affinity: 3 }),
+      db.insert(bonds).values({ ...house, gosinoId: other.id, beingId: ivan.id, affinity: 3 }),
     ).rejects.toThrow();
   });
 
@@ -121,31 +132,39 @@ describe("the pack", () => {
     const paola = await insertBeing({ displayName: "Paola" });
     const sofia = await insertBeing({ displayName: "Sofia", isMinor: true });
 
+    const house = { householdId: PRIME_HOUSEHOLD_ID };
+
     // asymmetric: direction carries the meaning
-    await db.insert(relations).values({ beingA: ivan.id, beingB: sofia.id, type: "parent_of" });
-    await db.insert(relations).values({ beingA: paola.id, beingB: sofia.id, type: "parent_of" });
+    await db.insert(relations).values({ ...house, beingA: ivan.id, beingB: sofia.id, type: "parent_of" });
+    await db.insert(relations).values({ ...house, beingA: paola.id, beingB: sofia.id, type: "parent_of" });
 
     // symmetric: stored once, normalized, so the mirror image is impossible
     const [low, high] = [ivan.id, paola.id].sort();
     if (low === undefined || high === undefined) throw new Error("unreachable");
-    await db.insert(relations).values({ beingA: low, beingB: high, type: "partner_of" });
+    await db.insert(relations).values({ ...house, beingA: low, beingB: high, type: "partner_of" });
     await expect(
-      db.insert(relations).values({ beingA: high, beingB: low, type: "partner_of" }),
+      db.insert(relations).values({ ...house, beingA: high, beingB: low, type: "partner_of" }),
     ).rejects.toThrow();
 
     // nobody is their own parent
     await expect(
-      db.insert(relations).values({ beingA: ivan.id, beingB: ivan.id, type: "cares_for" }),
+      db.insert(relations).values({ ...house, beingA: ivan.id, beingB: ivan.id, type: "cares_for" }),
     ).rejects.toThrow();
   });
 
   it("versions the genome as an immutable chain", async () => {
     const [first] = await db
       .insert(traitSets)
-      .values({ gosinoId: PRIME_GOSINO_ID, version: 1, traits: { curiosita: 0.6 } })
+      .values({
+        householdId: PRIME_HOUSEHOLD_ID,
+        gosinoId: PRIME_GOSINO_ID,
+        version: 1,
+        traits: { curiosita: 0.6 },
+      })
       .returning({ id: traitSets.id });
     if (first === undefined) throw new Error("no trait set");
     await db.insert(traitSets).values({
+      householdId: PRIME_HOUSEHOLD_ID,
       gosinoId: PRIME_GOSINO_ID,
       version: 2,
       traits: { curiosita: 0.62 },
@@ -154,7 +173,12 @@ describe("the pack", () => {
     });
 
     await expect(
-      db.insert(traitSets).values({ gosinoId: PRIME_GOSINO_ID, version: 2, traits: {} }),
+      db.insert(traitSets).values({
+        householdId: PRIME_HOUSEHOLD_ID,
+        gosinoId: PRIME_GOSINO_ID,
+        version: 2,
+        traits: {},
+      }),
     ).rejects.toThrow();
 
     const chain = await db
@@ -192,6 +216,7 @@ describe("the pack", () => {
     const ivan = await insertBeing({ displayName: "Ivan" });
     const centroid = [0.1, -0.25, 0.5, 0.75];
     await db.insert(recognitionProfiles).values({
+      householdId: PRIME_HOUSEHOLD_ID,
       beingId: ivan.id,
       modality: "voice",
       model: "mfcc-stats-v1",
@@ -219,14 +244,17 @@ describe("the pack", () => {
     const paola = await insertBeing({ displayName: "Paola" });
     const [memory] = await db
       .insert(memories)
-      .values({ kind: "fact", text: "Ivan ripara le radio a valvole" })
+      .values({
+        gosinoId: PRIME_GOSINO_ID,
+        kind: "fact",
+        text: "Ivan ripara le radio a valvole",
+      })
       .returning({ id: memories.id });
     if (memory === undefined) throw new Error("no memory");
 
-    await db.insert(memoryBeings).values({ memoryId: memory.id, beingId: ivan.id });
-    await expect(
-      db.insert(memoryBeings).values({ memoryId: memory.id, beingId: ivan.id }),
-    ).rejects.toThrow();
+    const link = { householdId: PRIME_HOUSEHOLD_ID, memoryId: memory.id, beingId: ivan.id };
+    await db.insert(memoryBeings).values(link);
+    await expect(db.insert(memoryBeings).values(link)).rejects.toThrow();
 
     await db.insert(corrections).values({
       gosinoId: PRIME_GOSINO_ID,

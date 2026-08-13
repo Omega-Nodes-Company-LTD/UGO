@@ -5,7 +5,7 @@ import { cosineDistance, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createDbClient, type DbClient } from "../../src/client.js";
 import { runMigrations } from "../../src/migrate.js";
-import { memories } from "../../src/schema/index.js";
+import { PRIME_GOSINO_ID, memories } from "../../src/schema/index.js";
 
 // Zero-Mock (TESTING_PLAYBOOK §2): real Postgres via Testcontainers, the same
 // pgvector image used by the dev compose (environment parity), migrated with
@@ -87,7 +87,12 @@ describe("vector round-trip on memories", () => {
 
   it("stores and reads back a 768-dimension embedding unchanged", async () => {
     await withRollback(async (tx) => {
-      const input = MemoryFactory.create({ embedding: embeddingFromSeed(42) });
+      // ADR-048 tempo 2: l'esemplare non ha piu' un default, quindi lo si dice.
+      // Qui e' sempre quello seminato, l'unico che questi test conoscono.
+      const input = MemoryFactory.create({
+        gosinoId: PRIME_GOSINO_ID,
+        embedding: embeddingFromSeed(42),
+      });
       const inserted = await tx.insert(memories).values(input).returning();
       expect(inserted).toHaveLength(1);
       const insertedRow = inserted[0];
@@ -115,9 +120,15 @@ describe("vector round-trip on memories", () => {
     await withRollback(async (tx) => {
       const target = embeddingFromSeed(1);
       const nearTarget = target.map((v, i) => (i === 0 ? v + 0.001 : v));
-      const needle = MemoryFactory.create({ embedding: nearTarget });
+      const needle = MemoryFactory.create({
+        gosinoId: PRIME_GOSINO_ID,
+        embedding: nearTarget,
+      });
       const noise = Array.from({ length: 5 }, (_, i) =>
-        MemoryFactory.create({ embedding: embeddingFromSeed(1000 + i) }),
+        MemoryFactory.create({
+          gosinoId: PRIME_GOSINO_ID,
+          embedding: embeddingFromSeed(1000 + i),
+        }),
       );
       await tx.insert(memories).values([needle, ...noise]);
 
@@ -130,13 +141,47 @@ describe("vector round-trip on memories", () => {
     });
   });
 
-  it("rejects a kind outside the memory_kind enum", async () => {
+  /**
+   * ADR-048 tempo 2. Questo e' il difetto che il gruppo 5 chiude, e va provato
+   * al contrario di tutti gli altri: non «lo scope funziona» ma «dimenticarlo
+   * **fallisce**». Finche' il `DEFAULT` c'era, questa insert riusciva e la riga
+   * finiva sull'esemplare seminato — cioe' nella casa di qualcun altro, in
+   * silenzio. Un test che asserisse le righe non l'avrebbe mai visto: le righe
+   * c'erano, ed erano plausibili.
+   */
+  it("refuses a memory that does not say whose it is", async () => {
     await withRollback(async (tx) => {
       let caught: unknown;
       try {
         await tx.execute(sql`
           insert into memories (kind, text, importance)
-          values ('daydream', 'not a valid kind', 0.5)
+          values ('fact', 'un ricordo senza padrone', 0.5)
+        `);
+      } catch (error) {
+        caught = error;
+      }
+      const messages: string[] = [];
+      for (let err = caught; err instanceof Error; err = err.cause) {
+        messages.push(err.message);
+      }
+      // non un errore qualunque: proprio il NOT NULL su `gosino_id`
+      expect(messages.join(" | ")).toMatch(/null value in column "gosino_id"/);
+    });
+
+    // e la casa seminata non ha guadagnato una riga che non e' sua
+    const rows = await db.select({ id: memories.id }).from(memories);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("rejects a kind outside the memory_kind enum", async () => {
+    await withRollback(async (tx) => {
+      let caught: unknown;
+      try {
+        // `gosino_id` esplicito: senza, il NOT NULL di ADR-048 tempo 2
+        // solleverebbe *un* errore, e questo test asserisce **quale**.
+        await tx.execute(sql`
+          insert into memories (gosino_id, kind, text, importance)
+          values (${PRIME_GOSINO_ID}, 'daydream', 'not a valid kind', 0.5)
         `);
       } catch (error) {
         caught = error;

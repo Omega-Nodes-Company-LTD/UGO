@@ -28,7 +28,16 @@ class CompactionResult:
     events_removed: int
 
 
-def run_compaction(conn: psycopg.Connection, retention_days: int = COMPACT_AFTER_DAYS) -> CompactionResult:
+def run_compaction(
+    conn: psycopg.Connection,
+    gosino_id: str,
+    retention_days: int = COMPACT_AFTER_DAYS,
+) -> CompactionResult:
+    """`gosino_id`: la compattazione e' manutenzione globale, ma il riassunto
+    che lascia dietro e' una riga di `events`, e `events` e' dell'esemplare.
+    Col `DEFAULT` caduto (ADR-048 tempo 2) non c'e' piu' un valore implicito da
+    ereditare, quindi il chiamante dice a chi appartiene invece di scoprirlo la
+    notte in cui la scrittura fallisce."""
     days = conn.execute(
         """
         select ts::date as day, type, count(*) as n,
@@ -58,8 +67,14 @@ def run_compaction(conn: psycopg.Connection, retention_days: int = COMPACT_AFTER
         )
         removed += cursor.rowcount
         conn.execute(
-            "insert into events (ts, source, type, payload) values (%s, 'system', %s, %s)",
-            (f"{day} 23:59:00+00", SUMMARY_TYPE, json.dumps({"date": day, "counts": counts})),
+            "insert into events (gosino_id, ts, source, type, payload)"
+            " values (%s, %s, 'system', %s, %s)",
+            (
+                gosino_id,
+                f"{day} 23:59:00+00",
+                SUMMARY_TYPE,
+                json.dumps({"date": day, "counts": counts}),
+            ),
         )
     conn.commit()
     return CompactionResult(days_compacted=len(per_day), events_removed=removed)

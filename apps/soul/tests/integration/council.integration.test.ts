@@ -1,12 +1,13 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   createDbClient,
+  type DbClient,
   gosini,
   households,
+  PRIME_HOUSEHOLD_ID,
   psycheSnapshots,
   runMigrations,
   traitSets,
-  type DbClient,
 } from "@ugo/db";
 import type { LocalTextClient } from "@ugo/memory";
 import { sql } from "drizzle-orm";
@@ -54,6 +55,7 @@ async function born(name: string, archetype: keyof typeof ARCHETYPES, where: str
   const id = rows[0]?.id;
   if (id === undefined) throw new Error("not created");
   await db.insert(traitSets).values({
+   householdId: PRIME_HOUSEHOLD_ID,
     gosinoId: id,
     version: 1,
     traits: characterFrom(ARCHETYPES[archetype]).traits,

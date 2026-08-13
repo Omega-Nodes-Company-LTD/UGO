@@ -1391,6 +1391,69 @@ daemon Docker, quindi ogni Testcontainer fallisce. Verificati in locale
 migrazioni comprese, che è precisamente ciò che ADR-048 dice di non dare per
 buono — va guardato girare in CI.
 
+## 6-duovicies. I DEFAULT cadono, e UGO ricomincia a rispondere (ADR-048 tempo 2)
+
+Due cose, e la seconda non era in programma.
+
+### I DEFAULT
+
+`0014_rls-defaults-drop.sql` toglie il valore di ripiego a **diciannove colonne**
+tenant. Da qui in avanti una scrittura che si dimentica di che casa o di che
+esemplare è **fallisce**: `not-null violation`, sulla riga che ha sbagliato,
+invece di atterrare in silenzio nella casa seminata. È il punto che aveva la
+scadenza (§8.3): le migrazioni strutturali non girano più su un database vuoto.
+
+Prima però lo doveva rifiutare il *compilatore*, ed è lì che si è visto quanto
+era esteso. Tolto `.default()` dai due helper, `tsc` ha elencato **cinque
+servizi** che dichiaravano l'esemplare `gosinoId?: string` e lo passavano con
+`...(x !== undefined && { gosinoId: x })` — `ChatService`, `FaceGateway`,
+`PsycheService`, `Curiosity`, `VolitionService`. Quello spread è la stessa
+scorciatoia dell'`as never` di due settimane fa: compilava perché il tipo
+diceva «facoltativo», e funzionava perché il database ci metteva una toppa.
+Ora è obbligatorio in tutti e cinque.
+
+Con lo stesso movimento sono spariti sei `mine()` che rispondevano `undefined`
+quando l'esemplare mancava. Un `undefined` dentro un `and()` **svanisce**:
+quella riga, commentata «casa con un esemplare solo», era una query su tutte le
+creature del server.
+
+### E il motivo per cui non rispondeva
+
+Nel mezzo di questo lavoro il proprietario ha segnalato che UGO **non risponde
+più, né in gruppo né da solo**: il registro del corpo mostrava le frasi sentite
+e nessuna risposta. Non era di questo gruppo — è di ADR-045, ed era in
+produzione dal deploy.
+
+`VoiceClip` dichiarava nel commento «PCM int16 a **16 kHz**» e campionava al
+ritmo dell'`AudioContext`, che su un dispositivo vero è 44,1 o 48 kHz. Tre
+secondi a 48 kHz fanno 384 000 caratteri di base64; il contratto ne accetta
+200 000. Quindi **ogni frase detta col microfono acceso veniva rifiutata dallo
+schema** — e `handleRaw` restituiva `false` senza scrivere una riga di log,
+per cui il guasto non era visibile né nel pannello né sul server.
+
+Due correzioni, perché i difetti erano due:
+
+- il corpo **ricampiona** davvero a 16 kHz (media della finestra sorgente, non
+  il campione più vicino: scegliere e basta lascia entrare come voce l'alias di
+  ciò che sta sopra gli 8 kHz). Il test copre 16, 44,1 e 48 kHz e asserisce che
+  il frame **passi il contratto**, non che un numero stia sotto un altro;
+- un frame rifiutato dal contratto adesso **si vede**: `faceWs` legge il `false`
+  che `handleRaw` restituiva a nessuno e lo scrive con id e lunghezza, mai il
+  contenuto.
+
+Il secondo è la correzione che conta di più. Il primo difetto è durato mesi
+perché il secondo lo teneva nascosto.
+
+### Il tempo 2 si è diviso in due
+
+`DATABASE_URL_APP` **non è in questo commit**, e non per prudenza: `withHousehold`
+non è chiamato da nessuna parte in soul. Spostare la connessione su `ugo_app`
+oggi vorrebbe dire che ogni query risponde zero righe — soul completamente
+muto, non più isolato. Serve prima avvolgere ogni richiesta in una transazione
+con `SET LOCAL app.household_id`, che è una decisione architetturale con un
+ADR suo. La caduta dei `DEFAULT` — che è la metà con la scadenza — è qui; il
+cambio di ruolo resta in §8 come punto separato.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1414,15 +1477,15 @@ buono — va guardato girare in CI.
 | Firmware Nano 33 IoT accantonato | OLED umore / relè / eventi ambiente assenti | Decisione del proprietario (2026-08-07): riprendere su richiesta; ACL MQTT già pronte |
 | `Webgl3dFace` importato staticamente | Un dispositivo che usa il fallback 2D scarica lo stesso i 138 kB di three.js | Import dinamico in `createFace`, che diventa asincrono: piccolo, ma tocca l'ordine di avvio di `main.ts` |
 | Batteria del corpo 3D mai misurata | È il vincolo della Fase 4, e nessun numero lo copre | Una giornata sul 3a Pro; il fallback 2D è già lì se il numero è brutto |
-| ~~**RLS e caduta dei DEFAULT** su `gosino_id`~~ | — | **Metà chiuso** da ADR-048: il ruolo e le politiche ci sono (§6-vicies-semel). Restano la caduta dei `DEFAULT` e `DATABASE_URL_APP`, che sono il tempo 2 |
-| **RLS è presente e inerte in produzione** (ADR-048) | Finché `DATABASE_URL` è del proprietario le politiche non si applicano: il muro c'è nei test e non sul server | È il rollout in due tempi scelto apposta, non una svista. Il tempo 2 richiede prima che `GosinoRegistry` carichi una casa per volta dentro `withHousehold`, o come `ugo_app` non vedrà nessun esemplare (ADR-048 §7) |
+| ~~**RLS e caduta dei DEFAULT** su `gosino_id`~~ | — | **Caduti** (§6-duovicies): `0014` toglie il ripiego a diciannove colonne, e cinque servizi hanno smesso di dichiarare l'esemplare facoltativo. Resta il solo `DATABASE_URL_APP`, riga qui sotto |
+| **RLS è presente e inerte in produzione** (ADR-048) | Finché `DATABASE_URL` è del proprietario le politiche non si applicano: il muro c'è nei test e non sul server | Il blocco vero non è il ruolo: **`withHousehold` non è chiamato da nessuna parte in soul**. Passare a `ugo_app` oggi darebbe zero righe a ogni query — soul muto, non isolato. Serve prima una transazione per richiesta con `SET LOCAL app.household_id`, che è un ADR a sé |
 | **`households` e `access_tokens` restano leggibili al ruolo applicativo** | Sono le tabelle che *stabiliscono* lo scope, quindi non possono già conoscerlo: lì l'isolamento è applicativo e non del database | Dichiarato in ADR-048 §7. Ciò che vi si legge sono SHA-256 e una DEK avvolta sotto la KEK, che il processo ha comunque (ADR-017) |
 | **Il backup è ancora uno per tutto il database** | `pg_dump` non filtra per riga, e ADR-019 §164 vuole un backup per famiglia | Proposta non ancora implementata: tenere il dump come disaster recovery e aggiungere un export logico per casa (che è ciò che il GDPR chiede davvero, la portabilità) |
 | ~~**Il sogno è ancora uno per tutta la casa**~~ | — | **Chiuso**: `run_dream` cicla sugli esemplari, i marcatori portano il gosino, e l'igiene non fonde più attraverso il confine (§6-vicies-semel) |
 | ~~Due esemplari **sullo stesso schermo**~~ | — | **Chiuso** da ADR-036: un dispositivo incarna una **stanza**, e ci vede tutti quelli che ci vivono |
 | **Il registro del corpo è in chiaro** (ADR-038) | 80 righe di conversazione nel `localStorage` del dispositivo, fuori da ogni garanzia di cifratura | Consapevole e dichiarato: tetto corto, per stanza, «svuota» in un clic. Cifrarlo richiederebbe una chiave sul chiosco, cioè spostare il problema |
 | ~~UGO non sa chi ha davanti in chat~~ | — | **Chiuso** da ADR-045: l'audio viaggia con la frase, `ugo-percezione` identifica, il `beingId` entra in `chat.handle` |
-| **Il giro completo del riconoscimento non è provato end-to-end** (ADR-045) | I pezzi sono misurati e testati, il giro con audio vero attraverso il servizio vero no: richiede l'immagine da 2 GB costruita e i pesi montati | Da fare al primo deploy, con due voci di casa arruolate. È il momento in cui i numeri del banco vanno confrontati con la stanza vera |
+| **Il giro completo del riconoscimento non è provato end-to-end** (ADR-045) | I pezzi sono misurati e testati, il giro con audio vero attraverso il servizio vero no: richiede l'immagine da 2 GB costruita e i pesi montati | **Ha già fatto danno**: il corpo spediva al ritmo del microfono e non a 16 kHz, quindi ogni frase col microfono acceso sforava il tetto del contratto e UGO non rispondeva (§6-duovicies). Nessun test copriva la giunzione, perché ogni pezzo era corretto da solo. Da fare al primo deploy, con due voci di casa arruolate |
 | **Il rilevamento del volto non è provato su un volto vero** (ADR-044) | Verificato che la pipeline si apre e gira; su un volto no | Serve un dispositivo vero: qui non ci sono né ffmpeg né un corpus di volti per una camera finta credibile |
 | **Rinominare una stanza non si può** (ADR-039) | Con `location_label` denormalizzato costerebbe un aggiornamento in due punti | Non è stato chiesto. È il giorno in cui la chiave esterna `room_id` va riconsiderata, e non prima |
 | **Più gosini in una stanza senza copertura e2e** | Il caso a due creature è verificato a mano, non in CI: il setup non gira in questa sandbox | Un `beforeAll` che fa nascere due gosini nella stessa stanza e apre `?stanza=`; da fare quando l'e2e torna eseguibile in locale |
@@ -1456,11 +1519,14 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
 8. **Gruppo 5 del backlog — il vicinato**: i tre punti strutturali di ADR-019 fase 2 sono
    **chiusi** (§6-vicies-semel), e il primo pezzo della fase 3 con loro. In ordine, quel che
    resta di quel gruppo:
-   - **il tempo 2 di ADR-048** — caduta dei `DEFAULT` e `DATABASE_URL_APP` in servizio. È il
-     punto con la scadenza, e richiede prima che `GosinoRegistry` carichi una casa per volta
-     dentro `withHousehold` (ADR-048 §7). Poi va **eseguito sul server**: creare `ugo_app`,
-     dargli una password, spostare la `DATABASE_URL_APP` di soul e dei job. Finché quel passo
-     non è fatto, RLS non protegge niente in produzione;
+   - ~~**caduta dei `DEFAULT`**~~ — **fatta** (§6-duovicies), migrazione `0014`. Era il punto
+     con la scadenza;
+   - **`withHousehold` per richiesta, poi `DATABASE_URL_APP`** — il resto del tempo 2, e non è
+     un passo di runbook ma una decisione architetturale: oggi `withHousehold` esiste e non lo
+     chiama nessuno, quindi il cambio di ruolo renderebbe soul muto invece che isolato. Ordine:
+     un ADR sulla transazione per richiesta, il codice, e **solo dopo** sul server creare
+     `ugo_app`, dargli una password e spostare le connessioni di soul e dei job. Finché quel
+     passo non è fatto, RLS non protegge niente in produzione;
    - **audit log** (ADR-049 da scrivere): deciso 12 mesi, solo ID e verbi, append-only imposto
      dai `GRANT`, che è ciò che il ruolo dedicato rende finalmente possibile;
    - **selettore di casa nel pannello e `ugo casa nuova`**: tutti i pezzi esistono

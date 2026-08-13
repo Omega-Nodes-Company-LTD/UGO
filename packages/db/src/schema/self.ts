@@ -20,9 +20,9 @@ export const PRIME_GOSINO_ID = "00000000-0000-4000-8000-000000000001";
  * compiler could not see a missing scope.
  */
 function buildGosinoId() {
+  // ADR-048 tempo 2: il default e' caduto. Vedi `householdId()`.
   return uuid("gosino_id")
     .notNull()
-    .default(PRIME_GOSINO_ID)
     .references(() => gosini.id);
 }
 
