@@ -1487,6 +1487,53 @@ mentre qualcuno gli parla è peggio del problema che risolve.
   Ora i tre che contano finiscono nel registro; `no-speech` e `aborted` no,
   perché arrivano per progetto a ogni pausa e seppellirebbero gli altri.
 
+## 6-quatervicies. Chi ha fatto cosa (ADR-049)
+
+`events` faceva da giornale con la parola «audit» solo nei commenti — ma è il
+giornale della *creatura*, e non poteva rispondere alla domanda che NIS2 §2 pone
+davvero, che è **chi**. `dream_requested` diceva che qualcuno aveva chiesto un
+sogno fuori orario, non chi. Un 401 restava nel solo log di Fastify, che ruota e
+se ne va.
+
+Sette colonne e nessuna di più, **solo id e verbi**: un audit log è la tabella
+che nessuno può cancellare, quindi una PII scritta lì è scritta per sempre. Non
+esiste una colonna di testo libero, e un test asserisce l'elenco delle colonne
+perché la tentazione arriverà.
+
+`household_id` è **nullabile**, e non è una svista: un 401 avviene prima che si
+sappia di che casa si tratti, e renderla obbligatoria vorrebbe dire non poter
+registrare esattamente l'evento per cui la tabella esiste. `token_id` non ha
+foreign key, perché un token revocato non deve portarsi via la propria scia —
+che è ciò che si va a leggere *dopo* una revoca.
+
+**È la prima cosa che il ruolo `ugo_app` paga.** L'append-only è imposto dal
+database: `UPDATE` e `DELETE` **revocati**, non semplicemente non concessi —
+`0013` aveva già dato i quattro privilegi su tutte le tabelle e lascia un
+`ALTER DEFAULT PRIVILEGES` che li farebbe ereditare a ogni tabella nuova. La
+retention di dodici mesi la applica il **proprietario** durante il sogno: far
+scadere una riga è un atto della casa, riscriverla sarebbe un atto
+dell'applicazione, e sono due poteri diversi che meritano due utenti diversi.
+
+Trovato di striscio: `run_compaction` usciva in anticipo quando non c'era niente
+da compattare, quindi la scadenza sarebbe valsa solo nelle notti in cui per caso
+c'era anche del rumore ambientale da collassare.
+
+Quattro verbi — `denied`, `export`, `forget`, `dream_requested` — e sono tutti
+cablati. Emissione token e nascita/chiusura di una casa erano nel piano e non ci
+sono: nessun codice compie ancora quegli atti, e dichiararne il verbo adesso
+sarebbe un giornale che promette righe che non scriverà mai.
+
+### Il giro completo (regola 12)
+
+- **BO** — schema, migrazione `0015` (tabella generata da drizzle-kit, privilegi
+  e politiche a mano come in `0013`), `services/auditLog.ts` come unico punto di
+  scrittura, quattro cablaggi, retention in `compaction.py`;
+- **FE** — niente: il corpo non compie nessuno dei quattro atti;
+- **`/admin`** — niente **necessario**: nessun dato che il pannello mostra ha
+  cambiato forma. Ma un giornale che si legge solo dal database è mezzo utile, e
+  una vista in sola lettura nel pannello è il seguito naturale — sta in §8, non
+  qui, perché è una feature nuova e non una conseguenza di questa.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1560,8 +1607,8 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
      un ADR sulla transazione per richiesta, il codice, e **solo dopo** sul server creare
      `ugo_app`, dargli una password e spostare le connessioni di soul e dei job. Finché quel
      passo non è fatto, RLS non protegge niente in produzione;
-   - **audit log** (ADR-049 da scrivere): deciso 12 mesi, solo ID e verbi, append-only imposto
-     dai `GRANT`, che è ciò che il ruolo dedicato rende finalmente possibile;
+   - ~~**audit log**~~ — **fatto** (§6-quatervicies, ADR-049). Resta aperto un seguito piccolo:
+     una vista in sola lettura nel pannello, perché oggi il giornale si legge solo dal database;
    - **selettore di casa nel pannello e `ugo casa nuova`**: tutti i pezzi esistono
      (`generateDataKey`, `wrapDataKey`, `issueToken`), manca l'orchestrazione;
    - **lingua e fuso dalla casa** (ADR-050 da scrivere): `households.locale` e `timezone`

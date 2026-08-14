@@ -97,6 +97,20 @@ Cosa succede davvero, in ordine:
 > **L'operazione è irreversibile.** Non c'è un cestino. L'unico modo per tornare indietro è
 > ripartire da un backup precedente.
 
+## Chi ha fatto cosa
+
+Le operazioni che contano — portare via tutto, far dimenticare una persona, chiedere un sogno fuori
+orario — lasciano una riga in un registro a parte. E la lasciano anche i **tentativi rifiutati**: se
+qualcuno bussa con una password che non vale, resta scritto.
+
+Il registro contiene **solo identificativi e verbi**: quale casa, quale token, che cosa è stato
+fatto, com'è finita. Mai un nome, mai il testo di una conversazione, mai la password tentata. È una
+scelta precisa: è il registro che nessuno può riscrivere, e ciò che ci finisce dentro ci resta.
+
+Le righe si conservano **dodici mesi**, poi scadono da sole durante il sogno.
+
+Oggi si legge dal database, non dal pannello. Se ti serve, chiedi a chi gestisce il server.
+
 ## Cancellare tutto
 
 Se vuoi che UGO smetta di esistere: chiedi a chi gestisce il server di distruggere il database e la

@@ -17,6 +17,11 @@ from dataclasses import dataclass
 import psycopg
 
 COMPACT_AFTER_DAYS = 90
+#: Per quanto si tiene una riga di `audit_log` (ADR-049: dodici mesi, scelta
+#: del proprietario). Sta qui e non in `hygiene` perche' l'igiene gira una
+#: volta per esemplare mentre il giornale e' della casa — anzi, le righe di un
+#: rifiuto non sono di nessuna casa. Scade una volta per notte.
+AUDIT_RETENTION_DAYS = 365
 SUMMARY_TYPE = "ambient_day_summary"
 # only high-volume, low-meaning sensor traffic is compactable
 COMPACTABLE_TYPES = ("light", "noise", "env", "solitude_hour")
@@ -26,6 +31,22 @@ COMPACTABLE_TYPES = ("light", "noise", "env", "solitude_hour")
 class CompactionResult:
     days_compacted: int
     events_removed: int
+    audit_rows_expired: int = 0
+
+
+def _expire_audit(conn: psycopg.Connection, retention_days: int) -> int:
+    """Le righe di audit piu' vecchie della retention.
+
+    Gira come **proprietario** delle tabelle, e deve: ad `ugo_app` il `DELETE`
+    su `audit_log` e' revocato apposta (ADR-049). E' la distinzione che rende
+    l'append-only vero invece che dichiarato — far scadere una riga e' un atto
+    della casa, riscriverla sarebbe un atto dell'applicazione, e sono due
+    poteri diversi che meritano due utenti diversi.
+    """
+    return conn.execute(
+        "delete from audit_log where at < now() - make_interval(days => %s)",
+        (retention_days,),
+    ).rowcount
 
 
 def run_compaction(
@@ -50,7 +71,12 @@ def run_compaction(
         (list(COMPACTABLE_TYPES), retention_days),
     ).fetchall()
     if not days:
-        return CompactionResult(days_compacted=0, events_removed=0)
+        # niente da compattare non vuol dire niente da fare: il giornale scade
+        # lo stesso, o la retention di dodici mesi varrebbe solo nelle notti in
+        # cui per caso c'era anche del rumore ambientale da collassare
+        expired = _expire_audit(conn, AUDIT_RETENTION_DAYS)
+        conn.commit()
+        return CompactionResult(days_compacted=0, events_removed=0, audit_rows_expired=expired)
 
     per_day: dict[str, dict[str, int]] = {}
     for day, event_type, count, _first, _last in days:
@@ -76,5 +102,10 @@ def run_compaction(
                 json.dumps({"date": day, "counts": counts}),
             ),
         )
+    expired = _expire_audit(conn, AUDIT_RETENTION_DAYS)
     conn.commit()
-    return CompactionResult(days_compacted=len(per_day), events_removed=removed)
+    return CompactionResult(
+        days_compacted=len(per_day),
+        events_removed=removed,
+        audit_rows_expired=expired,
+    )

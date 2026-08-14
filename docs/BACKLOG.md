@@ -65,7 +65,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ⬜️ | **`withHousehold` per ogni richiesta, poi `DATABASE_URL_APP`** | L'altra metà del tempo 2, e serve un ADR: oggi `withHousehold` non è chiamato da nessuna parte in soul, quindi passare a `ugo_app` darebbe zero righe a ogni query — muto, non isolato |
 | 🔨 | **Job per esemplare** | il sogno cicla, i marcatori portano il gosino, l'igiene non fonde più attraverso il confine. **Manca il backup per famiglia**: `pg_dump` non filtra per riga |
 | ⬜️ | **Selettore di casa nel pannello** + provisioning di una famiglia | |
-| ⬜️ | **Audit log** | fondamenta per qualunque discorso di conformità. Deciso: 12 mesi, solo ID e verbi, append-only imposto dai `GRANT` (ADR-049 da scrivere) |
+| ✅ | **Audit log** | **ADR-049**: 12 mesi, solo ID e verbi, append-only imposto dai `GRANT` — `UPDATE` e `DELETE` **revocati** a `ugo_app`, non semplicemente non concessi. Quattro verbi, tutti cablati; emissione token e nascita casa arrivano con `ugo casa nuova` |
 | ⬜️ | **Lingua per casa** | `households.locale` esiste e non pilota nulla |
 | ⬜️ | **Il genoma pilota il carattere** | `trait_sets` esiste dalla nascita e non fa niente: è ciò che rende due esemplari diversi *di carattere* e non solo di esperienza |
 

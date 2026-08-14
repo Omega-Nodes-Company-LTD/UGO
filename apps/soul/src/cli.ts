@@ -5,6 +5,7 @@ import { EnvValidationError, parseDataKey, parseEnv } from "@ugo/shared";
 import { eq, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { ExportService } from "./services/privacy/exportService.js";
+import { createAuditLog } from "./services/auditLog.js";
 import { ForgetService, BeingNotFoundError } from "./services/privacy/forgetService.js";
 
 /**
@@ -91,11 +92,22 @@ async function main(): Promise<number> {
         env.OLLAMA_URL !== undefined
           ? new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL)
           : undefined;
+      const householdId = await resolveHousehold(db, values.casa);
       const report = await new ForgetService({
         db,
         dataKey,
         ...(embedder !== undefined && { embedder }),
-      }).forgetBeing(values.being, await resolveHousehold(db, values.casa));
+      }).forgetBeing(values.being, householdId);
+      // ADR-049: la riga vale anche da qui. Anzi soprattutto: dalla CLI non
+      // c'e' nessun token, quindi `token_id` e `role` restano nulli — e
+      // «qualcuno con una shell sul server» e' un'informazione, non un vuoto.
+      await createAuditLog(db).record({
+        verb: "forget",
+        outcome: "ok",
+        householdId,
+        resourceType: "being",
+        resourceId: values.being,
+      });
       if (embedder === undefined) {
         console.error("attenzione: OLLAMA_URL assente — memorie non re-embeddate");
       }
@@ -103,9 +115,15 @@ async function main(): Promise<number> {
       return 0;
     }
     if (command === "export") {
-      const bundle = await new ExportService(db, dataKey).exportAll(
-        await resolveHousehold(db, values.casa),
-      );
+      const householdId = await resolveHousehold(db, values.casa);
+      const bundle = await new ExportService(db, dataKey).exportAll(householdId);
+      await createAuditLog(db).record({
+        verb: "export",
+        outcome: "ok",
+        householdId,
+        resourceType: "household",
+        resourceId: householdId,
+      });
       console.log(JSON.stringify(bundle, null, 2));
       return 0;
     }

@@ -14,6 +14,12 @@ export { gosini, traitSets } from "./gosini.js";
 export { households, PRIME_HOUSEHOLD_ID } from "./households.js";
 export { rooms, slugOfRoom } from "./rooms.js";
 export { accessTokens } from "./access-tokens.js";
+export {
+  auditLog,
+  AUDIT_OUTCOMES,
+  AUDIT_RETENTION_DAYS,
+  type AuditOutcome,
+} from "./audit-log.js";
 export { bonds, relations } from "./pack.js";
 export {
   corrections,

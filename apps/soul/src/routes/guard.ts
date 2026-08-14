@@ -1,5 +1,6 @@
 import type { DbClient } from "@ugo/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { AuditLogger } from "../services/auditLog.js";
 import { TenantResolver, type TenantContext } from "../services/tenantAuth.js";
 
 /**
@@ -77,11 +78,21 @@ export function registerTenantResolution(app: FastifyInstance, options: TenantAu
   });
 }
 
-export function createAuthGuard(): PreHandler {
+export function createAuthGuard(audit?: AuditLogger): PreHandler {
   return async (request, reply) => {
     if (request.tenant !== null) return;
     // log the route, never the attempted secret
     request.log.warn({ url: request.url }, "unauthorized attempt on a protected route");
+    // ADR-049: un 401 restava solo nel log di Fastify, che ruota e se ne va.
+    // E' la riga piu' preziosa dell'intero giornale — qualcuno ha bussato con
+    // un token che non vale — e non aveva un posto dove durare. La casa e'
+    // assente per costruzione: e' esattamente cio' che non si sa ancora.
+    await audit?.record({
+      verb: "denied",
+      outcome: "denied",
+      resourceType: "route",
+      resourceId: request.url,
+    });
     await reply
       .code(401)
       .type("application/problem+json")
