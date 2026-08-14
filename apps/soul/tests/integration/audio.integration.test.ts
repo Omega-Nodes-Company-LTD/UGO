@@ -27,6 +27,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
+import { characterFrom } from "../../src/services/council/character.js";
 
 // Fase 4 soul side, on real infrastructure: presigned upload to real MinIO,
 // and recordings interrogable through /chat (real pgvector + real embeddings).
@@ -67,6 +68,7 @@ beforeAll(async () => {
   const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const chat = new ChatService({
     gosinoId: PRIME_GOSINO_ID,
+    character: characterFrom({}),
     db,
     embedder,
     llm: new LlmClient({

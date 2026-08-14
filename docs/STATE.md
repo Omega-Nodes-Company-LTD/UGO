@@ -1534,6 +1534,53 @@ sarebbe un giornale che promette righe che non scriverà mai.
   una vista in sola lettura nel pannello è il seguito naturale — sta in §8, non
   qui, perché è una feature nuova e non una conseguenza di questa.
 
+## 6-quinvicies. Il genoma pilota davvero (ADR-031, gruppo 5)
+
+`trait_sets` esiste dalla nascita dello schema e per mesi non ha pilotato
+niente. Tre pezzi, e uno era già a posto.
+
+**Le baseline erano calcolate e buttate via.** `characterFrom()` ricavava lo
+stato di riposo dal genoma — un flemmatico riposa a stress basso — e nessuno lo
+scriveva: `psyche_baselines` restava vuota e `PsycheService.restore()` ripiegava
+sui neutri del motore, per chiunque. Ora si seminano in `buildRuntime`, e non
+alla nascita: così valgono anche per gli esemplari nati prima di questa riga, e
+prima di `restore()`, o la prima vita partirebbe comunque neutra.
+
+`on conflict do nothing`, ed è la riga che conta: da lì in avanti quelle
+baseline sono **del sogno**, che le sposta di ±0.02 a notte (ADR-012). Un upsert
+le riporterebbe al genoma a ogni riavvio, cioè cancellerebbe ogni settimana
+vissuta — che è esattamente ciò che le baseline adattive esistono per ricordare.
+Un test lo asserisce, perché è il modo più facile di rompere questa feature
+mentre la si "migliora".
+
+**`maxWords` valeva solo in consiglio.** In chat un logorroico e un timido
+rispondevano identici. Ora `ChatService` riceve il `Character` — obbligatorio,
+non facoltativo: un carattere assente è un carattere *medio*, e un default
+silenzioso è precisamente il modo in cui `trait_sets` è rimasto per mesi una
+tabella che non pilotava niente.
+
+Persona e budget di parole vanno nel blocco **dinamico**, mai nei cached: sono
+dell'esemplare, e due creature sotto lo stesso tetto devono condividere la cache
+dei blocchi di identità invece di spaccarla in una per creatura (regola 2). Il
+budget **restringe e non contraddice** `rules.it.md`, che fissa il massimo di
+frasi ed è cached: fra 18 e 60 parole ci sta la differenza fra uno di poche
+parole e un logorroico, dentro le stesse due frasi.
+
+**I cursori del corpo erano già arrivati**: `026f1bb` aveva collegato
+`character.traits` → roster → `Inhabitant` → `Pig`. Verificato invece di
+rifatto. Resta fuori il fallback 2D, che i cursori non li applica — è un limite
+suo, non di questa riga.
+
+### Il giro completo (regola 12)
+
+- **BO** — `chatService`, `runtimes`, `index.ts`;
+- **`/admin`** — nessuna modifica **necessaria**, e succede una cosa migliore:
+  il pannello mostrava già «riposa a X» leggendolo dagli `overrides` della
+  psiche, e quel numero era identico per ogni creatura perché gli overrides non
+  esistevano. Adesso differisce, cioè il pannello diventa vero da solo;
+- **FE** — niente: il muso riceve i tratti dal roster, e quel tratto era già in
+  piedi.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1613,8 +1660,8 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
      (`generateDataKey`, `wrapDataKey`, `issueToken`), manca l'orchestrazione;
    - **lingua e fuso dalla casa** (ADR-050 da scrivere): `households.locale` e `timezone`
      esistono da `0003` e non li legge nessuno; l'italiano è in tre posti diversi;
-   - **il genoma pilota il carattere**: `character.baselines` è calcolato e mai persistito,
-     `maxWords` vale nel consiglio e non in chat, i sei cursori del corpo non arrivano al muso;
+   - ~~**il genoma pilota il carattere**~~ — **fatto** (§6-quinvicies): baseline seminate,
+     `maxWords` e persona in chat, cursori del corpo già arrivati da `026f1bb`;
    - **backup per famiglia**: `pg_dump` non filtra per riga (§7).
 
 Non è più vero che «non resta software da scrivere»: quella frase valeva prima dell'analisi

@@ -19,6 +19,7 @@ import { ChatService } from "../../src/services/chatService.js";
 import { FaceGateway } from "../../src/services/faceGateway.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
+import { characterFrom } from "../../src/services/council/character.js";
 
 // Real WS over a real listening server, real Postgres, real Ollama, provider
 // stubbed at network level. The face client below is exactly what the webapp
@@ -42,6 +43,7 @@ async function startSoul(fakeHour: number): Promise<{ url: string; gateway: Face
   const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const chat = new ChatService({
     gosinoId: PRIME_GOSINO_ID,
+    character: characterFrom({}),
     db,
     embedder: new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL),
     llm: new LlmClient({

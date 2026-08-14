@@ -1,4 +1,4 @@
-import { gosini, traitSets, type DbClient } from "@ugo/db";
+import { gosini, psycheBaselines, traitSets, type DbClient } from "@ugo/db";
 import type { SpeciesMap } from "@ugo/shared";
 import type { EmbeddingsClient, LlmClient, LocalTextClient } from "@ugo/memory";
 import { desc, eq, isNull } from "drizzle-orm";
@@ -81,6 +81,28 @@ export interface RuntimeDeps {
   };
 }
 
+/**
+ * Le baseline del genoma, scritte una volta sola.
+ *
+ * `on conflict do nothing` e' la riga che conta: da qui in avanti quelle
+ * baseline sono **del sogno**, che le sposta di ±0.02 a notte (ADR-012). Un
+ * upsert le riporterebbe al genoma a ogni riavvio, cioe' cancellerebbe ogni
+ * settimana vissuta — che e' esattamente cio' che le baseline adattive sono
+ * fatte per ricordare.
+ */
+async function seedBaselines(
+  db: DbClient,
+  gosinoId: string,
+  baselines: Character["baselines"],
+): Promise<void> {
+  await db
+    .insert(psycheBaselines)
+    .values(
+      Object.entries(baselines).map(([variable, baseline]) => ({ gosinoId, variable, baseline })),
+    )
+    .onConflictDoNothing();
+}
+
 /** Builds the whole apparatus for one exemplar. */
 async function buildRuntime(
   deps: RuntimeDeps,
@@ -94,6 +116,13 @@ async function buildRuntime(
     .limit(1);
   const character = characterFrom(traits[0]?.traits);
 
+  // ADR-031, il pezzo che mancava: le baseline erano **calcolate e buttate**.
+  // Un flemmatico ricavava uno stress di riposo basso e la psiche non lo
+  // leggeva mai, perche' `psyche_baselines` per lui era vuota e `restore()`
+  // ripiegava sui valori neutri del motore. Si seminano qui e non alla nascita
+  // perche' cosi' vale anche per gli esemplari nati prima di questa riga; e
+  // prima di `restore()`, o la prima vita partirebbe comunque neutra.
+  await seedBaselines(deps.db, row.id, character.baselines);
   const psyche = await PsycheService.restore(deps.db, new Date(), row.id);
   const chat = new ChatService({
     db: deps.db,
@@ -103,6 +132,7 @@ async function buildRuntime(
     dataKey: deps.dataKey,
     timezone: deps.timezone,
     gosinoId: row.id,
+    character,
     ...(deps.speciesMap !== undefined && {
       pack: new PackService(deps.db, deps.speciesMap, row.id, row.householdId),
     }),

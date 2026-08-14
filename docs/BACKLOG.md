@@ -67,7 +67,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ⬜️ | **Selettore di casa nel pannello** + provisioning di una famiglia | |
 | ✅ | **Audit log** | **ADR-049**: 12 mesi, solo ID e verbi, append-only imposto dai `GRANT` — `UPDATE` e `DELETE` **revocati** a `ugo_app`, non semplicemente non concessi. Quattro verbi, tutti cablati; emissione token e nascita casa arrivano con `ugo casa nuova` |
 | ⬜️ | **Lingua per casa** | `households.locale` esiste e non pilota nulla |
-| ⬜️ | **Il genoma pilota il carattere** | `trait_sets` esiste dalla nascita e non fa niente: è ciò che rende due esemplari diversi *di carattere* e non solo di esperienza |
+| ✅ | **Il genoma pilota il carattere** | Baseline seminate in `psyche_baselines` con `on conflict do nothing` (da lì in poi sono del sogno, ±0.02 a notte); `maxWords` e persona nel blocco **dinamico** della chat, mai nei cached (regola 2). I cursori del corpo erano già arrivati con `026f1bb`: verificato, non rifatto |
 
 ## Gruppo 6 — Il guscio (ADR-018 Tempo 2, ADR-020)
 

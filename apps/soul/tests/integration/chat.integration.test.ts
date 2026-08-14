@@ -18,6 +18,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
+import { characterFrom } from "../../src/services/council/character.js";
 
 // Full vertical slice on real infrastructure: real Postgres+pgvector, real
 // Ollama embeddings, network-level Messages-API stub (playbook §3 P2).
@@ -42,7 +43,15 @@ async function buildSession(budgetUsd = 0.5): Promise<FastifyInstance> {
     baseUrl: stub.baseUrl,
     timezone: "Europe/Rome",
   });
-  const chat = new ChatService({ gosinoId: PRIME_GOSINO_ID, db, embedder, llm, psyche, dataKey });
+  const chat = new ChatService({
+    gosinoId: PRIME_GOSINO_ID,
+    character: characterFrom({}),
+    db,
+    embedder,
+    llm,
+    psyche,
+    dataKey,
+  });
   return buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },

@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
-import { createDbClient, gosini, households, runMigrations } from "@ugo/db";
-import { asc, eq } from "drizzle-orm";
+import { createDbClient, gosini, households, runMigrations, traitSets } from "@ugo/db";
+import { asc, desc, eq } from "drizzle-orm";
 import { LlmClient, OllamaEmbeddingsClient,
   OllamaTextClient,
 } from "@ugo/memory";
@@ -8,6 +8,7 @@ import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo
 import { RecognitionClient } from "./services/recognitionClient.js";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
+import { characterFrom } from "./services/council/character.js";
 import { FaceGateway } from "./services/faceGateway.js";
 import { MeetingsService } from "./services/meetingsService.js";
 import { PackService } from "./services/packService.js";
@@ -99,6 +100,17 @@ const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
 
 
 const pack = new PackService(db, speciesMap, bootstrapExemplar.id, bootstrapHouseholdId);
+// ADR-031: anche l'apparato di ripiego ha un carattere. Senza genoma in
+// `trait_sets` `characterFrom({})` risponde «un UGO senza spigoli», che e' la
+// verita' su una casa che non ha ancora scelto niente — non un valore neutro
+// messo li' per far compilare.
+const [bootstrapTraits] = await db
+  .select({ traits: traitSets.traits })
+  .from(traitSets)
+  .where(eq(traitSets.gosinoId, bootstrapExemplar.id))
+  .orderBy(desc(traitSets.version))
+  .limit(1);
+const bootstrapCharacter = characterFrom(bootstrapTraits?.traits);
 const llm = llmFor(bootstrapHouseholdId, bootstrapExemplar.id);
 const chat = new ChatService({
   db,
@@ -108,6 +120,7 @@ const chat = new ChatService({
   dataKey: parseDataKey(env.UGO_DATA_KEY),
   pack,
   gosinoId: bootstrapExemplar.id,
+  character: bootstrapCharacter,
 });
 
 const face = new FaceGateway({
