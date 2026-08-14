@@ -135,7 +135,12 @@ window.addEventListener("hashchange", () => { void go(); });
  */
 async function loadCase() {
   try { CASE = (await call("/v1/households", {})).households ?? []; } catch { CASE = []; }
-  if (HOUSE === "" && CASE.length === 1) HOUSE = CASE[0].id;
+  // Con UNA casa 'HOUSE' resta vuota, e non e' una svista: vuota significa
+  // indirizzi senza prefisso e chiamate senza '?casa=', cioe' esattamente il
+  // pannello di prima. Il server la risolve da se' ('soleHousehold'), e i link
+  // gia' salvati continuano a funzionare. Riempirla «tanto la casa e' quella»
+  // riscriverebbe ogni indirizzo per un vicinato che non esiste — ed e'
+  // precisamente cio' che ADR-019 §107 promette di non fare.
   const box = $("rail-case");
   if (!box) return;
   box.parentElement.hidden = CASE.length < 2;
