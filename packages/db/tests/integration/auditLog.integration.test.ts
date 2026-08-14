@@ -22,6 +22,28 @@ import { auditLog, gosini, households } from "../../src/schema/index.js";
 
 const APP_PASSWORD = "ugo-audit-test-password";
 
+/**
+ * Perché Postgres ha detto di no.
+ *
+ * Drizzle avvolge l'errore del driver, quindi il suo `message` è sempre
+ * «Failed query: …» e il motivo vero sta una o due `cause` più sotto. Asserire
+ * sul messaggio esterno passerebbe per **qualunque** query fallita — compresa
+ * una tabella scritta male — e questo test perderebbe l'unica cosa che deve
+ * dire: che il rifiuto è un privilegio negato e non un caso.
+ */
+async function refusal(work: Promise<unknown>): Promise<string> {
+  const messages: string[] = [];
+  try {
+    await work;
+  } catch (error) {
+    for (let err: unknown = error; err instanceof Error; err = err.cause) {
+      messages.push(err.message);
+    }
+  }
+  expect(messages.length, "la query doveva fallire, e non è fallita").toBeGreaterThan(0);
+  return messages.join(" | ");
+}
+
 let container: StartedPostgreSqlContainer;
 /** il proprietario: migrazioni, semina, e la scadenza a dodici mesi */
 let owner: DbClient;
@@ -104,15 +126,15 @@ describe("audit_log", () => {
   });
 
   it("refuses to let the application rewrite what it wrote", async () => {
-    await expect(
+    const why = await refusal(
       app.update(auditLog).set({ outcome: "ok" }).where(eq(auditLog.verb, "denied")),
-    ).rejects.toThrow(/permission denied/i);
+    );
+    expect(why).toMatch(/permission denied/i);
   });
 
   it("refuses to let the application delete what it wrote", async () => {
-    await expect(app.delete(auditLog).where(eq(auditLog.verb, "denied"))).rejects.toThrow(
-      /permission denied/i,
-    );
+    const why = await refusal(app.delete(auditLog).where(eq(auditLog.verb, "denied")));
+    expect(why).toMatch(/permission denied/i);
     // e la riga e' ancora li': il rifiuto non era cosmetico
     const rows = await owner.select().from(auditLog).where(eq(auditLog.verb, "denied"));
     expect(rows).toHaveLength(1);
