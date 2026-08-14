@@ -29,6 +29,18 @@ di Nino, e nemmeno i ricordi.
 L'indirizzo dice sempre dove sei — `#/g/.../stato` — quindi puoi ricaricare la
 pagina e ritrovarti dov'eri, o tenerti un segnalibro sulla pagina di uno solo.
 
+## Se le case sono più d'una
+
+Quasi sempre la casa è una sola, e allora il pannello non te lo chiede nemmeno: non c'è niente da
+scegliere.
+
+Se invece sotto lo stesso server vivono più famiglie, in cima alla barra compare **Le case**.
+Sceglierne una cambia tutto quello che vedi sotto — gosini, stanze, conti, memoria — e l'indirizzo
+diventa `#/c/<casa>/…`, così il link che mandi porta chi lo apre esattamente dove eri tu.
+
+Un token di famiglia vede **solo la propria casa**: l'elenco non è una finestra sulle altre. Le case
+si vedono tutte solo con un accesso da amministratore del server.
+
 ## Le stanze
 
 **Un dispositivo mostra una stanza, non una creatura.** È la cosa da capire per prima: apri

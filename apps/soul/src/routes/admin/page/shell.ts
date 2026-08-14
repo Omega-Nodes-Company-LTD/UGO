@@ -39,6 +39,11 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
   <aside class="rail">
     <div class="brand">UGO <span>pannello</span></div>
 
+    <nav class="rail-group" hidden>
+      <small>Le case</small>
+      <div id="rail-case" data-testid="rail-case"></div>
+    </nav>
+
     <nav class="rail-group">
       <small>La casa</small>
       <a href="#/casa" data-nav="casa">Sommario</a>

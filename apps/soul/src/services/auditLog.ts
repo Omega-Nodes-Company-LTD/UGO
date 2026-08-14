@@ -19,10 +19,11 @@ import type { TenantContext } from "./tenantAuth.js";
  * warning esiste apposta: è l'unico posto da cui si scopre che il giornale ha
  * un buco.
  *
- * Il vocabolario dei verbi copre **ciò che il sistema sa fare oggi**.
- * Emissione e revoca di un token, nascita e chiusura di una casa sono atti che
- * nessun codice compie ancora — arrivano con `ugo casa nuova` — e dichiararne
- * il verbo adesso sarebbe un giornale che promette righe che non scriverà mai.
+ * Il vocabolario dei verbi copre **ciò che il sistema sa fare oggi**, e
+ * `ugo casa nuova` ha appena aggiunto i suoi due. Revoca di un token e chiusura
+ * di una casa restano fuori per la stessa ragione: nessun codice le compie
+ * ancora, e dichiararne il verbo sarebbe un giornale che promette righe che non
+ * scriverà mai.
  */
 
 /** Gli atti che si registrano. Chiusa: un verbo nuovo è una decisione. */
@@ -35,6 +36,10 @@ export const AUDIT_VERBS = [
   "forget",
   /** un sogno chiesto fuori dall'orario in cui sarebbe partito da solo */
   "dream_requested",
+  /** una famiglia nuova sotto lo stesso server (`ugo casa nuova`) */
+  "household_created",
+  /** un token emesso: nel giornale il suo id, mai il segreto */
+  "token_issued",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

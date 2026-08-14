@@ -1581,6 +1581,49 @@ suo, non di questa riga.
 - **FE** — niente: il muso riceve i tratti dal roster, e quel tratto era già in
   piedi.
 
+## 6-sexvicies. Una casa nasce, e il pannello sa in quale sei
+
+`ugo casa nuova --slug --nome [--tz --locale --gosino --archetipo]`. Tutti i
+pezzi esistevano — `generateDataKey`, `wrapDataKey`, `issueToken`,
+`characterFrom` — e mancava solo l'orchestrazione, che è il motivo per cui il
+vicinato è rimasto a lungo una cosa che lo schema sapeva fare e il sistema no.
+
+Cinque atti in **una transazione**, perché una casa a metà è peggio di nessuna
+casa: una `households` senza DEK non cifra niente, un esemplare senza genoma è
+un default silenzioso, un proprietario senza token non entra in casa propria.
+
+Il token va su **stderr** e non su stdout: stdout è per i dati, e un token che
+finisce dentro una pipe o un file di log è un token da revocare. Si stampa una
+volta sola perché in database c'è solo il suo SHA-256 — un segreto recuperabile
+non è un segreto.
+
+Con questo i due verbi che ADR-049 aveva lasciato fuori — `household_created` e
+`token_issued` — diventano scrivibili e sono cablati. Del token resta l'id, mai
+il segreto.
+
+### Il selettore
+
+`GET /v1/households`, e la regola è quella di sempre: **un token vede la propria
+casa e basta**; solo un `operator` le vede tutte, perché è l'unico per cui
+«quale casa?» è una domanda aperta. C'è un test apposta, perché una rotta nuova
+che elenca tutto riaprirebbe in un colpo ciò che il gruppo 5 ha passato giorni a
+chiudere.
+
+Nel pannello `#/c/<casa>/…` avvolge gli indirizzi esistenti, modellato sul
+selettore di esemplare che già funzionava: `forWho()` propaga ora **casa e
+gosino**, e i link fissi della barra vengono riscritti col prefisso. Uno solo
+che lo perdesse riporterebbe in silenzio alla casa di default — che è
+esattamente il modo in cui un selettore mostra i dati di una casa sotto il nome
+di un'altra.
+
+Il gruppo «Le case» resta nascosto finché la casa è una: il proprietario di oggi
+non vede alcun cambiamento, ed è la promessa di ADR-019 §107 che si spegne da sé
+quando arriva la seconda famiglia.
+
+> Trappola incontrata: gli script del pannello sono **template literal**, e un
+> backtick dentro un commento spezza il file. Il `tsc` lo dice, ma con un
+> «Invalid character» a venti righe di distanza da dove sta il problema.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1656,8 +1699,7 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
      passo non è fatto, RLS non protegge niente in produzione;
    - ~~**audit log**~~ — **fatto** (§6-quatervicies, ADR-049). Resta aperto un seguito piccolo:
      una vista in sola lettura nel pannello, perché oggi il giornale si legge solo dal database;
-   - **selettore di casa nel pannello e `ugo casa nuova`**: tutti i pezzi esistono
-     (`generateDataKey`, `wrapDataKey`, `issueToken`), manca l'orchestrazione;
+   - ~~**selettore di casa nel pannello e `ugo casa nuova`**~~ — **fatto** (§6-sexvicies);
    - **lingua e fuso dalla casa** (ADR-050 da scrivere): `households.locale` e `timezone`
      esistono da `0003` e non li legge nessuno; l'italiano è in tre posti diversi;
    - ~~**il genoma pilota il carattere**~~ — **fatto** (§6-quinvicies): baseline seminate,

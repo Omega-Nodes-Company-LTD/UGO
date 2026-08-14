@@ -67,6 +67,8 @@ async function boot() {
   $("app").hidden = false;
   $("gate").hidden = true;
   await section(refresh, "pack-msg");
+  // le case per prime: la popolazione dipende da quale casa si sta guardando
+  await section(loadCase, "stats-msg");
   await section(loadGosini, "stats-msg");
   await go();
 }
