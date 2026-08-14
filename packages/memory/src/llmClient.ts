@@ -5,7 +5,7 @@ import {
   PRIME_HOUSEHOLD_ID,
   type DbClient,
 } from "@ugo/db";
-import { identityPrompt, rulesPrompt } from "@ugo/prompts";
+import { DEFAULT_LOCALE, identityPrompt, rulesPrompt } from "@ugo/prompts";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { computeCostUsd, type TokenUsage } from "./pricing.js";
@@ -60,8 +60,18 @@ export interface LlmClientOptions {
   gosinoId?: string;
   /** override for network-level test stubs and future proxies */
   baseUrl?: string;
-  /** ledger day boundary timezone (default Europe/Rome) */
+  /**
+   * Il fuso della CASA (ADR-050), non del server.
+   *
+   * Decide il confine del giorno del `budget_ledger`, ed e' il punto in cui una
+   * svista non produce un errore ma un addebito nel giorno sbagliato — la
+   * famiglia di difetti peggiore (ADR-035 §3), quella che risponde qualcosa di
+   * plausibile senza sollevare. Due famiglie in fusi diversi resettavano il
+   * salvadanaio all'ora del server.
+   */
   timezone?: string;
+  /** La lingua della casa (ADR-050): sceglie i due blocchi cached, N per N. */
+  locale?: string;
   logger?: { warn: (data: Record<string, unknown>, message: string) => void };
 }
 
@@ -82,12 +92,14 @@ function localDate(timezone: string, at: Date): string {
 export class LlmClient {
   private readonly baseUrl: string;
   private readonly timezone: string;
+  private readonly locale: string;
   private readonly householdId: string;
   private readonly gosinoId: string;
 
   public constructor(private readonly options: LlmClientOptions) {
     this.baseUrl = options.baseUrl ?? "https://api.anthropic.com";
     this.timezone = options.timezone ?? "Europe/Rome";
+    this.locale = options.locale ?? DEFAULT_LOCALE;
     this.householdId = options.householdId ?? PRIME_HOUSEHOLD_ID;
     this.gosinoId = options.gosinoId ?? PRIME_GOSINO_ID;
   }
@@ -130,8 +142,12 @@ export class LlmClient {
       model: this.options.model,
       max_tokens: MAX_TOKENS_BY_CHANNEL[request.channel],
       system: [
-        { type: "text", text: identityPrompt(), cache_control: { type: "ephemeral" } },
-        { type: "text", text: rulesPrompt(), cache_control: { type: "ephemeral" } },
+        {
+          type: "text",
+          text: identityPrompt(this.locale),
+          cache_control: { type: "ephemeral" },
+        },
+        { type: "text", text: rulesPrompt(this.locale), cache_control: { type: "ephemeral" } },
         ...(request.dynamicSystem !== undefined && request.dynamicSystem !== ""
           ? [{ type: "text", text: request.dynamicSystem }]
           : []),

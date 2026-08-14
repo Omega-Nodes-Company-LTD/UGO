@@ -11,21 +11,57 @@ import { fileURLToPath } from "node:url";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-function loadPromptFile(name: string): string {
-  return readFileSync(join(packageRoot, name), "utf8").trim();
+/**
+ * ADR-050: una cache per lingua, mai un'interpolazione.
+ *
+ * Tradurre non significa infilare la lingua in un prompt — sarebbe dato
+ * variabile in un blocco cached (regola 2) e in piu' non funzionerebbe, perche'
+ * la personalita' di UGO *e'* scritta in italiano e chiedere a un prompt
+ * italiano di rispondere in un'altra lingua produce una traduzione, non un
+ * carattere. Significa N file e N cache distinte, memoizzate per locale qui
+ * sotto: due case in due lingue pagano due `cache_write` e poi ognuna legge la
+ * propria.
+ */
+export const DEFAULT_LOCALE = "it-IT";
+
+/** `it-IT` -> `it`: i file portano la lingua, non la variante regionale. */
+function languageOf(locale: string): string {
+  return (locale.split("-")[0] ?? "").toLowerCase();
 }
 
-let cachedIdentity: string | undefined;
-let cachedRules: string | undefined;
+const cache = new Map<string, string>();
+
+/**
+ * Il file della lingua chiesta, o quello italiano.
+ *
+ * Il ripiego e' voluto e non e' mezzo lavoro: la differenza e' fra una casa in
+ * `en-GB` che parla italiano — funzionante, e onesta su cio' che non ha — e una
+ * che non parte. Aggiungere una lingua e' aggiungere due file, senza toccare
+ * una riga di codice.
+ */
+function loadPromptFile(kind: string, locale: string): string {
+  const key = `${kind}.${locale}`;
+  const hit = cache.get(key);
+  if (hit !== undefined) return hit;
+  const candidates = [languageOf(locale), languageOf(DEFAULT_LOCALE)];
+  for (const language of candidates) {
+    try {
+      const text = readFileSync(join(packageRoot, `${kind}.${language}.md`), "utf8").trim();
+      cache.set(key, text);
+      return text;
+    } catch {
+      // la lingua non e' ancora stata scritta: si prova l'italiano
+    }
+  }
+  throw new Error(`prompt "${kind}" missing for ${locale} and for ${DEFAULT_LOCALE}`);
+}
 
 /** Block 1 — [CACHED] identity and personality. */
-export function identityPrompt(): string {
-  cachedIdentity ??= loadPromptFile("identity.it.md");
-  return cachedIdentity;
+export function identityPrompt(locale: string = DEFAULT_LOCALE): string {
+  return loadPromptFile("identity", locale);
 }
 
 /** Block 2 — [CACHED] format rules and limits. */
-export function rulesPrompt(): string {
-  cachedRules ??= loadPromptFile("rules.it.md");
-  return cachedRules;
+export function rulesPrompt(locale: string = DEFAULT_LOCALE): string {
+  return loadPromptFile("rules", locale);
 }

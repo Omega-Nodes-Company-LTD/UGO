@@ -39,6 +39,12 @@ export interface ChatServiceDeps {
   /** the household's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
+   * La lingua della casa (ADR-050). Governa come si scrive la data e l'ora che
+   * UGO ha davanti — era `"it-IT"` letterale dentro `Intl`, quindi una casa che
+   * dichiarava un locale diverso lo vedeva ignorato senza un errore.
+   */
+  locale?: string;
+  /**
    * ADR-032: whose memories, whose thread, whose diary. Two exemplars in one
    * house share the pack and the data key, and share nothing else.
    *
@@ -142,7 +148,7 @@ export class ChatService {
   }
 
   private formatClock(at: Date, tz: string): { hour: number; minute: number; text: string } {
-    const parts = new Intl.DateTimeFormat("it-IT", {
+    const parts = new Intl.DateTimeFormat(this.deps.locale ?? "it-IT", {
       timeZone: tz,
       weekday: "long",
       day: "numeric",

@@ -1624,6 +1624,49 @@ quando arriva la seconda famiglia.
 > backtick dentro un commento spezza il file. Il `tsc` lo dice, ma con un
 > «Invalid character» a venti righe di distanza da dove sta il problema.
 
+## 6-septvicies. La lingua e l'ora sono della casa (ADR-050)
+
+`households.locale` e `timezone` esistevano da `0003` e **non li leggeva
+nessuno**.
+
+**Una cache per lingua, mai un'interpolazione.** È la parte che meritava un ADR:
+i due blocchi di identità e regole sono `[CACHED]` e devono restare
+byte-stabili, quindi tradurre significa **N file e N cache**, non «rispondi in
+{lingua}» interpolato — che violerebbe la regola 2 e per giunta non
+funzionerebbe, perché la personalità di UGO *è* scritta in italiano e chiederle
+un'altra lingua produce una traduzione, non un carattere. Si spedisce solo
+`it-IT`; le altre ricadono su quello finché i file non esistono. Aggiungere una
+lingua è aggiungere due file, senza toccare codice.
+
+**Il fuso ha la conseguenza che si misura in soldi.** `LlmClient` usava `env.TZ`
+per il confine del giorno del `budget_ledger`: due famiglie in fusi diversi
+azzeravano il salvadanaio all'ora del server. Ora fuso e lingua si leggono dalla
+casa insieme al genoma, una volta per esemplare all'avvio.
+
+Sul lato Python lo scheduler **era già a posto** — sostituisce `cfg.timezone`
+col fuso della casa prima di svegliare il sogno. Verificato invece che rifatto.
+
+Ma lì è venuta fuori una divergenza vera: `batch.py` scriveva il ledger con
+`current_date`, cioè la data di **Postgres**, mentre soul la calcola col fuso
+della famiglia — due strade sulla stessa colonna che in fusi diversi rispondono
+date diverse. E il controllo del tetto leggeva anch'esso `current_date`:
+correggere la sola scrittura avrebbe fatto di peggio che lasciare tutto com'era,
+cioè la spesa su un giorno e il limite su un altro. Corretti entrambi.
+
+**Cosa non diventa multilingua**, e non per dimenticanza: le stringhe italiane
+di `psyche`, `character.ts`, `curiosity.ts` e `reflect.py` sono l'*identità* di
+UGO e non l'interfaccia — tradurle è scrittura, non ingegneria. Le etichette di
+`/admin` idem: il pannello è per chi amministra il server.
+
+### Il giro completo (regola 12)
+
+- **BO** — `packages/prompts` (caricamento per locale con ripiego e memoizzazione),
+  `LlmClient`, `ChatService`, `runtimes`, `index.ts`, `ops/jobs/batch.py`;
+- **`/admin`** — nessuna modifica, **dichiarato nell'ADR**: resta in italiano;
+- **FE** — niente: il muso parla via `speech.ts` con `it-IT`, che è la lingua di
+  questa casa. Il giorno in cui una casa ne dichiara un'altra, quel valore va
+  preso dal roster — sta in §8, non l'ho anticipato.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1700,8 +1743,9 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
    - ~~**audit log**~~ — **fatto** (§6-quatervicies, ADR-049). Resta aperto un seguito piccolo:
      una vista in sola lettura nel pannello, perché oggi il giornale si legge solo dal database;
    - ~~**selettore di casa nel pannello e `ugo casa nuova`**~~ — **fatto** (§6-sexvicies);
-   - **lingua e fuso dalla casa** (ADR-050 da scrivere): `households.locale` e `timezone`
-     esistono da `0003` e non li legge nessuno; l'italiano è in tre posti diversi;
+   - ~~**lingua e fuso dalla casa**~~ — **fatto** (§6-septvicies, ADR-050). Resta fuori, e
+     dichiarato: il muso usa `it-IT` fisso in `speech.ts`, e le stringhe italiane della psiche
+     sono identità e non interfaccia;
    - ~~**il genoma pilota il carattere**~~ — **fatto** (§6-quinvicies): baseline seminate,
      `maxWords` e persona in chat, cursori del corpo già arrivati da `026f1bb`;
    - **backup per famiglia**: `pg_dump` non filtra per riga (§7).

@@ -66,7 +66,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | 🔨 | **Job per esemplare** | il sogno cicla, i marcatori portano il gosino, l'igiene non fonde più attraverso il confine. **Manca il backup per famiglia**: `pg_dump` non filtra per riga |
 | ✅ | **Selettore di casa nel pannello** + provisioning di una famiglia | `ugo casa nuova`: cinque atti in una transazione, token del proprietario su stderr e una volta sola. `GET /v1/households` mostra la propria casa e basta — tutte solo a un `operator`. Nel pannello `#/c/<casa>/…`, nascosto finché la casa è una |
 | ✅ | **Audit log** | **ADR-049**: 12 mesi, solo ID e verbi, append-only imposto dai `GRANT` — `UPDATE` e `DELETE` **revocati** a `ugo_app`, non semplicemente non concessi. Quattro verbi, tutti cablati; emissione token e nascita casa arrivano con `ugo casa nuova` |
-| ⬜️ | **Lingua per casa** | `households.locale` esiste e non pilota nulla |
+| ✅ | **Lingua per casa** | **ADR-050**: una cache di prompt per lingua, mai un'interpolazione (regola 2). Si spedisce `it-IT`, le altre ricadono su quello. Col fuso è arrivata la correzione che conta: il giorno del `budget_ledger` è della casa, e `batch.py` lo calcolava con `current_date` di Postgres |
 | ✅ | **Il genoma pilota il carattere** | Baseline seminate in `psyche_baselines` con `on conflict do nothing` (da lì in poi sono del sogno, ±0.02 a notte); `maxWords` e persona nel blocco **dinamico** della chat, mai nei cached (regola 2). I cursori del corpo erano già arrivati con `026f1bb`: verificato, non rifatto |
 
 ## Gruppo 6 — Il guscio (ADR-018 Tempo 2, ADR-020)

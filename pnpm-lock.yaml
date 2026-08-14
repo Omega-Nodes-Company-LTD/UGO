@@ -118,6 +118,9 @@ importers:
       '@ugo/memory':
         specifier: workspace:*
         version: link:../../packages/memory
+      '@ugo/prompts':
+        specifier: workspace:*
+        version: link:../../packages/prompts
       '@ugo/psyche':
         specifier: workspace:*
         version: link:../../packages/psyche
