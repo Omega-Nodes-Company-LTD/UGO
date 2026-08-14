@@ -5,6 +5,8 @@ import { EnvValidationError, parseDataKey, parseEnv } from "@ugo/shared";
 import { eq, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { ExportService } from "./services/privacy/exportService.js";
+import { createAuditLog } from "./services/auditLog.js";
+import { createHousehold, HouseholdSlugTakenError } from "./services/householdService.js";
 import { ForgetService, BeingNotFoundError } from "./services/privacy/forgetService.js";
 
 /**
@@ -31,6 +33,11 @@ const USAGE = `uso:
                                anonimizza irreversibilmente un essere del branco
   ugo export [--casa <slug|uuid>]
                                esporta i dati di una casa in JSON (stdout)
+
+  ugo casa nuova --slug <slug> --nome "<nome>" [--tz <fuso>] [--locale <it-IT>]
+                 [--gosino <nome>] [--archetipo <nome>]
+                               fa nascere una casa: chiave dati, primo gosino,
+                               genoma e token del proprietario
 
   --casa   slug o uuid della casa. Obbligatorio se ce n'è più di una.`;
 
@@ -61,6 +68,12 @@ async function main(): Promise<number> {
     options: {
       being: { type: "string" },
       casa: { type: "string" },
+      slug: { type: "string" },
+      nome: { type: "string" },
+      tz: { type: "string" },
+      locale: { type: "string" },
+      gosino: { type: "string" },
+      archetipo: { type: "string" },
       yes: { type: "boolean", default: false },
     },
   });
@@ -91,11 +104,22 @@ async function main(): Promise<number> {
         env.OLLAMA_URL !== undefined
           ? new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL)
           : undefined;
+      const householdId = await resolveHousehold(db, values.casa);
       const report = await new ForgetService({
         db,
         dataKey,
         ...(embedder !== undefined && { embedder }),
-      }).forgetBeing(values.being, await resolveHousehold(db, values.casa));
+      }).forgetBeing(values.being, householdId);
+      // ADR-049: la riga vale anche da qui. Anzi soprattutto: dalla CLI non
+      // c'e' nessun token, quindi `token_id` e `role` restano nulli — e
+      // «qualcuno con una shell sul server» e' un'informazione, non un vuoto.
+      await createAuditLog(db).record({
+        verb: "forget",
+        outcome: "ok",
+        householdId,
+        resourceType: "being",
+        resourceId: values.being,
+      });
       if (embedder === undefined) {
         console.error("attenzione: OLLAMA_URL assente — memorie non re-embeddate");
       }
@@ -103,15 +127,69 @@ async function main(): Promise<number> {
       return 0;
     }
     if (command === "export") {
-      const bundle = await new ExportService(db, dataKey).exportAll(
-        await resolveHousehold(db, values.casa),
-      );
+      const householdId = await resolveHousehold(db, values.casa);
+      const bundle = await new ExportService(db, dataKey).exportAll(householdId);
+      await createAuditLog(db).record({
+        verb: "export",
+        outcome: "ok",
+        householdId,
+        resourceType: "household",
+        resourceId: householdId,
+      });
       console.log(JSON.stringify(bundle, null, 2));
+      return 0;
+    }
+    if (command === "casa" && positionals[1] === "nuova") {
+      if (values.slug === undefined || values.nome === undefined) {
+        console.error("errore: --slug e --nome sono obbligatori\n" + USAGE);
+        return 1;
+      }
+      const born = await createHousehold(db, dataKey, {
+        slug: values.slug,
+        name: values.nome,
+        ...(values.tz !== undefined && { timezone: values.tz }),
+        ...(values.locale !== undefined && { locale: values.locale }),
+        ...(values.gosino !== undefined && { gosinoName: values.gosino }),
+        ...(values.archetipo !== undefined && { archetype: values.archetipo }),
+      });
+      const audit = createAuditLog(db);
+      await audit.record({
+        verb: "household_created",
+        outcome: "ok",
+        householdId: born.householdId,
+        resourceType: "household",
+        resourceId: born.householdId,
+      });
+      // del token resta scritto che ne e' stato emesso uno, e il suo id: mai il
+      // segreto, che in database esiste solo come SHA-256
+      await audit.record({
+        verb: "token_issued",
+        outcome: "ok",
+        householdId: born.householdId,
+        resourceType: "token",
+        resourceId: born.tokenId,
+      });
+
+      // su stderr e non su stdout: stdout e' per i dati, e un token che finisce
+      // dentro una pipe o un file di log e' un token da revocare
+      console.error(`casa "${born.slug}" creata.`);
+      console.error(`gosino: ${values.gosino ?? "ugo"} — ${born.persona}`);
+      console.error("");
+      console.error("Token del proprietario, mostrato UNA VOLTA SOLA:");
+      console.error("");
+      console.error(`  ${born.ownerToken}`);
+      console.error("");
+      console.error("In database c'è solo il suo SHA-256: se lo perdi, se ne emette un altro.");
+      console.log(JSON.stringify({ householdId: born.householdId, gosinoId: born.gosinoId }));
       return 0;
     }
     console.error(USAGE);
     return 1;
   } catch (error) {
+    if (error instanceof HouseholdSlugTakenError) {
+      console.error(`errore: ${error.message}`);
+      return 1;
+    }
     if (error instanceof BeingNotFoundError) {
       console.error(`errore: essere ${values.being ?? ""} non trovato`);
       return 1;

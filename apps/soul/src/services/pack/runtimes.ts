@@ -1,4 +1,5 @@
-import { gosini, traitSets, type DbClient } from "@ugo/db";
+import { gosini, households, psycheBaselines, traitSets, type DbClient } from "@ugo/db";
+import { DEFAULT_LOCALE } from "@ugo/prompts";
 import type { SpeciesMap } from "@ugo/shared";
 import type { EmbeddingsClient, LlmClient, LocalTextClient } from "@ugo/memory";
 import { desc, eq, isNull } from "drizzle-orm";
@@ -48,6 +49,12 @@ export interface GosinoRuntime {
   chat: ChatService;
 }
 
+/** Come questa casa scrive le date e quando finisce il suo giorno (ADR-050). */
+export interface HouseClock {
+  timezone: string;
+  locale: string;
+}
+
 export interface RuntimeDeps {
   db: DbClient;
   embedder: EmbeddingsClient;
@@ -57,9 +64,15 @@ export interface RuntimeDeps {
    * process wrote every row against the seeded house — so a second family's
    * conversation drained the first one's day and its ceiling was never read.
    */
-  llm: (householdId: string, gosinoId: string) => LlmClient;
+  llm: (householdId: string, gosinoId: string, clock: HouseClock) => LlmClient;
   local: LocalTextClient;
   dataKey: Buffer;
+  /**
+   * Il fuso di ripiego, per la casa che non ne dichiara uno. ADR-050: quello
+   * vero e' della casa e si legge insieme al resto — un fuso di processo per
+   * tutte le famiglie era il modo in cui il salvadanaio si azzerava all'ora
+   * del server invece che a mezzanotte loro.
+   */
   timezone: string;
   /**
    * ADR-019 phase 2: a `PackService` belongs to one house *and* one exemplar,
@@ -81,11 +94,40 @@ export interface RuntimeDeps {
   };
 }
 
+/**
+ * Le baseline del genoma, scritte una volta sola.
+ *
+ * `on conflict do nothing` e' la riga che conta: da qui in avanti quelle
+ * baseline sono **del sogno**, che le sposta di ±0.02 a notte (ADR-012). Un
+ * upsert le riporterebbe al genoma a ogni riavvio, cioe' cancellerebbe ogni
+ * settimana vissuta — che e' esattamente cio' che le baseline adattive sono
+ * fatte per ricordare.
+ */
+async function seedBaselines(
+  db: DbClient,
+  gosinoId: string,
+  baselines: Character["baselines"],
+): Promise<void> {
+  await db
+    .insert(psycheBaselines)
+    .values(
+      Object.entries(baselines).map(([variable, baseline]) => ({ gosinoId, variable, baseline })),
+    )
+    .onConflictDoNothing();
+}
+
 /** Builds the whole apparatus for one exemplar. */
 async function buildRuntime(
   deps: RuntimeDeps,
   row: { id: string; householdId: string; name: string; where: string | null },
 ): Promise<GosinoRuntime> {
+  const [house] = await deps.db
+    .select({ timezone: households.timezone, locale: households.locale })
+    .from(households)
+    .where(eq(households.id, row.householdId));
+  const timezone = house?.timezone ?? deps.timezone;
+  const locale = house?.locale ?? DEFAULT_LOCALE;
+
   const traits = await deps.db
     .select({ traits: traitSets.traits })
     .from(traitSets)
@@ -94,15 +136,24 @@ async function buildRuntime(
     .limit(1);
   const character = characterFrom(traits[0]?.traits);
 
+  // ADR-031, il pezzo che mancava: le baseline erano **calcolate e buttate**.
+  // Un flemmatico ricavava uno stress di riposo basso e la psiche non lo
+  // leggeva mai, perche' `psyche_baselines` per lui era vuota e `restore()`
+  // ripiegava sui valori neutri del motore. Si seminano qui e non alla nascita
+  // perche' cosi' vale anche per gli esemplari nati prima di questa riga; e
+  // prima di `restore()`, o la prima vita partirebbe comunque neutra.
+  await seedBaselines(deps.db, row.id, character.baselines);
   const psyche = await PsycheService.restore(deps.db, new Date(), row.id);
   const chat = new ChatService({
     db: deps.db,
     embedder: deps.embedder,
-    llm: deps.llm(row.householdId, row.id),
+    llm: deps.llm(row.householdId, row.id, { timezone, locale }),
     psyche,
     dataKey: deps.dataKey,
-    timezone: deps.timezone,
+    timezone,
+    locale,
     gosinoId: row.id,
+    character,
     ...(deps.speciesMap !== undefined && {
       pack: new PackService(deps.db, deps.speciesMap, row.id, row.householdId),
     }),

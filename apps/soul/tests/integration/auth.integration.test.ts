@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
+  auditLog,
   beings,
   budgetLedger,
   createDbClient,
@@ -80,6 +81,32 @@ describe("internal token guard", () => {
       expect(response.statusCode, url).toBe(401);
       expect(response.headers["content-type"]).toContain("application/problem+json");
     }
+  });
+
+  /**
+   * ADR-049. Un 401 restava solo nel log di Fastify, che ruota e se ne va: e'
+   * la riga piu' preziosa del giornale — qualcuno ha bussato con un token che
+   * non vale — e non aveva un posto dove durare. La casa e' nulla per
+   * costruzione, perche' e' esattamente cio' che non si sa ancora.
+   */
+  it("leaves a row in the journal for every refusal, with no house and no secret", async () => {
+    await db.delete(auditLog);
+    await guarded.inject({
+      method: "GET",
+      url: "/v1/privacy/export",
+      headers: { authorization: "Bearer questo-non-vale" },
+    });
+
+    const rows = await db.select().from(auditLog).where(eq(auditLog.verb, "denied"));
+    expect(rows).toHaveLength(1);
+    const row = rows[0];
+    expect(row?.outcome).toBe("denied");
+    expect(row?.householdId).toBeNull();
+    expect(row?.tokenId).toBeNull();
+    expect(row?.resourceType).toBe("route");
+    expect(row?.resourceId).toBe("/v1/privacy/export");
+    // il segreto tentato non finisce da nessuna parte, ed e' il punto
+    expect(JSON.stringify(row)).not.toContain("questo-non-vale");
   });
 
   it("refuses a wrong token and a malformed header alike", async () => {

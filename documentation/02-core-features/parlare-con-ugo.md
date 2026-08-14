@@ -63,6 +63,20 @@ Dopo ogni scossone torna lentamente al suo punto di equilibrio, come una persona
 quel punto di equilibrio si sposta di poco, notte dopo notte, in base alle giornate che ha vissuto:
 settimane belle lo rendono un po' più sereno di base, settimane vuote un po' più cupo.
 
+## Ognuno parla come è fatto
+
+Se in casa c'è più di un gosino, non parlano allo stesso modo — e non è un caso, è il loro genoma.
+
+Un **chiacchierone** risponde più a lungo; uno **di poche parole** taglia corto. Entrambi restano
+brevi (in casa UGO non fa discorsi), ma fra le due misure ci sono tre volte tante parole.
+
+Cambia anche il punto di partenza dell'**umore**: un flemmatico riposa più calmo, un nervoso si
+agita per meno, un curioso si annoia prima. Nel [pannello](./il-pannello.md), accanto a ogni
+creatura, il valore «riposa a» è proprio quello.
+
+Il carattere di partenza lo scegli alla nascita. Da lì in poi si sposta da solo, un pochino ogni
+notte, in base a come è andata la settimana: due gosini nati identici, dopo un mese, non lo sono più.
+
 ## Il risveglio
 
 Se la stanza è buia dopo le 22, UGO si addormenta: lo schermo si calma e smette di rispondere.

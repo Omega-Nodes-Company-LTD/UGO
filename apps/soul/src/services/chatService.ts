@@ -9,6 +9,7 @@ import {
 } from "@ugo/memory";
 import { decryptText, encryptText, type ChatRequest, type ChatResponse } from "@ugo/shared";
 import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import type { Character } from "./council/character.js";
 import type { PackService } from "./packService.js";
 import { buildPackPrompt } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
@@ -38,6 +39,12 @@ export interface ChatServiceDeps {
   /** the household's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
+   * La lingua della casa (ADR-050). Governa come si scrive la data e l'ora che
+   * UGO ha davanti — era `"it-IT"` letterale dentro `Intl`, quindi una casa che
+   * dichiarava un locale diverso lo vedeva ignorato senza un errore.
+   */
+  locale?: string;
+  /**
    * ADR-032: whose memories, whose thread, whose diary. Two exemplars in one
    * house share the pack and the data key, and share nothing else.
    *
@@ -45,6 +52,16 @@ export interface ChatServiceDeps {
    * scriveva sull'esemplare seminato **invece di fallire**.
    */
   gosinoId: string;
+  /**
+   * Chi è questo, dal genoma (ADR-015/031).
+   *
+   * Obbligatorio e non facoltativo di proposito: un carattere assente è un
+   * carattere *medio*, e un default silenzioso è precisamente il modo in cui
+   * `trait_sets` è rimasto per mesi una tabella che non pilotava niente. Chi
+   * costruisce una chat deve dire di chi è, anche solo per rispondere
+   * «`characterFrom({})`, un UGO senza spigoli».
+   */
+  character: Character;
 }
 
 /** Blocks 3+4 of the §5.5 prompt order — dynamic, therefore NEVER cached. */
@@ -55,10 +72,21 @@ function buildDynamicSystem(
   retrieved: readonly RankedMemory[],
   recordings: readonly string[],
   pack: string | undefined,
+  character: Character,
 ): string {
   // the clock goes in the DYNAMIC block and nowhere else: interpolating a time
   // into a cached block would break the cache on every single call (§5.5)
-  const lines = [`Adesso è ${now}.`, `Stato d'animo: ${view.label}. ${view.phrase}`];
+  //
+  // E per la stessa ragione ci sta il carattere: `persona` e `maxWords` sono
+  // dell'esemplare, e due esemplari sotto lo stesso tetto devono condividere
+  // la cache dei blocchi di identità — non spaccarla in una per creatura
+  // (regola 2). Il genoma era calcolato e speso solo dal consiglio: in chat
+  // un logorroico e un timido rispondevano identici.
+  const lines = [
+    `Adesso è ${now}.`,
+    character.persona,
+    `Stato d'animo: ${view.label}. ${view.phrase}`,
+  ];
   // the pack comes before the memories: who is in the room decides how a
   // recollection should be said, not the other way round
   if (pack !== undefined && pack !== "") lines.push(pack);
@@ -75,6 +103,11 @@ function buildDynamicSystem(
   if (recordings.length > 0) {
     lines.push(`Dalle registrazioni:\n${recordings.map((text) => `- ${text}`).join("\n")}`);
   }
+  // Restringe, non contraddice: `rules.it.md` fissa il massimo di frasi ed è
+  // cached, quindi vale per tutti. Questo è l'asse che il genoma può muovere
+  // senza rinegoziare il formato — fra 18 e 60 parole ci sta la differenza fra
+  // uno di poche parole e un logorroico, dentro le stesse due frasi.
+  lines.push(`Non superare ${String(character.maxWords)} parole.`);
   return lines.join("\n");
 }
 
@@ -115,7 +148,7 @@ export class ChatService {
   }
 
   private formatClock(at: Date, tz: string): { hour: number; minute: number; text: string } {
-    const parts = new Intl.DateTimeFormat("it-IT", {
+    const parts = new Intl.DateTimeFormat(this.deps.locale ?? "it-IT", {
       timeZone: tz,
       weekday: "long",
       day: "numeric",
@@ -282,6 +315,7 @@ export class ChatService {
           retrieved,
           recordings,
           await this.packBlock(request.beingId, request.channel),
+          this.deps.character,
         ),
         history,
         userText: request.text,

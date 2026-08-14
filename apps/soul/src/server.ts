@@ -1,7 +1,9 @@
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js";
+import { createAuditLog } from "./services/auditLog.js";
 import { createAuthGuard, registerTenantResolution } from "./routes/guard.js";
+import { registerHouseholdRoutes } from "./routes/households.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerArchiveRoutes } from "./routes/archive.js";
@@ -108,7 +110,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       db: options.db,
       ...(internalToken !== undefined && { legacyToken: internalToken }),
     });
-    const guard = createAuthGuard();
+    // ADR-049: uno solo, per la stessa ragione per cui `llmClient` e' uno solo
+    const audit = createAuditLog(options.db, app.log);
+    const guard = createAuthGuard(audit);
     registerV1Routes(app, {
       db: options.db,
       ...v1,
@@ -123,9 +127,13 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       });
     }
     registerDebugChatRoute(app);
+    // il selettore del pannello: aperta al solo token, che e' gia' abbastanza
+    // — dice quali case *quel* token puo' vedere, e per quasi tutti e' una
+    registerHouseholdRoutes(app, { db: options.db });
     registerJobsRoutes(app, {
       db: options.db,
       guard,
+      audit,
       ...(dreamTriggerUrl !== undefined && { dreamTriggerUrl }),
     });
     if (audio !== undefined) {
@@ -135,7 +143,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       registerMeetingsRoutes(app, meetings, guard);
     }
     if (privacy !== undefined) {
-      registerPrivacyRoutes(app, { db: options.db, ...privacy, guard });
+      registerPrivacyRoutes(app, { db: options.db, ...privacy, guard, audit });
     }
     // the archive is about memories and meetings, and had no business being
     // gated on the species map: it was registered there only because both

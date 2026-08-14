@@ -1,5 +1,6 @@
 import { events, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
+import type { AuditLogger } from "../services/auditLog.js";
 import type { PreHandler } from "./guard.js";
 import { eldestExemplarOf, householdScope } from "./scope.js";
 
@@ -19,6 +20,8 @@ export interface JobsRouteDeps {
   guard: PreHandler;
   /** optional HTTP trigger exposed by the jobs runner on the private network */
   dreamTriggerUrl?: string;
+  /** ADR-049: `dream_requested` diceva che qualcuno aveva chiesto; non chi */
+  audit?: AuditLogger;
 }
 
 export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): void {
@@ -31,8 +34,18 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
       gosinoId: await eldestExemplarOf(deps.db, householdId),
       source: "system",
       type: "dream_requested",
-      // who asked belongs in `audit_log` (ADR-049), not in an event payload
+      // l'evento resta il giornale della creatura: le e' stato chiesto di
+      // sognare, e quello e' un fatto della sua notte. Chi l'ha chiesto e'
+      // un'altra domanda, e da ADR-049 ha la sua tabella.
       payload: date !== undefined ? { date } : {},
+    });
+    await deps.audit?.record({
+      verb: "dream_requested",
+      outcome: "ok",
+      householdId,
+      actor: request.tenant,
+      resourceType: "household",
+      resourceId: householdId,
     });
 
     if (deps.dreamTriggerUrl === undefined) {

@@ -13,7 +13,9 @@ it two.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TypeVar
+from zoneinfo import ZoneInfo
 
 import httpx
 import psycopg
@@ -35,14 +37,26 @@ class BudgetExhausted(RuntimeError):
     """The house has spent its day. Not a failure — a declared degradation."""
 
 
+def _today(cfg: JobsConfig) -> str:
+    """Oggi, per questa casa. Lo scheduler mette in `cfg.timezone` il fuso della
+    famiglia prima di svegliare il sogno, quindi qui e' gia' quello giusto."""
+    return datetime.now(ZoneInfo(cfg.timezone)).date().isoformat()
+
+
 def spent_today_usd(conn: psycopg.Connection, cfg: JobsConfig) -> float:
-    """This house's ledger for today, always summed server-side (ADR-019)."""
+    """This house's ledger for today, always summed server-side (ADR-019).
+
+    «Oggi» e' il giorno della **casa** (ADR-050), non di Postgres. Correggere la
+    sola scrittura avrebbe fatto di peggio che lasciare tutto com'era: la spesa
+    su un giorno e il controllo del tetto su un altro, cioe' un limite che non
+    limita e non lo dice.
+    """
     row = conn.execute(
         """
         select coalesce(sum(cost_usd), 0)::float from budget_ledger
-        where household_id = %s and date = current_date
+        where household_id = %s and date = %s
         """,
-        (cfg.household_id,),
+        (cfg.household_id, _today(cfg)),
     ).fetchone()
     return float(row[0]) if row else 0.0
 
@@ -107,13 +121,19 @@ def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None
             / 1_000_000
             * BATCH_DISCOUNT
         )
+        # ADR-050: il giorno del ledger e' quello della CASA, non del server.
+        # `current_date` e' la data di Postgres, mentre `LlmClient` in soul
+        # calcola la propria con il fuso della famiglia: due strade che
+        # scrivono sulla stessa colonna e in fusi diversi rispondevano date
+        # diverse, cioe' un tetto giornaliero che si azzera due volte o mai.
         conn.execute(
             """
             insert into budget_ledger
               (date, provider, model, tokens_in, tokens_out, cost_usd, household_id, gosino_id)
-            values (current_date, 'anthropic', %s, %s, %s, %s, %s, %s)
+            values (%s, 'anthropic', %s, %s, %s, %s, %s, %s)
             """,
             (
+                _today(cfg),
                 cfg.anthropic_batch_model,
                 tokens_in,
                 tokens_out,

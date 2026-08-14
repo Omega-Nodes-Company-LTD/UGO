@@ -26,6 +26,7 @@ import { ChatService } from "../../src/services/chatService.js";
 import { FaceGateway, type FaceSender } from "../../src/services/faceGateway.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { SolitudeMonitor } from "../../src/services/solitudeMonitor.js";
+import { characterFrom } from "../../src/services/council/character.js";
 
 /**
  * One day in UGO's life, end to end.
@@ -62,6 +63,7 @@ async function wake(hourOfDay: number): Promise<{
   const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const chat = new ChatService({
     gosinoId: PRIME_GOSINO_ID,
+    character: characterFrom({}),
     db,
     embedder,
     llm: new LlmClient({

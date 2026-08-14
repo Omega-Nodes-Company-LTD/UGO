@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { ExportService } from "../services/privacy/exportService.js";
 import { BeingNotFoundError, type ForgetService } from "../services/privacy/forgetService.js";
+import type { AuditLogger } from "../services/auditLog.js";
 import type { PreHandler } from "./guard.js";
 import { householdScope } from "./scope.js";
 
@@ -23,6 +24,8 @@ export interface PrivacyRouteDeps {
   forget: ForgetService;
   exporter: ExportService;
   guard: PreHandler;
+  /** ADR-049: i due atti che un audit log esiste per registrare */
+  audit?: AuditLogger;
 }
 
 export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDeps): void {
@@ -38,16 +41,29 @@ export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDe
     }
     const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
     if (householdId === undefined) return reply;
+    // registrato **prima** dell'esito e poi corretto: una cancellazione che
+    // va a meta' e solleva e' precisamente il caso che si vuole poter
+    // ricostruire, e un audit scritto solo in caso di successo non lo copre
+    const trail = {
+      verb: "forget",
+      householdId,
+      actor: request.tenant,
+      resourceType: "being",
+      resourceId: parsed.data.beingId,
+    } as const;
     try {
       const report = await deps.forget.forgetBeing(parsed.data.beingId, householdId);
+      await deps.audit?.record({ ...trail, outcome: "ok" });
       return await reply.send(report);
     } catch (error) {
       if (error instanceof BeingNotFoundError) {
+        await deps.audit?.record({ ...trail, outcome: "denied" });
         return reply
           .code(404)
           .type("application/problem+json")
           .send({ type: "about:blank", title: "Being not found", status: 404 });
       }
+      await deps.audit?.record({ ...trail, outcome: "error" });
       throw error;
     }
   });
@@ -56,6 +72,16 @@ export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDe
     const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
     if (householdId === undefined) return reply;
     const bundle = await deps.exporter.exportAll(householdId);
+    // l'intera casa in chiaro esce dal server: se una riga sola merita di
+    // durare dodici mesi, e' questa
+    await deps.audit?.record({
+      verb: "export",
+      outcome: "ok",
+      householdId,
+      actor: request.tenant,
+      resourceType: "household",
+      resourceId: householdId,
+    });
     return reply
       .header("content-disposition", 'attachment; filename="ugo-export.json"')
       .send(bundle);

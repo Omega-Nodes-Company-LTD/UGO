@@ -54,4 +54,6 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [046](./046-i-pesi-si-scaricano-al-deploy.md) | I pesi si scaricano al deploy, e si verificano | **Superseded** da [047](./047-il-container-si-prepara-da-solo.md) (il meccanismo di consegna; la verifica SHA resta valida) |
 | [047](./047-il-container-si-prepara-da-solo.md) | Il container si prepara da solo | Accettata |
 | [048](./048-il-confine-e-del-database.md) | Il confine è del database, non della nostra attenzione | Accettata |
+| [049](./049-chi-ha-fatto-cosa.md) | Chi ha fatto cosa | Accettata |
+| [050](./050-la-lingua-e-della-casa.md) | La lingua e l'ora sono della casa | Accettata |
 | 049 | *(prossimo numero disponibile)* | — |

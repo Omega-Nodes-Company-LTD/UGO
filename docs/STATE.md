@@ -1487,6 +1487,186 @@ mentre qualcuno gli parla è peggio del problema che risolve.
   Ora i tre che contano finiscono nel registro; `no-speech` e `aborted` no,
   perché arrivano per progetto a ogni pausa e seppellirebbero gli altri.
 
+## 6-quatervicies. Chi ha fatto cosa (ADR-049)
+
+`events` faceva da giornale con la parola «audit» solo nei commenti — ma è il
+giornale della *creatura*, e non poteva rispondere alla domanda che NIS2 §2 pone
+davvero, che è **chi**. `dream_requested` diceva che qualcuno aveva chiesto un
+sogno fuori orario, non chi. Un 401 restava nel solo log di Fastify, che ruota e
+se ne va.
+
+Sette colonne e nessuna di più, **solo id e verbi**: un audit log è la tabella
+che nessuno può cancellare, quindi una PII scritta lì è scritta per sempre. Non
+esiste una colonna di testo libero, e un test asserisce l'elenco delle colonne
+perché la tentazione arriverà.
+
+`household_id` è **nullabile**, e non è una svista: un 401 avviene prima che si
+sappia di che casa si tratti, e renderla obbligatoria vorrebbe dire non poter
+registrare esattamente l'evento per cui la tabella esiste. `token_id` non ha
+foreign key, perché un token revocato non deve portarsi via la propria scia —
+che è ciò che si va a leggere *dopo* una revoca.
+
+**È la prima cosa che il ruolo `ugo_app` paga.** L'append-only è imposto dal
+database: `UPDATE` e `DELETE` **revocati**, non semplicemente non concessi —
+`0013` aveva già dato i quattro privilegi su tutte le tabelle e lascia un
+`ALTER DEFAULT PRIVILEGES` che li farebbe ereditare a ogni tabella nuova. La
+retention di dodici mesi la applica il **proprietario** durante il sogno: far
+scadere una riga è un atto della casa, riscriverla sarebbe un atto
+dell'applicazione, e sono due poteri diversi che meritano due utenti diversi.
+
+Trovato di striscio: `run_compaction` usciva in anticipo quando non c'era niente
+da compattare, quindi la scadenza sarebbe valsa solo nelle notti in cui per caso
+c'era anche del rumore ambientale da collassare.
+
+Quattro verbi — `denied`, `export`, `forget`, `dream_requested` — e sono tutti
+cablati. Emissione token e nascita/chiusura di una casa erano nel piano e non ci
+sono: nessun codice compie ancora quegli atti, e dichiararne il verbo adesso
+sarebbe un giornale che promette righe che non scriverà mai.
+
+### Il giro completo (regola 12)
+
+- **BO** — schema, migrazione `0015` (tabella generata da drizzle-kit, privilegi
+  e politiche a mano come in `0013`), `services/auditLog.ts` come unico punto di
+  scrittura, quattro cablaggi, retention in `compaction.py`;
+- **FE** — niente: il corpo non compie nessuno dei quattro atti;
+- **`/admin`** — niente **necessario**: nessun dato che il pannello mostra ha
+  cambiato forma. Ma un giornale che si legge solo dal database è mezzo utile, e
+  una vista in sola lettura nel pannello è il seguito naturale — sta in §8, non
+  qui, perché è una feature nuova e non una conseguenza di questa.
+
+## 6-quinvicies. Il genoma pilota davvero (ADR-031, gruppo 5)
+
+`trait_sets` esiste dalla nascita dello schema e per mesi non ha pilotato
+niente. Tre pezzi, e uno era già a posto.
+
+**Le baseline erano calcolate e buttate via.** `characterFrom()` ricavava lo
+stato di riposo dal genoma — un flemmatico riposa a stress basso — e nessuno lo
+scriveva: `psyche_baselines` restava vuota e `PsycheService.restore()` ripiegava
+sui neutri del motore, per chiunque. Ora si seminano in `buildRuntime`, e non
+alla nascita: così valgono anche per gli esemplari nati prima di questa riga, e
+prima di `restore()`, o la prima vita partirebbe comunque neutra.
+
+`on conflict do nothing`, ed è la riga che conta: da lì in avanti quelle
+baseline sono **del sogno**, che le sposta di ±0.02 a notte (ADR-012). Un upsert
+le riporterebbe al genoma a ogni riavvio, cioè cancellerebbe ogni settimana
+vissuta — che è esattamente ciò che le baseline adattive esistono per ricordare.
+Un test lo asserisce, perché è il modo più facile di rompere questa feature
+mentre la si "migliora".
+
+**`maxWords` valeva solo in consiglio.** In chat un logorroico e un timido
+rispondevano identici. Ora `ChatService` riceve il `Character` — obbligatorio,
+non facoltativo: un carattere assente è un carattere *medio*, e un default
+silenzioso è precisamente il modo in cui `trait_sets` è rimasto per mesi una
+tabella che non pilotava niente.
+
+Persona e budget di parole vanno nel blocco **dinamico**, mai nei cached: sono
+dell'esemplare, e due creature sotto lo stesso tetto devono condividere la cache
+dei blocchi di identità invece di spaccarla in una per creatura (regola 2). Il
+budget **restringe e non contraddice** `rules.it.md`, che fissa il massimo di
+frasi ed è cached: fra 18 e 60 parole ci sta la differenza fra uno di poche
+parole e un logorroico, dentro le stesse due frasi.
+
+**I cursori del corpo erano già arrivati**: `026f1bb` aveva collegato
+`character.traits` → roster → `Inhabitant` → `Pig`. Verificato invece di
+rifatto. Resta fuori il fallback 2D, che i cursori non li applica — è un limite
+suo, non di questa riga.
+
+### Il giro completo (regola 12)
+
+- **BO** — `chatService`, `runtimes`, `index.ts`;
+- **`/admin`** — nessuna modifica **necessaria**, e succede una cosa migliore:
+  il pannello mostrava già «riposa a X» leggendolo dagli `overrides` della
+  psiche, e quel numero era identico per ogni creatura perché gli overrides non
+  esistevano. Adesso differisce, cioè il pannello diventa vero da solo;
+- **FE** — niente: il muso riceve i tratti dal roster, e quel tratto era già in
+  piedi.
+
+## 6-sexvicies. Una casa nasce, e il pannello sa in quale sei
+
+`ugo casa nuova --slug --nome [--tz --locale --gosino --archetipo]`. Tutti i
+pezzi esistevano — `generateDataKey`, `wrapDataKey`, `issueToken`,
+`characterFrom` — e mancava solo l'orchestrazione, che è il motivo per cui il
+vicinato è rimasto a lungo una cosa che lo schema sapeva fare e il sistema no.
+
+Cinque atti in **una transazione**, perché una casa a metà è peggio di nessuna
+casa: una `households` senza DEK non cifra niente, un esemplare senza genoma è
+un default silenzioso, un proprietario senza token non entra in casa propria.
+
+Il token va su **stderr** e non su stdout: stdout è per i dati, e un token che
+finisce dentro una pipe o un file di log è un token da revocare. Si stampa una
+volta sola perché in database c'è solo il suo SHA-256 — un segreto recuperabile
+non è un segreto.
+
+Con questo i due verbi che ADR-049 aveva lasciato fuori — `household_created` e
+`token_issued` — diventano scrivibili e sono cablati. Del token resta l'id, mai
+il segreto.
+
+### Il selettore
+
+`GET /v1/households`, e la regola è quella di sempre: **un token vede la propria
+casa e basta**; solo un `operator` le vede tutte, perché è l'unico per cui
+«quale casa?» è una domanda aperta. C'è un test apposta, perché una rotta nuova
+che elenca tutto riaprirebbe in un colpo ciò che il gruppo 5 ha passato giorni a
+chiudere.
+
+Nel pannello `#/c/<casa>/…` avvolge gli indirizzi esistenti, modellato sul
+selettore di esemplare che già funzionava: `forWho()` propaga ora **casa e
+gosino**, e i link fissi della barra vengono riscritti col prefisso. Uno solo
+che lo perdesse riporterebbe in silenzio alla casa di default — che è
+esattamente il modo in cui un selettore mostra i dati di una casa sotto il nome
+di un'altra.
+
+Il gruppo «Le case» resta nascosto finché la casa è una: il proprietario di oggi
+non vede alcun cambiamento, ed è la promessa di ADR-019 §107 che si spegne da sé
+quando arriva la seconda famiglia.
+
+> Trappola incontrata: gli script del pannello sono **template literal**, e un
+> backtick dentro un commento spezza il file. Il `tsc` lo dice, ma con un
+> «Invalid character» a venti righe di distanza da dove sta il problema.
+
+## 6-septvicies. La lingua e l'ora sono della casa (ADR-050)
+
+`households.locale` e `timezone` esistevano da `0003` e **non li leggeva
+nessuno**.
+
+**Una cache per lingua, mai un'interpolazione.** È la parte che meritava un ADR:
+i due blocchi di identità e regole sono `[CACHED]` e devono restare
+byte-stabili, quindi tradurre significa **N file e N cache**, non «rispondi in
+{lingua}» interpolato — che violerebbe la regola 2 e per giunta non
+funzionerebbe, perché la personalità di UGO *è* scritta in italiano e chiederle
+un'altra lingua produce una traduzione, non un carattere. Si spedisce solo
+`it-IT`; le altre ricadono su quello finché i file non esistono. Aggiungere una
+lingua è aggiungere due file, senza toccare codice.
+
+**Il fuso ha la conseguenza che si misura in soldi.** `LlmClient` usava `env.TZ`
+per il confine del giorno del `budget_ledger`: due famiglie in fusi diversi
+azzeravano il salvadanaio all'ora del server. Ora fuso e lingua si leggono dalla
+casa insieme al genoma, una volta per esemplare all'avvio.
+
+Sul lato Python lo scheduler **era già a posto** — sostituisce `cfg.timezone`
+col fuso della casa prima di svegliare il sogno. Verificato invece che rifatto.
+
+Ma lì è venuta fuori una divergenza vera: `batch.py` scriveva il ledger con
+`current_date`, cioè la data di **Postgres**, mentre soul la calcola col fuso
+della famiglia — due strade sulla stessa colonna che in fusi diversi rispondono
+date diverse. E il controllo del tetto leggeva anch'esso `current_date`:
+correggere la sola scrittura avrebbe fatto di peggio che lasciare tutto com'era,
+cioè la spesa su un giorno e il limite su un altro. Corretti entrambi.
+
+**Cosa non diventa multilingua**, e non per dimenticanza: le stringhe italiane
+di `psyche`, `character.ts`, `curiosity.ts` e `reflect.py` sono l'*identità* di
+UGO e non l'interfaccia — tradurle è scrittura, non ingegneria. Le etichette di
+`/admin` idem: il pannello è per chi amministra il server.
+
+### Il giro completo (regola 12)
+
+- **BO** — `packages/prompts` (caricamento per locale con ripiego e memoizzazione),
+  `LlmClient`, `ChatService`, `runtimes`, `index.ts`, `ops/jobs/batch.py`;
+- **`/admin`** — nessuna modifica, **dichiarato nell'ADR**: resta in italiano;
+- **FE** — niente: il muso parla via `speech.ts` con `it-IT`, che è la lingua di
+  questa casa. Il giorno in cui una casa ne dichiara un'altra, quel valore va
+  preso dal roster — sta in §8, non l'ho anticipato.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1560,14 +1740,14 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
      un ADR sulla transazione per richiesta, il codice, e **solo dopo** sul server creare
      `ugo_app`, dargli una password e spostare le connessioni di soul e dei job. Finché quel
      passo non è fatto, RLS non protegge niente in produzione;
-   - **audit log** (ADR-049 da scrivere): deciso 12 mesi, solo ID e verbi, append-only imposto
-     dai `GRANT`, che è ciò che il ruolo dedicato rende finalmente possibile;
-   - **selettore di casa nel pannello e `ugo casa nuova`**: tutti i pezzi esistono
-     (`generateDataKey`, `wrapDataKey`, `issueToken`), manca l'orchestrazione;
-   - **lingua e fuso dalla casa** (ADR-050 da scrivere): `households.locale` e `timezone`
-     esistono da `0003` e non li legge nessuno; l'italiano è in tre posti diversi;
-   - **il genoma pilota il carattere**: `character.baselines` è calcolato e mai persistito,
-     `maxWords` vale nel consiglio e non in chat, i sei cursori del corpo non arrivano al muso;
+   - ~~**audit log**~~ — **fatto** (§6-quatervicies, ADR-049). Resta aperto un seguito piccolo:
+     una vista in sola lettura nel pannello, perché oggi il giornale si legge solo dal database;
+   - ~~**selettore di casa nel pannello e `ugo casa nuova`**~~ — **fatto** (§6-sexvicies);
+   - ~~**lingua e fuso dalla casa**~~ — **fatto** (§6-septvicies, ADR-050). Resta fuori, e
+     dichiarato: il muso usa `it-IT` fisso in `speech.ts`, e le stringhe italiane della psiche
+     sono identità e non interfaccia;
+   - ~~**il genoma pilota il carattere**~~ — **fatto** (§6-quinvicies): baseline seminate,
+     `maxWords` e persona in chat, cursori del corpo già arrivati da `026f1bb`;
    - **backup per famiglia**: `pg_dump` non filtra per riga (§7).
 
 Non è più vero che «non resta software da scrivere»: quella frase valeva prima dell'analisi

@@ -15,16 +15,35 @@ const GOSINO_PAGES = ["stato", "volonta", "memoria"];
 const PAGE_TITLE = { stato: "Come sta", volonta: "Cosa ha deciso lui", memoria: "Cosa ricorda" };
 let GOSINI = [];
 let WHO = "";
+/** Le case che questo token può vedere. Quasi sempre una, e allora non si vede. */
+let CASE = [];
+let HOUSE = "";
 
 function route() {
-  const parts = location.hash.replace(/^#\\/?/, "").split("/").filter(Boolean);
-  if (parts[0] === "g") return { page: GOSINO_PAGES.includes(parts[2]) ? parts[2] : "stato", who: parts[1] };
-  return { page: parts[0] || "casa", who: undefined };
+  let parts = location.hash.replace(/^#\\/?/, "").split("/").filter(Boolean);
+  // '#/c/<casa>/...' avvolge tutto il resto: si toglie il prefisso e si legge
+  // quel che segue con le stesse regole di prima, cosi' ogni indirizzo che
+  // funzionava continua a funzionare senza la casa davanti
+  let house = undefined;
+  if (parts[0] === "c" && parts[1]) { house = parts[1]; parts = parts.slice(2); }
+  if (parts[0] === "g") return { page: GOSINO_PAGES.includes(parts[2]) ? parts[2] : "stato", who: parts[1], house };
+  return { page: parts[0] || "casa", who: undefined, house };
 }
 
-const forWho = (path) => WHO === ""
+/** Il prefisso da mettere davanti a ogni link, quando la casa e' scelta. */
+const at = (hash) => HOUSE === "" ? hash : "#/c/" + encodeURIComponent(HOUSE) + hash.slice(1);
+
+const withParam = (path, key, value) => value === ""
   ? path
-  : path + (path.includes("?") ? "&" : "?") + "gosino=" + encodeURIComponent(WHO);
+  : path + (path.includes("?") ? "&" : "?") + key + "=" + encodeURIComponent(value);
+
+/**
+ * ADR-019 fase 3: la casa viaggia con OGNI chiamata, esattamente come
+ * l'esemplare. È lo stesso meccanismo, e apposta: un selettore che cambia il
+ * titolo e non lo scope mostrerebbe i dati della casa sbagliata sotto il nome
+ * di quella giusta, che è il peggiore dei due modi di sbagliare.
+ */
+const forWho = (path) => withParam(withParam(path, "gosino", WHO), "casa", HOUSE);
 
 /** The rail: the house always, then one entry per creature, sub-pages under the open one. */
 function drawRail(page) {
@@ -33,14 +52,21 @@ function drawRail(page) {
     : GOSINI.map((g) => {
         const open = g.id === WHO;
         const sub = !open ? "" : GOSINO_PAGES.map((p) =>
-          '<a href="#/g/' + g.id + "/" + p + '" data-nav="g:' + p + '" style="padding-left:1.6rem">' +
+          '<a href="' + at("#/g/" + g.id + "/" + p) + '" data-nav="g:' + p + '" style="padding-left:1.6rem">' +
           PAGE_TITLE[p] + "</a>").join("");
-        return '<a href="#/g/' + g.id + '/stato" data-nav="g:' + g.id + '">' +
+        return '<a href="' + at("#/g/" + g.id + "/stato") + '" data-nav="g:' + g.id + '">' +
           '<span class="dot" aria-hidden="true"></span>' + escape(g.name) +
           (g.where ? ' <span class="rail-where">' + escape(g.where) + "</span>" : "") +
           "</a>" + sub;
       }).join("");
 
+  // i link fissi della barra portano la casa scelta come quelli generati: uno
+  // solo che la perdesse riporterebbe in silenzio alla casa di default
+  for (const link of document.querySelectorAll(".rail a[data-nav]")) {
+    const nav = link.dataset.nav;
+    if (nav.startsWith("g:") || nav.startsWith("c:")) continue;
+    link.setAttribute("href", at("#/" + nav));
+  }
   for (const link of document.querySelectorAll(".rail a")) link.removeAttribute("aria-current");
   const current = WHO === ""
     ? document.querySelector('.rail a[data-nav="' + page + '"]')
@@ -84,7 +110,14 @@ async function openPage(page) {
 }
 
 async function go() {
-  const { page, who } = route();
+  const { page, who, house } = route();
+  if (house !== undefined && house !== HOUSE) {
+    HOUSE = house;
+    // cambiare casa vuol dire cambiare popolazione: tenere il gosino di prima
+    // significherebbe chiedere alla casa nuova di una creatura che non ha
+    WHO = "";
+    await loadGosini();
+  }
   if (who !== undefined && who !== WHO) WHO = who;
   if (who === undefined && !GOSINO_PAGES.includes(page)) WHO = "";
   drawRail(page);
@@ -92,6 +125,31 @@ async function go() {
 }
 
 window.addEventListener("hashchange", () => { void go(); });
+
+/**
+ * Le case, e il selettore che compare solo quando ce n'è più d'una.
+ *
+ * Il proprietario di una casa sola non vede alcun cambiamento — è la promessa
+ * di ADR-019 §107, e si spegne da sé il giorno in cui arriva la seconda
+ * famiglia invece che richiedere una decisione oggi.
+ */
+async function loadCase() {
+  try { CASE = (await call("/v1/households", {})).households ?? []; } catch { CASE = []; }
+  // Con UNA casa 'HOUSE' resta vuota, e non e' una svista: vuota significa
+  // indirizzi senza prefisso e chiamate senza '?casa=', cioe' esattamente il
+  // pannello di prima. Il server la risolve da se' ('soleHousehold'), e i link
+  // gia' salvati continuano a funzionare. Riempirla «tanto la casa e' quella»
+  // riscriverebbe ogni indirizzo per un vicinato che non esiste — ed e'
+  // precisamente cio' che ADR-019 §107 promette di non fare.
+  const box = $("rail-case");
+  if (!box) return;
+  box.parentElement.hidden = CASE.length < 2;
+  if (CASE.length < 2) { box.innerHTML = ""; return; }
+  box.innerHTML = CASE.map((c) =>
+    '<a href="#/c/' + encodeURIComponent(c.id) + '/casa" data-nav="c:' + c.id + '">' +
+    '<span class="dot" aria-hidden="true"></span>' + escape(c.name) +
+    ' <span class="rail-where">' + escape(c.slug) + "</span></a>").join("");
+}
 
 /** Loads the population; the eldest is who you land on when you name nobody. */
 async function loadGosini() {
@@ -106,7 +164,7 @@ async function drawGosiniCards() {
     let mood = "—";
     try { mood = (await call("/v1/psyche?gosino=" + encodeURIComponent(g.id), {})).label; }
     catch { /* one that cannot be read still gets a row, with a dash */ }
-    cards.push('<a class="gosino-card" href="#/g/' + g.id + '/stato">' +
+    cards.push('<a class="gosino-card" href="' + at("#/g/" + g.id + "/stato") + '">' +
       "<div><h4>" + escape(g.name) + (g.where ? ' <span class="persona">· ' + escape(g.where) + "</span>" : "") +
       '</h4><div class="persona">' + escape(g.persona ?? "") + "</div></div>" +
       '<div class="mood">' + escape(mood) + "</div></a>");
