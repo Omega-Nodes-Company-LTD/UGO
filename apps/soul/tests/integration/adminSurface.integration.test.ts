@@ -261,7 +261,12 @@ describe("what the panel can see", () => {
     const before = registry.everywhere().find((r) => r.id === nino)?.psyche;
     if (before === undefined) throw new Error("no runtime");
     await before.applyEventType("loud_noise");
-    const rattled = before.current().vars.stress;
+    // lo stress DECADE col tempo reale: le due letture vanno fatte allo stesso
+    // istante congelato, o il confronto misura quanto è lento il runner invece
+    // che se la psiche è sopravvissuta al trasloco — su una CI carica gli 85 ms
+    // fra qui e l'ultima expect valevano già più della tolleranza
+    const at = new Date();
+    const rattled = before.current(at).vars.stress;
 
     const moved = await app.inject({
       method: "PATCH",
@@ -280,7 +285,7 @@ describe("what the panel can see", () => {
     // and he is the same creature: same object, same stress, nothing rebuilt
     const after = registry.everywhere().find((r) => r.id === nino)?.psyche;
     expect(after).toBe(before);
-    expect(after?.current().vars.stress).toBeCloseTo(rattled, 5);
+    expect(after?.current(at).vars.stress).toBeCloseTo(rattled, 5);
   });
 
   it("takes him out of every room when the label is emptied", async () => {

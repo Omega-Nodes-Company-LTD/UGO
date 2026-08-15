@@ -82,9 +82,17 @@ test("any gesture in the catalogue can be played and then releases the body", as
   await page.evaluate(() => {
     window.__ugoBody.play("sneeze");
   });
-  await expect.poll(async () => (await body(page)).lastGesture).toBe("sneeze");
-  // it must end: a gesture that never clears would block autonomy for good
-  await expect.poll(async () => (await body(page)).gesture, { timeout: 5_000 }).toBe("");
+  await expect.poll(async () => (await body(page)).lastGesture, { timeout: 15_000 }).toBe("sneeze");
+  // It must end: a gesture that never clears would block autonomy for good.
+  // The claim is that THE SNEEZE ends — not that nothing else is playing:
+  // after 22:00 Europe/Rome soul is asleep, and a sleeping body legitimately
+  // plays its own drowsy gestures every few seconds, so polling for "" raced
+  // against autonomy and went red the first night the CI ever ran after dark.
+  // 15s like its neighbours, not 5: software-GL frames on a 2-core runner are
+  // slow, and this poll measures the gesture engine, not the runner.
+  await expect
+    .poll(async () => (await body(page)).gesture, { timeout: 15_000 })
+    .not.toBe("sneeze");
 });
 
 test("the 2D face is still there for a device that cannot do WebGL", async ({ page }) => {
