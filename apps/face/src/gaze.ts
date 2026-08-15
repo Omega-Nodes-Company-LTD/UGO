@@ -1,3 +1,4 @@
+import { cropFace } from "./faceCrop.js";
 import type { GazeTarget } from "./renderer.js";
 
 type GazeCallback = (target: GazeTarget | null) => void;
@@ -23,24 +24,59 @@ type GazeCallback = (target: GazeTarget | null) => void;
  * null when nobody is in view.
  */
 export interface FaceLocator {
-  locate: (source: HTMLVideoElement) => Promise<{ x: number; y: number } | null>;
+  locate: (source: HTMLVideoElement) => Promise<Located | null>;
   close?: () => void;
 }
 
-export function startPointerGaze(element: HTMLElement, onGaze: GazeCallback): void {
-  const handler = (x: number, y: number): void => {
+/**
+ * Dove sta la faccia: il centro **e il rettangolo**.
+ *
+ * ADR-057: il rettangolo c'era già. `faceLocator.ts` aveva la bounding box
+ * completa in mano e ne teneva i due centri, buttando via larghezza e altezza
+ * alle due righe successive — quindi il ritaglio che serve per riconoscere
+ * qualcuno veniva calcolato e scartato a ogni fotogramma. È la stessa famiglia
+ * del difetto della voce di ADR-045: il dato prodotto, e nessuno che lo
+ * raccoglie.
+ *
+ * Tutto normalizzato in [0,1] sul fotogramma, così chi ritaglia non ha bisogno
+ * di sapere la risoluzione della camera.
+ */
+export interface Located {
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+}
+
+/**
+ * Il ripiego universale: le pupille seguono il puntatore.
+ *
+ * Due cambiamenti, entrambi per il chiosco.
+ *
+ * Restituisce un modo per spegnersi: prima non lo faceva, e `main.ts` lo
+ * avviava **incondizionatamente all'avvio**. Quando poi la camera partiva
+ * c'erano due sorgenti a scrivere sulle stesse pupille, e vinceva l'ultima che
+ * aveva parlato.
+ *
+ * E ascolta solo `pointermove`, non più `pointerdown`: su un touch il tocco
+ * **è** la carezza (`main.ts` lo intercetta già per il `tap`), e uno sguardo
+ * che scatta verso il dito a ogni carezza non è uno sguardo, è un riflesso
+ * dell'interfaccia.
+ */
+export function startPointerGaze(element: HTMLElement, onGaze: GazeCallback): CameraGazeHandle {
+  const handler = (event: PointerEvent): void => {
     const rect = element.getBoundingClientRect();
     onGaze({
-      x: Math.max(-1, Math.min(1, ((x - rect.left) / rect.width) * 2 - 1)),
-      y: Math.max(-1, Math.min(1, ((y - rect.top) / rect.height) * 2 - 1)),
+      x: Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1)),
+      y: Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height) * 2 - 1)),
     });
   };
-  element.addEventListener("pointermove", (event) => {
-    handler(event.clientX, event.clientY);
-  });
-  element.addEventListener("pointerdown", (event) => {
-    handler(event.clientX, event.clientY);
-  });
+  element.addEventListener("pointermove", handler);
+  return {
+    stop: () => {
+      element.removeEventListener("pointermove", handler);
+    },
+  };
 }
 
 interface DetectedFaceLike {
@@ -67,6 +103,8 @@ function nativeLocator(): FaceLocator | null {
       return {
         x: (box.x + box.width / 2) / video.videoWidth,
         y: (box.y + box.height / 2) / video.videoHeight,
+        width: box.width / video.videoWidth,
+        height: box.height / video.videoHeight,
       };
     },
   };
@@ -80,7 +118,13 @@ function nativeLocator(): FaceLocator | null {
  */
 export async function startCameraGaze(
   onGaze: GazeCallback,
-  onPresence: () => void,
+  /**
+   * ADR-057: `crop` è il volto già ritagliato, quando il rilevatore ha dato un
+   * rettangolo. Facoltativo perché non ogni rilevatore lo dà, e chi chiama deve
+   * poter distinguere «c'è qualcuno» da «c'è qualcuno e questo è il suo volto»:
+   * il primo è presenza, il secondo è biometria, e sono due cose diverse.
+   */
+  onPresence: (crop?: string) => void,
   locator?: FaceLocator,
 ): Promise<CameraGazeHandle | null> {
   const detector = locator ?? nativeLocator();
@@ -100,7 +144,7 @@ export async function startCameraGaze(
         if (centre !== null) {
           if (!present) {
             present = true;
-            onPresence();
+            onPresence(cropFace(video, centre));
           }
           // mirror x: the camera faces the user, so left is right
           onGaze({ x: -(centre.x * 2 - 1), y: centre.y * 2 - 1 });

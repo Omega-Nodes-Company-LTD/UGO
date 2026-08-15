@@ -1,4 +1,5 @@
 import type { FaceState } from "@ugo/shared/face";
+import type { PropKind, SceneProp } from "@ugo/shared/props";
 import type { PsycheVars } from "./pose.js";
 
 /**
@@ -30,7 +31,12 @@ export interface FaceRenderer {
    */
   setState(state: FaceState, who?: string): void;
   setMood(label: string, vars: Partial<PsycheVars>, who?: string): void;
-  setGaze(target: { x: number; y: number }): void;
+  /**
+   * `null` = non c'è più nessuno da guardare. Non è la stessa cosa di `{0,0}`,
+   * che vuol dire «guardami, sono davanti a te»: `startCameraGaze` distingueva
+   * i due casi da sempre e `main.ts` li appiattiva scartando il `null`.
+   */
+  setGaze(target: { x: number; y: number } | null): void;
   /** portable mode (§4.2): draw as little as the state allows */
   setLowPower(on: boolean): void;
   /** an event happened; react now instead of waiting for the idle timer */
@@ -39,6 +45,21 @@ export interface FaceRenderer {
   setResidents?(residents: readonly Resident[]): void;
   /** somebody is speaking: the rest of the room turns to look at him */
   attendTo?(who: string | undefined): void;
+  /**
+   * ADR-056: cosa c'è nella stanza oltre a chi ci vive. Facoltativo come
+   * `setResidents`: il corpo 2D non ha una stanza in cui posare niente, e una
+   * scena che arriva a un muso che non sa disegnarla va ignorata, non fatta
+   * fallire — è la stessa regola dei gesti sconosciuti (ADR-027).
+   */
+  setProps?(props: readonly SceneProp[]): void;
+  /** ADR-056: uno di loro è andato da solo a usare un arredo. */
+  onUsedProp?(listener: (who: string, kind: PropKind) => void): void;
+  /**
+   * ADR-058: chi è stato toccato **sul muso**, se qualcuno. Facoltativo: il
+   * corpo 2D non ha un muso in una scena, e lì la mela semplicemente non c'è —
+   * il che è meglio di una mela che si dà toccando ovunque.
+   */
+  snoutAt?(at: { x: number; y: number }): string | undefined;
   start(): void;
   stop(): void;
   /** what the body is currently doing, for the e2e hooks */

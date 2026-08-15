@@ -48,7 +48,10 @@ async function upload(beingId, blob) {
 // --- correzioni ------------------------------------------------------------
 $("add-corr").addEventListener("click", async () => {
   try {
-    await call("/v1/corrections", {
+    // ADR-058: **a chi** l'hai detto. Senza, la correzione finiva sempre sul
+    // piu' anziano della casa: con due gosini, dire a Silvio che urla
+    // correggeva Ugo — e Silvio continuava a urlare mentre Ugo si scusava.
+    await call(withParam(forWho("/v1/corrections"), "gosino", $("corr-who").value), {
       method: "POST",
       body: JSON.stringify({ aboutBeing: $("corr-being").value, signal: $("corr-signal").value }),
     });

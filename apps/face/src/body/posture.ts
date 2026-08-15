@@ -36,6 +36,16 @@ export function choosePosture(
   vars: PsycheVars,
   wantsToMove: boolean,
   current: Posture,
+  /**
+   * ADR-056: la posa che l'arredo lì accanto suggerisce, se ce n'è uno.
+   *
+   * **Suggerisce**, e la parola conta: entra dopo il sonno, l'attenzione e la
+   * voglia di camminare, e prima soltanto dei ripieghi di energia e noia. Un
+   * cuscino non deve poter tenere coricato uno a cui hanno appena parlato — che
+   * è precisamente il modo in cui un arredo smetterebbe di essere un arredo e
+   * diventerebbe una trappola.
+   */
+  hint: { beside?: Posture } = {},
 ): Posture {
   if (state === "sleeping") return vars.energia < 0.12 ? "lying" : "crouching";
   // being spoken to, or hearing something: he gets up and pays attention
@@ -43,6 +53,7 @@ export function choosePosture(
   if (wantsToMove) return "standing";
   // talking from the floor reads as ignoring you: he sits up first
   if (state === "talking") return current === "lying" ? "sitting" : current;
+  if (hint.beside !== undefined) return hint.beside;
   if (vars.energia < 0.2) return "lying";
   if (vars.energia < 0.45) return "sitting";
   // bored and unwilling to move: he sits rather than stands there

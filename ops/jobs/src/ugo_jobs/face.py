@@ -38,11 +38,16 @@ def enroll_face(
 ) -> int:
     """Piega un volto nel centroide della persona. Ritorna sample_count."""
     from .crypto import encrypt_bytes
+    from .enrollment import _audit  # noqa: PLC2701 — stessa famiglia
     from .voice import merge_centroid
 
     # ADR-016 vale identico per il volto: `is_minor` e `no_vision` fermano
-    # l'arruolamento **prima** di codificare, non dopo
-    _guard(conn, being_id, channel)
+    # l'arruolamento **prima** di codificare, non dopo.
+    #
+    # La `MODALITY` va passata, e per mesi non è stata passata: `_guard` senza
+    # argomento controlla `no_audio`, quindi questo commento descriveva una
+    # protezione che non esisteva. Il difetto stava tutto nel valore di default.
+    _guard(conn, being_id, channel, MODALITY)
     coder = encoder
     fresh = coder.encode(image)  # type: ignore[attr-defined]
 
@@ -81,6 +86,10 @@ def enroll_face(
             total,
         ),
     )
+    # come per la voce: il giornale delle percezioni è dove si va a rispondere
+    # «cosa avete registrato di me», e un arruolamento che non ci finisce è
+    # esattamente la riga che manca alla domanda che conta
+    _audit(conn, gosino_id, being_id, "enrolled", MODALITY)
     return total
 
 
@@ -200,3 +209,201 @@ def fuse(voice: Identification | None, face: Identification | None) -> Fused:
     return Fused(
         being_id=None, candidate_being_id=None, confidence=0.0, agreed=True, sources=sources
     )
+
+
+# ── chi non sappiamo ancora chi sia (ADR-057) ────────────────────────────────
+#
+# ⚠️ Da qui in giù si maneggiano **dati biometrici di chi non ha acconsentito**.
+# È una scelta consapevole del proprietario, e il prezzo si paga per intero:
+# cifrati come tutto il resto, a scadenza, cancellabili uno per uno, e distrutti
+# dall'oblio. Il codice qui sotto è il posto in cui quelle promesse o si
+# mantengono o non esistono.
+
+#: Quanto si conserva un'impronta che nessuno ha rivendicato (giorni).
+UNKNOWN_RETENTION_DAYS = 30
+
+#: Sopra questo coseno due impronte ignote sono la stessa persona che ripassa.
+#: Volutamente più alto della soglia di riconoscimento: qui si sta decidendo se
+#: *unire* due tracce, e unire due estranei in uno solo produce un'impronta che
+#: non è di nessuno — un errore che poi nessuno può più sciogliere.
+SAME_STRANGER = 0.72
+
+
+def remember_unknown(
+    conn: psycopg.Connection,
+    *,
+    household_id: str,
+    image: np.ndarray,
+    data_key: bytes,
+    encoder: object,
+) -> tuple[str, int]:
+    """Conserva il volto di uno sconosciuto. Ritorna (id, quante volte visto).
+
+    Se assomiglia abbastanza a un'impronta ignota già conservata, le due si
+    fondono invece di moltiplicarsi: senza, una persona che passa dieci volte
+    diventerebbe dieci sconosciuti, e il pannello mostrerebbe dieci domande
+    identiche sulla stessa faccia.
+    """
+    from .crypto import encrypt_bytes
+    from .voice import merge_centroid
+
+    coder = encoder
+    fresh = coder.encode(image)  # type: ignore[attr-defined]
+    rows = conn.execute(
+        """select id, payload, seen_count from unknown_prints
+            where household_id = %s and modality = %s and model = %s""",
+        (household_id, MODALITY, coder.model),  # type: ignore[attr-defined]
+    ).fetchall()
+
+    best_id, best_score, best_payload, best_seen = None, -1.0, None, 0
+    for print_id, payload, seen in rows:
+        score = cosine(fresh, unpack(decrypt_bytes(bytes(payload), data_key)))
+        if score > best_score:
+            best_id, best_score, best_payload, best_seen = str(print_id), score, payload, seen
+
+    if best_id is not None and best_score >= SAME_STRANGER and best_payload is not None:
+        merged, total = merge_centroid(
+            unpack(decrypt_bytes(bytes(best_payload), data_key)), best_seen, fresh
+        )
+        conn.execute(
+            """update unknown_prints
+                  set payload = %s, seen_count = %s, last_seen_at = now()
+                where id = %s""",
+            (encrypt_bytes(pack(normalize(merged)), data_key), total, best_id),
+        )
+        return best_id, total
+
+    row = conn.execute(
+        """insert into unknown_prints
+             (household_id, modality, model, dimensions, payload)
+           values (%s, %s, %s, %s, %s)
+           returning id""",
+        (
+            household_id,
+            MODALITY,
+            coder.model,  # type: ignore[attr-defined]
+            coder.dimensions,  # type: ignore[attr-defined]
+            encrypt_bytes(pack(normalize(fresh)), data_key),
+        ),
+    ).fetchone()
+    if row is None:  # pragma: no cover — l'insert o riesce o solleva
+        raise RuntimeError("insert returned nothing")
+    return str(row[0]), 1
+
+
+def claim_unknown(
+    conn: psycopg.Connection,
+    *,
+    print_id: str,
+    being_id: str,
+    gosino_id: str,
+    household_id: str,
+    data_key: bytes,
+    channel: str = "home",
+) -> int:
+    """«Quello è Marco»: l'impronta ignota diventa il profilo di una persona.
+
+    Il rifiuto qui è la parte delicata. Se la persona nominata è un minore, o ha
+    detto «non guardarmi», l'arruolamento non deve avvenire — **e l'impronta va
+    distrutta lo stesso**. Conservarla dopo un rifiuto sarebbe il peggiore dei
+    due mondi: la protezione applicata al profilo, e la faccia comunque in un
+    cassetto. Quindi si cancella qualunque cosa succeda, e poi si solleva.
+    """
+    from .crypto import encrypt_bytes
+    from .enrollment import EnrollmentRefused, _audit, _guard  # noqa: PLC2701
+    from .voice import merge_centroid
+
+    row = conn.execute(
+        """select payload, seen_count, model, dimensions from unknown_prints
+            where id = %s and household_id = %s""",
+        (print_id, household_id),
+    ).fetchone()
+    if row is None:
+        raise EnrollmentRefused("unknown_print")
+    payload, seen, model, dimensions = row
+
+    try:
+        _guard(conn, being_id, channel, MODALITY)
+    except EnrollmentRefused:
+        # la protezione ha detto di no: l'impronta se ne va comunque, e anzi
+        # proprio per quello — è l'unico gesto che la rende vera
+        conn.execute("delete from unknown_prints where id = %s", (print_id,))
+        raise
+
+    fresh = unpack(decrypt_bytes(bytes(payload), data_key))
+    existing = conn.execute(
+        """select payload, sample_count, model from recognition_profiles
+            where being_id = %s and modality = %s""",
+        (being_id, MODALITY),
+    ).fetchone()
+    current, count = None, 0
+    if existing is not None:
+        old_payload, count, old_model = existing
+        if old_model == model:
+            current = unpack(decrypt_bytes(bytes(old_payload), data_key))
+        else:
+            count = 0
+    merged, total = merge_centroid(current, count, fresh)
+
+    conn.execute(
+        """insert into recognition_profiles
+             (being_id, household_id, modality, model, dimensions, payload,
+              sample_count, updated_at)
+           values (%s, (select household_id from beings where id = %s),
+                   %s, %s, %s, %s, %s, now())
+           on conflict (being_id, modality) do update
+             set model = excluded.model, dimensions = excluded.dimensions,
+                 payload = excluded.payload, sample_count = excluded.sample_count,
+                 updated_at = now()""",
+        (
+            being_id,
+            being_id,
+            MODALITY,
+            model,
+            dimensions,
+            encrypt_bytes(pack(normalize(merged)), data_key),
+            total,
+        ),
+    )
+    # rivendicata è sparita: da qui in poi quella faccia ha un nome, e tenerne
+    # una seconda copia senza nome sarebbe conservare due volte la stessa
+    # persona con due regole di retention diverse
+    conn.execute("delete from unknown_prints where id = %s", (print_id,))
+    _audit(conn, gosino_id, being_id, "enrolled", MODALITY)
+    return total
+
+
+def forget_unknown(
+    conn: psycopg.Connection,
+    *,
+    household_id: str | None = None,
+    print_id: str | None = None,
+    older_than_days: int | None = None,
+) -> int:
+    """Distrugge impronte ignote. Ritorna quante.
+
+    Tre chiamanti e tre motivi: il pannello ne cancella una, l'oblio le porta
+    via tutte di una casa, il job notturno fa scadere le vecchie. Una funzione
+    sola perché la cancellazione dev'essere **un solo posto**: tre `delete`
+    sparsi sono tre occasioni per dimenticarne uno il giorno che la tabella
+    prende una colonna.
+    """
+    clauses, params = [], []
+    if household_id is not None:
+        clauses.append("household_id = %s")
+        params.append(household_id)
+    if print_id is not None:
+        clauses.append("id = %s")
+        params.append(print_id)
+    if older_than_days is not None:
+        clauses.append("last_seen_at < now() - make_interval(days => %s)")
+        params.append(older_than_days)
+    if not clauses:
+        # nessun filtro cancellerebbe le impronte di ogni casa: un errore di
+        # chiamata non deve poter diventare una cancellazione totale
+        raise ValueError("forget_unknown senza filtri")
+    result = conn.execute(
+        f"delete from unknown_prints where {' and '.join(clauses)}",  # noqa: S608
+        tuple(params),
+    )
+    return result.rowcount

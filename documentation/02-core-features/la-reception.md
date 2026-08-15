@@ -61,6 +61,22 @@ Tre protezioni, una dentro l'altra (le prime due regolabili per cliente nella sc
 Il salvadanaio della casa resta comunque l'ultimo muro: un cliente non può mai spendere ciò
 che la casa non ha.
 
+## La mela del cliente
+
+Sotto una risposta davvero ottima, il cliente trova un bottone: **🍎 Premia questa risposta**.
+È la stessa mela che dai tu a casa toccandolo sul muso — il gosino se la ricorda, e gli scalda
+l'umore — ma con una differenza voluta: **ne ha poche**. Due ogni sette giorni, di default, e
+tornano da sole una alla volta, sette giorni dopo essere state date.
+
+Poche apposta, ed è questo il punto: una mela che si può dare sempre non dice niente, due a
+settimana dicono «questa risposta mi è servita davvero». Nella scheda del cliente puoi cambiare
+il numero (anche metterlo a zero), e vedi quante ne ha date negli ultimi sette giorni — così
+sai quali clienti stanno trovando risposte che valgono, senza leggere le conversazioni.
+
+La mela del cliente **non** tocca il legame di famiglia né i gusti del corpo: quelli si
+costruiscono in casa, con voi. Al cliente resta il gesto giusto: dire «questa sì», poche volte,
+quando è vero.
+
 ## La voce, e la privacy
 
 Nella reception si parla: il cliente tiene premuto l'orbe, il browser trascrive, il gosino

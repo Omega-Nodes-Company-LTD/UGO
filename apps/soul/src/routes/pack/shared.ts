@@ -13,6 +13,14 @@ export interface PackRouteDeps {
   gosinoId?: string;
   /** where enrolment audio is stored; absent means the panel cannot record */
   audio?: AudioStorageConfig;
+  /**
+   * ADR-058: a chi si sta parlando, quando conta.
+   *
+   * Serve a `POST /v1/corrections`, che scrive su una tabella **per esemplare**:
+   * senza, la correzione finiva sempre sul più anziano della casa, e con due
+   * gosini dire a Silvio che urla correggeva Ugo.
+   */
+  registry?: { resolve: (query: string | undefined, householdId: string) => { id: string } | undefined };
 }
 
 export const createBeingSchema = z.object({

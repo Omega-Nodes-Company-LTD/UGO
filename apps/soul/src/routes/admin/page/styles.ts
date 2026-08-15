@@ -163,4 +163,25 @@ export const ADMIN_STYLES = `
   .pill.good { color: var(--good); } .pill.warning { color: var(--warning); }
   .pill.critical { color: var(--critical); }
   .pills { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+  /* --- la piantina degli arredi (ADR-056) ---------------------------------
+     Una piantina e non due cursori: «dove sta il cuscino» e' una domanda
+     spaziale, e rispondere con due numeri costringe il proprietario a fare la
+     conversione in testa e a guardare il chiosco per verificare. Qui la vede.
+     Le proporzioni sono quelle del recinto vero (3.4 x 1.7), o quel che si
+     trascina qui non e' dove finisce li'. */
+  .prop-map { position: relative; margin: .8rem 0; aspect-ratio: 2 / 1;
+              background: var(--surface-2); border: 1px solid var(--line);
+              border-radius: var(--r); overflow: hidden; touch-action: none; }
+  .prop-pig { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+              font-size: 1.6rem; opacity: .5; pointer-events: none; }
+  .prop { position: absolute; transform: translate(-50%,-50%); cursor: grab;
+          font-size: 1.5rem; line-height: 1; user-select: none;
+          padding: .2rem; border-radius: 50%; }
+  .prop.on { outline: 2px solid var(--accent); background: var(--surface); }
+  .prop:active { cursor: grabbing; }
+  .stock-row { display: flex; gap: .6rem; align-items: center; padding: .35rem 0;
+               border-bottom: 1px solid var(--line); }
+  .stock-row span { flex: 1 1 auto; }
+  .stock-row input { width: 5rem; flex: 0 0 auto; }
 `;

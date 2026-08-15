@@ -34,6 +34,9 @@ async function refresh() {
   document.querySelector('[data-testid="pack-rows"]').innerHTML = pack.map(card).join("") ||
     '<p class="empty">Nessuno, ancora. UGO risponderà a tutti come a sconosciuti.</p>';
 
+  // a chi dire la correzione: le creature della casa, non le persone
+  $("corr-who").innerHTML = GOSINI.map((g) =>
+    '<option value="' + g.id + '">' + escape(g.name) + "</option>").join("");
   for (const select of ["enroll-being", "corr-being", "forget-being", "rel-a", "rel-b"]) {
     $(select).innerHTML = pack.map((b) => '<option value="' + b.id + '">' + escape(b.displayName) + "</option>").join("");
   }

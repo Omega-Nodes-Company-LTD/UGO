@@ -88,11 +88,25 @@ export class Autonomy {
     this.nextAt = now + 2500;
   }
 
-  public tick(now: number, state: FaceState, vars: PsycheVars, posture: Posture): void {
+  /**
+   * @param nearby ADR-056: il tema che l'arredo lì accanto rende più probabile.
+   *               Un peso e non una scelta: presso l'erba grufola **più
+   *               spesso**, non sempre — un corpo che fa sempre la stessa cosa
+   *               vicino allo stesso oggetto è un distributore automatico.
+   */
+  public tick(
+    now: number,
+    state: FaceState,
+    vars: PsycheVars,
+    posture: Posture,
+    nearby?: Tag,
+  ): void {
     if (this.nextAt === 0) this.nextAt = now + nextDelayMs(state, vars);
     if (now < this.nextAt || this.player.busy) return;
 
-    const tag = pickTag(tagWeights(state, vars));
+    const weights = tagWeights(state, vars);
+    if (nearby !== undefined) weights[nearby] += 1.6;
+    const tag = pickTag(weights);
     if (tag !== undefined) {
       const pool = gesturesFor(tag, posture).filter((spec) => !this.recent.includes(spec.id));
       const choice = pool.length > 0 ? pool : gesturesFor(tag, posture);

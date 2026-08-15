@@ -40,7 +40,7 @@ export const AUDIT_VERBS = [
   "household_created",
   /** un token emesso: nel giornale il suo id, mai il segreto */
   "token_issued",
-  /** un cliente nuovo della casa (ADR-052) */
+  /** un cliente nuovo della casa (ADR-057) */
   "customer_created",
   /** un cliente archiviato: la reception gli si chiude */
   "customer_archived",
@@ -54,6 +54,14 @@ export const AUDIT_VERBS = [
   "ticket_status_changed",
   /** una fonte di conoscenza collegata a un cliente (ADR-054) */
   "customer_source_added",
+  /** ADR-057: un volto ignoto ha preso un nome — chi ha insegnato cosa */
+  "face_claimed",
+  /** un'impronta ignota distrutta dal pannello, una per una */
+  "print_destroyed",
+  /** le impronte ignote scadute, portate via dalla retention */
+  "prints_expired",
+  /** ADR-058: una mela data da un cliente — il gosino premiato, mai il testo */
+  "customer_reward_given",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

@@ -42,6 +42,12 @@ async function loadCustomerDetail() {
     (c.archivedAt !== null ? " · archiviato" : "");
   $("cust-budget").value = c.dailyBudgetUsd ?? "";
   $("cust-hourly").value = c.hourlyMessageLimit ?? "";
+  $("cust-apples").value = c.weeklyRewardLimit ?? "";
+  // ADR-058: lo stesso conteggio a finestra mobile che la reception applica
+  $("cust-apples-given").textContent = c.rewardsThisWeek === 0
+    ? "Non ha ancora dato mele negli ultimi 7 giorni."
+    : "Ha dato " + c.rewardsThisWeek + (c.rewardsThisWeek === 1 ? " mela" : " mele") +
+      " negli ultimi 7 giorni: le dà quando una risposta è davvero ottima.";
   $("cust-archive").textContent = c.archivedAt === null ? "Archivia il cliente" : "Riapri il cliente";
 
   $("cust-gosini-list").innerHTML = GOSINI.length === 0
@@ -146,12 +152,14 @@ $("cust-assign").addEventListener("click", async () => {
 $("cust-limits").addEventListener("click", async () => {
   const budget = $("cust-budget").value.trim();
   const hourly = $("cust-hourly").value.trim();
+  const apples = $("cust-apples").value.trim();
   try {
     await call("/v1/customers/" + encodeURIComponent(CUSTOMER), {
       method: "PATCH",
       body: JSON.stringify({
         dailyBudgetUsd: budget === "" ? null : Number(budget),
         hourlyMessageLimit: hourly === "" ? null : Number(hourly),
+        weeklyRewardLimit: apples === "" ? null : Number(apples),
       }),
     });
     say("cust-detail-msg", "Limiti salvati.", "ok");

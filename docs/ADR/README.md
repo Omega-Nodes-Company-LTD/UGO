@@ -61,4 +61,7 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [053](./053-la-voce-del-cliente-resta-nel-suo-browser.md) | La voce del cliente resta nel suo browser | Accettata |
 | [054](./054-il-gosino-sa-il-lavoro-del-cliente.md) | Il gosino sa il lavoro del cliente | Accettata |
 | [055](./055-il-cliente-ha-un-contatore.md) | Il cliente ha un contatore | Accettata |
-| 056 | *(prossimo numero disponibile)* | — |
+| [056](./056-il-mondo-ha-un-pavimento-e-delle-cose.md) | Il mondo ha un pavimento, e delle cose | Accettata |
+| [057](./057-chi-sei-l-arruolamento-che-chiede-lui.md) | Chi sei? L'arruolamento che chiede lui | Accettata |
+| [058](./058-il-premio-il-legame-e-cio-che-impara.md) | Il premio, il legame, e ciò che impara | Accettata |
+| 059 | *(prossimo numero disponibile)* | — |

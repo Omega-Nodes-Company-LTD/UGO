@@ -79,6 +79,9 @@ export {
   receptionTicketSchema,
   receptionGosinoSchema,
   receptionMeSchema,
+  receptionRewardAllowanceSchema,
+  receptionRewardRequestSchema,
+  receptionRewardResponseSchema,
   type ReceptionChatRequest,
   type ReceptionChatResponse,
   type ReceptionTicketCreate,
@@ -86,6 +89,9 @@ export {
   type ReceptionTicket,
   type ReceptionGosino,
   type ReceptionMe,
+  type ReceptionRewardAllowance,
+  type ReceptionRewardRequest,
+  type ReceptionRewardResponse,
 } from "./receptionContracts.js";
 export {
   EVENT_SOURCES,
@@ -121,3 +127,14 @@ export {
   type RecognitionModality,
   type CorrectionSignal,
 } from "./constants.js";
+export {
+  MAX_PROPS_PER_ROOM,
+  PROP_IT,
+  PROP_KINDS,
+  PROP_NATURE,
+  placedPropSchema,
+  type PlacedProp,
+  type PropKind,
+  type PropNature,
+  type SceneProp,
+} from "./props.js";

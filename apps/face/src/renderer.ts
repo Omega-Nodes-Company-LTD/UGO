@@ -78,8 +78,13 @@ export class Canvas2dFace implements FaceRenderer {
     this.state = state;
   }
 
-  public setGaze(target: GazeTarget): void {
-    this.gaze = target;
+  /**
+   * `null` = nessuno in vista: gli occhi tornano davanti invece di restare
+   * puntati dove eri l'ultima volta. Il corpo 2D non ruota, quindi qui non
+   * serve la conversione di `attention.ts`: lo schermo *è* il suo sistema.
+   */
+  public setGaze(target: GazeTarget | null): void {
+    this.gaze = target ?? { x: 0, y: 0 };
   }
 
   public start(): void {

@@ -1,10 +1,14 @@
 import * as THREE from "three";
 import type { FaceState } from "@ugo/shared/face";
+import type { PropKind, SceneProp } from "@ugo/shared/props";
+import { VIEWER_SPREAD } from "./attention.js";
 import type { Posture } from "./channels.js";
+import { Furniture, propAt, type Pen } from "./props3d.js";
 import type { FaceRenderer, Resident } from "./faceRenderer.js";
 import { Inhabitant } from "./inhabitant.js";
 import type { Traits } from "./pig.js";
 import type { PsycheVars } from "./pose.js";
+import { BACKDROP_RADIUS, Room } from "./room3d.js";
 
 /**
  * The WebGL room: scene, lights, camera, and the clock.
@@ -37,6 +41,14 @@ const DISTANCE_FOR_FULL_FRAME = 4.8;
 /** The camera rides this fraction of its own distance above the floor. */
 const CAMERA_RISE = 0.2;
 const LOOK_AT_Y = 1.25;
+/**
+ * Fin dove vede la camera: la cupola, più la distanza da cui la guarda.
+ *
+ * Il fattore è 2 perché nel caso peggiore la camera sta da una parte e la parete
+ * che deve vedere sta dall'altra — cioè un diametro — e il resto è margine per
+ * la distanza, che con uno schermo largo e una folla arriva a un centinaio.
+ */
+const SEES_AS_FAR_AS = BACKDROP_RADIUS * 2.4;
 
 export interface Webgl3dOptions {
   traits?: Traits;
@@ -49,6 +61,13 @@ export class Webgl3dFace implements FaceRenderer {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
   private readonly observer: ResizeObserver;
+  private readonly room: Room;
+  private readonly furniture = new Furniture();
+  private props: readonly SceneProp[] = [];
+  private pen: Pen = { radiusX: 3.4, radiusZ: 1.7 };
+  private usedProp: ((who: string, kind: PropKind) => void) | undefined;
+  /** uno solo, riusato: costruirne uno per tocco è spazzatura per niente */
+  private readonly ray = new THREE.Raycaster();
 
   /** insertion order is the order they stand in, left to right */
   private readonly people = new Map<string, Inhabitant>();
@@ -70,7 +89,16 @@ export class Webgl3dFace implements FaceRenderer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
+    // Il piano lontano **dipende dal fondale**, e non è un numero rotondo scelto
+    // a occhio: la cupola ha raggio `FLOOR_RADIUS * 1.05` (~231) e la camera si
+    // allontana con lo schermo e con la folla — fino a un centinaio di unità —
+    // quindi la parete opposta arriva sui 380. A 200 il cielo veniva tagliato
+    // **tutto**, e al suo posto si vedeva il bianco della pagina (`alpha: true`):
+    // scoperto al banco guardando il reso, non da un test.
+    //
+    // Allargarlo non costa: la precisione della z la detta il piano vicino, che
+    // resta 0.1.
+    this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, SEES_AS_FAR_AS);
     this.camera.position.set(1.1, 2.6, 13);
     this.camera.lookAt(0, LOOK_AT_Y, 0);
 
@@ -81,6 +109,13 @@ export class Webgl3dFace implements FaceRenderer {
     const rim = new THREE.DirectionalLight(0xbfd4ff, 0.9);
     rim.position.set(-4, 2, -3);
     this.scene.add(rim);
+
+    // la stanza prima degli abitanti: prende le luci già montate, e senza di
+    // lei lo spazio era tridimensionale senza che si potesse vedere
+    this.room = new Room(this.scene);
+    // gli arredi stanno nella stanza, non addosso a una creatura: due gosini
+    // nella stessa cucina guardano lo stesso cuscino (ADR-056)
+    this.scene.add(this.furniture.object);
 
     // until the room says who lives in it, there is one nameless creature —
     // the single-exemplar house, and every face built before rooms existed
@@ -115,8 +150,17 @@ export class Webgl3dFace implements FaceRenderer {
         this.wandering,
       );
       this.people.set(resident.id, person);
+      const listener = this.usedProp;
+      if (listener !== undefined) {
+        person.reportUsedProp((kind) => {
+          listener(resident.id, kind);
+        });
+      }
       this.scene.add(person.object);
     }
+    // un arrivato nella stanza deve sapere che c'è un cuscino: senza, il
+    // secondo gosino di una casa camminerebbe attraverso l'arredamento
+    this.spreadProps();
     // resize, not layout: how far the camera stands depends on HOW MANY are in
     // the room, and laying out lanes against the old distance put the third
     // creature outside the frame — visible only as a shadow with no pig on it
@@ -131,13 +175,68 @@ export class Webgl3dFace implements FaceRenderer {
     for (const person of this.pick(who)) person.setMood(label, vars);
   }
 
-  /** The room is looked at, so everybody in it looks back. */
-  public setGaze(target: { x: number; y: number }): void {
+  /**
+   * The room is looked at, so everybody in it looks back. `null` = nobody is
+   * there any more, e va passato: senza, le pupille restano dove eri.
+   */
+  public setGaze(target: { x: number; y: number } | null): void {
     for (const person of this.people.values()) person.setGaze(target);
+  }
+
+  /** ADR-056: l'arredamento della stanza, sostituito in blocco. */
+  public setProps(props: readonly SceneProp[]): void {
+    this.props = props;
+    this.furniture.set(props);
+    this.spreadProps();
+  }
+
+  /**
+   * ADR-058: hai mirato al muso? E di chi?
+   *
+   * Il bersaglio piccolo **è** la decisione: `tap` è la carezza e arriva
+   * ovunque sulla tela, la mela arriva solo se hai puntato. Un premio che si dà
+   * per sbaglio non è un premio, e un raycast su tutto il canvas avrebbe reso i
+   * due gesti la stessa cosa con due nomi.
+   *
+   * @param at coordinate normalizzate del puntatore, [-1,1] come le vuole three
+   * @returns l'id della creatura toccata sul muso, o `undefined`
+   */
+  public snoutAt(at: { x: number; y: number }): string | undefined {
+    this.ray.setFromCamera(new THREE.Vector2(at.x, at.y), this.camera);
+    for (const [id, person] of this.people) {
+      // `true`: il muso è un gruppo con dentro il blocco e le narici, e senza
+      // la ricorsione il raggio non colpirebbe niente
+      if (this.ray.intersectObject(person.pig.snout, true).length > 0) return id;
+    }
+    return undefined;
+  }
+
+  /** ADR-056: uno di loro è andato a usare qualcosa, da solo. */
+  public onUsedProp(listener: (who: string, kind: PropKind) => void): void {
+    this.usedProp = listener;
+    for (const [id, person] of this.people) {
+      person.reportUsedProp((kind) => {
+        listener(id, kind);
+      });
+    }
+  }
+
+  /** Dove stanno gli arredi in unità di scena, detto a chi ci cammina in mezzo. */
+  private spreadProps(): void {
+    this.furniture.setPen(this.pen);
+    const placed = this.props.map((prop) => ({
+      id: prop.id,
+      kind: prop.kind,
+      ...propAt(prop, this.pen),
+    }));
+    for (const person of this.people.values()) person.setProps(placed);
   }
 
   public setLowPower(on: boolean): void {
     this.lowPower = on;
+    // §4.2 dice «fondo nero»: la stanza è la superficie più grande da riempire
+    // a ogni fotogramma, quindi è anche la prima da spegnere
+    this.room.setVisible(!on);
   }
 
   public setWandering(on: boolean): void {
@@ -167,6 +266,12 @@ export class Webgl3dFace implements FaceRenderer {
     this.observer.disconnect();
     for (const person of this.people.values()) person.dispose();
     this.people.clear();
+    // la stanza va smontata con loro, e non è teorico: `bench.ts` fa
+    // `stop()` + ricostruzione **a ogni trascinamento** di uno slider del
+    // genoma, quindi una geometria non liberata qui diventa cento geometrie
+    // e tre trame per slider in pochi secondi
+    this.room.dispose();
+    this.furniture.dispose();
     this.renderer.dispose();
   }
 
@@ -193,11 +298,19 @@ export class Webgl3dFace implements FaceRenderer {
     if (speaker === undefined || this.people.size < 2) return;
     for (const person of this.people.values()) {
       if (person === speaker) continue;
+      // l'azimut vero verso chi parla, in unità di `VIEWER_SPREAD`: da quando
+      // `attention.ts` toglie l'orientamento del corpo, «x» è un angolo nel
+      // mondo e non più una posizione sullo schermo, quindi qui si calcola
+      // invece di stimarlo a occhio. Non si limita a ±1: il vicino di stanza
+      // può stargli davvero di fianco, e il collo e le pupille hanno già i
+      // loro fermi.
       const dx = speaker.position.x - person.position.x;
-      // the pen is a couple of units wide, so a unit of distance is most of a
-      // full turn of the eyes: clamped, or he would look through his own skull
-      person.setGaze({ x: clamp01(Math.abs(dx) / 2) * Math.sign(dx), y: 0 });
-      person.reflex("earPerk");
+      const dz = speaker.position.z - person.position.z;
+      person.setGaze({ x: Math.atan2(dx, dz) / VIEWER_SPREAD, y: 0 });
+      // `earPerk` non è mai esistito: `REFLEX` non lo mappa e non è un id di
+      // gesto, quindi `player.play` falliva in silenzio e chi ascoltava non
+      // drizzava mai le orecchie. Il gesto vero si chiama `perkUp`.
+      person.reflex("perkUp");
     }
   }
 
@@ -225,6 +338,10 @@ export class Webgl3dFace implements FaceRenderer {
       const centre = -half + slice * (index + 0.5);
       person.setLane(centre, Math.max(0.5, slice * 0.4), depth);
     });
+    // il recinto della STANZA, che non è la corsia di nessuno: è quello che
+    // denormalizza le coordinate degli arredi, e cambia con il fotogramma
+    this.pen = { radiusX: half, radiusZ: depth };
+    this.spreadProps();
   }
 
   private resize(): void {
@@ -245,6 +362,9 @@ export class Webgl3dFace implements FaceRenderer {
     const crowd = 1 + 0.3 * Math.max(0, this.people.size - 1);
     this.distance = (DISTANCE_FOR_FULL_FRAME / share) * crowd;
     this.home.set(this.distance * 0.085, this.distance * CAMERA_RISE, this.distance);
+    // la nebbia segue la camera: a distanze fisse sarebbe un velo addosso a lui
+    // sul telefono e niente del tutto sul desktop
+    this.room.fit(this.distance);
     this.layout();
   }
 

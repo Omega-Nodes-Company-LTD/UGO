@@ -9,6 +9,8 @@ import { FaceGateway } from "../faceGateway.js";
 import { PackService } from "../packService.js";
 import { PsycheService } from "../psycheService.js";
 import { Curiosity } from "../volition/curiosity.js";
+import { EfficacyService } from "../volition/efficacy.js";
+import { RewardService } from "../volition/reward.js";
 import { VolitionService } from "../volition/volitionService.js";
 
 /**
@@ -158,11 +160,21 @@ async function buildRuntime(
       pack: new PackService(deps.db, deps.speciesMap, row.id, row.householdId),
     }),
   });
+  // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.
+  // Due gosini sotto lo stesso tetto imparano cose diverse, ed è il punto.
+  const efficacy = new EfficacyService(deps.db, row.id);
+  const reward = new RewardService({
+    db: deps.db,
+    gosinoId: row.id,
+    householdId: row.householdId,
+    efficacy,
+  });
   const gateway = new FaceGateway({
     db: deps.db,
     psyche,
     chat,
     gosinoId: row.id,
+    reward: (input) => reward.give(input),
     ...(deps.recognition !== undefined && { recognition: deps.recognition(row.householdId) }),
   });
   const volition = new VolitionService({
@@ -178,6 +190,7 @@ async function buildRuntime(
       gosinoId: row.id,
       persona: character.persona,
     }),
+    efficacy,
     localModelUp: deps.localModelUp,
     enabled: deps.initiativeEnabled,
     hourOf: deps.hourOf,

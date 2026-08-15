@@ -188,3 +188,86 @@ def identify_face_endpoint(query: FaceQuery) -> Recognised:
         confidence=found.confidence,
         modality="face",
     )
+
+
+class RememberQuery(BaseModel):
+    """Un volto che non è di nessuno che conosciamo (ADR-057)."""
+
+    image: str = Field(min_length=1)
+    household_id: str = Field(min_length=1)
+
+
+class Remembered(BaseModel):
+    """L'impronta conservata, e da quante volte la vediamo."""
+
+    print_id: str
+    seen_count: int
+
+
+class ClaimQuery(BaseModel):
+    """«Quello è Marco»: l'impronta ignota prende un nome."""
+
+    print_id: str = Field(min_length=1)
+    being_id: str = Field(min_length=1)
+    household_id: str = Field(min_length=1)
+    gosino_id: str = Field(min_length=1)
+
+
+class Claimed(BaseModel):
+    sample_count: int
+
+
+@app.post("/v1/prints/unknown", dependencies=[Depends(guard)])
+def remember_unknown_endpoint(query: RememberQuery) -> Remembered:
+    """Conserva il volto di uno sconosciuto, cifrato, in attesa di un nome.
+
+    ⚠️ Sono dati biometrici di chi non ha acconsentito: scelta consapevole del
+    proprietario, con retention dichiarata (30 giorni), cancellazione dal
+    pannello e distruzione all'oblio. Vedi ADR-057 e `/documentation`.
+    """
+    from ugo_jobs.crypto import parse_data_key
+    from ugo_jobs.face import remember_unknown
+
+    if MODELS.face is None:
+        raise HTTPException(status_code=503, detail="modello del volto non caricato")
+    image = decode_face(query.image)
+    with _connect() as conn:
+        print_id, seen = remember_unknown(
+            conn,
+            household_id=query.household_id,
+            image=image,
+            data_key=parse_data_key(os.environ["UGO_DATA_KEY"]),
+            encoder=MODELS.face,
+        )
+        conn.commit()
+    return Remembered(print_id=print_id, seen_count=seen)
+
+
+@app.post("/v1/prints/claim", dependencies=[Depends(guard)])
+def claim_print_endpoint(query: ClaimQuery) -> Claimed:
+    """Gli hai risposto: da adesso quella faccia ha un nome.
+
+    Un 403 qui non è un guasto ed è il motivo per cui esiste `no_vision`: chi
+    ha detto «non guardarmi» non viene arruolato, e l'impronta ignota viene
+    **distrutta lo stesso** — conservarla dopo un rifiuto sarebbe il peggiore
+    dei due mondi.
+    """
+    from ugo_jobs.crypto import parse_data_key
+    from ugo_jobs.enrollment import EnrollmentRefused
+    from ugo_jobs.face import claim_unknown
+
+    with _connect() as conn:
+        try:
+            total = claim_unknown(
+                conn,
+                print_id=query.print_id,
+                being_id=query.being_id,
+                gosino_id=query.gosino_id,
+                household_id=query.household_id,
+                data_key=parse_data_key(os.environ["UGO_DATA_KEY"]),
+            )
+        except EnrollmentRefused as refused:
+            conn.commit()  # la distruzione dell'impronta va tenuta comunque
+            raise HTTPException(status_code=403, detail=str(refused)) from refused
+        conn.commit()
+    return Claimed(sample_count=total)

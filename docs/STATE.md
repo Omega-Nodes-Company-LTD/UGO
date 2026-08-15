@@ -1723,6 +1723,145 @@ branco, giro di chat, ticket raccolto e ritrovato, lavori, uscita: 5 su 5.
 pre-calcolato dal sogno; IMAP OAuth2; il dominio pubblico vero e la rotazione del segreto
 sono un atto di deploy, non di repository.
 
+## 6-novemvicies. Il mondo, chi sei, e la mela (ADR-056, ADR-057, ADR-058)
+
+Sette segnalazioni del proprietario guardando il chiosco, tutte lo stesso
+giorno. Quasi nulla era da inventare: erano pezzi costruiti e mai raccordati, e
+il rapporto fra righe scritte ed effetto è la ragione per cui valeva la pena
+farlo tutto in una volta.
+
+### Chi crede di essere
+
+Interrogato «sei Silvio o Ugo», il secondo esemplare rispondeva: *«Sono Ugo, ma
+mi chiamano anche Silvio — dipende da dove sono.»* **Non aveva allucinato.**
+`identity.it.md` è `[CACHED]` e condiviso da ogni creatura della casa, e diceva
+«Sei UGO»; `packPrompt` diceva «Sei Silvio in studio». Un nome proprio è un dato
+**per esemplare** infilato in un blocco **condiviso** — lo stesso difetto che
+ADR-050 aveva appena deciso per la lingua, sull'altro asse.
+
+Il blocco cached descrive adesso la **specie**; il nome vive solo in
+`selfLine()`. Con una casa a un esemplare solo nessuno se ne sarebbe mai
+accorto, perché lì la creatura si chiama davvero «ugo» e le due frasi
+combaciano per caso.
+
+### Parlava di spalle, e non ti seguiva
+
+`talking` sta in `ROAMS_IN` per decisione di ADR-026 §6 e resta: l'unica riga
+che riportava `heading` verso di te stava **dentro il ramo che mentre parla non
+viene mai eseguito**. Si aggiunge un cono di ±52° sul bersaglio, applicato sia
+in `step` sia in `pickNext` — il secondo da solo non recupera il caso vero
+(vagabonda in `idle`, arriva a π, *poi* parla).
+
+Lo sguardo erano cinque difetti impilati, e il primo è strutturale: **il collo è
+figlio del corpo**, e in tutto `body/` non c'era un solo riferimento a `heading`
+dal lato dello sguardo. «A destra dello schermo» diventava «a destra del muso».
+Nuovo `attention.ts`, puro. Più: l'occhiata spontanea che *sostituiva* lo
+sguardo vero con ±0.7 (tre-sette volte il segnale); la deriva da noia piena
+anche mentre ti guardava; l'`onGaze(null)` scartato da `main.ts`, che congelava
+le pupille dove eri; e il puntatore avviato **incondizionatamente all'avvio**
+senza modo di spegnerlo.
+
+E `renderer3d` chiamava `reflex("earPerk")`, che è l'id di un **atto** e non di
+un gesto: chi ascoltava non ha mai drizzato le orecchie, e niente lo diceva. Su
+`gaze`, `faceLocator`, `inhabitant` e `wander` non esisteva **un solo test**.
+
+### La stanza, e le cose dentro (ADR-056)
+
+Lo spazio era già 3D e non c'era niente contro cui vederlo. Nebbia, fondale e
+trama del pavimento, tutti procedurali. Poi gli arredi: catalogo in codice,
+`placed_props` + `prop_stock` nel database, spinta `scene` sul socket già
+aperto, collisioni oneste (respinta e rimbalzo, non un pianificatore di
+percorso), e `used_prop` che abbassa la noia **con un tetto** — senza, un corpo
+acceso e solo si terrebbe la noia a zero per sempre facendo avanti e indietro
+fra due cuscini.
+
+Il cespuglio è tornato indietro una volta: a 0.9 unità era un ciuffo al
+ginocchio di un pancia a tazza. Adesso è più alto di lui, la chioma arriva quasi
+a terra, ed è un **riparo** — ci va quando è **stressato**, che è la seconda
+spinta che muove il corpo e l'unica che vince sulla noia.
+
+Il pavimento è diventato **erba** e il cielo **azzurro**, e sul cielo sono
+saltati fuori tre difetti che nessun test aveva né poteva avere: il fondale
+aveva raggio fisso 37 mentre la camera arriva oltre 100 (da fuori una cupola
+`BackSide` non c'è); allargato il fondale, il `far` della camera a 200 lo
+tagliava tutto (adesso si ricava da `BACKDROP_RADIUS`, invece di essere un
+secondo numero in un altro file); e una `CanvasTexture` senza `colorSpace`
+veniva presa per lineare e ricodificata in sRGB, cioè **ogni colore usciva
+schiarito** — il prato era stato tarato a occhio *contro* quel difetto, due
+errori che quasi si annullavano finché non è arrivata una tinta piena. Li ha
+trovati tutti e tre il banco guardando il reso, che è la verifica dichiarata da
+ADR-026 per quel che si vede. Il cielo chiaro ha portato con sé la sfumatura
+scura sotto la barra del chiosco: il testo era a ~2.5:1 sull'erba illuminata.
+
+Un quarto difetto l'ha trovato la **CI**, ed era di prestazioni: il pavimento
+diurno arriva all'orizzonte, e shadeggiarlo `MeshStandardMaterial` trasparente
+su mezza inquadratura ha portato il GL software da 12,5 a 8 fps — abbastanza da
+far scadere il rilascio di `sneeze` nell'e2e del corpo (5 s di poll su una VM a
+2 core). Corretto per sottrazione: prato `MeshBasicMaterial` opaco a una trama
+(l'illuminazione è dipinta nei fili), niente sfumatura di bordo (oltre
+`fog.far` il piano è già color cielo), anisotropia 2. 14,5 fps, sopra il
+baseline pre-cielo — e vale anche per il telefono, non solo per la CI.
+
+### 🔴 Il buco di privacy, e l'arruolamento del volto (ADR-057)
+
+`_guard` leggeva `is_minor` e `no_audio` e **non guardava mai `no_vision`**,
+mentre `face.py` dichiarava in un commento la protezione che il codice non
+applicava. L'interruttore esisteva, il pannello lo mostrava, e non fermava
+niente. La modalità è adesso obbligatoria — un default l'avrebbe solo spostato
+di un posto, ed è da un default che è nato.
+
+Il motore del volto c'era tutto e non era collegato a niente, e il corpo **sapeva
+già ritagliare un volto e lo buttava via** (stessa famiglia del difetto della
+voce di ADR-045). Adesso: vede, conserva l'impronta cifrata, alla seconda volta
+**te lo chiede** scrivendo un desiderio, rispondi, impara. Con retention di 30
+giorni applicata, cancellazione dal pannello, distruzione all'oblio — **tutte**
+le impronte ignote della casa, perché una senza nome non ha un nome e «forse era
+la sua» non è una risposta accettabile.
+
+### La mela (ADR-058)
+
+Tre orfani che si guardavano attraverso: `compliment` che non emetteva nessuno,
+`bonds.affinity` mai scritta da nessuno, `scoreLast` mai riletta da nessuno.
+Carezza e premio restano **due cose** (tetto basso e ovunque contro raro e sul
+muso), il legame si scalda solo se si sa chi l'ha dato, e i pesi moltiplicano il
+**sollievo** e mai l'invadenza — da lì le tre valvole. Non è apprendimento in
+nessun senso generale, e lo dicono il codice, l'ADR **e il pannello**.
+
+### E le correzioni
+
+`POST /v1/corrections` scriveva sempre sul più anziano: con due gosini, dire a
+Silvio che urla correggeva Ugo. Adesso accetta `?gosino=` e con più d'uno
+**rifiuta invece di indovinare**.
+
+### La mela del cliente (ADR-058, appendice)
+
+La decisione del proprietario era «tipo 2 a settimana, così premiano solo le
+risposte davvero ottime», e la prima stesura l'aveva lasciata come «spazio», non
+come codice. Adesso è un muro: `customer_rewards` una riga per mela (migrazioni
+0021 + **0022 a mano** per RLS), conteggio da Postgres su finestra mobile di
+sette giorni, default `UGO_CUSTOMER_WEEKLY_REWARDS=2` con override per cliente
+(anche 0), 429 **con la data** a mele finite. La mela del cliente perturba la
+psiche e resta nella memoria episodica (source `reception`, solo ID) con dentro
+quale risposta l'ha meritata; **non** tocca `bonds.affinity` (un cliente non è
+un `being`) né `act_efficacy` (si premia una risposta, non un'iniziativa). Il
+come e perché darle sta **nel prodotto**: bottone solo sotto l'ultima risposta,
+nota che spiega, scheda del cliente col conteggio della stessa finestra.
+
+### Il giro completo (regola 12)
+
+- **BO** — `packages/prompts`, `packages/shared` (due cataloghi, quattro frame
+  nuovi sul filo, un sottopercorso), `packages/db` (tre tabelle, sei migrazioni
+  di cui **tre a mano** per RLS), `packages/psyche` (tre eventi), `apps/soul`
+  (nove servizi e cinque gruppi di rotte), `ops/jobs` e `ops/voice` **incluse le
+  `tests/`**;
+- **`/admin`** — tre pagine: «Gli arredi» con piantina trascinabile e scorte,
+  «I volti» con revisione e cancellazione, «Cosa gli è piaciuto fare» sui pesi.
+  Più il selettore «A chi» sulle correzioni;
+- **FE** — `attention`, `room3d`, `props3d`, `solid`, `faceCrop`, più
+  `wander`, `gaze`, `faceLocator`, `inhabitant`, `posture`, `autonomy`,
+  `renderer3d`, `pig`, `main`, e il banco. **Il bundle va ricostruito**: soul
+  serve il muso già compilato, e la versione si vede in basso a destra.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1754,6 +1893,12 @@ sono un atto di deploy, non di repository.
 | ~~Due esemplari **sullo stesso schermo**~~ | — | **Chiuso** da ADR-036: un dispositivo incarna una **stanza**, e ci vede tutti quelli che ci vivono |
 | **Il registro del corpo è in chiaro** (ADR-038) | 80 righe di conversazione nel `localStorage` del dispositivo, fuori da ogni garanzia di cifratura | Consapevole e dichiarato: tetto corto, per stanza, «svuota» in un clic. Cifrarlo richiederebbe una chiave sul chiosco, cioè spostare il problema |
 | ~~UGO non sa chi ha davanti in chat~~ | — | **Chiuso** da ADR-045: l'audio viaggia con la frase, `ugo-percezione` identifica, il `beingId` entra in `chat.handle` |
+| ~~`no_vision` non fermava l'arruolamento del volto~~ | Era **in produzione**: chi aveva detto «non guardarmi» sarebbe stato arruolato col volto | **Chiuso** da ADR-057: la modalità è un argomento obbligatorio di `_guard`, e il test usa un encoder che solleva se viene chiamato — così prova che il rifiuto arriva *prima* del calcolo |
+| ~~Le correzioni finivano sempre sul più anziano~~ | Con due gosini, dire a uno che urla correggeva l'altro | **Chiuso**: `?gosino=`, e con più d'uno un 400 invece di un'ipotesi |
+| **Impronte biometriche di chi non ha acconsentito** (ADR-057) | Scelta consapevole del proprietario, e resta il debito che pesa di più in questa lista | Cifrate, 30 giorni di retention **applicata da una rotta**, cancellabili una per una, distrutte dall'oblio, e una pagina di `/documentation` che lo dice a chi entra in casa. La retention gira però solo se qualcuno chiama `POST /v1/prints/expire`: **va agganciata al giro notturno**, ed è la prima cosa da fare del prossimo giro |
+| **La voce dopo il volto è a metà** (ADR-057) | UGO chiede di parlare, ma il chiosco non registra ancora i dieci secondi da solo: la voce si arruola dal pannello | Il percorso esiste tutto (`/v1/beings/:id/enroll/voice/audio`), manca il pezzo di `main.ts` che apre il microfono e lo manda. Piccolo, e va fatto quando si tocca di nuovo il muso |
+| **`used_prop` è un evento che la creatura si procura da sé** (ADR-056) | È l'unico anello chiuso del sistema: il corpo sceglie di andare sul cuscino e genera l'evento che lo ricompensa | Il `ceiling` lo chiude, e i test lo dimostrano (un arrivo, non uno per fotogramma). Da riguardare se un giorno gli arredi diventassero molti: otto per stanza è anche un limite di sicurezza, non solo di estetica |
+| **La batteria del corpo 3D peggiora ancora** | Pavimento, fondale, nebbia e fino a otto arredi in più per fotogramma | Portable mode spegne la stanza per prima. Il numero però continua a non esistere: è la stessa riga di sopra, adesso più urgente |
 | **Il giro completo del riconoscimento non è provato end-to-end** (ADR-045) | I pezzi sono misurati e testati, il giro con audio vero attraverso il servizio vero no: richiede l'immagine da 2 GB costruita e i pesi montati | **Ha già fatto danno**: il corpo spediva al ritmo del microfono e non a 16 kHz, quindi ogni frase col microfono acceso sforava il tetto del contratto e UGO non rispondeva (§6-duovicies). Nessun test copriva la giunzione, perché ogni pezzo era corretto da solo. Da fare al primo deploy, con due voci di casa arruolate |
 | **Il rilevamento del volto non è provato su un volto vero** (ADR-044) | Verificato che la pipeline si apre e gira; su un volto no | Serve un dispositivo vero: qui non ci sono né ffmpeg né un corpus di volti per una camera finta credibile |
 | **Rinominare una stanza non si può** (ADR-039) | Con `location_label` denormalizzato costerebbe un aggiornamento in due punti | Non è stato chiesto. È il giorno in cui la chiave esterna `room_id` va riconsiderata, e non prima |

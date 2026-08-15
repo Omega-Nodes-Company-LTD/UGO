@@ -43,6 +43,11 @@ test("a chat round-trip from the keyboard, and the transcript shows it", async (
   await page.getByTestId("send").click();
   await expect(page.getByTestId("thread")).toContainText("Dove sta la funzione di avvio?");
   await expect(page.getByTestId("thread")).toContainText("main.ts", { timeout: 20_000 });
+
+  // ADR-058: la mela vive sotto l'ultima risposta, e il conto scende davvero
+  await expect(page.getByTestId("reward-note")).toContainText("davvero ottima");
+  await page.getByTestId("reward").click();
+  await expect(page.getByTestId("thread")).toContainText("Gliel'hai data");
 });
 
 test("«apri un ticket» collects the request and it lands in the tickets tab", async ({ page }) => {

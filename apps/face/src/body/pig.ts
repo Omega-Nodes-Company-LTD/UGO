@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { Pose } from "./channels.js";
+import { box } from "./solid.js";
 
 /**
  * The body: rounded cubes generated at runtime. No binary asset, no texture,
@@ -33,12 +33,6 @@ export const DEFAULT_TRAITS: Traits = {
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
-function box(w: number, h: number, d: number, r: number, material: THREE.Material): THREE.Mesh {
-  // the radius cannot exceed half the smallest side, or the geometry degenerates
-  const safe = Math.min(r, Math.min(w, h, d) / 2 - 0.001);
-  return new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, safe), material);
-}
-
 interface Leg {
   mesh: THREE.Mesh;
   restY: number;
@@ -63,7 +57,15 @@ export class Pig {
   private readonly body: THREE.Mesh;
   private readonly head = new THREE.Group();
   private readonly ears: THREE.Group[] = [];
-  private readonly snout = new THREE.Group();
+  /**
+   * Il muso, esposto perché è il bersaglio della mela (ADR-058).
+   *
+   * `public` e non un metodo `hitTest` qui dentro: il raycasting ha bisogno
+   * della camera, che è della stanza e non della creatura, e portarla dentro
+   * `Pig` per un colpo di dito significherebbe dare al corpo una dipendenza
+   * dalla scena che ha passato tre ADR a non avere.
+   */
+  public readonly snout = new THREE.Group();
   private readonly eyes: Eye[] = [];
   private readonly mouth: THREE.Mesh;
   private readonly tailRoot = new THREE.Group();
@@ -74,6 +76,16 @@ export class Pig {
   private readonly cheekMat: THREE.MeshStandardMaterial;
   private readonly restY: number;
   private readonly mouthRestY: number;
+  /**
+   * Quanto può scorrere una pupilla senza uscire dall'occhio.
+   *
+   * Era `0.1` fisso per ogni genoma, cioè quasi il massimo per l'occhio più
+   * piccolo e molto meno del possibile per il più grande — e uno sguardo che a
+   * `|gaze| = 1` sposta la pupilla di un decimo di unità è uno sguardo che non
+   * si vede. Il fermo vero è metà sclera meno metà pupilla; qui si sta appena
+   * dentro, e si ricava dall'occhio invece che dal caso peggiore.
+   */
+  private readonly pupilTravel: number;
   private readonly legH: number;
   private readonly depth: number;
 
@@ -146,6 +158,8 @@ export class Pig {
 
     const eyeW = lerp(0.36, 0.58, traits.eye);
     const eyeH = eyeW * 1.15;
+    // (sclera/2 - pupilla/2) = eyeW * (0.5 - 0.23) = 0.27; si resta sotto
+    this.pupilTravel = eyeW * 0.25;
     for (const side of [-1, 1]) {
       const group = new THREE.Group();
       group.position.set(side * hw * 0.245, hh * 0.1, hd / 2 - 0.06);
@@ -291,8 +305,8 @@ export class Pig {
       eye.sclera.scale.set(wide, Math.max(0.001, lids * wide), 1);
       eye.pupil.scale.set(wide, Math.max(0.001, lids * wide), 1);
       eye.pupil.visible = lids > 0.12;
-      eye.pupil.position.x = pose.pupilX * 0.1;
-      eye.pupil.position.y = pose.pupilY * 0.1 * lids;
+      eye.pupil.position.x = pose.pupilX * this.pupilTravel;
+      eye.pupil.position.y = pose.pupilY * this.pupilTravel * lids;
       eye.shut.scale.y = Math.max(0.001, 1 - lids);
       eye.shut.visible = lids < 0.92;
     }

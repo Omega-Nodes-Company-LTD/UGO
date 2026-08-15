@@ -283,11 +283,15 @@ const app = buildServer({
           dailyBudgetUsd: env.UGO_CUSTOMER_DAILY_BUDGET_USD,
           timezone: env.TZ,
         }),
+        weeklyRewards: env.UGO_CUSTOMER_WEEKLY_REWARDS,
         llmFor,
         embedder,
         github: new GithubLiveService({ db, dataKey }),
       },
     }),
+    // ADR-057: rivendicare un'impronta ignota passa dallo stesso servizio che
+    // tiene gli encoder, e con lo stesso client per casa
+    ...(recognition !== undefined && { prints: recognition }),
   },
 });
 

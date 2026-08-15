@@ -11,6 +11,7 @@ import {
   messages,
   recognitionProfiles,
   tickets,
+  unknownPrints,
   transcriptSegments,
   type DbClient,
 } from "@ugo/db";
@@ -61,6 +62,14 @@ export interface ForgetReport {
   /** names travel: the reception's texts are scanned like the family's (ADR-052) */
   customerMessagesRedacted: number;
   ticketsRedacted: number;
+  /**
+   * ADR-057: le impronte ignote della casa, distrutte tutte.
+   *
+   * Nel rapporto e non solo nel codice, perché è la parte che il proprietario
+   * deve poter *vedere*: un'erasione che dice quante ne ha portate via è una
+   * promessa dimostrata, una che tace è una promessa da credere sulla parola.
+   */
+  unknownPrintsDestroyed: number;
 }
 
 /** `forgetCustomer`: counts of what the cascade takes away (ADR-052). */
@@ -109,6 +118,7 @@ export class ForgetService {
       biometricProfilesDestroyed: 0,
       customerMessagesRedacted: 0,
       ticketsRedacted: 0,
+      unknownPrintsDestroyed: 0,
     };
 
     await this.redactMessages(redact, report, beingId, householdId);
@@ -129,6 +139,22 @@ export class ForgetService {
     // the being themselves: row, notes, embedding, bonds and profiles destroyed
     await db.delete(beings).where(eq(beings.id, beingId));
 
+    // ADR-057: e le impronte **ignote** della casa, tutte.
+    //
+    // È la decisione scomoda, e va spiegata perché sembra eccessiva. Un'impronta
+    // ignota non ha un nome per costruzione: non c'è modo di sapere se una di
+    // quelle è di chi ci ha appena chiesto di essere dimenticato. Tenerne
+    // qualcuna vorrebbe dire conservare, forse, esattamente il dato biometrico
+    // che si è promesso di distruggere — e «forse» non è una risposta che si
+    // può dare a quella domanda. Cancellarle tutte costa al proprietario
+    // qualche domanda in più nei giorni seguenti; l'alternativa costa la
+    // promessa.
+    const strangers = await db
+      .delete(unknownPrints)
+      .where(eq(unknownPrints.householdId, householdId))
+      .returning({ id: unknownPrints.id });
+    report.unknownPrintsDestroyed = strangers.length;
+
     // Audit trail with IDs and counts only — never the erased name (NIS2).
     // `events` is keyed by exemplar and an erasure is an act of the *house*, so
     // it lands on the house's oldest exemplar rather than on whichever one the
@@ -146,6 +172,7 @@ export class ForgetService {
         segmentsRedacted: report.segmentsRedacted,
         memoriesRedacted: report.memoriesRedacted,
         biometricProfilesDestroyed: report.biometricProfilesDestroyed,
+        unknownPrintsDestroyed: report.unknownPrintsDestroyed,
       },
     });
     return report;

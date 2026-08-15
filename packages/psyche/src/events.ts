@@ -16,7 +16,34 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
     { variable: "affetto", amount: 0.1 },
     { variable: "noia", amount: -0.2 },
   ],
-  compliment: [{ variable: "umore", amount: 0.05 }],
+  /**
+   * Una carezza, o una parola buona.
+   *
+   * L'evento esisteva **da sempre e non lo emetteva nessuno**: `tap` arrivava al
+   * gateway, il corpo festeggiava con `happyGrunt`, e alla psiche non arrivava
+   * niente. Adesso lo emette la carezza — e col `ceiling`, che senza cento
+   * tocchi saturerebbero l'umore in un minuto: una carezza è bella, cento di
+   * fila sono un dito su un vetro.
+   *
+   * 0.12 di tetto contro 0.05 a colpo: la seconda e la terza si sentono ancora,
+   * la decima no. È quello che fa una carezza vera.
+   */
+  compliment: [{ variable: "umore", amount: 0.05, ceiling: 0.12 }],
+  /**
+   * ADR-058: la mela. Un premio deliberato, e pesa.
+   *
+   * Distinta da `compliment` perché è **una cosa diversa**, non una carezza più
+   * forte: la carezza è un gesto continuo che non costa niente e ha un tetto
+   * basso; la mela è un gesto raro, mirato sul muso, che scalda il legame con
+   * chi gliel'ha data e sposta la preferenza dell'atto che se l'è meritata.
+   * Schiacciarle in un evento solo avrebbe reso impossibile dare a una il tetto
+   * dell'altra.
+   */
+  reward: [
+    { variable: "umore", amount: 0.14, ceiling: 0.3 },
+    { variable: "affetto", amount: 0.08, ceiling: 0.2 },
+    { variable: "noia", amount: -0.1, ceiling: 0.2 },
+  ],
   /** emitted by soul's SolitudeMonitor after 24h without being addressed */
   ignored_day: [{ variable: "umore", amount: -0.1 }],
   /** RH > 70% sustained */
@@ -53,6 +80,24 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
   ],
   /** one hour alone, emitted by soul's SolitudeMonitor */
   solitude_hour: [{ variable: "noia", amount: 0.05 }],
+  /**
+   * ADR-056: è andato a grufolare nell'erba, o si è coricato sul cuscino.
+   *
+   * Piccolo, e con un `ceiling`. Entrambe le cose sono la decisione, non la
+   * taratura: il corpo sceglie da solo quando avvicinarsi a un arredo — è una
+   * decisione locale a zero token (ADR-026 §6) — quindi **è lui a generare
+   * l'evento che lo ricompensa**. Senza un tetto, un corpo acceso e solo che
+   * macina noia farebbe avanti e indietro fra due cuscini e si terrebbe la noia
+   * a zero per sempre: un anello chiuso che si auto-alimenta, cioè un modo per
+   * cui la noia smetterebbe di significare qualcosa.
+   *
+   * Col tetto, un cuscino toglie il primo strato di noia e poi smette di
+   * bastare — che è esattamente ciò che fa un giocattolo vero.
+   */
+  used_prop: [
+    { variable: "noia", amount: -0.12, ceiling: 0.2 },
+    { variable: "umore", amount: 0.03, ceiling: 0.06 },
+  ],
   /**
    * ADR-030: he asked to go out, and he was taken out. The strongest good
    * thing that can happen to him, and it lasts — a walk is not a compliment.

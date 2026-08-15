@@ -1,8 +1,9 @@
 import websocket from "@fastify/websocket";
-import type { ServerToFaceMessage } from "@ugo/shared";
+import type { SceneProp, ServerToFaceMessage } from "@ugo/shared";
 import type { DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { FaceGateway } from "../services/faceGateway.js";
+import type { SceneHub } from "../services/sceneHub.js";
 import { whoAnswers, type Candidate } from "../services/whoAnswers.js";
 import { resolveHousehold } from "./scope.js";
 
@@ -37,6 +38,8 @@ interface RoomMember {
    * what a room of several is supposed to stop looking like.
    */
   traits?: Record<string, number>;
+  /** ADR-056: in che stanza vive, per sapere di quale arredamento parlargli */
+  where?: string;
 }
 
 /** What the registry hands back for one creature. */
@@ -45,6 +48,7 @@ interface RegistryEntry {
   name: string;
   gateway: FaceGateway;
   character?: { traits: Record<string, number> };
+  where?: string | undefined;
 }
 
 const asMember = (entry: RegistryEntry): RoomMember => ({
@@ -52,6 +56,7 @@ const asMember = (entry: RegistryEntry): RoomMember => ({
   name: entry.name,
   gateway: entry.gateway,
   ...(entry.character !== undefined && { traits: entry.character.traits }),
+  ...(entry.where !== undefined && { where: entry.where }),
 });
 
 export async function registerFaceWs(
@@ -61,6 +66,11 @@ export async function registerFaceWs(
   registry?: {
     resolve: (query: string | undefined, householdId: string) => RegistryEntry | undefined;
     inRoom: (room: string, householdId: string) => RegistryEntry[];
+  },
+  /** ADR-056: gli arredi della stanza, e le loro modifiche a scena aperta */
+  scene?: {
+    hub: SceneHub;
+    props: (householdId: string, roomSlug: string) => Promise<SceneProp[]>;
   },
 ): Promise<void> {
   await app.register(websocket);
@@ -98,13 +108,14 @@ export async function registerFaceWs(
       // one tagged sender per creature: the body has to know which of them moved
       const senders = members.map((member) => {
         const send = (message: ServerToFaceMessage): void => {
-          // the roster is the room's, not any one creature's: it is the only
-          // frame that never carries a `who`. Nor does anything in a house that
-          // has no registry — `who: ""` would be noise standing for "the only
-          // one", and this keeps the single-creature wire format byte-identical
-          // to what every face before rooms already speaks.
+          // the roster is the room's, not any one creature's: it never carries
+          // a `who`, and since ADR-056 neither does `scene` — un cuscino non è
+          // di nessuno dei due, è della stanza. Nor does anything in a house
+          // that has no registry — `who: ""` would be noise standing for "the
+          // only one", and this keeps the single-creature wire format
+          // byte-identical to what every face before rooms already speaks.
           const who = tagFor(member.id);
-          if (message.type === "roster" || who === undefined) {
+          if (message.type === "roster" || message.type === "scene" || who === undefined) {
             raw(message);
             return;
           }
@@ -116,8 +127,15 @@ export async function registerFaceWs(
         return { member, send, id: member.id, traits: member.traits };
       });
 
+      const room = roomForSocket(query, members);
+      const stopWatching =
+        scene !== undefined && room !== undefined && scope.ok
+          ? scene.hub.watch(scope.householdId, room, raw)
+          : undefined;
+
       const release = (): void => {
         for (const { member, send } of senders) member.gateway.unregisterSender(send);
+        stopWatching?.();
       };
       // it may have gone while we were asking the database who lives here
       if (socket.readyState !== socket.OPEN) {
@@ -136,6 +154,18 @@ export async function registerFaceWs(
           ...(m.traits !== undefined && { traits: m.traits }),
         })),
       });
+
+      // l'arredamento subito dopo il roster: il corpo monta la stanza prima di
+      // metterci dentro qualcuno che ci deve camminare
+      if (scene !== undefined && room !== undefined && scope.ok) {
+        try {
+          raw({ type: "scene", props: await scene.props(scope.householdId, room) });
+        } catch {
+          // una stanza senza arredi non è un errore, e un errore qui non deve
+          // impedire alla creatura di comparire: il corpo funziona spoglio
+          app.log.warn({ room }, "scene lookup failed");
+        }
+      }
 
       for (const { member, send } of senders) {
         send({ type: "state", state: member.gateway.currentState() });
@@ -197,6 +227,29 @@ function pickMembers(
 }
 
 /**
+ * ADR-056: di quale stanza è questo schermo.
+ *
+ * `?stanza=` lo dice, ed è la risposta più forte perché è esplicita. Ma un
+ * chiosco indirizzato `?gosino=` — che è la configurazione in uso oggi —
+ * altrimenti non vedrebbe **mai** un arredo, perché non avrebbe mai una
+ * stanza: eredita quella in cui la creatura vive, che è la stessa `where` che
+ * il pannello usa per decidere su quale schermo compare.
+ *
+ * `undefined` quando non c'è né l'una né l'altra: un corpo senza stanza è un
+ * corpo senza arredamento, e va bene — mostrargli quello di una stanza a caso
+ * sarebbe molto peggio che non mostrargli niente.
+ */
+export function roomForSocket(
+  query: { stanza?: string } | undefined,
+  members: readonly { where?: string }[],
+): string | undefined {
+  const asked = query?.stanza;
+  if (asked !== undefined && asked !== "") return asked;
+  const lives = members[0]?.where;
+  return lives === undefined || lives === "" ? undefined : lives;
+}
+
+/**
  * The `who` a frame should carry, if any.
  *
  * Empty means there is no registry and so no room: one nameless creature, the
@@ -221,12 +274,19 @@ export function tagFor(id: string): string | undefined {
  */
 export function forFrame<T extends Candidate>(text: string, senders: T[], roll?: number): T[] {
   const one = (): T[] => whoAnswers(senders, roll ?? Math.random());
-  let type: unknown;
+  let frame: { type?: unknown; who?: unknown };
   try {
-    type = (JSON.parse(text) as { type?: unknown }).type;
+    frame = JSON.parse(text) as { type?: unknown; who?: unknown };
   } catch {
     return senders.slice(0, 1); // unparseable: let one gateway produce the error
   }
-  if (typeof type === "string" && SENSED_BY_THE_ROOM.has(type)) return senders;
+  // ADR-056: un frame che dice **chi** è stato va a quello lì e a nessun altro.
+  // Sorteggiarlo come si sorteggia chi risponde a una frase manderebbe il
+  // sollievo dalla noia alla creatura che era rimasta ferma.
+  if (typeof frame.who === "string" && frame.who !== "") {
+    const named = senders.filter((sender) => sender.id === frame.who);
+    if (named.length > 0) return named;
+  }
+  if (typeof frame.type === "string" && SENSED_BY_THE_ROOM.has(frame.type)) return senders;
   return one();
 }

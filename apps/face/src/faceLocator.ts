@@ -58,9 +58,16 @@ export async function openFaceLocator(): Promise<FaceLocator | undefined> {
         if (face === undefined) return Promise.resolve(null);
         const box = face.boundingBox;
         if (box === undefined) return Promise.resolve(null);
+        // ADR-057: il rettangolo viaggia insieme al centro. Prima si teneva
+        // solo il centro e le due righe dopo scartavano larghezza e altezza:
+        // il ritaglio che serve a riconoscere qualcuno veniva calcolato e
+        // buttato via a ogni fotogramma — la stessa famiglia del difetto della
+        // voce di ADR-045.
         return Promise.resolve({
           x: (box.originX + box.width / 2) / source.videoWidth,
           y: (box.originY + box.height / 2) / source.videoHeight,
+          width: box.width / source.videoWidth,
+          height: box.height / source.videoHeight,
         });
       },
       close: () => {

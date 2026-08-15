@@ -5,7 +5,9 @@ import {
   createDbClient,
   customerGosini,
   customerMessages,
+  customerRewards,
   customers,
+  events,
   tickets,
   type DbClient,
   runMigrations,
@@ -47,7 +49,11 @@ let customerB: { id: string; token: string };
 async function addCustomer(
   house: TestHouse,
   slug: string,
-  overrides: { hourlyMessageLimit?: number; dailyBudgetUsd?: string } = {},
+  overrides: {
+    hourlyMessageLimit?: number;
+    dailyBudgetUsd?: string;
+    weeklyRewardLimit?: number;
+  } = {},
 ): Promise<{ id: string; token: string }> {
   const [row] = await db
     .insert(customers)
@@ -112,6 +118,7 @@ beforeAll(async () => {
       reception: {
         token: RECEPTION_TOKEN,
         dataKey,
+        weeklyRewards: 2,
         quota: new CustomerQuota(db, {
           hourlyMessages: 100,
           dailyBudgetUsd: 5,
@@ -395,5 +402,133 @@ describe("the tickets", () => {
     const [reopened] = await db.select().from(tickets).where(eq(tickets.id, id));
     expect(reopened?.status).toBe("waiting");
     expect(reopened?.closedAt).toBeNull();
+  });
+});
+
+describe("la mela del cliente (ADR-058)", () => {
+  it("arriva con l'identità: /me dice quante ne restano", async () => {
+    const fresh = await addCustomer(houseA, "verdi-sas");
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/reception/me",
+      headers: receptionHeaders(fresh.token),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ rewards: unknown }>().rewards).toEqual({
+      weeklyLimit: 2,
+      remaining: 2,
+    });
+  });
+
+  it("una mela conta, resta scritta, arriva alla memoria episodica e all'audit", async () => {
+    const given = await app.inject({
+      method: "POST",
+      url: "/v1/reception/reward",
+      headers: receptionHeaders(customerA.token),
+      payload: { gosinoId: houseA.gosinoId },
+    });
+    expect(given.statusCode).toBe(201);
+    expect(given.json<{ rewards: { remaining: number } }>().rewards.remaining).toBe(1);
+
+    const rows = await db
+      .select()
+      .from(customerRewards)
+      .where(eq(customerRewards.customerId, customerA.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.householdId).toBe(houseA.id);
+
+    // la riga in `events`: source reception, solo ID nel payload (regola 6)
+    const remembered = await db
+      .select()
+      .from(events)
+      .where(and(eq(events.gosinoId, houseA.gosinoId), eq(events.type, "reward")));
+    expect(remembered.some((row) => row.source === "reception")).toBe(true);
+    const payload = remembered.find((row) => row.source === "reception")?.payload as {
+      customer?: string;
+    };
+    expect(payload.customer).toBe(customerA.id);
+
+    const audited = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.verb, "customer_reward_given"));
+    expect(audited.some((row) => row.resourceId === houseA.gosinoId)).toBe(true);
+  });
+
+  it("il muro: finite le mele risponde 429 con quando torna la prossima, e non scrive", async () => {
+    const second = await app.inject({
+      method: "POST",
+      url: "/v1/reception/reward",
+      headers: receptionHeaders(customerA.token),
+      payload: { gosinoId: houseA.gosinoId },
+    });
+    expect(second.statusCode).toBe(201);
+    expect(second.json<{ rewards: { remaining: number } }>().rewards.remaining).toBe(0);
+
+    const third = await app.inject({
+      method: "POST",
+      url: "/v1/reception/reward",
+      headers: receptionHeaders(customerA.token),
+      payload: { gosinoId: houseA.gosinoId },
+    });
+    expect(third.statusCode).toBe(429);
+    expect(third.json<{ nextAt?: string }>().nextAt).toBeDefined();
+
+    const rows = await db
+      .select()
+      .from(customerRewards)
+      .where(eq(customerRewards.customerId, customerA.id));
+    expect(rows).toHaveLength(2);
+  });
+
+  it("la finestra è mobile: una mela di otto giorni fa non conta più", async () => {
+    const [oldest] = await db
+      .select({ id: customerRewards.id })
+      .from(customerRewards)
+      .where(eq(customerRewards.customerId, customerA.id))
+      .limit(1);
+    if (oldest === undefined) throw new Error("no reward to backdate");
+    await db
+      .update(customerRewards)
+      .set({ ts: new Date(Date.now() - 8 * 24 * 60 * 60_000) })
+      .where(eq(customerRewards.id, oldest.id));
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/reception/me",
+      headers: receptionHeaders(customerA.token),
+    });
+    expect(response.json<{ rewards: { remaining: number } }>().rewards.remaining).toBe(1);
+  });
+
+  it("il limite per cliente scavalca il default, e 0 è un cliente senza mele", async () => {
+    const none = await addCustomer(houseA, "neri-snc", { weeklyRewardLimit: 0 });
+    const refused = await app.inject({
+      method: "POST",
+      url: "/v1/reception/reward",
+      headers: receptionHeaders(none.token),
+      payload: { gosinoId: houseA.gosinoId },
+    });
+    expect(refused.statusCode).toBe(429);
+    const rows = await db
+      .select()
+      .from(customerRewards)
+      .where(eq(customerRewards.customerId, none.id));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("il gosino di un'altra casa risponde 404, e niente resta scritto (anti-BOLA)", async () => {
+    const foreign = await app.inject({
+      method: "POST",
+      url: "/v1/reception/reward",
+      headers: receptionHeaders(customerB.token),
+      payload: { gosinoId: houseA.gosinoId },
+    });
+    expect(foreign.statusCode).toBe(404);
+    const rows = await db
+      .select()
+      .from(customerRewards)
+      .where(eq(customerRewards.customerId, customerB.id));
+    expect(rows).toHaveLength(0);
   });
 });

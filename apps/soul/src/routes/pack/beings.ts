@@ -137,6 +137,25 @@ export function registerBeingRoutes(
     return reply.send({ destroyed: await serviceFor(householdId).destroyVoice(id) });
   });
 
+  /**
+   * ADR-057: «dimentica la mia faccia, ma resto nel branco».
+   *
+   * La gemella di quella sopra, e serve che sia una rotta sua: cancellare la
+   * voce e cancellare il volto sono due revoche diverse, e una sola che le
+   * facesse entrambe toglierebbe alla persona la possibilità di revocarne una.
+   */
+  app.delete("/v1/beings/:id/recognition/face", { preHandler: deps.guard }, async (request, reply) => {
+    const id = uuidParam(request.params);
+    if (id === undefined) {
+      return reply.code(400).type("application/problem+json").send(problem("Invalid being id", 400));
+    }
+    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
+    return reply.send({
+      destroyed: await serviceFor(householdId).destroyRecognition(id, "face"),
+    });
+  });
+
   app.post("/v1/beings/:id/enroll/voice", { preHandler: deps.guard }, async (request, reply) => {
     const id = uuidParam(request.params);
     const parsed = enrollSchema.safeParse(request.body);

@@ -18,6 +18,7 @@ from ugo_jobs.enrollment import (
     identify_voice,
     record_observation,
 )
+from ugo_jobs.face import enroll_face
 from ugo_jobs.voice import MfccVoiceEncoder, unpack
 
 from conftest import TEST_DATA_KEY
@@ -267,3 +268,122 @@ def _profiles(conn: psycopg.Connection, being_id: str) -> int:
         "select count(*) from recognition_profiles where being_id = %s", (being_id,)
     ).fetchone()
     return 0 if row is None else int(row[0])
+
+
+class FakeFaceEncoder:
+    """Un encoder di volti che restituisce vettori che decidiamo noi.
+
+    Stessa ragione del `FakeVoiceEncoder`: ArcFace pesa centinaia di megabyte e
+    la CI non lo deve scaricare per verificare una **decisione**. Qui la
+    decisione che conta è un rifiuto, e un rifiuto avviene *prima* che
+    l'encoder venga sfiorato — il che è precisamente la promessa sotto test.
+    """
+
+    @property
+    def model(self) -> str:
+        return "arcface-r100-v1"
+
+    @property
+    def dimensions(self) -> int:
+        return 3
+
+    def encode(self, image: np.ndarray) -> np.ndarray:
+        # se questo viene chiamato per qualcuno che ha detto «non guardarmi»,
+        # il difetto è già avvenuto: la biometria è stata calcolata
+        raise AssertionError("un volto non doveva nemmeno arrivare all'encoder")
+
+
+def test_a_vision_opt_out_is_refused_before_encoding(conn: psycopg.Connection) -> None:
+    """🔴 Il difetto di ADR-057, in una riga.
+
+    `_guard` leggeva `is_minor` e `no_audio` e **non guardava mai** `no_vision`,
+    mentre `face.py` dichiarava in un commento la protezione che il codice non
+    applicava: chi aveva detto «non guardarmi» veniva arruolato col volto.
+    L'interruttore esisteva, il pannello lo mostrava, e non fermava niente.
+
+    L'encoder finto solleva se viene chiamato, così questo prova la parte che
+    conta davvero — che il rifiuto arriva **prima** del calcolo. Un filtro
+    all'uscita significherebbe che la biometria è stata comunque prodotta.
+    """
+    key = parse_data_key(TEST_DATA_KEY)
+    unseen = _being(conn, "Giulia V.", no_vision=True)
+    with pytest.raises(EnrollmentRefused, match="opted_out_of_vision"):
+        enroll_face(
+            conn,
+            gosino_id=PRIME,
+            being_id=unseen,
+            image=np.zeros((4, 4), dtype=np.float32),
+            data_key=key,
+            encoder=FakeFaceEncoder(),
+        )
+    assert _profiles(conn, unseen) == 0
+
+
+def test_a_minor_gets_no_face_profile_either(conn: psycopg.Connection) -> None:
+    key = parse_data_key(TEST_DATA_KEY)
+    child = _being(conn, "Sofia T.", is_minor=True)
+    with pytest.raises(EnrollmentRefused, match="minor_biometrics_forbidden"):
+        enroll_face(
+            conn,
+            gosino_id=PRIME,
+            being_id=child,
+            image=np.zeros((4, 4), dtype=np.float32),
+            data_key=key,
+            encoder=FakeFaceEncoder(),
+        )
+    assert _profiles(conn, child) == 0
+
+
+def test_the_audio_switch_does_not_block_a_face(conn: psycopg.Connection) -> None:
+    """L'altra metà della correzione, e quella che si dimentica.
+
+    Aver reso `_guard` consapevole della modalità potrebbe farla sbagliare
+    nell'altra direzione: `no_audio` non deve impedire a nessuno di essere
+    riconosciuto dal volto. Sono due consensi distinti perché sono due sensi
+    distinti, ed è la ragione per cui la tabella ha due colonne.
+    """
+    key = parse_data_key(TEST_DATA_KEY)
+    silent = _being(conn, "Marco S.", no_audio=True)
+
+    class Draws(FakeFaceEncoder):
+        def encode(self, image: np.ndarray) -> np.ndarray:  # noqa: ARG002
+            return np.asarray([1.0, 0.0, 0.0], dtype=np.float32)
+
+    total = enroll_face(
+        conn,
+        gosino_id=PRIME,
+        being_id=silent,
+        image=np.zeros((4, 4), dtype=np.float32),
+        data_key=key,
+        encoder=Draws(),
+    )
+    assert total == 1
+    assert _profiles(conn, silent) == 1
+
+
+def test_a_face_enrollment_is_journalled_as_vision(conn: psycopg.Connection) -> None:
+    """Il giornale delle percezioni è dove si risponde «cosa avete di me».
+
+    La modalità era cablata a `audio_speech`: con il volto collegato, ogni viso
+    imparato sarebbe finito lì dentro come se fosse stata la voce.
+    """
+    key = parse_data_key(TEST_DATA_KEY)
+    ivan = _being(conn, "Ivan W.")
+
+    class Draws(FakeFaceEncoder):
+        def encode(self, image: np.ndarray) -> np.ndarray:  # noqa: ARG002
+            return np.asarray([0.0, 1.0, 0.0], dtype=np.float32)
+
+    enroll_face(
+        conn,
+        gosino_id=PRIME,
+        being_id=ivan,
+        image=np.zeros((4, 4), dtype=np.float32),
+        data_key=key,
+        encoder=Draws(),
+    )
+    row = conn.execute(
+        "select modality from perception_events where being_id = %s", (ivan,)
+    ).fetchone()
+    assert row is not None
+    assert row[0] == "vision"

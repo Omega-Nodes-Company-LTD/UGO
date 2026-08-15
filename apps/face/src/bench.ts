@@ -4,6 +4,7 @@ import { Webgl3dFace } from "./body/renderer3d.js";
 import { DEFAULT_TRAITS, type Traits } from "./body/pig.js";
 import { NEUTRAL_VARS, type PsycheVars } from "./body/pose.js";
 import type { FaceState } from "@ugo/shared/face";
+import { PROP_IT, PROP_KINDS, type SceneProp } from "@ugo/shared/props";
 
 /**
  * The bench (`/bench.html`) — a dev page, not part of the creature.
@@ -55,6 +56,35 @@ for (const state of states) {
   stateRow.append(button);
 }
 
+// ── arredi (ADR-056) ─────────────────────────────────────────────────────
+// Sta qui perche' e' qui che si giudica: «ci va da solo quando si annoia» e'
+// una promessa che si verifica alzando la noia e guardando, non leggendo un
+// test. Alza `noia` sopra 0.6 e aspetta.
+let placed: SceneProp[] = [];
+const propsRow = el("#props");
+for (const kind of PROP_KINDS) {
+  const button = document.createElement("button");
+  button.textContent = PROP_IT[kind];
+  button.addEventListener("click", () => {
+    placed = [
+      ...placed,
+      {
+        id: String(placed.length + 1),
+        kind,
+        x: Math.round((Math.random() * 1.6 - 0.8) * 100) / 100,
+        z: Math.round((Math.random() * 1.6 - 0.8) * 100) / 100,
+        rot: Math.random() * 2 - 1,
+      },
+    ];
+    face.setProps(placed);
+  });
+  propsRow.append(button);
+}
+el("#props-clear").addEventListener("click", () => {
+  placed = [];
+  face.setProps(placed);
+});
+
 // ── psiche ───────────────────────────────────────────────────────────────
 const psycheBox = el("#psyche");
 for (const key of Object.keys(vars) as (keyof PsycheVars)[]) {
@@ -85,6 +115,9 @@ function rebuild(): void {
   face.stop();
   face = new Webgl3dFace(canvas, { traits, wander: true });
   face.setMood("banco", vars);
+  // l'arredamento sopravvive al genoma: cambiare la forma del maiale non deve
+  // svuotargli la stanza sotto i piedi a ogni trascinamento di uno slider
+  face.setProps(placed);
   face.start();
 }
 for (const key of Object.keys(traits) as (keyof Traits)[]) {

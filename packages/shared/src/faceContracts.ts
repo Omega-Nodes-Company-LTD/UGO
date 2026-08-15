@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROP_KINDS } from "./props.js";
 
 /** WS `/v1/face` contract (PROGETTO §5.7). Zod on both directions. */
 
@@ -51,11 +52,67 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
      */
     audio: z.string().max(200_000).optional(),
   }),
-  z.object({ type: z.literal("face_seen") }),
+  z.object({
+    type: z.literal("face_seen"),
+    /**
+     * ADR-057: il ritaglio del volto, RGB uint8 112×112 in base64 — la misura
+     * esatta che `decode_face` vuole.
+     *
+     * Facoltativo, come `audio` su `heard_text` e per la stessa ragione: un
+     * corpo senza camera, o una casa che non vuole la biometria del volto,
+     * manda `face_seen` nudo e tutto continua a funzionare.
+     *
+     * Il tetto è aritmetica: 112×112×3 sono 37 632 byte, cioè 50 176 caratteri
+     * di base64. 56 000 lascia margine e rifiuta qualunque cosa non sia un
+     * ritaglio — **e il corpo il rettangolo ce l'aveva già in mano da sempre**
+     * (`faceLocator.ts`), e teneva solo i due centri buttando via il resto.
+     */
+    image: z.string().max(56_000).optional(),
+  }),
   z.object({ type: z.literal("light"), lux: z.number().min(0) }),
   z.object({ type: z.literal("noise"), db: z.number().min(0) }),
   z.object({ type: z.literal("tap") }),
   z.object({ type: z.literal("shake") }),
+  /**
+   * ADR-058: la mela. Un premio deliberato, e non un tocco qualunque.
+   *
+   * Il bersaglio è il **muso**, non tutta la tela: `tap` è la carezza e arriva
+   * ovunque, questo arriva solo se hai mirato. Un premio che si dà per sbaglio
+   * non è un premio, e la differenza fra i due è tutta lì.
+   *
+   * `act` è l'id dell'iniziativa che si sta premiando. Il **muso non lo manda**,
+   * ed è voluto: quale iniziativa UGO abbia appena preso lo sa soul, che l'ha
+   * decisa e scritta in `events`, e farlo tracciare anche al corpo sarebbe una
+   * seconda copia della stessa verità da tenere allineata a mano. Il campo
+   * esiste per chi *sa* cosa sta premiando — il pannello, quando premia una
+   * riga precisa del registro delle iniziative.
+   */
+  z.object({
+    type: z.literal("reward"),
+    act: z.string().min(1).max(40).optional(),
+  }),
+  /**
+   * ADR-056: è andato a usare un arredo, e ce n'è andato **da solo**.
+   *
+   * Lo manda il corpo perché è il corpo a deciderlo: la scelta di avvicinarsi
+   * al cuscino è locale e costa zero token (ADR-026 §6), e l'anima non ha modo
+   * di saperlo se non glielo si dice. `kind` e non l'id del piazzamento: alla
+   * psiche interessa *che cosa* ha fatto, e un id di riga nel prompt sarebbe
+   * un numero senza significato.
+   */
+  z.object({
+    type: z.literal("used_prop"),
+    kind: z.string().min(1).max(24),
+    /**
+     * **Quale** creatura ci è andata. È l'unico frame che sale portando un
+     * `who`, e non è simmetria per bellezza: i sensi appartengono alla stanza
+     * e una frase la dice chi risponde, ma andare sul cuscino lo fa **uno**, e
+     * in una stanza di due, senza questo campo, il sollievo dalla noia finirebbe
+     * a caso su uno dei due. Assente in una casa a esemplare solo, dove `who`
+     * non ha mai significato niente (`tagFor`).
+     */
+    who: z.string().max(64).optional(),
+  }),
   // ADR-030: which body he is in right now. Until this existed UGO could ask
   // to go out and never find out that he had been taken.
   z.object({ type: z.literal("mode"), mode: z.enum(["home", "portable"]) }),
@@ -90,6 +147,31 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("whoami"), name: z.string().min(1).max(40), who: z.string().optional() }),
   // ADR-036: who lives in the room this socket is attached to. The body draws
   // one creature per entry, so this arrives before anything else.
+  /**
+   * ADR-056: cosa c'è nella stanza, oltre a chi ci vive.
+   *
+   * Arriva all'apertura del socket **e a scena aperta** ogni volta che il
+   * proprietario sposta qualcosa: senza la spinta dovrebbe ricaricare il
+   * chiosco dopo ogni modifica, e un pannello che sembra non fare niente
+   * finché non ricarichi è un pannello che si legge come rotto.
+   *
+   * Sostituisce sempre tutto l'arredamento invece di mandare differenze: la
+   * lista è di al massimo otto oggetti, e uno stato completo non può andare
+   * fuori sincrono — che è l'unico modo in cui questo potrebbe fallire in
+   * silenzio.
+   */
+  z.object({
+    type: z.literal("scene"),
+    props: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(PROP_KINDS),
+        x: z.number().min(-1).max(1),
+        z: z.number().min(-1).max(1),
+        rot: z.number(),
+      }),
+    ),
+  }),
   z.object({
     type: z.literal("roster"),
     room: z.string().optional(),

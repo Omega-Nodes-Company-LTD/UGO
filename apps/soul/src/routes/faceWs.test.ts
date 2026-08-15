@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { forFrame, SENSED_BY_THE_ROOM, tagFor } from "./faceWs.js";
+import { forFrame, roomForSocket, SENSED_BY_THE_ROOM, tagFor } from "./faceWs.js";
 
 /**
  * Who a frame reaches (ADR-036).
@@ -64,5 +64,65 @@ describe("forFrame", () => {
     const alone = [{ id: "ugo", member: { id: "ugo" } }];
     expect(forFrame(JSON.stringify({ type: "noise", db: 70 }), alone)).toHaveLength(1);
     expect(forFrame(JSON.stringify({ type: "heard_text", text: "ciao" }), alone)).toHaveLength(1);
+  });
+});
+
+/**
+ * ADR-056: di quale stanza è lo schermo, e quindi di quale arredamento.
+ *
+ * La regola vale la pena di essere provata perché ha un caso che si dimentica:
+ * il chiosco indirizzato `?gosino=` — la configurazione in uso oggi — non
+ * chiede nessuna stanza, e senza l'eredità non vedrebbe mai un cuscino.
+ */
+describe("roomForSocket", () => {
+  it("takes the room the screen asked for", () => {
+    expect(roomForSocket({ stanza: "cucina" }, [{ where: "studio" }])).toBe("cucina");
+  });
+
+  it("inherits the room the creature lives in when nobody asked", () => {
+    expect(roomForSocket(undefined, [{ where: "studio" }])).toBe("studio");
+    expect(roomForSocket({}, [{ where: "studio" }])).toBe("studio");
+  });
+
+  it("has no room when there is neither, instead of picking one", () => {
+    expect(roomForSocket(undefined, [{}])).toBeUndefined();
+    expect(roomForSocket({ stanza: "" }, [])).toBeUndefined();
+    // vuoto è come assente: un chiosco con `?stanza=` senza valore non deve
+    // ereditare un mondo di arredi da una stringa vuota
+    expect(roomForSocket({ stanza: "" }, [{ where: "" }])).toBeUndefined();
+  });
+});
+
+/**
+ * ADR-056: `used_prop` è l'unico frame che sale dicendo **chi** è stato.
+ *
+ * Senza questa regola verrebbe sorteggiato come si sorteggia chi risponde a una
+ * frase, e in una stanza di due il sollievo dalla noia finirebbe metà delle
+ * volte alla creatura che era rimasta ferma — cioè la psiche registrerebbe
+ * un'esperienza che quella creatura non ha avuto.
+ */
+describe("forFrame e il frame che dice chi è stato", () => {
+  const senders = [
+    { id: "a", traits: { talkativeness: 0.5 } },
+    { id: "b", traits: { talkativeness: 0.5 } },
+  ];
+
+  it("delivers a named frame to that one and to nobody else", () => {
+    const targets = forFrame(JSON.stringify({ type: "used_prop", kind: "cushion", who: "b" }), senders);
+    expect(targets.map((t) => t.id)).toEqual(["b"]);
+  });
+
+  it("falls back to one when the name means nothing here", () => {
+    const targets = forFrame(
+      JSON.stringify({ type: "used_prop", kind: "cushion", who: "chi-non-c-e" }),
+      senders,
+      0.1,
+    );
+    expect(targets).toHaveLength(1);
+  });
+
+  it("leaves the senses to the whole room, name or no name", () => {
+    const targets = forFrame(JSON.stringify({ type: "noise", db: 90 }), senders);
+    expect(targets).toHaveLength(2);
   });
 });

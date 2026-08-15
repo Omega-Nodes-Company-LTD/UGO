@@ -22,13 +22,18 @@ import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerCustomersRoutes } from "./routes/customers.js";
 import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
+import { registerPrintRoutes } from "./routes/prints.js";
+import { registerPropRoutes } from "./routes/props.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
 import { AnswerCache } from "./services/reception/answerCache.js";
 import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
 import type { CustomerQuota } from "./services/reception/customerQuota.js";
+import { CustomerRewardService } from "./services/reception/customerReward.js";
 import type { GithubLiveService } from "./services/reception/githubLiveService.js";
 import type { EmbeddingsClient, LlmClient } from "@ugo/memory";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
+import { PropService } from "./services/propService.js";
+import { SceneHub } from "./services/sceneHub.js";
 import { registerVolitionRoutes } from "./routes/volition.js";
 import type { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import type { FaceGateway } from "./services/faceGateway.js";
@@ -80,6 +85,8 @@ export interface ServerOptions extends HealthDeps {
       embedder?: EmbeddingsClient;
       /** ADR-054: live PRs/commits on live-state questions */
       github?: GithubLiveService;
+      /** ADR-058: UGO_CUSTOMER_WEEKLY_REWARDS — il muro della mela */
+      weeklyRewards: number;
     };
     /** ADR-052: the house side — customers CRUD, assignment, tokens, triage */
     customers?: {
@@ -88,6 +95,21 @@ export interface ServerOptions extends HealthDeps {
       docsStorage?: AudioStorageConfig;
       /** optional HTTP trigger of the jobs runner for an out-of-band sync */
       syncTriggerUrl?: string;
+    };
+    /**
+     * ADR-057: chi rivendica un'impronta ignota, per casa.
+     *
+     * Una funzione della casa e non un'istanza sola, per la stessa ragione di
+     * `recognition` in `RuntimeDeps`: i profili biometrici sono per casa, e un
+     * riconoscitore costruito una volta confronterebbe il volto di una famiglia
+     * coi centroidi di un'altra.
+     */
+    prints?: (householdId: string) => {
+      claimPrint: (input: {
+        printId: string;
+        beingId: string;
+        gosinoId: string;
+      }) => Promise<"learned" | "refused" | "unreachable">;
     };
   };
 }
@@ -135,6 +157,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       dreamTriggerUrl,
       reception,
       customers,
+      prints,
       ...v1
     } = options.features;
     // first, and before every route below it: Fastify binds onRequest hooks to
@@ -145,6 +168,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     });
     // ADR-049: uno solo, per la stessa ragione per cui `llmClient` e' uno solo
     const audit = createAuditLog(options.db, app.log);
+    // ADR-056: chi guarda quale stanza, adesso. Uno per processo, come l'audit
+    const scenes = new SceneHub();
+    const props = new PropService(options.db);
     const guard = createAuthGuard(audit);
     registerV1Routes(app, {
       db: options.db,
@@ -188,12 +214,27 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       ...(registry !== undefined && { registry }),
     });
     registerMemoryGraphRoutes(app, { db: options.db, guard });
+    // ADR-056: gli arredi. L'hub e' condiviso fra le rotte che li spostano e i
+    // socket che li mostrano — e' l'unica cosa che i due hanno in comune, ed e'
+    // il motivo per cui il pannello si vede sul chiosco senza ricaricare.
+    registerPropRoutes(app, { db: options.db, guard, hub: scenes });
+    // ADR-057: le facce che non sappiamo di chi siano. Guardata tutta: qui
+    // dentro ci sono impronte di persone che non hanno acconsentito.
+    registerPrintRoutes(app, {
+      db: options.db,
+      guard,
+      audit,
+      ...(prints !== undefined && { recognition: prints }),
+    });
     if (speciesMap !== undefined) {
       registerPackRoutes(app, {
         db: options.db,
         speciesMap,
         guard,
         ...(audio !== undefined && { audio }),
+        // ADR-058: una correzione è per **una** creatura, e senza il registro
+        // non c'è modo di sapere quale
+        ...(registry !== undefined && { registry }),
       });
       registerAdminRoutes(app);
     }
@@ -238,6 +279,16 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       registerReceptionRoutes(app, {
         db: options.db,
         receptionToken: reception.token,
+        // ADR-058: la psiche viva arriva dal registro — la mela di un cliente
+        // scalda l'esemplare che sta girando, non una copia
+        reward: new CustomerRewardService({
+          db: options.db,
+          weeklyDefault: reception.weeklyRewards,
+          ...(registry !== undefined && {
+            psycheFor: (householdId: string, gosinoId: string) =>
+              registry.all(householdId).find((runtime) => runtime.id === gosinoId)?.psyche,
+          }),
+        }),
         chat: new CustomerChatService({
           db: options.db,
           dataKey: reception.dataKey,
@@ -256,7 +307,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (face !== undefined) {
       app.register(async (instance) => {
-        await registerFaceWs(instance, face, options.db, registry);
+        await registerFaceWs(instance, face, options.db, registry, {
+          hub: scenes,
+          props: (householdId, room) => props.inRoom(householdId, room),
+        });
       });
     }
   }

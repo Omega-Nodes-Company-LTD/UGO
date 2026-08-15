@@ -73,6 +73,82 @@ export const HOUSE_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="arredi">
+  <div class="page-head">
+    <p class="eyebrow">La casa</p>
+    <h1>Gli arredi</h1>
+    <p>Una stanza vuota è un posto in cui non c'è niente da fare. Mettici un cuscino, un
+       ciuffo d'erba, un truogolo: quando si <b>annoia</b> ci va da solo, e ci fa quello che
+       l'oggetto suggerisce. Non glielo ordini tu — decide lui, e non costa un centesimo.</p>
+  </div>
+
+  <div class="block">
+    <h2>Dove metterli</h2>
+    <p class="lede">Scegli la stanza, poi <b>trascina</b> gli oggetti sulla piantina.
+       Il maiale sta al centro. Quel che sposti qui si sposta sul chiosco
+       <b>subito</b>, senza ricaricare niente.</p>
+    <div class="row">
+      <div><label for="prop-room">Quale stanza</label>
+        <select id="prop-room" data-testid="prop-room"></select></div>
+      <div><label for="prop-kind">Cosa aggiungere</label>
+        <select id="prop-kind" data-testid="prop-kind"></select></div>
+      <button id="prop-add" data-testid="prop-add">Mettilo dentro</button>
+    </div>
+    <div id="prop-map" class="prop-map" data-testid="prop-map">
+      <div class="prop-pig" aria-hidden="true">🐷</div>
+    </div>
+    <p class="lede">Clicca un oggetto e premi <b>Togli</b> per riprendertelo: la scorta
+       torna indietro.</p>
+    <div class="row">
+      <button id="prop-del" class="ghost" data-testid="prop-del" disabled>Togli</button>
+      <button id="prop-turn" class="ghost" data-testid="prop-turn" disabled>Giralo</button>
+    </div>
+    <div id="prop-msg"></div>
+  </div>
+
+  <div class="block">
+    <h2>Le scorte</h2>
+    <p class="lede">In casa tua non c'è limite: metti quello che vuoi. Il limite serve per
+       chi non è di casa — tante cose a settimana, così un premio resta un premio.
+       Lascia <b>vuoto</b> per «nessun limite».</p>
+    <div id="prop-stock" data-testid="prop-stock"></div>
+    <div id="stock-msg"></div>
+  </div>
+</section>
+
+<section class="page" data-page="volti">
+  <div class="page-head">
+    <p class="eyebrow">La casa</p>
+    <h1>Chi ha imparato a riconoscere</h1>
+    <p>Quando vede una faccia che non conosce, e la rivede, <b>te lo chiede lui</b>: non c'è
+       un modulo da compilare qui. Intanto conserva l'impronta — cifrata — in attesa di un
+       nome, e questa pagina è dove la puoi vedere e cancellare.</p>
+  </div>
+
+  <div class="block">
+    <h2>Facce senza nome</h2>
+    <p class="lede">Sono <b>dati biometrici di persone che non hanno detto di sì</b>.
+       Si cancellano da sole dopo <span id="print-retention">30</span> giorni, e qui puoi
+       toglierne una subito. Quel che vedi è quante volte e quando: l'impronta non esce
+       mai da questa casa, nemmeno verso questo pannello.</p>
+    <div id="prints-list" data-testid="prints-list"></div>
+    <div class="row">
+      <div><label for="print-who">Chi è</label><select id="print-who" data-testid="print-who"></select></div>
+      <button id="print-claim" data-testid="print-claim" disabled>È lui</button>
+      <button id="print-del" class="ghost" data-testid="print-del" disabled>Cancella l'impronta</button>
+    </div>
+    <div id="prints-msg"></div>
+  </div>
+
+  <div class="block">
+    <h2>Facce che conosce</h2>
+    <p class="lede">Chi ha un'impronta del volto. Toglierla è immediato e non cancella la
+       persona: smette solo di riconoscerla guardandola.</p>
+    <div id="faces-list" data-testid="faces-list"></div>
+    <div id="faces-msg"></div>
+  </div>
+</section>
+
 <section class="page" data-page="branco">
   <div class="page-head">
     <p class="eyebrow">La casa</p>
@@ -139,7 +215,11 @@ export const HOUSE_PAGES = `
     <div id="enroll-msg"></div>
 
     <h3>Correggilo</h3>
+    <p class="lede">Una correzione è <b>per una creatura</b>: se ne hai due, quella che ha
+       sbagliato se lo ricorda e l'altra no. Dirlo a entrambe sarebbe far scusare chi non
+       ha fatto niente.</p>
     <div class="row">
+      <div><label for="corr-who">A chi</label><select id="corr-who" data-testid="corr-who"></select></div>
       <div><label for="corr-being">Su chi</label><select id="corr-being" data-testid="corr-being"></select></div>
       <div><label for="corr-signal">Cosa ha sbagliato</label><select id="corr-signal" data-testid="corr-signal">
         <option value="wrong_name">ha sbagliato nome</option><option value="too_loud">parla troppo forte</option>

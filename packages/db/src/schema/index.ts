@@ -12,7 +12,7 @@ export {
   customerSourceType,
   customerSourceStatus,
 } from "./enums.js";
-export { customers, customerGosini } from "./customers.js";
+export { customers, customerGosini, customerRewards } from "./customers.js";
 export { customerAccessTokens } from "./customer-tokens.js";
 export { tickets, customerMessages } from "./tickets.js";
 export {
@@ -26,6 +26,8 @@ export { beings } from "./beings.js";
 export { gosini, traitSets } from "./gosini.js";
 export { households, PRIME_HOUSEHOLD_ID } from "./households.js";
 export { rooms, slugOfRoom } from "./rooms.js";
+export { placedProps, propStock, PROP_KINDS_IN_DB } from "./props.js";
+export { unknownPrints, UNKNOWN_PRINT_RETENTION_DAYS } from "./prints.js";
 export { accessTokens } from "./access-tokens.js";
 export {
   auditLog,
@@ -45,6 +47,14 @@ export { messages } from "./messages.js";
 export { memories } from "./memories.js";
 export { psycheSnapshots } from "./psyche-snapshots.js";
 export { psycheBaselines } from "./psyche-baselines.js";
+export {
+  actEfficacy,
+  EFFICACY_MAX,
+  EFFICACY_MIN,
+  FLAT_STEP,
+  NIGHTLY_DECAY,
+  PRAISE_STEP,
+} from "./efficacy.js";
 export { meetings, transcriptSegments } from "./meetings.js";
 export { diaryEntries, desires } from "./diary.js";
 export { budgetLedger } from "./budget-ledger.js";

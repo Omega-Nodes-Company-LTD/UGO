@@ -42,6 +42,27 @@ const BASELINE: PsycheVars = {
 export interface Gaze {
   x: number; // [-1,1], right positive
   y: number; // [-1,1], up positive
+  /**
+   * Di quanto gira la testa sul collo, in radianti, **relativi al corpo**
+   * (`attention.ts`). Assente = zero, che è ciò che faceva prima chi passava
+   * uno sguardo centrato.
+   *
+   * Sta separato da `x` perché `x` sono le pupille e questo è il collo: la
+   * testa non può ricavare la propria rotazione da una coordinata di schermo
+   * senza sapere dov'è girato il corpo, e questo file non lo sa apposta.
+   */
+  yaw?: number;
+  /**
+   * Quanto qualcosa gli sta tenendo lo sguardo, [0,1]. Assente = zero.
+   *
+   * La deriva da noia è un'oscillazione di ±0.75 sulla pupilla, cioè da tre a
+   * sette volte il segnale vero: annoiato, guardava altrove **anche mentre ti
+   * guardava**. Ma toglierla sarebbe sbagliato — è l'unico canale che rende la
+   * noia visibile (vedi il test «ogni variabile muove qualcosa»). Quindi non si
+   * toglie: si smorza quando c'è davvero qualcuno da guardare, che è anche ciò
+   * che fa la noia vera quando entra qualcuno.
+   */
+  hold?: number;
 }
 
 export interface Locomotion {
@@ -118,8 +139,9 @@ export function computePose(input: PoseInput): Pose {
   // si vedeva solo per assenza (smorzava il saltello), e l'assenza non è
   // leggibile: annoiato e sereno, da fermi, erano identici.
   const bored = clamp(deviation(vars.noia, BASELINE.noia), 0, 1);
-  const drift = bored * Math.sin(t * 0.23) * 0.75;
-  const driftHead = bored * Math.sin(t * 0.19 + 1.1) * 0.16;
+  const adrift = bored * (1 - clamp(gaze.hold ?? 0, 0, 1) * 0.85);
+  const drift = adrift * Math.sin(t * 0.23) * 0.75;
+  const driftHead = adrift * Math.sin(t * 0.19 + 1.1) * 0.16;
 
   // affetto → coda, e il corpo che si sporge verso di te
   const bond = clamp(deviation(vars.affetto, BASELINE.affetto), 0, 1);
@@ -140,8 +162,11 @@ export function computePose(input: PoseInput): Pose {
   if (state === "talking") headPitch += Math.sin(t * 11) * 0.025;
   headPitch += gaze.y * 0.12 * (1 - down) - locomotion.root * 0.52 + g(gesture, "headPitch");
 
+  // il collo segue l'angolo già calcolato nel sistema del corpo, non la
+  // coordinata di schermo: era `gaze.x * 0.3`, cioè «gira la testa verso destra
+  // dello schermo» applicato a una testa figlia di un corpo che intanto ruotava
   const headYaw =
-    gaze.x * 0.3 * (1 - locomotion.root) * (1 - bored * 0.6) +
+    (gaze.yaw ?? 0) * (1 - locomotion.root) * (1 - bored * 0.5) +
     locomotion.root * Math.sin(t * 7.5) * 0.16 +
     driftHead +
     g(gesture, "headYaw");

@@ -5,9 +5,12 @@ import { CORE_JS } from "./script/core.js";
 import { COUNCIL_JS } from "./script/council.js";
 import { CUSTOMERS_JS } from "./script/customers.js";
 import { DATA_JS } from "./script/data.js";
+import { EFFICACY_JS } from "./script/efficacy.js";
 import { EXEMPLARS_JS } from "./script/exemplars.js";
 import { GRAPH_JS } from "./script/graph.js";
 import { PACK_JS } from "./script/pack.js";
+import { PRINTS_JS } from "./script/prints.js";
+import { PROPS_JS } from "./script/props.js";
 import { SPARKS_JS } from "./script/sparks.js";
 import { RELATIONS_JS } from "./script/relations.js";
 import { ROOMS_JS } from "./script/rooms.js";
@@ -28,6 +31,8 @@ export const ADMIN_SCRIPT = [
   ROUTER_JS,
   ROOMS_JS,
   CUSTOMERS_JS,
+  PROPS_JS,
+  PRINTS_JS,
   CHARTS_JS,
   SPARKS_JS,
   PACK_JS,
@@ -39,6 +44,7 @@ export const ADMIN_SCRIPT = [
   STATUS_JS,
   EXEMPLARS_JS,
   VOLITION_JS,
+  EFFICACY_JS,
   COUNCIL_JS,
   BIRTH_JS,
 ].join("\n");

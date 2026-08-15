@@ -290,6 +290,12 @@ function onServerMessage(message: ServerToFaceMessage): void {
       // the player, so an older face and a newer soul stay compatible.
       renderer.reflex(message.id, message.who);
       return;
+    case "scene":
+      // ADR-056: cosa c'è nella stanza. Arriva dopo il roster all'apertura, e
+      // di nuovo ogni volta che il proprietario sposta qualcosa dal pannello —
+      // senza la seconda cosa dovrebbe ricaricare il chiosco a ogni cuscino.
+      renderer.setProps?.(message.props);
+      return;
   }
 }
 
@@ -332,9 +338,33 @@ const sensors = new Sensors(
   savedSensitivity(),
 );
 
-canvas.addEventListener("pointerdown", () => {
+canvas.addEventListener("pointerdown", (event) => {
+  // ADR-058: due gesti, e la differenza è dove hai puntato. Sul **muso** è la
+  // mela, un premio deliberato che scalda il legame e pesa l'ultima iniziativa;
+  // ovunque altro è la carezza, che è piccola e con un tetto. Un premio che si
+  // dà per sbaglio non è un premio.
+  const box = canvas.getBoundingClientRect();
+  const snout = renderer.snoutAt?.({
+    x: ((event.clientX - box.left) / box.width) * 2 - 1,
+    y: -(((event.clientY - box.top) / box.height) * 2 - 1),
+  });
+  if (snout !== undefined) {
+    // senza `act`: quale iniziativa stai premiando lo sa **soul**, che l'ha
+    // presa e l'ha scritta in `events`. Farlo tracciare anche al muso sarebbe
+    // una seconda copia della stessa verità, tenuta allineata a mano.
+    socket.send({ type: "reward" });
+    renderer.reflex("wiggle", snout);
+    return;
+  }
   socket.send({ type: "tap" });
   renderer.reflex("tap");
+});
+
+// ADR-056: è andato da solo sul cuscino, e lo dice. La decisione è del corpo e
+// costa zero token (ADR-026 §6); l'anima è l'unica che possa scriverlo nella
+// psiche, quindi è l'unica cosa che deve attraversare il socket.
+renderer.onUsedProp?.((who, kind) => {
+  socket.send({ type: "used_prop", kind, ...(who !== "" && { who }) });
 });
 
 /**
@@ -407,6 +437,14 @@ function stopListening(): void {
 const awake = new ScreenAwake();
 awake.watch(document);
 
+// il ripiego universale, finché la camera non si accende: senza, in un browser
+// senza permessi le pupille non si muoverebbero mai. Si spegne appena la
+// camera parte — due sorgenti sulle stesse pupille vuol dire che vince
+// l'ultima che ha parlato.
+const pointerGaze = startPointerGaze(canvas, (target) => {
+  renderer.setGaze(target);
+});
+
 micButton.addEventListener("click", () => {
   void (async () => {
     await awake.acquire();
@@ -420,22 +458,26 @@ micButton.addEventListener("click", () => {
     const locator = await openFaceLocator();
     const camera = await startCameraGaze(
       (target) => {
-        if (target !== null) renderer.setGaze(target);
+        // `null` incluso, ed è il punto: era `if (target !== null)`, quindi
+        // uscendo dal campo le pupille restavano congelate su dove eri
+        renderer.setGaze(target);
       },
-      () => {
+      (crop) => {
         const now = performance.now();
         if (now - lastPresenceAt > PRESENCE_COOLDOWN_MS) {
           lastPresenceAt = now;
-          socket.send({ type: "face_seen" });
+          // ADR-057: il ritaglio viaggia con la presenza. Il video non esce mai
+          // dal telefono — quel che parte è un rettangolo di 112×112 già
+          // ridotto al volto, e solo se il rilevatore ha dato un rettangolo.
+          socket.send({ type: "face_seen", ...(crop !== undefined && { image: crop }) });
         }
       },
       locator,
     ).catch(() => null);
-    if (camera === null) {
-      // universal fallback: pupils follow pointer/touch
-      startPointerGaze(canvas, (target) => {
-        if (target !== null) renderer.setGaze(target);
-      });
+    if (camera !== null) {
+      // due sorgenti sulle stesse pupille vuol dire che vince l'ultima che ha
+      // parlato: da qui in poi decide la camera, e il dito si toglie di mezzo
+      pointerGaze.stop();
     }
     startListening();
     micButton.hidden = true;
@@ -453,9 +495,6 @@ earsButton.addEventListener("click", () => {
   }
 });
 
-startPointerGaze(canvas, (target) => {
-  if (target !== null) renderer.setGaze(target);
-});
 renderer.start();
 void socket.start();
 // the picker asks the soul which rooms exist; it never blocks the body

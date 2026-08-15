@@ -58,28 +58,69 @@ class Identification:
     confidence: float
 
 
-def _guard(conn: psycopg.Connection, being_id: str, channel: str) -> None:
+#: Il rifiuto che ogni senso produce quando qualcuno ha detto di no.
+_REFUSAL = {"voice": "opted_out_of_audio", "face": "opted_out_of_vision"}
+
+
+def _guard(conn: psycopg.Connection, being_id: str, channel: str, modality: str) -> None:
+    """Le protezioni, PRIMA di codificare qualunque cosa.
+
+    🔴 Difetto corretto qui (ADR-057): questa funzione leggeva `is_minor` e
+    `no_audio` e **non guardava mai** `no_vision`, mentre `face.py` dichiarava
+    in un commento la protezione che il codice non applicava. Chi aveva detto
+    «non guardarmi» veniva arruolato col volto: l'interruttore esisteva, il
+    pannello lo mostrava, e non fermava niente.
+
+    L'errore era di *forma* prima che di sostanza: una guardia che non sa di
+    quale senso sta parlando può proteggerne uno solo, e proteggerà sempre
+    quello per cui è stata scritta per prima. Adesso la modalità è un argomento
+    **obbligatorio** — un default l'avrebbe solo spostata di un posto, ed è
+    esattamente da un default che questo difetto è nato — e un senso nuovo
+    senza il suo interruttore diventa un `KeyError` invece di un silenzio.
+    """
+    refusal = _REFUSAL[modality]
     row = conn.execute(
-        "select is_minor, no_audio from beings where id = %s", (being_id,)
+        "select is_minor, no_audio, no_vision from beings where id = %s", (being_id,)
     ).fetchone()
     if row is None:
         raise EnrollmentRefused("unknown_being")
-    is_minor, no_audio = row
+    is_minor, no_audio, no_vision = row
+    opted_out = no_audio if modality == "voice" else no_vision
     if channel != HOME_CHANNEL:
         # ADR-016: biometric material never leaves the domestic perimeter
         raise EnrollmentRefused("channel_not_home")
-    if no_audio:
-        raise EnrollmentRefused("opted_out_of_audio")
+    if opted_out:
+        raise EnrollmentRefused(refusal)
     if is_minor:
         raise EnrollmentRefused("minor_biometrics_forbidden")
 
 
-def _audit(conn: psycopg.Connection, gosino_id: str, being_id: str, outcome: str) -> None:
+#: Da quale senso viene un arruolamento, nel vocabolario di `perception_events`.
+_PERCEPTION = {"voice": "audio_speech", "face": "vision"}
+
+
+def _audit(
+    conn: psycopg.Connection,
+    gosino_id: str,
+    being_id: str,
+    outcome: str,
+    modality: str = MODALITY,
+) -> None:
     # ids and outcome only, never a name and never the audio (NIS2 §2)
+    #
+    # ADR-057: la modalità era cablata a `audio_speech`. Con il volto
+    # collegato, ogni arruolamento di un viso sarebbe finito nel giornale come
+    # se fosse stata la voce — e il giornale delle percezioni è precisamente il
+    # posto in cui si va a rispondere «cosa avete registrato di me».
     conn.execute(
         """insert into perception_events (gosino_id, modality, being_id, observed)
-           values (%s, 'audio_speech', %s, %s::jsonb)""",
-        (gosino_id, being_id, json.dumps({"kind": "enrollment", "outcome": outcome})),
+           values (%s, %s, %s, %s::jsonb)""",
+        (
+            gosino_id,
+            _PERCEPTION[modality],
+            being_id,
+            json.dumps({"kind": "enrollment", "outcome": outcome}),
+        ),
     )
 
 
@@ -94,7 +135,7 @@ def enroll_voice(
     encoder: VoiceEncoder | None = None,
 ) -> int:
     """Fold one utterance into a being's voice centroid. Returns sample_count."""
-    _guard(conn, being_id, channel)
+    _guard(conn, being_id, channel, MODALITY)
     coder = encoder or MfccVoiceEncoder()
     fresh = coder.encode(samples)
 
