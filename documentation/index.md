@@ -32,7 +32,7 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 ## Prossimi Passi
 
 - [Primo avvio](./01-getting-started/primo-avvio.md) — accendere UGO e dirgli la prima cosa.
-- [Il corpo di UGO](./02-core-features/il-corpo-di-ugo.md) — posture, gesti, cosa dice il muso.
+- [Il corpo di UGO](./02-core-features/il-corpo-di-ugo.md) — posture, gesti, la stanza in cui sta, gli arredi, la carezza e la mela.
 - [Quando comincia lui](./02-core-features/quando-comincia-lui.md) — si fa vivo, ti chiama, ti fa domande sue.
 - [Il pannello](./02-core-features/il-pannello.md) — come sta e perché, cosa ha deciso da solo, il consiglio.
 - [Parlare con UGO](./02-core-features/parlare-con-ugo.md) — voce, memoria, umore.

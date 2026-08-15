@@ -58,6 +58,41 @@ diversi. Vale anche quando ne fai nascere uno.
 **Disfare** una stanza non cancella nessuno: chi ci viveva resta senza stanza — non compare più
 su nessuno schermo finché non gliene dai un'altra. Il pannello te lo chiede prima e poi te lo dice.
 
+## Gli arredi
+
+Una stanza vuota è un posto in cui non c'è niente da fare. Da **Gli arredi** scegli la stanza e
+**trascini** gli oggetti su una piantina: il maiale sta al centro, e il rettangolo ha le
+proporzioni del suo recinto vero, quindi dove lo metti qui è dove finisce lì.
+
+Quello che sposti si sposta sul chiosco **subito**, senza ricaricare niente. Clicca un oggetto e
+premi *Togli* per riprendertelo — la scorta torna indietro.
+
+**Le scorte**: in casa tua non c'è limite, lascia vuoto e metti quello che vuoi. Il limite serve
+per chi non è di casa, e c'è anche un rifornimento settimanale: tante cose alla volta, così un
+premio resta un premio.
+
+Cosa fanno gli oggetti, e perché il cespuglio non è come gli altri, sta in
+[il corpo di UGO](./il-corpo-di-ugo.md#le-cose-che-gli-metti-dentro).
+
+## I volti
+
+Chi ha imparato a riconoscere, e chi ha visto senza sapere chi fosse. **Non c'è un modulo di
+arruolamento**: il volto glielo insegni perché te lo chiede lui. Quello che c'è qui è la revisione
+— quali facce senza nome ha in casa, da quanto, e il bottone per cancellarne una.
+
+È la pagina più delicata del pannello, e la spiegazione sta tutta in
+[le facce](./le-facce.md).
+
+## Correggerlo
+
+Nel **branco**, sotto l'arruolamento vocale, c'è *Correggilo*: gli dici che ha sbagliato nome, che
+parla troppo forte, che deve lasciare in pace qualcuno, o che ha fatto bene. Se lo ricorda nelle
+conversazioni successive.
+
+Una correzione è **per una creatura**. Se in casa ne hai due, scegli a quale l'hai detta: quella
+che ha sbagliato se lo ricorda e l'altra no. Dirlo a entrambe sarebbe far scusare chi non ha fatto
+niente — e per un po' è esattamente quello che succedeva.
+
 Spostare qualcuno è immediato e non gli costa niente: non perde umore né ricordi, cambia solo
 su quale schermo lo vedi. Chi non sta in nessuna stanza compare sotto «Senza stanza».
 
@@ -126,6 +161,16 @@ Il bottone in cima lo ferma. **Fermalo** e smette di cominciare: risponde
 soltanto, come farebbe un programma normale. Il pannello ti dice anche che la
 decisione **torna com'era al prossimo riavvio** — se lo vuoi zitto per sempre si
 cambia `UGO_INITIATIVE` nella configurazione.
+
+Più in basso, **Cosa gli è piaciuto fare**: quali dei suoi gesti sta preferendo, e quanto.
+Cresce quando gli dai una mela (un dito sul muso) e quando una sua iniziativa ha davvero
+funzionato; cala quando è caduta nel vuoto.
+
+Va detto con chiarezza, e la pagina lo dice: **non sta imparando** nel senso in cui lo diresti di
+una persona. Sono nove gesti già scritti, e quello è solo quanto li preferisce, fra il 60% e il
+140%. Non può inventarne di nuovi, non può diventare più invadente per quanto lo lodi, e non può
+saltare le pause che si prende fra un'iniziativa e l'altra. Ogni notte tutto torna un po' verso il
+centro.
 
 ## Il consiglio
 

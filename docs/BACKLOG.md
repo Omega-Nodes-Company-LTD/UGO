@@ -52,6 +52,8 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ⬜️ | **Chat di gruppo** | più interlocutori nella stessa conversazione; il branco è già modellato |
 | ⬜️ | **Input immagini** | mandagli una foto e la commenta |
 | ✅ | **Riconoscimento facciale del proprietario** | **ADR-044/045**: ArcFace misurato su LFW (EER 0,98%, soglia 0,30), la camera si accende davvero, la fusione fonde decisioni e non punteggi. Restava scritto come da fare, e non lo era |
+| ✅ | **Insegnargli una faccia, e chi non conosce ancora** | **ADR-057**: te lo chiede lui alla seconda volta che ti rivede, riusando `desires`. Prima serviva chiudere un buco **in produzione**: `_guard` non guardava mai `no_vision` mentre un commento diceva di sì |
+| ⬜️ | **La voce dopo il volto, dal chiosco** | UGO chiede di parlare, ma i dieci secondi li registra ancora solo il pannello. Il percorso esiste tutto, manca il pezzo di `main.ts` |
 | ⬜️ | Cattura schermo con OCR | valore alto, superficie privacy enorme: **serve una decisione, non un'implementazione** |
 
 ## Gruppo 5 — Il vicinato (ADR-019, fasi 2 e 3)
@@ -108,6 +110,23 @@ ripete la domanda (cache, zero token), apre un ticket con conferma, e lo ritrova
 | ✅ | **Documentazione e giro finale** | `/documentation/02-core-features/la-reception.md`, SECURITY_COMPLIANCE §5, `pnpm audit`, dichiarazione BO+`/admin`+FE in STATE §9 |
 | ⬜️ | **Riassunto «a che punto siamo» pre-calcolato** | oggi lo stato vivo è on-demand con memo 60s; un digest per cliente scritto dal sogno lo renderebbe gratis anche a freddo |
 | ⬜️ | **IMAP OAuth2** (Gmail senza app password) | fuori dalla v1, dichiarato in ADR-054 |
+
+## Gruppo 9 — Il mondo in cui vive (ADR-056, ADR-058)
+
+Nato da sette segnalazioni del proprietario guardando il chiosco, tutte lo stesso giorno. Quasi
+nulla era da inventare: pezzi costruiti e mai raccordati.
+
+| | Punto | Note |
+|---|---|---|
+| ✅ | **Non parla più di spalle, e ti segue con lo sguardo** | Cono di ±52° sul bersaglio (`talking` **resta** in `ROAMS_IN`, ADR-026 §6), e nuovo `attention.ts` che toglie l'orientamento del corpo — il collo è figlio del corpo, e in tutto `body/` non c'era un riferimento a `heading` dal lato dello sguardo |
+| ✅ | **La stanza ha un pavimento** | **ADR-056**: nebbia, fondale e trama procedurali. Lo spazio era già 3D e non c'era niente contro cui vederlo |
+| ✅ | **Arredi, scorte, editor visuale, collisioni** | **ADR-056**: catalogo in codice, due tabelle, spinta `scene` a scena aperta, e `used_prop` che abbassa la noia **con un tetto** |
+| ✅ | **Il cespuglio è un riparo** | Misure di un pancia a tazza, non di un Large White. Lo **stress** è la seconda spinta che muove il corpo, e ci va **dietro** |
+| ✅ | **La mela, il legame e i pesi** | **ADR-058**: `compliment` acceso col tetto, prima scrittura su `bonds.affinity`, pesi che moltiplicano il **sollievo** e mai l'invadenza |
+| ✅ | **Silvio non è UGO con un soprannome** | Il nome proprio esce dal blocco `[CACHED]`, che è condiviso da ogni creatura della casa |
+| ✅ | **Le correzioni all'esemplare giusto** | Con due gosini, dire a uno che urla correggeva l'altro. Ora `?gosino=`, e con più d'uno un 400 invece di un'ipotesi |
+| ⬜️ | **La retention delle impronte ignote nel giro notturno** | La rotta c'è e funziona; nessuno la chiama da solo. Una retention dichiarata e non applicata è peggio di nessuna retention |
+| ⬜️ | **Misurare la batteria del corpo 3D** | Il debito è di ADR-026 e questa PR lo peggiora: una superficie in più e fino a otto arredi. Il numero lo dà solo un telefono |
 
 ## Scartati, con motivo
 
