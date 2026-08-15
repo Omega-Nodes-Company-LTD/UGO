@@ -87,6 +87,26 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ⬜️ | **RAG su documenti** | UGO conosce solo ciò che ha sentito |
 | ✅ | Verifica che il backup esista davvero | il sogno interroga il bucket prima di saltare il passo: un backup sparito viene rifatto |
 
+## Gruppo 8 — La reception (ADR-051…055): l'assistente ticket per i clienti
+
+Traccia propria, con la propria Definition of Done: le fasi 0–5 del software restano intatte,
+questo è un cantiere nuovo. DoD del gruppo: build+lint+type verdi, test reali (Testcontainers,
+GreenMail, git `file://`, Playwright sulla suite), zero segreti, ADR scritte, `STATE.md` e
+`/documentation` aggiornati, e la dimostrazione end-to-end: da `/admin` si crea un cliente con
+repo e token; dalla reception il cliente sceglie il gosino, fa una domanda a voce sul codice,
+ripete la domanda (cache, zero token), apre un ticket con conferma, e lo ritrova nel pannello.
+
+| | Punto | Note |
+|---|---|---|
+| 🔨 | **ADR 051–055** | reception isolata, il cliente non è famiglia, voce nel browser, fonti di conoscenza, contatore costi |
+| ⬜️ | **Schema clienti/ticket** (migrazione 0016) | `customers`, `customer_gosini`, `customer_access_tokens`, `tickets`, `customer_messages`; canale `ticket`; verbi audit nuovi; export/oblio |
+| ⬜️ | **Auth cliente + `/v1/reception/*`** | doppia credenziale (servizio + cliente), quota oraria, tetto giornaliero, chat col canale `ticket` e blocco regole `reception.it.md` |
+| ⬜️ | **Pannello: sezione «I clienti»** | CRUD, assegnazione gosini, token una volta sola, triage ticket, statistiche |
+| ⬜️ | **Fonti di conoscenza** (migrazione 0017) | clone+indice repo, IMAP read-only, documenti dal bucket; `customer_chunks` cifrati, retrieval solo vettoriale (ADR-054) |
+| ⬜️ | **Cache risposte + statistiche** (migrazione 0018) | hash esatto + semantico, `knowledge_epoch`, mai su stato vivo; preferenza per gosino |
+| ⬜️ | **Suite reception (Next.js, voice-first)** | Accesso, Parla, I lavori, I ticket, Le conversazioni, Il branco, Impostazioni; container isolato su `reception-net` |
+| ⬜️ | **Documentazione e giro finale** | `/documentation`, SECURITY_COMPLIANCE, `pnpm audit`, dichiarazione BO+`/admin`+FE |
+
 ## Scartati, con motivo
 
 - **Marketplace di skill** — vale per dieci famiglie come per una: non è il collo di bottiglia.

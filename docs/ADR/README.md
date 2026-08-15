@@ -56,4 +56,9 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [048](./048-il-confine-e-del-database.md) | Il confine è del database, non della nostra attenzione | Accettata |
 | [049](./049-chi-ha-fatto-cosa.md) | Chi ha fatto cosa | Accettata |
 | [050](./050-la-lingua-e-della-casa.md) | La lingua e l'ora sono della casa | Accettata |
-| 049 | *(prossimo numero disponibile)* | — |
+| [051](./051-la-reception.md) | La reception: una porta sulla strada, la casa resta chiusa | Accettata |
+| [052](./052-il-cliente-non-e-famiglia.md) | Il cliente non è famiglia | Accettata |
+| [053](./053-la-voce-del-cliente-resta-nel-suo-browser.md) | La voce del cliente resta nel suo browser | Accettata |
+| [054](./054-il-gosino-sa-il-lavoro-del-cliente.md) | Il gosino sa il lavoro del cliente | Accettata |
+| [055](./055-il-cliente-ha-un-contatore.md) | Il cliente ha un contatore | Accettata |
+| 056 | *(prossimo numero disponibile)* | — |

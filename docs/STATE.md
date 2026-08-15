@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.29.0"
-last_updated: "2026-08-13"
+version: "0.30.0"
+last_updated: "2026-08-15"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -19,6 +19,11 @@ reale. ADR-012 e ADR-013 **accettati e implementati**; runbook di deploy pronto 
 [`OPS_COOLIFY.md`](./OPS_COOLIFY.md) (mancano solo i valori dei placeholder). Col device/server: validazioni on-device (Fase 2/4), deploy
 Vexa + Meet di prova (Fase 5), gusci (Fase 6 — il proprietario ha design da una sessione chat
 precedente, da integrare in `hardware/shell/`). Firmware Arduino accantonato (decisione proprietario).
+
+**In corso: la reception (gruppo 8 del backlog, ADR-051…055)** — UGO assistente ticket per i
+clienti dello studio: suite pubblica isolata (Next.js, voice-first), clienti assegnati ai gosini,
+fonti di conoscenza per cliente (repo, email read-only, documenti), tre muri di costo. Le ADR
+sono scritte; l'implementazione procede per fasi, ognuna verde.
 
 ## 2. Contenuto attuale del repository
 
