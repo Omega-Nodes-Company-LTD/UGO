@@ -20,10 +20,12 @@ reale. ADR-012 e ADR-013 **accettati e implementati**; runbook di deploy pronto 
 Vexa + Meet di prova (Fase 5), gusci (Fase 6 — il proprietario ha design da una sessione chat
 precedente, da integrare in `hardware/shell/`). Firmware Arduino accantonato (decisione proprietario).
 
-**In corso: la reception (gruppo 8 del backlog, ADR-051…055)** — UGO assistente ticket per i
-clienti dello studio: suite pubblica isolata (Next.js, voice-first), clienti assegnati ai gosini,
-fonti di conoscenza per cliente (repo, email read-only, documenti), tre muri di costo. Le ADR
-sono scritte; l'implementazione procede per fasi, ognuna verde.
+**Fatta: la reception (gruppo 8 del backlog, ADR-051…055)** — UGO assistente ticket per i
+clienti dello studio: suite pubblica isolata (`apps/reception`, Next.js voice-first, container
+senza chiavi né database su rete dedicata), clienti assegnati ai gosini con token personali,
+fonti di conoscenza per cliente (clone+indice repo, IMAP in sola lettura, documenti dal
+bucket), tre muri di costo (quota oraria, tetto giornaliero, cache delle risposte), sezione
+«I clienti» nel pannello. Dettaglio in §6-octovicies; giro completo BO+`/admin`+FE dichiarato lì.
 
 ## 2. Contenuto attuale del repository
 
@@ -41,7 +43,8 @@ UGO/
 ├── .github/workflows/ci.yml   # static · integration · e2e · pytest
 ├── apps/
 │   ├── soul/                  # Fastify: /health, /v1/* REST (guarded), WS /v1/face, CLI `ugo`
-│   └── face/                  # webapp kiosk + portable: canvas porcetto, coda offline, sensi, E2E
+│   ├── face/                  # webapp kiosk + portable: canvas porcetto, coda offline, sensi, E2E
+│   └── reception/             # ADR-051: la suite pubblica per i clienti (Next.js voice-first + BFF)
 ├── packages/
 │   ├── db/                    # schema Drizzle §5.2 completo, migrazioni, client, migrate-cli
 │   ├── shared/                # parseEnv, crypto AES-256-GCM, contratti Zod, costanti/topic
@@ -1671,6 +1674,54 @@ UGO e non l'interfaccia — tradurle è scrittura, non ingegneria. Le etichette 
 - **FE** — niente: il muso parla via `speech.ts` con `it-IT`, che è la lingua di
   questa casa. Il giorno in cui una casa ne dichiara un'altra, quel valore va
   preso dal roster — sta in §8, non l'ho anticipato.
+
+## 6-octovicies. La reception: UGO coi clienti (gruppo 8, ADR-051…055)
+
+Il gruppo 8 è chiuso in un giro solo, otto punti, tre migrazioni (0016–0018), un'app nuova.
+
+**Cosa c'è adesso.** Un cliente dello studio riceve un token personale (tabella
+`customer_access_tokens`, specchio di `access_tokens`, mai un quarto ruolo — ADR-052), apre la
+reception (`apps/reception`, Next.js 15, l'unico contenitore con un dominio pubblico —
+ADR-051), sceglie il gosino fra quelli assegnati (`customer_gosini`, FK composite: il gosino
+di un'altra casa è strutturalmente impossibile) e parla — a voce nel browser (ADR-053: nessun
+audio lascia il dispositivo, nessun percorso di upload) o da tastiera. Il gosino risponde
+«repo alla mano» (indice `customer_chunks`: testo cifrato, retrieval solo vettoriale —
+ADR-054), riferisce lo stato vivo da GitHub (solo GET, memo 60s, mai cache), raccoglie le
+richieste come ticket (scorciatoia deterministica «apri un ticket: …» a zero token) e non
+esegue mai lavori (blocco cached `reception.it.md`, canale `ticket`).
+
+**I tre muri di ADR-055**: quota oraria e tetto giornaliero per cliente, sempre contati da
+Postgres nel fuso della casa; cache delle risposte per cliente×gosino (hash esatto +
+semantico ≥0.95, TTL 24h, invalidata da `knowledge_epoch` a ogni reindex, mai sullo stato
+vivo). Il `budget_ledger` di casa resta il muro esterno. Il BFF della reception aggiunge un
+pre-filtro token-bucket dichiaratamente per-processo.
+
+**Il giro completo (regola 12):**
+- **BO** — rotte `/v1/reception/*` e `/v1/customers/*`, servizi in
+  `apps/soul/src/services/reception/`, schema in `packages/db` (0016–0018 con code RLS a
+  mano), `searchCustomerChunks` in `packages/memory` (scope obbligatorio in firma),
+  `receptionPrompt` in `packages/prompts`, job Python `customer_{repos,mail,docs,sync}.py`
+  con thread a cadenza propria, export/oblio estesi (l'oblio di un cliente è il cascade;
+  i testi della reception si redigono come quelli di famiglia), sette verbi audit nuovi.
+  Le fixture di `ops/jobs/tests` hanno il loro `test_customer_sync.py` (git `file://`,
+  GreenMail reale, MinIO reale).
+- **`/admin`** — sezione «I clienti»: registro, ascoltatori, limiti, token mostrato una
+  volta sola, fonti, triage ticket, statistiche per gosino. Scheletro statico: ogni id che
+  lo script cerca esiste nel markup (`script.test.ts` verde).
+- **FE** — `apps/face` **non toccato**, e non serviva: il corpo di casa non c'entra con la
+  reception; `faceContracts.ts` è invariato. La superficie cliente è `apps/reception`, con
+  contratti condivisi in `packages/shared/src/receptionContracts.ts` (la giunzione è
+  esercitata dai test d'integrazione da entrambi i lati) ed E2E Playwright propri su
+  backend vero.
+
+**Evidenza riproducibile (DoD):** `pnpm turbo build lint test` verde su 27 task;
+`test:integration` su Postgres/Ollama/MinIO/GreenMail reali (reception 12, clienti 8,
+conoscenza+cache 7, schema 9, pytest 70); `pnpm --filter reception test:e2e` — porta,
+branco, giro di chat, ticket raccolto e ritrovato, lavori, uscita: 5 su 5.
+
+**Restano fuori, dichiarati** (in coda al gruppo 8 del backlog): digest «a che punto siamo»
+pre-calcolato dal sogno; IMAP OAuth2; il dominio pubblico vero e la rotazione del segreto
+sono un atto di deploy, non di repository.
 
 ## 7. Debito tecnico e rischi aperti
 

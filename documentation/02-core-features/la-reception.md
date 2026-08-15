@@ -1,0 +1,77 @@
+---
+title: "La reception: UGO coi tuoi clienti"
+description: "Come dare a un cliente il suo accesso, cosa può chiedere al gosino, e come restano sotto controllo costi e richieste."
+version: "0.30.0"
+last_updated: "2026-08-15"
+author: "System"
+---
+
+## Cos'è la reception
+
+La reception è un sito separato, pensato per i **tuoi clienti**: ognuno entra con un token
+personale, sceglie con quale gosino parlare e gli fa domande sul proprio progetto — a voce o
+per iscritto. Il gosino **non esegue lavori**: risponde «repo alla mano», raccoglie le
+richieste come ticket e riferisce lo stato delle cose. Il lavoro resta tuo.
+
+La casa non c'entra: la reception gira in un contenitore isolato, senza accesso al database
+né alle chiavi, e il pannello resta privato come sempre.
+
+## Prepara un cliente (dal pannello)
+
+1. Apri il pannello e vai su **I clienti**.
+2. Scrivi il nome del cliente e clicca **Crealo**.
+3. Nella scheda del cliente, spunta i gosini che potranno ascoltarlo e clicca
+   **Salva gli ascoltatori**.
+4. Clicca **Emetti un token** e consegna al cliente il codice che compare: è l'unica volta
+   che lo vedrai. Se si perde, revoca e riemetti.
+
+Il cliente apre l'indirizzo della reception, incolla il token, sceglie il gosino — e parla.
+
+## Dagli qualcosa da sapere
+
+Nella stessa scheda, sotto **Cosa sa del suo lavoro**, colleghi le fonti:
+
+- **Repository git** — con un PAT se privato. Viene clonato e indicizzato a intervalli
+  regolari; per le PR aperte e gli ultimi commit il gosino chiede a GitHub al momento.
+- **Casella email** — in **sola lettura**: serve al gosino per capire lo stato delle cose.
+  UGO non invia mai email.
+- **Documenti** — pdf, txt, md o csv: caricali e verranno letti al giro successivo.
+
+**Sincronizza adesso** forza un aggiornamento fuori orario, se il runner è raggiungibile.
+
+## Le richieste diventano ticket
+
+Quando il cliente vuole qualcosa («vorrei il bottone di export in CSV»), il gosino propone
+di aprire un ticket, e lo apre solo con la sua conferma. I ticket compaiono nella scheda del
+cliente: cambia tu lo stato — *aperto*, *in lavorazione*, *in attesa*, *chiuso* — e il
+cliente lo vede dalla sua parte. Se risponde a un ticket chiuso, il ticket torna
+*in attesa*.
+
+## I costi restano tuoi
+
+Tre protezioni, una dentro l'altra (le prime due regolabili per cliente nella scheda):
+
+- **Domande l'ora** — oltre il limite il cliente riceve un cortese «riprova fra un po'».
+- **Tetto del giorno** — esaurito, il gosino lo dice con garbo e smette di spendere fino a
+  domani. I ticket restano aperti.
+- **Risposte ricordate** — la stessa domanda rifatta non costa nulla: la risposta arriva
+  dalla memoria, nella voce dello stesso gosino. Le domande sullo *stato dei lavori* sono
+  sempre fresche, mai ricordate.
+
+Il salvadanaio della casa resta comunque l'ultimo muro: un cliente non può mai spendere ciò
+che la casa non ha.
+
+## La voce, e la privacy
+
+Nella reception si parla: il cliente tiene premuto l'orbe, il browser trascrive, il gosino
+risponde a voce con il suo timbro. **L'audio non lascia mai il browser del cliente**: al
+server arriva solo testo, e sul canale della reception non esiste alcun riconoscimento
+vocale. Se il browser non sa ascoltare, la tastiera fa lo stesso lavoro.
+
+## Quando un rapporto finisce
+
+- **Revoca un token** dalla scheda: quel dispositivo resta fuori subito.
+- **Archivia il cliente**: tutti i suoi token smettono di valere nello stesso istante; i
+  dati restano per i tuoi archivi finché non decidi altrimenti.
+- L'export della casa include anche clienti, ticket e conversazioni; la cancellazione di un
+  cliente porta via tutto ciò che era suo.

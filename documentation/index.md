@@ -1,8 +1,8 @@
 ---
 title: "UGO — Manuale"
 description: "Cos'è UGO, come parlargli e cosa ricorda: la guida per chi lo usa, non per chi lo sviluppa."
-version: "0.9.0"
-last_updated: "2026-08-09"
+version: "0.30.0"
+last_updated: "2026-08-15"
 author: "ThinkPink Studio"
 ---
 
@@ -38,4 +38,5 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 - [Parlare con UGO](./02-core-features/parlare-con-ugo.md) — voce, memoria, umore.
 - [In giro](./02-core-features/in-giro.md) — registrare a vista, privacy, biglietto da visita.
 - [I tuoi dati](./02-core-features/i-tuoi-dati.md) — esportare tutto, far dimenticare una persona.
+- [La reception](./02-core-features/la-reception.md) — UGO coi tuoi clienti: token, ticket, fonti, costi.
 - [Problemi comuni](./04-troubleshooting/problemi-comuni.md)
