@@ -1793,6 +1793,15 @@ trovati tutti e tre il banco guardando il reso, che è la verifica dichiarata da
 ADR-026 per quel che si vede. Il cielo chiaro ha portato con sé la sfumatura
 scura sotto la barra del chiosco: il testo era a ~2.5:1 sull'erba illuminata.
 
+Un quarto difetto l'ha trovato la **CI**, ed era di prestazioni: il pavimento
+diurno arriva all'orizzonte, e shadeggiarlo `MeshStandardMaterial` trasparente
+su mezza inquadratura ha portato il GL software da 12,5 a 8 fps — abbastanza da
+far scadere il rilascio di `sneeze` nell'e2e del corpo (5 s di poll su una VM a
+2 core). Corretto per sottrazione: prato `MeshBasicMaterial` opaco a una trama
+(l'illuminazione è dipinta nei fili), niente sfumatura di bordo (oltre
+`fog.far` il piano è già color cielo), anisotropia 2. 14,5 fps, sopra il
+baseline pre-cielo — e vale anche per il telefono, non solo per la CI.
+
 ### 🔴 Il buco di privacy, e l'arruolamento del volto (ADR-057)
 
 `_guard` leggeva `is_minor` e `no_audio` e **non guardava mai `no_vision`**,

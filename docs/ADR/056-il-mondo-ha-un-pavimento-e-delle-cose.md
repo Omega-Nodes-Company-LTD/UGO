@@ -69,6 +69,17 @@ rifiniture:
 Nessuno dei tre l'ha trovato un test: li ha trovati il banco, guardando il reso. È la verifica che
 ADR-026 dichiara per la leggibilità, e vale la pena registrare che ha funzionato.
 
+Un **quarto** l'ha trovato la CI, ed era di prestazioni: col cielo diurno il pavimento arriva
+all'orizzonte, e un piano `MeshStandardMaterial` trasparente con due trame shadeggiato su mezza
+inquadratura ha portato il reso in GL software da 12,5 a 8 fps (misurato al banco con swiftshader)
+— abbastanza da far scadere il rilascio di un gesto nell'e2e del corpo. La correzione è una
+sottrazione: il prato è `MeshBasicMaterial` opaco con una trama sola (la sua «illuminazione» è
+dipinta nei fili chiari, e per un piano piatto da questa camera non si distingue), la sfumatura di
+bordo è morta perché oltre `fog.far` il piano è già del colore del cielo, e l'anisotropia sta a 2.
+Risultato: 14,5 fps sullo stesso banco, sopra il valore di prima del cielo. La tavolozza è stata
+ritarata una terza volta — stavolta è **letterale**: niente luci, niente ricodifiche, quel che sta
+scritto è quel che si vede.
+
 Il cielo luminoso ha una conseguenza fuori da `body/`: la barra del chiosco è testo chiaro posato
 sulla tela, e sopra un prato illuminato scendeva a ~2.5:1 di contrasto. `index.html` le mette
 sotto una sfumatura scura — il posto giusto per risolverlo è il testo, non il prato.

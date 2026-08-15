@@ -55,23 +55,24 @@ const HORIZON = 0xc4dcec;
  * rosa chiaro: fra i due deve restare la distanza che gli tiene la silhouette,
  * che è la sola cosa che un corpo procedurale ha.
  *
- * ⚠️ **I valori di prima erano tarati contro un difetto**, non contro la scena:
- * una `CanvasTexture` non dichiara il proprio spazio colore, three la prendeva
- * per lineare e la ricodificava in sRGB in uscita, e ogni tinta usciva
- * schiarita (`#3f6b32` finiva a `#88ad7b` — un prato slavato). Compensavo a
- * occhio scegliendo un verde molto più cupo del voluto, cioè tenevo due errori
- * che quasi si annullavano. Adesso la trama dichiara `SRGBColorSpace` e questi
- * sono i colori **veri**: quel che sta scritto qui è quel che si vede.
+ * ⚠️ Questi valori sono **letterali**: il pavimento è `MeshBasicMaterial` (vedi
+ * il costruttore per il perché, che è di prestazioni misurate), quindi né luci
+ * né ricodifiche — la trama dichiara `SRGBColorSpace` e quel che sta scritto
+ * qui è **esattamente** quel che si vede. Le due tarature precedenti erano
+ * entrambe contro un artefatto: prima un colorspace sbagliato che schiariva,
+ * poi delle luci che moltiplicavano. Adesso la tavolozza è la verità.
  *
  * Tre toni e non uno: l'erba vera non è mai di un colore solo, e una superficie
  * a tinta unita — per quanto verde — legge come feltro. Le chiazze sono più
- * scure (l'erba fitta, all'ombra di sé stessa) e i fili più chiari.
+ * scure (l'erba fitta, all'ombra di sé stessa) e i fili più chiari — che è
+ * anche l'unica «illuminazione» che il prato ha: dipinta, come su un fondale
+ * di teatro, e per un piano opaco visto da questa camera non si distingue.
  */
-const FLOOR_BASE = "#5d8a42";
-const FLOOR_SPECK = "#79a856";
-const FLOOR_MOTTLE = "#4c7636";
+const FLOOR_BASE = "#7fae5e";
+const FLOOR_SPECK = "#93c272";
+const FLOOR_MOTTLE = "#6b9a4c";
 /** Un filo su tre è più chiaro: è quel che fa sembrare l'erba illuminata da sopra. */
-const FLOOR_BLADE = "#93c268";
+const FLOOR_BLADE = "#abd484";
 
 /**
  * Quanto si estende il pavimento — e con lui il fondale.
@@ -83,9 +84,13 @@ const FLOOR_BLADE = "#93c268";
  * `BackSide` è invisibile da fuori: cielo sparito, sfondo della pagina al suo
  * posto. Non si era visto perché il banco gira a 900 px, dove la distanza è 25.
  *
- * Un raggio grande non costa niente — sono due geometrie — e la nebbia mangia
- * il pavimento molto prima del bordo. Il fondale invece è `fog: false` apposta,
- * quindi resta nitido a qualunque distanza.
+ * Un raggio grande non costa niente **come geometria** — sono due mesh — ma ha
+ * un costo che questa correzione ha fatto pagare e che è stato saldato altrove:
+ * un pavimento che arriva all'orizzonte riempie di frammenti *suoi* metà
+ * inquadratura, e da lì la scelta del materiale (vedi il costruttore) è
+ * diventata di prestazioni, non di stile. La nebbia mangia il pavimento molto
+ * prima del bordo; il fondale invece è `fog: false` apposta, quindi resta
+ * nitido a qualunque distanza.
  */
 const FLOOR_RADIUS = 220;
 /**
@@ -180,45 +185,23 @@ function floorTexture(): THREE.CanvasTexture {
   const texture = new THREE.CanvasTexture(ctx.canvas);
   // **Va detto, o i colori escono sbagliati**: una texture di colore che non
   // dichiara il suo spazio viene presa per lineare, e il renderer la ricodifica
-  // in sRGB in uscita schiarendola di brutto. Vale per questa e per il cielo,
-  // non per la sfumatura del bordo — quella è un dato, non un colore.
+  // in sRGB in uscita schiarendola di brutto. Vale per questa e per il cielo.
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set((FLOOR_RADIUS * 2) / FLOOR_TILE, (FLOOR_RADIUS * 2) / FLOOR_TILE);
-  // alta: a raggio 220 il prato lontano è quasi radente, ed è lì che una trama
-  // ripetuta diventa moiré invece che erba
-  texture.anisotropy = 8;
+  // 2 e non di più: l'anisotropia si paga a ogni pixel, e in GL software si
+  // paga cara (misurato: 8 costava ~2,5 fps). Il moiré del prato radente che
+  // 8 avrebbe pulito sta quasi tutto oltre `fog.far`, dove tanto è nebbia.
+  texture.anisotropy = 2;
   return texture;
 }
 
-/**
- * Il bordo del pavimento, sfumato a niente.
- *
- * Senza, il piano finisce con un cerchio netto in mezzo al nulla e la stanza
- * diventa un disco volante. Non si ripete — è una sola sfumatura su tutto il
- * pavimento — quindi ha il suo `repeat` separato da quello della trama.
- */
-function floorFade(): THREE.CanvasTexture {
-  const ctx = context(TEXTURE_PX);
-  const gradient = ctx.createRadialGradient(
-    TEXTURE_PX / 2,
-    TEXTURE_PX / 2,
-    0,
-    TEXTURE_PX / 2,
-    TEXTURE_PX / 2,
-    TEXTURE_PX / 2,
-  );
-  gradient.addColorStop(0, "#ffffff");
-  gradient.addColorStop(0.42, "#ffffff");
-  gradient.addColorStop(1, "#000000");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, TEXTURE_PX, TEXTURE_PX);
-  const texture = new THREE.CanvasTexture(ctx.canvas);
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  return texture;
-}
+// Il bordo sfumato (`floorFade`) non esiste più, e non per pulizia: da quando
+// la nebbia ha il colore dell'orizzonte, oltre `fog.far` il pavimento È già
+// del colore del cielo — l'orlo che quella sfumatura nascondeva non si può
+// più vedere, e il suo prezzo (blending su tutto il piano, una trama in più)
+// era diventato il collo di bottiglia del reso in GL software.
 
 /**
  * Il cielo: azzurro sopra, pallido giù verso l'orizzonte.
@@ -269,19 +252,25 @@ export class Room {
 
   public constructor(private readonly scene: THREE.Scene) {
     const map = floorTexture();
-    const alphaMap = floorFade();
     const sky = skyTexture();
-    this.textures.push(map, alphaMap, sky);
+    this.textures.push(map, sky);
 
+    /**
+     * `MeshBasicMaterial`, e non è una rinuncia estetica: è **dove stava il
+     * costo**. Col cielo diurno il pavimento arriva fino all'orizzonte, e un
+     * piano `MeshStandardMaterial` trasparente con due trame shadeggiato su
+     * mezza inquadratura ha portato il reso in GL software da 12,5 a 8 fps —
+     * misurato al banco con swiftshader, ed è ciò che ha fatto scadere il
+     * gesto nell'e2e in CI. Un prato piatto e opaco non ha niente da chiedere
+     * alle luci: la sua "illuminazione" è già dipinta nella trama (i fili
+     * chiari), e la sfumatura di bordo è diventata ridondante il giorno in cui
+     * la nebbia ha preso il colore dell'orizzonte — oltre `fog.far` il piano È
+     * già del colore del cielo, non c'è nessun orlo da nascondere.
+     * Basic + opaco + una trama sola: 14,5 fps sullo stesso banco.
+     */
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(FLOOR_RADIUS, 64),
-      new THREE.MeshStandardMaterial({
-        map,
-        alphaMap,
-        transparent: true,
-        roughness: 0.95,
-        metalness: 0,
-      }),
+      new THREE.MeshBasicMaterial({ map }),
     );
     floor.rotation.x = -Math.PI / 2;
     // sotto l'ombra finta del maiale, che sta a `y = 0.005`: sullo stesso piano
