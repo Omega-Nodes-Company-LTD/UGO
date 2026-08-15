@@ -37,6 +37,12 @@ Zero asset binari (ADR-026 §1): le tre trame si generano a runtime con `CanvasT
 ripetibile. Il divieto è sui file, non sulla generazione da codice — e un pavimento procedurale
 accanto a un maiale procedurale è la stessa scelta, non un'eccezione.
 
+Il pavimento è **erba**, non terriccio, e non è una scelta di gusto: gli arredi sono un cuscino, un
+ciuffo d'erba, un cespuglio e un truogolo, cioè roba da aia. Su terriccio scuro sembravano posati
+sul pavimento di una cantina. Il costo l'ha pagato subito il ciuffo d'erba, che sul terriccio si
+vedeva e sul prato era diventato invisibile: adesso è di un verde più chiaro e più alto — è erba
+lasciata crescere, e che sia di un altro verde è anche vero.
+
 La nebbia segue la distanza della camera, che `resize()` cambia con lo schermo e con quante
 creature ci sono. `near` sta appena **prima** della creatura: è quello che fa cadere i suoi passi
 avanti e indietro dentro la rampa, cioè che rende leggibile la Z. A distanze fisse sarebbe un velo

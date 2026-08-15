@@ -49,9 +49,9 @@ Apri UGO aggiungendo `?wander=off` all'indirizzo. Resta al centro, con tutto il 
 
 ## La stanza in cui sta
 
-Sotto di lui c'è un **pavimento**, dietro un orizzonte, e più lontano la nebbia. Non è
-decorazione: senza qualcosa contro cui vederlo, un porcetto che ti viene incontro sembra solo
-ingrandirsi. Con il pavimento sotto, si vede che si **avvicina**.
+Sotto di lui c'è un **prato**, dietro un orizzonte, e più lontano la foschia. Non è decorazione:
+senza qualcosa contro cui vederlo, un porcetto che ti viene incontro sembra solo ingrandirsi. Con
+l'erba sotto, si vede che si **avvicina**.
 
 In modalità portatile la stanza si spegne insieme al resto: è la superficie più grande da
 disegnare, quindi è la prima da togliere quando conta la batteria.

@@ -31,18 +31,23 @@ import * as THREE from "three";
 /** Il fondo della pagina del chiosco: il cielo della stanza ci si fonde. */
 const NIGHT = 0x0b0b10;
 /** L'orizzonte, e quindi anche il colore della nebbia: sono la stessa cosa. */
-const HORIZON = 0x241a20;
+const HORIZON = 0x22301f;
 /**
- * Il pavimento è scuro perché il maiale è rosa.
+ * Il prato.
  *
- * Le luci montate (emisferica 1.5 più una chiave a 2.1) alzano parecchio
- * qualunque base, quindi un colore che sulla tavolozza sembra giusto viene
- * fuori slavato — e un pavimento chiaro quanto lui gli toglie la silhouette,
- * che è la sola cosa che un corpo procedurale ha.
+ * Verde, e **scuro**: le luci montate (emisferica 1.5 più una chiave a 2.1)
+ * alzano parecchio qualunque base, quindi un verde che sulla tavolozza sembra
+ * giusto viene fuori acido e slavato. E il maiale è rosa: un pavimento chiaro
+ * quanto lui gli toglie la silhouette, che è la sola cosa che un corpo
+ * procedurale ha.
+ *
+ * Tre toni e non uno: l'erba vera non è mai di un colore solo, e una superficie
+ * a tinta unita — per quanto verde — legge come feltro. Le chiazze sono più
+ * scure (l'erba fitta, all'ombra di sé stessa) e i fili più chiari.
  */
-const FLOOR_BASE = "#1b1219";
-const FLOOR_SPECK = "#2a1d25";
-const FLOOR_MOTTLE = "#1f151d";
+const FLOOR_BASE = "#24391f";
+const FLOOR_SPECK = "#44693a";
+const FLOOR_MOTTLE = "#1c2d18";
 
 /** Quanto si estende il pavimento. Oltre la nebbia l'ha già mangiato. */
 const FLOOR_RADIUS = 34;
@@ -53,9 +58,10 @@ const FLOOR_RADIUS = 34;
  * la ripetizione si legge come un motivo invece che come terreno — e con
  * piastrelle grandi si vedeva il disegno tornare uguale a ogni passo.
  */
-const FLOOR_TILES = 22;
+const FLOOR_TILES = 26;
 const TEXTURE_PX = 256;
-const SPECKS = 260;
+/** Fitti: un prato rado non è un prato, è un campo dopo la siccità. */
+const SPECKS = 520;
 
 /**
  * Un dado ripetibile.
@@ -83,7 +89,15 @@ function context(size: number): CanvasRenderingContext2D {
   return ctx;
 }
 
-/** Terriccio e paglia: macchie grandi, e sopra una grana fine. */
+/**
+ * Un prato: chiazze larghe, e sopra i fili.
+ *
+ * Il proprietario l'ha chiesto guardando il chiosco — «pavimento lo facciamo di
+ * erbetta, così se la gode meglio». Ha ragione anche per una ragione che non ha
+ * detto: gli arredi sono un cuscino, un ciuffo d'erba, un cespuglio e un
+ * truogolo, cioè roba da aia. Su terriccio scuro sembravano posati su un
+ * pavimento di cantina.
+ */
 function floorTexture(): THREE.CanvasTexture {
   const ctx = context(TEXTURE_PX);
   const rng = mulberry32(20260815);
@@ -94,22 +108,26 @@ function floorTexture(): THREE.CanvasTexture {
   // la trama si ripete diventavano gli **stessi** crateri ogni quattro unità
   ctx.fillStyle = FLOOR_MOTTLE;
   for (let i = 0; i < 34; i += 1) {
-    const r = 5 + rng() * 16;
+    const r = 6 + rng() * 18;
     ctx.beginPath();
     ctx.arc(rng() * TEXTURE_PX, rng() * TEXTURE_PX, r, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  ctx.fillStyle = FLOOR_SPECK;
+  // I fili. Trattini e non punti: un trattino ha un verso, e un verso si vede
+  // scorrere quando lui cammina — un punto tondo no, ed è quella la parallasse
+  // che dice «mi sto muovendo».
+  //
+  // Corti e fitti, non lunghi e radi: da questa camera un filo lungo si legge
+  // come un graffio sulla lente invece che come erba.
   for (let i = 0; i < SPECKS; i += 1) {
-    // trattini e non punti: un trattino ha un verso, e un verso si vede
-    // scorrere quando lui cammina — un punto tondo no
-    const x = rng() * TEXTURE_PX;
-    const y = rng() * TEXTURE_PX;
     ctx.save();
-    ctx.translate(x, y);
+    ctx.translate(rng() * TEXTURE_PX, rng() * TEXTURE_PX);
     ctx.rotate(rng() * Math.PI);
-    ctx.fillRect(-2.5 - rng() * 4, -0.6, 5 + rng() * 8, 1.2);
+    // un filo su tre è più chiaro: è quel che fa sembrare l'erba illuminata da
+    // sopra invece che colorata di verde
+    ctx.fillStyle = rng() < 0.34 ? "#587f43" : FLOOR_SPECK;
+    ctx.fillRect(-1.5 - rng() * 2, -0.55, 3 + rng() * 4, 1.1);
     ctx.restore();
   }
 

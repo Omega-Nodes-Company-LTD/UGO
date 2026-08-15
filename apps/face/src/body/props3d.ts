@@ -42,14 +42,21 @@ function cushion(): THREE.Group {
 
 function grass(): THREE.Group {
   const group = new THREE.Group();
-  const blade = material(0x4a6b3a, 0.95);
+  // Più chiara e più gialla del prato, da quando il pavimento è erba: un ciuffo
+  // dello stesso verde del terreno su cui poggia è un ciuffo invisibile, e un
+  // arredo che non si vede è un arredo che il proprietario crede di non aver
+  // messo. È erba **alta**, quella che si lascia crescere: che sia di un altro
+  // verde è anche vero.
+  const blade = material(0x6f9440, 0.9);
   // ciuffi a raggiera, inclinati: dritti sembrerebbero uno steccato. Alti
   // quanto il ginocchio di un pancia a tazza — l'erba in cui grufolare gli
   // arriva alla pancia, non alle caviglie
   for (let i = 0; i < 14; i += 1) {
     const angle = (i / 14) * Math.PI * 2;
     const far = 0.14 + ((i * 7) % 5) * 0.085;
-    const tall = 0.42 + ((i * 3) % 4) * 0.13;
+    // più alta di prima, per la stessa ragione: sul terriccio bastava, sul
+    // prato deve emergere da quello che ha attorno
+    const tall = 0.58 + ((i * 3) % 4) * 0.16;
     const mesh = box(0.1, tall, 0.1, 0.035, blade);
     mesh.position.set(Math.cos(angle) * far, tall / 2, Math.sin(angle) * far);
     mesh.rotation.z = Math.cos(angle) * 0.35;
