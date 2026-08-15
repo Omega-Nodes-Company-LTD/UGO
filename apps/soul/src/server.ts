@@ -229,6 +229,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         speciesMap,
         guard,
         ...(audio !== undefined && { audio }),
+        // ADR-053: una correzione è per **una** creatura, e senza il registro
+        // non c'è modo di sapere quale
+        ...(registry !== undefined && { registry }),
       });
       registerAdminRoutes(app);
     }

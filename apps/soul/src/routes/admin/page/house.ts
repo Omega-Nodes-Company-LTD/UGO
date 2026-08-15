@@ -215,7 +215,11 @@ export const HOUSE_PAGES = `
     <div id="enroll-msg"></div>
 
     <h3>Correggilo</h3>
+    <p class="lede">Una correzione è <b>per una creatura</b>: se ne hai due, quella che ha
+       sbagliato se lo ricorda e l'altra no. Dirlo a entrambe sarebbe far scusare chi non
+       ha fatto niente.</p>
     <div class="row">
+      <div><label for="corr-who">A chi</label><select id="corr-who" data-testid="corr-who"></select></div>
       <div><label for="corr-being">Su chi</label><select id="corr-being" data-testid="corr-being"></select></div>
       <div><label for="corr-signal">Cosa ha sbagliato</label><select id="corr-signal" data-testid="corr-signal">
         <option value="wrong_name">ha sbagliato nome</option><option value="too_loud">parla troppo forte</option>
