@@ -3,8 +3,16 @@
 export const EVENT_SOURCES = ["face", "nano", "ear", "meet", "system"] as const;
 export type EventSource = (typeof EVENT_SOURCES)[number];
 
-export const MESSAGE_CHANNELS = ["home", "meeting", "api"] as const;
+/** `ticket` is the reception channel (ADR-051/052): customer conversations. */
+export const MESSAGE_CHANNELS = ["home", "meeting", "api", "ticket"] as const;
 export type MessageChannel = (typeof MESSAGE_CHANNELS)[number];
+
+/**
+ * A ticket's life (ADR-052). The owner triages from the panel; the customer
+ * only ever moves `waiting` back by replying. Italian labels live in the UIs.
+ */
+export const TICKET_STATUSES = ["open", "in_progress", "waiting", "closed"] as const;
+export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
 export const MEMORY_KINDS = ["fact", "preference", "episode", "insight"] as const;
 export type MemoryKind = (typeof MEMORY_KINDS)[number];

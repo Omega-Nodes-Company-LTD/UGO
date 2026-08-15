@@ -24,7 +24,8 @@ import { computeCostUsd, type TokenUsage } from "./pricing.js";
 export const DEGRADED_REPLY =
   "Grunf... per oggi ho finito le parole, il salvadanaio dice basta. Torno domani.";
 
-const MAX_TOKENS_BY_CHANNEL = { home: 200, meeting: 300, api: 200 } as const;
+// `ticket` (ADR-052): technical answers with repo context need more room
+const MAX_TOKENS_BY_CHANNEL = { home: 200, meeting: 300, api: 200, ticket: 400 } as const;
 
 export interface LlmHistoryTurn {
   role: "user" | "assistant";

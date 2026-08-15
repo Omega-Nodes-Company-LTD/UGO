@@ -37,6 +37,13 @@ export interface ExportBundle {
   corrections: unknown[];
   /** metadata only — see the query for why the centroids stay behind */
   recognitionProfiles: unknown[];
+  /** the reception (ADR-052): the house's customers, decrypted like the rest */
+  customers: unknown[];
+  customerGosini: unknown[];
+  /** metadata only — the hash grants nothing, so not even that leaves */
+  customerTokens: unknown[];
+  tickets: unknown[];
+  customerMessages: unknown[];
 }
 
 const UNREADABLE = "[non decifrabile con la chiave corrente]";
@@ -47,15 +54,22 @@ export class ExportService {
     private readonly dataKey: Buffer,
   ) {}
 
-  private decryptColumn(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  private decryptColumn(
+    rows: Record<string, unknown>[],
+    columns: readonly string[] = ["text"],
+  ): Record<string, unknown>[] {
     return rows.map((row) => {
-      const value = row.text;
-      if (typeof value !== "string") return row;
-      try {
-        return { ...row, text: decryptText(value, this.dataKey) };
-      } catch {
-        return { ...row, text: UNREADABLE };
+      const out = { ...row };
+      for (const column of columns) {
+        const value = out[column];
+        if (typeof value !== "string" || value === "") continue;
+        try {
+          out[column] = decryptText(value, this.dataKey);
+        } catch {
+          out[column] = UNREADABLE;
+        }
       }
+      return out;
     });
   }
 
@@ -83,6 +97,11 @@ export class ExportService {
       relations,
       corrections,
       recognitionProfiles,
+      customers,
+      customerGosini,
+      customerTokens,
+      tickets,
+      customerMessages,
     ] =
       await Promise.all([
         rows(sql`select id, display_name, aliases, notes, created_at from beings
@@ -124,6 +143,21 @@ export class ExportService {
                  from recognition_profiles
                  where being_id in (select id from beings where household_id = ${householdId})
                  order by being_id`),
+        rows(sql`select id, name, slug, notes, daily_budget_usd, hourly_message_limit,
+                        knowledge_epoch, created_at, archived_at
+                 from customers where household_id = ${householdId} order by created_at`),
+        rows(sql`select customer_id, gosino_id, created_at from customer_gosini
+                 where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, label, created_at, last_used_at, expires_at, revoked_at
+                 from customer_access_tokens
+                 where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, gosino_id, status, title, body,
+                        created_at, updated_at, closed_at
+                 from tickets where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, gosino_id, ticket_id, ts, role, text,
+                        tokens_in, tokens_out, cost_usd, cached
+                 from customer_messages
+                 where household_id = ${householdId} order by ts`),
       ]);
 
     return {
@@ -142,6 +176,11 @@ export class ExportService {
       relations,
       corrections,
       recognitionProfiles,
+      customers: this.decryptColumn(customers, ["notes"]),
+      customerGosini,
+      customerTokens,
+      tickets: this.decryptColumn(tickets, ["title", "body"]),
+      customerMessages: this.decryptColumn(customerMessages),
     };
   }
 }

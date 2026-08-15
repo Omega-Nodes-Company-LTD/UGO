@@ -1,5 +1,8 @@
 import {
   beings,
+  customerAccessTokens,
+  customerMessages,
+  customers,
   diaryEntries,
   events,
   gosini,
@@ -7,6 +10,7 @@ import {
   memories,
   messages,
   recognitionProfiles,
+  tickets,
   transcriptSegments,
   type DbClient,
 } from "@ugo/db";
@@ -36,6 +40,7 @@ import { REDACTION, buildRedactor, redactJson } from "./redaction.js";
  */
 
 export class BeingNotFoundError extends Error {}
+export class CustomerNotFoundError extends Error {}
 export interface ForgetDeps {
   db: DbClient;
   dataKey: Buffer;
@@ -53,6 +58,17 @@ export interface ForgetReport {
   diaryRedacted: number;
   eventsRedacted: number;
   biometricProfilesDestroyed: number;
+  /** names travel: the reception's texts are scanned like the family's (ADR-052) */
+  customerMessagesRedacted: number;
+  ticketsRedacted: number;
+}
+
+/** `forgetCustomer`: counts of what the cascade takes away (ADR-052). */
+export interface ForgetCustomerReport {
+  customerId: string;
+  ticketsDeleted: number;
+  messagesDeleted: number;
+  tokensDeleted: number;
 }
 
 export class ForgetService {
@@ -91,12 +107,15 @@ export class ForgetService {
       diaryRedacted: 0,
       eventsRedacted: 0,
       biometricProfilesDestroyed: 0,
+      customerMessagesRedacted: 0,
+      ticketsRedacted: 0,
     };
 
     await this.redactMessages(redact, report, beingId, householdId);
     await this.redactSegments(redact, report, householdId);
     await this.redactMemories(redact, report, householdId);
     await this.redactDiaryAndEvents(redact, report, householdId);
+    await this.redactReception(redact, report, householdId);
 
     // The biometric profiles are the point of no return: a voiceprint is the
     // one datum that stays usable forever. They cascade with the being, but we
@@ -130,6 +149,91 @@ export class ForgetService {
       },
     });
     return report;
+  }
+
+  /**
+   * A customer erased entirely (ADR-052): the row cascades over gosini links,
+   * tokens, tickets and messages. A customer of another house answers 404 — a
+   * caller must not learn which ids exist elsewhere (BOLA).
+   */
+  public async forgetCustomer(
+    customerId: string,
+    householdId: string,
+  ): Promise<ForgetCustomerReport> {
+    const { db } = this.deps;
+    const [customer] = await db
+      .select({ id: customers.id })
+      .from(customers)
+      .where(and(eq(customers.id, customerId), eq(customers.householdId, householdId)));
+    if (customer === undefined) throw new CustomerNotFoundError(customerId);
+
+    // counted before the cascade, so the report can prove what left with it
+    const [ticketRows, messageRows, tokenRows] = await Promise.all([
+      db.select({ id: tickets.id }).from(tickets).where(eq(tickets.customerId, customerId)),
+      db
+        .select({ id: customerMessages.id })
+        .from(customerMessages)
+        .where(eq(customerMessages.customerId, customerId)),
+      db
+        .select({ id: customerAccessTokens.id })
+        .from(customerAccessTokens)
+        .where(eq(customerAccessTokens.customerId, customerId)),
+    ]);
+    await db.delete(customers).where(eq(customers.id, customerId));
+    return {
+      customerId,
+      ticketsDeleted: ticketRows.length,
+      messagesDeleted: messageRows.length,
+      tokensDeleted: tokenRows.length,
+    };
+  }
+
+  /** The reception's ciphertext is a biography too: scan it like the family's. */
+  private async redactReception(
+    redact: (value: string) => string,
+    report: ForgetReport,
+    householdId: string,
+  ): Promise<void> {
+    const { db, dataKey } = this.deps;
+    const messageRows = await db
+      .select({ id: customerMessages.id, text: customerMessages.text })
+      .from(customerMessages)
+      .where(eq(customerMessages.householdId, householdId));
+    for (const row of messageRows) {
+      let plain: string;
+      try {
+        plain = decryptText(row.text, dataKey);
+      } catch {
+        continue; // unreadable row (rotated key): nothing we can redact
+      }
+      const redacted = redact(plain);
+      if (redacted !== plain) {
+        await db
+          .update(customerMessages)
+          .set({ text: encryptText(redacted, dataKey) })
+          .where(eq(customerMessages.id, row.id));
+        report.customerMessagesRedacted += 1;
+      }
+    }
+    const ticketRows = await db
+      .select({ id: tickets.id, title: tickets.title, body: tickets.body })
+      .from(tickets)
+      .where(eq(tickets.householdId, householdId));
+    for (const row of ticketRows) {
+      const update: { title?: string; body?: string } = {};
+      try {
+        const title = decryptText(row.title, dataKey);
+        if (redact(title) !== title) update.title = encryptText(redact(title), dataKey);
+        const body = decryptText(row.body, dataKey);
+        if (redact(body) !== body) update.body = encryptText(redact(body), dataKey);
+      } catch {
+        continue;
+      }
+      if (Object.keys(update).length > 0) {
+        await db.update(tickets).set(update).where(eq(tickets.id, row.id));
+        report.ticketsRedacted += 1;
+      }
+    }
   }
 
   private async redactMessages(

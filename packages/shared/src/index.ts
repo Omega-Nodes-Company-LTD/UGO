@@ -87,6 +87,8 @@ export {
   MODALITIES,
   RECOGNITION_MODALITIES,
   CORRECTION_SIGNALS,
+  TICKET_STATUSES,
+  type TicketStatus,
   type EventSource,
   type MessageChannel,
   type MemoryKind,
