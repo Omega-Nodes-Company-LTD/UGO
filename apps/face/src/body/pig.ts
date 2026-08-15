@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { Pose } from "./channels.js";
+import { box } from "./solid.js";
 
 /**
  * The body: rounded cubes generated at runtime. No binary asset, no texture,
@@ -32,12 +32,6 @@ export const DEFAULT_TRAITS: Traits = {
 };
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
-
-function box(w: number, h: number, d: number, r: number, material: THREE.Material): THREE.Mesh {
-  // the radius cannot exceed half the smallest side, or the geometry degenerates
-  const safe = Math.min(r, Math.min(w, h, d) / 2 - 0.001);
-  return new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, safe), material);
-}
 
 interface Leg {
   mesh: THREE.Mesh;

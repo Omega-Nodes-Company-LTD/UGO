@@ -48,6 +48,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <small>La casa</small>
       <a href="#/casa" data-nav="casa">Sommario</a>
       <a href="#/stanze" data-nav="stanze">Le stanze</a>
+      <a href="#/arredi" data-nav="arredi">Gli arredi</a>
       <a href="#/branco" data-nav="branco">Il branco</a>
       <a href="#/consiglio" data-nav="consiglio">Il consiglio</a>
       <a href="#/riunioni" data-nav="riunioni">Riunioni e legami</a>

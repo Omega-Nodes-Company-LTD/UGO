@@ -121,3 +121,14 @@ export {
   type RecognitionModality,
   type CorrectionSignal,
 } from "./constants.js";
+export {
+  MAX_PROPS_PER_ROOM,
+  PROP_IT,
+  PROP_KINDS,
+  PROP_NATURE,
+  placedPropSchema,
+  type PlacedProp,
+  type PropKind,
+  type PropNature,
+  type SceneProp,
+} from "./props.js";

@@ -11,6 +11,10 @@
     "./face": {
       "types": "./dist/faceContracts.d.ts",
       "default": "./dist/faceContracts.js"
+    },
+    "./props": {
+      "types": "./dist/props.d.ts",
+      "default": "./dist/props.js"
     }
   },
   "scripts": {

@@ -73,6 +73,49 @@ export const HOUSE_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="arredi">
+  <div class="page-head">
+    <p class="eyebrow">La casa</p>
+    <h1>Gli arredi</h1>
+    <p>Una stanza vuota è un posto in cui non c'è niente da fare. Mettici un cuscino, un
+       ciuffo d'erba, un truogolo: quando si <b>annoia</b> ci va da solo, e ci fa quello che
+       l'oggetto suggerisce. Non glielo ordini tu — decide lui, e non costa un centesimo.</p>
+  </div>
+
+  <div class="block">
+    <h2>Dove metterli</h2>
+    <p class="lede">Scegli la stanza, poi <b>trascina</b> gli oggetti sulla piantina.
+       Il maiale sta al centro. Quel che sposti qui si sposta sul chiosco
+       <b>subito</b>, senza ricaricare niente.</p>
+    <div class="row">
+      <div><label for="prop-room">Quale stanza</label>
+        <select id="prop-room" data-testid="prop-room"></select></div>
+      <div><label for="prop-kind">Cosa aggiungere</label>
+        <select id="prop-kind" data-testid="prop-kind"></select></div>
+      <button id="prop-add" data-testid="prop-add">Mettilo dentro</button>
+    </div>
+    <div id="prop-map" class="prop-map" data-testid="prop-map">
+      <div class="prop-pig" aria-hidden="true">🐷</div>
+    </div>
+    <p class="lede">Clicca un oggetto e premi <b>Togli</b> per riprendertelo: la scorta
+       torna indietro.</p>
+    <div class="row">
+      <button id="prop-del" class="ghost" data-testid="prop-del" disabled>Togli</button>
+      <button id="prop-turn" class="ghost" data-testid="prop-turn" disabled>Giralo</button>
+    </div>
+    <div id="prop-msg"></div>
+  </div>
+
+  <div class="block">
+    <h2>Le scorte</h2>
+    <p class="lede">In casa tua non c'è limite: metti quello che vuoi. Il limite serve per
+       chi non è di casa — tante cose a settimana, così un premio resta un premio.
+       Lascia <b>vuoto</b> per «nessun limite».</p>
+    <div id="prop-stock" data-testid="prop-stock"></div>
+    <div id="stock-msg"></div>
+  </div>
+</section>
+
 <section class="page" data-page="branco">
   <div class="page-head">
     <p class="eyebrow">La casa</p>

@@ -1,5 +1,6 @@
 import type * as THREE from "three";
 import type { FaceState } from "@ugo/shared/face";
+import { PROP_NATURE, type PropKind } from "@ugo/shared/props";
 import { attentionOf } from "./attention.js";
 import { Autonomy } from "./autonomy.js";
 import { POSTURE_IT, type Posture } from "./channels.js";
@@ -21,6 +22,14 @@ import { ACTIVITY_IT, Wanderer } from "./wander.js";
  * first one's blink and posture: two bodies moving as one, which is precisely
  * the failure ADR-032 spent a day removing from the soul.
  */
+
+/** Un arredo dove sta, in coordinate di **stanza**. */
+export interface RoomProp {
+  id: string;
+  kind: PropKind;
+  x: number;
+  z: number;
+}
 
 const GLANCE_EVERY_MS = 4200;
 const GLANCE_SPREAD_MS = 3500;
@@ -71,6 +80,16 @@ export class Inhabitant {
   /** where in the room he walks: his own slice of it, so nobody overlaps */
   private lane = 0;
   private here = { x: 0, z: 0 };
+  /** gli arredi della stanza, in coordinate di stanza */
+  private props: readonly RoomProp[] = [];
+  /**
+   * Chi sapere che è andato sul cuscino.
+   *
+   * Va all'anima perché la psiche è là, e la decisione è **qui**: il corpo
+   * sceglie da solo di avvicinarsi (ADR-026 §6, zero token), quindi è l'unico
+   * che possa dire che è successo.
+   */
+  private onUsedProp: ((kind: PropKind) => void) | undefined;
 
   public constructor(
     public readonly id: string,
@@ -114,6 +133,31 @@ export class Inhabitant {
   public setLane(centre: number, radiusX: number, radiusZ: number): void {
     this.lane = centre;
     this.wanderer.setPen(radiusX, radiusZ);
+    this.retarget();
+  }
+
+  /**
+   * Gli arredi della stanza (ADR-051), in coordinate di stanza.
+   *
+   * La conversione sta qui e non nel `Wanderer` perché è qui che si sa qual è
+   * la corsia: il vagabondo lavora attorno al proprio centro, e un cuscino
+   * passato in coordinate di stanza a una creatura sulla destra le sembrerebbe
+   * spostato di tutta la larghezza della sua corsia.
+   */
+  public setProps(props: readonly RoomProp[]): void {
+    this.props = props;
+    this.retarget();
+  }
+
+  private retarget(): void {
+    this.wanderer.setAttractions(
+      this.props.map((prop) => ({
+        id: prop.id,
+        kind: prop.kind,
+        x: prop.x - this.lane,
+        z: prop.z,
+      })),
+    );
   }
 
   public setState(state: FaceState): void {
@@ -148,6 +192,11 @@ export class Inhabitant {
 
   public forcePosture(posture: Posture | undefined): void {
     this.forced = posture;
+  }
+
+  /** ADR-051: chiamare quando è andato da solo a usare qualcosa. */
+  public reportUsedProp(listener: (kind: PropKind) => void): void {
+    this.onUsedProp = listener;
   }
 
   public reflex(kind: string): void {
@@ -209,12 +258,20 @@ export class Inhabitant {
       weights.standing,
       this.wandering,
     );
-    this.postures.set(
+    // ADR-051: l'arredo presso cui si trova tira su due leve che esistono già —
+    // la posa e il peso dei gesti — invece di aggiungere un motore suo. Un
+    // cuscino gli fa venire voglia di coricarsi, l'erba di grufolare, e sono le
+    // stesse due leve che noia ed energia muovono da sempre.
+    const nature = loco.beside === undefined ? undefined : PROP_NATURE[loco.beside.kind];
+    const pose =
       this.forced ??
-        choosePosture(this.state, this.vars, this.wanderer.wantsToMove, this.postures.current),
-      now,
-    );
-    this.autonomy.tick(now, this.state, this.vars, this.postures.current);
+      choosePosture(this.state, this.vars, this.wanderer.wantsToMove, this.postures.current, {
+        ...(nature?.posture !== undefined && { beside: nature.posture }),
+      });
+    this.postures.set(pose, now);
+    this.autonomy.tick(now, this.state, this.vars, this.postures.current, nature?.tag);
+
+    if (loco.reached !== undefined) this.onUsedProp?.(loco.reached.kind);
 
     this.activity = ACTIVITY_IT[loco.activity];
     this.posture = POSTURE_IT[this.postures.current];

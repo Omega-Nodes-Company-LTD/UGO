@@ -1,4 +1,5 @@
 import type { FaceState } from "@ugo/shared/face";
+import { PROP_NATURE, type PropKind } from "@ugo/shared/props";
 import type { Locomotion } from "./pose.js";
 
 /**
@@ -24,6 +25,24 @@ export interface WanderOutput extends Locomotion {
   z: number;
   heading: number;
   activity: Activity;
+  /**
+   * L'arredo a cui è appena arrivato, **solo nel fotogramma dell'arrivo**
+   * (ADR-051). Un campo «dove sta adesso» sarebbe vero per migliaia di
+   * fotogrammi di fila, e chi lo legge dovrebbe inventarsi il fronte di salita:
+   * quel calcolo sta qui una volta invece che in ogni chiamante.
+   */
+  reached?: { id: string; kind: PropKind };
+  /** L'arredo presso cui si trova, per la posa e per i gesti. */
+  beside?: { id: string; kind: PropKind };
+}
+
+/** Un arredo come lo vede il corpo: dove sta, e se ci si può passare sopra. */
+export interface Attraction {
+  id: string;
+  kind: PropKind;
+  /** in unità di scena, **relative alla corsia** di questa creatura */
+  x: number;
+  z: number;
 }
 
 /**
@@ -76,6 +95,24 @@ export const FACE_YOU_CONE = 0.9;
  */
 const RESTLESS_WHILE_FACING = 0.45;
 
+/**
+ * Sopra questa noia, un arredo diventa più interessante di una direzione a
+ * caso (ADR-051).
+ *
+ * Una soglia e non una probabilità: sotto, gli arredi non esistono e la stanza
+ * si comporta come si è sempre comportata. Sopra, sono l'unica cosa che
+ * attira. In mezzo non c'è niente da tarare, ed è il punto — una stanza che
+ * diventa un metronomo, con la creatura che rimbalza fra cuscino e truogolo, è
+ * il modo in cui questa cosa smette di sembrare viva.
+ */
+const BORED_ENOUGH = 0.6;
+
+/** Quanto largo è il maiale, per i fini delle collisioni. */
+const BODY_HALF = 0.85;
+
+/** Quanto si aspetta prima di lasciarsi attirare di nuovo dallo stesso arredo. */
+const PROP_COOLDOWN_MS = 45_000;
+
 const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
 export class Wanderer {
@@ -97,6 +134,14 @@ export class Wanderer {
   private radiusZ = DEFAULT_RADIUS_Z;
   /** true finché sta rientrando dal bordo: il recinto batte il cono */
   private returning = false;
+  private attractions: readonly Attraction[] = [];
+  /** verso quale arredo sta andando, se ci sta andando */
+  private heading_to: Attraction | undefined;
+  /** quando ognuno tornerà interessante: senza, ci si incolla sopra */
+  private readonly usedAt = new Map<string, number>();
+  private reached: { id: string; kind: PropKind } | undefined;
+  /** l'ultima noia vista: `somethingToDo` la legge senza che gliela si passi */
+  private noiaNow = 0;
   /** quanto può allontanarsi dal guardarti, o `undefined` se è libero */
   private cone: number | undefined;
 
@@ -112,6 +157,22 @@ export class Wanderer {
   public setPen(radiusX: number, radiusZ: number): void {
     this.radiusX = radiusX;
     this.radiusZ = radiusZ;
+  }
+
+  /**
+   * Cosa c'è nella stanza (ADR-051): dei richiami, e degli ostacoli.
+   *
+   * L'oggetto verso cui stava andando si ritrova per id e non per riferimento:
+   * il pannello sostituisce la lista intera a ogni modifica, quindi il vecchio
+   * riferimento resterebbe valido puntando a un arredo che non c'è più — e lui
+   * continuerebbe a camminare verso un punto vuoto.
+   */
+  public setAttractions(attractions: readonly Attraction[]): void {
+    this.attractions = attractions;
+    if (this.heading_to !== undefined) {
+      this.heading_to = attractions.find((a) => a.id === this.heading_to?.id);
+      if (this.heading_to === undefined && this.activity === "walking") this.activity = "still";
+    }
   }
 
   /** True while something is actually moving — portable mode respects it. */
@@ -159,7 +220,23 @@ export class Wanderer {
     // il caso vero — vagabonda in `idle`, arriva a π, e *poi* comincia a parlare
     this.target = this.inCone(this.target);
 
+    this.reached = undefined;
     if (now > this.until) this.pickNext(now, noia, energia);
+
+    // mentre ci va, lo insegue: un bersaglio fissato una volta sola manderebbe
+    // fuori strada chiunque venga deviato da un ostacolo lungo la via
+    if (this.heading_to !== undefined) {
+      this.target = Math.atan2(this.heading_to.x - this.x, this.heading_to.z - this.z);
+      if (this.arrivedAt(this.heading_to)) {
+        this.reached = { id: this.heading_to.id, kind: this.heading_to.kind };
+        this.usedAt.set(this.heading_to.id, now);
+        // grufola o si accuccia lì: che cosa faccia esattamente lo decidono i
+        // gesti e la posa, che leggono `beside`
+        this.activity = "rooting";
+        this.until = now + 2600 + this.rng() * 3200;
+        this.heading_to = undefined;
+      }
+    }
 
     const delta = wrapAngle(this.target - this.heading);
     this.heading = wrapAngle(
@@ -178,6 +255,11 @@ export class Wanderer {
     this.z += Math.cos(this.heading) * speed * dt;
     this.phase += speed * 7 * dt;
 
+    // gli oggetti solidi lo respingono, e se ci va a sbattere gira di lato
+    if (this.pushOutOfSolids() && this.activity === "walking" && this.heading_to === undefined) {
+      this.target = this.inCone(wrapAngle(this.heading + (this.rng() < 0.5 ? -1 : 1) * 1.1));
+    }
+
     if ((this.x / this.radiusX) ** 2 + (this.z / this.radiusZ) ** 2 > 1) {
       // il recinto vince sul cono, e va detto: la via di casa può essere alle
       // sue spalle, e un cono applicato anche qui lo lascerebbe arenato contro
@@ -191,6 +273,48 @@ export class Wanderer {
     return this.output();
   }
 
+  /**
+   * Le collisioni, che sono tre righe di geometria e una decisione.
+   *
+   * La decisione è che un arredo **solido non si attraversa**: un cespuglio in
+   * mezzo alla stanza che il maiale trapassa non è un cespuglio, è un disegno.
+   * Non è però un aggiramento intelligente — non c'è un pianificatore di
+   * percorso e non deve esserci: viene respinto e rimbalza di lato, che è
+   * quello che fa un animale che sbatte contro qualcosa senza guardare.
+   *
+   * Chi ci sta *andando* apposta non viene respinto via dal proprio bersaglio,
+   * o non ci arriverebbe mai: il fermo lo dà comunque il raggio dell'oggetto.
+   */
+  private pushOutOfSolids(): boolean {
+    let bumped = false;
+    for (const prop of this.attractions) {
+      const nature = PROP_NATURE[prop.kind];
+      if (!nature.solid) continue;
+      const dx = this.x - prop.x;
+      const dz = this.z - prop.z;
+      const distance = Math.hypot(dx, dz);
+      const keep = nature.radius + BODY_HALF;
+      if (distance >= keep) continue;
+      // esattamente sopra: lo si sposta in una direzione qualunque ma stabile,
+      // o una divisione per zero lo manderebbe a NaN e il corpo sparirebbe
+      if (distance < 1e-4) {
+        this.x = prop.x + keep;
+        bumped = true;
+        continue;
+      }
+      this.x = prop.x + (dx / distance) * keep;
+      this.z = prop.z + (dz / distance) * keep;
+      bumped = true;
+    }
+    return bumped;
+  }
+
+  /** Ci è arrivato: dentro il raggio dell'oggetto più mezzo corpo. */
+  private arrivedAt(prop: Attraction): boolean {
+    const reach = PROP_NATURE[prop.kind].radius + BODY_HALF + 0.15;
+    return Math.hypot(this.x - prop.x, this.z - prop.z) <= reach;
+  }
+
   /** Il bersaglio, riportato dentro il cono quando ce n'è uno. */
   private inCone(target: number): number {
     if (this.cone === undefined) return target;
@@ -198,7 +322,32 @@ export class Wanderer {
     return Math.max(-this.cone, Math.min(this.cone, wrapped));
   }
 
+  /**
+   * Che cosa gli va di fare, se gli va di fare qualcosa.
+   *
+   * `undefined` sotto la soglia di noia, o quando ha appena usato tutto ciò che
+   * c'è: il raffreddamento per **oggetto** è ciò che gli impedisce di
+   * incollarsi al cuscino, e la soglia è ciò che impedisce alla stanza di
+   * diventare un metronomo. Sceglie il più vicino fra quelli disponibili, non a
+   * caso: un maiale annoiato non attraversa la stanza per il secondo cuscino.
+   */
+  private somethingToDo(now: number): Attraction | undefined {
+    if (this.noiaNow < BORED_ENOUGH || this.attractions.length === 0) return undefined;
+    let best: Attraction | undefined;
+    let bestDistance = Infinity;
+    for (const prop of this.attractions) {
+      const used = this.usedAt.get(prop.id);
+      if (used !== undefined && now - used < PROP_COOLDOWN_MS) continue;
+      const distance = Math.hypot(prop.x - this.x, prop.z - this.z);
+      if (distance >= bestDistance) continue;
+      best = prop;
+      bestDistance = distance;
+    }
+    return best;
+  }
+
   private pickNext(now: number, noia: number, energia: number): void {
+    this.noiaNow = noia;
     const facing = this.cone !== undefined;
     const restless =
       Math.min(noia * 0.7 + energia * 0.5, 1) * (facing ? RESTLESS_WHILE_FACING : 1);
@@ -211,6 +360,17 @@ export class Wanderer {
     }
     if (roll < restless * 0.75) {
       this.activity = "walking";
+      // ADR-051: annoiato, un arredo batte una direzione a caso. Solo qui, e
+      // solo alla decisione: rivalutarlo a ogni fotogramma lo farebbe oscillare
+      // fra due oggetti equidistanti senza arrivare a nessuno dei due.
+      const wanted = this.cone === undefined ? this.somethingToDo(now) : undefined;
+      if (wanted !== undefined) {
+        this.heading_to = wanted;
+        this.target = Math.atan2(wanted.x - this.x, wanted.z - this.z);
+        this.until = now + 6000;
+        return;
+      }
+      this.heading_to = undefined;
       this.target = this.inCone(wrapAngle(this.heading + (this.rng() - 0.5) * 2.4));
       this.until = now + 1200 + this.rng() * 2600;
       return;
@@ -221,6 +381,7 @@ export class Wanderer {
 
   private output(): WanderOutput {
     this.grounded = true;
+    const beside = this.besideWhat();
     return {
       x: this.x,
       z: this.z,
@@ -229,7 +390,17 @@ export class Wanderer {
       phase: this.phase,
       root: this.rootAmount,
       activity: this.activity,
+      ...(this.reached !== undefined && { reached: this.reached }),
+      ...(beside !== undefined && { beside }),
     };
+  }
+
+  /** Presso quale arredo si trova, se ce n'è uno a portata di muso. */
+  private besideWhat(): { id: string; kind: PropKind } | undefined {
+    for (const prop of this.attractions) {
+      if (this.arrivedAt(prop)) return { id: prop.id, kind: prop.kind };
+    }
+    return undefined;
   }
 
   /** True once `step` has run at least once — used by the e2e hooks. */

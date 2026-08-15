@@ -26,6 +26,7 @@ export { beings } from "./beings.js";
 export { gosini, traitSets } from "./gosini.js";
 export { households, PRIME_HOUSEHOLD_ID } from "./households.js";
 export { rooms, slugOfRoom } from "./rooms.js";
+export { placedProps, propStock, PROP_KINDS_IN_DB } from "./props.js";
 export { accessTokens } from "./access-tokens.js";
 export {
   auditLog,

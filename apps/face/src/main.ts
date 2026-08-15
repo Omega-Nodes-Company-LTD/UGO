@@ -290,6 +290,12 @@ function onServerMessage(message: ServerToFaceMessage): void {
       // the player, so an older face and a newer soul stay compatible.
       renderer.reflex(message.id, message.who);
       return;
+    case "scene":
+      // ADR-051: cosa c'è nella stanza. Arriva dopo il roster all'apertura, e
+      // di nuovo ogni volta che il proprietario sposta qualcosa dal pannello —
+      // senza la seconda cosa dovrebbe ricaricare il chiosco a ogni cuscino.
+      renderer.setProps?.(message.props);
+      return;
   }
 }
 
@@ -335,6 +341,13 @@ const sensors = new Sensors(
 canvas.addEventListener("pointerdown", () => {
   socket.send({ type: "tap" });
   renderer.reflex("tap");
+});
+
+// ADR-051: è andato da solo sul cuscino, e lo dice. La decisione è del corpo e
+// costa zero token (ADR-026 §6); l'anima è l'unica che possa scriverlo nella
+// psiche, quindi è l'unica cosa che deve attraversare il socket.
+renderer.onUsedProp?.((who, kind) => {
+  socket.send({ type: "used_prop", kind, ...(who !== "" && { who }) });
 });
 
 /**

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROP_KINDS } from "./props.js";
 
 /** WS `/v1/face` contract (PROGETTO §5.7). Zod on both directions. */
 
@@ -56,6 +57,28 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("noise"), db: z.number().min(0) }),
   z.object({ type: z.literal("tap") }),
   z.object({ type: z.literal("shake") }),
+  /**
+   * ADR-051: è andato a usare un arredo, e ce n'è andato **da solo**.
+   *
+   * Lo manda il corpo perché è il corpo a deciderlo: la scelta di avvicinarsi
+   * al cuscino è locale e costa zero token (ADR-026 §6), e l'anima non ha modo
+   * di saperlo se non glielo si dice. `kind` e non l'id del piazzamento: alla
+   * psiche interessa *che cosa* ha fatto, e un id di riga nel prompt sarebbe
+   * un numero senza significato.
+   */
+  z.object({
+    type: z.literal("used_prop"),
+    kind: z.string().min(1).max(24),
+    /**
+     * **Quale** creatura ci è andata. È l'unico frame che sale portando un
+     * `who`, e non è simmetria per bellezza: i sensi appartengono alla stanza
+     * e una frase la dice chi risponde, ma andare sul cuscino lo fa **uno**, e
+     * in una stanza di due, senza questo campo, il sollievo dalla noia finirebbe
+     * a caso su uno dei due. Assente in una casa a esemplare solo, dove `who`
+     * non ha mai significato niente (`tagFor`).
+     */
+    who: z.string().max(64).optional(),
+  }),
   // ADR-030: which body he is in right now. Until this existed UGO could ask
   // to go out and never find out that he had been taken.
   z.object({ type: z.literal("mode"), mode: z.enum(["home", "portable"]) }),
@@ -90,6 +113,31 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("whoami"), name: z.string().min(1).max(40), who: z.string().optional() }),
   // ADR-036: who lives in the room this socket is attached to. The body draws
   // one creature per entry, so this arrives before anything else.
+  /**
+   * ADR-051: cosa c'è nella stanza, oltre a chi ci vive.
+   *
+   * Arriva all'apertura del socket **e a scena aperta** ogni volta che il
+   * proprietario sposta qualcosa: senza la spinta dovrebbe ricaricare il
+   * chiosco dopo ogni modifica, e un pannello che sembra non fare niente
+   * finché non ricarichi è un pannello che si legge come rotto.
+   *
+   * Sostituisce sempre tutto l'arredamento invece di mandare differenze: la
+   * lista è di al massimo otto oggetti, e uno stato completo non può andare
+   * fuori sincrono — che è l'unico modo in cui questo potrebbe fallire in
+   * silenzio.
+   */
+  z.object({
+    type: z.literal("scene"),
+    props: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(PROP_KINDS),
+        x: z.number().min(-1).max(1),
+        z: z.number().min(-1).max(1),
+        rot: z.number(),
+      }),
+    ),
+  }),
   z.object({
     type: z.literal("roster"),
     room: z.string().optional(),

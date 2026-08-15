@@ -8,6 +8,7 @@ import { DATA_JS } from "./script/data.js";
 import { EXEMPLARS_JS } from "./script/exemplars.js";
 import { GRAPH_JS } from "./script/graph.js";
 import { PACK_JS } from "./script/pack.js";
+import { PROPS_JS } from "./script/props.js";
 import { SPARKS_JS } from "./script/sparks.js";
 import { RELATIONS_JS } from "./script/relations.js";
 import { ROOMS_JS } from "./script/rooms.js";
@@ -28,6 +29,7 @@ export const ADMIN_SCRIPT = [
   ROUTER_JS,
   ROOMS_JS,
   CUSTOMERS_JS,
+  PROPS_JS,
   CHARTS_JS,
   SPARKS_JS,
   PACK_JS,

@@ -268,6 +268,16 @@ export class FaceGateway {
         this.pushMood(send);
         return;
       }
+      case "used_prop": {
+        // ADR-051: il corpo ha deciso da solo di andare sul cuscino, e lo
+        // dichiara. È l'unico evento che la creatura si procura da sé, quindi
+        // è anche l'unico che potrebbe farsi da solo la propria psiche: il
+        // `ceiling` su `used_prop` è ciò che chiude quell'anello.
+        await this.recordEvent("used_prop", { kind: message.kind });
+        await this.deps.psyche.applyEventType("used_prop", at);
+        this.pushMood(send);
+        return;
+      }
     }
   }
 }

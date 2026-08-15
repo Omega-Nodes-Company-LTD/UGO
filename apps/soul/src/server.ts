@@ -22,6 +22,7 @@ import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerCustomersRoutes } from "./routes/customers.js";
 import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
+import { registerPropRoutes } from "./routes/props.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
 import { AnswerCache } from "./services/reception/answerCache.js";
 import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
@@ -29,6 +30,8 @@ import type { CustomerQuota } from "./services/reception/customerQuota.js";
 import type { GithubLiveService } from "./services/reception/githubLiveService.js";
 import type { EmbeddingsClient, LlmClient } from "@ugo/memory";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
+import { PropService } from "./services/propService.js";
+import { SceneHub } from "./services/sceneHub.js";
 import { registerVolitionRoutes } from "./routes/volition.js";
 import type { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import type { FaceGateway } from "./services/faceGateway.js";
@@ -145,6 +148,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     });
     // ADR-049: uno solo, per la stessa ragione per cui `llmClient` e' uno solo
     const audit = createAuditLog(options.db, app.log);
+    // ADR-051: chi guarda quale stanza, adesso. Uno per processo, come l'audit
+    const scenes = new SceneHub();
+    const props = new PropService(options.db);
     const guard = createAuthGuard(audit);
     registerV1Routes(app, {
       db: options.db,
@@ -188,6 +194,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       ...(registry !== undefined && { registry }),
     });
     registerMemoryGraphRoutes(app, { db: options.db, guard });
+    // ADR-051: gli arredi. L'hub e' condiviso fra le rotte che li spostano e i
+    // socket che li mostrano — e' l'unica cosa che i due hanno in comune, ed e'
+    // il motivo per cui il pannello si vede sul chiosco senza ricaricare.
+    registerPropRoutes(app, { db: options.db, guard, hub: scenes });
     if (speciesMap !== undefined) {
       registerPackRoutes(app, {
         db: options.db,
@@ -256,7 +266,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (face !== undefined) {
       app.register(async (instance) => {
-        await registerFaceWs(instance, face, options.db, registry);
+        await registerFaceWs(instance, face, options.db, registry, {
+          hub: scenes,
+          props: (householdId, room) => props.inRoom(householdId, room),
+        });
       });
     }
   }

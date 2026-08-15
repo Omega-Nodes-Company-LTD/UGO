@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import type { FaceState } from "@ugo/shared/face";
+import type { PropKind, SceneProp } from "@ugo/shared/props";
 import { VIEWER_SPREAD } from "./attention.js";
 import type { Posture } from "./channels.js";
+import { Furniture, propAt, type Pen } from "./props3d.js";
 import type { FaceRenderer, Resident } from "./faceRenderer.js";
 import { Inhabitant } from "./inhabitant.js";
 import type { Traits } from "./pig.js";
@@ -52,6 +54,10 @@ export class Webgl3dFace implements FaceRenderer {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly observer: ResizeObserver;
   private readonly room: Room;
+  private readonly furniture = new Furniture();
+  private props: readonly SceneProp[] = [];
+  private pen: Pen = { radiusX: 3.4, radiusZ: 1.7 };
+  private usedProp: ((who: string, kind: PropKind) => void) | undefined;
 
   /** insertion order is the order they stand in, left to right */
   private readonly people = new Map<string, Inhabitant>();
@@ -88,6 +94,9 @@ export class Webgl3dFace implements FaceRenderer {
     // la stanza prima degli abitanti: prende le luci già montate, e senza di
     // lei lo spazio era tridimensionale senza che si potesse vedere
     this.room = new Room(this.scene);
+    // gli arredi stanno nella stanza, non addosso a una creatura: due gosini
+    // nella stessa cucina guardano lo stesso cuscino (ADR-051)
+    this.scene.add(this.furniture.object);
 
     // until the room says who lives in it, there is one nameless creature —
     // the single-exemplar house, and every face built before rooms existed
@@ -122,8 +131,17 @@ export class Webgl3dFace implements FaceRenderer {
         this.wandering,
       );
       this.people.set(resident.id, person);
+      const listener = this.usedProp;
+      if (listener !== undefined) {
+        person.reportUsedProp((kind) => {
+          listener(resident.id, kind);
+        });
+      }
       this.scene.add(person.object);
     }
+    // un arrivato nella stanza deve sapere che c'è un cuscino: senza, il
+    // secondo gosino di una casa camminerebbe attraverso l'arredamento
+    this.spreadProps();
     // resize, not layout: how far the camera stands depends on HOW MANY are in
     // the room, and laying out lanes against the old distance put the third
     // creature outside the frame — visible only as a shadow with no pig on it
@@ -144,6 +162,34 @@ export class Webgl3dFace implements FaceRenderer {
    */
   public setGaze(target: { x: number; y: number } | null): void {
     for (const person of this.people.values()) person.setGaze(target);
+  }
+
+  /** ADR-051: l'arredamento della stanza, sostituito in blocco. */
+  public setProps(props: readonly SceneProp[]): void {
+    this.props = props;
+    this.furniture.set(props);
+    this.spreadProps();
+  }
+
+  /** ADR-051: uno di loro è andato a usare qualcosa, da solo. */
+  public onUsedProp(listener: (who: string, kind: PropKind) => void): void {
+    this.usedProp = listener;
+    for (const [id, person] of this.people) {
+      person.reportUsedProp((kind) => {
+        listener(id, kind);
+      });
+    }
+  }
+
+  /** Dove stanno gli arredi in unità di scena, detto a chi ci cammina in mezzo. */
+  private spreadProps(): void {
+    this.furniture.setPen(this.pen);
+    const placed = this.props.map((prop) => ({
+      id: prop.id,
+      kind: prop.kind,
+      ...propAt(prop, this.pen),
+    }));
+    for (const person of this.people.values()) person.setProps(placed);
   }
 
   public setLowPower(on: boolean): void {
@@ -185,6 +231,7 @@ export class Webgl3dFace implements FaceRenderer {
     // genoma, quindi una geometria non liberata qui diventa cento geometrie
     // e tre trame per slider in pochi secondi
     this.room.dispose();
+    this.furniture.dispose();
     this.renderer.dispose();
   }
 
@@ -251,6 +298,10 @@ export class Webgl3dFace implements FaceRenderer {
       const centre = -half + slice * (index + 0.5);
       person.setLane(centre, Math.max(0.5, slice * 0.4), depth);
     });
+    // il recinto della STANZA, che non è la corsia di nessuno: è quello che
+    // denormalizza le coordinate degli arredi, e cambia con il fotogramma
+    this.pen = { radiusX: half, radiusZ: depth };
+    this.spreadProps();
   }
 
   private resize(): void {

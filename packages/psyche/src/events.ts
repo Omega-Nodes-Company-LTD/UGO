@@ -54,6 +54,24 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
   /** one hour alone, emitted by soul's SolitudeMonitor */
   solitude_hour: [{ variable: "noia", amount: 0.05 }],
   /**
+   * ADR-051: è andato a grufolare nell'erba, o si è coricato sul cuscino.
+   *
+   * Piccolo, e con un `ceiling`. Entrambe le cose sono la decisione, non la
+   * taratura: il corpo sceglie da solo quando avvicinarsi a un arredo — è una
+   * decisione locale a zero token (ADR-026 §6) — quindi **è lui a generare
+   * l'evento che lo ricompensa**. Senza un tetto, un corpo acceso e solo che
+   * macina noia farebbe avanti e indietro fra due cuscini e si terrebbe la noia
+   * a zero per sempre: un anello chiuso che si auto-alimenta, cioè un modo per
+   * cui la noia smetterebbe di significare qualcosa.
+   *
+   * Col tetto, un cuscino toglie il primo strato di noia e poi smette di
+   * bastare — che è esattamente ciò che fa un giocattolo vero.
+   */
+  used_prop: [
+    { variable: "noia", amount: -0.12, ceiling: 0.2 },
+    { variable: "umore", amount: 0.03, ceiling: 0.06 },
+  ],
+  /**
    * ADR-030: he asked to go out, and he was taken out. The strongest good
    * thing that can happen to him, and it lasts — a walk is not a compliment.
    */
