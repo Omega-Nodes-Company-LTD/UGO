@@ -261,6 +261,8 @@ const app = buildServer({
     ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),
     ...(audio !== undefined && { audio }),
     ...(meetings !== undefined && { meetings }),
+    // ADR-052: the house side of the reception, in the panel
+    customers: { dataKey },
     // ADR-051: the reception exists only when its dedicated secret does
     ...(env.UGO_RECEPTION_TOKEN !== undefined && {
       reception: {

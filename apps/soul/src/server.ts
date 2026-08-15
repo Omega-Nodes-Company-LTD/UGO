@@ -20,6 +20,7 @@ import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
+import { registerCustomersRoutes } from "./routes/customers.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
 import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
 import type { CustomerQuota } from "./services/reception/customerQuota.js";
@@ -73,6 +74,8 @@ export interface ServerOptions extends HealthDeps {
       quota: CustomerQuota;
       llmFor: (householdId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
     };
+    /** ADR-052: the house side — customers CRUD, assignment, tokens, triage */
+    customers?: { dataKey: Buffer };
   };
 }
 
@@ -118,6 +121,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       internalToken,
       dreamTriggerUrl,
       reception,
+      customers,
       ...v1
     } = options.features;
     // first, and before every route below it: Fastify binds onRequest hooks to
@@ -197,6 +201,14 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         ...stats,
         guard,
         ...(registry !== undefined && { registry }),
+      });
+    }
+    if (customers !== undefined) {
+      registerCustomersRoutes(app, {
+        db: options.db,
+        guard,
+        dataKey: customers.dataKey,
+        audit,
       });
     }
     if (reception !== undefined) {

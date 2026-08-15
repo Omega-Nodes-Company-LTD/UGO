@@ -3,6 +3,7 @@ import { BIRTH_JS } from "./script/birth.js";
 import { CHARTS_JS } from "./script/charts.js";
 import { CORE_JS } from "./script/core.js";
 import { COUNCIL_JS } from "./script/council.js";
+import { CUSTOMERS_JS } from "./script/customers.js";
 import { DATA_JS } from "./script/data.js";
 import { EXEMPLARS_JS } from "./script/exemplars.js";
 import { GRAPH_JS } from "./script/graph.js";
@@ -26,6 +27,7 @@ export const ADMIN_SCRIPT = [
   CORE_JS,
   ROUTER_JS,
   ROOMS_JS,
+  CUSTOMERS_JS,
   CHARTS_JS,
   SPARKS_JS,
   PACK_JS,
