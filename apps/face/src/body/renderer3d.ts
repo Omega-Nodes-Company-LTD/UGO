@@ -6,6 +6,7 @@ import type { FaceRenderer, Resident } from "./faceRenderer.js";
 import { Inhabitant } from "./inhabitant.js";
 import type { Traits } from "./pig.js";
 import type { PsycheVars } from "./pose.js";
+import { Room } from "./room3d.js";
 
 /**
  * The WebGL room: scene, lights, camera, and the clock.
@@ -50,6 +51,7 @@ export class Webgl3dFace implements FaceRenderer {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
   private readonly observer: ResizeObserver;
+  private readonly room: Room;
 
   /** insertion order is the order they stand in, left to right */
   private readonly people = new Map<string, Inhabitant>();
@@ -82,6 +84,10 @@ export class Webgl3dFace implements FaceRenderer {
     const rim = new THREE.DirectionalLight(0xbfd4ff, 0.9);
     rim.position.set(-4, 2, -3);
     this.scene.add(rim);
+
+    // la stanza prima degli abitanti: prende le luci già montate, e senza di
+    // lei lo spazio era tridimensionale senza che si potesse vedere
+    this.room = new Room(this.scene);
 
     // until the room says who lives in it, there is one nameless creature —
     // the single-exemplar house, and every face built before rooms existed
@@ -142,6 +148,9 @@ export class Webgl3dFace implements FaceRenderer {
 
   public setLowPower(on: boolean): void {
     this.lowPower = on;
+    // §4.2 dice «fondo nero»: la stanza è la superficie più grande da riempire
+    // a ogni fotogramma, quindi è anche la prima da spegnere
+    this.room.setVisible(!on);
   }
 
   public setWandering(on: boolean): void {
@@ -171,6 +180,11 @@ export class Webgl3dFace implements FaceRenderer {
     this.observer.disconnect();
     for (const person of this.people.values()) person.dispose();
     this.people.clear();
+    // la stanza va smontata con loro, e non è teorico: `bench.ts` fa
+    // `stop()` + ricostruzione **a ogni trascinamento** di uno slider del
+    // genoma, quindi una geometria non liberata qui diventa cento geometrie
+    // e tre trame per slider in pochi secondi
+    this.room.dispose();
     this.renderer.dispose();
   }
 
@@ -257,6 +271,9 @@ export class Webgl3dFace implements FaceRenderer {
     const crowd = 1 + 0.3 * Math.max(0, this.people.size - 1);
     this.distance = (DISTANCE_FOR_FULL_FRAME / share) * crowd;
     this.home.set(this.distance * 0.085, this.distance * CAMERA_RISE, this.distance);
+    // la nebbia segue la camera: a distanze fisse sarebbe un velo addosso a lui
+    // sul telefono e niente del tutto sul desktop
+    this.room.fit(this.distance);
     this.layout();
   }
 
