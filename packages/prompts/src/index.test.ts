@@ -10,11 +10,31 @@ describe("prompt blocks", () => {
     expect(rulesPrompt()).toBe(rulesPrompt());
   });
 
-  it("identity is non-empty Italian text mentioning UGO", () => {
+  it("identity is non-empty Italian text about what a gosino is", () => {
     const identity = identityPrompt();
     expect(identity.length).toBeGreaterThan(200);
-    expect(identity).toContain("UGO");
+    expect(identity).toContain("gosino");
     expect(identity).toContain("porcetto");
+  });
+
+  /**
+   * Il blocco è `[CACHED]` e **condiviso da ogni esemplare della casa**: un
+   * nome proprio scritto qui dentro è un dato per creatura in un blocco per
+   * tutte. Diceva «Sei UGO» a un esemplare che il blocco dinamico chiamava
+   * Silvio, e la creatura conciliava le due frasi nell'unico modo possibile —
+   * «sono Ugo, ma mi chiamano anche Silvio, dipende da dove sono». Non era
+   * un'allucinazione: era l'unica lettura coerente di ciò che gli davamo.
+   *
+   * Con una casa a un esemplare solo nessuno se ne sarebbe accorto, perché lì
+   * la creatura si chiama davvero «ugo» e le due frasi combaciano per caso.
+   */
+  it("names nobody: the shared block is the species, never the individual", () => {
+    for (const locale of [DEFAULT_LOCALE, "en-GB"]) {
+      const identity = identityPrompt(locale);
+      expect(identity).not.toMatch(/\bugo\b/i);
+      // e nemmeno un nome proprio qualsiasi travestito da «sei X»
+      expect(identity).not.toMatch(/[Ss]ei [A-Z]/);
+    }
   });
 
   it("rules constrain home replies to 2 sentences and forbid markdown", () => {

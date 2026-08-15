@@ -49,13 +49,29 @@ const CORRECTION_WORDS: Record<string, string> = {
   wrong_name: "hai sbagliato a chiamare qualcuno per nome",
 };
 
+/**
+ * «Chi sono io», e l'unico posto dove un esemplare viene nominato.
+ *
+ * Il nome proprio è un dato **per esemplare** e vive quindi nel blocco
+ * dinamico: `identity.it.md` è `[CACHED]` e condiviso da ogni creatura della
+ * casa, e infilarci dentro un nome faceva dire al secondo esemplare «sono UGO,
+ * ma mi chiamano anche Silvio» — non un'allucinazione, la conciliazione
+ * dell'unica contraddizione che gli avevamo dato in pasto. Il blocco cached
+ * descrive adesso la *specie*; questa riga è l'anagrafe.
+ *
+ * Sta qui e non in linea perché la prende anche chi non ha un branco da
+ * descrivere: senza un nome da qualche parte, dopo la correzione, una chat
+ * senza `PackService` non saprebbe come si chiama.
+ */
+export function selfLine(self: SelfView): string {
+  const genome = self.traitVersion === null ? "" : ` (tratti v${String(self.traitVersion)})`;
+  const where = self.locationLabel === null ? "" : `, e adesso sei in ${self.locationLabel}`;
+  return `Ti chiami ${self.name}${genome}${where}.`;
+}
+
 export function buildPackPrompt(input: PackPromptInput): string {
   const { self, present, relations, speciesRules, corrections } = input;
-  const lines: string[] = [];
-
-  const where = self.locationLabel === null ? "" : ` in ${self.locationLabel}`;
-  const genome = self.traitVersion === null ? "" : ` (tratti v${String(self.traitVersion)})`;
-  lines.push(`Sei ${self.name}${where}${genome}.`);
+  const lines: string[] = [selfLine(self)];
 
   if (present.length === 0) {
     lines.push("Nel branco adesso non risulta presente nessuno.");

@@ -1,4 +1,4 @@
-import { beings, desires, diaryEntries, messages, type DbClient } from "@ugo/db";
+import { beings, desires, diaryEntries, gosini, messages, type DbClient } from "@ugo/db";
 import {
   searchMemories,
   searchTranscripts,
@@ -11,7 +11,7 @@ import { decryptText, encryptText, type ChatRequest, type ChatResponse } from "@
 import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Character } from "./council/character.js";
 import type { PackService } from "./packService.js";
-import { buildPackPrompt } from "./packPrompt.js";
+import { buildPackPrompt, selfLine } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
 
@@ -212,13 +212,25 @@ export class ChatService {
   /**
    * Who is in the room, as prompt text. Only the beings we can actually name
    * are listed; an unrecognized presence becomes an explicit "do not guess".
+   *
+   * Apre sempre col nome dell'esemplare, branco o non branco: da quando il
+   * blocco `[CACHED]` descrive la specie e non un individuo, questo è l'unico
+   * posto in cui una creatura viene nominata, e un ripiego silenzioso qui la
+   * lascerebbe senza nome invece che senza compagni.
    */
   private async packBlock(
     beingId: string | undefined,
     channel: ChatRequest["channel"],
   ): Promise<string | undefined> {
     const { pack } = this.deps;
-    if (pack === undefined) return undefined;
+    if (pack === undefined) {
+      const [me] = await this.deps.db
+        .select({ name: gosini.name, locationLabel: gosini.locationLabel })
+        .from(gosini)
+        .where(eq(gosini.id, this.deps.gosinoId));
+      if (me === undefined) return undefined;
+      return selfLine({ ...me, traitVersion: null });
+    }
     const present = await pack.present(beingId === undefined ? [] : [beingId]);
     const ids = present.map((being) => being.id);
     return buildPackPrompt({
