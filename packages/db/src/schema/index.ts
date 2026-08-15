@@ -21,6 +21,7 @@ export {
   customerMailAccounts,
   customerChunks,
 } from "./customer-sources.js";
+export { customerAnswerCache } from "./customer-answer-cache.js";
 export { beings } from "./beings.js";
 export { gosini, traitSets } from "./gosini.js";
 export { households, PRIME_HOUSEHOLD_ID } from "./households.js";

@@ -16,6 +16,7 @@ import {
 import { decryptText, encryptText } from "@ugo/shared";
 import { and, desc, eq, gt, ne } from "drizzle-orm";
 import type { AuditLogger } from "../auditLog.js";
+import type { AnswerCache } from "./answerCache.js";
 import type { CustomerContext } from "./customerAuth.js";
 import type { CustomerQuota } from "./customerQuota.js";
 import type { GithubLiveService } from "./githubLiveService.js";
@@ -68,6 +69,8 @@ export interface CustomerChatDeps {
   embedder?: EmbeddingsClient;
   /** ADR-054: live PRs/commits, only when a repo actually points at GitHub */
   github?: GithubLiveService;
+  /** ADR-055 wall 3: the repeated question costs nothing */
+  cache?: AnswerCache;
 }
 
 export type CustomerChatResult =
@@ -135,6 +138,18 @@ export class CustomerChatService {
       return { kind: "ok", reply, degraded: false, cached: false, ticketId };
     }
 
+    // wall 3 (ADR-055): never for live-state questions — those are true only
+    // in the moment they are asked
+    const live = isLiveStateQuestion(request.text);
+    const cacheKey = { householdId: context.householdId, customerId: context.customerId, gosinoId };
+    if (!live) {
+      const remembered = await this.deps.cache?.lookup(cacheKey, request.text, at);
+      if (remembered !== undefined) {
+        await this.persistTurns(request, remembered, at, { cached: true });
+        return { kind: "ok", reply: remembered, degraded: false, cached: true };
+      }
+    }
+
     const [house] = await db
       .select({ timezone: households.timezone, locale: households.locale })
       .from(households)
@@ -160,6 +175,10 @@ export class CustomerChatService {
       }),
       ...(result.costUsd !== undefined && { costUsd: result.costUsd }),
     });
+    // a paid, non-degraded, non-live answer is worth remembering (ADR-055)
+    if (!live && !result.degraded) {
+      await this.deps.cache?.store(cacheKey, request.text, result.text, at);
+    }
     return { kind: "ok", reply: result.text, degraded: result.degraded, cached: false };
   }
 

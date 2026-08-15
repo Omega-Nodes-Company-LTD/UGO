@@ -6,6 +6,7 @@ import {
   createDbClient,
   customerChunks,
   customerGosini,
+  customerMessages,
   customerRepos,
   customers,
   type DbClient,
@@ -15,7 +16,7 @@ import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import { encryptText } from "@ugo/shared";
 import { startLlmStub, startOllama, startPostgres, type LlmStub, type OllamaHandle } from "@ugo/factories";
 import type { FastifyInstance } from "fastify";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { issueCustomerToken } from "../../src/services/reception/customerAuth.js";
 import { CustomerQuota } from "../../src/services/reception/customerQuota.js";
@@ -278,5 +279,65 @@ describe("repo alla mano", () => {
     });
     const withoutLive = stub.requests[0]?.body.system[2]?.text ?? "";
     expect(withoutLive).not.toContain("PR #12");
+  });
+});
+
+describe("the answer cache (ADR-055)", () => {
+  const ask = async (
+    token: string,
+    text: string,
+  ): Promise<{ reply: string; cached: boolean }> => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/reception/chat",
+      headers: headers(token),
+      payload: { gosinoId: house.gosinoId, text },
+    });
+    expect(response.statusCode).toBe(200);
+    return response.json<{ reply: string; cached: boolean }>();
+  };
+
+  it("serves the repeated question from the cache: zero provider tokens", async () => {
+    stub.reset();
+    stub.nextResponse = { text: "Si usa pnpm turbo build." };
+    const first = await ask(customerA.token, "Come si compila il progetto?");
+    expect(first.cached).toBe(false);
+    expect(stub.requests).toHaveLength(1);
+
+    // shouted and re-spaced, same question: the exact tier normalizes it
+    const second = await ask(customerA.token, "COME   si compila il progetto?");
+    expect(second.cached).toBe(true);
+    expect(second.reply).toBe("Si usa pnpm turbo build.");
+    expect(stub.requests).toHaveLength(1);
+
+    // near-identical wording lands on the semantic tier, still zero tokens
+    const third = await ask(customerA.token, "Come si compila il progetto??");
+    expect(third.cached).toBe(true);
+    expect(stub.requests).toHaveLength(1);
+
+    const rows = await db
+      .select()
+      .from(customerMessages)
+      .where(eq(customerMessages.customerId, customerA.id));
+    expect(rows.filter((row) => row.cached).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("a knowledge reindex strands every cached answer", async () => {
+    stub.reset();
+    stub.nextResponse = { text: "Risposta aggiornata." };
+    await db
+      .update(customers)
+      .set({ knowledgeEpoch: sql`${customers.knowledgeEpoch} + 1` })
+      .where(eq(customers.id, customerA.id));
+    const again = await ask(customerA.token, "Come si compila il progetto?");
+    expect(again.cached).toBe(false);
+    expect(stub.requests).toHaveLength(1);
+  });
+
+  it("never caches a live-state answer", async () => {
+    stub.reset();
+    await ask(customerA.token, "Ci sono commit nuovi oggi?");
+    await ask(customerA.token, "Ci sono commit nuovi oggi?");
+    expect(stub.requests).toHaveLength(2);
   });
 });

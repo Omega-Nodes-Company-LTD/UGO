@@ -23,6 +23,7 @@ import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerCustomersRoutes } from "./routes/customers.js";
 import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
+import { AnswerCache } from "./services/reception/answerCache.js";
 import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
 import type { CustomerQuota } from "./services/reception/customerQuota.js";
 import type { GithubLiveService } from "./services/reception/githubLiveService.js";
@@ -245,6 +246,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           audit,
           ...(reception.embedder !== undefined && { embedder: reception.embedder }),
           ...(reception.github !== undefined && { github: reception.github }),
+          // ADR-055 wall 3, built here so it shares db and key with the rest
+          cache: new AnswerCache(options.db, reception.dataKey, reception.embedder),
         }),
         dataKey: reception.dataKey,
         audit,

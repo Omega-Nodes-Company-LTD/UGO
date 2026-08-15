@@ -49,6 +49,7 @@ export interface ExportBundle {
   customerDocuments: unknown[];
   customerMailAccounts: unknown[];
   customerChunks: unknown[];
+  customerAnswerCache: unknown[];
 }
 
 const UNREADABLE = "[non decifrabile con la chiave corrente]";
@@ -111,6 +112,7 @@ export class ExportService {
       customerDocuments,
       customerMailAccounts,
       customerChunks,
+      customerAnswerCache,
     ] =
       await Promise.all([
         rows(sql`select id, display_name, aliases, notes, created_at from beings
@@ -181,6 +183,10 @@ export class ExportService {
                  where household_id = ${householdId} order by created_at`),
         rows(sql`select id, customer_id, source_type, source_id, ref, text, created_at
                  from customer_chunks where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, gosino_id, question_text, answer_text,
+                        knowledge_epoch, created_at, expires_at
+                 from customer_answer_cache
+                 where household_id = ${householdId} order by created_at`),
       ]);
 
     return {
@@ -208,6 +214,10 @@ export class ExportService {
       customerDocuments: this.decryptColumn(customerDocuments, ["filename"]),
       customerMailAccounts,
       customerChunks: this.decryptColumn(customerChunks),
+      customerAnswerCache: this.decryptColumn(customerAnswerCache, [
+        "question_text",
+        "answer_text",
+      ]),
     };
   }
 }
