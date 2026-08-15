@@ -74,6 +74,16 @@ export class Pig {
   private readonly cheekMat: THREE.MeshStandardMaterial;
   private readonly restY: number;
   private readonly mouthRestY: number;
+  /**
+   * Quanto può scorrere una pupilla senza uscire dall'occhio.
+   *
+   * Era `0.1` fisso per ogni genoma, cioè quasi il massimo per l'occhio più
+   * piccolo e molto meno del possibile per il più grande — e uno sguardo che a
+   * `|gaze| = 1` sposta la pupilla di un decimo di unità è uno sguardo che non
+   * si vede. Il fermo vero è metà sclera meno metà pupilla; qui si sta appena
+   * dentro, e si ricava dall'occhio invece che dal caso peggiore.
+   */
+  private readonly pupilTravel: number;
   private readonly legH: number;
   private readonly depth: number;
 
@@ -146,6 +156,8 @@ export class Pig {
 
     const eyeW = lerp(0.36, 0.58, traits.eye);
     const eyeH = eyeW * 1.15;
+    // (sclera/2 - pupilla/2) = eyeW * (0.5 - 0.23) = 0.27; si resta sotto
+    this.pupilTravel = eyeW * 0.25;
     for (const side of [-1, 1]) {
       const group = new THREE.Group();
       group.position.set(side * hw * 0.245, hh * 0.1, hd / 2 - 0.06);
@@ -291,8 +303,8 @@ export class Pig {
       eye.sclera.scale.set(wide, Math.max(0.001, lids * wide), 1);
       eye.pupil.scale.set(wide, Math.max(0.001, lids * wide), 1);
       eye.pupil.visible = lids > 0.12;
-      eye.pupil.position.x = pose.pupilX * 0.1;
-      eye.pupil.position.y = pose.pupilY * 0.1 * lids;
+      eye.pupil.position.x = pose.pupilX * this.pupilTravel;
+      eye.pupil.position.y = pose.pupilY * this.pupilTravel * lids;
       eye.shut.scale.y = Math.max(0.001, 1 - lids);
       eye.shut.visible = lids < 0.92;
     }

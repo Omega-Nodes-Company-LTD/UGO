@@ -30,7 +30,12 @@ export interface FaceRenderer {
    */
   setState(state: FaceState, who?: string): void;
   setMood(label: string, vars: Partial<PsycheVars>, who?: string): void;
-  setGaze(target: { x: number; y: number }): void;
+  /**
+   * `null` = non c'è più nessuno da guardare. Non è la stessa cosa di `{0,0}`,
+   * che vuol dire «guardami, sono davanti a te»: `startCameraGaze` distingueva
+   * i due casi da sempre e `main.ts` li appiattiva scartando il `null`.
+   */
+  setGaze(target: { x: number; y: number } | null): void;
   /** portable mode (§4.2): draw as little as the state allows */
   setLowPower(on: boolean): void;
   /** an event happened; react now instead of waiting for the idle timer */

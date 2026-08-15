@@ -407,6 +407,14 @@ function stopListening(): void {
 const awake = new ScreenAwake();
 awake.watch(document);
 
+// il ripiego universale, finché la camera non si accende: senza, in un browser
+// senza permessi le pupille non si muoverebbero mai. Si spegne appena la
+// camera parte — due sorgenti sulle stesse pupille vuol dire che vince
+// l'ultima che ha parlato.
+const pointerGaze = startPointerGaze(canvas, (target) => {
+  renderer.setGaze(target);
+});
+
 micButton.addEventListener("click", () => {
   void (async () => {
     await awake.acquire();
@@ -420,7 +428,9 @@ micButton.addEventListener("click", () => {
     const locator = await openFaceLocator();
     const camera = await startCameraGaze(
       (target) => {
-        if (target !== null) renderer.setGaze(target);
+        // `null` incluso, ed è il punto: era `if (target !== null)`, quindi
+        // uscendo dal campo le pupille restavano congelate su dove eri
+        renderer.setGaze(target);
       },
       () => {
         const now = performance.now();
@@ -431,11 +441,10 @@ micButton.addEventListener("click", () => {
       },
       locator,
     ).catch(() => null);
-    if (camera === null) {
-      // universal fallback: pupils follow pointer/touch
-      startPointerGaze(canvas, (target) => {
-        if (target !== null) renderer.setGaze(target);
-      });
+    if (camera !== null) {
+      // due sorgenti sulle stesse pupille vuol dire che vince l'ultima che ha
+      // parlato: da qui in poi decide la camera, e il dito si toglie di mezzo
+      pointerGaze.stop();
     }
     startListening();
     micButton.hidden = true;
@@ -453,9 +462,6 @@ earsButton.addEventListener("click", () => {
   }
 });
 
-startPointerGaze(canvas, (target) => {
-  if (target !== null) renderer.setGaze(target);
-});
 renderer.start();
 void socket.start();
 // the picker asks the soul which rooms exist; it never blocks the body

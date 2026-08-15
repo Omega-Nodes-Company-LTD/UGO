@@ -27,20 +27,35 @@ export interface FaceLocator {
   close?: () => void;
 }
 
-export function startPointerGaze(element: HTMLElement, onGaze: GazeCallback): void {
-  const handler = (x: number, y: number): void => {
+/**
+ * Il ripiego universale: le pupille seguono il puntatore.
+ *
+ * Due cambiamenti, entrambi per il chiosco.
+ *
+ * Restituisce un modo per spegnersi: prima non lo faceva, e `main.ts` lo
+ * avviava **incondizionatamente all'avvio**. Quando poi la camera partiva
+ * c'erano due sorgenti a scrivere sulle stesse pupille, e vinceva l'ultima che
+ * aveva parlato.
+ *
+ * E ascolta solo `pointermove`, non più `pointerdown`: su un touch il tocco
+ * **è** la carezza (`main.ts` lo intercetta già per il `tap`), e uno sguardo
+ * che scatta verso il dito a ogni carezza non è uno sguardo, è un riflesso
+ * dell'interfaccia.
+ */
+export function startPointerGaze(element: HTMLElement, onGaze: GazeCallback): CameraGazeHandle {
+  const handler = (event: PointerEvent): void => {
     const rect = element.getBoundingClientRect();
     onGaze({
-      x: Math.max(-1, Math.min(1, ((x - rect.left) / rect.width) * 2 - 1)),
-      y: Math.max(-1, Math.min(1, ((y - rect.top) / rect.height) * 2 - 1)),
+      x: Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1)),
+      y: Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height) * 2 - 1)),
     });
   };
-  element.addEventListener("pointermove", (event) => {
-    handler(event.clientX, event.clientY);
-  });
-  element.addEventListener("pointerdown", (event) => {
-    handler(event.clientX, event.clientY);
-  });
+  element.addEventListener("pointermove", handler);
+  return {
+    stop: () => {
+      element.removeEventListener("pointermove", handler);
+    },
+  };
 }
 
 interface DetectedFaceLike {

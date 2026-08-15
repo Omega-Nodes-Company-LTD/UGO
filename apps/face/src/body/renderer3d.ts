@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { FaceState } from "@ugo/shared/face";
+import { VIEWER_SPREAD } from "./attention.js";
 import type { Posture } from "./channels.js";
 import type { FaceRenderer, Resident } from "./faceRenderer.js";
 import { Inhabitant } from "./inhabitant.js";
@@ -131,8 +132,11 @@ export class Webgl3dFace implements FaceRenderer {
     for (const person of this.pick(who)) person.setMood(label, vars);
   }
 
-  /** The room is looked at, so everybody in it looks back. */
-  public setGaze(target: { x: number; y: number }): void {
+  /**
+   * The room is looked at, so everybody in it looks back. `null` = nobody is
+   * there any more, e va passato: senza, le pupille restano dove eri.
+   */
+  public setGaze(target: { x: number; y: number } | null): void {
     for (const person of this.people.values()) person.setGaze(target);
   }
 
@@ -193,11 +197,19 @@ export class Webgl3dFace implements FaceRenderer {
     if (speaker === undefined || this.people.size < 2) return;
     for (const person of this.people.values()) {
       if (person === speaker) continue;
+      // l'azimut vero verso chi parla, in unità di `VIEWER_SPREAD`: da quando
+      // `attention.ts` toglie l'orientamento del corpo, «x» è un angolo nel
+      // mondo e non più una posizione sullo schermo, quindi qui si calcola
+      // invece di stimarlo a occhio. Non si limita a ±1: il vicino di stanza
+      // può stargli davvero di fianco, e il collo e le pupille hanno già i
+      // loro fermi.
       const dx = speaker.position.x - person.position.x;
-      // the pen is a couple of units wide, so a unit of distance is most of a
-      // full turn of the eyes: clamped, or he would look through his own skull
-      person.setGaze({ x: clamp01(Math.abs(dx) / 2) * Math.sign(dx), y: 0 });
-      person.reflex("earPerk");
+      const dz = speaker.position.z - person.position.z;
+      person.setGaze({ x: Math.atan2(dx, dz) / VIEWER_SPREAD, y: 0 });
+      // `earPerk` non è mai esistito: `REFLEX` non lo mappa e non è un id di
+      // gesto, quindi `player.play` falliva in silenzio e chi ascoltava non
+      // drizzava mai le orecchie. Il gesto vero si chiama `perkUp`.
+      person.reflex("perkUp");
     }
   }
 

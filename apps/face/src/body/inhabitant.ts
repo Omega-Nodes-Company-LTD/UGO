@@ -1,5 +1,6 @@
 import type * as THREE from "three";
 import type { FaceState } from "@ugo/shared/face";
+import { attentionOf } from "./attention.js";
 import { Autonomy } from "./autonomy.js";
 import { POSTURE_IT, type Posture } from "./channels.js";
 import { GesturePlayer } from "./gestures.js";
@@ -24,6 +25,21 @@ import { ACTIVITY_IT, Wanderer } from "./wander.js";
 const GLANCE_EVERY_MS = 4200;
 const GLANCE_SPREAD_MS = 3500;
 const GLANCE_LASTS_MS = 700;
+/**
+ * L'occhiata spontanea, che adesso **si somma** allo sguardo vero invece di
+ * sostituirlo.
+ *
+ * Sostituendolo era ±0.7 per 700 ms ogni 4-8 s: da tre a sette volte il
+ * segnale, cioè quel che si vedeva muoversi non eri tu. Ma un occhio saldato al
+ * bersaglio legge come uno sguardo fisso, quindi il rumore serve — serve
+ * piccolo, e sopra e non al posto.
+ */
+const GLANCE_X = 0.34;
+const GLANCE_Y = 0.2;
+/** Quanto resta dell'occhiata quando ti sta guardando davvero. */
+const GLANCE_WHILE_HELD = 0.4;
+/** Stati in cui l'attenzione è su di te: lì l'occhiata si fa piccola. */
+const ATTENDS_IN: readonly FaceState[] = ["listening", "alert", "talking"];
 
 export class Inhabitant {
   public readonly pig: Pig;
@@ -35,8 +51,13 @@ export class Inhabitant {
   private state: FaceState = "idle";
   private vars: PsycheVars = { ...NEUTRAL_VARS };
   private label = "";
-  private gaze = { x: 0, y: 0 };
+  /** `null` = non c'è nessuno da guardare, ed è un'informazione, non un vuoto */
+  private gaze: { x: number; y: number } | null = null;
   private eased = { x: 0, y: 0 };
+  /** l'occhiata spontanea, smorzata a parte da ciò che sta davvero guardando */
+  private wander = { x: 0, y: 0 };
+  /** quanto qualcosa gli tiene lo sguardo adesso, smorzato nel tempo */
+  private held = 0;
   private glance = { x: 0, y: 0 };
   private glanceUntil = 0;
   private nextGlanceAt = 0;
@@ -109,7 +130,15 @@ export class Inhabitant {
     this.vars = { ...this.vars, ...vars };
   }
 
-  public setGaze(target: { x: number; y: number }): void {
+  /**
+   * Dove guardare, o `null` quando non c'è più nessuno.
+   *
+   * `null` arrivava già da `startCameraGaze` e veniva buttato via da `main.ts`
+   * (`if (target !== null)`): uscivi dal campo e le pupille restavano
+   * congelate dove eri l'ultima volta, che è il modo in cui uno sguardo vivo
+   * diventa un manichino con gli occhi storti.
+   */
+  public setGaze(target: { x: number; y: number } | null): void {
     this.gaze = target;
   }
 
@@ -147,11 +176,24 @@ export class Inhabitant {
     if (now > this.glanceUntil && now > this.nextGlanceAt) {
       this.glanceUntil = now + GLANCE_LASTS_MS;
       this.nextGlanceAt = now + GLANCE_EVERY_MS + Math.random() * GLANCE_SPREAD_MS;
-      this.glance = { x: (Math.random() - 0.5) * 1.4, y: (Math.random() - 0.5) * 0.8 };
+      const damp = ATTENDS_IN.includes(this.state) ? GLANCE_WHILE_HELD : 1;
+      this.glance = {
+        x: (Math.random() - 0.5) * 2 * GLANCE_X * damp,
+        y: (Math.random() - 0.5) * 2 * GLANCE_Y * damp,
+      };
     }
-    const looking = now < this.glanceUntil ? this.glance : this.gaze;
-    this.eased.x += (looking.x - this.eased.x) * 0.12;
-    this.eased.y += (looking.y - this.eased.y) * 0.12;
+    // i due si smorzano **separati**, o l'occhiata finirebbe dentro la
+    // coordinata che poi va convertita nel sistema del corpo: sommarla prima
+    // vorrebbe dire ruotare anche il rumore
+    const at = this.gaze ?? { x: 0, y: 0 };
+    this.eased.x += (at.x - this.eased.x) * 0.12;
+    this.eased.y += (at.y - this.eased.y) * 0.12;
+    const wanted = now < this.glanceUntil ? this.glance : { x: 0, y: 0 };
+    this.wander.x += (wanted.x - this.wander.x) * 0.12;
+    this.wander.y += (wanted.y - this.wander.y) * 0.12;
+    // sale in fretta e scende piano: perdere di vista qualcuno per un
+    // fotogramma non deve far ripartire la deriva da noia
+    this.held += ((this.gaze === null ? 0 : 1) - this.held) * (this.gaze === null ? 0.02 : 0.15);
 
     if (now > this.nextBlinkAt) {
       this.blinkUntil = now + 130;
@@ -180,12 +222,21 @@ export class Inhabitant {
     this.pig.object.position.set(this.here.x, 0, this.here.z);
     this.pig.object.rotation.y = loco.heading;
 
+    // la conversione che mancava: il collo è figlio del corpo, quindi «a destra
+    // dello schermo» va tolto di quanto il corpo è già girato, o guarda a
+    // destra del muso — cioè da tutt'altra parte (`attention.ts`)
+    const attention = attentionOf(this.gaze === null ? null : this.eased.x, loco.heading);
     this.pig.apply(
       computePose({
         state: this.state,
         vars: this.vars,
         posture: weights,
-        gaze: this.eased,
+        gaze: {
+          x: (attention.sees ? attention.pupil : 0) + this.wander.x,
+          y: this.eased.y + this.wander.y,
+          yaw: attention.yaw,
+          hold: attention.sees ? this.held : 0,
+        },
         tMs: now,
         blink: now < this.blinkUntil ? 1 : 0,
         locomotion: loco,

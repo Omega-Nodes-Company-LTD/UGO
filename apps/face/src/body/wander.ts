@@ -43,6 +43,39 @@ const TURN_RATE = 2.2; // rad/second
  */
 const ROAMS_IN: readonly FaceState[] = ["idle", "thinking", "talking"];
 
+/**
+ * Stati in cui l'attenzione è su di te — e in cui **parlava dandoti le spalle**.
+ *
+ * L'unica riga che riportava `heading` verso di te stava dentro il ramo
+ * `if (!allowed)`, che mentre parla non viene mai eseguito; nel frattempo
+ * `pickNext` accumulava ±1.2 rad per decisione, fino a π. ADR-026 §6 dice che
+ * vagabondare mentre parla è voluto, quindi `talking` **resta** in `ROAMS_IN`:
+ * si aggiunge un asse ortogonale, che limita il **bersaglio** e non
+ * l'orientamento.
+ *
+ * Un cono e non un blocco a 0: inchiodarlo a zero si legge come uno sguardo
+ * fisso, ed è il modo in cui questa correzione diventerebbe fastidiosa.
+ *
+ * E non si calcola il rilevamento vero della camera rispetto al maiale: la
+ * parallasse massima è ~13°, ben dentro il cono, e portare la camera fino al
+ * `Wanderer` per 13° è complessità che non paga.
+ */
+const FACES_YOU: readonly FaceState[] = ["talking", "listening", "alert"];
+
+/** Mezzo cono, in radianti (~52°): oltre, la spalla comincia a coprire il muso. */
+export const FACE_YOU_CONE = 0.9;
+
+/**
+ * Quanto si smorza la voglia di camminare mentre ti parla.
+ *
+ * Il cono da solo non basterebbe: dentro un cono di ±52° attorno alla camera
+ * ogni direzione ha una componente verso di te, quindi camminando finirebbe
+ * sempre appoggiato al bordo vicino del recinto. Frenandolo, mentre parla si
+ * gira e grufola sul posto più di quanto attraversi la stanza — che è anche
+ * ciò che fa un animale che ti sta dicendo qualcosa.
+ */
+const RESTLESS_WHILE_FACING = 0.45;
+
 const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
 export class Wanderer {
@@ -62,6 +95,18 @@ export class Wanderer {
   private grounded = false;
   private radiusX = DEFAULT_RADIUS_X;
   private radiusZ = DEFAULT_RADIUS_Z;
+  /** true finché sta rientrando dal bordo: il recinto batte il cono */
+  private returning = false;
+  /** quanto può allontanarsi dal guardarti, o `undefined` se è libero */
+  private cone: number | undefined;
+
+  /**
+   * @param rng da dove escono le sue decisioni. Iniettabile per una ragione
+   *            sola: senza, «da spalle voltate si gira entro due secondi» non
+   *            è un test ma una moneta lanciata in aria (precedente:
+   *            `forFrame(text, senders, roll?)` in `faceWs.ts`).
+   */
+  public constructor(private readonly rng: () => number = Math.random) {}
 
   /** The renderer sizes the pen to the frame: a bigger view is a bigger world. */
   public setPen(radiusX: number, radiusZ: number): void {
@@ -105,6 +150,15 @@ export class Wanderer {
       return this.output();
     }
 
+    // dentro il recinto non sta più rientrando, e il cono torna a valere
+    if (this.returning && (this.x / this.radiusX) ** 2 + (this.z / this.radiusZ) ** 2 < 0.7) {
+      this.returning = false;
+    }
+    this.cone = FACES_YOU.includes(state) && !this.returning ? FACE_YOU_CONE : undefined;
+    // qui e in `pickNext`, e servono entrambi: da solo, il secondo non recupera
+    // il caso vero — vagabonda in `idle`, arriva a π, e *poi* comincia a parlare
+    this.target = this.inCone(this.target);
+
     if (now > this.until) this.pickNext(now, noia, energia);
 
     const delta = wrapAngle(this.target - this.heading);
@@ -125,7 +179,11 @@ export class Wanderer {
     this.phase += speed * 7 * dt;
 
     if ((this.x / this.radiusX) ** 2 + (this.z / this.radiusZ) ** 2 > 1) {
+      // il recinto vince sul cono, e va detto: la via di casa può essere alle
+      // sue spalle, e un cono applicato anche qui lo lascerebbe arenato contro
+      // il bordo a spingere — che sembra rotto molto più di una gironzolata
       this.target = Math.atan2(-this.x, -this.z);
+      this.returning = true;
       this.activity = "walking";
       this.until = now + 1400;
     }
@@ -133,23 +191,32 @@ export class Wanderer {
     return this.output();
   }
 
+  /** Il bersaglio, riportato dentro il cono quando ce n'è uno. */
+  private inCone(target: number): number {
+    if (this.cone === undefined) return target;
+    const wrapped = wrapAngle(target);
+    return Math.max(-this.cone, Math.min(this.cone, wrapped));
+  }
+
   private pickNext(now: number, noia: number, energia: number): void {
-    const restless = Math.min(noia * 0.7 + energia * 0.5, 1);
-    const roll = Math.random();
+    const facing = this.cone !== undefined;
+    const restless =
+      Math.min(noia * 0.7 + energia * 0.5, 1) * (facing ? RESTLESS_WHILE_FACING : 1);
+    const roll = this.rng();
     if (this.activity === "walking") {
       // having arrived somewhere, he almost always sniffs at it
       this.activity = roll < 0.7 ? "rooting" : "still";
-      this.until = now + (this.activity === "rooting" ? 1600 + Math.random() * 2200 : 1500);
+      this.until = now + (this.activity === "rooting" ? 1600 + this.rng() * 2200 : 1500);
       return;
     }
     if (roll < restless * 0.75) {
       this.activity = "walking";
-      this.target = wrapAngle(this.heading + (Math.random() - 0.5) * 2.4);
-      this.until = now + 1200 + Math.random() * 2600;
+      this.target = this.inCone(wrapAngle(this.heading + (this.rng() - 0.5) * 2.4));
+      this.until = now + 1200 + this.rng() * 2600;
       return;
     }
     this.activity = roll < restless * 0.9 ? "rooting" : "still";
-    this.until = now + 1800 + Math.random() * 3000 * (1 - restless);
+    this.until = now + 1800 + this.rng() * 3000 * (1 - restless);
   }
 
   private output(): WanderOutput {
