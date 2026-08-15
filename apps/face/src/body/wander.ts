@@ -113,6 +113,24 @@ const BODY_HALF = 0.85;
 /** Quanto si aspetta prima di lasciarsi attirare di nuovo dallo stesso arredo. */
 const PROP_COOLDOWN_MS = 45_000;
 
+/**
+ * Sopra questo stress cerca un riparo, e la noia non c'entra.
+ *
+ * È la seconda spinta che muove il corpo verso un arredo, e l'unica che vince
+ * sulla prima: un maiale spaventato non va a grufolare nell'erba, va dietro il
+ * cespuglio. Sotto questa soglia il riparo è un arredo come gli altri.
+ */
+const SPOOKED = 0.62;
+
+/**
+ * Quanto dietro il riparo si mette, in unità di scena.
+ *
+ * Il punto d'arrivo è il **lato opposto alla camera**, non il primo bordo che
+ * incontra: nascondersi davanti a un cespuglio non è nascondersi, ed è quel che
+ * sarebbe successo puntando al centro dell'oggetto come per tutti gli altri.
+ */
+const BEHIND = 0.9;
+
 const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
 export class Wanderer {
@@ -142,6 +160,8 @@ export class Wanderer {
   private reached: { id: string; kind: PropKind } | undefined;
   /** l'ultima noia vista: `somethingToDo` la legge senza che gliela si passi */
   private noiaNow = 0;
+  /** e l'ultimo stress, per la stessa ragione */
+  private stressNow = 0;
   /** quanto può allontanarsi dal guardarti, o `undefined` se è libero */
   private cone: number | undefined;
 
@@ -196,7 +216,10 @@ export class Wanderer {
     energia: number,
     standing: number,
     enabled: boolean,
+    /** ADR-051: quanto è agitato. Sopra {@link SPOOKED} cerca un riparo. */
+    stress = 0,
   ): WanderOutput {
+    this.stressNow = stress;
     const dt = this.lastNow === undefined ? 0 : Math.min((now - this.lastNow) / 1000, 0.1);
     this.lastNow = now;
     const allowed = enabled && ROAMS_IN.includes(state);
@@ -226,7 +249,8 @@ export class Wanderer {
     // mentre ci va, lo insegue: un bersaglio fissato una volta sola manderebbe
     // fuori strada chiunque venga deviato da un ostacolo lungo la via
     if (this.heading_to !== undefined) {
-      this.target = Math.atan2(this.heading_to.x - this.x, this.heading_to.z - this.z);
+      const goal = this.goalFor(this.heading_to);
+      this.target = Math.atan2(goal.x - this.x, goal.z - this.z);
       if (this.arrivedAt(this.heading_to)) {
         this.reached = { id: this.heading_to.id, kind: this.heading_to.kind };
         this.usedAt.set(this.heading_to.id, now);
@@ -309,10 +333,19 @@ export class Wanderer {
     return bumped;
   }
 
-  /** Ci è arrivato: dentro il raggio dell'oggetto più mezzo corpo. */
+  /**
+   * Ci è arrivato: dentro il raggio dell'oggetto più mezzo corpo.
+   *
+   * Per un riparo il traguardo è il punto **dietro**, non l'oggetto: sfiorarne
+   * il bordo passando davanti non è esserci arrivato, ed è esattamente ciò che
+   * misurare dal centro avrebbe chiamato «arrivato».
+   */
   private arrivedAt(prop: Attraction): boolean {
-    const reach = PROP_NATURE[prop.kind].radius + BODY_HALF + 0.15;
-    return Math.hypot(this.x - prop.x, this.z - prop.z) <= reach;
+    const nature = PROP_NATURE[prop.kind];
+    const goal = this.goalFor(prop);
+    const reach =
+      nature.shelter === true ? BODY_HALF + 0.35 : nature.radius + BODY_HALF + 0.15;
+    return Math.hypot(this.x - goal.x, this.z - goal.z) <= reach;
   }
 
   /** Il bersaglio, riportato dentro il cono quando ce n'è uno. */
@@ -332,18 +365,45 @@ export class Wanderer {
    * caso: un maiale annoiato non attraversa la stanza per il secondo cuscino.
    */
   private somethingToDo(now: number): Attraction | undefined {
-    if (this.noiaNow < BORED_ENOUGH || this.attractions.length === 0) return undefined;
+    if (this.attractions.length === 0) return undefined;
+    // spaventato, cerca un riparo — e non gli importa della noia né del
+    // raffreddamento: un animale agitato torna dietro lo stesso cespuglio
+    // tutte le volte che serve, ed è precisamente il comportamento giusto
+    if (this.stressNow >= SPOOKED) {
+      const shelter = this.nearest((prop) => PROP_NATURE[prop.kind].shelter === true);
+      if (shelter !== undefined) return shelter;
+    }
+    if (this.noiaNow < BORED_ENOUGH) return undefined;
+    return this.nearest((prop) => {
+      const used = this.usedAt.get(prop.id);
+      return used === undefined || now - used >= PROP_COOLDOWN_MS;
+    });
+  }
+
+  /** Il più vicino fra quelli che vanno bene. Non a caso: un maiale annoiato
+   *  non attraversa la stanza per il secondo cuscino. */
+  private nearest(wanted: (prop: Attraction) => boolean): Attraction | undefined {
     let best: Attraction | undefined;
     let bestDistance = Infinity;
     for (const prop of this.attractions) {
-      const used = this.usedAt.get(prop.id);
-      if (used !== undefined && now - used < PROP_COOLDOWN_MS) continue;
+      if (!wanted(prop)) continue;
       const distance = Math.hypot(prop.x - this.x, prop.z - this.z);
       if (distance >= bestDistance) continue;
       best = prop;
       bestDistance = distance;
     }
     return best;
+  }
+
+  /**
+   * Dove si va, per questo arredo: accanto, o **dietro**.
+   *
+   * Dietro vuol dire dalla parte opposta alla camera, che sta a z positivo:
+   * quindi il punto è oltre il cespuglio, verso il fondo della stanza.
+   */
+  private goalFor(prop: Attraction): { x: number; z: number } {
+    if (PROP_NATURE[prop.kind].shelter !== true) return { x: prop.x, z: prop.z };
+    return { x: prop.x, z: prop.z - (PROP_NATURE[prop.kind].radius + BEHIND) };
   }
 
   private pickNext(now: number, noia: number, energia: number): void {
@@ -366,7 +426,8 @@ export class Wanderer {
       const wanted = this.cone === undefined ? this.somethingToDo(now) : undefined;
       if (wanted !== undefined) {
         this.heading_to = wanted;
-        this.target = Math.atan2(wanted.x - this.x, wanted.z - this.z);
+        const goal = this.goalFor(wanted);
+        this.target = Math.atan2(goal.x - this.x, goal.z - this.z);
         this.until = now + 6000;
         return;
       }

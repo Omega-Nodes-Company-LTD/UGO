@@ -257,6 +257,10 @@ export class Inhabitant {
       this.vars.energia,
       weights.standing,
       this.wandering,
+      // ADR-051: lo stress è la seconda spinta che lo muove verso un arredo, e
+      // l'unica che vince sulla noia — un maiale spaventato non va a grufolare,
+      // va dietro il cespuglio
+      this.vars.stress,
     );
     // ADR-051: l'arredo presso cui si trova tira su due leve che esistono già —
     // la posa e il peso dei gesti — invece di aggiungere un motore suo. Un

@@ -28,12 +28,14 @@ const material = (color: number, roughness = 0.9): THREE.MeshStandardMaterial =>
 function cushion(): THREE.Group {
   const group = new THREE.Group();
   const cloth = material(0x7a4a63, 0.95);
-  const pad = box(1.15, 0.26, 1.15, 0.13, cloth);
-  pad.position.y = 0.13;
+  // ~60 cm di lato: un pancia a tazza ci sta sopra tutto, che è il punto di un
+  // cuscino. A 1.15 unità ci stava mezzo maiale e sembrava uno zerbino.
+  const pad = box(1.5, 0.34, 1.5, 0.16, cloth);
+  pad.position.y = 0.17;
   group.add(pad);
   // il bottone al centro: è ciò che lo rende un cuscino invece che una piastra
-  const button = box(0.16, 0.1, 0.16, 0.04, material(0x5d3549, 0.9));
-  button.position.y = 0.22;
+  const button = box(0.2, 0.12, 0.2, 0.05, material(0x5d3549, 0.9));
+  button.position.y = 0.29;
   group.add(button);
   return group;
 }
@@ -41,12 +43,14 @@ function cushion(): THREE.Group {
 function grass(): THREE.Group {
   const group = new THREE.Group();
   const blade = material(0x4a6b3a, 0.95);
-  // ciuffi a raggiera, inclinati: dritti sembrerebbero uno steccato
-  for (let i = 0; i < 11; i += 1) {
-    const angle = (i / 11) * Math.PI * 2;
-    const far = 0.12 + ((i * 7) % 5) * 0.07;
-    const tall = 0.3 + ((i * 3) % 4) * 0.09;
-    const mesh = box(0.09, tall, 0.09, 0.03, blade);
+  // ciuffi a raggiera, inclinati: dritti sembrerebbero uno steccato. Alti
+  // quanto il ginocchio di un pancia a tazza — l'erba in cui grufolare gli
+  // arriva alla pancia, non alle caviglie
+  for (let i = 0; i < 14; i += 1) {
+    const angle = (i / 14) * Math.PI * 2;
+    const far = 0.14 + ((i * 7) % 5) * 0.085;
+    const tall = 0.42 + ((i * 3) % 4) * 0.13;
+    const mesh = box(0.1, tall, 0.1, 0.035, blade);
     mesh.position.set(Math.cos(angle) * far, tall / 2, Math.sin(angle) * far);
     mesh.rotation.z = Math.cos(angle) * 0.35;
     mesh.rotation.x = -Math.sin(angle) * 0.35;
@@ -55,18 +59,33 @@ function grass(): THREE.Group {
   return group;
 }
 
+/**
+ * Il cespuglio, che è un **riparo** e non un soprammobile.
+ *
+ * Era alto 0.9 unità — sui 36 cm — cioè un ciuffo che arrivava al ginocchio di
+ * un pancia a tazza, e dietro un ciuffo non ci si nasconde. Adesso è più alto
+ * di lui e più largo di lui: ci va dietro quando è stressato, e da lì la stanza
+ * lo vede meno. È l'unico arredo che risponde a una spinta che non è la noia.
+ */
 function bush(): THREE.Group {
   const group = new THREE.Group();
   const leaf = material(0x3f5b36, 0.95);
-  const trunk = box(0.16, 0.34, 0.16, 0.05, material(0x4a3a2e, 0.9));
-  trunk.position.y = 0.17;
+  const trunk = box(0.3, 0.5, 0.3, 0.1, material(0x4a3a2e, 0.9));
+  trunk.position.y = 0.25;
   group.add(trunk);
+  // La chioma **arriva quasi a terra**, e non è estetica: il maiale è alto ~1.8
+  // alla testa, e una macchia che comincia a 1.5 lo lascerebbe visibile
+  // attraverso il vuoto sotto le foglie. Un cespuglio dietro cui si vede tutto
+  // non è un riparo, è un albero. Va da ~0.5 a ~2.5, e non ha un tronco nudo.
   const blobs: [number, number, number, number][] = [
-    [0, 0.62, 0, 0.62],
-    [0.24, 0.5, 0.12, 0.42],
-    [-0.22, 0.54, -0.14, 0.46],
-    [0.06, 0.82, -0.18, 0.36],
-    [-0.12, 0.78, 0.2, 0.34],
+    [0, 1.25, 0, 1.72],
+    [0.7, 0.85, 0.32, 1.2],
+    [-0.66, 0.92, -0.36, 1.28],
+    [0.5, 1.75, -0.48, 1.15],
+    [-0.44, 1.82, 0.52, 1.1],
+    [0.14, 2.18, 0.2, 0.95],
+    [-0.16, 0.62, 0.44, 1.0],
+    [0.34, 0.58, -0.5, 0.95],
   ];
   for (const [x, y, z, size] of blobs) {
     const mesh = box(size, size * 0.85, size, size * 0.4, leaf);
@@ -78,8 +97,9 @@ function bush(): THREE.Group {
 
 function ball(): THREE.Group {
   const group = new THREE.Group();
-  const mesh = box(0.42, 0.42, 0.42, 0.2, material(0xc4574f, 0.6));
-  mesh.position.y = 0.21;
+  // ~20 cm: una palla che un pancia a tazza spinge col muso, non un pallone
+  const mesh = box(0.5, 0.5, 0.5, 0.24, material(0xc4574f, 0.6));
+  mesh.position.y = 0.25;
   group.add(mesh);
   return group;
 }
@@ -87,20 +107,22 @@ function ball(): THREE.Group {
 function trough(): THREE.Group {
   const group = new THREE.Group();
   const wood = material(0x6a5140, 0.92);
-  const floor = box(1.1, 0.12, 0.62, 0.05, wood);
-  floor.position.y = 0.06;
+  // ~60 × 32 cm, e alto quanto basta perché ci infili dentro il muso stando in
+  // piedi: più basso e sarebbe un vassoio, più alto e dovrebbe scavalcarlo
+  const floor = box(1.5, 0.14, 0.8, 0.06, wood);
+  floor.position.y = 0.07;
   group.add(floor);
   for (const side of [-1, 1]) {
-    const wall = box(1.1, 0.34, 0.1, 0.04, wood);
-    wall.position.set(0, 0.23, side * 0.26);
+    const wall = box(1.5, 0.46, 0.12, 0.05, wood);
+    wall.position.set(0, 0.3, side * 0.34);
     group.add(wall);
-    const end = box(0.1, 0.34, 0.62, 0.04, wood);
-    end.position.set(side * 0.5, 0.23, 0);
+    const end = box(0.12, 0.46, 0.8, 0.05, wood);
+    end.position.set(side * 0.69, 0.3, 0);
     group.add(end);
   }
   // il pastone dentro: senza, è una cassetta vuota e non un truogolo
-  const slop = box(0.9, 0.12, 0.44, 0.04, material(0x574033, 0.98));
-  slop.position.y = 0.16;
+  const slop = box(1.24, 0.14, 0.58, 0.05, material(0x574033, 0.98));
+  slop.position.y = 0.2;
   group.add(slop);
   return group;
 }

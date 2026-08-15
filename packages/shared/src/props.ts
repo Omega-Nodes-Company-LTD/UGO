@@ -49,14 +49,36 @@ export interface PropNature {
   radius: number;
   /** falso = ci si può camminare sopra (l'erba non è un ostacolo) */
   solid: boolean;
+  /**
+   * Ci si va **dietro**, non accanto.
+   *
+   * Un riparo è l'unico arredo che risponde a una spinta diversa dalla noia:
+   * quando è **stressato** — un rumore forte, troppa gente, l'altro gosino che
+   * gli sta addosso — ci va per starci dietro, e da lì la stanza lo vede meno.
+   * Il punto d'arrivo è il lato opposto alla camera, non il primo bordo che
+   * incontra: «nascondersi davanti a un cespuglio» non è nascondersi.
+   */
+  shelter?: boolean;
 }
 
+/**
+ * Le misure sono quelle di un **maiale pancia a tazza**, non di un Large White.
+ *
+ * Conta, e per un po' non ha contato: il corpo di UGO è largo ~2.3 unità e alto
+ * ~1.8 alla testa, cioè un animale da una quarantina di centimetri al garrese.
+ * A quella scala una unità di scena vale circa 40 cm, e gli arredi vanno letti
+ * così — un truogolo di mezzo metro, un cuscino da sessanta, un cespuglio che
+ * gli arriva sopra la testa.
+ *
+ * Il cespuglio è quello che era sbagliato di più: a 0.9 unità era un ciuffo che
+ * gli arrivava al ginocchio, e dietro un ciuffo non ci si nasconde.
+ */
 export const PROP_NATURE: Readonly<Record<PropKind, PropNature>> = {
-  cushion: { tag: "sleepy", posture: "lying", radius: 0.62, solid: false },
-  grass: { tag: "nose", posture: "crouching", radius: 0.55, solid: false },
-  bush: { tag: "curious", posture: undefined, radius: 0.5, solid: true },
-  ball: { tag: "happy", posture: undefined, radius: 0.3, solid: true },
-  trough: { tag: "nose", posture: "crouching", radius: 0.55, solid: true },
+  cushion: { tag: "sleepy", posture: "lying", radius: 0.78, solid: false },
+  grass: { tag: "nose", posture: "crouching", radius: 0.62, solid: false },
+  bush: { tag: "curious", posture: undefined, radius: 1.05, solid: true, shelter: true },
+  ball: { tag: "happy", posture: undefined, radius: 0.32, solid: true },
+  trough: { tag: "nose", posture: "crouching", radius: 0.72, solid: true },
 };
 
 /**
