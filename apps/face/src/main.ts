@@ -445,11 +445,14 @@ micButton.addEventListener("click", () => {
         // uscendo dal campo le pupille restavano congelate su dove eri
         renderer.setGaze(target);
       },
-      () => {
+      (crop) => {
         const now = performance.now();
         if (now - lastPresenceAt > PRESENCE_COOLDOWN_MS) {
           lastPresenceAt = now;
-          socket.send({ type: "face_seen" });
+          // ADR-052: il ritaglio viaggia con la presenza. Il video non esce mai
+          // dal telefono — quel che parte è un rettangolo di 112×112 già
+          // ridotto al volto, e solo se il rilevatore ha dato un rettangolo.
+          socket.send({ type: "face_seen", ...(crop !== undefined && { image: crop }) });
         }
       },
       locator,

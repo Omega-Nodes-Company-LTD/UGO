@@ -52,7 +52,23 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
      */
     audio: z.string().max(200_000).optional(),
   }),
-  z.object({ type: z.literal("face_seen") }),
+  z.object({
+    type: z.literal("face_seen"),
+    /**
+     * ADR-052: il ritaglio del volto, RGB uint8 112×112 in base64 — la misura
+     * esatta che `decode_face` vuole.
+     *
+     * Facoltativo, come `audio` su `heard_text` e per la stessa ragione: un
+     * corpo senza camera, o una casa che non vuole la biometria del volto,
+     * manda `face_seen` nudo e tutto continua a funzionare.
+     *
+     * Il tetto è aritmetica: 112×112×3 sono 37 632 byte, cioè 50 176 caratteri
+     * di base64. 56 000 lascia margine e rifiuta qualunque cosa non sia un
+     * ritaglio — **e il corpo il rettangolo ce l'aveva già in mano da sempre**
+     * (`faceLocator.ts`), e teneva solo i due centri buttando via il resto.
+     */
+    image: z.string().max(56_000).optional(),
+  }),
   z.object({ type: z.literal("light"), lux: z.number().min(0) }),
   z.object({ type: z.literal("noise"), db: z.number().min(0) }),
   z.object({ type: z.literal("tap") }),

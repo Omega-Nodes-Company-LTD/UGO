@@ -288,6 +288,9 @@ const app = buildServer({
         github: new GithubLiveService({ db, dataKey }),
       },
     }),
+    // ADR-057: rivendicare un'impronta ignota passa dallo stesso servizio che
+    // tiene gli encoder, e con lo stesso client per casa
+    ...(recognition !== undefined && { prints: recognition }),
   },
 });
 

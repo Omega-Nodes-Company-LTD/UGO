@@ -95,8 +95,18 @@ export class BeingsService {
     return { beingId, biometricsDestroyed };
   }
 
-  /** "Cancella la mia voce ma resto nel branco": the middle ground erasure. */
-  public async destroyVoice(beingId: string): Promise<number> {
+  /**
+   * "Cancella la mia voce ma resto nel branco": the middle ground erasure.
+   *
+   * ADR-052: la modalità è un argomento perché adesso ce ne sono due, e la
+   * differenza conta — «non guardarmi più» e «non ascoltarmi più» sono due
+   * consensi distinti, e una funzione sola che ne cancella uno solo li
+   * confonderebbe esattamente come `_guard` li ha confusi per mesi.
+   */
+  public async destroyRecognition(
+    beingId: string,
+    modality: "voice" | "face",
+  ): Promise<number> {
     // recognition_profiles has no tenant column of its own: it reaches the
     // house through its being (ADR-048 gives it one directly)
     const removed = await this.db
@@ -104,7 +114,7 @@ export class BeingsService {
       .where(
         and(
           eq(recognitionProfiles.beingId, beingId),
-          eq(recognitionProfiles.modality, "voice"),
+          eq(recognitionProfiles.modality, modality),
           inArray(
             recognitionProfiles.beingId,
             this.db
@@ -116,6 +126,11 @@ export class BeingsService {
       )
       .returning({ id: recognitionProfiles.id });
     return removed.length;
+  }
+
+  /** Retrocompatibile: la voce è ancora la modalità di gran lunga più usata. */
+  public async destroyVoice(beingId: string): Promise<number> {
+    return this.destroyRecognition(beingId, "voice");
   }
 
   /**

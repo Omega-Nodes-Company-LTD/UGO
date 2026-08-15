@@ -116,6 +116,39 @@ export const HOUSE_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="volti">
+  <div class="page-head">
+    <p class="eyebrow">La casa</p>
+    <h1>Chi ha imparato a riconoscere</h1>
+    <p>Quando vede una faccia che non conosce, e la rivede, <b>te lo chiede lui</b>: non c'è
+       un modulo da compilare qui. Intanto conserva l'impronta — cifrata — in attesa di un
+       nome, e questa pagina è dove la puoi vedere e cancellare.</p>
+  </div>
+
+  <div class="block">
+    <h2>Facce senza nome</h2>
+    <p class="lede">Sono <b>dati biometrici di persone che non hanno detto di sì</b>.
+       Si cancellano da sole dopo <span id="print-retention">30</span> giorni, e qui puoi
+       toglierne una subito. Quel che vedi è quante volte e quando: l'impronta non esce
+       mai da questa casa, nemmeno verso questo pannello.</p>
+    <div id="prints-list" data-testid="prints-list"></div>
+    <div class="row">
+      <div><label for="print-who">Chi è</label><select id="print-who" data-testid="print-who"></select></div>
+      <button id="print-claim" data-testid="print-claim" disabled>È lui</button>
+      <button id="print-del" class="ghost" data-testid="print-del" disabled>Cancella l'impronta</button>
+    </div>
+    <div id="prints-msg"></div>
+  </div>
+
+  <div class="block">
+    <h2>Facce che conosce</h2>
+    <p class="lede">Chi ha un'impronta del volto. Toglierla è immediato e non cancella la
+       persona: smette solo di riconoscerla guardandola.</p>
+    <div id="faces-list" data-testid="faces-list"></div>
+    <div id="faces-msg"></div>
+  </div>
+</section>
+
 <section class="page" data-page="branco">
   <div class="page-head">
     <p class="eyebrow">La casa</p>

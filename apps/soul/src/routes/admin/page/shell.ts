@@ -50,6 +50,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <a href="#/stanze" data-nav="stanze">Le stanze</a>
       <a href="#/arredi" data-nav="arredi">Gli arredi</a>
       <a href="#/branco" data-nav="branco">Il branco</a>
+      <a href="#/volti" data-nav="volti">I volti</a>
       <a href="#/consiglio" data-nav="consiglio">Il consiglio</a>
       <a href="#/riunioni" data-nav="riunioni">Riunioni e legami</a>
       <a href="#/clienti" data-nav="clienti">I clienti</a>

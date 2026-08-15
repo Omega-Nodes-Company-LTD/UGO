@@ -1,4 +1,4 @@
-import { desires, events, type DbClient } from "@ugo/db";
+import { desires, events, unknownPrints, type DbClient } from "@ugo/db";
 import {
   DARKNESS_LUX,
   GLYPH_FOR_STATE,
@@ -30,10 +30,35 @@ export interface FaceGatewayDeps {
    */
   recognition?: {
     byVoice: (audioBase64: string) => Promise<{ beingId?: string | undefined } | undefined>;
+    /** ADR-052: chi è questo volto, dal ritaglio che il corpo ha già fatto */
+    byFace?: (imageBase64: string) => Promise<{ beingId?: string | undefined } | undefined>;
+    /** ADR-052: non lo conosciamo — conserva l'impronta, cifrata, e conta */
+    rememberUnknownFace?: (
+      imageBase64: string,
+    ) => Promise<{ printId: string; seenCount: number } | undefined>;
   };
 }
 
 export type FaceSender = (message: ServerToFaceMessage) => void;
+
+/**
+ * Quante volte deve rivederti prima di chiedere chi sei (ADR-052).
+ *
+ * Due e non una. Al primo passaggio davanti alla camera finiscono il corriere,
+ * un riflesso nello specchio e chi ha sbagliato porta: una creatura che chiede
+ * il nome di ognuno di loro è una creatura che si spegne dopo tre giorni.
+ */
+const ASK_AFTER_SIGHTINGS = 2;
+
+/**
+ * Le sue parole, non quelle del modello: chiedere chi sei costa zero token.
+ *
+ * Scritta come un desiderio e non come una frase spedita subito, perché
+ * l'iniziativa ha già le sue regole su **quando** è il momento di dire qualcosa
+ * — le ore di quiete, il raffreddamento, la soglia. Una domanda che salta
+ * quelle regole è una domanda che arriva alle tre di notte.
+ */
+const ASK_WHO = "Chiedi chi è quella persona che hai visto e non conosci.";
 
 /**
  * Creature-level face state machine (PROGETTO §4.1, §5.3):
@@ -179,6 +204,57 @@ export class FaceGateway {
     return true;
   }
 
+  /**
+   * ADR-052: c'è una faccia davanti alla camera. Chi è?
+   *
+   * Tre esiti, e il terzo è quello nuovo:
+   *
+   * 1. **la conosciamo** → non c'è niente da fare qui; chi è finisce nel prompt
+   *    per la strada che esiste già;
+   * 2. **non la conosciamo e l'abbiamo vista una volta sola** → si conserva
+   *    l'impronta e basta. Chiedere al primo passaggio significherebbe chiedere
+   *    del corriere, del riflesso in uno specchio e di chi ha sbagliato porta;
+   * 3. **non la conosciamo e ripassa** → si scrive un desiderio, e l'iniziativa
+   *    lo dirà a voce quando è il momento. Il canale è quello che c'è già
+   *    (`desires` + `speakDesire`), perché una domanda che UGO fa è una cosa
+   *    che UGO **vuole dire**, non un canale nuovo.
+   *
+   * Non solleva mai: il riconoscimento è un di più, e una camera che non
+   * funziona non deve poter spegnere la presenza.
+   */
+  private async aboutThisFace(image: string, at: Date): Promise<void> {
+    const recognition = this.deps.recognition;
+    if (recognition?.rememberUnknownFace === undefined) return;
+    try {
+      const known = await recognition.byFace?.(image);
+      if (known?.beingId !== undefined) return;
+      const kept = await recognition.rememberUnknownFace(image);
+      if (kept === undefined || kept.seenCount < ASK_AFTER_SIGHTINGS) return;
+
+      const [already] = await this.deps.db
+        .select({ id: unknownPrints.id, askedAt: unknownPrints.askedAt })
+        .from(unknownPrints)
+        .where(eq(unknownPrints.id, kept.printId));
+      if (already?.askedAt != null) return;
+      if (already === undefined) return;
+
+      await this.deps.db.insert(desires).values({
+        gosinoId: this.deps.gosinoId,
+        text: ASK_WHO,
+        dueHint: "quando c'è qualcuno",
+      });
+      // marcato **prima** che la domanda venga detta: se la si marcasse dopo,
+      // un riavvio in mezzo produrrebbe la stessa domanda ogni sera
+      await this.deps.db
+        .update(unknownPrints)
+        .set({ askedAt: at })
+        .where(eq(unknownPrints.id, kept.printId));
+    } catch {
+      // servizio spento, modello non caricato, rete: si continua senza sapere
+      // chi è, che è esattamente quel che si faceva prima di ADR-052
+    }
+  }
+
   public async handle(message: FaceToServerMessage, send: FaceSender): Promise<void> {
     const at = this.now();
     switch (message.type) {
@@ -205,6 +281,10 @@ export class FaceGateway {
       case "face_seen": {
         await this.recordEvent("face_seen", {});
         await this.deps.psyche.applyEventType("presence_detected", at);
+        // ADR-052: c'è una faccia. Se non la conosciamo, la conserva cifrata e
+        // — quando l'ha già rivista — **te lo chiede**, invece di aspettare che
+        // qualcuno apra il pannello e compili un modulo.
+        if (message.image !== undefined) await this.aboutThisFace(message.image, at);
         if (this.state === "sleeping") {
           this.setState("alert", send);
           send({ type: "speak", text: await this.wakeUpGreeting() });

@@ -22,6 +22,7 @@ import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerCustomersRoutes } from "./routes/customers.js";
 import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
+import { registerPrintRoutes } from "./routes/prints.js";
 import { registerPropRoutes } from "./routes/props.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
 import { AnswerCache } from "./services/reception/answerCache.js";
@@ -92,6 +93,21 @@ export interface ServerOptions extends HealthDeps {
       /** optional HTTP trigger of the jobs runner for an out-of-band sync */
       syncTriggerUrl?: string;
     };
+    /**
+     * ADR-057: chi rivendica un'impronta ignota, per casa.
+     *
+     * Una funzione della casa e non un'istanza sola, per la stessa ragione di
+     * `recognition` in `RuntimeDeps`: i profili biometrici sono per casa, e un
+     * riconoscitore costruito una volta confronterebbe il volto di una famiglia
+     * coi centroidi di un'altra.
+     */
+    prints?: (householdId: string) => {
+      claimPrint: (input: {
+        printId: string;
+        beingId: string;
+        gosinoId: string;
+      }) => Promise<"learned" | "refused" | "unreachable">;
+    };
   };
 }
 
@@ -138,6 +154,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       dreamTriggerUrl,
       reception,
       customers,
+      prints,
       ...v1
     } = options.features;
     // first, and before every route below it: Fastify binds onRequest hooks to
@@ -198,6 +215,14 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // socket che li mostrano — e' l'unica cosa che i due hanno in comune, ed e'
     // il motivo per cui il pannello si vede sul chiosco senza ricaricare.
     registerPropRoutes(app, { db: options.db, guard, hub: scenes });
+    // ADR-052: le facce che non sappiamo di chi siano. Guardata tutta: qui
+    // dentro ci sono impronte di persone che non hanno acconsentito.
+    registerPrintRoutes(app, {
+      db: options.db,
+      guard,
+      audit,
+      ...(prints !== undefined && { recognition: prints }),
+    });
     if (speciesMap !== undefined) {
       registerPackRoutes(app, {
         db: options.db,

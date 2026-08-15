@@ -54,6 +54,12 @@ export const AUDIT_VERBS = [
   "ticket_status_changed",
   /** una fonte di conoscenza collegata a un cliente (ADR-054) */
   "customer_source_added",
+  /** ADR-057: un volto ignoto ha preso un nome — chi ha insegnato cosa */
+  "face_claimed",
+  /** un'impronta ignota distrutta dal pannello, una per una */
+  "print_destroyed",
+  /** le impronte ignote scadute, portate via dalla retention */
+  "prints_expired",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

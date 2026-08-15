@@ -101,6 +101,8 @@ async function openPage(page) {
     await section(loadProps, "prop-msg");
   } else if (page === "branco") {
     await section(loadRelations, "rel-msg");
+  } else if (page === "volti") {
+    await section(loadPrints, "prints-msg");
   } else if (page === "nascita") {
     drawDials();
     await section(drawBirthRooms, "new-msg");

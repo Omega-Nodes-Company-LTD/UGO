@@ -20,6 +20,11 @@ const recognisedSchema = z.object({
   modality: z.string().default("voice"),
 });
 
+const rememberedSchema = z.object({
+  print_id: z.string().min(1),
+  seen_count: z.number().int().min(1),
+});
+
 export interface Recognised {
   /** chi è: abbastanza sicuro da chiamarlo per nome */
   beingId?: string | undefined;
@@ -70,6 +75,79 @@ export class RecognitionClient {
       image: imageBase64,
       household_id: this.deps.householdId,
     });
+  }
+
+  /**
+   * ADR-052: conserva il volto di uno sconosciuto, in attesa di un nome.
+   *
+   * Il ritaglio non si ferma qui e non ci deve fermare: gli encoder e la
+   * cifratura stanno nel servizio Python, e soul non tiene **mai** in mano un
+   * embedding biometrico. Quello che torna indietro è un id e un conteggio.
+   */
+  public async rememberUnknownFace(
+    imageBase64: string,
+  ): Promise<{ printId: string; seenCount: number } | undefined> {
+    const answer = await this.post("/v1/prints/unknown", {
+      image: imageBase64,
+      household_id: this.deps.householdId,
+    });
+    const parsed = rememberedSchema.safeParse(answer);
+    if (!parsed.success) return undefined;
+    return { printId: parsed.data.print_id, seenCount: parsed.data.seen_count };
+  }
+
+  /**
+   * «Quello è Marco.» Da qui in poi quella faccia ha un nome.
+   *
+   * `refused` non è un guasto: è `no_vision` o `is_minor` che fanno il loro
+   * lavoro, e in quel caso l'impronta ignota viene distrutta lo stesso. Chi
+   * chiama deve poterlo *dire* al proprietario, quindi i due esiti sono
+   * distinti invece di essere entrambi «non ha funzionato».
+   */
+  public async claimPrint(input: {
+    printId: string;
+    beingId: string;
+    gosinoId: string;
+  }): Promise<"learned" | "refused" | "unreachable"> {
+    try {
+      const response = await this.fetchImpl(`${this.deps.baseUrl}/v1/prints/claim`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${this.deps.token}`,
+        },
+        body: JSON.stringify({
+          print_id: input.printId,
+          being_id: input.beingId,
+          gosino_id: input.gosinoId,
+          household_id: this.deps.householdId,
+        }),
+      });
+      if (response.status === 403) return "refused";
+      return response.ok ? "learned" : "unreachable";
+    } catch {
+      return "unreachable";
+    }
+  }
+
+  private async post(path: string, body: object): Promise<unknown> {
+    // senza timeout, a differenza di `ask`: conservare un'impronta non sta sul
+    // percorso critico di una risposta, e mollarlo a meta' lascerebbe un
+    // volto scritto solo a meta'
+    try {
+      const response = await this.fetchImpl(`${this.deps.baseUrl}${path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${this.deps.token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) return undefined;
+      return await response.json();
+    } catch {
+      return undefined;
+    }
   }
 
   private async ask(path: string, body: object): Promise<Recognised | undefined> {
