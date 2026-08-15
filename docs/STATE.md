@@ -1780,6 +1780,19 @@ ginocchio di un pancia a tazza. Adesso è più alto di lui, la chioma arriva qua
 a terra, ed è un **riparo** — ci va quando è **stressato**, che è la seconda
 spinta che muove il corpo e l'unica che vince sulla noia.
 
+Il pavimento è diventato **erba** e il cielo **azzurro**, e sul cielo sono
+saltati fuori tre difetti che nessun test aveva né poteva avere: il fondale
+aveva raggio fisso 37 mentre la camera arriva oltre 100 (da fuori una cupola
+`BackSide` non c'è); allargato il fondale, il `far` della camera a 200 lo
+tagliava tutto (adesso si ricava da `BACKDROP_RADIUS`, invece di essere un
+secondo numero in un altro file); e una `CanvasTexture` senza `colorSpace`
+veniva presa per lineare e ricodificata in sRGB, cioè **ogni colore usciva
+schiarito** — il prato era stato tarato a occhio *contro* quel difetto, due
+errori che quasi si annullavano finché non è arrivata una tinta piena. Li ha
+trovati tutti e tre il banco guardando il reso, che è la verifica dichiarata da
+ADR-026 per quel che si vede. Il cielo chiaro ha portato con sé la sfumatura
+scura sotto la barra del chiosco: il testo era a ~2.5:1 sull'erba illuminata.
+
 ### 🔴 Il buco di privacy, e l'arruolamento del volto (ADR-057)
 
 `_guard` leggeva `is_minor` e `no_audio` e **non guardava mai `no_vision`**,

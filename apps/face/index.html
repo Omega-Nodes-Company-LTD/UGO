@@ -43,6 +43,13 @@
         bottom: 0;
         padding: 0.6rem 1rem calc(0.6rem + env(safe-area-inset-bottom));
         color: #cfcfe0;
+        /* Il velo sotto il testo. Serve da quando la stanza ha un cielo e un
+           prato: prima sotto la barra c'era il nero della pagina e un grigio
+           chiaro bastava, adesso c'è dell'erba illuminata e il contrasto
+           scendeva a ~2.5:1 — leggibile con gli occhi buoni e col sole no.
+           Una sfumatura invece di un colore pieno, così non si legge come una
+           barra appiccicata sopra il mondo. */
+        background: linear-gradient(to top, rgba(10, 12, 16, 0.62), rgba(10, 12, 16, 0));
         display: flex;
         justify-content: space-between;
         align-items: center;

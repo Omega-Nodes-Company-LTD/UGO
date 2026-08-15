@@ -8,7 +8,7 @@ import type { FaceRenderer, Resident } from "./faceRenderer.js";
 import { Inhabitant } from "./inhabitant.js";
 import type { Traits } from "./pig.js";
 import type { PsycheVars } from "./pose.js";
-import { Room } from "./room3d.js";
+import { BACKDROP_RADIUS, Room } from "./room3d.js";
 
 /**
  * The WebGL room: scene, lights, camera, and the clock.
@@ -41,6 +41,14 @@ const DISTANCE_FOR_FULL_FRAME = 4.8;
 /** The camera rides this fraction of its own distance above the floor. */
 const CAMERA_RISE = 0.2;
 const LOOK_AT_Y = 1.25;
+/**
+ * Fin dove vede la camera: la cupola, più la distanza da cui la guarda.
+ *
+ * Il fattore è 2 perché nel caso peggiore la camera sta da una parte e la parete
+ * che deve vedere sta dall'altra — cioè un diametro — e il resto è margine per
+ * la distanza, che con uno schermo largo e una folla arriva a un centinaio.
+ */
+const SEES_AS_FAR_AS = BACKDROP_RADIUS * 2.4;
 
 export interface Webgl3dOptions {
   traits?: Traits;
@@ -81,7 +89,16 @@ export class Webgl3dFace implements FaceRenderer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
+    // Il piano lontano **dipende dal fondale**, e non è un numero rotondo scelto
+    // a occhio: la cupola ha raggio `FLOOR_RADIUS * 1.05` (~231) e la camera si
+    // allontana con lo schermo e con la folla — fino a un centinaio di unità —
+    // quindi la parete opposta arriva sui 380. A 200 il cielo veniva tagliato
+    // **tutto**, e al suo posto si vedeva il bianco della pagina (`alpha: true`):
+    // scoperto al banco guardando il reso, non da un test.
+    //
+    // Allargarlo non costa: la precisione della z la detta il piano vicino, che
+    // resta 0.1.
+    this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, SEES_AS_FAR_AS);
     this.camera.position.set(1.1, 2.6, 13);
     this.camera.lookAt(0, LOOK_AT_Y, 0);
 

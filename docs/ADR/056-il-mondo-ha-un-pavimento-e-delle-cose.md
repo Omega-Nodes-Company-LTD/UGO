@@ -48,6 +48,31 @@ creature ci sono. `near` sta appena **prima** della creatura: è quello che fa c
 avanti e indietro dentro la rampa, cioè che rende leggibile la Z. A distanze fisse sarebbe un velo
 addosso a lui sul telefono e niente del tutto sul desktop.
 
+Il cielo è **azzurro di giorno**, non il nero del primo giro, e la nebbia ne prende il colore
+all'orizzonte: sono la stessa cosa, ed è quello che salda il pavimento al fondale invece di
+lasciare una linea. Ha portato con sé tre cose che vanno scritte perché sono state **difetti**, non
+rifiniture:
+
+1. **Il fondale deve contenere la camera.** Aveva raggio fisso 37 mentre la camera si allontana con
+   lo schermo e con la folla — oltre 100 su un desktop largo con più di un gosino — e da fuori una
+   cupola `BackSide` è invisibile: cielo sparito, sfondo della pagina al suo posto. Non si era mai
+   visto perché il banco gira a 900 px, dove la distanza è 25.
+2. **Il piano lontano della camera dipende dal fondale.** Allargata la cupola, i 200 di `far` la
+   tagliavano *tutta*. Adesso `SEES_AS_FAR_AS` si ricava da `BACKDROP_RADIUS`: due numeri scollegati
+   in due file sono esattamente il modo in cui il cielo era sparito la prima volta.
+3. **Una `CanvasTexture` deve dichiarare il proprio spazio colore.** Senza, three la prende per
+   lineare e la ricodifica in sRGB in uscita: ogni tinta usciva schiarita (`#3f6b32` finiva a
+   `#88ad7b`). Il prato era stato tarato *contro* questo difetto, cioè erano due errori che quasi
+   si annullavano — e il cielo, che è azzurro pieno, ha reso il primo evidente. Adesso quel che sta
+   scritto nella tavolozza è quel che si vede.
+
+Nessuno dei tre l'ha trovato un test: li ha trovati il banco, guardando il reso. È la verifica che
+ADR-026 dichiara per la leggibilità, e vale la pena registrare che ha funzionato.
+
+Il cielo luminoso ha una conseguenza fuori da `body/`: la barra del chiosco è testo chiaro posato
+sulla tela, e sopra un prato illuminato scendeva a ~2.5:1 di contrasto. `index.html` le mette
+sotto una sfumatura scura — il posto giusto per risolverlo è il testo, non il prato.
+
 ### 2. Il catalogo degli arredi è **codice**, non una tabella
 
 Cinque tipi in `packages/shared/props.ts`, insieme chiuso come `FACE_STATES`. Una riga di database
