@@ -110,6 +110,12 @@ importers:
         specifier: ^19.2.4
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@playwright/test':
+        specifier: ^1.62.1
+        version: 1.62.1
+      '@testcontainers/postgresql':
+        specifier: ^12.1.0
+        version: 12.1.0
       '@types/node':
         specifier: ^22.19.0
         version: 22.20.1
@@ -119,6 +125,12 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.0
         version: 19.2.4(@types/react@19.2.18)
+      '@ugo/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@ugo/factories':
+        specifier: workspace:*
+        version: link:../../tests/factories
       typescript:
         specifier: ~5.9.3
         version: 5.9.3

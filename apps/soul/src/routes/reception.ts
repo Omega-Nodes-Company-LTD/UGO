@@ -1,5 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
-import { customers, customerMessages, tickets, type DbClient } from "@ugo/db";
+import {
+  customerDocuments,
+  customerMailAccounts,
+  customerRepos,
+  customers,
+  customerMessages,
+  tickets,
+  type DbClient,
+} from "@ugo/db";
 import {
   decryptText,
   encryptText,
@@ -7,12 +15,13 @@ import {
   receptionTicketCreateSchema,
   receptionTicketReplySchema,
 } from "@ugo/shared";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AuditLogger } from "../services/auditLog.js";
 import { CustomerResolver, type CustomerContext } from "../services/reception/customerAuth.js";
 import type { CustomerChatService } from "../services/reception/customerChatService.js";
 import { GosinoNotAssignedError } from "../services/reception/customerChatService.js";
+import type { GithubLiveService } from "../services/reception/githubLiveService.js";
 
 /**
  * The reception's door into soul (ADR-051/052): the only routes a customer
@@ -41,6 +50,8 @@ export interface ReceptionDeps {
   chat: CustomerChatService;
   dataKey: Buffer;
   audit?: AuditLogger;
+  /** ADR-054: lo stato vivo per la pagina «I lavori» */
+  github?: GithubLiveService;
 }
 
 function equals(a: string, b: string): boolean {
@@ -135,6 +146,82 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
       if (error instanceof GosinoNotAssignedError) return problem(reply, 404, "Not Found");
       throw error;
     }
+  });
+
+  /** the state of the work — the «I lavori» page (ADR-054) */
+  app.get("/v1/reception/works", { preHandler: gate }, async (request, reply) => {
+    const context = request.receptionCustomer;
+    if (context === null) return problem(reply, 401, "Unauthorized");
+    const [repos, documents, mail] = await Promise.all([
+      deps.db
+        .select({
+          remoteUrl: customerRepos.remoteUrl,
+          defaultBranch: customerRepos.defaultBranch,
+          lastCommitSha: customerRepos.lastCommitSha,
+          lastIndexedAt: customerRepos.lastIndexedAt,
+          status: customerRepos.status,
+        })
+        .from(customerRepos)
+        .where(eq(customerRepos.customerId, context.customerId))
+        .orderBy(asc(customerRepos.createdAt)),
+      deps.db
+        .select({ count: sql<string>`count(*)` })
+        .from(customerDocuments)
+        .where(eq(customerDocuments.customerId, context.customerId)),
+      deps.db
+        .select({ count: sql<string>`count(*)` })
+        .from(customerMailAccounts)
+        .where(eq(customerMailAccounts.customerId, context.customerId)),
+    ]);
+    const live = await deps.github?.liveBlock(context.customerId);
+    return {
+      repos: repos.map((repo) => ({
+        ...repo,
+        lastIndexedAt: repo.lastIndexedAt?.toISOString() ?? null,
+      })),
+      documents: Number(documents[0]?.count ?? 0),
+      mailAccounts: Number(mail[0]?.count ?? 0),
+      ...(live !== undefined && { live }),
+    };
+  });
+
+  /** the conversation history — the «Le conversazioni» page */
+  app.get("/v1/reception/messages", { preHandler: gate }, async (request, reply) => {
+    const context = request.receptionCustomer;
+    if (context === null) return problem(reply, 401, "Unauthorized");
+    const query = request.query as { gosino?: string; before?: string; limit?: string };
+    const limit = Math.min(Number(query.limit ?? "30") || 30, 100);
+    const filters = [eq(customerMessages.customerId, context.customerId)];
+    if (query.gosino !== undefined) filters.push(eq(customerMessages.gosinoId, query.gosino));
+    if (query.before !== undefined) {
+      const before = new Date(query.before);
+      if (!Number.isNaN(before.getTime())) filters.push(lt(customerMessages.ts, before));
+    }
+    const rows = await deps.db
+      .select({
+        id: customerMessages.id,
+        gosinoId: customerMessages.gosinoId,
+        ticketId: customerMessages.ticketId,
+        ts: customerMessages.ts,
+        role: customerMessages.role,
+        text: customerMessages.text,
+        cached: customerMessages.cached,
+      })
+      .from(customerMessages)
+      .where(and(...filters))
+      .orderBy(desc(customerMessages.ts))
+      .limit(limit);
+    return {
+      messages: rows.reverse().map((row) => ({
+        id: row.id,
+        gosinoId: row.gosinoId,
+        ticketId: row.ticketId,
+        ts: row.ts.toISOString(),
+        role: row.role,
+        text: safeDecrypt(row.text, deps.dataKey),
+        cached: row.cached,
+      })),
+    };
   });
 
   /** the customer's tickets — theirs, and nobody else's */

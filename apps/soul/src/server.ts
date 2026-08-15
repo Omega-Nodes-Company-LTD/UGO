@@ -251,6 +251,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         }),
         dataKey: reception.dataKey,
         audit,
+        ...(reception.github !== undefined && { github: reception.github }),
       });
     }
     if (face !== undefined) {
