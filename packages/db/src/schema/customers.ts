@@ -37,6 +37,14 @@ export const customers = pgTable(
     /** null falls back to UGO_CUSTOMER_HOURLY_MESSAGES (ADR-055) */
     hourlyMessageLimit: integer("hourly_message_limit"),
     /**
+     * Quante mele può dare in sette giorni; null ricade su
+     * UGO_CUSTOMER_WEEKLY_REWARDS (ADR-058). Il tetto è il punto: una mela del
+     * cliente vale qualcosa solo perché ne ha poche — «gliele danno solo se
+     * davvero fa bene l'assistente» è una decisione del proprietario, non una
+     * taratura.
+     */
+    weeklyRewardLimit: integer("weekly_reward_limit"),
+    /**
      * Bumped by every reindex of this customer's sources (ADR-054); the
      * answer cache (ADR-055) only serves entries minted at the same epoch.
      */
@@ -57,6 +65,49 @@ export const customers = pgTable(
  * these on every conversation — the personality stays the gosino's own, and
  * over time the stats say which one the customer keeps coming back to.
  */
+/**
+ * Le mele date dai clienti (ADR-058, il muro del cliente).
+ *
+ * Una riga per mela, **mai un contatore**: il limite settimanale si conta da
+ * qui a ogni richiesta, con la stessa ragione dei muri di ADR-055 — un
+ * contatore che si azzera al riavvio è un contatore che mente. La finestra è
+ * mobile (sette giorni indietro), quindi non serve nessun azzeramento.
+ *
+ * `message_id` è facoltativo e senza FK: dice *quale risposta* ha meritato la
+ * mela, per il triage del pannello, ma una risposta poi dimenticata dalla
+ * ritenzione non deve portarsi via la mela dal conteggio.
+ */
+export const customerRewards = pgTable(
+  "customer_rewards",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    householdId: householdId(),
+    customerId: uuid("customer_id").notNull(),
+    gosinoId: uuid("gosino_id").notNull(),
+    messageId: uuid("message_id"),
+    ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // il conteggio della settimana è (customer, ts): questo indice È la quota
+    index("customer_rewards_customer_ts_idx").on(table.customerId, table.ts),
+    // both composite keys, like `customer_gosini`: a neighbour's customer or
+    // gosino is structurally impossible, and the customer's oblivion (the
+    // cascade) takes his apples with him
+    foreignKey({
+      columns: [table.householdId, table.customerId],
+      foreignColumns: [customers.householdId, customers.id],
+      name: "customer_rewards_household_customer_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.householdId, table.gosinoId],
+      foreignColumns: [gosini.householdId, gosini.id],
+      name: "customer_rewards_household_gosino_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
 export const customerGosini = pgTable(
   "customer_gosini",
   {

@@ -12,7 +12,7 @@ export {
   customerSourceType,
   customerSourceStatus,
 } from "./enums.js";
-export { customers, customerGosini } from "./customers.js";
+export { customers, customerGosini, customerRewards } from "./customers.js";
 export { customerAccessTokens } from "./customer-tokens.js";
 export { tickets, customerMessages } from "./tickets.js";
 export {

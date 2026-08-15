@@ -12,6 +12,7 @@ import {
   decryptText,
   encryptText,
   receptionChatRequestSchema,
+  receptionRewardRequestSchema,
   receptionTicketCreateSchema,
   receptionTicketReplySchema,
 } from "@ugo/shared";
@@ -21,6 +22,10 @@ import type { AuditLogger } from "../services/auditLog.js";
 import { CustomerResolver, type CustomerContext } from "../services/reception/customerAuth.js";
 import type { CustomerChatService } from "../services/reception/customerChatService.js";
 import { GosinoNotAssignedError } from "../services/reception/customerChatService.js";
+import {
+  RewardExhaustedError,
+  type CustomerRewardService,
+} from "../services/reception/customerReward.js";
 import type { GithubLiveService } from "../services/reception/githubLiveService.js";
 
 /**
@@ -52,6 +57,8 @@ export interface ReceptionDeps {
   audit?: AuditLogger;
   /** ADR-054: lo stato vivo per la pagina «I lavori» */
   github?: GithubLiveService;
+  /** ADR-058: la mela del cliente, contata da Postgres */
+  reward: CustomerRewardService;
 }
 
 function equals(a: string, b: string): boolean {
@@ -110,7 +117,49 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
     return {
       customer,
       gosini: await deps.chat.assignedGosini(context),
+      // le mele residue arrivano con l'identità: la reception le mostra
+      // accanto al bottone senza una chiamata in più
+      rewards: await deps.reward.allowance(context.customerId),
     };
+  });
+
+  /**
+   * ADR-058, il muro del cliente: la mela. Deliberata come quella sul muso —
+   * si premia l'ultima risposta di UN gosino, non «il servizio» — e limitata:
+   * a mele finite risponde 429 con il momento in cui la prossima torna, che è
+   * l'unico onesto «riprova più tardi» che si possa dire.
+   */
+  app.post("/v1/reception/reward", { preHandler: gate }, async (request, reply) => {
+    const context = request.receptionCustomer;
+    if (context === null) return problem(reply, 401, "Unauthorized");
+    const parsed = receptionRewardRequestSchema.safeParse(request.body);
+    if (!parsed.success) return problem(reply, 400, "Bad Request");
+    try {
+      const rewards = await deps.reward.give(context, parsed.data.gosinoId);
+      await deps.audit?.record({
+        verb: "customer_reward_given",
+        outcome: "ok",
+        householdId: context.householdId,
+        resourceType: "gosino",
+        resourceId: parsed.data.gosinoId,
+      });
+      return await reply.code(201).send({ rewards });
+    } catch (error) {
+      if (error instanceof GosinoNotAssignedError) return problem(reply, 404, "Not Found");
+      if (error instanceof RewardExhaustedError) {
+        return reply
+          .code(429)
+          .type("application/problem+json")
+          .send({
+            type: "about:blank",
+            title: "Too Many Requests",
+            status: 429,
+            detail: "Le mele della settimana sono finite: tienile per le risposte davvero ottime.",
+            ...(error.nextAt !== undefined && { nextAt: error.nextAt.toISOString() }),
+          });
+      }
+      throw error;
+    }
   });
 
   app.post("/v1/reception/chat", { preHandler: gate }, async (request, reply) => {

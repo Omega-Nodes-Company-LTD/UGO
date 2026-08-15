@@ -28,6 +28,7 @@ import { registerReceptionRoutes } from "./routes/reception.js";
 import { AnswerCache } from "./services/reception/answerCache.js";
 import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
 import type { CustomerQuota } from "./services/reception/customerQuota.js";
+import { CustomerRewardService } from "./services/reception/customerReward.js";
 import type { GithubLiveService } from "./services/reception/githubLiveService.js";
 import type { EmbeddingsClient, LlmClient } from "@ugo/memory";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
@@ -84,6 +85,8 @@ export interface ServerOptions extends HealthDeps {
       embedder?: EmbeddingsClient;
       /** ADR-054: live PRs/commits on live-state questions */
       github?: GithubLiveService;
+      /** ADR-058: UGO_CUSTOMER_WEEKLY_REWARDS — il muro della mela */
+      weeklyRewards: number;
     };
     /** ADR-052: the house side — customers CRUD, assignment, tokens, triage */
     customers?: {
@@ -276,6 +279,16 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       registerReceptionRoutes(app, {
         db: options.db,
         receptionToken: reception.token,
+        // ADR-058: la psiche viva arriva dal registro — la mela di un cliente
+        // scalda l'esemplare che sta girando, non una copia
+        reward: new CustomerRewardService({
+          db: options.db,
+          weeklyDefault: reception.weeklyRewards,
+          ...(registry !== undefined && {
+            psycheFor: (householdId: string, gosinoId: string) =>
+              registry.all(householdId).find((runtime) => runtime.id === gosinoId)?.psyche,
+          }),
+        }),
         chat: new CustomerChatService({
           db: options.db,
           dataKey: reception.dataKey,

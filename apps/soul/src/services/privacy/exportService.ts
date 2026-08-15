@@ -40,6 +40,8 @@ export interface ExportBundle {
   /** the reception (ADR-052): the house's customers, decrypted like the rest */
   customers: unknown[];
   customerGosini: unknown[];
+  /** ADR-058: le mele date dai clienti — solo id e istanti, com'è la riga */
+  customerRewards: unknown[];
   /** metadata only — the hash grants nothing, so not even that leaves */
   customerTokens: unknown[];
   tickets: unknown[];
@@ -105,6 +107,7 @@ export class ExportService {
       recognitionProfiles,
       customers,
       customerGosini,
+      customerRewards,
       customerTokens,
       tickets,
       customerMessages,
@@ -155,10 +158,12 @@ export class ExportService {
                  where being_id in (select id from beings where household_id = ${householdId})
                  order by being_id`),
         rows(sql`select id, name, slug, notes, daily_budget_usd, hourly_message_limit,
-                        knowledge_epoch, created_at, archived_at
+                        weekly_reward_limit, knowledge_epoch, created_at, archived_at
                  from customers where household_id = ${householdId} order by created_at`),
         rows(sql`select customer_id, gosino_id, created_at from customer_gosini
                  where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, gosino_id, message_id, ts from customer_rewards
+                 where household_id = ${householdId} order by ts`),
         rows(sql`select id, customer_id, label, created_at, last_used_at, expires_at, revoked_at
                  from customer_access_tokens
                  where household_id = ${householdId} order by created_at`),
@@ -207,6 +212,7 @@ export class ExportService {
       recognitionProfiles,
       customers: this.decryptColumn(customers, ["notes"]),
       customerGosini,
+      customerRewards,
       customerTokens,
       tickets: this.decryptColumn(tickets, ["title", "body"]),
       customerMessages: this.decryptColumn(customerMessages),

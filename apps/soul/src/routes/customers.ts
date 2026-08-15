@@ -2,13 +2,14 @@ import {
   customerAccessTokens,
   customerGosini,
   customerMessages,
+  customerRewards,
   customers,
   gosini,
   tickets,
   type DbClient,
 } from "@ugo/db";
 import { TICKET_STATUSES, decryptText, encryptText } from "@ugo/shared";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { AuditLogger } from "../services/auditLog.js";
@@ -36,6 +37,8 @@ const updateSchema = z.object({
   notes: z.string().max(4000).nullable().optional(),
   dailyBudgetUsd: z.number().positive().nullable().optional(),
   hourlyMessageLimit: z.number().int().positive().nullable().optional(),
+  /** ADR-058: mele in sette giorni; 0 è legittimo (cliente senza mele), null = default */
+  weeklyRewardLimit: z.number().int().min(0).nullable().optional(),
   archived: z.boolean().optional(),
 });
 
@@ -173,7 +176,8 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
     const { id } = request.params as { id: string };
     const customer = await mine(householdId, id);
     if (customer === undefined) return problem(reply, 404, "Not Found");
-    const [assigned, tokens] = await Promise.all([
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60_000);
+    const [assigned, tokens, [givenThisWeek]] = await Promise.all([
       db
         .select({ id: gosini.id, name: gosini.name, locationLabel: gosini.locationLabel })
         .from(customerGosini)
@@ -192,6 +196,12 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
         .from(customerAccessTokens)
         .where(eq(customerAccessTokens.customerId, id))
         .orderBy(asc(customerAccessTokens.createdAt)),
+      // ADR-058: la stessa finestra mobile del muro — il pannello mostra il
+      // conteggio che la reception applica, non un altro
+      db
+        .select({ count: sql<string>`count(*)` })
+        .from(customerRewards)
+        .where(and(eq(customerRewards.customerId, id), gt(customerRewards.ts, weekAgo))),
     ]);
     return {
       id: customer.id,
@@ -200,6 +210,8 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
       notes: safeDecrypt(customer.notes, dataKey),
       dailyBudgetUsd: customer.dailyBudgetUsd,
       hourlyMessageLimit: customer.hourlyMessageLimit,
+      weeklyRewardLimit: customer.weeklyRewardLimit,
+      rewardsThisWeek: Number(givenThisWeek?.count ?? 0),
       knowledgeEpoch: customer.knowledgeEpoch,
       createdAt: customer.createdAt.toISOString(),
       archivedAt: customer.archivedAt?.toISOString() ?? null,
@@ -236,6 +248,9 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
         }),
         ...(data.hourlyMessageLimit !== undefined && {
           hourlyMessageLimit: data.hourlyMessageLimit,
+        }),
+        ...(data.weeklyRewardLimit !== undefined && {
+          weeklyRewardLimit: data.weeklyRewardLimit,
         }),
         ...(data.archived !== undefined && {
           archivedAt: data.archived ? new Date() : null,

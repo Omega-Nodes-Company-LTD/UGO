@@ -45,8 +45,11 @@ export const CUSTOMER_PAGES = `
         <input id="cust-budget" data-testid="cust-budget"></div>
       <div><label for="cust-hourly">Domande l'ora (vuoto = default)</label>
         <input id="cust-hourly" data-testid="cust-hourly"></div>
+      <div><label for="cust-apples">Mele in 7 giorni (vuoto = default)</label>
+        <input id="cust-apples" data-testid="cust-apples"></div>
       <button id="cust-limits" data-testid="cust-limits">Salva i limiti</button>
     </div>
+    <p class="because" id="cust-apples-given"></p>
 
     <h3>I token</h3>
     <div id="cust-tokens"></div>

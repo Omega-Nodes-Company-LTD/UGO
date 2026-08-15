@@ -114,3 +114,44 @@ punto.
   altrimenti l'unica cosa che potrà dire è «mi sembra che ultimamente…»;
 - **zero chiamate in più al provider.** Tutto questo gira su tabelle e aritmetica; il caso peggiore
   in chiamate all'ora è identico a prima.
+
+## Appendice — la mela del cliente (il muro che mancava)
+
+La decisione era già presa a voce dal proprietario, e la prima stesura non l'aveva onorata: «gliele
+danno solo se davvero fa bene l'assistente… ne avranno tipo 2 a settimana». Le mele di **casa** sono
+illimitate — i tetti anti-farming stanno nella psiche e nel raffreddamento dell'affinità — ma in
+mano a un **cliente** un premio illimitato è un bottone di cortesia, e un segnale che arriva sempre
+è un segnale che non dice più niente.
+
+### Il muro
+
+`customer_rewards`, una riga per mela, **mai un contatore**: il limite (default
+`UGO_CUSTOMER_WEEKLY_REWARDS=2`, override per cliente in `customers.weekly_reward_limit`, anche 0)
+si conta da Postgres a ogni richiesta, per la stessa ragione dei muri di ADR-055 — un contatore che
+si azzera al riavvio è un contatore che mente. La finestra è **mobile** (sette giorni indietro),
+non di calendario: niente azzeramenti da schedulare, niente «quando comincia la settimana», e il
+momento in cui una mela torna è un fatto che si legge dalla riga più vecchia. A mele finite la
+rotta risponde 429 **con la data**, che è l'unico onesto «riprova più tardi» che si possa dire.
+
+### Cosa fa, e cosa NON fa
+
+Fa: perturba la psiche con lo stesso evento `reward` (coi suoi tetti), lascia una riga nella
+memoria episodica (`events`, source `reception`, solo ID — regola 6) con dentro **quale risposta**
+l'ha meritata (risolta lato server: l'ultima del gosino, perché il client gli id non li ha mai
+visti), e finisce nell'audit (`customer_reward_given`).
+
+Non fa, ed entrambe le metà sono la decisione:
+
+- **niente `bonds.affinity`**: il legame è del branco, un cliente non è un `being`, e inventargli
+  una riga sarebbe il difetto di `eldestExemplarOf` sotto altro nome;
+- **niente `act_efficacy`**: i pesi sono sulle iniziative del corpo; qui si premia una risposta di
+  chat, e pesare un atto a caso è peggio che non pesarne nessuno.
+
+### Come e perché darla — scritto dove il cliente la vede
+
+L'obbligo di spiegazione sta **nel prodotto**, non in un manuale che il cliente non aprirà mai: la
+reception mostra quante ne restano, il bottone vive solo sotto l'**ultima** risposta (un premio
+dato a distanza di dieci battute non insegna niente), e la nota sotto il filo dice il come e il
+perché: poche apposta, solo per le risposte davvero ottime, il gosino se le ricorda e lo studio
+vede quali risposte sono servite. Il pannello mostra il conteggio con la stessa finestra che la
+reception applica — non un altro.

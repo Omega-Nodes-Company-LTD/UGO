@@ -1,6 +1,7 @@
 /** Closed domains shared across the system (PROGETTO §5.2, §5.7). */
 
-export const EVENT_SOURCES = ["face", "nano", "ear", "meet", "system"] as const;
+/** `reception` è la mela del cliente (ADR-058): l'unico evento che entra da lì. */
+export const EVENT_SOURCES = ["face", "nano", "ear", "meet", "system", "reception"] as const;
 export type EventSource = (typeof EVENT_SOURCES)[number];
 
 /** `ticket` is the reception channel (ADR-051/052): customer conversations. */

@@ -53,8 +53,38 @@ export const receptionGosinoSchema = z.object({
 });
 export type ReceptionGosino = z.infer<typeof receptionGosinoSchema>;
 
+/**
+ * Le mele del cliente (ADR-058): quante ne restano, e quando torna la prossima.
+ *
+ * Il conteggio è **sempre del server**, da Postgres su finestra mobile di sette
+ * giorni: il client lo mostra e basta. `nextAt` c'è solo quando `remaining` è
+ * zero — è il momento in cui la mela più vecchia esce dalla finestra.
+ */
+export const receptionRewardAllowanceSchema = z.object({
+  weeklyLimit: z.number().int().min(0),
+  remaining: z.number().int().min(0),
+  nextAt: z.string().optional(),
+});
+export type ReceptionRewardAllowance = z.infer<typeof receptionRewardAllowanceSchema>;
+
 export const receptionMeSchema = z.object({
   customer: z.object({ id: z.uuid(), name: z.string(), slug: z.string() }),
   gosini: z.array(receptionGosinoSchema),
+  rewards: receptionRewardAllowanceSchema,
 });
 export type ReceptionMe = z.infer<typeof receptionMeSchema>;
+
+/**
+ * La mela (ADR-058, il muro del cliente). Deliberata come quella sul muso:
+ * si premia **una risposta**, non «il servizio» — il client la manda quando
+ * il cliente tocca la mela sotto una risposta precisa.
+ */
+export const receptionRewardRequestSchema = z.object({
+  gosinoId: z.uuid(),
+});
+export type ReceptionRewardRequest = z.infer<typeof receptionRewardRequestSchema>;
+
+export const receptionRewardResponseSchema = z.object({
+  rewards: receptionRewardAllowanceSchema,
+});
+export type ReceptionRewardResponse = z.infer<typeof receptionRewardResponseSchema>;

@@ -2,7 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { ReceptionChatResponse, ReceptionMe } from "@ugo/shared";
+import type {
+  ReceptionChatResponse,
+  ReceptionMe,
+  ReceptionRewardAllowance,
+  ReceptionRewardResponse,
+} from "@ugo/shared";
 import { Avatar, type AvatarState } from "../../components/avatar";
 import { ApiError, call } from "../../lib/api";
 import { chosenGosino } from "../../lib/session";
@@ -36,6 +41,12 @@ export default function Parla(): React.JSX.Element {
   const [avatar, setAvatar] = useState<AvatarState>("idle");
   const [voiceOn, setVoiceOn] = useState(true);
   const [busy, setBusy] = useState(false);
+  /**
+   * Le mele (ADR-058): poche a settimana, e il conto è del server — qui si
+   * mostra e basta. `null` finché `/me` non risponde: senza il dato il bottone
+   * non esiste, che è meglio di un bottone che poi si rimangia il clic.
+   */
+  const [rewards, setRewards] = useState<ReceptionRewardAllowance | null>(null);
   const hearing = useRef<ListenHandle | undefined>(undefined);
   const bottom = useRef<HTMLDivElement | null>(null);
 
@@ -48,7 +59,10 @@ export default function Parla(): React.JSX.Element {
     setGosino(chosen);
     setVoiceOn(localStorage.getItem("reception_voice") !== "off");
     call<ReceptionMe>("/me")
-      .then(setMe)
+      .then((view) => {
+        setMe(view);
+        setRewards(view.rewards);
+      })
       .catch((caught: unknown) => {
         if (caught instanceof ApiError && caught.status === 401) router.push("/");
       });
@@ -121,6 +135,45 @@ export default function Parla(): React.JSX.Element {
     }
   };
 
+  /**
+   * La mela (ADR-058): si premia **l'ultima risposta**, non «il servizio».
+   * Il bottone vive sotto l'ultima nuvoletta del gosino e sparisce appena la
+   * conversazione va avanti: un premio dato a distanza di dieci battute non
+   * insegna niente a nessuno. A mele finite risponde il server, con la data.
+   */
+  const reward = async (): Promise<void> => {
+    if (gosino === "" || rewards === null || rewards.remaining === 0) return;
+    try {
+      const given = await call<ReceptionRewardResponse>("/reward", {
+        method: "POST",
+        body: JSON.stringify({ gosinoId: gosino }),
+      });
+      setRewards(given.rewards);
+      setThread((turns) => [
+        ...turns,
+        {
+          who: "hint",
+          text:
+            given.rewards.remaining === 0
+              ? "🍎 Gliel'hai data — e se la ricorda. Era l'ultima della settimana."
+              : `🍎 Gliel'hai data — e se la ricorda. Te ne ${
+                  given.rewards.remaining === 1 ? "resta una" : `restano ${String(given.rewards.remaining)}`
+                } questa settimana.`,
+        },
+      ]);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 429) {
+        setRewards((state) => (state === null ? state : { ...state, remaining: 0 }));
+        setThread((turns) => [
+          ...turns,
+          { who: "hint", text: "Le mele della settimana sono finite: tienile per le risposte davvero ottime." },
+        ]);
+      } else if (caught instanceof ApiError && caught.status === 401) {
+        router.push("/");
+      }
+    }
+  };
+
   const toggleEar = (): void => {
     if (hearing.current !== undefined) {
       hearing.current.stop();
@@ -188,8 +241,28 @@ export default function Parla(): React.JSX.Element {
             {turn.text}
           </div>
         ))}
+        {rewards !== null &&
+          rewards.remaining > 0 &&
+          !busy &&
+          thread.at(-1)?.who === "ugo" && (
+            <button
+              className="reward"
+              data-testid="reward"
+              title="La mela gli insegna quali risposte rifare: dagliela solo quando una risposta è davvero ottima."
+              onClick={() => void reward()}
+            >
+              🍎 Premia questa risposta
+            </button>
+          )}
         <div ref={bottom} />
       </div>
+      {rewards !== null && (
+        <p className="reward-note" data-testid="reward-note">
+          {rewards.remaining > 0
+            ? `🍎 Hai ${rewards.remaining === 1 ? "una mela" : `${String(rewards.remaining)} mele`} per questa settimana: dagliene una solo quando una risposta è davvero ottima. Se la ricorda, e lo studio vede quali risposte ti sono servite.`
+            : "🍎 Le mele della settimana sono finite: tornano da sole, una alla volta, sette giorni dopo che le hai date."}
+        </p>
+      )}
 
       <div className="composer">
         <input

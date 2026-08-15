@@ -123,6 +123,7 @@ nulla era da inventare: pezzi costruiti e mai raccordati.
 | ✅ | **Arredi, scorte, editor visuale, collisioni** | **ADR-056**: catalogo in codice, due tabelle, spinta `scene` a scena aperta, e `used_prop` che abbassa la noia **con un tetto** |
 | ✅ | **Il cespuglio è un riparo** | Misure di un pancia a tazza, non di un Large White. Lo **stress** è la seconda spinta che muove il corpo, e ci va **dietro** |
 | ✅ | **La mela, il legame e i pesi** | **ADR-058**: `compliment` acceso col tetto, prima scrittura su `bonds.affinity`, pesi che moltiplicano il **sollievo** e mai l'invadenza |
+| ✅ | **La mela del cliente, limitata e spiegata** | **ADR-058 appendice**: `customer_rewards` contata da Postgres su finestra mobile, default 2 in 7 giorni con override per cliente, 429 con la data, spiegazione nel prodotto |
 | ✅ | **Silvio non è UGO con un soprannome** | Il nome proprio esce dal blocco `[CACHED]`, che è condiviso da ogni creatura della casa |
 | ✅ | **Le correzioni all'esemplare giusto** | Con due gosini, dire a uno che urla correggeva l'altro. Ora `?gosino=`, e con più d'uno un 400 invece di un'ipotesi |
 | ⬜️ | **La retention delle impronte ignote nel giro notturno** | La rotta c'è e funziona; nessuno la chiama da solo. Una retention dichiarata e non applicata è peggio di nessuna retention |

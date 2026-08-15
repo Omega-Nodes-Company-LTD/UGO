@@ -60,6 +60,8 @@ export const AUDIT_VERBS = [
   "print_destroyed",
   /** le impronte ignote scadute, portate via dalla retention */
   "prints_expired",
+  /** ADR-058: una mela data da un cliente — il gosino premiato, mai il testo */
+  "customer_reward_given",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

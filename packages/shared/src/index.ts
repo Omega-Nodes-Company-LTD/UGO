@@ -79,6 +79,9 @@ export {
   receptionTicketSchema,
   receptionGosinoSchema,
   receptionMeSchema,
+  receptionRewardAllowanceSchema,
+  receptionRewardRequestSchema,
+  receptionRewardResponseSchema,
   type ReceptionChatRequest,
   type ReceptionChatResponse,
   type ReceptionTicketCreate,
@@ -86,6 +89,9 @@ export {
   type ReceptionTicket,
   type ReceptionGosino,
   type ReceptionMe,
+  type ReceptionRewardAllowance,
+  type ReceptionRewardRequest,
+  type ReceptionRewardResponse,
 } from "./receptionContracts.js";
 export {
   EVENT_SOURCES,

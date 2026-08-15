@@ -145,6 +145,7 @@ beforeAll(async () => {
       reception: {
         token: RECEPTION_TOKEN,
         dataKey,
+        weeklyRewards: 2,
         quota: new CustomerQuota(db, {
           hourlyMessages: 100,
           dailyBudgetUsd: 5,

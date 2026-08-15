@@ -1824,6 +1824,20 @@ nessun senso generale, e lo dicono il codice, l'ADR **e il pannello**.
 Silvio che urla correggeva Ugo. Adesso accetta `?gosino=` e con più d'uno
 **rifiuta invece di indovinare**.
 
+### La mela del cliente (ADR-058, appendice)
+
+La decisione del proprietario era «tipo 2 a settimana, così premiano solo le
+risposte davvero ottime», e la prima stesura l'aveva lasciata come «spazio», non
+come codice. Adesso è un muro: `customer_rewards` una riga per mela (migrazioni
+0021 + **0022 a mano** per RLS), conteggio da Postgres su finestra mobile di
+sette giorni, default `UGO_CUSTOMER_WEEKLY_REWARDS=2` con override per cliente
+(anche 0), 429 **con la data** a mele finite. La mela del cliente perturba la
+psiche e resta nella memoria episodica (source `reception`, solo ID) con dentro
+quale risposta l'ha meritata; **non** tocca `bonds.affinity` (un cliente non è
+un `being`) né `act_efficacy` (si premia una risposta, non un'iniziativa). Il
+come e perché darle sta **nel prodotto**: bottone solo sotto l'ultima risposta,
+nota che spiega, scheda del cliente col conteggio della stessa finestra.
+
 ### Il giro completo (regola 12)
 
 - **BO** — `packages/prompts`, `packages/shared` (due cataloghi, quattro frame
