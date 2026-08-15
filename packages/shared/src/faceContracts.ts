@@ -74,6 +74,24 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("tap") }),
   z.object({ type: z.literal("shake") }),
   /**
+   * ADR-053: la mela. Un premio deliberato, e non un tocco qualunque.
+   *
+   * Il bersaglio è il **muso**, non tutta la tela: `tap` è la carezza e arriva
+   * ovunque, questo arriva solo se hai mirato. Un premio che si dà per sbaglio
+   * non è un premio, e la differenza fra i due è tutta lì.
+   *
+   * `act` è l'id dell'iniziativa che si sta premiando. Il **muso non lo manda**,
+   * ed è voluto: quale iniziativa UGO abbia appena preso lo sa soul, che l'ha
+   * decisa e scritta in `events`, e farlo tracciare anche al corpo sarebbe una
+   * seconda copia della stessa verità da tenere allineata a mano. Il campo
+   * esiste per chi *sa* cosa sta premiando — il pannello, quando premia una
+   * riga precisa del registro delle iniziative.
+   */
+  z.object({
+    type: z.literal("reward"),
+    act: z.string().min(1).max(40).optional(),
+  }),
+  /**
    * ADR-051: è andato a usare un arredo, e ce n'è andato **da solo**.
    *
    * Lo manda il corpo perché è il corpo a deciderlo: la scelta di avvicinarsi

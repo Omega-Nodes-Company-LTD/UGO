@@ -16,7 +16,34 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
     { variable: "affetto", amount: 0.1 },
     { variable: "noia", amount: -0.2 },
   ],
-  compliment: [{ variable: "umore", amount: 0.05 }],
+  /**
+   * Una carezza, o una parola buona.
+   *
+   * L'evento esisteva **da sempre e non lo emetteva nessuno**: `tap` arrivava al
+   * gateway, il corpo festeggiava con `happyGrunt`, e alla psiche non arrivava
+   * niente. Adesso lo emette la carezza — e col `ceiling`, che senza cento
+   * tocchi saturerebbero l'umore in un minuto: una carezza è bella, cento di
+   * fila sono un dito su un vetro.
+   *
+   * 0.12 di tetto contro 0.05 a colpo: la seconda e la terza si sentono ancora,
+   * la decima no. È quello che fa una carezza vera.
+   */
+  compliment: [{ variable: "umore", amount: 0.05, ceiling: 0.12 }],
+  /**
+   * ADR-053: la mela. Un premio deliberato, e pesa.
+   *
+   * Distinta da `compliment` perché è **una cosa diversa**, non una carezza più
+   * forte: la carezza è un gesto continuo che non costa niente e ha un tetto
+   * basso; la mela è un gesto raro, mirato sul muso, che scalda il legame con
+   * chi gliel'ha data e sposta la preferenza dell'atto che se l'è meritata.
+   * Schiacciarle in un evento solo avrebbe reso impossibile dare a una il tetto
+   * dell'altra.
+   */
+  reward: [
+    { variable: "umore", amount: 0.14, ceiling: 0.3 },
+    { variable: "affetto", amount: 0.08, ceiling: 0.2 },
+    { variable: "noia", amount: -0.1, ceiling: 0.2 },
+  ],
   /** emitted by soul's SolitudeMonitor after 24h without being addressed */
   ignored_day: [{ variable: "umore", amount: -0.1 }],
   /** RH > 70% sustained */

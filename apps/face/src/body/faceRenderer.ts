@@ -54,6 +54,12 @@ export interface FaceRenderer {
   setProps?(props: readonly SceneProp[]): void;
   /** ADR-051: uno di loro è andato da solo a usare un arredo. */
   onUsedProp?(listener: (who: string, kind: PropKind) => void): void;
+  /**
+   * ADR-053: chi è stato toccato **sul muso**, se qualcuno. Facoltativo: il
+   * corpo 2D non ha un muso in una scena, e lì la mela semplicemente non c'è —
+   * il che è meglio di una mela che si dà toccando ovunque.
+   */
+  snoutAt?(at: { x: number; y: number }): string | undefined;
   start(): void;
   stop(): void;
   /** what the body is currently doing, for the e2e hooks */

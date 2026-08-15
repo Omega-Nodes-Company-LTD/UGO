@@ -58,6 +58,8 @@ export class Webgl3dFace implements FaceRenderer {
   private props: readonly SceneProp[] = [];
   private pen: Pen = { radiusX: 3.4, radiusZ: 1.7 };
   private usedProp: ((who: string, kind: PropKind) => void) | undefined;
+  /** uno solo, riusato: costruirne uno per tocco è spazzatura per niente */
+  private readonly ray = new THREE.Raycaster();
 
   /** insertion order is the order they stand in, left to right */
   private readonly people = new Map<string, Inhabitant>();
@@ -169,6 +171,27 @@ export class Webgl3dFace implements FaceRenderer {
     this.props = props;
     this.furniture.set(props);
     this.spreadProps();
+  }
+
+  /**
+   * ADR-053: hai mirato al muso? E di chi?
+   *
+   * Il bersaglio piccolo **è** la decisione: `tap` è la carezza e arriva
+   * ovunque sulla tela, la mela arriva solo se hai puntato. Un premio che si dà
+   * per sbaglio non è un premio, e un raycast su tutto il canvas avrebbe reso i
+   * due gesti la stessa cosa con due nomi.
+   *
+   * @param at coordinate normalizzate del puntatore, [-1,1] come le vuole three
+   * @returns l'id della creatura toccata sul muso, o `undefined`
+   */
+  public snoutAt(at: { x: number; y: number }): string | undefined {
+    this.ray.setFromCamera(new THREE.Vector2(at.x, at.y), this.camera);
+    for (const [id, person] of this.people) {
+      // `true`: il muso è un gruppo con dentro il blocco e le narici, e senza
+      // la ricorsione il raggio non colpirebbe niente
+      if (this.ray.intersectObject(person.pig.snout, true).length > 0) return id;
+    }
+    return undefined;
   }
 
   /** ADR-051: uno di loro è andato a usare qualcosa, da solo. */

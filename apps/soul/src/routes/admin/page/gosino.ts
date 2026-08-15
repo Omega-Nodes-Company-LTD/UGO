@@ -49,6 +49,19 @@ export const GOSINO_PAGES = `
     <div id="volition-msg"></div>
   </div>
 
+  <div class="block">
+    <h2>Cosa gli è piaciuto fare</h2>
+    <p class="lede">Quando gli dai una mela — un dito <b>sul muso</b> — pesa un po' di più
+       l'ultima cosa che aveva scelto di fare. Lo stesso succede da solo, quando
+       un'iniziativa abbassa davvero la spinta che l'aveva mossa.</p>
+    <p class="lede"><b>Non sta imparando</b> nel senso in cui lo diresti di una persona:
+       sono nove gesti già scritti, e questo è solo quanto li preferisce, fra il 60% e il
+       140%. Ogni notte tutto torna un po' verso il centro, quindi è una tendenza
+       recente e non una decisione presa una sera.</p>
+    <div id="efficacy-list" data-testid="efficacy-list"></div>
+    <div id="efficacy-msg"></div>
+  </div>
+
   <div class="grid-2">
     <div class="block">
       <h2>Desideri in sospeso</h2>

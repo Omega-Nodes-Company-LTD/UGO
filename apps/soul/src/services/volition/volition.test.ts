@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ACTS } from "./acts.js";
+import { ACTS, ACT_BY_ID } from "./acts.js";
 import { tidyQuestion } from "./curiosity.js";
-import { MIN_GAP_MIN, type Gates, decide, isQuietHour } from "./decide.js";
+import { ATTENTION_WEIGHT, MIN_GAP_MIN, type Gates, decide, isQuietHour } from "./decide.js";
 import { type Vars, type WorldFacts, pressures } from "./pressures.js";
 
 /**
@@ -200,5 +200,86 @@ describe("tidyQuestion", () => {
     expect(tidyQuestion("")).toBeUndefined();
     expect(tidyQuestion("?")).toBeUndefined();
     expect(tidyQuestion(`${"a".repeat(400)}?`)).toBeUndefined();
+  });
+});
+
+/**
+ * ADR-053: i pesi, e le tre valvole di sicurezza.
+ *
+ * ⚠️ Prima di tutto, cosa NON è: non è apprendimento in nessun senso generale, è
+ * un peso di preferenza su nove atti cablati, limitato a ±40%, che decade verso
+ * 1 ogni notte. Fra sei mesi qualcuno leggerà «impara» e crederà a molto di
+ * più — questi test sono il posto in cui è scritto quanto poco fa.
+ *
+ * Le tre valvole discendono tutte dall'**ordine dei fattori**: il peso
+ * moltiplica il *sollievo*, mai la penalità di invadenza.
+ */
+describe("i pesi degli atti", () => {
+  const strong = pressures(
+    { ...CALM, noia: 0.9, curiosita: 0.9 },
+    { ...JUST_SEEN, minutesAlone: 240, pendingDesires: 1 },
+  );
+
+  it("changes nothing at all when there are no weights: this is what shipped before", () => {
+    expect(decide(strong, OPEN_GATES, ACTS, {})).toEqual(decide(strong, OPEN_GATES, ACTS));
+  });
+
+  /** La cosa che i pesi devono saper fare: riordinare due atti simili. */
+  it("reorders two acts that were close, which is the whole point", () => {
+    const two = ACTS.filter((a) => a.id === "comeCloser" || a.id === "nudge");
+    const plain = decide(strong, OPEN_GATES, two);
+    expect(plain).toBeDefined();
+    const other = plain?.act.id === "comeCloser" ? "nudge" : "comeCloser";
+    const tilted = decide(strong, OPEN_GATES, two, { [other]: 1.4 });
+    expect(tilted?.act.id).toBe(other);
+  });
+
+  /**
+   * Valvola 1. `askQuestion` è l'atto più invadente del catalogo: per quanto
+   * gli si dica che è andata bene, la penalità di invadenza non si muove — è
+   * fuori dal fattore. Altrimenti UGO **imparerebbe a scocciare**.
+   */
+  it("never lets an intrusive act learn to stop being intrusive", () => {
+    const ask = ACTS.filter((a) => a.id === "askQuestion");
+    const gates = { ...OPEN_GATES, localModelUp: true };
+    const plain = decide(strong, gates, ask);
+    const praised = decide(strong, gates, ask, { askQuestion: 1.4 });
+    expect(plain).toBeDefined();
+    expect(praised).toBeDefined();
+    // Il punteggio sale, ma va provato **da cosa**: si toglie la penalità da
+    // entrambi e quel che resta è il solo sollievo. Se il rapporto è
+    // esattamente 1.4, il peso ha moltiplicato il sollievo e nient'altro — se
+    // avesse sfiorato la penalità, questo numero non tornerebbe.
+    const cost = (ACT_BY_ID.get("askQuestion")?.intrusive ?? 0) * ATTENTION_WEIGHT;
+    const reliefOf = (decision: typeof plain): number => (decision?.score ?? 0) + cost;
+    expect(reliefOf(praised) / reliefOf(plain)).toBeCloseTo(1.4, 6);
+  });
+
+  /**
+   * Valvola 2. Un peso al massimo su un atto sotto soglia **perde ancora**
+   * contro il non far niente: l'apprendimento riordina, non fabbrica.
+   */
+  it("cannot fabricate an initiative out of a pressure that is not there", () => {
+    const nothing = pressures(CALM, JUST_SEEN);
+    for (const act of ACTS) {
+      expect(decide(nothing, OPEN_GATES, [act], { [act.id]: 1.4 })).toBeUndefined();
+    }
+  });
+
+  /** Valvola 3: i raffreddamenti e le ore di quiete non li tocca nessuno. */
+  it("cannot buy its way past a cooldown or a quiet hour", () => {
+    const nudge = ACTS.filter((a) => a.id === "nudge");
+    expect(decide(strong, { ...OPEN_GATES, sinceAct: { nudge: 1 } }, nudge, { nudge: 1.4 }))
+      .toBeUndefined();
+    expect(decide(strong, { ...OPEN_GATES, hour: 3 }, nudge, { nudge: 1.4 })).toBeUndefined();
+  });
+
+  it("survives a weight the database could never hold, without exploding", () => {
+    // difesa in profondità: il `check` impedisce di scriverlo, ma `decide` non
+    // deve dipendere dal database per restare sano
+    const one = ACTS.filter((a) => a.id === "lookOver");
+    for (const weight of [0, -5, 99, Number.NaN]) {
+      expect(() => decide(strong, OPEN_GATES, one, { lookOver: weight })).not.toThrow();
+    }
   });
 });

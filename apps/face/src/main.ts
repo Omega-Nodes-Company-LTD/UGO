@@ -338,7 +338,24 @@ const sensors = new Sensors(
   savedSensitivity(),
 );
 
-canvas.addEventListener("pointerdown", () => {
+canvas.addEventListener("pointerdown", (event) => {
+  // ADR-053: due gesti, e la differenza è dove hai puntato. Sul **muso** è la
+  // mela, un premio deliberato che scalda il legame e pesa l'ultima iniziativa;
+  // ovunque altro è la carezza, che è piccola e con un tetto. Un premio che si
+  // dà per sbaglio non è un premio.
+  const box = canvas.getBoundingClientRect();
+  const snout = renderer.snoutAt?.({
+    x: ((event.clientX - box.left) / box.width) * 2 - 1,
+    y: -(((event.clientY - box.top) / box.height) * 2 - 1),
+  });
+  if (snout !== undefined) {
+    // senza `act`: quale iniziativa stai premiando lo sa **soul**, che l'ha
+    // presa e l'ha scritta in `events`. Farlo tracciare anche al muso sarebbe
+    // una seconda copia della stessa verità, tenuta allineata a mano.
+    socket.send({ type: "reward" });
+    renderer.reflex("wiggle", snout);
+    return;
+  }
   socket.send({ type: "tap" });
   renderer.reflex("tap");
 });

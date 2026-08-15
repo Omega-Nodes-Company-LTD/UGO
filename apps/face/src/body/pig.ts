@@ -57,7 +57,15 @@ export class Pig {
   private readonly body: THREE.Mesh;
   private readonly head = new THREE.Group();
   private readonly ears: THREE.Group[] = [];
-  private readonly snout = new THREE.Group();
+  /**
+   * Il muso, esposto perché è il bersaglio della mela (ADR-053).
+   *
+   * `public` e non un metodo `hitTest` qui dentro: il raycasting ha bisogno
+   * della camera, che è della stanza e non della creatura, e portarla dentro
+   * `Pig` per un colpo di dito significherebbe dare al corpo una dipendenza
+   * dalla scena che ha passato tre ADR a non avere.
+   */
+  public readonly snout = new THREE.Group();
   private readonly eyes: Eye[] = [];
   private readonly mouth: THREE.Mesh;
   private readonly tailRoot = new THREE.Group();

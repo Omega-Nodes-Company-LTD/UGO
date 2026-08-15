@@ -5,6 +5,7 @@ import { CORE_JS } from "./script/core.js";
 import { COUNCIL_JS } from "./script/council.js";
 import { CUSTOMERS_JS } from "./script/customers.js";
 import { DATA_JS } from "./script/data.js";
+import { EFFICACY_JS } from "./script/efficacy.js";
 import { EXEMPLARS_JS } from "./script/exemplars.js";
 import { GRAPH_JS } from "./script/graph.js";
 import { PACK_JS } from "./script/pack.js";
@@ -43,6 +44,7 @@ export const ADMIN_SCRIPT = [
   STATUS_JS,
   EXEMPLARS_JS,
   VOLITION_JS,
+  EFFICACY_JS,
   COUNCIL_JS,
   BIRTH_JS,
 ].join("\n");

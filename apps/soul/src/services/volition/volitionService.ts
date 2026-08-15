@@ -3,8 +3,9 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { FaceGateway } from "../faceGateway.js";
 import type { PsycheService } from "../psycheService.js";
 import { GLYPH_PATTERNS, type GlyphPattern } from "@ugo/shared";
-import { ACT_BY_ID, type Act } from "./acts.js";
+import { ACTS, ACT_BY_ID, type Act } from "./acts.js";
 import type { Curiosity } from "./curiosity.js";
+import type { EfficacyService } from "./efficacy.js";
 import { type Gates, decide } from "./decide.js";
 import { type Vars, type WorldFacts, pressures } from "./pressures.js";
 import { voiceReminder } from "./reminders.js";
@@ -38,6 +39,14 @@ export interface VolitionDeps {
   psyche: PsycheService;
   gateway: FaceGateway;
   curiosity?: Curiosity;
+  /**
+   * ADR-053: quanto bene gli è andata, atto per atto.
+   *
+   * Facoltativa, e ci si tiene: senza, `decide()` riceve `undefined` e si
+   * comporta esattamente come prima. Un pezzo nuovo che rende obbligatorio
+   * ripassare da ogni chiamante è un pezzo nuovo che si spedisce a metà.
+   */
+  efficacy?: EfficacyService;
   /** the local model answered a ping: `askQuestion` needs it */
   localModelUp: () => boolean;
   enabled: () => boolean;
@@ -213,12 +222,17 @@ export class VolitionService {
     this.pending = undefined;
     const nowMagnitude = current.find((p) => p.id === last.driver)?.magnitude ?? 0;
     const dropped = last.magnitude - nowMagnitude;
-    await this.record(dropped > 0.05 ? "initiative_worked" : "initiative_flat", {
+    const worked = dropped > 0.05;
+    await this.record(worked ? "initiative_worked" : "initiative_flat", {
       act: last.act,
       driver: last.driver,
       before: Number(last.magnitude.toFixed(3)),
       after: Number(nowMagnitude.toFixed(3)),
     });
+    // ADR-053: **e adesso qualcuno la rilegge.** Questa misura esisteva da
+    // sempre — scriveva `initiative_worked` / `initiative_flat` a ogni tick — e
+    // non la guardava nessuno: era un termometro appeso in una stanza vuota.
+    await this.deps.efficacy?.nudge(last.act, worked ? "praise" : "flat");
   }
 
   private async perform(
@@ -315,7 +329,9 @@ export class VolitionService {
       enabled: this.deps.enabled(),
     };
 
-    const decision = decide(list, gates);
+    // ADR-053: i pesi entrano qui, e solo qui. Assenti = tutti a 1, cioè
+    // esattamente il comportamento di prima.
+    const decision = decide(list, gates, ACTS, await this.deps.efficacy?.weights());
     if (decision === undefined) return { acted: undefined, because: undefined, seen };
 
     const done = await this.perform(decision.act, desire);

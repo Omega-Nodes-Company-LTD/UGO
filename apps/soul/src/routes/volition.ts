@@ -1,4 +1,4 @@
-import { desires, events, type DbClient } from "@ugo/db";
+import { actEfficacy, desires, events, type DbClient } from "@ugo/db";
 import { and, desc, eq, inArray, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -91,6 +91,26 @@ export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoute
       journal,
       desires: wants,
     });
+  });
+
+  /**
+   * ADR-053: cosa gli è piaciuto fare.
+   *
+   * Esiste per una ragione precisa: **un apprendimento che nessuno può guardare
+   * è una scatola nera che nessuno può smentire.** Se UGO comincia a preferire
+   * un gesto, il proprietario deve poter vedere quale e quanto — altrimenti
+   * l'unica cosa che potrà dire è «mi sembra che ultimamente…».
+   */
+  app.get("/v1/volition/efficacy", { preHandler: deps.guard }, async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
+    const asked = (request.query as { gosino?: string }).gosino;
+    const who = deps.registry?.resolve(asked, householdId);
+    const rows = await deps.db
+      .select({ act: actEfficacy.act, weight: actEfficacy.weight })
+      .from(actEfficacy)
+      .where(mine(deps.db, actEfficacy.gosinoId, who?.id, householdId));
+    return reply.send({ efficacy: rows });
   });
 
   app.post("/v1/volition/enabled", { preHandler: deps.guard }, async (request, reply) => {

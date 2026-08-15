@@ -37,6 +37,16 @@ export interface FaceGatewayDeps {
       imageBase64: string,
     ) => Promise<{ printId: string; seenCount: number } | undefined>;
   };
+  /**
+   * ADR-053: cosa fare quando gli danno una mela, oltre a esserne contento.
+   *
+   * Iniettata invece che costruita qui perché tocca due cose che il gateway non
+   * possiede: il **legame** con chi c'è nella stanza (`bonds`, che è del branco)
+   * e il **peso** dell'ultimo atto (`act_efficacy`, che è della volontà).
+   * Assente = la mela resta un buon momento e nient'altro, che è un ripiego
+   * onesto e non un mezzo servizio.
+   */
+  reward?: (input: { act?: string | undefined; at: Date }) => Promise<void>;
 }
 
 export type FaceSender = (message: ServerToFaceMessage) => void;
@@ -316,8 +326,29 @@ export class FaceGateway {
       }
       case "tap": {
         await this.recordEvent("tap", {});
+        // ADR-053: la carezza tocca la psiche, e finora non la toccava. Il
+        // corpo festeggiava già con `happyGrunt` (`autonomy.ts`), l'evento
+        // `compliment` esisteva **e non lo emetteva nessuno**: il gesto più
+        // frequente che una persona fa a UGO era l'unico che non lo cambiava.
+        await this.deps.psyche.applyEventType("compliment", at);
         if (this.state === "sleeping") this.setState("idle", send);
         else this.setState("alert", send);
+        this.pushMood(send);
+        return;
+      }
+      case "reward": {
+        // ADR-053: la mela. Un premio deliberato — bersaglio piccolo, sul muso —
+        // e non una carezza più forte: scalda il **legame** con chi gliel'ha
+        // data e pesa **l'atto** che se l'è meritata.
+        if (this.state === "sleeping") {
+          // svegliare qualcuno per premiarlo è un premio per chi lo dà
+          send({ type: "speak", text: "Zzz... grunf?" });
+          return;
+        }
+        await this.recordEvent("reward", { act: message.act ?? null });
+        await this.deps.psyche.applyEventType("reward", at);
+        for (const other of this.senders) other({ type: "gesture", id: "wiggle" });
+        await this.deps.reward?.({ act: message.act, at });
         this.pushMood(send);
         return;
       }

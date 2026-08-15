@@ -112,6 +112,7 @@ async function openPage(page) {
     await section(loadStats, "stats-msg");
   } else if (page === "volonta") {
     await section(loadVolition, "volition-msg");
+    await section(loadEfficacy, "efficacy-msg");
   }
 }
 

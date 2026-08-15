@@ -47,6 +47,14 @@ export { messages } from "./messages.js";
 export { memories } from "./memories.js";
 export { psycheSnapshots } from "./psyche-snapshots.js";
 export { psycheBaselines } from "./psyche-baselines.js";
+export {
+  actEfficacy,
+  EFFICACY_MAX,
+  EFFICACY_MIN,
+  FLAT_STEP,
+  NIGHTLY_DECAY,
+  PRAISE_STEP,
+} from "./efficacy.js";
 export { meetings, transcriptSegments } from "./meetings.js";
 export { diaryEntries, desires } from "./diary.js";
 export { budgetLedger } from "./budget-ledger.js";
