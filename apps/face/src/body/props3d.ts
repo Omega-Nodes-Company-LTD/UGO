@@ -3,7 +3,7 @@ import { PROP_NATURE, type PropKind, type SceneProp } from "@ugo/shared/props";
 import { box } from "./solid.js";
 
 /**
- * Gli arredi, disegnati (ADR-051).
+ * Gli arredi, disegnati (ADR-056).
  *
  * Stesse regole del corpo (ADR-026 §1): cubi arrotondati generati a runtime,
  * zero asset binari, zero pipeline di conversione, zero licenze di terzi da

@@ -204,7 +204,7 @@ describe("tidyQuestion", () => {
 });
 
 /**
- * ADR-053: i pesi, e le tre valvole di sicurezza.
+ * ADR-058: i pesi, e le tre valvole di sicurezza.
  *
  * ⚠️ Prima di tutto, cosa NON è: non è apprendimento in nessun senso generale, è
  * un peso di preferenza su nove atti cablati, limitato a ±40%, che decade verso

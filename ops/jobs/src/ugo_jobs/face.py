@@ -211,7 +211,7 @@ def fuse(voice: Identification | None, face: Identification | None) -> Fused:
     )
 
 
-# ── chi non sappiamo ancora chi sia (ADR-052) ────────────────────────────────
+# ── chi non sappiamo ancora chi sia (ADR-057) ────────────────────────────────
 #
 # ⚠️ Da qui in giù si maneggiano **dati biometrici di chi non ha acconsentito**.
 # È una scelta consapevole del proprietario, e il prezzo si paga per intero:

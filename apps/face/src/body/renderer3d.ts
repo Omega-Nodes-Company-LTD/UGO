@@ -97,7 +97,7 @@ export class Webgl3dFace implements FaceRenderer {
     // lei lo spazio era tridimensionale senza che si potesse vedere
     this.room = new Room(this.scene);
     // gli arredi stanno nella stanza, non addosso a una creatura: due gosini
-    // nella stessa cucina guardano lo stesso cuscino (ADR-051)
+    // nella stessa cucina guardano lo stesso cuscino (ADR-056)
     this.scene.add(this.furniture.object);
 
     // until the room says who lives in it, there is one nameless creature —
@@ -166,7 +166,7 @@ export class Webgl3dFace implements FaceRenderer {
     for (const person of this.people.values()) person.setGaze(target);
   }
 
-  /** ADR-051: l'arredamento della stanza, sostituito in blocco. */
+  /** ADR-056: l'arredamento della stanza, sostituito in blocco. */
   public setProps(props: readonly SceneProp[]): void {
     this.props = props;
     this.furniture.set(props);
@@ -174,7 +174,7 @@ export class Webgl3dFace implements FaceRenderer {
   }
 
   /**
-   * ADR-053: hai mirato al muso? E di chi?
+   * ADR-058: hai mirato al muso? E di chi?
    *
    * Il bersaglio piccolo **è** la decisione: `tap` è la carezza e arriva
    * ovunque sulla tela, la mela arriva solo se hai puntato. Un premio che si dà
@@ -194,7 +194,7 @@ export class Webgl3dFace implements FaceRenderer {
     return undefined;
   }
 
-  /** ADR-051: uno di loro è andato a usare qualcosa, da solo. */
+  /** ADR-056: uno di loro è andato a usare qualcosa, da solo. */
   public onUsedProp(listener: (who: string, kind: PropKind) => void): void {
     this.usedProp = listener;
     for (const [id, person] of this.people) {

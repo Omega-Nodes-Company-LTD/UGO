@@ -31,7 +31,7 @@ export interface FaceLocator {
 /**
  * Dove sta la faccia: il centro **e il rettangolo**.
  *
- * ADR-052: il rettangolo c'era già. `faceLocator.ts` aveva la bounding box
+ * ADR-057: il rettangolo c'era già. `faceLocator.ts` aveva la bounding box
  * completa in mano e ne teneva i due centri, buttando via larghezza e altezza
  * alle due righe successive — quindi il ritaglio che serve per riconoscere
  * qualcuno veniva calcolato e scartato a ogni fotogramma. È la stessa famiglia
@@ -119,7 +119,7 @@ function nativeLocator(): FaceLocator | null {
 export async function startCameraGaze(
   onGaze: GazeCallback,
   /**
-   * ADR-052: `crop` è il volto già ritagliato, quando il rilevatore ha dato un
+   * ADR-057: `crop` è il volto già ritagliato, quando il rilevatore ha dato un
    * rettangolo. Facoltativo perché non ogni rilevatore lo dà, e chi chiama deve
    * poter distinguere «c'è qualcuno» da «c'è qualcuno e questo è il suo volto»:
    * il primo è presenza, il secondo è biometria, e sono due cose diverse.

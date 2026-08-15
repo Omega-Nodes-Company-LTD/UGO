@@ -62,7 +62,7 @@ export function registerSocialRoutes(
     const householdId = await householdScope(deps.db, request, reply);
     if (householdId === undefined) return reply;
 
-    // ADR-053: **a chi** l'hai detto.
+    // ADR-058: **a chi** l'hai detto.
     //
     // Questa riga era `eldestExemplarOf(...)`, sempre, e non era un ripiego
     // innocuo: `corrections` è per esemplare e finisce nel prompt di quella

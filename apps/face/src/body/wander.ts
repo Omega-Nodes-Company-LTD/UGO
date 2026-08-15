@@ -27,7 +27,7 @@ export interface WanderOutput extends Locomotion {
   activity: Activity;
   /**
    * L'arredo a cui è appena arrivato, **solo nel fotogramma dell'arrivo**
-   * (ADR-051). Un campo «dove sta adesso» sarebbe vero per migliaia di
+   * (ADR-056). Un campo «dove sta adesso» sarebbe vero per migliaia di
    * fotogrammi di fila, e chi lo legge dovrebbe inventarsi il fronte di salita:
    * quel calcolo sta qui una volta invece che in ogni chiamante.
    */
@@ -97,7 +97,7 @@ const RESTLESS_WHILE_FACING = 0.45;
 
 /**
  * Sopra questa noia, un arredo diventa più interessante di una direzione a
- * caso (ADR-051).
+ * caso (ADR-056).
  *
  * Una soglia e non una probabilità: sotto, gli arredi non esistono e la stanza
  * si comporta come si è sempre comportata. Sopra, sono l'unica cosa che
@@ -180,7 +180,7 @@ export class Wanderer {
   }
 
   /**
-   * Cosa c'è nella stanza (ADR-051): dei richiami, e degli ostacoli.
+   * Cosa c'è nella stanza (ADR-056): dei richiami, e degli ostacoli.
    *
    * L'oggetto verso cui stava andando si ritrova per id e non per riferimento:
    * il pannello sostituisce la lista intera a ogni modifica, quindi il vecchio
@@ -216,7 +216,7 @@ export class Wanderer {
     energia: number,
     standing: number,
     enabled: boolean,
-    /** ADR-051: quanto è agitato. Sopra {@link SPOOKED} cerca un riparo. */
+    /** ADR-056: quanto è agitato. Sopra {@link SPOOKED} cerca un riparo. */
     stress = 0,
   ): WanderOutput {
     this.stressNow = stress;
@@ -420,7 +420,7 @@ export class Wanderer {
     }
     if (roll < restless * 0.75) {
       this.activity = "walking";
-      // ADR-051: annoiato, un arredo batte una direzione a caso. Solo qui, e
+      // ADR-056: annoiato, un arredo batte una direzione a caso. Solo qui, e
       // solo alla decisione: rivalutarlo a ogni fotogramma lo farebbe oscillare
       // fra due oggetti equidistanti senza arrivare a nessuno dei due.
       const wanted = this.cone === undefined ? this.somethingToDo(now) : undefined;

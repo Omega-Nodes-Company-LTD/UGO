@@ -191,7 +191,7 @@ def identify_face_endpoint(query: FaceQuery) -> Recognised:
 
 
 class RememberQuery(BaseModel):
-    """Un volto che non è di nessuno che conosciamo (ADR-052)."""
+    """Un volto che non è di nessuno che conosciamo (ADR-057)."""
 
     image: str = Field(min_length=1)
     household_id: str = Field(min_length=1)
@@ -223,7 +223,7 @@ def remember_unknown_endpoint(query: RememberQuery) -> Remembered:
 
     ⚠️ Sono dati biometrici di chi non ha acconsentito: scelta consapevole del
     proprietario, con retention dichiarata (30 giorni), cancellazione dal
-    pannello e distruzione all'oblio. Vedi ADR-052 e `/documentation`.
+    pannello e distruzione all'oblio. Vedi ADR-057 e `/documentation`.
     """
     from ugo_jobs.crypto import parse_data_key
     from ugo_jobs.face import remember_unknown

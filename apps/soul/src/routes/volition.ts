@@ -94,7 +94,7 @@ export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoute
   });
 
   /**
-   * ADR-053: cosa gli è piaciuto fare.
+   * ADR-058: cosa gli è piaciuto fare.
    *
    * Esiste per una ragione precisa: **un apprendimento che nessuno può guardare
    * è una scatola nera che nessuno può smentire.** Se UGO comincia a preferire

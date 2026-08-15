@@ -165,7 +165,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     });
     // ADR-049: uno solo, per la stessa ragione per cui `llmClient` e' uno solo
     const audit = createAuditLog(options.db, app.log);
-    // ADR-051: chi guarda quale stanza, adesso. Uno per processo, come l'audit
+    // ADR-056: chi guarda quale stanza, adesso. Uno per processo, come l'audit
     const scenes = new SceneHub();
     const props = new PropService(options.db);
     const guard = createAuthGuard(audit);
@@ -211,11 +211,11 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       ...(registry !== undefined && { registry }),
     });
     registerMemoryGraphRoutes(app, { db: options.db, guard });
-    // ADR-051: gli arredi. L'hub e' condiviso fra le rotte che li spostano e i
+    // ADR-056: gli arredi. L'hub e' condiviso fra le rotte che li spostano e i
     // socket che li mostrano — e' l'unica cosa che i due hanno in comune, ed e'
     // il motivo per cui il pannello si vede sul chiosco senza ricaricare.
     registerPropRoutes(app, { db: options.db, guard, hub: scenes });
-    // ADR-052: le facce che non sappiamo di chi siano. Guardata tutta: qui
+    // ADR-057: le facce che non sappiamo di chi siano. Guardata tutta: qui
     // dentro ci sono impronte di persone che non hanno acconsentito.
     registerPrintRoutes(app, {
       db: options.db,
@@ -229,7 +229,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         speciesMap,
         guard,
         ...(audio !== undefined && { audio }),
-        // ADR-053: una correzione è per **una** creatura, e senza il registro
+        // ADR-058: una correzione è per **una** creatura, e senza il registro
         // non c'è modo di sapere quale
         ...(registry !== undefined && { registry }),
       });

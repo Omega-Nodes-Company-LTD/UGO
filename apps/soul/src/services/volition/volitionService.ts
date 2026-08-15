@@ -40,7 +40,7 @@ export interface VolitionDeps {
   gateway: FaceGateway;
   curiosity?: Curiosity;
   /**
-   * ADR-053: quanto bene gli è andata, atto per atto.
+   * ADR-058: quanto bene gli è andata, atto per atto.
    *
    * Facoltativa, e ci si tiene: senza, `decide()` riceve `undefined` e si
    * comporta esattamente come prima. Un pezzo nuovo che rende obbligatorio
@@ -229,7 +229,7 @@ export class VolitionService {
       before: Number(last.magnitude.toFixed(3)),
       after: Number(nowMagnitude.toFixed(3)),
     });
-    // ADR-053: **e adesso qualcuno la rilegge.** Questa misura esisteva da
+    // ADR-058: **e adesso qualcuno la rilegge.** Questa misura esisteva da
     // sempre — scriveva `initiative_worked` / `initiative_flat` a ogni tick — e
     // non la guardava nessuno: era un termometro appeso in una stanza vuota.
     await this.deps.efficacy?.nudge(last.act, worked ? "praise" : "flat");
@@ -329,7 +329,7 @@ export class VolitionService {
       enabled: this.deps.enabled(),
     };
 
-    // ADR-053: i pesi entrano qui, e solo qui. Assenti = tutti a 1, cioè
+    // ADR-058: i pesi entrano qui, e solo qui. Assenti = tutti a 1, cioè
     // esattamente il comportamento di prima.
     const decision = decide(list, gates, ACTS, await this.deps.efficacy?.weights());
     if (decision === undefined) return { acted: undefined, because: undefined, seen };

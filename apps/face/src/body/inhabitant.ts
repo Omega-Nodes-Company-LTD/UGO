@@ -137,7 +137,7 @@ export class Inhabitant {
   }
 
   /**
-   * Gli arredi della stanza (ADR-051), in coordinate di stanza.
+   * Gli arredi della stanza (ADR-056), in coordinate di stanza.
    *
    * La conversione sta qui e non nel `Wanderer` perché è qui che si sa qual è
    * la corsia: il vagabondo lavora attorno al proprio centro, e un cuscino
@@ -194,7 +194,7 @@ export class Inhabitant {
     this.forced = posture;
   }
 
-  /** ADR-051: chiamare quando è andato da solo a usare qualcosa. */
+  /** ADR-056: chiamare quando è andato da solo a usare qualcosa. */
   public reportUsedProp(listener: (kind: PropKind) => void): void {
     this.onUsedProp = listener;
   }
@@ -257,12 +257,12 @@ export class Inhabitant {
       this.vars.energia,
       weights.standing,
       this.wandering,
-      // ADR-051: lo stress è la seconda spinta che lo muove verso un arredo, e
+      // ADR-056: lo stress è la seconda spinta che lo muove verso un arredo, e
       // l'unica che vince sulla noia — un maiale spaventato non va a grufolare,
       // va dietro il cespuglio
       this.vars.stress,
     );
-    // ADR-051: l'arredo presso cui si trova tira su due leve che esistono già —
+    // ADR-056: l'arredo presso cui si trova tira su due leve che esistono già —
     // la posa e il peso dei gesti — invece di aggiungere un motore suo. Un
     // cuscino gli fa venire voglia di coricarsi, l'erba di grufolare, e sono le
     // stesse due leve che noia ed energia muovono da sempre.

@@ -89,7 +89,7 @@ export class Autonomy {
   }
 
   /**
-   * @param nearby ADR-051: il tema che l'arredo lì accanto rende più probabile.
+   * @param nearby ADR-056: il tema che l'arredo lì accanto rende più probabile.
    *               Un peso e non una scelta: presso l'erba grufola **più
    *               spesso**, non sempre — un corpo che fa sempre la stessa cosa
    *               vicino allo stesso oggetto è un distributore automatico.

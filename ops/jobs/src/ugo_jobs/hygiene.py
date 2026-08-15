@@ -134,7 +134,7 @@ def _adjust_umore_baseline(conn: psycopg.Connection, dream_date: str, gosino_id:
     return True
 
 
-#: Quanto ogni peso di efficacia torna verso 1 in una notte (ADR-053).
+#: Quanto ogni peso di efficacia torna verso 1 in una notte (ADR-058).
 #: Duplicato di `NIGHTLY_DECAY` in `packages/db/src/schema/efficacy.ts`: i due
 #: linguaggi non condividono costanti, e un decadimento che avviene di notte
 #: deve stare dove gira la notte. Il test lo confronta col valore in TypeScript.
@@ -142,7 +142,7 @@ EFFICACY_DECAY = 0.06
 
 
 def _decay_efficacy(conn: psycopg.Connection, gosino_id: str) -> int:
-    """ADR-053: ogni peso di preferenza torna un po' verso 1.
+    """ADR-058: ogni peso di preferenza torna un po' verso 1.
 
     **Nel sogno, non nel tick.** Metterlo nel tick renderebbe il tasso di
     decadimento dipendente da quanto spesso gira il tick — cioè un incidente di

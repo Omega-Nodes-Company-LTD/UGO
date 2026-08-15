@@ -17,7 +17,7 @@ import { issueToken } from "../../src/services/tenantAuth.js";
 import { buildServer } from "../../src/server.js";
 
 /**
- * Una correzione è **per una creatura** (ADR-053).
+ * Una correzione è **per una creatura** (ADR-058).
  *
  * `POST /v1/corrections` scriveva sempre su `eldestExemplarOf(householdId)`, e
  * non era un ripiego innocuo: `corrections` è per esemplare e finisce nel

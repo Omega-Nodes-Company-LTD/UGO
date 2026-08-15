@@ -1,5 +1,5 @@
 /**
- * I volti: chi ha imparato, e chi non sa ancora chi sia (ADR-052).
+ * I volti: chi ha imparato, e chi non sa ancora chi sia (ADR-057).
  *
  * Qui **non** c'è un modulo di arruolamento, ed è una decisione del
  * proprietario: il volto glielo insegni perché te lo chiede lui, a voce, quando

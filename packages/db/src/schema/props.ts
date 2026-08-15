@@ -13,7 +13,7 @@ import {
 import { householdId } from "./households.js";
 
 /**
- * Gli arredi: cosa c'è nella stanza, e quanti ne restano da mettere (ADR-051).
+ * Gli arredi: cosa c'è nella stanza, e quanti ne restano da mettere (ADR-056).
  *
  * Due tabelle e non una, perché sono due domande diverse:
  *

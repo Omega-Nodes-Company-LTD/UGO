@@ -1,5 +1,5 @@
 /**
- * Cosa gli è piaciuto fare (ADR-053).
+ * Cosa gli è piaciuto fare (ADR-058).
  *
  * La pagina esiste per una ragione precisa e non estetica: **un apprendimento
  * che nessuno può guardare è una scatola nera che nessuno può smentire.** Se

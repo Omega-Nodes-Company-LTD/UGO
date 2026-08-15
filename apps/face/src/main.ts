@@ -291,7 +291,7 @@ function onServerMessage(message: ServerToFaceMessage): void {
       renderer.reflex(message.id, message.who);
       return;
     case "scene":
-      // ADR-051: cosa c'è nella stanza. Arriva dopo il roster all'apertura, e
+      // ADR-056: cosa c'è nella stanza. Arriva dopo il roster all'apertura, e
       // di nuovo ogni volta che il proprietario sposta qualcosa dal pannello —
       // senza la seconda cosa dovrebbe ricaricare il chiosco a ogni cuscino.
       renderer.setProps?.(message.props);
@@ -339,7 +339,7 @@ const sensors = new Sensors(
 );
 
 canvas.addEventListener("pointerdown", (event) => {
-  // ADR-053: due gesti, e la differenza è dove hai puntato. Sul **muso** è la
+  // ADR-058: due gesti, e la differenza è dove hai puntato. Sul **muso** è la
   // mela, un premio deliberato che scalda il legame e pesa l'ultima iniziativa;
   // ovunque altro è la carezza, che è piccola e con un tetto. Un premio che si
   // dà per sbaglio non è un premio.
@@ -360,7 +360,7 @@ canvas.addEventListener("pointerdown", (event) => {
   renderer.reflex("tap");
 });
 
-// ADR-051: è andato da solo sul cuscino, e lo dice. La decisione è del corpo e
+// ADR-056: è andato da solo sul cuscino, e lo dice. La decisione è del corpo e
 // costa zero token (ADR-026 §6); l'anima è l'unica che possa scriverlo nella
 // psiche, quindi è l'unica cosa che deve attraversare il socket.
 renderer.onUsedProp?.((who, kind) => {
@@ -466,7 +466,7 @@ micButton.addEventListener("click", () => {
         const now = performance.now();
         if (now - lastPresenceAt > PRESENCE_COOLDOWN_MS) {
           lastPresenceAt = now;
-          // ADR-052: il ritaglio viaggia con la presenza. Il video non esce mai
+          // ADR-057: il ritaglio viaggia con la presenza. Il video non esce mai
           // dal telefono — quel che parte è un rettangolo di 112×112 già
           // ridotto al volto, e solo se il rilevatore ha dato un rettangolo.
           socket.send({ type: "face_seen", ...(crop !== undefined && { image: crop }) });

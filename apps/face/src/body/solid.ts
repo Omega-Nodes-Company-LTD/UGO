@@ -5,7 +5,7 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
  * Il mattone di tutto ciò che si vede: un cubo con gli spigoli tondi.
  *
  * Estratto da `pig.ts` quando gli arredi hanno cominciato a servirsene
- * (ADR-051). Un cuscino disegnato con una `box()` copiata sarebbe una seconda
+ * (ADR-056). Un cuscino disegnato con una `box()` copiata sarebbe una seconda
  * definizione della stessa cosa, e la seconda definizione è sempre quella che
  * non riceve la correzione — qui per esempio il fermo sul raggio, che senza
  * degenera la geometria e fa sparire il pezzo invece di renderlo spigoloso.

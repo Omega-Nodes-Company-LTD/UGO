@@ -98,7 +98,7 @@ export class BeingsService {
   /**
    * "Cancella la mia voce ma resto nel branco": the middle ground erasure.
    *
-   * ADR-052: la modalità è un argomento perché adesso ce ne sono due, e la
+   * ADR-057: la modalità è un argomento perché adesso ce ne sono due, e la
    * differenza conta — «non guardarmi più» e «non ascoltarmi più» sono due
    * consensi distinti, e una funzione sola che ne cancella uno solo li
    * confonderebbe esattamente come `_guard` li ha confusi per mesi.

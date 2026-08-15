@@ -38,7 +38,7 @@ interface RoomMember {
    * what a room of several is supposed to stop looking like.
    */
   traits?: Record<string, number>;
-  /** ADR-051: in che stanza vive, per sapere di quale arredamento parlargli */
+  /** ADR-056: in che stanza vive, per sapere di quale arredamento parlargli */
   where?: string;
 }
 
@@ -67,7 +67,7 @@ export async function registerFaceWs(
     resolve: (query: string | undefined, householdId: string) => RegistryEntry | undefined;
     inRoom: (room: string, householdId: string) => RegistryEntry[];
   },
-  /** ADR-051: gli arredi della stanza, e le loro modifiche a scena aperta */
+  /** ADR-056: gli arredi della stanza, e le loro modifiche a scena aperta */
   scene?: {
     hub: SceneHub;
     props: (householdId: string, roomSlug: string) => Promise<SceneProp[]>;
@@ -109,7 +109,7 @@ export async function registerFaceWs(
       const senders = members.map((member) => {
         const send = (message: ServerToFaceMessage): void => {
           // the roster is the room's, not any one creature's: it never carries
-          // a `who`, and since ADR-051 neither does `scene` — un cuscino non è
+          // a `who`, and since ADR-056 neither does `scene` — un cuscino non è
           // di nessuno dei due, è della stanza. Nor does anything in a house
           // that has no registry — `who: ""` would be noise standing for "the
           // only one", and this keeps the single-creature wire format
@@ -227,7 +227,7 @@ function pickMembers(
 }
 
 /**
- * ADR-051: di quale stanza è questo schermo.
+ * ADR-056: di quale stanza è questo schermo.
  *
  * `?stanza=` lo dice, ed è la risposta più forte perché è esplicita. Ma un
  * chiosco indirizzato `?gosino=` — che è la configurazione in uso oggi —
@@ -280,7 +280,7 @@ export function forFrame<T extends Candidate>(text: string, senders: T[], roll?:
   } catch {
     return senders.slice(0, 1); // unparseable: let one gateway produce the error
   }
-  // ADR-051: un frame che dice **chi** è stato va a quello lì e a nessun altro.
+  // ADR-056: un frame che dice **chi** è stato va a quello lì e a nessun altro.
   // Sorteggiarlo come si sorteggia chi risponde a una frase manderebbe il
   // sollievo dalla noia alla creatura che era rimasta ferma.
   if (typeof frame.who === "string" && frame.who !== "") {

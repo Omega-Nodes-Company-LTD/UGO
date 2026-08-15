@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Gli arredi della stanza (ADR-051).
+ * Gli arredi della stanza (ADR-056).
  *
  * **Il catalogo è codice, non una tabella.** Una riga di database che nomina un
  * arredo che il corpo non sa disegnare è un modo di rompere le cose che non

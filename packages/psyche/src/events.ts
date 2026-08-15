@@ -30,7 +30,7 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
    */
   compliment: [{ variable: "umore", amount: 0.05, ceiling: 0.12 }],
   /**
-   * ADR-053: la mela. Un premio deliberato, e pesa.
+   * ADR-058: la mela. Un premio deliberato, e pesa.
    *
    * Distinta da `compliment` perché è **una cosa diversa**, non una carezza più
    * forte: la carezza è un gesto continuo che non costa niente e ha un tetto
@@ -81,7 +81,7 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
   /** one hour alone, emitted by soul's SolitudeMonitor */
   solitude_hour: [{ variable: "noia", amount: 0.05 }],
   /**
-   * ADR-051: è andato a grufolare nell'erba, o si è coricato sul cuscino.
+   * ADR-056: è andato a grufolare nell'erba, o si è coricato sul cuscino.
    *
    * Piccolo, e con un `ceiling`. Entrambe le cose sono la decisione, non la
    * taratura: il corpo sceglie da solo quando avvicinarsi a un arredo — è una

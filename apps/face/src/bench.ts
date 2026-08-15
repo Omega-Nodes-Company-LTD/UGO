@@ -56,7 +56,7 @@ for (const state of states) {
   stateRow.append(button);
 }
 
-// ── arredi (ADR-051) ─────────────────────────────────────────────────────
+// ── arredi (ADR-056) ─────────────────────────────────────────────────────
 // Sta qui perche' e' qui che si giudica: «ci va da solo quando si annoia» e'
 // una promessa che si verifica alzando la noia e guardando, non leggendo un
 // test. Alza `noia` sopra 0.6 e aspetta.

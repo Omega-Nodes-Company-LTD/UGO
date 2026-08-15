@@ -1,5 +1,5 @@
 /**
- * Gli arredi: la piantina, e le scorte (ADR-051).
+ * Gli arredi: la piantina, e le scorte (ADR-056).
  *
  * **Una piantina e non due cursori.** «Dove sta il cuscino» è una domanda
  * spaziale: rispondere con due numeri costringerebbe il proprietario a fare la

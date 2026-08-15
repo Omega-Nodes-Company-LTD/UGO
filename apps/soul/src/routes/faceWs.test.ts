@@ -68,7 +68,7 @@ describe("forFrame", () => {
 });
 
 /**
- * ADR-051: di quale stanza è lo schermo, e quindi di quale arredamento.
+ * ADR-056: di quale stanza è lo schermo, e quindi di quale arredamento.
  *
  * La regola vale la pena di essere provata perché ha un caso che si dimentica:
  * il chiosco indirizzato `?gosino=` — la configurazione in uso oggi — non
@@ -94,7 +94,7 @@ describe("roomForSocket", () => {
 });
 
 /**
- * ADR-051: `used_prop` è l'unico frame che sale dicendo **chi** è stato.
+ * ADR-056: `used_prop` è l'unico frame che sale dicendo **chi** è stato.
  *
  * Senza questa regola verrebbe sorteggiato come si sorteggia chi risponde a una
  * frase, e in una stanza di due il sollievo dalla noia finirebbe metà delle

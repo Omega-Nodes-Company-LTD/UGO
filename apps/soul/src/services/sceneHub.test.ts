@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SceneHub } from "./sceneHub.js";
 
 /**
- * Chi guarda quale stanza (ADR-051).
+ * Chi guarda quale stanza (ADR-056).
  *
  * Due proprietà che valgono un test: che la chiave includa la **casa**, e che
  * smettere di guardare non lasci residui. La prima non è teorica — «cucina» è

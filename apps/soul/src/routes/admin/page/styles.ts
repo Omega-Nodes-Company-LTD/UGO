@@ -164,7 +164,7 @@ export const ADMIN_STYLES = `
   .pill.critical { color: var(--critical); }
   .pills { display: flex; gap: .4rem; flex-wrap: wrap; }
 
-  /* --- la piantina degli arredi (ADR-051) ---------------------------------
+  /* --- la piantina degli arredi (ADR-056) ---------------------------------
      Una piantina e non due cursori: «dove sta il cuscino» e' una domanda
      spaziale, e rispondere con due numeri costringe il proprietario a fare la
      conversione in testa e a guardare il chiosco per verificare. Qui la vede.

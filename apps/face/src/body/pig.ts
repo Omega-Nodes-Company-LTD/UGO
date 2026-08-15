@@ -58,7 +58,7 @@ export class Pig {
   private readonly head = new THREE.Group();
   private readonly ears: THREE.Group[] = [];
   /**
-   * Il muso, esposto perché è il bersaglio della mela (ADR-053).
+   * Il muso, esposto perché è il bersaglio della mela (ADR-058).
    *
    * `public` e non un metodo `hitTest` qui dentro: il raycasting ha bisogno
    * della camera, che è della stanza e non della creatura, e portarla dentro

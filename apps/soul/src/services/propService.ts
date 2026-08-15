@@ -9,7 +9,7 @@ import {
 import { and, asc, eq, sql } from "drizzle-orm";
 
 /**
- * Cosa c'è nella stanza, e quante ne restano (ADR-051).
+ * Cosa c'è nella stanza, e quante ne restano (ADR-056).
  *
  * Tutto ciò che riguarda gli arredi passa da qui, e la ragione è una sola:
  * **posare un oggetto e scalare la scorta sono un atto solo**. Fatti in due

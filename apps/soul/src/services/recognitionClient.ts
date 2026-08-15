@@ -78,7 +78,7 @@ export class RecognitionClient {
   }
 
   /**
-   * ADR-052: conserva il volto di uno sconosciuto, in attesa di un nome.
+   * ADR-057: conserva il volto di uno sconosciuto, in attesa di un nome.
    *
    * Il ritaglio non si ferma qui e non ci deve fermare: gli encoder e la
    * cifratura stanno nel servizio Python, e soul non tiene **mai** in mano un

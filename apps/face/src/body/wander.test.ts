@@ -110,7 +110,7 @@ describe("Wanderer", () => {
 });
 
 /**
- * Gli arredi (ADR-051): un richiamo, e un ostacolo.
+ * Gli arredi (ADR-056): un richiamo, e un ostacolo.
  *
  * Le due cose vanno provate separate perché sono separate: un cuscino attira e
  * si può calpestare, un cespuglio non attira meno ma non si attraversa. Il

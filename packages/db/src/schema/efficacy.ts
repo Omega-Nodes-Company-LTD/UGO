@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { gosinoId } from "./self.js";
 
 /**
- * Quanto bene gli è andata, atto per atto (ADR-053).
+ * Quanto bene gli è andata, atto per atto (ADR-058).
  *
  * ⚠️ **Non è apprendimento in nessun senso generale**, e va detto qui perché è
  * qui che fra sei mesi qualcuno verrà a leggere: è un **peso di preferenza su

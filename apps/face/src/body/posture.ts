@@ -37,7 +37,7 @@ export function choosePosture(
   wantsToMove: boolean,
   current: Posture,
   /**
-   * ADR-051: la posa che l'arredo lì accanto suggerisce, se ce n'è uno.
+   * ADR-056: la posa che l'arredo lì accanto suggerisce, se ce n'è uno.
    *
    * **Suggerisce**, e la parola conta: entra dopo il sonno, l'attenzione e la
    * voglia di camminare, e prima soltanto dei ripieghi di energia e noia. Un

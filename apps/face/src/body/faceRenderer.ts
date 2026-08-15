@@ -46,16 +46,16 @@ export interface FaceRenderer {
   /** somebody is speaking: the rest of the room turns to look at him */
   attendTo?(who: string | undefined): void;
   /**
-   * ADR-051: cosa c'è nella stanza oltre a chi ci vive. Facoltativo come
+   * ADR-056: cosa c'è nella stanza oltre a chi ci vive. Facoltativo come
    * `setResidents`: il corpo 2D non ha una stanza in cui posare niente, e una
    * scena che arriva a un muso che non sa disegnarla va ignorata, non fatta
    * fallire — è la stessa regola dei gesti sconosciuti (ADR-027).
    */
   setProps?(props: readonly SceneProp[]): void;
-  /** ADR-051: uno di loro è andato da solo a usare un arredo. */
+  /** ADR-056: uno di loro è andato da solo a usare un arredo. */
   onUsedProp?(listener: (who: string, kind: PropKind) => void): void;
   /**
-   * ADR-053: chi è stato toccato **sul muso**, se qualcuno. Facoltativo: il
+   * ADR-058: chi è stato toccato **sul muso**, se qualcuno. Facoltativo: il
    * corpo 2D non ha un muso in una scena, e lì la mela semplicemente non c'è —
    * il che è meglio di una mela che si dà toccando ovunque.
    */

@@ -65,7 +65,7 @@ _REFUSAL = {"voice": "opted_out_of_audio", "face": "opted_out_of_vision"}
 def _guard(conn: psycopg.Connection, being_id: str, channel: str, modality: str) -> None:
     """Le protezioni, PRIMA di codificare qualunque cosa.
 
-    🔴 Difetto corretto qui (ADR-052): questa funzione leggeva `is_minor` e
+    🔴 Difetto corretto qui (ADR-057): questa funzione leggeva `is_minor` e
     `no_audio` e **non guardava mai** `no_vision`, mentre `face.py` dichiarava
     in un commento la protezione che il codice non applicava. Chi aveva detto
     «non guardarmi» veniva arruolato col volto: l'interruttore esisteva, il
@@ -108,7 +108,7 @@ def _audit(
 ) -> None:
     # ids and outcome only, never a name and never the audio (NIS2 §2)
     #
-    # ADR-052: la modalità era cablata a `audio_speech`. Con il volto
+    # ADR-057: la modalità era cablata a `audio_speech`. Con il volto
     # collegato, ogni arruolamento di un viso sarebbe finito nel giornale come
     # se fosse stata la voce — e il giornale delle percezioni è precisamente il
     # posto in cui si va a rispondere «cosa avete registrato di me».

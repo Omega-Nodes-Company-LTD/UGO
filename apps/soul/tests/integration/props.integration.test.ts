@@ -25,7 +25,7 @@ import { issueToken } from "../../src/services/tenantAuth.js";
 import { buildServer } from "../../src/server.js";
 
 /**
- * Gli arredi, dal pannello al chiosco (ADR-051).
+ * Gli arredi, dal pannello al chiosco (ADR-056).
  *
  * Le due promesse che valgono un test vero, e che nessun test di unità può
  * dimostrare, sono:

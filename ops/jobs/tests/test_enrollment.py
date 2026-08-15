@@ -294,7 +294,7 @@ class FakeFaceEncoder:
 
 
 def test_a_vision_opt_out_is_refused_before_encoding(conn: psycopg.Connection) -> None:
-    """🔴 Il difetto di ADR-052, in una riga.
+    """🔴 Il difetto di ADR-057, in una riga.
 
     `_guard` leggeva `is_minor` e `no_audio` e **non guardava mai** `no_vision`,
     mentre `face.py` dichiarava in un commento la protezione che il codice non

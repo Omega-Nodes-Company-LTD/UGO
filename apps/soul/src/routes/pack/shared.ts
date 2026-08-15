@@ -14,7 +14,7 @@ export interface PackRouteDeps {
   /** where enrolment audio is stored; absent means the panel cannot record */
   audio?: AudioStorageConfig;
   /**
-   * ADR-053: a chi si sta parlando, quando conta.
+   * ADR-058: a chi si sta parlando, quando conta.
    *
    * Serve a `POST /v1/corrections`, che scrive su una tabella **per esemplare**:
    * senza, la correzione finiva sempre sul più anziano della casa, e con due

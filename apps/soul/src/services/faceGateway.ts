@@ -30,15 +30,15 @@ export interface FaceGatewayDeps {
    */
   recognition?: {
     byVoice: (audioBase64: string) => Promise<{ beingId?: string | undefined } | undefined>;
-    /** ADR-052: chi è questo volto, dal ritaglio che il corpo ha già fatto */
+    /** ADR-057: chi è questo volto, dal ritaglio che il corpo ha già fatto */
     byFace?: (imageBase64: string) => Promise<{ beingId?: string | undefined } | undefined>;
-    /** ADR-052: non lo conosciamo — conserva l'impronta, cifrata, e conta */
+    /** ADR-057: non lo conosciamo — conserva l'impronta, cifrata, e conta */
     rememberUnknownFace?: (
       imageBase64: string,
     ) => Promise<{ printId: string; seenCount: number } | undefined>;
   };
   /**
-   * ADR-053: cosa fare quando gli danno una mela, oltre a esserne contento.
+   * ADR-058: cosa fare quando gli danno una mela, oltre a esserne contento.
    *
    * Iniettata invece che costruita qui perché tocca due cose che il gateway non
    * possiede: il **legame** con chi c'è nella stanza (`bonds`, che è del branco)
@@ -52,7 +52,7 @@ export interface FaceGatewayDeps {
 export type FaceSender = (message: ServerToFaceMessage) => void;
 
 /**
- * Quante volte deve rivederti prima di chiedere chi sei (ADR-052).
+ * Quante volte deve rivederti prima di chiedere chi sei (ADR-057).
  *
  * Due e non una. Al primo passaggio davanti alla camera finiscono il corriere,
  * un riflesso nello specchio e chi ha sbagliato porta: una creatura che chiede
@@ -215,7 +215,7 @@ export class FaceGateway {
   }
 
   /**
-   * ADR-052: c'è una faccia davanti alla camera. Chi è?
+   * ADR-057: c'è una faccia davanti alla camera. Chi è?
    *
    * Tre esiti, e il terzo è quello nuovo:
    *
@@ -261,7 +261,7 @@ export class FaceGateway {
         .where(eq(unknownPrints.id, kept.printId));
     } catch {
       // servizio spento, modello non caricato, rete: si continua senza sapere
-      // chi è, che è esattamente quel che si faceva prima di ADR-052
+      // chi è, che è esattamente quel che si faceva prima di ADR-057
     }
   }
 
@@ -291,7 +291,7 @@ export class FaceGateway {
       case "face_seen": {
         await this.recordEvent("face_seen", {});
         await this.deps.psyche.applyEventType("presence_detected", at);
-        // ADR-052: c'è una faccia. Se non la conosciamo, la conserva cifrata e
+        // ADR-057: c'è una faccia. Se non la conosciamo, la conserva cifrata e
         // — quando l'ha già rivista — **te lo chiede**, invece di aspettare che
         // qualcuno apra il pannello e compili un modulo.
         if (message.image !== undefined) await this.aboutThisFace(message.image, at);
@@ -326,7 +326,7 @@ export class FaceGateway {
       }
       case "tap": {
         await this.recordEvent("tap", {});
-        // ADR-053: la carezza tocca la psiche, e finora non la toccava. Il
+        // ADR-058: la carezza tocca la psiche, e finora non la toccava. Il
         // corpo festeggiava già con `happyGrunt` (`autonomy.ts`), l'evento
         // `compliment` esisteva **e non lo emetteva nessuno**: il gesto più
         // frequente che una persona fa a UGO era l'unico che non lo cambiava.
@@ -337,7 +337,7 @@ export class FaceGateway {
         return;
       }
       case "reward": {
-        // ADR-053: la mela. Un premio deliberato — bersaglio piccolo, sul muso —
+        // ADR-058: la mela. Un premio deliberato — bersaglio piccolo, sul muso —
         // e non una carezza più forte: scalda il **legame** con chi gliel'ha
         // data e pesa **l'atto** che se l'è meritata.
         if (this.state === "sleeping") {
@@ -380,7 +380,7 @@ export class FaceGateway {
         return;
       }
       case "used_prop": {
-        // ADR-051: il corpo ha deciso da solo di andare sul cuscino, e lo
+        // ADR-056: il corpo ha deciso da solo di andare sul cuscino, e lo
         // dichiara. È l'unico evento che la creatura si procura da sé, quindi
         // è anche l'unico che potrebbe farsi da solo la propria psiche: il
         // `ceiling` su `used_prop` è ciò che chiude quell'anello.

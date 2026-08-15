@@ -160,7 +160,7 @@ async function buildRuntime(
       pack: new PackService(deps.db, deps.speciesMap, row.id, row.householdId),
     }),
   });
-  // ADR-053: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.
+  // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.
   // Due gosini sotto lo stesso tetto imparano cose diverse, ed è il punto.
   const efficacy = new EfficacyService(deps.db, row.id);
   const reward = new RewardService({

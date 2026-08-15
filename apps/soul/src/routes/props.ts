@@ -13,7 +13,7 @@ import type { PreHandler } from "./guard.js";
 import { householdScope } from "./scope.js";
 
 /**
- * Gli arredi: metterli, spostarli, toglierli, e quanti ne restano (ADR-051).
+ * Gli arredi: metterli, spostarli, toglierli, e quanti ne restano (ADR-056).
  *
  * `GET` è aperto come `/v1/rooms`, e per lo stesso motivo: il muso deve poter
  * chiedere com'è fatta la stanza e non porta un token. Quel che espone sono

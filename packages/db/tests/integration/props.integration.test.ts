@@ -8,7 +8,7 @@ import { runMigrations } from "../../src/migrate.js";
 import { households, placedProps, PROP_KINDS_IN_DB, propStock, rooms } from "../../src/schema/index.js";
 
 /**
- * ADR-051: gli arredi nascono **dentro** il muro fra le case.
+ * ADR-056: gli arredi nascono **dentro** il muro fra le case.
  *
  * Il punto di questo file è la migrazione `0017`, scritta a mano. drizzle-kit
  * non modella le politiche, quindi una tabella nuova nasce senza RLS e senza

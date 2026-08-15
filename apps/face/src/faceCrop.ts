@@ -1,7 +1,7 @@
 import type { Located } from "./gaze.js";
 
 /**
- * Il ritaglio del volto, nella misura esatta che l'encoder vuole (ADR-052).
+ * Il ritaglio del volto, nella misura esatta che l'encoder vuole (ADR-057).
  *
  * `decode_face` in `ops/voice/app.py` accetta **RGB uint8 112×112 in base64** e
  * niente altro: rifiuta qualunque cosa non sia esattamente 112·112·3 byte. È un

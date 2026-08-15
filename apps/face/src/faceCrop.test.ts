@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CROP_SIDE } from "./faceCrop.js";
 
 /**
- * ADR-052. Il ritaglio vero ha bisogno di un `<canvas>` e di un `<video>`, che
+ * ADR-057. Il ritaglio vero ha bisogno di un `<canvas>` e di un `<video>`, che
  * in node non ci sono: quel che si può provare qui senza fingere un browser è
  * il **contratto**, ed è anche la parte che rompendosi non fa rumore.
  *

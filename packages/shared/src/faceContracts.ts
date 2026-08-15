@@ -55,7 +55,7 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("face_seen"),
     /**
-     * ADR-052: il ritaglio del volto, RGB uint8 112×112 in base64 — la misura
+     * ADR-057: il ritaglio del volto, RGB uint8 112×112 in base64 — la misura
      * esatta che `decode_face` vuole.
      *
      * Facoltativo, come `audio` su `heard_text` e per la stessa ragione: un
@@ -74,7 +74,7 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("tap") }),
   z.object({ type: z.literal("shake") }),
   /**
-   * ADR-053: la mela. Un premio deliberato, e non un tocco qualunque.
+   * ADR-058: la mela. Un premio deliberato, e non un tocco qualunque.
    *
    * Il bersaglio è il **muso**, non tutta la tela: `tap` è la carezza e arriva
    * ovunque, questo arriva solo se hai mirato. Un premio che si dà per sbaglio
@@ -92,7 +92,7 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
     act: z.string().min(1).max(40).optional(),
   }),
   /**
-   * ADR-051: è andato a usare un arredo, e ce n'è andato **da solo**.
+   * ADR-056: è andato a usare un arredo, e ce n'è andato **da solo**.
    *
    * Lo manda il corpo perché è il corpo a deciderlo: la scelta di avvicinarsi
    * al cuscino è locale e costa zero token (ADR-026 §6), e l'anima non ha modo
@@ -148,7 +148,7 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
   // ADR-036: who lives in the room this socket is attached to. The body draws
   // one creature per entry, so this arrives before anything else.
   /**
-   * ADR-051: cosa c'è nella stanza, oltre a chi ci vive.
+   * ADR-056: cosa c'è nella stanza, oltre a chi ci vive.
    *
    * Arriva all'apertura del socket **e a scena aperta** ogni volta che il
    * proprietario sposta qualcosa: senza la spinta dovrebbe ricaricare il

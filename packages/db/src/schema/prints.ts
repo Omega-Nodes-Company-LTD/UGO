@@ -4,7 +4,7 @@ import { householdId } from "./households.js";
 import { bytea } from "./types.js";
 
 /**
- * Le impronte di chi non sappiamo ancora chi sia (ADR-052).
+ * Le impronte di chi non sappiamo ancora chi sia (ADR-057).
  *
  * Perché una tabella separata da `recognition_profiles`: quella è indicizzata
  * **per essere**, e un'impronta ignota per definizione non ne ha uno. La

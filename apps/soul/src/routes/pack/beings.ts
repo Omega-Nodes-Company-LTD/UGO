@@ -138,7 +138,7 @@ export function registerBeingRoutes(
   });
 
   /**
-   * ADR-052: «dimentica la mia faccia, ma resto nel branco».
+   * ADR-057: «dimentica la mia faccia, ma resto nel branco».
    *
    * La gemella di quella sopra, e serve che sia una rotta sua: cancellare la
    * voce e cancellare il volto sono due revoche diverse, e una sola che le

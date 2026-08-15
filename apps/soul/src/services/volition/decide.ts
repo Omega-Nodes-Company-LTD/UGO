@@ -48,7 +48,7 @@ export const THRESHOLD = 0.22;
 /**
  * Quanto costa, in punteggio, disturbare qualcuno.
  *
- * Esportata da ADR-053 per un test e non per un chiamante: è la costante che
+ * Esportata da ADR-058 per un test e non per un chiamante: è la costante che
  * permette di provare che il peso di efficacia ha toccato **solo il sollievo** e
  * non questa penalità — cioè la valvola che impedisce a UGO di imparare a
  * scocciare. Un test che non potesse dividere i due termini proverebbe che il
@@ -82,7 +82,7 @@ export function decide(
   gates: Gates,
   catalogue: readonly Act[] = ACTS,
   /**
-   * ADR-053: quanto bene gli è andata, atto per atto. Assente = tutti a 1, che
+   * ADR-058: quanto bene gli è andata, atto per atto. Assente = tutti a 1, che
    * è **esattamente** ciò che faceva prima — ed è il motivo per cui ogni test
    * esistente su `decide()` resta verde senza toccarlo.
    *
@@ -111,7 +111,7 @@ export function decide(
       }
     }
     if (driver === undefined) continue;
-    // ADR-053. **L'ordine dei fattori è la decisione portante, non stile.** Il
+    // ADR-058. **L'ordine dei fattori è la decisione portante, non stile.** Il
     // peso moltiplica il **sollievo**, mai la penalità di invadenza, e da lì
     // discendono le tre valvole di sicurezza:
     //

@@ -3,7 +3,7 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { EfficacyService } from "./efficacy.js";
 
 /**
- * La mela: cosa succede oltre all'essere contento (ADR-053).
+ * La mela: cosa succede oltre all'essere contento (ADR-058).
  *
  * Due cose, e sono deliberatamente separate perché sono di due sistemi diversi:
  *

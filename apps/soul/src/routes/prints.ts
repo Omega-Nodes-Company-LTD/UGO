@@ -7,7 +7,7 @@ import type { PreHandler } from "./guard.js";
 import { eldestExemplarOf, householdScope } from "./scope.js";
 
 /**
- * Le facce che non sappiamo di chi siano (ADR-052).
+ * Le facce che non sappiamo di chi siano (ADR-057).
  *
  * Il proprietario non vuole un modulo di arruolamento nel pannello — il volto
  * glielo insegni **perché te lo chiede lui**, a voce, quando ti rivede. Ma la

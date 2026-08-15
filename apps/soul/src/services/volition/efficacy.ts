@@ -10,7 +10,7 @@ import {
 import { eq, sql } from "drizzle-orm";
 
 /**
- * Quanto bene gli è andata, atto per atto (ADR-053).
+ * Quanto bene gli è andata, atto per atto (ADR-058).
  *
  * ⚠️ Da scriverlo con queste parole, e resterà scritto: **non è apprendimento in
  * nessun senso generale.** È un peso di preferenza su nove atti cablati,
