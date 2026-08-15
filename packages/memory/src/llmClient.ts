@@ -5,7 +5,7 @@ import {
   PRIME_HOUSEHOLD_ID,
   type DbClient,
 } from "@ugo/db";
-import { DEFAULT_LOCALE, identityPrompt, rulesPrompt } from "@ugo/prompts";
+import { DEFAULT_LOCALE, identityPrompt, receptionPrompt, rulesPrompt } from "@ugo/prompts";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { computeCostUsd, type TokenUsage } from "./pricing.js";
@@ -24,7 +24,8 @@ import { computeCostUsd, type TokenUsage } from "./pricing.js";
 export const DEGRADED_REPLY =
   "Grunf... per oggi ho finito le parole, il salvadanaio dice basta. Torno domani.";
 
-const MAX_TOKENS_BY_CHANNEL = { home: 200, meeting: 300, api: 200 } as const;
+// `ticket` (ADR-052): technical answers with repo context need more room
+const MAX_TOKENS_BY_CHANNEL = { home: 200, meeting: 300, api: 200, ticket: 400 } as const;
 
 export interface LlmHistoryTurn {
   role: "user" | "assistant";
@@ -138,6 +139,11 @@ export class LlmClient {
       return { text: DEGRADED_REPLY, degraded: true };
     }
 
+    // ADR-052: at the reception the second cached block is the reception's
+    // rules, not the house's. Still a static per-locale file — the cache
+    // discipline of rule 2 holds: two channels, two caches, zero interpolation.
+    const secondBlock =
+      request.channel === "ticket" ? receptionPrompt(this.locale) : rulesPrompt(this.locale);
     const body = {
       model: this.options.model,
       max_tokens: MAX_TOKENS_BY_CHANNEL[request.channel],
@@ -147,7 +153,7 @@ export class LlmClient {
           text: identityPrompt(this.locale),
           cache_control: { type: "ephemeral" },
         },
-        { type: "text", text: rulesPrompt(this.locale), cache_control: { type: "ephemeral" } },
+        { type: "text", text: secondBlock, cache_control: { type: "ephemeral" } },
         ...(request.dynamicSystem !== undefined && request.dynamicSystem !== ""
           ? [{ type: "text", text: request.dynamicSystem }]
           : []),

@@ -40,6 +40,20 @@ export const AUDIT_VERBS = [
   "household_created",
   /** un token emesso: nel giornale il suo id, mai il segreto */
   "token_issued",
+  /** un cliente nuovo della casa (ADR-052) */
+  "customer_created",
+  /** un cliente archiviato: la reception gli si chiude */
+  "customer_archived",
+  /** un token cliente emesso: nel giornale il suo id, mai il segreto */
+  "customer_token_issued",
+  /** un token cliente revocato */
+  "customer_token_revoked",
+  /** una richiesta raccolta dalla reception (ADR-052) */
+  "ticket_created",
+  /** un ticket triagiato dal pannello */
+  "ticket_status_changed",
+  /** una fonte di conoscenza collegata a un cliente (ADR-054) */
+  "customer_source_added",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

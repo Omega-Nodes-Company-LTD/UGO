@@ -10,6 +10,9 @@ import {
   RECOGNITION_MODALITIES,
   RELATION_SOURCES,
   RELATION_TYPES,
+  TICKET_STATUSES,
+  CUSTOMER_SOURCE_TYPES,
+  CUSTOMER_SOURCE_STATUSES,
 } from "@ugo/shared";
 
 // Closed domains as real Postgres enums: invalid values are rejected by the
@@ -26,3 +29,6 @@ export const relationSource = pgEnum("relation_source", RELATION_SOURCES);
 export const recognitionModality = pgEnum("recognition_modality", RECOGNITION_MODALITIES);
 export const correctionSignal = pgEnum("correction_signal", CORRECTION_SIGNALS);
 export const accessRole = pgEnum("access_role", ACCESS_ROLES);
+export const ticketStatus = pgEnum("ticket_status", TICKET_STATUSES);
+export const customerSourceType = pgEnum("customer_source_type", CUSTOMER_SOURCE_TYPES);
+export const customerSourceStatus = pgEnum("customer_source_status", CUSTOMER_SOURCE_STATUSES);

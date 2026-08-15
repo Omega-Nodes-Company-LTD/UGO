@@ -54,6 +54,8 @@ export const soulEnvSchema = z.object({
   S3_SECRET_KEY: optionalNonEmpty,
   S3_SECRET_ACCESS_KEY: optionalNonEmpty,
   S3_BUCKET_AUDIO: optionalNonEmpty,
+  // ADR-054: il bucket privato dei documenti dei clienti (upload dal pannello)
+  S3_BUCKET_DOCS: optionalNonEmpty,
   /** provider region; Hetzner needs its own (e.g. fsn1), AWS-alikes tolerate us-east-1 */
   S3_REGION: z.string().min(1).default("us-east-1"),
   // Fase 5 — meetings: the feature activates only when both are set
@@ -64,6 +66,14 @@ export const soulEnvSchema = z.object({
   // Mandatory in production: an unguarded erasure endpoint is not a risk
   // worth carrying just because the tailnet is usually enough.
   UGO_INTERNAL_TOKEN: optionalNonEmpty,
+  // ADR-051: il segreto di servizio della reception — dedicato, NON il token
+  // interno: ruotare la superficie pubblica non deve toccare quella interna.
+  // Assente = la reception non esiste e le sue rotte non vengono registrate.
+  UGO_RECEPTION_TOKEN: optionalNonEmpty,
+  // ADR-055: i default dei contatori del cliente; ogni cliente può avere i
+  // suoi dal pannello, senza deploy
+  UGO_CUSTOMER_HOURLY_MESSAGES: z.coerce.number().int().positive().default(20),
+  UGO_CUSTOMER_DAILY_BUDGET_USD: z.coerce.number().positive().default(0.25),
   // ADR-045: il servizio di percezione (voce e volto). Assente = UGO risponde
   // senza sapere chi ha davanti, che è il comportamento di ogni versione fino
   // a ieri: la biometria si accende, non si subisce.

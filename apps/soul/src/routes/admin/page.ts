@@ -1,3 +1,4 @@
+import { CUSTOMER_PAGES } from "./page/customers.js";
 import { GOSINO_PAGES, DIAL_STYLES } from "./page/gosino.js";
 import { HOUSE_PAGES } from "./page/house.js";
 import { ADMIN_SHELL_BOTTOM, ADMIN_SHELL_TOP, GATE_STYLES } from "./page/shell.js";
@@ -23,6 +24,7 @@ export const ADMIN_PAGE = [
     [ADMIN_STYLES, ADMIN_DATA_STYLES, GATE_STYLES, DIAL_STYLES].join("\n"),
   ),
   HOUSE_PAGES,
+  CUSTOMER_PAGES,
   GOSINO_PAGES,
   ADMIN_SHELL_BOTTOM,
 ].join("\n");

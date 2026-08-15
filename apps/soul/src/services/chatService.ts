@@ -16,7 +16,9 @@ import type { PsycheService } from "./psycheService.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
 
 /** top-k per channel (PROGETTO §5.4: k=6 casa, k=10 riunioni) */
-const K_BY_CHANNEL = { home: 6, meeting: 10, api: 6 } as const;
+// `ticket` is listed for totality over MessageChannel: customer conversations
+// go through the reception's own service (ADR-052), never through this one
+const K_BY_CHANNEL = { home: 6, meeting: 10, api: 6, ticket: 6 } as const;
 const TRANSCRIPT_K = 3;
 const HISTORY_TURNS = 8;
 /**

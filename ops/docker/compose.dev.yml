@@ -10,11 +10,18 @@ networks:
   backend:
     internal: true
   edge: {}
+  # ADR-051: la rete della reception — solo lei e soul. La reception NON sta
+  # su `backend`: Postgres, Ollama e Mosquitto le restano irraggiungibili
+  # anche da compromessa.
+  reception-net:
+    internal: true
 
 volumes:
   postgres-data: {}
   mosquitto-data: {}
   ollama-models: {}
+  # ADR-054: i cloni dei repo dei clienti vivono qui, non nell'immagine
+  customer-repos: {}
 
 services:
   postgres:
@@ -91,7 +98,13 @@ services:
       S3_BUCKET_AUDIO: ${S3_BUCKET_AUDIO:-ugo-audio}
       UGO_WHISPER_MODEL: ${UGO_WHISPER_MODEL:-large-v3}
       UGO_AUDIO_RETENTION_DAYS: ${UGO_AUDIO_RETENTION_DAYS:-90}
+      # ADR-054 — le fonti dei clienti (0 = sincronizzazione spenta)
+      UGO_CUSTOMER_SYNC_EVERY_H: ${UGO_CUSTOMER_SYNC_EVERY_H:-6}
+      UGO_REPOS_DIR: /var/lib/ugo/repos
+      S3_BUCKET_DOCS: ${S3_BUCKET_DOCS:-ugo-docs}
       TZ: ${TZ:-Europe/Rome}
+    volumes:
+      - customer-repos:/var/lib/ugo/repos
     depends_on:
       postgres:
         condition: service_healthy
@@ -145,12 +158,33 @@ services:
       postgres:
         condition: service_healthy
 
+  # ADR-051: la porta sulla strada. In dev ascolta su loopback come tutto il
+  # resto; in produzione è l'unico servizio col dominio pubblico.
+  reception:
+    build:
+      context: ../..
+      dockerfile: ops/docker/reception.Dockerfile
+    restart: unless-stopped
+    networks: [reception-net, edge]
+    ports:
+      - "127.0.0.1:3001:3001"
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      SOUL_URL: http://soul:3000
+      UGO_RECEPTION_TOKEN: ${UGO_RECEPTION_TOKEN:-}
+      PORT: "3001"
+    depends_on:
+      soul:
+        condition: service_started
+
   soul:
     build:
       context: ../..
       dockerfile: ops/docker/soul.Dockerfile
     restart: unless-stopped
-    networks: [backend, edge]
+    networks: [backend, edge, reception-net]
     # the ONLY host-published port of the stack, loopback only
     ports:
       - "127.0.0.1:3000:3000"
@@ -173,6 +207,11 @@ services:
       # environment parity, e si prova subito quello che si userà davvero.
       UGO_INTERNAL_TOKEN: ${UGO_INTERNAL_TOKEN:?missing UGO_INTERNAL_TOKEN}
       UGO_JOBS_TRIGGER_URL: ${UGO_JOBS_TRIGGER_URL:-}
+      # ADR-051/055 — la reception (facoltativa: senza segreto resta chiusa)
+      UGO_RECEPTION_TOKEN: ${UGO_RECEPTION_TOKEN:-}
+      UGO_CUSTOMER_HOURLY_MESSAGES: ${UGO_CUSTOMER_HOURLY_MESSAGES:-20}
+      UGO_CUSTOMER_DAILY_BUDGET_USD: ${UGO_CUSTOMER_DAILY_BUDGET_USD:-0.25}
+      S3_BUCKET_DOCS: ${S3_BUCKET_DOCS:-}
       # Fase 4 — upload audio (facoltative in dev: la feature si attiva solo se tutte presenti)
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}

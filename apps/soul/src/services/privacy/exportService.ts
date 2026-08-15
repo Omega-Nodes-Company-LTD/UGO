@@ -37,6 +37,19 @@ export interface ExportBundle {
   corrections: unknown[];
   /** metadata only — see the query for why the centroids stay behind */
   recognitionProfiles: unknown[];
+  /** the reception (ADR-052): the house's customers, decrypted like the rest */
+  customers: unknown[];
+  customerGosini: unknown[];
+  /** metadata only — the hash grants nothing, so not even that leaves */
+  customerTokens: unknown[];
+  tickets: unknown[];
+  customerMessages: unknown[];
+  /** ADR-054: sources as metadata (credentials NEVER leave), chunks decrypted */
+  customerRepos: unknown[];
+  customerDocuments: unknown[];
+  customerMailAccounts: unknown[];
+  customerChunks: unknown[];
+  customerAnswerCache: unknown[];
 }
 
 const UNREADABLE = "[non decifrabile con la chiave corrente]";
@@ -47,15 +60,22 @@ export class ExportService {
     private readonly dataKey: Buffer,
   ) {}
 
-  private decryptColumn(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  private decryptColumn(
+    rows: Record<string, unknown>[],
+    columns: readonly string[] = ["text"],
+  ): Record<string, unknown>[] {
     return rows.map((row) => {
-      const value = row.text;
-      if (typeof value !== "string") return row;
-      try {
-        return { ...row, text: decryptText(value, this.dataKey) };
-      } catch {
-        return { ...row, text: UNREADABLE };
+      const out = { ...row };
+      for (const column of columns) {
+        const value = out[column];
+        if (typeof value !== "string" || value === "") continue;
+        try {
+          out[column] = decryptText(value, this.dataKey);
+        } catch {
+          out[column] = UNREADABLE;
+        }
       }
+      return out;
     });
   }
 
@@ -83,6 +103,16 @@ export class ExportService {
       relations,
       corrections,
       recognitionProfiles,
+      customers,
+      customerGosini,
+      customerTokens,
+      tickets,
+      customerMessages,
+      customerRepos,
+      customerDocuments,
+      customerMailAccounts,
+      customerChunks,
+      customerAnswerCache,
     ] =
       await Promise.all([
         rows(sql`select id, display_name, aliases, notes, created_at from beings
@@ -124,6 +154,39 @@ export class ExportService {
                  from recognition_profiles
                  where being_id in (select id from beings where household_id = ${householdId})
                  order by being_id`),
+        rows(sql`select id, name, slug, notes, daily_budget_usd, hourly_message_limit,
+                        knowledge_epoch, created_at, archived_at
+                 from customers where household_id = ${householdId} order by created_at`),
+        rows(sql`select customer_id, gosino_id, created_at from customer_gosini
+                 where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, label, created_at, last_used_at, expires_at, revoked_at
+                 from customer_access_tokens
+                 where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, gosino_id, status, title, body,
+                        created_at, updated_at, closed_at
+                 from tickets where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, gosino_id, ticket_id, ts, role, text,
+                        tokens_in, tokens_out, cost_usd, cached
+                 from customer_messages
+                 where household_id = ${householdId} order by ts`),
+        // credentials (pat) are deliberately NOT selected: a portability file
+        // is plaintext, and a live credential has no business in one
+        rows(sql`select id, customer_id, remote_url, default_branch, last_commit_sha,
+                        last_indexed_at, status, created_at
+                 from customer_repos where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, s3_key, filename, mime, size_bytes, uploaded_at,
+                        indexed_at, status
+                 from customer_documents where household_id = ${householdId} order by uploaded_at`),
+        rows(sql`select id, customer_id, imap_host, imap_port, username, folder,
+                        last_uid, last_synced_at, status, created_at
+                 from customer_mail_accounts
+                 where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, source_type, source_id, ref, text, created_at
+                 from customer_chunks where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, gosino_id, question_text, answer_text,
+                        knowledge_epoch, created_at, expires_at
+                 from customer_answer_cache
+                 where household_id = ${householdId} order by created_at`),
       ]);
 
     return {
@@ -142,6 +205,19 @@ export class ExportService {
       relations,
       corrections,
       recognitionProfiles,
+      customers: this.decryptColumn(customers, ["notes"]),
+      customerGosini,
+      customerTokens,
+      tickets: this.decryptColumn(tickets, ["title", "body"]),
+      customerMessages: this.decryptColumn(customerMessages),
+      customerRepos,
+      customerDocuments: this.decryptColumn(customerDocuments, ["filename"]),
+      customerMailAccounts,
+      customerChunks: this.decryptColumn(customerChunks),
+      customerAnswerCache: this.decryptColumn(customerAnswerCache, [
+        "question_text",
+        "answer_text",
+      ]),
     };
   }
 }

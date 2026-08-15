@@ -95,6 +95,8 @@ async function openPage(page) {
     await section(loadMeetings, "meet-msg");
   } else if (page === "stanze") {
     await section(loadRooms, "rooms-msg");
+  } else if (page === "clienti") {
+    await section(loadCustomers, "cust-msg");
   } else if (page === "branco") {
     await section(loadRelations, "rel-msg");
   } else if (page === "nascita") {

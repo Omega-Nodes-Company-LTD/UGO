@@ -129,6 +129,14 @@ def main() -> int:
     except ConfigError as error:
         print(str(error), file=sys.stderr)
         return 1
+    # ADR-054: the customer sources keep their own interval, in a thread of
+    # their own, so neither cadence bends the other. Import here, not at the
+    # top: the sync loop is optional machinery the dream must not depend on.
+    from threading import Thread
+
+    from .customer_sync import run_sync_forever
+
+    Thread(target=run_sync_forever, args=(cfg,), daemon=True).start()
     return run_forever(cfg, cfg.dream_at)
 
 

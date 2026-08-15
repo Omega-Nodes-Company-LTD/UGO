@@ -20,6 +20,14 @@ import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
+import { registerCustomersRoutes } from "./routes/customers.js";
+import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
+import { registerReceptionRoutes } from "./routes/reception.js";
+import { AnswerCache } from "./services/reception/answerCache.js";
+import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
+import type { CustomerQuota } from "./services/reception/customerQuota.js";
+import type { GithubLiveService } from "./services/reception/githubLiveService.js";
+import type { EmbeddingsClient, LlmClient } from "@ugo/memory";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
 import { registerVolitionRoutes } from "./routes/volition.js";
 import type { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
@@ -58,6 +66,29 @@ export interface ServerOptions extends HealthDeps {
     /** bearer token protecting destructive/expensive routes */
     internalToken?: string;
     dreamTriggerUrl?: string;
+    /**
+     * ADR-051: the reception's door. Registered only when the dedicated
+     * service secret is configured — no secret, no public-facing surface.
+     * The chat service is built HERE so it shares the one audit logger.
+     */
+    reception?: {
+      token: string;
+      dataKey: Buffer;
+      quota: CustomerQuota;
+      llmFor: (householdId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
+      /** ADR-054: retrieval over the knowledge index */
+      embedder?: EmbeddingsClient;
+      /** ADR-054: live PRs/commits on live-state questions */
+      github?: GithubLiveService;
+    };
+    /** ADR-052: the house side — customers CRUD, assignment, tokens, triage */
+    customers?: {
+      dataKey: Buffer;
+      /** ADR-054: the private docs bucket; absent = uploads answer 503 */
+      docsStorage?: AudioStorageConfig;
+      /** optional HTTP trigger of the jobs runner for an out-of-band sync */
+      syncTriggerUrl?: string;
+    };
   };
 }
 
@@ -102,6 +133,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       initiative,
       internalToken,
       dreamTriggerUrl,
+      reception,
+      customers,
       ...v1
     } = options.features;
     // first, and before every route below it: Fastify binds onRequest hooks to
@@ -181,6 +214,44 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         ...stats,
         guard,
         ...(registry !== undefined && { registry }),
+      });
+    }
+    if (customers !== undefined) {
+      registerCustomersRoutes(app, {
+        db: options.db,
+        guard,
+        dataKey: customers.dataKey,
+        audit,
+      });
+      registerCustomerSourcesRoutes(app, {
+        db: options.db,
+        guard,
+        dataKey: customers.dataKey,
+        audit,
+        ...(customers.docsStorage !== undefined && { docsStorage: customers.docsStorage }),
+        ...(customers.syncTriggerUrl !== undefined && {
+          syncTriggerUrl: customers.syncTriggerUrl,
+        }),
+      });
+    }
+    if (reception !== undefined) {
+      registerReceptionRoutes(app, {
+        db: options.db,
+        receptionToken: reception.token,
+        chat: new CustomerChatService({
+          db: options.db,
+          dataKey: reception.dataKey,
+          quota: reception.quota,
+          llmFor: reception.llmFor,
+          audit,
+          ...(reception.embedder !== undefined && { embedder: reception.embedder }),
+          ...(reception.github !== undefined && { github: reception.github }),
+          // ADR-055 wall 3, built here so it shares db and key with the rest
+          cache: new AnswerCache(options.db, reception.dataKey, reception.embedder),
+        }),
+        dataKey: reception.dataKey,
+        audit,
+        ...(reception.github !== undefined && { github: reception.github }),
       });
     }
     if (face !== undefined) {

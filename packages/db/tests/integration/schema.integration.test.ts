@@ -30,6 +30,16 @@ const EXPECTED_TABLES = [
   "perception_events",
   "corrections",
   "memory_beings",
+  "customers",
+  "customer_gosini",
+  "customer_access_tokens",
+  "tickets",
+  "customer_messages",
+  "customer_repos",
+  "customer_documents",
+  "customer_mail_accounts",
+  "customer_chunks",
+  "customer_answer_cache",
 ] as const;
 
 let container: StartedPostgreSqlContainer;
@@ -63,6 +73,49 @@ describe("migrations on a pristine postgres", () => {
       sql`select extname from pg_extension where extname = 'vector'`,
     );
     expect(rows).toHaveLength(1);
+  });
+
+  // ADR-051/052: the reception's tables are tenant tables like the others —
+  // RLS enabled, one household policy each, declared in the hand-written tail
+  // of 0016. A table with RLS on and no policy would be mute, not isolated.
+  it("gives every reception table its household policy", async () => {
+    const receptionTables = [
+      "customers",
+      "customer_gosini",
+      "customer_access_tokens",
+      "tickets",
+      "customer_messages",
+      "customer_repos",
+      "customer_documents",
+      "customer_mail_accounts",
+      "customer_chunks",
+      "customer_answer_cache",
+    ];
+    const rows = await db.execute<{ tablename: string; policyname: string }>(sql`
+      select tablename, policyname from pg_policies where schemaname = 'public'
+    `);
+    for (const table of receptionTables) {
+      expect(
+        rows.some((row) => row.tablename === table && row.policyname === `${table}_household`),
+        `missing policy on ${table}`,
+      ).toBe(true);
+    }
+    const inList = sql.raw(receptionTables.map((table) => `'${table}'`).join(", "));
+    const rls = await db.execute<{ relname: string; relrowsecurity: boolean }>(sql`
+      select relname, relrowsecurity from pg_class
+      where relname in (${inList})
+    `);
+    for (const row of rls) {
+      expect(row.relrowsecurity, `RLS disabled on ${row.relname}`).toBe(true);
+    }
+  });
+
+  // the reception channel exists in the database, not only in TypeScript
+  it("accepts 'ticket' as a message_channel", async () => {
+    const rows = await db.execute<{ value: string }>(sql`
+      select unnest(enum_range(null::message_channel))::text as value
+    `);
+    expect(rows.map((row) => row.value)).toContain("ticket");
   });
 });
 
