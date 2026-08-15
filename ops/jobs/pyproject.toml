@@ -11,6 +11,8 @@ dependencies = [
     "cryptography>=43.0",
     # ingest.py transcribes on CPU (ADR-001); heavy, imported lazily
     "faster-whisper>=1.1",
+    # customer_docs.py (ADR-054): pure-python pdf text extraction, imported lazily
+    "pypdf>=5.1",
 ]
 
 [project.optional-dependencies]

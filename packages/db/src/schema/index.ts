@@ -9,10 +9,18 @@ export {
   recognitionModality,
   relationType,
   ticketStatus,
+  customerSourceType,
+  customerSourceStatus,
 } from "./enums.js";
 export { customers, customerGosini } from "./customers.js";
 export { customerAccessTokens } from "./customer-tokens.js";
 export { tickets, customerMessages } from "./tickets.js";
+export {
+  customerRepos,
+  customerDocuments,
+  customerMailAccounts,
+  customerChunks,
+} from "./customer-sources.js";
 export { beings } from "./beings.js";
 export { gosini, traitSets } from "./gosini.js";
 export { households, PRIME_HOUSEHOLD_ID } from "./households.js";

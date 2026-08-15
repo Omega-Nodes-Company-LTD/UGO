@@ -56,6 +56,40 @@ export const CUSTOMER_PAGES = `
       <button id="cust-token-go" data-testid="cust-token-go">Emetti un token</button>
     </div>
 
+    <h3>Cosa sa del suo lavoro</h3>
+    <p class="lede">Le fonti (ADR-054): repository da clonare e indicizzare, una casella email
+       da <b>leggere soltanto</b>, documenti nel bucket privato. Le credenziali entrano cifrate
+       e non escono mai più.</p>
+    <div id="cust-sources"></div>
+    <div class="row" style="margin-top:.5rem">
+      <div><label for="cust-repo-url">Repository (URL git)</label>
+        <input id="cust-repo-url" data-testid="cust-repo-url" placeholder="https://github.com/studio/progetto"></div>
+      <div><label for="cust-repo-branch">Ramo</label>
+        <input id="cust-repo-branch" data-testid="cust-repo-branch" value="main" maxlength="80"></div>
+      <div><label for="cust-repo-pat">PAT (vuoto se pubblico)</label>
+        <input id="cust-repo-pat" data-testid="cust-repo-pat" type="password" maxlength="300"></div>
+      <button id="cust-repo-go" data-testid="cust-repo-go">Collega il repo</button>
+    </div>
+    <div class="row" style="margin-top:.5rem">
+      <div><label for="cust-mail-host">IMAP host</label>
+        <input id="cust-mail-host" data-testid="cust-mail-host" placeholder="imap.example.com"></div>
+      <div><label for="cust-mail-port">Porta</label>
+        <input id="cust-mail-port" data-testid="cust-mail-port" value="993" maxlength="5"></div>
+      <div><label for="cust-mail-user">Utente</label>
+        <input id="cust-mail-user" data-testid="cust-mail-user"></div>
+      <div><label for="cust-mail-pass">Password</label>
+        <input id="cust-mail-pass" data-testid="cust-mail-pass" type="password"></div>
+      <div><label for="cust-mail-folder">Cartella</label>
+        <input id="cust-mail-folder" data-testid="cust-mail-folder" value="INBOX"></div>
+      <button id="cust-mail-go" data-testid="cust-mail-go">Collega la casella</button>
+    </div>
+    <div class="row" style="margin-top:.5rem">
+      <div><label for="cust-doc-file">Documento (pdf, txt, md, csv)</label>
+        <input id="cust-doc-file" data-testid="cust-doc-file" type="file" accept=".pdf,.txt,.md,.csv"></div>
+      <button id="cust-doc-go" data-testid="cust-doc-go">Caricalo</button>
+      <button id="cust-sync-go" class="ghost" data-testid="cust-sync-go">Sincronizza adesso</button>
+    </div>
+
     <h3>Le richieste</h3>
     <div id="cust-tickets"></div>
 

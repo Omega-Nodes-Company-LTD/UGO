@@ -44,6 +44,11 @@ export interface ExportBundle {
   customerTokens: unknown[];
   tickets: unknown[];
   customerMessages: unknown[];
+  /** ADR-054: sources as metadata (credentials NEVER leave), chunks decrypted */
+  customerRepos: unknown[];
+  customerDocuments: unknown[];
+  customerMailAccounts: unknown[];
+  customerChunks: unknown[];
 }
 
 const UNREADABLE = "[non decifrabile con la chiave corrente]";
@@ -102,6 +107,10 @@ export class ExportService {
       customerTokens,
       tickets,
       customerMessages,
+      customerRepos,
+      customerDocuments,
+      customerMailAccounts,
+      customerChunks,
     ] =
       await Promise.all([
         rows(sql`select id, display_name, aliases, notes, created_at from beings
@@ -158,6 +167,20 @@ export class ExportService {
                         tokens_in, tokens_out, cost_usd, cached
                  from customer_messages
                  where household_id = ${householdId} order by ts`),
+        // credentials (pat) are deliberately NOT selected: a portability file
+        // is plaintext, and a live credential has no business in one
+        rows(sql`select id, customer_id, remote_url, default_branch, last_commit_sha,
+                        last_indexed_at, status, created_at
+                 from customer_repos where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, s3_key, filename, mime, size_bytes, uploaded_at,
+                        indexed_at, status
+                 from customer_documents where household_id = ${householdId} order by uploaded_at`),
+        rows(sql`select id, customer_id, imap_host, imap_port, username, folder,
+                        last_uid, last_synced_at, status, created_at
+                 from customer_mail_accounts
+                 where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, customer_id, source_type, source_id, ref, text, created_at
+                 from customer_chunks where household_id = ${householdId} order by created_at`),
       ]);
 
     return {
@@ -181,6 +204,10 @@ export class ExportService {
       customerTokens,
       tickets: this.decryptColumn(tickets, ["title", "body"]),
       customerMessages: this.decryptColumn(customerMessages),
+      customerRepos,
+      customerDocuments: this.decryptColumn(customerDocuments, ["filename"]),
+      customerMailAccounts,
+      customerChunks: this.decryptColumn(customerChunks),
     };
   }
 }

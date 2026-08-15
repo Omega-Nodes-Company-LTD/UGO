@@ -7,12 +7,18 @@ import {
   tickets,
   type DbClient,
 } from "@ugo/db";
-import type { LlmClient, LlmHistoryTurn } from "@ugo/memory";
+import {
+  searchCustomerChunks,
+  type EmbeddingsClient,
+  type LlmClient,
+  type LlmHistoryTurn,
+} from "@ugo/memory";
 import { decryptText, encryptText } from "@ugo/shared";
 import { and, desc, eq, gt, ne } from "drizzle-orm";
 import type { AuditLogger } from "../auditLog.js";
 import type { CustomerContext } from "./customerAuth.js";
 import type { CustomerQuota } from "./customerQuota.js";
+import type { GithubLiveService } from "./githubLiveService.js";
 
 /**
  * The reception's conversation (ADR-052/055). Reuses `LlmClient` — the one
@@ -33,6 +39,20 @@ export const CUSTOMER_BUDGET_REPLY =
 /** the deterministic ticket shortcut: zero provider tokens (ADR-055) */
 const TICKET_PREFIX = /^apri\s+(?:un\s+)?ticket[:\s]+(.+)$/is;
 
+/** how many knowledge chunks reach the prompt (ADR-054) */
+const CHUNKS_K = 8;
+
+/**
+ * Questions about the LIVE state of the work (ADR-054/055): they wake the
+ * GitHub adapter, and their answers are never cached — true only in the
+ * moment they are asked.
+ */
+const LIVE_STATE = /\b(pr|pull request|commit|pipeline|deploy|stato dei lavori|a che punto|novit[aà])\b/i;
+
+export function isLiveStateQuestion(text: string): boolean {
+  return LIVE_STATE.test(text);
+}
+
 export interface HouseClock {
   timezone: string;
   locale: string;
@@ -44,6 +64,10 @@ export interface CustomerChatDeps {
   quota: CustomerQuota;
   llmFor: (householdId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
   audit?: AuditLogger;
+  /** ADR-054: without it the gosino answers from tickets and history alone */
+  embedder?: EmbeddingsClient;
+  /** ADR-054: live PRs/commits, only when a repo actually points at GitHub */
+  github?: GithubLiveService;
 }
 
 export type CustomerChatResult =
@@ -173,11 +197,36 @@ export class CustomerChatService {
 
   /** blocks 3+ of the prompt: the customer's world, never cached (rule 2) */
   private async buildDynamicSystem(request: CustomerChatRequest, at: Date): Promise<string> {
-    const { db, dataKey } = this.deps;
+    const { db, dataKey, embedder, github } = this.deps;
     const [customer] = await db
       .select({ name: customers.name })
       .from(customers)
       .where(eq(customers.id, request.context.customerId));
+
+    // ADR-054: the knowledge index, decrypted only here, only the top-k
+    const knowledge: string[] = [];
+    if (embedder !== undefined) {
+      const chunks = await searchCustomerChunks(
+        db,
+        embedder,
+        request.text,
+        CHUNKS_K,
+        request.context.customerId,
+        request.context.householdId,
+      );
+      for (const chunk of chunks) {
+        try {
+          knowledge.push(`[${chunk.sourceType} ${chunk.ref}]\n${decryptText(chunk.text, dataKey)}`);
+        } catch {
+          // unreadable chunk (rotated key): the answer goes on without it
+        }
+      }
+    }
+    // the live state only when the question is about the live state
+    const live =
+      github !== undefined && isLiveStateQuestion(request.text)
+        ? await github.liveBlock(request.context.customerId, at)
+        : undefined;
     const openTickets = await db
       .select({ id: tickets.id, title: tickets.title, status: tickets.status })
       .from(tickets)
@@ -203,6 +252,11 @@ export class CustomerChatService {
     } else {
       lines.push("Il cliente non ha ticket aperti al momento.");
     }
+    if (knowledge.length > 0) {
+      lines.push("Contesto dal lavoro del cliente (repo, documenti, email):");
+      lines.push(...knowledge);
+    }
+    if (live !== undefined) lines.push(live);
     return lines.join("\n");
   }
 

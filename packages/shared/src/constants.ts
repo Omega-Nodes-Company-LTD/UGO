@@ -14,6 +14,14 @@ export type MessageChannel = (typeof MESSAGE_CHANNELS)[number];
 export const TICKET_STATUSES = ["open", "in_progress", "waiting", "closed"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
+/** Where a customer knowledge chunk came from (ADR-054). */
+export const CUSTOMER_SOURCE_TYPES = ["repo", "document", "email"] as const;
+export type CustomerSourceType = (typeof CUSTOMER_SOURCE_TYPES)[number];
+
+/** A source's sync state, shown in the panel (ADR-054). */
+export const CUSTOMER_SOURCE_STATUSES = ["pending", "ok", "error"] as const;
+export type CustomerSourceStatus = (typeof CUSTOMER_SOURCE_STATUSES)[number];
+
 export const MEMORY_KINDS = ["fact", "preference", "episode", "insight"] as const;
 export type MemoryKind = (typeof MEMORY_KINDS)[number];
 

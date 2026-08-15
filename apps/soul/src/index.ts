@@ -23,6 +23,7 @@ import { CouncilService } from "./services/council/councilService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
 import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
+import { GithubLiveService } from "./services/reception/githubLiveService.js";
 import { buildServer } from "./server.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -262,7 +263,16 @@ const app = buildServer({
     ...(audio !== undefined && { audio }),
     ...(meetings !== undefined && { meetings }),
     // ADR-052: the house side of the reception, in the panel
-    customers: { dataKey },
+    customers: {
+      dataKey,
+      ...(audio !== undefined &&
+        env.S3_BUCKET_DOCS !== undefined && {
+          docsStorage: { ...audio, bucket: env.S3_BUCKET_DOCS },
+        }),
+      ...(env.UGO_JOBS_TRIGGER_URL !== undefined && {
+        syncTriggerUrl: env.UGO_JOBS_TRIGGER_URL,
+      }),
+    },
     // ADR-051: the reception exists only when its dedicated secret does
     ...(env.UGO_RECEPTION_TOKEN !== undefined && {
       reception: {
@@ -274,6 +284,8 @@ const app = buildServer({
           timezone: env.TZ,
         }),
         llmFor,
+        embedder,
+        github: new GithubLiveService({ db, dataKey }),
       },
     }),
   },

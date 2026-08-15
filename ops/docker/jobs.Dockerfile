@@ -26,9 +26,11 @@ RUN apt-get update \
      http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
      > /etc/apt/sources.list.d/pgdg.list \
   && apt-get update \
-  && apt-get install -y --no-install-recommends postgresql-client \
+  && apt-get install -y --no-install-recommends postgresql-client git \
   && apt-get purge -y curl gnupg && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/*
+# git: customer_repos.py clones the customers' repositories (ADR-054); the
+# clones live on the volume mounted at UGO_REPOS_DIR, not in the image
 
 RUN useradd --system --create-home ugo
 WORKDIR /app

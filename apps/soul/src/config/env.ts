@@ -54,6 +54,8 @@ export const soulEnvSchema = z.object({
   S3_SECRET_KEY: optionalNonEmpty,
   S3_SECRET_ACCESS_KEY: optionalNonEmpty,
   S3_BUCKET_AUDIO: optionalNonEmpty,
+  // ADR-054: il bucket privato dei documenti dei clienti (upload dal pannello)
+  S3_BUCKET_DOCS: optionalNonEmpty,
   /** provider region; Hetzner needs its own (e.g. fsn1), AWS-alikes tolerate us-east-1 */
   S3_REGION: z.string().min(1).default("us-east-1"),
   // Fase 5 — meetings: the feature activates only when both are set

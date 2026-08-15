@@ -35,6 +35,10 @@ const EXPECTED_TABLES = [
   "customer_access_tokens",
   "tickets",
   "customer_messages",
+  "customer_repos",
+  "customer_documents",
+  "customer_mail_accounts",
+  "customer_chunks",
 ] as const;
 
 let container: StartedPostgreSqlContainer;
@@ -80,6 +84,10 @@ describe("migrations on a pristine postgres", () => {
       "customer_access_tokens",
       "tickets",
       "customer_messages",
+      "customer_repos",
+      "customer_documents",
+      "customer_mail_accounts",
+      "customer_chunks",
     ];
     const rows = await db.execute<{ tablename: string; policyname: string }>(sql`
       select tablename, policyname from pg_policies where schemaname = 'public'

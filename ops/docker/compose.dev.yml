@@ -15,6 +15,8 @@ volumes:
   postgres-data: {}
   mosquitto-data: {}
   ollama-models: {}
+  # ADR-054: i cloni dei repo dei clienti vivono qui, non nell'immagine
+  customer-repos: {}
 
 services:
   postgres:
@@ -91,7 +93,13 @@ services:
       S3_BUCKET_AUDIO: ${S3_BUCKET_AUDIO:-ugo-audio}
       UGO_WHISPER_MODEL: ${UGO_WHISPER_MODEL:-large-v3}
       UGO_AUDIO_RETENTION_DAYS: ${UGO_AUDIO_RETENTION_DAYS:-90}
+      # ADR-054 — le fonti dei clienti (0 = sincronizzazione spenta)
+      UGO_CUSTOMER_SYNC_EVERY_H: ${UGO_CUSTOMER_SYNC_EVERY_H:-6}
+      UGO_REPOS_DIR: /var/lib/ugo/repos
+      S3_BUCKET_DOCS: ${S3_BUCKET_DOCS:-ugo-docs}
       TZ: ${TZ:-Europe/Rome}
+    volumes:
+      - customer-repos:/var/lib/ugo/repos
     depends_on:
       postgres:
         condition: service_healthy

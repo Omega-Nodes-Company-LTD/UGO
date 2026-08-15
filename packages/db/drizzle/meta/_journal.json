@@ -120,6 +120,13 @@
       "when": 1786814109577,
       "tag": "0016_la-reception-clienti",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786816624586,
+      "tag": "0017_le-fonti-del-cliente",
+      "breakpoints": true
     }
   ]
 }

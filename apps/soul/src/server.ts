@@ -21,10 +21,12 @@ import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerCustomersRoutes } from "./routes/customers.js";
+import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
 import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
 import type { CustomerQuota } from "./services/reception/customerQuota.js";
-import type { LlmClient } from "@ugo/memory";
+import type { GithubLiveService } from "./services/reception/githubLiveService.js";
+import type { EmbeddingsClient, LlmClient } from "@ugo/memory";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
 import { registerVolitionRoutes } from "./routes/volition.js";
 import type { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
@@ -73,9 +75,19 @@ export interface ServerOptions extends HealthDeps {
       dataKey: Buffer;
       quota: CustomerQuota;
       llmFor: (householdId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
+      /** ADR-054: retrieval over the knowledge index */
+      embedder?: EmbeddingsClient;
+      /** ADR-054: live PRs/commits on live-state questions */
+      github?: GithubLiveService;
     };
     /** ADR-052: the house side — customers CRUD, assignment, tokens, triage */
-    customers?: { dataKey: Buffer };
+    customers?: {
+      dataKey: Buffer;
+      /** ADR-054: the private docs bucket; absent = uploads answer 503 */
+      docsStorage?: AudioStorageConfig;
+      /** optional HTTP trigger of the jobs runner for an out-of-band sync */
+      syncTriggerUrl?: string;
+    };
   };
 }
 
@@ -210,6 +222,16 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         dataKey: customers.dataKey,
         audit,
       });
+      registerCustomerSourcesRoutes(app, {
+        db: options.db,
+        guard,
+        dataKey: customers.dataKey,
+        audit,
+        ...(customers.docsStorage !== undefined && { docsStorage: customers.docsStorage }),
+        ...(customers.syncTriggerUrl !== undefined && {
+          syncTriggerUrl: customers.syncTriggerUrl,
+        }),
+      });
     }
     if (reception !== undefined) {
       registerReceptionRoutes(app, {
@@ -221,6 +243,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           quota: reception.quota,
           llmFor: reception.llmFor,
           audit,
+          ...(reception.embedder !== undefined && { embedder: reception.embedder }),
+          ...(reception.github !== undefined && { github: reception.github }),
         }),
         dataKey: reception.dataKey,
         audit,

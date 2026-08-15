@@ -77,6 +77,36 @@ async function loadCustomerDetail() {
         '<div class="because">' + escape(s.name) + ": " + s.messages + " domande, " +
         s.tickets + " ticket, " + s.cachedReplies + " risposte dalla cache, $" +
         s.costUsd.toFixed(4) + "</div>").join("");
+
+  await loadCustomerSources();
+}
+
+const SOURCE_STATE = { pending: "in attesa", ok: "aggiornata", error: "in errore" };
+
+async function loadCustomerSources() {
+  const src = await call("/v1/customers/" + encodeURIComponent(CUSTOMER) + "/sources", {});
+  const line = (kindClass, id, label, meta) =>
+    '<div class="deed"><div class="act">' + label +
+    '<button class="ghost ' + kindClass + '" data-src="' + id + '" data-testid="' + kindClass + '">scollega</button>' +
+    '</div><div class="because">' + meta + "</div></div>";
+  const parts = [];
+  for (const r of src.repos) {
+    parts.push(line("cust-repo-del", r.id, escape(r.remoteUrl),
+      SOURCE_STATE[r.status] + (r.lastCommitSha ? " · " + r.lastCommitSha.slice(0, 7) : "") +
+      (r.lastIndexedAt ? " · indicizzato " + r.lastIndexedAt.slice(0, 10) : " · mai indicizzato")));
+  }
+  for (const m of src.mailAccounts) {
+    parts.push(line("cust-mail-del", m.id, escape(m.username) + " @ " + escape(m.imapHost),
+      SOURCE_STATE[m.status] + " · solo lettura · UID " + m.lastUid));
+  }
+  for (const d of src.documents) {
+    parts.push(line("cust-doc-del", d.id, escape(d.filename),
+      SOURCE_STATE[d.status] + " · " + Math.ceil(d.sizeBytes / 1024) + " KB" +
+      (d.indexedAt ? " · indicizzato" : "")));
+  }
+  $("cust-sources").innerHTML = parts.length === 0
+    ? '<p class="empty">Nessuna fonte: il gosino risponder\\u00e0 solo di ticket e conversazioni.</p>'
+    : parts.join("");
 }
 
 $("cust-go").addEventListener("click", async () => {
@@ -151,6 +181,102 @@ $("cust-archive").addEventListener("click", async () => {
       { method: "PATCH", body: JSON.stringify({ archived: closing }) });
     await loadCustomers();
   } catch (error) { say("cust-detail-msg", error.message, "err"); }
+});
+
+$("cust-repo-go").addEventListener("click", async () => {
+  const remoteUrl = $("cust-repo-url").value.trim();
+  if (remoteUrl === "") { say("cust-detail-msg", "Serve l'URL del repository.", "info"); return; }
+  const pat = $("cust-repo-pat").value.trim();
+  try {
+    await call("/v1/customers/" + encodeURIComponent(CUSTOMER) + "/repos", {
+      method: "POST",
+      body: JSON.stringify({
+        remoteUrl,
+        defaultBranch: $("cust-repo-branch").value.trim() || "main",
+        ...(pat === "" ? {} : { pat }),
+      }),
+    });
+    $("cust-repo-url").value = ""; $("cust-repo-pat").value = "";
+    say("cust-detail-msg", "Repo collegato: verr\\u00e0 clonato e indicizzato al prossimo giro.", "ok");
+    await loadCustomerSources();
+  } catch (error) { say("cust-detail-msg", error.message, "err"); }
+});
+
+$("cust-mail-go").addEventListener("click", async () => {
+  const imapHost = $("cust-mail-host").value.trim();
+  const username = $("cust-mail-user").value.trim();
+  const password = $("cust-mail-pass").value;
+  if (imapHost === "" || username === "" || password === "") {
+    say("cust-detail-msg", "Servono host, utente e password della casella.", "info"); return;
+  }
+  try {
+    await call("/v1/customers/" + encodeURIComponent(CUSTOMER) + "/mail", {
+      method: "POST",
+      body: JSON.stringify({
+        imapHost,
+        imapPort: Number($("cust-mail-port").value.trim() || "993"),
+        username,
+        password,
+        folder: $("cust-mail-folder").value.trim() || "INBOX",
+      }),
+    });
+    $("cust-mail-pass").value = "";
+    say("cust-detail-msg", "Casella collegata, in sola lettura.", "ok");
+    await loadCustomerSources();
+  } catch (error) { say("cust-detail-msg", error.message, "err"); }
+});
+
+$("cust-doc-go").addEventListener("click", async () => {
+  const file = $("cust-doc-file").files?.[0];
+  if (file === undefined) { say("cust-detail-msg", "Scegli prima un file.", "info"); return; }
+  $("cust-doc-go").disabled = true;
+  try {
+    const signed = await call("/v1/customers/" + encodeURIComponent(CUSTOMER) + "/documents/presign", {
+      method: "POST",
+      body: JSON.stringify({ filename: file.name, mime: file.type || "text/plain" }),
+    });
+    const put = await fetch(signed.url, { method: "PUT", body: file,
+      headers: { "content-type": file.type || "text/plain" } });
+    if (!put.ok) throw new Error("upload fallito (HTTP " + put.status + ")");
+    await call("/v1/customers/" + encodeURIComponent(CUSTOMER) + "/documents", {
+      method: "POST",
+      body: JSON.stringify({ s3Key: signed.key, filename: file.name,
+        mime: file.type || "text/plain", sizeBytes: file.size }),
+    });
+    $("cust-doc-file").value = "";
+    say("cust-detail-msg", "Caricato: verr\\u00e0 letto e indicizzato al prossimo giro.", "ok");
+    await loadCustomerSources();
+  } catch (error) { say("cust-detail-msg", error.message, "err"); }
+  finally { $("cust-doc-go").disabled = false; }
+});
+
+$("cust-sync-go").addEventListener("click", async () => {
+  try {
+    const result = await call("/v1/customers/" + encodeURIComponent(CUSTOMER) + "/sync", { method: "POST", body: "{}" });
+    say("cust-detail-msg", result.status === "triggered"
+      ? "Sincronizzazione partita."
+      : (result.detail ?? "Richiesta registrata."), "ok");
+  } catch (error) { say("cust-detail-msg", error.message, "err"); }
+});
+
+$("cust-sources").addEventListener("click", async (event) => {
+  const target = event.target;
+  const kinds = [
+    ["cust-repo-del", "/repos/"],
+    ["cust-mail-del", "/mail/"],
+    ["cust-doc-del", "/documents/"],
+  ];
+  for (const [className, segment] of kinds) {
+    const button = target.closest("." + className);
+    if (button === null) continue;
+    if (!confirm("Scollegare questa fonte? L'indice che ne deriva sparisce con lei.")) return;
+    try {
+      await call("/v1/customers/" + encodeURIComponent(CUSTOMER) + segment + encodeURIComponent(button.dataset.src),
+        { method: "DELETE" });
+      await loadCustomerSources();
+    } catch (error) { say("cust-detail-msg", error.message, "err"); }
+    return;
+  }
 });
 
 $("cust-tokens").addEventListener("click", async (event) => {
