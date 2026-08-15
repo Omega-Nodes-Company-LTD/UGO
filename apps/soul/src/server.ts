@@ -20,6 +20,10 @@ import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
+import { registerReceptionRoutes } from "./routes/reception.js";
+import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
+import type { CustomerQuota } from "./services/reception/customerQuota.js";
+import type { LlmClient } from "@ugo/memory";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
 import { registerVolitionRoutes } from "./routes/volition.js";
 import type { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
@@ -58,6 +62,17 @@ export interface ServerOptions extends HealthDeps {
     /** bearer token protecting destructive/expensive routes */
     internalToken?: string;
     dreamTriggerUrl?: string;
+    /**
+     * ADR-051: the reception's door. Registered only when the dedicated
+     * service secret is configured — no secret, no public-facing surface.
+     * The chat service is built HERE so it shares the one audit logger.
+     */
+    reception?: {
+      token: string;
+      dataKey: Buffer;
+      quota: CustomerQuota;
+      llmFor: (householdId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
+    };
   };
 }
 
@@ -102,6 +117,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       initiative,
       internalToken,
       dreamTriggerUrl,
+      reception,
       ...v1
     } = options.features;
     // first, and before every route below it: Fastify binds onRequest hooks to
@@ -181,6 +197,21 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         ...stats,
         guard,
         ...(registry !== undefined && { registry }),
+      });
+    }
+    if (reception !== undefined) {
+      registerReceptionRoutes(app, {
+        db: options.db,
+        receptionToken: reception.token,
+        chat: new CustomerChatService({
+          db: options.db,
+          dataKey: reception.dataKey,
+          quota: reception.quota,
+          llmFor: reception.llmFor,
+          audit,
+        }),
+        dataKey: reception.dataKey,
+        audit,
       });
     }
     if (face !== undefined) {

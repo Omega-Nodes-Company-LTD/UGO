@@ -72,6 +72,22 @@ export {
   type GlyphPattern,
 } from "./faceContracts.js";
 export {
+  receptionChatRequestSchema,
+  receptionChatResponseSchema,
+  receptionTicketCreateSchema,
+  receptionTicketReplySchema,
+  receptionTicketSchema,
+  receptionGosinoSchema,
+  receptionMeSchema,
+  type ReceptionChatRequest,
+  type ReceptionChatResponse,
+  type ReceptionTicketCreate,
+  type ReceptionTicketReply,
+  type ReceptionTicket,
+  type ReceptionGosino,
+  type ReceptionMe,
+} from "./receptionContracts.js";
+export {
   EVENT_SOURCES,
   MESSAGE_CHANNELS,
   MEMORY_KINDS,

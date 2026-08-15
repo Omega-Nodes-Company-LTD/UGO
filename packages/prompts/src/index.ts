@@ -65,3 +65,12 @@ export function identityPrompt(locale: string = DEFAULT_LOCALE): string {
 export function rulesPrompt(locale: string = DEFAULT_LOCALE): string {
   return loadPromptFile("rules", locale);
 }
+
+/**
+ * Block 2 for the `ticket` channel (ADR-052): the reception's rules replace
+ * the house rules when a gosino talks to a customer. Same discipline as the
+ * other two blocks — versioned file, byte-stable, never interpolated.
+ */
+export function receptionPrompt(locale: string = DEFAULT_LOCALE): string {
+  return loadPromptFile("reception", locale);
+}
