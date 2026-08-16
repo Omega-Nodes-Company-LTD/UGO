@@ -357,6 +357,9 @@ const app = buildServer({
     ...(recognition !== undefined && { stt: recognition }),
     // decisione 2026-08-16: la voce di casa (Piper) sta sullo stesso servizio
     ...(recognition !== undefined && { ttsLocal: recognition }),
+    // backlog gruppo 3: la memoria interrogabile da altri agenti (MCP, sola
+    // lettura, token di casa). Gli embedding sono quelli di Ollama: zero provider
+    mcp: { embedder },
     // gruppo 12: il meteo vero — solo se la casa ha detto dove sta
     ...(env.UGO_HOME_LAT !== undefined &&
       env.UGO_HOME_LON !== undefined && {
