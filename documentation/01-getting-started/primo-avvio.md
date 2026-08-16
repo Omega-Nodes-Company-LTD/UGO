@@ -51,7 +51,11 @@ col telefono in tasca e lo schermo spento. Per il dock questo basta.
 > **Una cosa da sapere sull'ascolto continuo.** Il riconoscimento vocale è quello del browser, e
 > quello di Chrome **non è locale**: mentre le orecchie sono accese, ciò che dici passa dai server di
 > Google per essere trascritto. Il pulsante **👂** è il modo di chiudere il rubinetto in qualsiasi
-> momento; la soluzione definitiva è la dettatura locale sul server di casa, che è in cantiere.
+> momento; la soluzione definitiva è la dettatura locale sul server di casa. Chi vuole provarla
+> già adesso apre il muso con `?stt=locale` nell'indirizzo: le frasi vengono trascritte in casa e
+> Google esce dal percorso; se il server non ce l'ha accesa, il muso torna da solo al
+> riconoscitore del browser e lo scrive nel registro. Diventerà il default quando l'avremo
+> misurata per bene su un telefono vero.
 
 > **E una sulla voce con cui risponde.** Di base la voce di UGO è quella del telefono e non esce di
 > casa. Se chi amministra il server attiva la **voce emotiva** (una chiave OpenAI nell'ambiente),

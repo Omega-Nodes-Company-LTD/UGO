@@ -68,25 +68,11 @@ export class VoiceClip {
 
     const count = Math.min(wanted, have);
     const start = this.written - count;
-    const at = (index: number): number => this.ring[(start + index) % this.ring.length] ?? 0;
-
-    // gli stessi secondi, contati a 16 kHz invece che al ritmo del microfono
-    const outCount = Math.max(1, Math.round((count * TARGET_RATE) / this.sampleRate));
-    const pcm = new Int16Array(outCount);
-    for (let out = 0; out < outCount; out += 1) {
-      // media della finestra sorgente, non il campione più vicino: scegliere
-      // e basta lascia entrare come voce l'alias di ciò che sta sopra gli
-      // 8 kHz, e la media fa da passa-basso povero ma onesto
-      const from = Math.floor((out * count) / outCount);
-      const to = Math.max(from + 1, Math.floor(((out + 1) * count) / outCount));
-      let sum = 0;
-      for (let index = from; index < to; index += 1) sum += at(index);
-      // clamp prima di scalare: un microfono che satura non deve produrre
-      // campioni che avvolgono e suonano come un'altra voce
-      const clamped = Math.max(-1, Math.min(1, sum / (to - from)));
-      pcm[out] = Math.round(clamped * 32_767);
+    const flat = new Float32Array(count);
+    for (let index = 0; index < count; index += 1) {
+      flat[index] = this.ring[(start + index) % this.ring.length] ?? 0;
     }
-    return base64Of(new Uint8Array(pcm.buffer));
+    return toPcm16Base64(flat, this.sampleRate);
   }
 
   /** Butta via la finestra: privacy mode, orecchie spente, cambio di stanza. */
@@ -94,6 +80,34 @@ export class VoiceClip {
     this.ring.fill(0);
     this.written = 0;
   }
+}
+
+/**
+ * Campioni al ritmo del microfono → PCM int16 a 16 kHz in base64: la lingua
+ * che parlano `ops/voice/app.py` e il contratto del muso. Condivisa fra il
+ * ritaglio dell'identità (`VoiceClip`) e gli enunciati della dettatura locale
+ * (`utteranceGate`): la matematica del ricampionamento deve essere UNA, o i
+ * due percorsi divergono in silenzio.
+ */
+export function toPcm16Base64(samples: Float32Array, fromRate: number): string {
+  const count = samples.length;
+  // gli stessi secondi, contati a 16 kHz invece che al ritmo del microfono
+  const outCount = Math.max(1, Math.round((count * TARGET_RATE) / fromRate));
+  const pcm = new Int16Array(outCount);
+  for (let out = 0; out < outCount; out += 1) {
+    // media della finestra sorgente, non il campione più vicino: scegliere
+    // e basta lascia entrare come voce l'alias di ciò che sta sopra gli
+    // 8 kHz, e la media fa da passa-basso povero ma onesto
+    const from = Math.floor((out * count) / outCount);
+    const to = Math.max(from + 1, Math.floor(((out + 1) * count) / outCount));
+    let sum = 0;
+    for (let index = from; index < to; index += 1) sum += samples[index] ?? 0;
+    // clamp prima di scalare: un microfono che satura non deve produrre
+    // campioni che avvolgono e suonano come un'altra voce
+    const clamped = Math.max(-1, Math.min(1, sum / (to - from)));
+    pcm[out] = Math.round(clamped * 32_767);
+  }
+  return base64Of(new Uint8Array(pcm.buffer));
 }
 
 /** `btoa` vuole una stringa binaria, e a blocchi, o esplode sui buffer grossi. */

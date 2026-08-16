@@ -22,6 +22,7 @@ export class Sensors {
   private clip: VoiceClip | undefined;
   private lastShakeAt = 0;
   private audioContext: AudioContext | undefined;
+  private audioTap: ((samples: Float32Array, sampleRate: number) => void) | undefined;
 
   public constructor(
     private readonly send: SendFn,
@@ -63,6 +64,18 @@ export class Sensors {
     this.noise.hushUntil(performance.now() + VOICE_HUSH_MS);
   }
 
+  /**
+   * La dettatura locale ascolta lo STESSO microfono (gruppo 4): un secondo
+   * `getUserMedia` sarebbe un secondo bip di sistema e un secondo AGC da
+   * domare. Il misuratore campiona a battiti (rAF, finestre che si perdono
+   * pezzi); la dettatura vuole un nastro CONTIGUO, quindi la presa è uno
+   * `ScriptProcessorNode` — deprecato ma ovunque, e senza un file worklet a
+   * parte da far digerire al bundler.
+   */
+  public tapAudio(tap: (samples: Float32Array, sampleRate: number) => void): void {
+    this.audioTap = tap;
+  }
+
   /** microphone level meter → noise events, judged against the room (ADR-029) */
   public async startMicrophone(): Promise<void> {
     // Automatic gain control is ON by default, and it is what made a silent
@@ -78,6 +91,27 @@ export class Sensors {
     source.connect(analyser);
     const buffer = new Float32Array(analyser.fftSize);
     this.clip = new VoiceClip(this.audioContext.sampleRate);
+
+    if (this.audioTap !== undefined) {
+      /* eslint-disable @typescript-eslint/no-deprecated -- scelta deliberata:
+         ScriptProcessorNode è deprecato ma funziona ovunque, e l'alternativa
+         (AudioWorklet) vuole un modulo separato da servire — complessità di
+         bundle per un percorso che oggi vive dietro `?stt=locale`. Quando la
+         dettatura locale diventerà il default, si migra al worklet. */
+      const context = this.audioContext;
+      const processor = context.createScriptProcessor(4096, 1, 1);
+      source.connect(processor);
+      // il processore emette solo se è collegato a valle; il guadagno a zero
+      // evita che il microfono esca dagli altoparlanti
+      const mute = context.createGain();
+      mute.gain.value = 0;
+      processor.connect(mute);
+      mute.connect(context.destination);
+      processor.onaudioprocess = (event) => {
+        this.audioTap?.(event.inputBuffer.getChannelData(0), context.sampleRate);
+      };
+      /* eslint-enable @typescript-eslint/no-deprecated */
+    }
 
     const tick = (): void => {
       analyser.getFloatTimeDomainData(buffer);
