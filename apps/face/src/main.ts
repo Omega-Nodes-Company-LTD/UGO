@@ -11,6 +11,7 @@ import { myBuildId, shouldReload } from "./version.js";
 import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noiseGate.js";
 import { mountLogPanel } from "./logPanel.js";
 import { startObjectSpotter } from "./objectSpotter.js";
+import { RainSound } from "./rainSound.js";
 import { Speech } from "./speech.js";
 import { worthSending } from "./heard.js";
 import { watchSky } from "./skyWatch.js";
@@ -584,6 +585,8 @@ earsButton.addEventListener("click", () => {
     startListening();
     earsButton.textContent = "👂 ti ascolto";
   }
+  // la pioggia segue l'interruttore dei sensi: uno solo, quello che c'è già
+  rain.update(lastSky, app.dataset.ears === "on");
 });
 
 renderer.start();
@@ -592,8 +595,15 @@ void socket.start();
 void loadRooms();
 // gruppo 12: il cielo del recinto segue quello vero — meteo da soul ogni
 // mezz'ora, e di notte luna e pianeti calcolati qui (zero rete). Un corpo 2D
-// non ha un cielo e ignora tutto, come per gli arredi
-watchSky(soulHttp, (state) => renderer.setSky?.(state));
+// non ha un cielo e ignora tutto, come per gli arredi. Gruppo 13: quando nel
+// cielo piove, si sente — piano, mai di notte, e solo a sensi accesi
+const rain = new RainSound();
+let lastSky: Parameters<typeof rain.update>[0];
+watchSky(soulHttp, (state) => {
+  renderer.setSky?.(state);
+  lastSky = state;
+  rain.update(state, app.dataset.ears === "on");
+});
 
 
 // ---- portable mode wiring (§4.2) ------------------------------------------
