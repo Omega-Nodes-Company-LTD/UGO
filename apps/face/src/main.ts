@@ -88,6 +88,19 @@ const nameOf = (who: string | undefined): string | undefined =>
 /** each creature's mood, so the caption can name all of them (ADR-038) */
 const moods = new Map<string, string>();
 
+// gruppo 13: la voce interim — soul sintetizza col TTS emotivo (l'umore del
+// momento colora il tono), e su 204 o guasto si torna alla voce di sistema
+speech.useRemoteVoice(async (text, who) => {
+  const mood = (who !== undefined ? moods.get(who) : undefined) ?? moods.values().next().value;
+  const response = await fetch(`${soulHttp}/v1/tts`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text, ...(mood !== undefined && { mood }) }),
+  });
+  if (response.status !== 200) return undefined;
+  return response.blob();
+});
+
 /** What was said, kept and reopenable (ADR-038). */
 const { remember } = mountLogPanel(
   {

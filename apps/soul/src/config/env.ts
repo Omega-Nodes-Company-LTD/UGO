@@ -87,6 +87,14 @@ export const soulEnvSchema = z.object({
   // gruppo 12: il modello vision locale (moondream, llava…). Assente = UGO
   // non dà occhiate: la visione si accende, non si subisce
   OLLAMA_VISION_MODEL: optionalNonEmpty,
+  // gruppo 13: la voce interim (TTS emotivo OpenAI, finché non c'è la GPU per
+  // XTTS locale). Assente = voce di sistema, come sempre. Attenzione
+  // dichiarata in /documentation: ciò che UGO dice può contenere pezzi della
+  // vostra vita, e sintetizzarlo fuori casa è una scelta, non un default
+  OPENAI_API_KEY: optionalNonEmpty,
+  OPENAI_BASE_URL: z.url().optional(),
+  UGO_TTS_MODEL: z.string().min(1).default("gpt-4o-mini-tts"),
+  UGO_TTS_VOICE: z.string().min(1).default("alloy"),
   // preprocess: una stringa vuota NON è latitudine 0 (l'equatore per sbaglio)
   UGO_HOME_LAT: z.preprocess(
     (value) => (value === "" ? undefined : value),
