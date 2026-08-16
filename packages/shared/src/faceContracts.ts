@@ -96,6 +96,14 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
    */
   z.object({ type: z.literal("seen_object"), kind: z.string().min(1).max(24) }),
   /**
+   * Gruppo 12, il secondo taglio della visione: uno sguardo della stanza,
+   * chiesto da soul (`glimpse_ask`) e MAI spontaneo — un corpo che manda
+   * immagini quando vuole è una telecamera di sorveglianza, non un paio
+   * d'occhi. JPEG 320×240 in base64 (~15-25k caratteri; il tetto lascia
+   * margine), descritto dal modello locale e mai scritto da nessuna parte.
+   */
+  z.object({ type: z.literal("glimpse"), image: z.string().min(1).max(120_000) }),
+  /**
    * ADR-058: la mela. Un premio deliberato, e non un tocco qualunque.
    *
    * Il bersaglio è il **muso**, non tutta la tela: `tap` è la carezza e arriva
@@ -238,6 +246,9 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
     name: z.string().min(1).max(80),
     who: z.string().optional(),
   }),
+  /** gruppo 12: «fammi dare un'occhiata» — il corpo risponde con un `glimpse`
+   * se la camera è accesa, e con niente se non lo è: lo sguardo si chiede */
+  z.object({ type: z.literal("glimpse_ask") }),
   z.object({
     type: z.literal("roster"),
     room: z.string().optional(),

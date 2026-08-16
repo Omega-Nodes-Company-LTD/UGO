@@ -1,5 +1,6 @@
 export { OllamaEmbeddingsClient, type EmbeddingsClient } from "./embeddings.js";
 export { OllamaTextClient, type LocalTextClient } from "./localText.js";
+export { OllamaVisionClient, type LocalVisionClient } from "./localVision.js";
 export {
   rerank,
   recencyFactor,

@@ -84,6 +84,9 @@ export const soulEnvSchema = z.object({
   // Facoltative: senza, /v1/weather risponde «non disponibile» e il cielo del
   // recinto resta quello di sempre. Coordinate, non un indirizzo: open-meteo
   // non vuole chiavi e non riceve altro.
+  // gruppo 12: il modello vision locale (moondream, llava…). Assente = UGO
+  // non dà occhiate: la visione si accende, non si subisce
+  OLLAMA_VISION_MODEL: optionalNonEmpty,
   // preprocess: una stringa vuota NON è latitudine 0 (l'equatore per sbaglio)
   UGO_HOME_LAT: z.preprocess(
     (value) => (value === "" ? undefined : value),
