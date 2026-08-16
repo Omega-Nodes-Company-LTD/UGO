@@ -14,6 +14,8 @@ import { startObjectSpotter } from "./objectSpotter.js";
 import { RainSound } from "./rainSound.js";
 import { Speech } from "./speech.js";
 import { worthSending } from "./heard.js";
+import { UtteranceGate } from "./utteranceGate.js";
+import { toPcm16Base64 } from "./voiceClip.js";
 import { watchSky } from "./skyWatch.js";
 import { mountVoiceInvite } from "./voiceInvite.js";
 import { FaceSocket } from "./ws.js";
@@ -65,20 +67,31 @@ const speech = new Speech();
 let activeCamera: { video?: HTMLVideoElement } | null = null;
 
 /**
- * Uno sguardo della stanza: 320px di JPEG, solo quando soul lo CHIEDE e solo
- * a camera già accesa. I pixel vanno al server di casa, il modello locale li
- * racconta, e nessuno li scrive da nessuna parte.
+ * Uno sguardo della stanza: JPEG, solo quando soul lo CHIEDE e solo a camera
+ * già accesa. I pixel vanno al server di casa, il modello locale li racconta,
+ * e nessuno li scrive da nessuna parte.
+ *
+ * `fine` (ADR-065): 640px per LEGGERE — l'OCR su 320px vede macchie, non
+ * lettere. Il tetto del contratto (120 000 caratteri di base64) non si tocca:
+ * si cala la qualità finché il frame ci sta, e se non ci sta non si manda.
  */
-function captureGlimpse(): string | undefined {
+const GLIMPSE_MAX_B64 = 120_000;
+
+function captureGlimpse(fine = false): string | undefined {
   const video = activeCamera?.video;
   if (video === undefined || video.videoWidth === 0) return undefined;
+  const width = fine ? 640 : 320;
   const frame = document.createElement("canvas");
-  frame.width = 320;
-  frame.height = Math.max(1, Math.round((320 * video.videoHeight) / video.videoWidth));
+  frame.width = width;
+  frame.height = Math.max(1, Math.round((width * video.videoHeight) / video.videoWidth));
   const ctx = frame.getContext("2d");
   if (ctx === null) return undefined;
   ctx.drawImage(video, 0, 0, frame.width, frame.height);
-  return frame.toDataURL("image/jpeg", 0.6).split(",")[1];
+  for (const quality of [0.6, 0.45, 0.3]) {
+    const image = frame.toDataURL("image/jpeg", quality).split(",")[1];
+    if (image !== undefined && image.length <= GLIMPSE_MAX_B64) return image;
+  }
+  return undefined;
 }
 let lastPresenceAt = 0;
 /** who is in this room (ADR-036); one nameless entry until the roster lands */
@@ -350,7 +363,7 @@ function onServerMessage(message: ServerToFaceMessage): void {
     case "glimpse_ask": {
       // gruppo 12: «fammi dare un'occhiata». Solo a camera accesa — a camera
       // spenta la risposta è niente, che è la risposta giusta
-      const image = captureGlimpse();
+      const image = captureGlimpse(message.fine ?? false);
       if (image !== undefined) socket.send({ type: "glimpse", image });
       return;
     }
@@ -458,28 +471,110 @@ renderer.onUsedProp?.((who, kind) => {
  * what you SAY leaves the house while this is on. `Ehi UGO` on the device
  * (Fase 3) is what removes that, and the button below is what removes it now.
  */
+/**
+ * Una frase sentita, da qualunque orecchio (browser o dettatura locale):
+ * filtro dell'eco, stato, ritaglio della voce per l'identità, e via a soul.
+ */
+function handleHeardText(text: string): void {
+  if (!worthSending(text, { spoken: speech.spokenLast() })) return;
+  setLocalState("listening");
+  // ADR-045: la voce che l'ha detta viaggia con la frase, così soul può
+  // sapere CHI sta parlando. Assente se il microfono è spento: allora è
+  // esattamente il messaggio di prima.
+  // ADR-045 dice che l'audio e' FACOLTATIVO, ma stava su una riga che
+  // poteva mangiarsi la frase: `lastVoice()` prima di `sendToSoul()`, e
+  // un'eccezione li' faceva sparire tutto — nemmeno il registro locale, che
+  // e' scritto dentro `sendToSoul`. Degradare a solo-testo e' il
+  // comportamento dichiarato; perdere la frase non lo e' mai stato.
+  let voice: string | undefined;
+  try {
+    voice = sensors.lastVoice();
+  } catch {
+    voice = undefined;
+    trouble("la voce non si e' potuta ritagliare: mando solo il testo");
+  }
+  sendToSoul({ type: "heard_text", text, ...(voice !== undefined && { audio: voice }) });
+}
+
+/**
+ * Gruppo 4, la metà chiosco della dettatura locale — dietro `?stt=locale`, e
+ * SOLO dietro: le orecchie del telefono si sono già rotte una volta per
+ * fretta (STATE §6-tricies), quindi il default resta il riconoscitore del
+ * browser finché la strada locale non è misurata su un dispositivo vero.
+ *
+ * Il giro: la presa contigua sul microfono già aperto (`sensors.tapAudio`),
+ * il cancello puro decide gli enunciati, ogni enunciato va a `/v1/stt` e il
+ * testo entra dallo stesso `handleHeardText` del browser. 501 = il server
+ * non ha la dettatura: si torna al browser e lo si dice; tre guasti di fila
+ * = idem. Niente esce di casa finché funziona: è tutto il punto.
+ */
+const wantsLocalEars = params.get("stt") === "locale";
+let localEarsOn = false;
+let localEarsTapWired = false;
+
+function startLocalEars(): void {
+  localEarsOn = true;
+  app.dataset.ears = "on";
+  if (localEarsTapWired) return;
+  localEarsTapWired = true;
+  let failures = 0;
+  let gateFor: { rate: number; gate: UtteranceGate } | undefined;
+
+  const transcribe = async (audio: string): Promise<void> => {
+    try {
+      const response = await fetch(`${soulHttp}/v1/stt`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ audio }),
+      });
+      if (response.status === 501) {
+        fallBackToBrowser("la dettatura locale non è configurata sul server");
+        return;
+      }
+      if (!response.ok) throw new Error(String(response.status));
+      failures = 0;
+      const body = (await response.json()) as { text?: string };
+      if (typeof body.text === "string" && body.text.trim() !== "") {
+        handleHeardText(body.text.trim());
+      }
+    } catch {
+      failures += 1;
+      if (failures >= 3) fallBackToBrowser("whisper non risponde: torno al riconoscitore del browser");
+    }
+  };
+
+  const fallBackToBrowser = (why: string): void => {
+    if (!localEarsOn) return;
+    localEarsOn = false;
+    trouble(why);
+    startBrowserListening();
+  };
+
+  sensors.tapAudio((samples, rate) => {
+    if (!localEarsOn) return;
+    // la bocca è occupata: le orecchie non devono sentire l'altoparlante
+    if (speech.isSpeaking()) return;
+    if (gateFor?.rate !== rate) {
+      gateFor = { rate, gate: new UtteranceGate(rate, () => { sensors.heardAVoice(); }) };
+    }
+    const utterance = gateFor.gate.feed(samples, performance.now());
+    if (utterance !== undefined) void transcribe(toPcm16Base64(utterance, rate));
+  });
+}
+
 function startListening(): void {
+  if (wantsLocalEars) {
+    startLocalEars();
+    return;
+  }
+  startBrowserListening();
+}
+
+function startBrowserListening(): void {
   if (!speech.sttAvailable()) return;
   const started = speech.listen(
     (text) => {
-      if (!worthSending(text, { spoken: speech.spokenLast() })) return;
-      setLocalState("listening");
-      // ADR-045: la voce che l'ha detta viaggia con la frase, così soul può
-      // sapere CHI sta parlando. Assente se il microfono è spento: allora è
-      // esattamente il messaggio di prima.
-      // ADR-045 dice che l'audio e' FACOLTATIVO, ma stava su una riga che
-      // poteva mangiarsi la frase: `lastVoice()` prima di `sendToSoul()`, e
-      // un'eccezione li' faceva sparire tutto — nemmeno il registro locale, che
-      // e' scritto dentro `sendToSoul`. Degradare a solo-testo e' il
-      // comportamento dichiarato; perdere la frase non lo e' mai stato.
-      let voice: string | undefined;
-      try {
-        voice = sensors.lastVoice();
-      } catch {
-        voice = undefined;
-        trouble("la voce non si e' potuta ritagliare: mando solo il testo");
-      }
-      sendToSoul({ type: "heard_text", text, ...(voice !== undefined && { audio: voice }) });
+      handleHeardText(text);
     },
     // ADR-041: the recognizer heard a VOICE. Whatever the level meter is about
     // to make of that sound, it is not a bang — this is the one signal that
@@ -515,6 +610,7 @@ function startListening(): void {
 function stopListening(): void {
   // ADR-045: le orecchie spente devono anche dimenticare, o "spento" vorrebbe
   // dire solo "non manda"
+  localEarsOn = false;
   sensors.forgetVoice();
   speech.stopListening();
   app.dataset.ears = "off";

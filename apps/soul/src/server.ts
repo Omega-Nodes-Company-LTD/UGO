@@ -119,6 +119,8 @@ export interface ServerOptions extends HealthDeps {
     weather?: WeatherDeps;
     /** gruppo 13: la voce interim — assente = 204 e voce di sistema */
     tts?: TtsRouteDeps["tts"];
+    /** decisione 2026-08-16: la voce di casa (Piper), gradino di mezzo */
+    ttsLocal?: TtsRouteDeps["local"];
     /** gruppo 13: la dettatura locale, per casa — assente = 501 e browser */
     stt?: SttRouteDeps["transcriber"];
   };
@@ -170,6 +172,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       prints,
       weather,
       tts,
+      ttsLocal,
       stt,
       ...v1
     } = options.features;
@@ -206,7 +209,11 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // /v1/rooms — il corpo non porta un token — e muta senza coordinate
     registerWeatherRoute(app, weather ?? {});
     // gruppo 13: la voce interim — il salvadanaio sta nel client (regola 3)
-    registerTtsRoute(app, { db: options.db, ...(tts !== undefined && { tts }) });
+    registerTtsRoute(app, {
+      db: options.db,
+      ...(tts !== undefined && { tts }),
+      ...(ttsLocal !== undefined && { local: ttsLocal }),
+    });
     registerSttRoute(app, { db: options.db, ...(stt !== undefined && { transcriber: stt }) });
     registerJobsRoutes(app, {
       db: options.db,

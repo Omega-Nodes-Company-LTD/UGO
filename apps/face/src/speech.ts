@@ -105,6 +105,11 @@ export class Speech {
     return this.listening;
   }
 
+  /** La bocca è occupata: le orecchie locali non devono sentirla (gruppo 4). */
+  public isSpeaking(): boolean {
+    return this.speaking;
+  }
+
   public sttAvailable(): boolean {
     return this.recognitionCtor() !== undefined;
   }

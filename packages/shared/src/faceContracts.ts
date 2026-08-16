@@ -247,8 +247,11 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
     who: z.string().optional(),
   }),
   /** gruppo 12: «fammi dare un'occhiata» — il corpo risponde con un `glimpse`
-   * se la camera è accesa, e con niente se non lo è: lo sguardo si chiede */
-  z.object({ type: z.literal("glimpse_ask") }),
+   * se la camera è accesa, e con niente se non lo è: lo sguardo si chiede.
+   * `fine` (ADR-065): uno sguardo a 640px per LEGGERE — l'OCR su 320px vede
+   * macchie, non lettere. Stesso tetto sul frame di risposta: il corpo cala
+   * la qualità JPEG finché ci sta. */
+  z.object({ type: z.literal("glimpse_ask"), fine: z.boolean().optional() }),
   z.object({
     type: z.literal("roster"),
     room: z.string().optional(),

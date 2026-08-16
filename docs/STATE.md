@@ -2029,6 +2029,46 @@ GPU registrata nel gruppo 13: CPU adesso, GEX44 per la commercializzazione.
 Restano i grandi del gruppo 13: SER, Piper, STT locale, tool calling,
 SearXNG — un ADR e una PR ciascuno.
 
+## 6-quatertricies. Le decisioni cliccate: voce di casa, lettura, orecchie locali
+
+Direttiva del proprietario (2026-08-16): «finisci il backlog che non richiede
+un intervento mio, e fammi le domande che servono da cliccare per quello che
+richiede mia decisione». Le risposte cliccate: **Piper sì** come ripiego;
+**OCR sì, solo su gesto esplicito**; **la PWA si diagnostica insieme** in una
+sessione dedicata; sul **tool calling** il mandato è «non ho soluzioni,
+trovala tu».
+
+**La voce di casa** — Piper sul servizio di percezione (`/v1/synthesize`,
+`UGO_PIPER_VOICE` default `it_IT-paola-medium`, voce scaricata nel lifespan
+prima che la porta apra, ADR-047; API provata in sandbox con download e
+sintesi veri). La catena di `/v1/tts`: provider (chiave+budget) → **voce di
+casa** (gratis, WAV, zero ledger) → 204 e voce di sistema. Test 6/6.
+
+**La lettura su gesto (ADR-065)** — «leggi» in chat/voce: sguardo `fine` a
+640px chiesto al corpo (tetto del frame intatto, qualità a scalare), attesa
+con tetto di 5 s nella stessa richiesta, tesseract in casa (`/v1/ocr`,
+ita+eng), quattro esiti distinti e detti. `SceneReader` + trigger in
+`ChatService` (bootstrap e per-esemplare, scatola per il cerchio
+chat↔gateway). Test 7/7.
+
+**Le orecchie locali, dietro `?stt=locale`** — la metà chiosco della
+dettatura: presa contigua sul microfono già aperto, `UtteranceGate` puro
+(pavimento relativo, preroll, minimo sulla voce, tetto nel contratto),
+ricampionamento UNO condiviso con l'identità, 501/tre guasti = ripiego
+dichiarato sul browser. Il default RESTA il browser finché non c'è una
+misura su dispositivo vero. Test 5/5 (+14 voiceClip/gate insieme).
+
+**La strada del tool calling (ADR-064)** — la diagnosi del disagio: la
+proposta importava la grammatica dell'assistente. La soluzione: una
+richiesta è una **spinta** che entra nella volizione; il carattere decide
+se e come assecondarla, e può rifiutare con una risposta. Niente tool-use
+del provider, primi due verbi già specificati (stanza, chiamata).
+
+Note di rilascio: da ricostruire l'immagine della **percezione** (piper-tts,
+tesseract, pytesseract, pillow) e il **bundle del muso** (cattura fine,
+orecchie locali). Righe stantie chiuse nel BACKLOG (retention impronte di
+PR #38, SearXNG di PR #43).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

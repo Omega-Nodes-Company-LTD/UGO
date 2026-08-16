@@ -28,7 +28,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Notifiche push dalla PWA** | un `desire` che matura oggi muore se non guardi lo schermo. **Accantonata dal proprietario (2026-08-16): «la PWA non funziona»** — sintomo aperto, da diagnosticare prima di costruirci sopra (cosa non funziona: installazione? apertura? icona?) |
+| ⬜️ | **Notifiche push dalla PWA** | un `desire` che matura oggi muore se non guardi lo schermo. **Accantonata dal proprietario (2026-08-16): «la PWA non funziona»** — e alla domanda sul sintomo ha risposto **«riproviamo insieme dopo»**: la diagnosi si fa in una sessione dedicata con lui al telefono, non a tavolino. Fino ad allora non ci si costruisce sopra |
 | ✅ | **Recap della giornata consegnato** | **gruppo 11**: passo `recap` del sogno (per esemplare) — la prima frase del diario di stanotte diventa un desiderio `stamattina`, e lo consegnano il saluto del risveglio o l'iniziativa. Zero token, tetto 240 caratteri, niente diario ⇒ niente segnaposto |
 | ⬜️ | **Template di riassunto per contesto** | riunione / cliente / famiglia, in versione minima |
 
@@ -36,7 +36,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Tool calling dentro il budget guard** | insieme minimo e sorvegliato: leggi psiche, cerca in memoria, registra evento, invalida ricordo. **Idea del proprietario (2026-08-16): il banco di prova sono le interfacce del chiosco** — dirgli di andare in un'altra stanza, chiamare un altro gosino. È il posto giusto per cominciare: i canali esistono già (`gesture`, `speak`, il registro delle stanze, `peer_chat` della ruminazione), l'azione è reversibile e si vede a occhio se ha funzionato. **MA (2026-08-16): la formulazione così com'è convince pochissimo il proprietario — da riguardare insieme prima di scrivere l'ADR**, non partire |
+| ⬜️ | **Tool calling dentro il budget guard** | insieme minimo e sorvegliato: leggi psiche, cerca in memoria, registra evento, invalida ricordo. **Idea del proprietario (2026-08-16): il banco di prova sono le interfacce del chiosco** — dirgli di andare in un'altra stanza, chiamare un altro gosino. È il posto giusto per cominciare: i canali esistono già (`gesture`, `speak`, il registro delle stanze, `peer_chat` della ruminazione), l'azione è reversibile e si vede a occhio se ha funzionato. **La formulazione «tool calling» non convinceva il proprietario, che ha delegato (2026-08-16): «non ho soluzioni, trovala tu»** → la soluzione è ADR-064: niente framework di tool sul provider — le richieste diventano *spinte* che entrano dalla volizione, e il carattere decide se e come eseguirle |
 | ⬜️ | **Server MCP** | altri agenti interrogano la memoria di UGO; quasi gratis dato l'API esistente |
 | ✅ | **Ricerca web** | **ADR-063 (gruppo 13)**: «cerca: …» in chat — gesto esplicito risposto PRIMA del provider (la famiglia di ADR-028/055), SearXNG nel compose senza porte host, sintesi col modello locale e ripiego deterministico sui titoli, mai in reception, postura privacy del proprietario scritta nell'ADR. Si accende con SEARXNG_URL |
 | 🚫 | Integrazioni in uscita (Todoist, Notion) | riapribile: serve sapere quali usi davvero |
@@ -46,8 +46,8 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | | Punto | Note |
 |---|---|---|
 | 🚫 | **Wake word on-device** (`Ehi UGO`, Vosk) | **Rifiutata dal proprietario (2026-08-16)**: «non voglio una wake word, voglio potergli parlare normalmente, non come a un assistente, come a un vero pet». L'ascolto continuo resta; il local-first in quest'area passa dalla riga sotto |
-| 🔨 | **STT locale continuo** (whisper, senza parola magica) | **metà server fatta (gruppo 13)**: `/v1/transcribe` sul servizio di percezione (faster-whisper small int8 su CPU, italiano fisso, vad_filter; si accende con `UGO_STT_MODEL`, salute in `/health`), ponte `/v1/stt` in soul (501 = resta sul browser, 503 = whisper giù). **Resta la metà chiosco** — cattura VAD degli enunciati e invio — DA FARE CON CALMA dopo misura su dispositivo: le orecchie del telefono si sono già rotte una volta per fretta (§6-tricies), il default resta il browser finché la strada locale non è misurata |
-| 🔨 | **TTS espressivo locale** (Piper/XTTS) | **in cantiere (2026-08-16)**: oggi è la voce di sistema pitchata: è metà del carattere ed è la parte più povera. «Così voce e carattere ed emozioni possono coincidere». **Interim fatto**: `/v1/tts` con OpenAI `gpt-4o-mini-tts` (~5-8 €/mese al volume di UGO) — l'umore della psiche colora le istruzioni, ogni frase è una riga di `budget_ledger`, a salvadanaio vuoto o senza chiave si degrada alla voce di sistema. Si accende con `OPENAI_API_KEY`; privacy dichiarata in `/documentation`. **Nota del proprietario (2026-08-16)**: per i tenant azienda il consenso alla voce sintetizzata fuori casa passa dall'onboarding o dal contratto cliente. Piper/XTTS si infileranno dietro la stessa rotta |
+| 🔨 | **STT locale continuo** (whisper, senza parola magica) | **metà server fatta (gruppo 13)**: `/v1/transcribe` sul servizio di percezione (faster-whisper small int8 su CPU, italiano fisso, vad_filter; si accende con `UGO_STT_MODEL`, salute in `/health`), ponte `/v1/stt` in soul (501 = resta sul browser, 503 = whisper giù). **Metà chiosco fatta dietro `?stt=locale`** (2026-08-16): presa contigua sul microfono già aperto (`tapAudio`, ScriptProcessor con motivazione dichiarata), `UtteranceGate` puro (pavimento relativo, preroll 300 ms, minimo 900 ms di voce, tetto 11 s) coi suoi test, enunciato → `/v1/stt` → stesso `handleHeardText` del browser; 501 o tre guasti di fila = ripiego dichiarato sul browser. **Il default resta il browser di proposito** (le orecchie del telefono si sono già rotte una volta per fretta, §6-tricies): si promuove a default solo dopo misura su dispositivo vero — latenza, batteria, qualità della trascrizione |
+| 🔨 | **TTS espressivo locale** (Piper/XTTS) | **in cantiere (2026-08-16)**: oggi è la voce di sistema pitchata: è metà del carattere ed è la parte più povera. «Così voce e carattere ed emozioni possono coincidere». **Interim fatto**: `/v1/tts` con OpenAI `gpt-4o-mini-tts` (~5-8 €/mese al volume di UGO) — l'umore della psiche colora le istruzioni, ogni frase è una riga di `budget_ledger`, a salvadanaio vuoto o senza chiave si degrada alla voce di sistema. Si accende con `OPENAI_API_KEY`; privacy dichiarata in `/documentation`. **Nota del proprietario (2026-08-16)**: per i tenant azienda il consenso alla voce sintetizzata fuori casa passa dall'onboarding o dal contratto cliente. **Piper fatto (decisione cliccata 2026-08-16)**: `/v1/synthesize` sul servizio di percezione (voce scaricata all'avvio, ADR-047; `UGO_PIPER_VOICE`, default `it_IT-paola-medium`), gradino di mezzo della catena di `/v1/tts` — provider → **voce di casa** → voce di sistema. Gratis, zero ledger, niente esce di casa. Resta per la GPU l'espressivo vero (XTTS, tono dalla psiche) |
 | ⬜️ | **Una voce sua, uguale su ogni corpo** | conseguenza del punto sopra |
 | ✅ | **Emozione dal tono di voce** (v1) | **gruppo 13**: prosodia locale pura (`prosody.ts`) sul clip che già viaggia con ogni frase — ritmo (sillabe sull'orologio) e variabilità del pitch, misure RELATIVE al clip (l'AGC rende i numeri assoluti bugiardi, ADR-029). Verdetti grossolani e onesti: «acceso»/«quieto»/niente → eventi psiche `excited_voice`/`calm_voice` piccoli e col tetto. Soglie dichiarate da rifinire con voci vere; la versione coi modelli arriva con la GPU |
 | ⬜️ | **Chat di gruppo** | più interlocutori nella stessa conversazione; il branco è già modellato |
@@ -55,7 +55,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ✅ | **Riconoscimento facciale del proprietario** | **ADR-044/045**: ArcFace misurato su LFW (EER 0,98%, soglia 0,30), la camera si accende davvero, la fusione fonde decisioni e non punteggi. Restava scritto come da fare, e non lo era |
 | ✅ | **Insegnargli una faccia, e chi non conosce ancora** | **ADR-057**: te lo chiede lui alla seconda volta che ti rivede, riusando `desires`. Prima serviva chiudere un buco **in produzione**: `_guard` non guardava mai `no_vision` mentre un commento diceva di sì |
 | ✅ | **La voce dopo il volto, dal chiosco** | **gruppo 11** (ADR-057 completato): il claim del volto apre desiderio + finestra di 30 minuti + invito `enroll_voice` sul chiosco; il corpo registra 10 s (ricetta del pannello) e manda `voice_sample`, accettato solo dentro la finestra, che si consuma al primo campione. Stessi rifiuti a monte del pannello (`storeVoiceSample`) |
-| ⬜️ | Cattura schermo con OCR | valore alto, superficie privacy enorme: **serve una decisione, non un'implementazione** |
+| ✅ | Cattura schermo con OCR | **ADR-065 (decisione cliccata 2026-08-16: «sì, solo su gesto esplicito»)**: «leggi» in chat/voce — sguardo `fine` a 640px chiesto al corpo, tesseract in casa (`/v1/ocr` sulla percezione, ita+eng), quattro esiti distinti, niente salvato, mai in automatico, mai in reception. La variante che *capisce* lo schermo (vision model) resta legata alla GPU |
 
 ## Gruppo 5 — Il vicinato (ADR-019, fasi 2 e 3)
 
@@ -127,7 +127,7 @@ nulla era da inventare: pezzi costruiti e mai raccordati.
 | ✅ | **La mela del cliente, limitata e spiegata** | **ADR-058 appendice**: `customer_rewards` contata da Postgres su finestra mobile, default 2 in 7 giorni con override per cliente, 429 con la data, spiegazione nel prodotto |
 | ✅ | **Silvio non è UGO con un soprannome** | Il nome proprio esce dal blocco `[CACHED]`, che è condiviso da ogni creatura della casa |
 | ✅ | **Le correzioni all'esemplare giusto** | Con due gosini, dire a uno che urla correggeva l'altro. Ora `?gosino=`, e con più d'uno un 400 invece di un'ipotesi |
-| ⬜️ | **La retention delle impronte ignote nel giro notturno** | La rotta c'è e funziona; nessuno la chiama da solo. Una retention dichiarata e non applicata è peggio di nessuna retention |
+| ✅ | **La retention delle impronte ignote nel giro notturno** | **gruppo 11 (PR #38)**: il passo `enroll` del sogno spazza le impronte scadute e il report notturno dice quante (`expired`); provato in `test_prints_retention.py`. La riga era rimasta aperta per svista |
 | ⬜️ | **Misurare la batteria del corpo 3D** | Il debito è di ADR-026 e questa PR lo peggiora: una superficie in più e fino a otto arredi. Il numero lo dà solo un telefono |
 
 ## Gruppo 10 — Gli oggetti che contano, e la testa che non sta mai ferma
@@ -166,7 +166,7 @@ possono fare. Mettili in cantiere».**
 | ✅ | **Il cielo di stanotte** | **fatto**: effemeridi calcolate (`ephemeris.ts`, Schlyter ~1°), fase della luna provata su date vere (la nuova del 6/1/2000 e la piena dell'eclissi del 21), 150 stelle deterministiche, pianeti col loro colore. Sotto le nuvole niente astri |
 | ✅ | **Anniversari e stagioni** | **fatto** (gli anniversari): passo `anniversaries` del sogno da `beings.arrival_at` — «oggi è N anni che X è nel branco», zero token. Le stagioni restano nel gruppo 13 |
 | ✅ | **Parla nel sonno** | **fatto**: frame `speak` con `murmur` (nuvoletta senza voce), frammento di 3-6 parole del diario di ieri, solo di notte a corpo connesso, distanziatore 45 min, mai il testo negli eventi |
-| ⬜️ | **TTS locale (Piper)** | è la riga del gruppo 4, richiamata qui perché è il maggior guadagno di carattere a zero costo ricorrente — ma è il cantiere più lungo del gruppo |
+| ✅ | **TTS locale (Piper)** | **fatto (decisione cliccata 2026-08-16)**: lo stato vivo è la riga del gruppo 4 |
 
 ## Gruppo 13 — Il programma espanso (direttiva del proprietario, 2026-08-16)
 
@@ -181,10 +181,10 @@ del codice.
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **TTS espressivo locale (Piper)** | il più grande guadagno di carattere: container Piper nel compose, soul serve l'audio, il muso lo suona; il tono legge la psiche (label → voce, energia → ritmo). È la riga del gruppo 4, qui perché è il prossimo grande |
-| ⬜️ | **STT locale continuo** | faster-whisper è GIÀ nelle dipendenze dei job (ingest): un endpoint di trascrizione sul servizio di percezione, il chiosco manda i clip che già ritaglia, e Google esce dal percorso. Senza wake word: gli parli e basta |
-| ⬜️ | **Tool calling dal chiosco** (gruppo 3) | «vai in cucina», «chiama Silvio» — sui modelli locali, fuori dal budget del provider; ADR prima |
-| ⬜️ | **Ricerca web con SearXNG** (gruppo 3) | container nel compose + sintesi locale; ADR con la postura privacy dichiarata |
+| ✅ | **TTS espressivo locale (Piper)** | **fatto come voce di casa**: lo stato vivo è la riga del gruppo 4. L'«espressivo» vero (tono dalla psiche) resta legato alla GPU |
+| 🔨 | **STT locale continuo** | metà server fatta (`/v1/transcribe` + ponte `/v1/stt`); lo stato vivo è la riga del **gruppo 4** — resta la metà chiosco |
+| ⬜️ | **Tool calling dal chiosco** (gruppo 3) | «vai in cucina», «chiama Silvio» — lo stato vivo è la riga del **gruppo 3**, col mandato del proprietario e la strada di ADR-064 |
+| ✅ | **Ricerca web con SearXNG** (gruppo 3) | **ADR-063 (PR #43)**: lo stato vivo è la riga del gruppo 3 |
 | ✅ | **Alba e tramonto veri** | **fatto**: `sunAltitude` esposto dalle effemeridi; sopra +6° giorno, sotto −6° notte, in mezzo l'ORA D'ORO con tavolozze crepuscolari per sereno/coperto/pioggia. Il modo si ricalcola ogni 5′ (l'ora d'oro dura poco), il meteo resta ogni 30′ |
 | ✅ | **Le stagioni nel recinto** | **fatto**: stagioni meteorologiche, tavolozza del prato per stagione (primavera coi fiorellini, estate secca, autunno con le foglie, inverno pallido), decisa all'avvio del muso |
 | ✅ | **I compleanni dei gosini** | **fatto**: nel passo `anniversaries`, da `born_at` — il desiderio va al FESTEGGIATO («oggi compio 2 anni!»), non all'anziano |

@@ -13,6 +13,7 @@ import type { Character } from "./council/character.js";
 import type { PackService } from "./packService.js";
 import { buildPackPrompt, selfLine } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
+import { readGestureOf, replyForReading, type ReadOutcome } from "./sceneReader.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
 import { searchQueryOf } from "./webSearch.js";
 
@@ -45,6 +46,12 @@ export interface ChatServiceDeps {
    * esiste e la frase va al modello come una qualunque.
    */
   web?: { ask: (query: string) => Promise<string | undefined> };
+  /**
+   * ADR-065: «leggi» — la lettura su gesto esplicito. Il corpo guarda (a
+   * 640px), tesseract legge in casa, e la risposta è il testo. Assente = il
+   * gesto non esiste e la frase va al modello come una qualunque.
+   */
+  reader?: { read: () => Promise<ReadOutcome> };
   /** the household's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
@@ -299,6 +306,32 @@ export class ChatService {
       const reply =
         (await this.deps.web.ask(query)) ??
         "Ho provato a guardare fuori, ma la finestra sul mondo ora non si apre. Grunf.";
+      const owner = { gosinoId: this.deps.gosinoId };
+      await db.insert(messages).values([
+        {
+          ...owner,
+          ts: at,
+          channel: request.channel,
+          role: "user",
+          beingId: request.beingId ?? null,
+          text: encryptText(request.text, dataKey),
+        },
+        {
+          ...owner,
+          ts: new Date(at.getTime() + 1),
+          channel: request.channel,
+          role: "assistant",
+          text: encryptText(reply, dataKey),
+        },
+      ]);
+      return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+    }
+
+    // ADR-065: «leggi» — la lettura su gesto esplicito, stessa famiglia del
+    // promemoria e di «cerca:»: risposta PRIMA del provider, zero token, e in
+    // biografia cifrata come tutto
+    if (this.deps.reader !== undefined && readGestureOf(request.text)) {
+      const reply = replyForReading(await this.deps.reader.read());
       const owner = { gosinoId: this.deps.gosinoId };
       await db.insert(messages).values([
         {

@@ -94,6 +94,60 @@ export class RecognitionClient {
     }
   }
 
+  /**
+   * La voce di casa (decisione 2026-08-16): Piper sul servizio di percezione.
+   *
+   * Gradino di mezzo della catena di `/v1/tts`: quando il provider non c'è —
+   * niente chiave, o salvadanaio finito — la frase si sintetizza QUI, gratis
+   * e senza uscire di casa. `undefined` = anche questo gradino manca, e la
+   * rotta degrada alla voce di sistema del browser (204). Timeout largo come
+   * la dettatura: la sintesi su CPU costa, e chi aspetta è un muso che sa
+   * già parlare da solo.
+   */
+  public async synthesize(text: string): Promise<Buffer | undefined> {
+    try {
+      const response = await this.fetchImpl(new URL("/v1/synthesize", this.deps.baseUrl), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${this.deps.token}`,
+        },
+        body: JSON.stringify({ text }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) return undefined;
+      return Buffer.from(await response.arrayBuffer());
+    } catch {
+      return undefined; // giù o lento: la voce di sistema c'è sempre
+    }
+  }
+
+  /**
+   * La lettura su gesto (ADR-065): tesseract sul servizio di percezione.
+   *
+   * `undefined` = OCR giù o irraggiungibile; la stringa vuota invece è una
+   * risposta vera («ho guardato e non c'è scritto niente») e chi chiama deve
+   * poter distinguere le due cose.
+   */
+  public async ocr(imageBase64: string): Promise<string | undefined> {
+    try {
+      const response = await this.fetchImpl(new URL("/v1/ocr", this.deps.baseUrl), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${this.deps.token}`,
+        },
+        body: JSON.stringify({ image: imageBase64 }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) return undefined;
+      const body = (await response.json()) as { text?: string };
+      return typeof body.text === "string" ? body.text : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   /** Chi è questo volto, dal ritaglio che il corpo ha già fatto. */
   public async byFace(imageBase64: string): Promise<Recognised | undefined> {
     return this.ask("/v1/identify/face", {

@@ -9,6 +9,7 @@ import { characterFrom, type Character } from "../council/character.js";
 import { FaceGateway } from "../faceGateway.js";
 import { PackService } from "../packService.js";
 import { PsycheService } from "../psycheService.js";
+import { SceneReader } from "../sceneReader.js";
 import { storeVoiceSample } from "../voiceEnrolment.js";
 import { Curiosity } from "../volition/curiosity.js";
 import { EfficacyService } from "../volition/efficacy.js";
@@ -95,6 +96,8 @@ export interface RuntimeDeps {
    */
   recognition?: (householdId: string) => {
     byVoice: (audioBase64: string) => Promise<{ beingId?: string | undefined } | undefined>;
+    /** ADR-065: la lettura su gesto — tesseract sullo stesso servizio */
+    ocr: (imageBase64: string) => Promise<string | undefined>;
   };
   /**
    * ADR-057, la seconda metà: il bucket dove finisce un campione di voce
@@ -155,6 +158,11 @@ async function buildRuntime(
   // prima di `restore()`, o la prima vita partirebbe comunque neutra.
   await seedBaselines(deps.db, row.id, character.baselines);
   const psyche = await PsycheService.restore(deps.db, new Date(), row.id);
+  const recognition = deps.recognition?.(row.householdId);
+  // ADR-065: il lettore ha bisogno del gateway, che nasce DOPO la chat (il
+  // gateway ha bisogno della chat). La scatola scioglie il cerchio: la chat
+  // legge il corpo solo al momento del gesto, quando esiste da un pezzo.
+  const body: { gateway?: FaceGateway } = {};
   const chat = new ChatService({
     db: deps.db,
     embedder: deps.embedder,
@@ -169,6 +177,12 @@ async function buildRuntime(
       pack: new PackService(deps.db, deps.speciesMap, row.id, row.householdId),
     }),
     ...(deps.web !== undefined && { web: deps.web }),
+    ...(recognition !== undefined && {
+      reader: new SceneReader({
+        gateway: () => body.gateway,
+        ocr: (image) => recognition.ocr(image),
+      }),
+    }),
   });
   // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.
   // Due gosini sotto lo stesso tetto imparano cose diverse, ed è il punto.
@@ -186,7 +200,7 @@ async function buildRuntime(
     chat,
     gosinoId: row.id,
     reward: (input) => reward.give(input),
-    ...(deps.recognition !== undefined && { recognition: deps.recognition(row.householdId) }),
+    ...(recognition !== undefined && { recognition }),
     // ADR-057: il deposito è lo stesso del pannello (`storeVoiceSample`), coi
     // controlli a monte dentro — minore e opt-out si rifiutano PRIMA del bucket
     ...(audio !== undefined && {
@@ -194,6 +208,7 @@ async function buildRuntime(
         storeVoiceSample({ db: deps.db, storage: audio }, { householdId: row.householdId, ...input }),
     }),
   });
+  body.gateway = gateway;
   const volition = new VolitionService({
     db: deps.db,
     gosinoId: row.id,
