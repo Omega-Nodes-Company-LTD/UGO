@@ -87,6 +87,9 @@ export const soulEnvSchema = z.object({
   // gruppo 12: il modello vision locale (moondream, llava…). Assente = UGO
   // non dà occhiate: la visione si accende, non si subisce
   OLLAMA_VISION_MODEL: optionalNonEmpty,
+  // ADR-063: la finestra sul mondo — SearXNG in casa. Assente = il prefisso
+  // «cerca:» non esiste e niente esce verso i motori
+  SEARXNG_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   // gruppo 13: la voce interim (TTS emotivo OpenAI, finché non c'è la GPU per
   // XTTS locale). Assente = voce di sistema, come sempre. Attenzione
   // dichiarata in /documentation: ciò che UGO dice può contenere pezzi della

@@ -62,6 +62,17 @@ services:
       MQTT_HEALTH_USER: ${MQTT_USER:?missing MQTT_USER}
       MQTT_HEALTH_PASS: ${MQTT_PASS:?missing MQTT_PASS}
 
+  # ADR-063: la finestra sul mondo — un metamotore in casa, zero chiavi, zero
+  # costi per query. Nessuna porta sull'host (regola 4): ci parla solo soul.
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    networks: [backend]
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+
   ollama:
     image: ollama/ollama
     restart: unless-stopped

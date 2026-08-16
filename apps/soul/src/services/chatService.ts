@@ -14,6 +14,7 @@ import type { PackService } from "./packService.js";
 import { buildPackPrompt, selfLine } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
+import { searchQueryOf } from "./webSearch.js";
 
 /** top-k per channel (PROGETTO §5.4: k=6 casa, k=10 riunioni) */
 // `ticket` is listed for totality over MessageChannel: customer conversations
@@ -38,6 +39,12 @@ export interface ChatServiceDeps {
   dataKey: Buffer;
   /** the pack block of the prompt (ADR-014); absent = no pack context */
   pack?: PackService;
+  /**
+   * ADR-063: la finestra sul mondo — «cerca: …» risposto qui, prima del
+   * provider, come il promemoria di ADR-028. Assente = il prefisso non
+   * esiste e la frase va al modello come una qualunque.
+   */
+  web?: { ask: (query: string) => Promise<string | undefined> };
   /** the household's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
@@ -263,6 +270,35 @@ export class ChatService {
       });
       const reply = confirmReminder(reminder);
       // the exchange still goes into the biography, encrypted like every other
+      const owner = { gosinoId: this.deps.gosinoId };
+      await db.insert(messages).values([
+        {
+          ...owner,
+          ts: at,
+          channel: request.channel,
+          role: "user",
+          beingId: request.beingId ?? null,
+          text: encryptText(request.text, dataKey),
+        },
+        {
+          ...owner,
+          ts: new Date(at.getTime() + 1),
+          channel: request.channel,
+          role: "assistant",
+          text: encryptText(reply, dataKey),
+        },
+      ]);
+      return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+    }
+
+    // ADR-063: «cerca: …» — la finestra sul mondo, aperta SOLO su gesto
+    // esplicito e risposta SENZA provider (SearXNG in casa + sintesi locale).
+    // Stessa strada del promemoria: deterministica, e in biografia come tutto
+    const query = this.deps.web === undefined ? undefined : searchQueryOf(request.text);
+    if (query !== undefined && this.deps.web !== undefined) {
+      const reply =
+        (await this.deps.web.ask(query)) ??
+        "Ho provato a guardare fuori, ma la finestra sul mondo ora non si apre. Grunf.";
       const owner = { gosinoId: this.deps.gosinoId };
       await db.insert(messages).values([
         {

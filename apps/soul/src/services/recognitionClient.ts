@@ -69,6 +69,31 @@ export class RecognitionClient {
     });
   }
 
+  /**
+   * Gruppo 13: la dettatura locale — whisper sul servizio di percezione,
+   * niente Google. Il timeout qui è LARGO apposta: la trascrizione di un
+   * enunciato su CPU costa più dell'identità, e chi chiama (la rotta
+   * `/v1/stt`) sta comunque fuori dal giro sincrono della conversazione.
+   */
+  public async transcribe(audioBase64: string): Promise<string | undefined> {
+    try {
+      const response = await this.fetchImpl(new URL("/v1/transcribe", this.deps.baseUrl), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${this.deps.token}`,
+        },
+        body: JSON.stringify({ audio: audioBase64 }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) return undefined;
+      const body = (await response.json()) as { text?: string };
+      return typeof body.text === "string" ? body.text : undefined;
+    } catch {
+      return undefined; // giù o lento: il chiosco resta sul riconoscitore che ha
+    }
+  }
+
   /** Chi è questo volto, dal ritaglio che il corpo ha già fatto. */
   public async byFace(imageBase64: string): Promise<Recognised | undefined> {
     return this.ask("/v1/identify/face", {

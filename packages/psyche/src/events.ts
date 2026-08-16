@@ -123,6 +123,22 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
    */
   napped: [{ variable: "energia", amount: 0.1, ceiling: 0.2 }],
   /**
+   * Gruppo 13: l'emozione dal tono di voce — la psiche reagisce finalmente a
+   * COME parli, non solo a cosa dici. La misura è prosodia locale (ritmo e
+   * variabilità del pitch, `prosody.ts` in soul), volutamente grossolana:
+   * «acceso» e «quieto», mai una diagnosi. Piccoli e col tetto, perché
+   * arrivano potenzialmente a ogni frase: una conversazione fitta non deve
+   * poter saturare lo stress più di un botto vero.
+   */
+  excited_voice: [
+    { variable: "stress", amount: 0.04, tauHours: 0.5, ceiling: 0.08 },
+    { variable: "energia", amount: 0.03, ceiling: 0.06 },
+  ],
+  calm_voice: [
+    { variable: "stress", amount: -0.03, ceiling: 0.09 },
+    { variable: "umore", amount: 0.02, ceiling: 0.04 },
+  ],
+  /**
    * ADR-030: he asked to go out, and he was taken out. The strongest good
    * thing that can happen to him, and it lasts — a walk is not a compliment.
    */

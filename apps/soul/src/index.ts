@@ -24,6 +24,7 @@ import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { CouncilService } from "./services/council/councilService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
 import { RuminationService } from "./services/rumination.js";
+import { SearxClient, WebWindow } from "./services/webSearch.js";
 import { SceneGlance } from "./services/sceneGlance.js";
 import { SleepTalk } from "./services/sleepTalk.js";
 import { storeVoiceSample } from "./services/voiceEnrolment.js";
@@ -115,6 +116,17 @@ const llmFor = (
   });
 const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
 
+// ADR-063: la finestra sul mondo — solo se SearXNG è configurato. Un'istanza
+// per processo: le query non portano la casa, portano solo la domanda
+const web =
+  env.SEARXNG_URL === undefined
+    ? undefined
+    : new WebWindow({
+        searx: new SearxClient({ baseUrl: env.SEARXNG_URL }),
+        local: new OllamaTextClient(env.OLLAMA_URL, env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL),
+        localUp: () => localTextUp,
+      });
+
 
 const pack = new PackService(db, speciesMap, bootstrapExemplar.id, bootstrapHouseholdId);
 // ADR-031: anche l'apparato di ripiego ha un carattere. Senza genoma in
@@ -138,6 +150,7 @@ const chat = new ChatService({
   pack,
   gosinoId: bootstrapExemplar.id,
   character: bootstrapCharacter,
+  ...(web !== undefined && { web }),
 });
 
 const audio = audioStorageFromEnv(env);
@@ -262,6 +275,7 @@ const registry = await GosinoRegistry.load({
   ...(recognition !== undefined && { recognition }),
   // ADR-057: senza bucket niente `voice_sample`, dal chiosco come dal pannello
   ...(audio !== undefined && { audio }),
+  ...(web !== undefined && { web }),
 });
 
 const app = buildServer({
@@ -319,6 +333,8 @@ const app = buildServer({
     // ADR-057: rivendicare un'impronta ignota passa dallo stesso servizio che
     // tiene gli encoder, e con lo stesso client per casa
     ...(recognition !== undefined && { prints: recognition }),
+    // gruppo 13: la dettatura locale passa dallo stesso servizio di percezione
+    ...(recognition !== undefined && { stt: recognition }),
     // gruppo 12: il meteo vero — solo se la casa ha detto dove sta
     ...(env.UGO_HOME_LAT !== undefined &&
       env.UGO_HOME_LON !== undefined && {
