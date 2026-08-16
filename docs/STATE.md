@@ -2019,6 +2019,16 @@ ephemeris 5/5, skyWatch 3/3, sleepTalk 8/8 (PG), objectSpotter 4/4,
 sceneGlance 4/4 (PG, client vision registrato). **Il bundle del muso va
 ricostruito.**
 
+**Il secondo giro del gruppo 13** (stessa direttiva): i compleanni dei gosini
+(da `born_at`, il desiderio va al festeggiato), l'**ora d'oro** agli orari
+veri (`sunAltitude` esposto dalle effemeridi, modo ricalcolato ogni 5′), le
+**stagioni** del prato (tavolozza dal calendario), il **suono della pioggia**
+(WebAudio procedurale, mai di notte, spento coi sensi) e la **rassegna del
+mattino** (passo `review`: due titoli dei feed in un desiderio). Decisione
+GPU registrata nel gruppo 13: CPU adesso, GEX44 per la commercializzazione.
+Restano i grandi del gruppo 13: SER, Piper, STT locale, tool calling,
+SearXNG — un ADR e una PR ciascuno.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
