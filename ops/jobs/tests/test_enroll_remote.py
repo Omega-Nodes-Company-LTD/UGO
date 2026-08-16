@@ -98,6 +98,10 @@ def test_enroll_goes_through_percezione(pg_url, minio, percezione_stub) -> None:
             s3_endpoint=minio["endpoint"],
             s3_access_key=minio["access_key"],
             s3_secret_key=minio["secret_key"],
+            # un bucket NOSTRO: il test del rinvio lascia il clip in coda di
+            # proposito, e nel bucket condiviso quel residuo diventava un file
+            # in piu' per test_ingest (visto in CI: files == 2)
+            s3_bucket_audio="ugo-audio-enroll-remoto",
             household_id=house,
             recognition_url=percezione_stub.base_url,
             internal_token="token-interno",
@@ -143,6 +147,7 @@ def test_percezione_down_defers_instead_of_burning_the_request(pg_url, minio) ->
             s3_endpoint=minio["endpoint"],
             s3_access_key=minio["access_key"],
             s3_secret_key=minio["secret_key"],
+            s3_bucket_audio="ugo-audio-enroll-remoto",
             household_id=house,
             recognition_url="http://127.0.0.1:1",
             internal_token="token-interno",

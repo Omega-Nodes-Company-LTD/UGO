@@ -80,14 +80,21 @@ def _remote_enroll(
     return "deferred"
 
 
-def _pending(conn: psycopg.Connection) -> list[tuple[str, str, str, str]]:
-    """Requests with no outcome recorded yet — idempotent by construction."""
+def _pending(conn: psycopg.Connection, household_id: str) -> list[tuple[str, str, str, str]]:
+    """Requests with no outcome recorded yet — idempotent by construction.
+
+    Scoped alla casa che sta sognando (ADR-019/062): senza il filtro, con due
+    famiglie a bordo il sogno di una pescava le richieste dell'altra — e con
+    l'arruolamento remoto avrebbe dichiarato la casa sbagliata alla
+    percezione, che giustamente risponde 404.
+    """
     rows = conn.execute(
         """
         select r.id, r.gosino_id, r.being_id, r.observed->>'object_key'
         from perception_events r
         where r.observed->>'kind' = %s
           and r.being_id is not null
+          and r.gosino_id in (select id from gosini where household_id = %s)
           and not exists (
             select 1 from perception_events d
             where d.observed->>'kind' = 'enrollment'
@@ -95,7 +102,7 @@ def _pending(conn: psycopg.Connection) -> list[tuple[str, str, str, str]]:
           )
         order by r.occurred_at
         """,
-        (REQUEST_KIND,),
+        (REQUEST_KIND, household_id),
     ).fetchall()
     return [(str(a), str(b), str(c), d) for a, b, c, d in rows]
 
@@ -148,7 +155,7 @@ def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
     # minimizzazione — un'impronta scaduta non deve sopravvivere nemmeno al
     # giro che la sta per superare
     expired = _expire_unknown_prints(conn, cfg)
-    requests = _pending(conn)
+    requests = _pending(conn, cfg.household_id)
     if not requests:
         return EnrollStepResult(enrolled=0, refused=0, missing=0, expired=expired)
 
