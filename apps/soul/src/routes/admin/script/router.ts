@@ -154,10 +154,14 @@ async function loadCase() {
   if (!box) return;
   box.parentElement.hidden = CASE.length < 2;
   if (CASE.length < 2) { box.innerHTML = ""; return; }
+  // ADR-061: casa o azienda. Chi possiede entrambe deve vedere in quale
+  // mondo sta scrivendo — il glifo e' la differenza fra i due tenant
   box.innerHTML = CASE.map((c) =>
     '<a href="#/c/' + encodeURIComponent(c.id) + '/casa" data-nav="c:' + c.id + '">' +
-    '<span class="dot" aria-hidden="true"></span>' + escape(c.name) +
-    ' <span class="rail-where">' + escape(c.slug) + "</span></a>").join("");
+    '<span class="dot" aria-hidden="true"></span>' +
+    (c.kind === "business" ? "\\u{1F3E2} " : "") + escape(c.name) +
+    ' <span class="rail-where">' + escape(c.slug) +
+    (c.kind === "business" ? " \\u00b7 azienda" : "") + "</span></a>").join("");
 }
 
 /** Loads the population; the eldest is who you land on when you name nobody. */

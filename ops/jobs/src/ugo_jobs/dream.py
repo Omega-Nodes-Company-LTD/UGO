@@ -102,6 +102,13 @@ def run_dream(cfg: JobsConfig, dream_date: str, mode: str = FULL) -> dict[str, o
     """
     report: dict[str, object] = {"dream_date": dream_date, "mode": mode}
     with psycopg.connect(cfg.database_url) as conn:
+        # ADR-062: il sogno dichiara la casa alla connessione — è ciò che le
+        # politiche RLS leggeranno quando i job passeranno all'utenza
+        # applicativa. A livello di sessione e non di transazione, perché la
+        # connessione è dedicata al sogno di QUESTA casa per l'intera durata.
+        conn.execute(
+            "select set_config('app.household_id', %s, false)", (cfg.household_id,)
+        )
         exemplars = exemplars_of(conn, cfg.household_id)
         if not exemplars:
             report["error"] = "nessun esemplare in questa casa"

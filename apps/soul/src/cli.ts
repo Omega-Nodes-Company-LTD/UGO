@@ -35,9 +35,9 @@ const USAGE = `uso:
                                esporta i dati di una casa in JSON (stdout)
 
   ugo casa nuova --slug <slug> --nome "<nome>" [--tz <fuso>] [--locale <it-IT>]
-                 [--gosino <nome>] [--archetipo <nome>]
-                               fa nascere una casa: chiave dati, primo gosino,
-                               genoma e token del proprietario
+                 [--gosino <nome>] [--archetipo <nome>] [--tipo casa|azienda]
+                               fa nascere un'organizzazione: chiave dati, primo
+                               gosino, genoma e token del proprietario
 
   --casa   slug o uuid della casa. Obbligatorio se ce n'è più di una.`;
 
@@ -74,6 +74,7 @@ async function main(): Promise<number> {
       locale: { type: "string" },
       gosino: { type: "string" },
       archetipo: { type: "string" },
+      tipo: { type: "string" },
       yes: { type: "boolean", default: false },
     },
   });
@@ -144,6 +145,12 @@ async function main(): Promise<number> {
         console.error("errore: --slug e --nome sono obbligatori\n" + USAGE);
         return 1;
       }
+      // ADR-061: casa o azienda, in italiano sulla riga di comando come nel
+      // pannello — 'home'/'business' restano il vocabolario del database
+      if (values.tipo !== undefined && values.tipo !== "casa" && values.tipo !== "azienda") {
+        console.error('errore: --tipo accetta "casa" o "azienda"\n' + USAGE);
+        return 1;
+      }
       const born = await createHousehold(db, dataKey, {
         slug: values.slug,
         name: values.nome,
@@ -151,6 +158,9 @@ async function main(): Promise<number> {
         ...(values.locale !== undefined && { locale: values.locale }),
         ...(values.gosino !== undefined && { gosinoName: values.gosino }),
         ...(values.archetipo !== undefined && { archetype: values.archetipo }),
+        ...(values.tipo !== undefined && {
+          kind: values.tipo === "azienda" ? ("business" as const) : ("home" as const),
+        }),
       });
       const audit = createAuditLog(db);
       await audit.record({

@@ -12,7 +12,7 @@ import {
 } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
 import { unwrapDataKey } from "@ugo/shared";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuditLog } from "../../src/services/auditLog.js";
@@ -109,6 +109,31 @@ describe("ugo casa nuova", () => {
     expect(JSON.stringify(stored)).not.toContain(born.ownerToken);
   });
 
+  it("nasce azienda quando lo chiedi, casa quando taci, e mai una terza cosa (ADR-061)", async () => {
+    const firm = await createHousehold(db, MASTER_KEY, {
+      slug: "studio-rossi",
+      name: "Studio Rossi",
+      kind: "business",
+    });
+    const [business] = await db
+      .select({ kind: households.kind })
+      .from(households)
+      .where(eq(households.id, firm.householdId));
+    expect(business?.kind).toBe("business");
+
+    // il default è la casa: ogni tenant nato prima di ADR-061 è una casa
+    const [home] = await db
+      .select({ kind: households.kind })
+      .from(households)
+      .where(eq(households.slug, "casa-rossi"));
+    expect(home?.kind).toBe("home");
+
+    // il check del database rifiuta una natura inventata: non è convenzione
+    await expect(
+      db.execute(sql`update households set kind = 'circus' where id = ${firm.householdId}`),
+    ).rejects.toThrow();
+  });
+
   it("refuses a slug that is taken, without leaving half a house behind", async () => {
     const before = await db.select({ id: households.id }).from(households);
     await expect(
@@ -151,9 +176,13 @@ describe("GET /v1/households", () => {
       headers: { authorization: "Bearer operatore" },
     });
     expect(response.statusCode).toBe(200);
-    const slugs = response.json<{ households: { slug: string }[] }>().households.map((h) => h.slug);
+    const listed = response.json<{ households: { slug: string; kind: string }[] }>().households;
+    const slugs = listed.map((h) => h.slug);
     expect(slugs).toContain("casa-rossi");
     expect(slugs).toContain("casa-verdi");
+    // ADR-061: il selettore deve poter dire in quale mondo stai scrivendo
+    expect(listed.find((h) => h.slug === "studio-rossi")?.kind).toBe("business");
+    expect(listed.find((h) => h.slug === "casa-rossi")?.kind).toBe("home");
   });
 
   /**

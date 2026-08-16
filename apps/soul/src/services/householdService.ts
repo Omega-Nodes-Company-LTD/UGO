@@ -28,6 +28,8 @@ export interface NewHouseholdInput {
   /** il fuso della casa: due famiglie sognano alle 02:30 **loro** */
   timezone?: string;
   locale?: string;
+  /** ADR-061: casa (PET, ricordi) o azienda (reception, clienti). Default casa */
+  kind?: "home" | "business";
   /** come si chiamerà il primo gosino. Una casa senza creatura è un database */
   gosinoName?: string;
   /**
@@ -85,6 +87,7 @@ export async function createHousehold(
         wrappedDataKey: wrapDataKey(generateDataKey(), masterKey),
         ...(input.timezone !== undefined && { timezone: input.timezone }),
         ...(input.locale !== undefined && { locale: input.locale }),
+        ...(input.kind !== undefined && { kind: input.kind }),
       })
       .returning({ id: households.id });
     if (house === undefined) throw new Error("la casa non è stata creata");

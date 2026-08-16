@@ -66,4 +66,6 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [058](./058-il-premio-il-legame-e-cio-che-impara.md) | Il premio, il legame, e ciò che impara | Accettata |
 | [059](./059-la-ruminazione.md) | La ruminazione: pensa coi modelli locali | Accettata |
 | [060](./060-i-feed-e-il-consiglio-del-mattino.md) | I feed, e il consiglio del mattino | Accettata |
-| 061 | *(prossimo numero disponibile)* | — |
+| [061](./061-il-tenant-e-unorganizzazione.md) | Il tenant è un'organizzazione: casa O azienda | Accettata |
+| [062](./062-rls-si-accende.md) | RLS si accende: la transazione che dichiara la casa | Accettata |
+| 063 | *(prossimo numero disponibile)* | — |
