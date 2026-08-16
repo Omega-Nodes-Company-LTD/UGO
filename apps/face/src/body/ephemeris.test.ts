@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moonPhase, moonPosition, visiblePlanets } from "./ephemeris.js";
+import { moonPhase, moonPosition, sunAltitude, visiblePlanets } from "./ephemeris.js";
 
 /**
  * Il cielo di stanotte, provato contro il cielo di ieri.
@@ -54,6 +54,21 @@ describe("le posizioni (bassa precisione, proprietà fisiche)", () => {
     }
     expect(Math.max(...altitudes)).toBeGreaterThan(10);
     expect(Math.min(...altitudes)).toBeLessThan(-10);
+  });
+
+  it("il sole: alto a mezzogiorno d'agosto, sotto l'orizzonte a mezzanotte", () => {
+    // Roma, 16 agosto: a mezzogiorno solare il sole sta oltre i 50°, a
+    // mezzanotte ben sotto — e fra i due DEVE attraversare l'ora d'oro
+    expect(sunAltitude(new Date("2026-08-16T11:00:00Z"), ROME.lat, ROME.lon)).toBeGreaterThan(50);
+    expect(sunAltitude(new Date("2026-08-16T23:00:00Z"), ROME.lat, ROME.lon)).toBeLessThan(-20);
+    let golden = 0;
+    for (let m = 0; m < 24 * 60; m += 10) {
+      const alt = sunAltitude(new Date(Date.UTC(2026, 7, 16, 0, m)), ROME.lat, ROME.lon);
+      if (alt > -6 && alt < 6) golden += 1;
+    }
+    // due crepuscoli al giorno, qualche campione ciascuno: mai zero, mai ore
+    expect(golden).toBeGreaterThanOrEqual(4);
+    expect(golden).toBeLessThan(24);
   });
 
   it("anche giove gira col cielo, e non sta mai dritto sopra Roma", () => {

@@ -1,4 +1,4 @@
-import { moonPhase, moonPosition, visiblePlanets } from "./body/ephemeris.js";
+import { moonPhase, moonPosition, sunAltitude, visiblePlanets } from "./body/ephemeris.js";
 import type { SkyState, SkyWeather } from "./body/room3d.js";
 
 /**
@@ -23,14 +23,25 @@ export interface WeatherAnswer {
   lon?: number;
 }
 
+/** l'ora d'oro: il sole fra queste due quote — è la definizione civile del crepuscolo */
+const GOLDEN_BELOW = 6;
+const GOLDEN_ABOVE = -6;
+
 /** La risposta di soul diventa lo stato del cielo — pura, e quindi provabile. */
 export function skyStateFrom(answer: WeatherAnswer | undefined, at: Date): SkyState | undefined {
   if (answer?.available !== true || answer.kind === undefined) return undefined;
-  if (answer.isDay !== false) return { mode: "day", weather: answer.kind };
-  // di notte servono le coordinate per sapere DOVE stanno luna e pianeti; la
-  // rotta le manda insieme al meteo, così si configurano in un posto solo
-  const lat = answer.lat ?? 45;
-  const lon = answer.lon ?? 9;
+  // le coordinate arrivano insieme al meteo, così si configurano in un posto
+  // solo; senza, si ripiega sull'is_day di open-meteo (niente ora d'oro)
+  const lat = answer.lat;
+  const lon = answer.lon;
+  if (lat === undefined || lon === undefined) {
+    return { mode: answer.isDay !== false ? "day" : "night", weather: answer.kind };
+  }
+  // gruppo 13: alba e tramonto VERI — il sole calcolato decide il cielo, agli
+  // orari di casa tua e non a ore fisse
+  const sun = sunAltitude(at, lat, lon);
+  if (sun >= GOLDEN_BELOW) return { mode: "day", weather: answer.kind };
+  if (sun > GOLDEN_ABOVE) return { mode: "golden", weather: answer.kind };
   return {
     mode: "night",
     weather: answer.kind,
@@ -41,13 +52,22 @@ export function skyStateFrom(answer: WeatherAnswer | undefined, at: Date): SkySt
   };
 }
 
-/** Il giro: adesso, e poi ogni mezz'ora. Un cielo irraggiungibile resta com'era. */
+/** fra un meteo e l'altro il SOLE si muove: il modo si ricalcola più spesso */
+export const SKY_RECHECK_MS = 5 * 60_000;
+
+/** Il giro: meteo ogni mezz'ora, sole ogni cinque minuti — l'ora d'oro dura
+ * poco e un cielo che se la perde è un cielo che non fa i tramonti. */
 export function watchSky(soulHttp: string, apply: (state: SkyState) => void): void {
+  let lastAnswer: WeatherAnswer | undefined;
+  const applyNow = (): void => {
+    const state = skyStateFrom(lastAnswer, new Date());
+    if (state !== undefined) apply(state);
+  };
   const tick = async (): Promise<void> => {
     try {
       const response = await fetch(`${soulHttp}/v1/weather`);
-      const state = skyStateFrom((await response.json()) as WeatherAnswer, new Date());
-      if (state !== undefined) apply(state);
+      lastAnswer = (await response.json()) as WeatherAnswer;
+      applyNow();
     } catch {
       // soul o il meteo irraggiungibili: il cielo di prima non è sbagliato
     }
@@ -56,4 +76,5 @@ export function watchSky(soulHttp: string, apply: (state: SkyState) => void): vo
   setInterval(() => {
     void tick();
   }, SKY_POLL_MS);
+  setInterval(applyNow, SKY_RECHECK_MS);
 }

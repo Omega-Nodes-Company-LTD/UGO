@@ -208,6 +208,19 @@ export function visiblePlanets(at: Date, lat: number, lonEast: number): SkyBody[
   return out;
 }
 
+/**
+ * Quanto sta alto il sole, in gradi (gruppo 13: alba e tramonto veri).
+ *
+ * È il numero che decide il cielo: sopra +6° è giorno, sotto −6° è notte, e
+ * in mezzo c'è l'ora d'oro — agli orari VERI di casa tua, non a ore fisse.
+ * Il sole era già qui dentro (serve al tempo siderale): questo lo espone.
+ */
+export function sunAltitude(at: Date, lat: number, lonEast: number): number {
+  const d = daysSinceJ2000(at);
+  const sun = sunPosition(d);
+  return toHorizon(sun.x, sun.y, 0, d, lat, lonEast).altitude;
+}
+
 /** Anche la luna va dipinta dove sta: bassa precisione (~2°), che qui basta. */
 export function moonPosition(
   at: Date,

@@ -241,7 +241,8 @@ export interface NightSky {
 }
 
 export interface SkyState {
-  mode: "day" | "night";
+  /** `golden` (gruppo 13): l'ora d'oro — il sole fra −6° e +6°, agli orari veri */
+  mode: "day" | "night" | "golden";
   weather: SkyWeather;
   /** cosa c'è lassù stanotte; ignorato di giorno e sotto le nuvole */
   night?: NightSky;
@@ -252,9 +253,12 @@ export interface SkyState {
  * colore della nebbia — sono la stessa cosa, ed è ciò che rende invisibile
  * l'orlo del pavimento. `floor` è il moltiplicatore del prato: il pavimento è
  * `MeshBasicMaterial`, quindi la sua «luce» si abbassa da qui, non dalle
- * lampade.
+ * lampade. La terza riga è l'ora d'oro (gruppo 13): il sole fra −6° e +6°.
  */
-const PALETTES: Record<"day" | "night", Record<SkyWeather, { stops: number[]; floor: number }>> = {
+const PALETTES: Record<
+  "day" | "night" | "golden",
+  Record<SkyWeather, { stops: number[]; floor: number }>
+> = {
   day: {
     clear: { stops: [0x3b7fc4, ZENITH, 0x7fb4e2, 0xa9cfea, HORIZON], floor: 0xffffff },
     cloudy: { stops: [0x7c8fa3, 0x8fa3b5, 0xaebdc9, 0xc6d1d9, 0xd4dce2], floor: 0xd8dde0 },
@@ -264,6 +268,13 @@ const PALETTES: Record<"day" | "night", Record<SkyWeather, { stops: number[]; fl
     clear: { stops: [0x05080f, 0x0d1626, 0x16233a, 0x22334c, 0x32455e], floor: 0x5a6875 },
     cloudy: { stops: [0x090b10, 0x10141c, 0x181e28, 0x222a36, 0x2c3542], floor: 0x4c565f },
     rain: { stops: [0x07090d, 0x0c1016, 0x131820, 0x1b222c, 0x232c37], floor: 0x434c54 },
+  },
+  // l'ora d'oro: blu-viola in alto che scende nell'ambra all'orizzonte — è la
+  // fisica del crepuscolo, non una decorazione, e dura quanto dura davvero
+  golden: {
+    clear: { stops: [0x2e3f6e, 0x4a5a8c, 0x9a7a7e, 0xd89a62, 0xf2c078], floor: 0xdec1a0 },
+    cloudy: { stops: [0x4a4f5e, 0x5e6270, 0x84788a, 0xa8928e, 0xc0a494], floor: 0xc2b0a2 },
+    rain: { stops: [0x33373f, 0x42464f, 0x5c5560, 0x776862, 0x8d7a70], floor: 0x93857b },
   },
 };
 
