@@ -28,7 +28,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Notifiche push dalla PWA** | un `desire` che matura oggi muore se non guardi lo schermo. **Accantonata dal proprietario (2026-08-16): «la PWA non funziona»** — sintomo aperto, da diagnosticare prima di costruirci sopra (cosa non funziona: installazione? apertura? icona?) |
+| ⬜️ | **Notifiche push dalla PWA** | un `desire` che matura oggi muore se non guardi lo schermo. **Accantonata dal proprietario (2026-08-16): «la PWA non funziona»** — e alla domanda sul sintomo ha risposto **«riproviamo insieme dopo»**: la diagnosi si fa in una sessione dedicata con lui al telefono, non a tavolino. Fino ad allora non ci si costruisce sopra |
 | ✅ | **Recap della giornata consegnato** | **gruppo 11**: passo `recap` del sogno (per esemplare) — la prima frase del diario di stanotte diventa un desiderio `stamattina`, e lo consegnano il saluto del risveglio o l'iniziativa. Zero token, tetto 240 caratteri, niente diario ⇒ niente segnaposto |
 | ⬜️ | **Template di riassunto per contesto** | riunione / cliente / famiglia, in versione minima |
 
@@ -36,7 +36,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Tool calling dentro il budget guard** | insieme minimo e sorvegliato: leggi psiche, cerca in memoria, registra evento, invalida ricordo. **Idea del proprietario (2026-08-16): il banco di prova sono le interfacce del chiosco** — dirgli di andare in un'altra stanza, chiamare un altro gosino. È il posto giusto per cominciare: i canali esistono già (`gesture`, `speak`, il registro delle stanze, `peer_chat` della ruminazione), l'azione è reversibile e si vede a occhio se ha funzionato. **MA (2026-08-16): la formulazione così com'è convince pochissimo il proprietario — da riguardare insieme prima di scrivere l'ADR**, non partire |
+| ⬜️ | **Tool calling dentro il budget guard** | insieme minimo e sorvegliato: leggi psiche, cerca in memoria, registra evento, invalida ricordo. **Idea del proprietario (2026-08-16): il banco di prova sono le interfacce del chiosco** — dirgli di andare in un'altra stanza, chiamare un altro gosino. È il posto giusto per cominciare: i canali esistono già (`gesture`, `speak`, il registro delle stanze, `peer_chat` della ruminazione), l'azione è reversibile e si vede a occhio se ha funzionato. **La formulazione «tool calling» non convinceva il proprietario, che ha delegato (2026-08-16): «non ho soluzioni, trovala tu»** → la soluzione è ADR-064: niente framework di tool sul provider — le richieste diventano *spinte* che entrano dalla volizione, e il carattere decide se e come eseguirle |
 | ⬜️ | **Server MCP** | altri agenti interrogano la memoria di UGO; quasi gratis dato l'API esistente |
 | ✅ | **Ricerca web** | **ADR-063 (gruppo 13)**: «cerca: …» in chat — gesto esplicito risposto PRIMA del provider (la famiglia di ADR-028/055), SearXNG nel compose senza porte host, sintesi col modello locale e ripiego deterministico sui titoli, mai in reception, postura privacy del proprietario scritta nell'ADR. Si accende con SEARXNG_URL |
 | 🚫 | Integrazioni in uscita (Todoist, Notion) | riapribile: serve sapere quali usi davvero |
@@ -127,7 +127,7 @@ nulla era da inventare: pezzi costruiti e mai raccordati.
 | ✅ | **La mela del cliente, limitata e spiegata** | **ADR-058 appendice**: `customer_rewards` contata da Postgres su finestra mobile, default 2 in 7 giorni con override per cliente, 429 con la data, spiegazione nel prodotto |
 | ✅ | **Silvio non è UGO con un soprannome** | Il nome proprio esce dal blocco `[CACHED]`, che è condiviso da ogni creatura della casa |
 | ✅ | **Le correzioni all'esemplare giusto** | Con due gosini, dire a uno che urla correggeva l'altro. Ora `?gosino=`, e con più d'uno un 400 invece di un'ipotesi |
-| ⬜️ | **La retention delle impronte ignote nel giro notturno** | La rotta c'è e funziona; nessuno la chiama da solo. Una retention dichiarata e non applicata è peggio di nessuna retention |
+| ✅ | **La retention delle impronte ignote nel giro notturno** | **gruppo 11 (PR #38)**: il passo `enroll` del sogno spazza le impronte scadute e il report notturno dice quante (`expired`); provato in `test_prints_retention.py`. La riga era rimasta aperta per svista |
 | ⬜️ | **Misurare la batteria del corpo 3D** | Il debito è di ADR-026 e questa PR lo peggiora: una superficie in più e fino a otto arredi. Il numero lo dà solo un telefono |
 
 ## Gruppo 10 — Gli oggetti che contano, e la testa che non sta mai ferma
@@ -182,9 +182,9 @@ del codice.
 | | Punto | Note |
 |---|---|---|
 | ⬜️ | **TTS espressivo locale (Piper)** | il più grande guadagno di carattere: container Piper nel compose, soul serve l'audio, il muso lo suona; il tono legge la psiche (label → voce, energia → ritmo). È la riga del gruppo 4, qui perché è il prossimo grande |
-| ⬜️ | **STT locale continuo** | faster-whisper è GIÀ nelle dipendenze dei job (ingest): un endpoint di trascrizione sul servizio di percezione, il chiosco manda i clip che già ritaglia, e Google esce dal percorso. Senza wake word: gli parli e basta |
-| ⬜️ | **Tool calling dal chiosco** (gruppo 3) | «vai in cucina», «chiama Silvio» — sui modelli locali, fuori dal budget del provider; ADR prima |
-| ⬜️ | **Ricerca web con SearXNG** (gruppo 3) | container nel compose + sintesi locale; ADR con la postura privacy dichiarata |
+| 🔨 | **STT locale continuo** | metà server fatta (`/v1/transcribe` + ponte `/v1/stt`); lo stato vivo è la riga del **gruppo 4** — resta la metà chiosco |
+| ⬜️ | **Tool calling dal chiosco** (gruppo 3) | «vai in cucina», «chiama Silvio» — lo stato vivo è la riga del **gruppo 3**, col mandato del proprietario e la strada di ADR-064 |
+| ✅ | **Ricerca web con SearXNG** (gruppo 3) | **ADR-063 (PR #43)**: lo stato vivo è la riga del gruppo 3 |
 | ✅ | **Alba e tramonto veri** | **fatto**: `sunAltitude` esposto dalle effemeridi; sopra +6° giorno, sotto −6° notte, in mezzo l'ORA D'ORO con tavolozze crepuscolari per sereno/coperto/pioggia. Il modo si ricalcola ogni 5′ (l'ora d'oro dura poco), il meteo resta ogni 30′ |
 | ✅ | **Le stagioni nel recinto** | **fatto**: stagioni meteorologiche, tavolozza del prato per stagione (primavera coi fiorellini, estate secca, autunno con le foglie, inverno pallido), decisa all'avvio del muso |
 | ✅ | **I compleanni dei gosini** | **fatto**: nel passo `anniversaries`, da `born_at` — il desiderio va al FESTEGGIATO («oggi compio 2 anni!»), non all'anziano |
