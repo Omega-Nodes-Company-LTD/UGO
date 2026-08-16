@@ -322,3 +322,52 @@ describe("sheltered: al riparo adesso", () => {
     expect(w.sheltered).toBe(false);
   });
 });
+
+/**
+ * Gruppo 10: i gusti. La distanza è divisa dal peso, quindi l'arredo amato
+ * «sembra più vicino» — e la paura non fa shopping: sul riparo i gusti non
+ * contano, conta solo dove sta.
+ */
+describe("i gusti sugli arredi", () => {
+  const CUSHION = { id: "c1", kind: "cushion" as const, x: 1.2, z: 0.4 };
+  const BALL = { id: "p1", kind: "ball" as const, x: 2.2, z: 0.6 };
+  const eager = (): Wanderer => new Wanderer(dice([0.01, 0.5]));
+
+  const firstReached = (w: Wanderer): string | undefined => {
+    for (let t = 0; t <= 30_000; t += FRAME) {
+      const hit = w.step(t, "idle", 0.9, 0.8, 1, true).reached;
+      if (hit !== undefined) return hit.id;
+    }
+    return undefined;
+  };
+
+  it("senza gusti va al più vicino, come ha sempre fatto", () => {
+    const w = eager();
+    w.setPen(20, 20);
+    w.setAttractions([CUSHION, BALL]);
+    expect(firstReached(w)).toBe(CUSHION.id);
+  });
+
+  it("l'ardito attraversa la stanza per la palla, anche col cuscino a un passo", () => {
+    const w = eager();
+    w.setPen(20, 20);
+    w.setAttractions([CUSHION, BALL]);
+    w.setTastes({ ball: 1.5, cushion: 0.6 });
+    expect(firstReached(w)).toBe(BALL.id);
+  });
+
+  it("spaventato, il riparo resta il più vicino: i gusti non fanno shopping", () => {
+    const BUSH_NEAR = { id: "b1", kind: "bush" as const, x: 1.4, z: 0 };
+    const BUSH_FAR = { id: "b2", kind: "bush" as const, x: 4.5, z: 0 };
+    const w = eager();
+    w.setPen(20, 20);
+    w.setAttractions([BUSH_NEAR, BUSH_FAR]);
+    // un gusto assurdo sul lontano non deve cambiare la fuga
+    w.setTastes({ bush: 1.5 });
+    let reached: string | undefined;
+    for (let t = 0; t <= 30_000 && reached === undefined; t += FRAME) {
+      reached = w.step(t, "idle", 0.1, 0.8, 1, true, 0.9).reached?.id;
+    }
+    expect(reached).toBe(BUSH_NEAR.id);
+  });
+});

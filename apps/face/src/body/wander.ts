@@ -153,6 +153,8 @@ export class Wanderer {
   /** true finché sta rientrando dal bordo: il recinto batte il cono */
   private returning = false;
   private attractions: readonly Attraction[] = [];
+  /** i gusti dal genoma (gruppo 10): assente = 1, cioè il corpo di prima */
+  private tastes: Partial<Record<PropKind, number>> = {};
   /** verso quale arredo sta andando, se ci sta andando */
   private heading_to: Attraction | undefined;
   /** quando ognuno tornerà interessante: senza, ci si incolla sopra */
@@ -193,6 +195,15 @@ export class Wanderer {
       this.heading_to = attractions.find((a) => a.id === this.heading_to?.id);
       if (this.heading_to === undefined && this.activity === "walking") this.activity = "still";
     }
+  }
+
+  /**
+   * Gruppo 10: i gusti, dal genoma (`tastes.ts`). Moltiplicatori sulla
+   * distanza percepita: l'arredo amato «sembra più vicino». Contano solo per
+   * la noia — la paura non fa shopping, il riparo resta il più vicino.
+   */
+  public setTastes(tastes: Partial<Record<PropKind, number>>): void {
+    this.tastes = tastes;
   }
 
   /** True while something is actually moving — portable mode respects it. */
@@ -402,17 +413,26 @@ export class Wanderer {
     return this.nearest((prop) => {
       const used = this.usedAt.get(prop.id);
       return used === undefined || now - used >= PROP_COOLDOWN_MS;
-    });
+    }, true);
   }
 
-  /** Il più vicino fra quelli che vanno bene. Non a caso: un maiale annoiato
-   *  non attraversa la stanza per il secondo cuscino. */
-  private nearest(wanted: (prop: Attraction) => boolean): Attraction | undefined {
+  /**
+   * Il più vicino fra quelli che vanno bene — vicino **per lui** (gruppo 10):
+   * per la noia la distanza è divisa dal gusto, così l'arredo amato sembra più
+   * a portata. Per la paura no: `withTastes` resta falso sul riparo, perché un
+   * animale spaventato non sceglie il nascondiglio che gli piace, sceglie
+   * quello che c'è.
+   */
+  private nearest(
+    wanted: (prop: Attraction) => boolean,
+    withTastes = false,
+  ): Attraction | undefined {
     let best: Attraction | undefined;
     let bestDistance = Infinity;
     for (const prop of this.attractions) {
       if (!wanted(prop)) continue;
-      const distance = Math.hypot(prop.x - this.x, prop.z - this.z);
+      const taste = withTastes ? (this.tastes[prop.kind] ?? 1) : 1;
+      const distance = Math.hypot(prop.x - this.x, prop.z - this.z) / taste;
       if (distance >= bestDistance) continue;
       best = prop;
       bestDistance = distance;

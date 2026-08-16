@@ -8,6 +8,7 @@ import { GesturePlayer } from "./gestures.js";
 import { DEFAULT_TRAITS, Pig, type Traits } from "./pig.js";
 import { NEUTRAL_VARS, type PsycheVars, computePose } from "./pose.js";
 import { PostureMixer, choosePosture } from "./posture.js";
+import { tastesFrom } from "./tastes.js";
 import { ACTIVITY_IT, Wanderer } from "./wander.js";
 
 /**
@@ -102,6 +103,9 @@ export class Inhabitant {
     // on the floor and nothing standing on it, which is the worst way for a
     // body to fail because it looks like the socket died
     this.pig = new Pig({ ...DEFAULT_TRAITS, ...traits });
+    // gruppo 10: i gusti sugli arredi vengono dal genoma, una volta per vita —
+    // il carattere non cambia perché ti sei annoiato (quello lo fa la noia)
+    this.wanderer.setTastes(tastesFrom(traits));
     this.autonomy = new Autonomy(this.player);
     this.wandering = wander;
     const now = performance.now();
