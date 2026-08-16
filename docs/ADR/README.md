@@ -71,4 +71,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [063](./063-la-finestra-sul-mondo.md) | La finestra sul mondo: la ricerca web, su gesto esplicito | Accettata |
 | [064](./064-le-richieste-passano-dal-carattere.md) | Le richieste passano dal carattere: il «tool calling» che non lo è | Accettata |
 | [065](./065-la-lettura-su-gesto.md) | La lettura su gesto: «leggi», e UGO guarda cosa c'è scritto | Accettata |
-| 066 | *(prossimo numero disponibile)* | — |
+| [066](./066-la-memoria-interrogabile.md) | La memoria interrogabile: il server MCP di sola lettura | Accettata |
+| 067 | *(prossimo numero disponibile)* | — |

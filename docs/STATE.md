@@ -2104,6 +2104,18 @@ cifrato, stessa retention del backup dell'anima.
 Note di rilascio cumulative: da ricostruire il **bundle del muso**,
 l'immagine dei **job** e l'immagine della **percezione**.
 
+## 6-sextricies. La memoria interrogabile (ADR-066)
+
+Il server MCP del gruppo 3, chiuso: `POST /v1/mcp` (Streamable HTTP
+stateless, un giro di server per richiesta — impossibile condividere stato
+fra due case), tre strumenti di SOLA lettura (`cerca_ricordi` con gli
+embedding di Ollama, `leggi_diario`, `il_branco` senza biometria), token di
+famiglia nel Bearer con i ruoli di `/admin`. Provato con il client SDK vero
+contro il server vero su porta vera: 5/5, il vicino non vede né diario né
+ricordi. Dipendenza nuova: `@modelcontextprotocol/sdk` (solo in soul).
+Niente scritture per costruzione: se un giorno serviranno, passeranno dalle
+spinte di ADR-064, non da un tool `write`.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

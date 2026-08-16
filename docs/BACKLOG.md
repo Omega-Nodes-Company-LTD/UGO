@@ -37,7 +37,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | | Punto | Note |
 |---|---|---|
 | ⬜️ | **Tool calling dentro il budget guard** | insieme minimo e sorvegliato: leggi psiche, cerca in memoria, registra evento, invalida ricordo. **Idea del proprietario (2026-08-16): il banco di prova sono le interfacce del chiosco** — dirgli di andare in un'altra stanza, chiamare un altro gosino. È il posto giusto per cominciare: i canali esistono già (`gesture`, `speak`, il registro delle stanze, `peer_chat` della ruminazione), l'azione è reversibile e si vede a occhio se ha funzionato. **La formulazione «tool calling» non convinceva il proprietario, che ha delegato (2026-08-16): «non ho soluzioni, trovala tu»** → la soluzione è ADR-064: niente framework di tool sul provider — le richieste diventano *spinte* che entrano dalla volizione, e il carattere decide se e come eseguirle |
-| ⬜️ | **Server MCP** | altri agenti interrogano la memoria di UGO; quasi gratis dato l'API esistente |
+| ✅ | **Server MCP** | **ADR-066 (2026-08-16)**: `POST /v1/mcp` stateless, tre strumenti di SOLA lettura (`cerca_ricordi` con embedding Ollama, `leggi_diario`, `il_branco` senza biometria), token di casa nel Bearer. Provato con client SDK vero contro server vero; il vicino non vede niente |
 | ✅ | **Ricerca web** | **ADR-063 (gruppo 13)**: «cerca: …» in chat — gesto esplicito risposto PRIMA del provider (la famiglia di ADR-028/055), SearXNG nel compose senza porte host, sintesi col modello locale e ripiego deterministico sui titoli, mai in reception, postura privacy del proprietario scritta nell'ADR. Si accende con SEARXNG_URL |
 | 🚫 | Integrazioni in uscita (Todoist, Notion) | riapribile: serve sapere quali usi davvero |
 
