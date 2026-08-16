@@ -80,6 +80,22 @@ export const soulEnvSchema = z.object({
   UGO_RUMINATION: z.enum(["on", "off"]).default("on"),
   /** minuti fra un pensiero e l'altro, per gosino (tentativi, non successi) */
   UGO_RUMINATION_GAP_MIN: z.coerce.number().int().positive().default(45),
+  // gruppo 12: dove sta la casa, per il meteo vero e il cielo di stanotte.
+  // Facoltative: senza, /v1/weather risponde «non disponibile» e il cielo del
+  // recinto resta quello di sempre. Coordinate, non un indirizzo: open-meteo
+  // non vuole chiavi e non riceve altro.
+  // gruppo 12: il modello vision locale (moondream, llava…). Assente = UGO
+  // non dà occhiate: la visione si accende, non si subisce
+  OLLAMA_VISION_MODEL: optionalNonEmpty,
+  // preprocess: una stringa vuota NON è latitudine 0 (l'equatore per sbaglio)
+  UGO_HOME_LAT: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().min(-90).max(90).optional(),
+  ),
+  UGO_HOME_LON: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().min(-180).max(180).optional(),
+  ),
   // ADR-045: il servizio di percezione (voce e volto). Assente = UGO risponde
   // senza sapere chi ha davanti, che è il comportamento di ogni versione fino
   // a ieri: la biometria si accende, non si subisce.

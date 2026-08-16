@@ -115,7 +115,13 @@ export async function registerFaceWs(
           // only one", and this keeps the single-creature wire format
           // byte-identical to what every face before rooms already speaks.
           const who = tagFor(member.id);
-          if (message.type === "roster" || message.type === "scene" || who === undefined) {
+          // glimpse_ask è della stanza come scene: la camera è una sola
+          if (
+            message.type === "roster" ||
+            message.type === "scene" ||
+            message.type === "glimpse_ask" ||
+            who === undefined
+          ) {
             raw(message);
             return;
           }

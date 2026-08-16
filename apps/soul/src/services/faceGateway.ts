@@ -88,6 +88,13 @@ export class FaceGateway {
   /** which shell the body is in; a change is an event, not a setting */
   private mode: "home" | "portable" = "home";
   private readonly senders = new Set<FaceSender>();
+  /**
+   * Gruppo 12: l'ultimo sguardo della stanza, SOLO in memoria e consumato a
+   * ogni lettura — uno sguardo non si archivia, si guarda. Mai nel database,
+   * mai nei log: la frase che ne nasce sì (è un pensiero della ruminazione),
+   * i pixel no.
+   */
+  private glimpse: { at: number; image: string } | undefined;
 
   public constructor(private readonly deps: FaceGatewayDeps) {}
 
@@ -106,6 +113,17 @@ export class FaceGateway {
   public broadcastSpeak(text: string): void {
     for (const send of this.senders) {
       send({ type: "speak", text });
+    }
+  }
+
+  /**
+   * Gruppo 12: parla nel sonno. La nuvoletta senza la voce — il muso mostra
+   * e il registro ricorda, ma il TTS non parte: un borbottio che sveglia la
+   * casa non è un borbottio, è una sveglia.
+   */
+  public broadcastMurmur(text: string): void {
+    for (const send of this.senders) {
+      send({ type: "speak", text, murmur: true });
     }
   }
 
@@ -131,6 +149,21 @@ export class FaceGateway {
     for (const send of this.senders) {
       send({ type: "enroll_voice", beingId, name });
     }
+  }
+
+  /** Gruppo 12: «fammi dare un'occhiata» — lo sguardo si chiede, mai si prende. */
+  public askGlimpse(): void {
+    for (const send of this.senders) {
+      send({ type: "glimpse_ask" });
+    }
+  }
+
+  /** L'ultimo sguardo se è fresco, e poi non c'è più: si guarda una volta. */
+  public takeGlimpse(maxAgeMs: number, at: Date = new Date()): string | undefined {
+    const held = this.glimpse;
+    this.glimpse = undefined;
+    if (held === undefined || at.getTime() - held.at > maxAgeMs) return undefined;
+    return held.image;
   }
 
   /** The one act that carries across the room without being looked at. */
@@ -404,6 +437,20 @@ export class FaceGateway {
         await this.recordEvent("shake", {});
         await this.deps.psyche.applyEventType("shake", at);
         this.pushMood(send);
+        return;
+      }
+      case "glimpse": {
+        // gruppo 12: lo sguardo chiesto è arrivato. In memoria e basta — la
+        // ruminazione lo consumerà al prossimo battito; nessun evento, perché
+        // un'immagine non è un fatto finché qualcuno non l'ha guardata
+        this.glimpse = { at: at.getTime(), image: message.image };
+        return;
+      }
+      case "seen_object": {
+        // gruppo 12: ha visto una cosa. Il corpo ha già reagito da solo (zero
+        // token); qui resta la traccia — categoria e basta, mai un'immagine —
+        // così il sogno e la ruminazione possono raccontarla domani
+        await this.recordEvent("seen_object", { kind: message.kind });
         return;
       }
       case "voice_sample": {

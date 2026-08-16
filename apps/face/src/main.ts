@@ -10,8 +10,10 @@ import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { myBuildId, shouldReload } from "./version.js";
 import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noiseGate.js";
 import { mountLogPanel } from "./logPanel.js";
+import { startObjectSpotter } from "./objectSpotter.js";
 import { Speech } from "./speech.js";
 import { worthSending } from "./heard.js";
+import { watchSky } from "./skyWatch.js";
 import { mountVoiceInvite } from "./voiceInvite.js";
 import { FaceSocket } from "./ws.js";
 
@@ -58,6 +60,25 @@ const renderer = createFace(canvas, {
 });
 const glyph = new GlyphDriver(app);
 const speech = new Speech();
+/** gruppo 12: la camera accesa, se c'è — per lo sguardo chiesto da soul */
+let activeCamera: { video?: HTMLVideoElement } | null = null;
+
+/**
+ * Uno sguardo della stanza: 320px di JPEG, solo quando soul lo CHIEDE e solo
+ * a camera già accesa. I pixel vanno al server di casa, il modello locale li
+ * racconta, e nessuno li scrive da nessuna parte.
+ */
+function captureGlimpse(): string | undefined {
+  const video = activeCamera?.video;
+  if (video === undefined || video.videoWidth === 0) return undefined;
+  const frame = document.createElement("canvas");
+  frame.width = 320;
+  frame.height = Math.max(1, Math.round((320 * video.videoHeight) / video.videoWidth));
+  const ctx = frame.getContext("2d");
+  if (ctx === null) return undefined;
+  ctx.drawImage(video, 0, 0, frame.width, frame.height);
+  return frame.toDataURL("image/jpeg", 0.6).split(",")[1];
+}
 let lastPresenceAt = 0;
 /** who is in this room (ADR-036); one nameless entry until the roster lands */
 let residents: { id: string; name: string }[] = [];
@@ -274,6 +295,10 @@ function onServerMessage(message: ServerToFaceMessage): void {
         mine: false,
       });
       showSpeech(message.text, message.who);
+      // gruppo 12: un `murmur` è parlare nel sonno — la nuvoletta appare e il
+      // registro ricorda, ma la voce NON parte e nessuno si gira a guardare:
+      // un borbottio notturno che sveglia la casa è una sveglia
+      if (message.murmur === true) return;
       speech.speak(message.text, message.who);
       // and the others turn to look at whoever is talking: a room where
       // nobody reacts to anybody is two creatures in the same picture, not
@@ -308,6 +333,13 @@ function onServerMessage(message: ServerToFaceMessage): void {
       // senza la seconda cosa dovrebbe ricaricare il chiosco a ogni cuscino.
       renderer.setProps?.(message.props);
       return;
+    case "glimpse_ask": {
+      // gruppo 12: «fammi dare un'occhiata». Solo a camera accesa — a camera
+      // spenta la risposta è niente, che è la risposta giusta
+      const image = captureGlimpse();
+      if (image !== undefined) socket.send({ type: "glimpse", image });
+      return;
+    }
     case "enroll_voice":
       // ADR-057, la seconda metà: il volto è appena stato imparato, e UGO
       // chiede anche la voce. Nel registro, così si capisce da dove è
@@ -524,6 +556,19 @@ micButton.addEventListener("click", () => {
       // due sorgenti sulle stesse pupille vuol dire che vince l'ultima che ha
       // parlato: da qui in poi decide la camera, e il dito si toglie di mezzo
       pointerGaze.stop();
+      activeCamera = camera;
+      // gruppo 12: gli occhi per le cose, sulla STESSA camera — un giro ogni
+      // tre secondi, on-device, e il video non esce mai. La reazione è del
+      // corpo (zero token); a soul va solo la categoria, per il registro
+      if (camera.video !== undefined) {
+        void startObjectSpotter(camera.video, (spotted) => {
+          showSpeech(
+            spotted.kind === "apple" ? "Grunf! Una mela!? Per me?" : `Oh, ${spotted.label}!`,
+          );
+          renderer.reflex(spotted.kind === "apple" ? "wiggle" : "perkUp");
+          sendToSoul({ type: "seen_object", kind: spotted.kind });
+        });
+      }
     }
     startListening();
     micButton.hidden = true;
@@ -545,6 +590,10 @@ renderer.start();
 void socket.start();
 // the picker asks the soul which rooms exist; it never blocks the body
 void loadRooms();
+// gruppo 12: il cielo del recinto segue quello vero — meteo da soul ogni
+// mezz'ora, e di notte luna e pianeti calcolati qui (zero rete). Un corpo 2D
+// non ha un cielo e ignora tutto, come per gli arredi
+watchSky(soulHttp, (state) => renderer.setSky?.(state));
 
 
 // ---- portable mode wiring (§4.2) ------------------------------------------

@@ -24,6 +24,7 @@ import { registerCustomersRoutes } from "./routes/customers.js";
 import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
 import { registerPrintRoutes } from "./routes/prints.js";
 import { registerFeedRoutes } from "./routes/feeds.js";
+import { registerWeatherRoute, type WeatherDeps } from "./routes/weather.js";
 import { registerPropRoutes } from "./routes/props.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
 import { AnswerCache } from "./services/reception/answerCache.js";
@@ -112,6 +113,8 @@ export interface ServerOptions extends HealthDeps {
         gosinoId: string;
       }) => Promise<"learned" | "refused" | "unreachable">;
     };
+    /** gruppo 12: il meteo vero per il cielo del recinto; assente = rotta muta */
+    weather?: WeatherDeps;
   };
 }
 
@@ -159,6 +162,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       reception,
       customers,
       prints,
+      weather,
       ...v1
     } = options.features;
     // first, and before every route below it: Fastify binds onRequest hooks to
@@ -190,6 +194,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // il selettore del pannello: aperta al solo token, che e' gia' abbastanza
     // — dice quali case *quel* token puo' vedere, e per quasi tutti e' una
     registerHouseholdRoutes(app, { db: options.db });
+    // gruppo 12: il tempo che fa, per il cielo del recinto. Aperta come
+    // /v1/rooms — il corpo non porta un token — e muta senza coordinate
+    registerWeatherRoute(app, weather ?? {});
     registerJobsRoutes(app, {
       db: options.db,
       guard,

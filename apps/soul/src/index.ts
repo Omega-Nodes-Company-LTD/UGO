@@ -4,6 +4,7 @@ import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { LlmClient, OllamaEmbeddingsClient,
   OllamaTextClient,
+  OllamaVisionClient,
 } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
@@ -22,6 +23,8 @@ import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { CouncilService } from "./services/council/councilService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
 import { RuminationService } from "./services/rumination.js";
+import { SceneGlance } from "./services/sceneGlance.js";
+import { SleepTalk } from "./services/sleepTalk.js";
 import { storeVoiceSample } from "./services/voiceEnrolment.js";
 import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
@@ -190,6 +193,12 @@ const localText = new OllamaTextClient(
   env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
 );
 let localTextUp = false;
+// gruppo 12: gli occhi che raccontano — il modello vision locale, se c'è
+const localVision =
+  env.OLLAMA_VISION_MODEL === undefined
+    ? undefined
+    : new OllamaVisionClient(env.OLLAMA_URL, env.OLLAMA_VISION_MODEL);
+let localVisionUp = false;
 const probeLocal = (): void => {
   localText
     .available()
@@ -198,6 +207,14 @@ const probeLocal = (): void => {
     })
     .catch(() => {
       localTextUp = false;
+    });
+  localVision
+    ?.available()
+    .then((up) => {
+      localVisionUp = up;
+    })
+    .catch(() => {
+      localVisionUp = false;
     });
 };
 probeLocal();
@@ -301,6 +318,11 @@ const app = buildServer({
     // ADR-057: rivendicare un'impronta ignota passa dallo stesso servizio che
     // tiene gli encoder, e con lo stesso client per casa
     ...(recognition !== undefined && { prints: recognition }),
+    // gruppo 12: il meteo vero — solo se la casa ha detto dove sta
+    ...(env.UGO_HOME_LAT !== undefined &&
+      env.UGO_HOME_LON !== undefined && {
+        weather: { home: { lat: env.UGO_HOME_LAT, lon: env.UGO_HOME_LON } },
+      }),
   },
 });
 
@@ -317,6 +339,18 @@ if (meetings !== undefined) {
 // ADR-059: la ruminazione — pensa coi modelli locali, mai col provider.
 // Cavalca il battito delle iniziative invece di avere un ciclo suo: stesso
 // sfalsamento, un solo posto da guardare quando ci si chiede «cosa gira».
+// gruppo 12: parla nel sonno — di notte, un frammento del diario di ieri
+// come nuvoletta senza voce. Stesso battito delle iniziative, zero token.
+const sleepTalk = new SleepTalk({ db, hourOf });
+
+// gruppo 12, secondo taglio della visione: ogni tanto UGO dà un'occhiata —
+// lo sguardo si chiede al chiosco, il modello locale lo racconta, la frase
+// entra nella ruminazione. Solo se il modello vision è configurato.
+const sceneGlance =
+  localVision === undefined
+    ? undefined
+    : new SceneGlance({ db, vision: localVision, visionUp: () => localVisionUp, hourOf });
+
 const rumination = new RuminationService({
   db,
   local: localText,
@@ -342,6 +376,24 @@ const volitionTimer = setInterval(() => {
           })
           .catch((error: unknown) => {
             app.log.warn(error, "initiative tick failed");
+          });
+        sceneGlance
+          ?.maybe(runtime)
+          .then((did) => {
+            // id e verbo, mai la frase (regola 6): il pensiero sta in events
+            if (did !== "nothing") app.log.info({ did, gosino: runtime.id }, "scene glance");
+          })
+          .catch((error: unknown) => {
+            app.log.warn(error, "scene glance failed");
+          });
+        sleepTalk
+          .maybe(runtime)
+          .then((did) => {
+            // id e basta, mai il frammento (regola 6)
+            if (did !== "nothing") app.log.info({ gosino: runtime.id }, "sleep talk");
+          })
+          .catch((error: unknown) => {
+            app.log.warn(error, "sleep talk failed");
           });
         rumination
           .maybe(

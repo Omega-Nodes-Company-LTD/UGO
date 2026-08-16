@@ -1,6 +1,7 @@
 import type { FaceState } from "@ugo/shared/face";
 import type { PropKind, SceneProp } from "@ugo/shared/props";
 import type { PsycheVars } from "./pose.js";
+import type { SkyState } from "./room3d.js";
 
 /**
  * The seam.
@@ -66,6 +67,12 @@ export interface FaceRenderer {
    * ripari, e lì il botto arriva intero com'è sempre arrivato.
    */
   shelteredNow?(): string[];
+  /**
+   * Gruppo 12: il tempo che fa e — di notte — cosa c'è lassù. Facoltativo
+   * come tutto ciò che riguarda la stanza: il corpo 2D non ha un cielo, e un
+   * meteo che arriva lì va ignorato, non fatto fallire.
+   */
+  setSky?(state: SkyState): void;
   start(): void;
   stop(): void;
   /** what the body is currently doing, for the e2e hooks */

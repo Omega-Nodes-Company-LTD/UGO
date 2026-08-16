@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { SkyBody } from "./ephemeris.js";
 
 /**
  * La stanza: pavimento, fondale, nebbia.
@@ -227,19 +228,120 @@ function floorTexture(): THREE.CanvasTexture {
  */
 const hex = (value: number): string => `#${value.toString(16).padStart(6, "0")}`;
 
-function skyTexture(): THREE.CanvasTexture {
+/**
+ * Il cielo adesso ha un tempo e un'ora (gruppo 12): il meteo VERO fuori dalla
+ * finestra e — di notte — la luna con la sua fase e i pianeti a occhio nudo,
+ * calcolati e non scaricati (`ephemeris.ts`).
+ */
+export type SkyWeather = "clear" | "cloudy" | "rain";
+
+export interface NightSky {
+  moon: { fraction: number; waxing: boolean; altitude: number; azimuth: number };
+  planets: SkyBody[];
+}
+
+export interface SkyState {
+  mode: "day" | "night";
+  weather: SkyWeather;
+  /** cosa c'è lassù stanotte; ignorato di giorno e sotto le nuvole */
+  night?: NightSky;
+}
+
+/**
+ * Le tavolozze: [alto, zenit, mezzo, basso, orizzonte]. L'orizzonte è anche il
+ * colore della nebbia — sono la stessa cosa, ed è ciò che rende invisibile
+ * l'orlo del pavimento. `floor` è il moltiplicatore del prato: il pavimento è
+ * `MeshBasicMaterial`, quindi la sua «luce» si abbassa da qui, non dalle
+ * lampade.
+ */
+const PALETTES: Record<"day" | "night", Record<SkyWeather, { stops: number[]; floor: number }>> = {
+  day: {
+    clear: { stops: [0x3b7fc4, ZENITH, 0x7fb4e2, 0xa9cfea, HORIZON], floor: 0xffffff },
+    cloudy: { stops: [0x7c8fa3, 0x8fa3b5, 0xaebdc9, 0xc6d1d9, 0xd4dce2], floor: 0xd8dde0 },
+    rain: { stops: [0x5a6a7a, 0x6b7b8a, 0x8a97a3, 0xa5aeb7, 0xb5bfc7], floor: 0xb9c2c6 },
+  },
+  night: {
+    clear: { stops: [0x05080f, 0x0d1626, 0x16233a, 0x22334c, 0x32455e], floor: 0x5a6875 },
+    cloudy: { stops: [0x090b10, 0x10141c, 0x181e28, 0x222a36, 0x2c3542], floor: 0x4c565f },
+    rain: { stops: [0x07090d, 0x0c1016, 0x131820, 0x1b222c, 0x232c37], floor: 0x434c54 },
+  },
+};
+
+/**
+ * Da dove sta un corpo celeste a dove dipingerlo sulla trama.
+ *
+ * L'azimut fa il giro della cupola (u), la quota sale verso lo zenit (y più
+ * piccolo). La fascia che la camera vede davvero è quella bassa (vedi il
+ * commento della sfumatura), quindi la quota si comprime apposta verso
+ * l'orizzonte: è scenografia dichiarata, non un planetario — la verifica fine
+ * si fa col cielo vero sopra il chiosco.
+ */
+function paintAt(altitude: number, azimuth: number): { x: number; y: number } {
+  return {
+    x: (azimuth / 360) * TEXTURE_PX,
+    y: TEXTURE_PX * (0.97 - (Math.min(altitude, 90) / 90) * 0.75),
+  };
+}
+
+function paintNight(ctx: CanvasRenderingContext2D, night: NightSky): void {
+  // le stelle: deterministiche, come il prato — un cielo che si rimescola a
+  // ogni ricarica si nota proprio perché nessuno lo sta fissando
+  const rng = mulberry32(20260816);
+  for (let i = 0; i < 150; i += 1) {
+    const y = rng() * TEXTURE_PX * 0.9;
+    ctx.fillStyle = rng() < 0.2 ? "#e8ecf5" : "#aeb8cc";
+    ctx.globalAlpha = 0.4 + rng() * 0.6;
+    ctx.fillRect(rng() * TEXTURE_PX, y, 1, 1);
+  }
+  ctx.globalAlpha = 1;
+
+  for (const body of night.planets) {
+    const { x, y } = paintAt(body.altitude, body.azimuth);
+    ctx.fillStyle = body.color;
+    ctx.beginPath();
+    ctx.arc(x, y, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (night.moon.altitude > 0) {
+    const { x, y } = paintAt(night.moon.altitude, night.moon.azimuth);
+    const r = 7;
+    ctx.fillStyle = "#e9e7dc";
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    // la fase: il disco scuro che copre la parte non illuminata, spostato dal
+    // lato giusto — crescente illuminata a ovest, calante a est
+    const offset = (1 - night.moon.fraction) * 2 * r * (night.moon.waxing ? -1 : 1);
+    if (Math.abs(offset) > 0.5) {
+      ctx.fillStyle = hex(PALETTES.night.clear.stops[1] ?? 0x0d1626);
+      ctx.beginPath();
+      ctx.arc(x + offset, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function skyTexture(state: SkyState): THREE.CanvasTexture {
   const ctx = context(TEXTURE_PX);
+  const palette = PALETTES[state.mode][state.weather];
   const gradient = ctx.createLinearGradient(0, 0, 0, TEXTURE_PX);
   // sopra la fascia visibile: più carico, per il giorno che l'inquadratura si
   // alzasse. Non si vede, ma un cielo che schiarisce salendo sarebbe sbagliato
   // proprio nel verso che si nota
-  gradient.addColorStop(0, hex(0x3b7fc4));
-  gradient.addColorStop(0.55, hex(ZENITH));
-  gradient.addColorStop(0.72, hex(0x7fb4e2));
-  gradient.addColorStop(0.86, hex(0xa9cfea));
-  gradient.addColorStop(1, hex(HORIZON));
+  const [top, zenith, mid, low, horizonStop] = palette.stops;
+  gradient.addColorStop(0, hex(top ?? 0));
+  gradient.addColorStop(0.55, hex(zenith ?? 0));
+  gradient.addColorStop(0.72, hex(mid ?? 0));
+  gradient.addColorStop(0.86, hex(low ?? 0));
+  gradient.addColorStop(1, hex(horizonStop ?? 0));
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, TEXTURE_PX, TEXTURE_PX);
+  // gli astri solo a cielo sereno: sotto le nuvole non si vedono, e
+  // disegnarli sarebbe una bugia proprio del genere che il meteo vero toglie
+  if (state.mode === "night" && state.weather === "clear" && state.night !== undefined) {
+    paintNight(ctx, state.night);
+  }
   const texture = new THREE.CanvasTexture(ctx.canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -249,11 +351,15 @@ export class Room {
   public readonly object = new THREE.Group();
   private readonly fog = new THREE.Fog(HORIZON, 10, 40);
   private readonly textures: THREE.Texture[] = [];
+  private readonly floorMaterial: THREE.MeshBasicMaterial;
+  private readonly skyMaterial: THREE.MeshBasicMaterial;
+  private skyMap: THREE.CanvasTexture;
 
   public constructor(private readonly scene: THREE.Scene) {
     const map = floorTexture();
-    const sky = skyTexture();
-    this.textures.push(map, sky);
+    const sky = skyTexture({ mode: "day", weather: "clear" });
+    this.skyMap = sky;
+    this.textures.push(map);
 
     /**
      * `MeshBasicMaterial`, e non è una rinuncia estetica: è **dove stava il
@@ -268,10 +374,8 @@ export class Room {
      * già del colore del cielo, non c'è nessun orlo da nascondere.
      * Basic + opaco + una trama sola: 14,5 fps sullo stesso banco.
      */
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(FLOOR_RADIUS, 64),
-      new THREE.MeshBasicMaterial({ map }),
-    );
+    this.floorMaterial = new THREE.MeshBasicMaterial({ map });
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(FLOOR_RADIUS, 64), this.floorMaterial);
     floor.rotation.x = -Math.PI / 2;
     // sotto l'ombra finta del maiale, che sta a `y = 0.005`: sullo stesso piano
     // le due superfici si contenderebbero il pixel e l'ombra lampeggerebbe
@@ -280,9 +384,15 @@ export class Room {
 
     // aperto sopra e sotto: senza tappi non c'è una cupola da vedere, e il
     // `BackSide` è ciò che lo rende un dentro invece che un oggetto
+    this.skyMaterial = new THREE.MeshBasicMaterial({
+      map: sky,
+      side: THREE.BackSide,
+      fog: false,
+      depthWrite: false,
+    });
     const sphere = new THREE.Mesh(
       new THREE.CylinderGeometry(BACKDROP_RADIUS, BACKDROP_RADIUS, FLOOR_RADIUS * 2, 48, 1, true),
-      new THREE.MeshBasicMaterial({ map: sky, side: THREE.BackSide, fog: false, depthWrite: false }),
+      this.skyMaterial,
     );
     // il centro sta **sopra** l'orizzonte, così la metà bassa della trama —
     // quella pallida — cade dove guarda la camera, e l'azzurro pieno resta in
@@ -308,6 +418,27 @@ export class Room {
     this.fog.far = distance + 32;
   }
 
+  /**
+   * Il tempo che fa, e — di notte — cosa c'è lassù (gruppo 12).
+   *
+   * Rigenera la trama del cielo, accorda la nebbia all'orizzonte nuovo (sono
+   * la stessa cosa: è ciò che rende invisibile l'orlo del pavimento) e abbassa
+   * la «luce» del prato — che è `MeshBasicMaterial`, quindi la sua
+   * illuminazione è un moltiplicatore, non una lampada. Una trama nuova ogni
+   * mezz'ora al massimo: il costo è di generazione, non per fotogramma.
+   */
+  public setSky(state: SkyState): void {
+    const next = skyTexture(state);
+    this.skyMaterial.map = next;
+    this.skyMaterial.needsUpdate = true;
+    this.skyMap.dispose();
+    this.skyMap = next;
+    const palette = PALETTES[state.mode][state.weather];
+    const horizonColor = palette.stops[4] ?? HORIZON;
+    this.fog.color.setHex(horizonColor);
+    this.floorMaterial.color.setHex(palette.floor);
+  }
+
   /** Portable mode (§4.2): la stanza è la cosa più cara da riempire. */
   public setVisible(on: boolean): void {
     this.object.visible = on;
@@ -328,5 +459,6 @@ export class Room {
       }
     });
     for (const texture of this.textures) texture.dispose();
+    this.skyMap.dispose();
   }
 }

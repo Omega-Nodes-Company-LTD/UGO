@@ -8,7 +8,7 @@ import type { FaceRenderer, Resident } from "./faceRenderer.js";
 import { Inhabitant } from "./inhabitant.js";
 import type { Traits } from "./pig.js";
 import type { PsycheVars } from "./pose.js";
-import { BACKDROP_RADIUS, Room } from "./room3d.js";
+import { BACKDROP_RADIUS, Room, type SkyState } from "./room3d.js";
 
 /**
  * The WebGL room: scene, lights, camera, and the clock.
@@ -188,6 +188,11 @@ export class Webgl3dFace implements FaceRenderer {
     this.props = props;
     this.furniture.set(props);
     this.spreadProps();
+  }
+
+  /** Gruppo 12: il tempo che fa fuori, e il cielo di stanotte. */
+  public setSky(state: SkyState): void {
+    this.room.setSky(state);
   }
 
   /**

@@ -89,6 +89,21 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("tap") }),
   z.object({ type: z.literal("shake") }),
   /**
+   * Gruppo 12: il corpo ha riconosciuto una COSA davanti alla camera —
+   * EfficientDet on-device, il video non esce mai. `kind` è la categoria in
+   * snake_case («apple», «teddy_bear»), mai un'immagine: al registro degli
+   * eventi interessa che ha visto una mela, non la foto della mela.
+   */
+  z.object({ type: z.literal("seen_object"), kind: z.string().min(1).max(24) }),
+  /**
+   * Gruppo 12, il secondo taglio della visione: uno sguardo della stanza,
+   * chiesto da soul (`glimpse_ask`) e MAI spontaneo — un corpo che manda
+   * immagini quando vuole è una telecamera di sorveglianza, non un paio
+   * d'occhi. JPEG 320×240 in base64 (~15-25k caratteri; il tetto lascia
+   * margine), descritto dal modello locale e mai scritto da nessuna parte.
+   */
+  z.object({ type: z.literal("glimpse"), image: z.string().min(1).max(120_000) }),
+  /**
    * ADR-058: la mela. Un premio deliberato, e non un tocco qualunque.
    *
    * Il bersaglio è il **muso**, non tutta la tela: `tap` è la carezza e arriva
@@ -168,7 +183,17 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
     vars: z.record(z.string(), z.number()),
     who: z.string().optional(),
   }),
-  z.object({ type: z.literal("speak"), text: z.string(), who: z.string().optional() }),
+  /**
+   * `murmur` (gruppo 12): parla nel sonno. La nuvoletta appare e il registro
+   * ricorda, ma il TTS NON parte — un borbottio notturno che sveglia la casa
+   * non è un borbottio, è una sveglia. Assente = la frase di sempre, a voce.
+   */
+  z.object({
+    type: z.literal("speak"),
+    text: z.string(),
+    who: z.string().optional(),
+    murmur: z.boolean().optional(),
+  }),
   z.object({ type: z.literal("state"), state: z.enum(FACE_STATES), who: z.string().optional() }),
   z.object({ type: z.literal("glyph"), pattern: z.enum(GLYPH_PATTERNS), who: z.string().optional() }),
   // ADR-027: soul decides an initiative, the body performs it. The id is a
@@ -221,6 +246,9 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
     name: z.string().min(1).max(80),
     who: z.string().optional(),
   }),
+  /** gruppo 12: «fammi dare un'occhiata» — il corpo risponde con un `glimpse`
+   * se la camera è accesa, e con niente se non lo è: lo sguardo si chiede */
+  z.object({ type: z.literal("glimpse_ask") }),
   z.object({
     type: z.literal("roster"),
     room: z.string().optional(),

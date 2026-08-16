@@ -1989,6 +1989,36 @@ vogliono il modello Ollama (audio, faceWs) restano alla CI. **Il bundle del
 muso va ricostruito**: l'invito della voce non arriva sul dispositivo finché
 la versione in basso a destra non cambia.
 
+## 6-tertricies. Il mondo vero: gruppo 12, e i due tagli della visione
+
+Direttiva del proprietario, in due battute: «i due tagli della visione sono
+incredibili, implementiamoli; il mondo vero è assolutamente da implementare,
+TUTTI i punti che si possono fare» — poi espansa: «tutte le proposte, espanse
+a quello fattibile non nominato» (il programma è il gruppo 13 del BACKLOG).
+Zero token del provider su tutto il giro; il costo da sorvegliare resta la
+batteria, mai misurata.
+
+**Gli anniversari** — passo `anniversaries` del sogno da `beings.arrival_at`.
+**Il meteo vero** — `GET /v1/weather` (open-meteo via soul, memo 30′,
+`UGO_HOME_LAT/LON`); tavolozze giorno/notte × sereno/coperto/pioggia su
+cielo, nebbia e prato. **Il cielo di stanotte** — effemeridi calcolate
+(`ephemeris.ts`, Schlyter ~1°; la fase della luna provata sulle date vere del
+gennaio 2000), stelle deterministiche, pianeti col loro colore, niente astri
+sotto le nuvole. **Parla nel sonno** — frame `speak.murmur`: frammento del
+diario di ieri in nuvoletta senza voce, distanziatore 45′. **Gli occhi per le
+cose** — EfficientDet on-device (modello vendorizzato come il blaze_face),
+una camera per due rilevatori, giro ogni 3 s, silenzio di 10′ per categoria;
+a soul solo `seen_object`. **L'occhiata** — lo sguardo si CHIEDE
+(`glimpse_ask`), il chiosco risponde a camera accesa, `OllamaVisionClient`
+(`OLLAMA_VISION_MODEL`) lo fa diventare una frase nel canale della
+ruminazione; i pixel vivono in memoria nel gateway e si consumano alla
+lettura — mai su disco.
+
+Verifica locale su infrastruttura vera: anniversari 2/2 (PG), weather 4/4,
+ephemeris 5/5, skyWatch 3/3, sleepTalk 8/8 (PG), objectSpotter 4/4,
+sceneGlance 4/4 (PG, client vision registrato). **Il bundle del muso va
+ricostruito.**
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
