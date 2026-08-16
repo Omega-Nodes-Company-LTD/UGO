@@ -15,7 +15,7 @@ import {
   unknownPrints,
 } from "@ugo/db";
 import { startMinio, startPostgres, type MinioHandle } from "@ugo/factories";
-import type { ServerToFaceMessage } from "@ugo/shared";
+import { loadSpeciesMap, type ServerToFaceMessage } from "@ugo/shared";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -132,6 +132,8 @@ beforeAll(async () => {
     features: {
       chat,
       psyche,
+      // la pagina «I volti» legge /v1/pack: serve la mappa delle specie
+      speciesMap: loadSpeciesMap(undefined),
       // il claim che "impara" sempre: qui si prova ciò che viene DOPO il
       // riconoscitore, non il riconoscitore (che ha i suoi test in ops/jobs)
       prints: () => ({ claimPrint: () => Promise.resolve("learned" as const) }),
@@ -181,6 +183,38 @@ describe("openVoiceAsk: il claim apre la richiesta", () => {
       payload: randomBytes(16),
     });
     await expect(openVoiceAsk(db, { householdId: house, beingId })).resolves.toBeUndefined();
+  });
+});
+
+describe("/v1/pack dice anche il volto (il 404 della pagina «I volti»)", () => {
+  it("hasFaceProfile è vero per chi ha un'impronta del volto, falso per gli altri", async () => {
+    // la pagina «I volti» chiamava GET /v1/beings, che non è MAI esistita:
+    // in produzione moriva con «HTTP 404» sotto il selettore. Adesso legge
+    // /v1/pack, e /v1/pack deve saper dire chi ha un profilo del volto.
+    const faced = await newBeing({ displayName: "Volto Noto" });
+    await db.insert(recognitionProfiles).values({
+      beingId: faced,
+      householdId: house,
+      modality: "face",
+      model: "arcface",
+      dimensions: 4,
+      payload: randomBytes(16),
+    });
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/pack",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(response.statusCode).toBe(200);
+    const pack = response.json() as {
+      beings: { displayName: string; hasFaceProfile: boolean }[];
+    };
+    const known = pack.beings.find((being) => being.displayName === "Volto Noto");
+    expect(known?.hasFaceProfile).toBe(true);
+    expect(
+      pack.beings.filter((being) => being.displayName !== "Volto Noto")
+        .every((being) => being.hasFaceProfile === false),
+    ).toBe(true);
   });
 });
 
