@@ -288,7 +288,7 @@ describe("the conversation", () => {
       payload: { gosinoId: houseA.gosinoId, text: "A che punto siamo con i lavori?" },
     });
     expect(response.statusCode).toBe(200);
-    const dynamic = stub.requests.at(-1)?.body.system?.at(-1)?.text ?? "";
+    const dynamic = stub.requests.at(-1)?.body.system.at(-1)?.text ?? "";
     expect(dynamic).toContain("Il punto dei lavori (aggiornato al 2026-08-15)");
     expect(dynamic).toContain("abc1234");
     // e resta un ripiego: il ciphertext non entra mai nel prompt

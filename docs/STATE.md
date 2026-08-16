@@ -1942,6 +1942,53 @@ vero (ruminazione 7/7, feed pytest 6/6, rotte feed 4/4, wander 21/21, tastes
 4/4, psyche 33/33); faceWs e i passi del sogno che vogliono il modello restano
 alla CI. Turbo 37/37 a ogni commit.
 
+## 6-duotricies. Il gruppo 11: i debiti dichiarati, pagati
+
+Quattro righe di questo stesso documento — «va agganciata al giro notturno»,
+«manca il pezzo di `main.ts`», «manca la consegna al mattino», «lo renderebbe
+gratis anche a freddo» — trasformate in quattro commit. Zero token del
+provider su tutto il gruppo.
+
+**La retention delle impronte la mantiene il sogno.** Il passo `enroll` apre
+il giro buttando le `unknown_prints` più vecchie di 30 giorni — prima si butta
+il vecchio, poi si impara il nuovo — con riga di audit `prints_expired` (id e
+conteggi). La rotta `POST /v1/prints/expire` resta per dimostrarla a mano. Il
+test prova la frase che conta: la scaduta del vicino NON si tocca, il suo
+sogno se ne occupa.
+
+**La voce dopo il volto, dal chiosco (ADR-057 completato).** Il claim del
+volto adesso apre la richiesta della voce: un desiderio («chiedi a X di farti
+sentire la voce»), una finestra di 30 minuti (`voiceAskOpen`), e l'invito
+`enroll_voice` trasmesso ai corpi della casa. Il chiosco mostra un bottone
+temporaneo, registra dieci secondi con la ricetta del pannello e manda
+`voice_sample`; soul lo accetta SOLO dentro la finestra — un corpo che può
+depositare biometria quando vuole è un registratore abusivo — e la finestra si
+consuma al primo campione. I controlli a monte sono gli stessi byte per
+pannello e chiosco (`storeVoiceSample`): minore e opt-out rifiutati PRIMA del
+bucket; `openVoiceAsk` non chiede mai la voce a chi non possiamo modellare né
+a chi ha già un profilo.
+
+**Il recap del mattino consegnato.** Il diario c'era da sempre; ora il passo
+`recap` (per esemplare, dopo `reflect`) fa della prima frase del diario di
+stanotte un desiderio con `due_hint` «stamattina» — la consegna passa dal
+saluto del risveglio e dall'iniziativa, canali che c'erano già. Deterministico,
+240 caratteri di tetto, niente diario ⇒ niente segnaposto.
+
+**Il punto dei lavori pre-calcolato.** Colonne `customers.digest`/`digest_at`
+(0025; ciphertext sotto la DEK: dentro ci sono titoli di ticket) scritte dal
+passo `digest` del sogno, per casa: ticket aperti coi titoli, repo con
+l'ultimo commit indicizzato, documenti e frammenti. La reception le usa quando
+il blocco vivo di GitHub non c'è, con «aggiornato al …» accanto — un digest di
+stanotte spacciato per stato vivo sarebbe una bugia di categoria. Fuori dalla
+answer cache come ogni domanda di stato vivo.
+
+Verifica su infrastruttura vera in locale: pytest 9/9 (retention 2, recap 4,
+digest 3), voiceEnrolment.integration 10/10 (PG+MinIO), reception 19/19,
+schema+RLS 16/16, props 8/8, voiceInvite 5/5, admin script 4/4. I test che
+vogliono il modello Ollama (audio, faceWs) restano alla CI. **Il bundle del
+muso va ricostruito**: l'invito della voce non arriva sul dispositivo finché
+la versione in basso a destra non cambia.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -1975,8 +2022,8 @@ alla CI. Turbo 37/37 a ogni commit.
 | ~~UGO non sa chi ha davanti in chat~~ | — | **Chiuso** da ADR-045: l'audio viaggia con la frase, `ugo-percezione` identifica, il `beingId` entra in `chat.handle` |
 | ~~`no_vision` non fermava l'arruolamento del volto~~ | Era **in produzione**: chi aveva detto «non guardarmi» sarebbe stato arruolato col volto | **Chiuso** da ADR-057: la modalità è un argomento obbligatorio di `_guard`, e il test usa un encoder che solleva se viene chiamato — così prova che il rifiuto arriva *prima* del calcolo |
 | ~~Le correzioni finivano sempre sul più anziano~~ | Con due gosini, dire a uno che urla correggeva l'altro | **Chiuso**: `?gosino=`, e con più d'uno un 400 invece di un'ipotesi |
-| **Impronte biometriche di chi non ha acconsentito** (ADR-057) | Scelta consapevole del proprietario, e resta il debito che pesa di più in questa lista | Cifrate, 30 giorni di retention **applicata da una rotta**, cancellabili una per una, distrutte dall'oblio, e una pagina di `/documentation` che lo dice a chi entra in casa. La retention gira però solo se qualcuno chiama `POST /v1/prints/expire`: **va agganciata al giro notturno**, ed è la prima cosa da fare del prossimo giro |
-| **La voce dopo il volto è a metà** (ADR-057) | UGO chiede di parlare, ma il chiosco non registra ancora i dieci secondi da solo: la voce si arruola dal pannello | Il percorso esiste tutto (`/v1/beings/:id/enroll/voice/audio`), manca il pezzo di `main.ts` che apre il microfono e lo manda. Piccolo, e va fatto quando si tocca di nuovo il muso |
+| **Impronte biometriche di chi non ha acconsentito** (ADR-057) | Scelta consapevole del proprietario: il debito resta finché esistono impronte, ma le garanzie adesso girano da sole | Cifrate, cancellabili una per una, distrutte dall'oblio, pagina di `/documentation`, e **retention 30 giorni mantenuta dal sogno** (§6-duotricies): il passo `enroll` le espelle ogni notte con riga di audit. La rotta resta per dimostrarla a mano |
+| ~~La voce dopo il volto è a metà~~ (ADR-057) | — | **Chiuso** (§6-duotricies): il claim apre desiderio + finestra di 30 minuti, il chiosco registra e manda `voice_sample`, soul accetta solo dentro la finestra e la consuma al primo campione |
 | **`used_prop` è un evento che la creatura si procura da sé** (ADR-056) | È l'unico anello chiuso del sistema: il corpo sceglie di andare sul cuscino e genera l'evento che lo ricompensa | Il `ceiling` lo chiude, e i test lo dimostrano (un arrivo, non uno per fotogramma). Da riguardare se un giorno gli arredi diventassero molti: otto per stanza è anche un limite di sicurezza, non solo di estetica |
 | **La batteria del corpo 3D peggiora ancora** | Pavimento, fondale, nebbia e fino a otto arredi in più per fotogramma | Portable mode spegne la stanza per prima. Il numero però continua a non esistere: è la stessa riga di sopra, adesso più urgente |
 | **Il giro completo del riconoscimento non è provato end-to-end** (ADR-045) | I pezzi sono misurati e testati, il giro con audio vero attraverso il servizio vero no: richiede l'immagine da 2 GB costruita e i pesi montati | **Ha già fatto danno**: il corpo spediva al ritmo del microfono e non a 16 kHz, quindi ogni frase col microfono acceso sforava il tetto del contratto e UGO non rispondeva (§6-duovicies). Nessun test copriva la giunzione, perché ogni pezzo era corretto da solo. Da fare al primo deploy, con due voci di casa arruolate |
