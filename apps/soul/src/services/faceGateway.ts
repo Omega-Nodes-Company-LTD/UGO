@@ -12,6 +12,7 @@ import {
 import { and, asc, eq, gte } from "drizzle-orm";
 import type { ChatService } from "./chatService.js";
 import type { PsycheService } from "./psycheService.js";
+import { toneOfBase64 } from "./prosody.js";
 import { voiceAskOpen, type VoiceSampleResult } from "./voiceEnrolment.js";
 
 export interface FaceGatewayDeps {
@@ -332,6 +333,19 @@ export class FaceGateway {
           message.audio === undefined
             ? undefined
             : (await this.deps.recognition?.byVoice(message.audio))?.beingId;
+        // gruppo 13: il TONO della frase tocca la psiche — prosodia locale,
+        // zero modelli. Prima di chat.handle, così l'umore con cui risponde
+        // sa già come gli hai parlato. Il neutro non è un evento.
+        if (message.audio !== undefined) {
+          const tone = toneOfBase64(message.audio);
+          if (tone !== undefined) {
+            await this.deps.psyche.applyEventType(
+              tone === "acceso" ? "excited_voice" : "calm_voice",
+              at,
+            );
+            await this.recordEvent("voice_tone", { tone });
+          }
+        }
         const response = await this.deps.chat.handle(
           { channel: "home", text: message.text, ...(who !== undefined && { beingId: who }) },
           at,
