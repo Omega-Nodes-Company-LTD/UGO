@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.30.0"
-last_updated: "2026-08-15"
+version: "0.30.1"
+last_updated: "2026-08-16"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -301,7 +301,7 @@ zero e la tabella `people` non è mai esistita.
 | Biometria | ✅ centroidi in `bytea` cifrato AES-256-GCM (`UGO1`), **mai** colonne `vector`; `model`+`dimensions` espliciti; confronto in RAM dopo decifratura |
 | Enrollment vocale | ✅ encoder MFCC reale dietro porta `VoiceEncoder`, centroide incrementale, clip cancellata la notte stessa; passo `enroll` nel sogno; rotte `POST /v1/beings/:id/enroll/voice`, `GET /v1/pack`, `POST /v1/corrections` |
 | Tutele | ✅ `is_minor` → nessun profilo biometrico, `no_audio`/`no_vision` → scarto **a monte**, enrollment ammesso **solo** dal corpo di casa. Rifiuto sia nella rotta che nel job |
-| Prompt §5.5 | ✅ nuovo blocco 3-bis (chi sono io · presenti con familiarity/affinity · relazioni tra i presenti · regole di specie · correzioni), **prima** delle memorie e sempre dinamico |
+| Prompt §5.5 | ✅ nuovo blocco 3-bis (chi sono io · presenti con familiarity/affinity · relazioni tra i presenti · regole di specie · correzioni), **prima** delle memorie e sempre dinamico. Il testo di §5.5 in PROGETTO.md è stato riallineato (2026-08-16): 3-bis, identità di specie senza nome proprio, `reception.<locale>.md` sul canale `ticket`, `max_tokens` per canale. Solo spec, nessun cambio di comportamento |
 | Oblio | ✅ il report conta i profili biometrici distrutti; l'export di portabilità include bond/relazioni/correzioni ma **non** i centroidi |
 
 ### Numeri della validazione

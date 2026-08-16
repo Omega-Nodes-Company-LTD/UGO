@@ -212,14 +212,15 @@ Transizioni corpo-casa: `lights_off && ora>22` → `sleeping`; volto rilevato da
 
 Ordine fisso dei blocchi (i primi due marcati `cache_control` — la parte cached DEVE precedere ogni contenuto dinamico):
 
-1. `[CACHED]` Identità e personalità di UGO (file versionato `packages/prompts/identity.it.md`: spirito da gosinata — idee folli che funzionano — autoironia da porcetto, grugniti occasionali, mai servile, risposte brevi in casa).
-2. `[CACHED]` Regole di formato e limiti (max 2 frasi in casa, max 3 in call; niente markdown a voce).
-3. Stato psiche (label + frase) + estratto ultimo diario.
-4. Memorie recuperate (top-k, con data).
+1. `[CACHED]` Identità **di specie** (file versionato per lingua `packages/prompts/identity.<locale>.md`, ADR-050: "sei un gosino", spirito da gosinata — idee folli che funzionano — autoironia da porcetto, grugniti occasionali, mai servile, risposte brevi in casa). **Senza nome proprio**: il nome è dato per-esemplare e viaggia nel blocco dinamico — due esemplari sotto lo stesso tetto condividono questa cache (vedi STATE, «Sono Ugo, ma mi chiamano anche Silvio»).
+2. `[CACHED]` Regole di formato e limiti (max 2 frasi in casa, max 3 in call; niente markdown a voce). Nel canale `ticket` sostituito da `reception.<locale>.md` (ADR-052).
+3. Contesto dell'esemplare: orologio della casa, persona dal genoma (`trait_sets`, ADR-015), stato psiche (label + frase).
+3-bis. Il branco (ADR-014/016): chi sono io (nome, versione tratti, stanza), i presenti con familiarity/affinity di **questo** esemplare verbalizzate a fasce, le relazioni tra i presenti, le regole di specie, le correzioni recenti. Prima delle memorie: chi è nella stanza decide come va detto un ricordo.
+4. Estratto ultimo diario, memorie recuperate (top-k, con data), eventuali estratti dalle registrazioni; in coda il budget parole dell'esemplare (18–60 dal genoma: restringe, non contraddice, il massimo di frasi cached).
 5. Ultimi N turni del canale.
 6. Messaggio utente.
 
-Modello: `claude-haiku-4-5`, `max_tokens` 200 (casa) / 300 (call). Ogni chiamata registra token e costo in `budget_ledger`.
+Modello: `claude-haiku-4-5`, `max_tokens` 200 (casa) / 300 (call) / 200 (api) / 400 (ticket). Ogni chiamata registra token e costo in `budget_ledger`.
 
 ### 5.6 Il lavoro notturno ("sogno", `ops/jobs`, cron 02:30 Europe/Rome)
 
