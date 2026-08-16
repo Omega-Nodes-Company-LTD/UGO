@@ -28,7 +28,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Notifiche push dalla PWA** | un `desire` che matura oggi muore se non guardi lo schermo |
+| ⬜️ | **Notifiche push dalla PWA** | un `desire` che matura oggi muore se non guardi lo schermo. **Accantonata dal proprietario (2026-08-16): «la PWA non funziona»** — sintomo aperto, da diagnosticare prima di costruirci sopra (cosa non funziona: installazione? apertura? icona?) |
 | ✅ | **Recap della giornata consegnato** | **gruppo 11**: passo `recap` del sogno (per esemplare) — la prima frase del diario di stanotte diventa un desiderio `stamattina`, e lo consegnano il saluto del risveglio o l'iniziativa. Zero token, tetto 240 caratteri, niente diario ⇒ niente segnaposto |
 | ⬜️ | **Template di riassunto per contesto** | riunione / cliente / famiglia, in versione minima |
 
@@ -38,7 +38,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 |---|---|---|
 | ⬜️ | **Tool calling dentro il budget guard** | insieme minimo e sorvegliato: leggi psiche, cerca in memoria, registra evento, invalida ricordo. **Idea del proprietario (2026-08-16): il banco di prova sono le interfacce del chiosco** — dirgli di andare in un'altra stanza, chiamare un altro gosino. È il posto giusto per cominciare: i canali esistono già (`gesture`, `speak`, il registro delle stanze, `peer_chat` della ruminazione), l'azione è reversibile e si vede a occhio se ha funzionato — un tool che sbaglia sposta un maiale su uno schermo, non tocca dati |
 | ⬜️ | **Server MCP** | altri agenti interrogano la memoria di UGO; quasi gratis dato l'API esistente |
-| ⬜️ | **Ricerca web** | oggi UGO non sa nulla di ciò che è successo dopo l'addestramento |
+| ⬜️ | **Ricerca web** | oggi UGO non sa nulla di ciò che è successo dopo l'addestramento. **Decisioni del proprietario (2026-08-16)**: si fa con **SearXNG self-hosted** nel compose (zero costo per query, zero API key) + sintesi coi modelli locali (pattern ruminazione: zero token del provider); sulla privacy: le query escono verso i motori ma non sono riconducibili a chi in casa le ha fatte, e questo basta — da **dichiarare** nell'ADR, non da «sistemare» |
 | 🚫 | Integrazioni in uscita (Todoist, Notion) | riapribile: serve sapere quali usi davvero |
 
 ## Gruppo 4 — Voce e presenza
@@ -64,7 +64,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ✅ | **Servizi e rotte passano la casa ovunque** | `TenantResolver` era scritto e **non lo chiamava nessuno**; la «casa corrente» era `select … from households limit 1` senza `order by`. Ora un solo `routes/scope.ts`, e una casa che non è tua risponde 404 come una che non esiste |
 | 🔨 | **RLS con ruolo Postgres dedicato** | **ADR-048**, tempo 1 fatto: ruolo `ugo_app`, politiche su tutte e 22 le tabelle, `withHousehold()` con `SET LOCAL`. Senza `FORCE`, quindi in produzione **inerte** finché non entra il tempo 2 |
 | ✅ | **Caduta dei `DEFAULT`** su `gosino_id` e `household_id` | Fatto: migrazione `0014`, diciannove colonne. Con essa cinque servizi hanno smesso di dichiarare l'esemplare facoltativo, e sei `mine()` hanno smesso di poter rispondere `undefined` — cioè di interrogare tutte le creature del server |
-| ⬜️ | **`withHousehold` per ogni richiesta, poi `DATABASE_URL_APP`** | L'altra metà del tempo 2, e serve un ADR: oggi `withHousehold` non è chiamato da nessuna parte in soul, quindi passare a `ugo_app` darebbe zero righe a ogni query — muto, non isolato. **Vincolo nuovo dal proprietario (2026-08-16)**: il tenant non è più «una famiglia» — è un'organizzazione, casa O azienda. La stessa persona può possedere un maiale a casa come PET (ricordi, affetto) e uno in azienda a seguire clienti (reception, ticket): due tenant con nature diverse e un possessore solo. L'ADR del tempo 2 deve decidere se `households` diventa `organizations` con un `kind` (home/business), cosa condividono (l'identità del possessore, i token?) e cosa MAI (ricordi, clienti, budget) |
+| 🔨 | **`withHousehold` per ogni richiesta, poi `DATABASE_URL_APP`** | **Gli ADR ci sono, scelto dal proprietario come prossimo lavoro (2026-08-16)**: ADR-061 risolve il vincolo multi-azienda (il nome `households` resta nel database, la natura è `kind` home/business, due tenant dello stesso possessore non condividono NIENTE — lui esiste due volte, un `being` per tenant, perché una tabella `users` trasversale sarebbe un tunnel sotto il muro); ADR-062 decide il come (l'unità di scoping è l'unità di lavoro: `inHousehold` sulle rotte, `withHousehold` alla radice dei tick dei runtime, `set_config` nei job; rollout 2a conversione completa coi test come `ugo_app`, 2b flip di `DATABASE_URL_APP`) |
 | 🔨 | **Job per esemplare** | il sogno cicla, i marcatori portano il gosino, l'igiene non fonde più attraverso il confine. **Manca il backup per famiglia**: `pg_dump` non filtra per riga |
 | ✅ | **Selettore di casa nel pannello** + provisioning di una famiglia | `ugo casa nuova`: cinque atti in una transazione, token del proprietario su stderr e una volta sola. `GET /v1/households` mostra la propria casa e basta — tutte solo a un `operator`. Nel pannello `#/c/<casa>/…`, nascosto finché la casa è una |
 | ✅ | **Audit log** | **ADR-049**: 12 mesi, solo ID e verbi, append-only imposto dai `GRANT` — `UPDATE` e `DELETE` **revocati** a `ugo_app`, non semplicemente non concessi. Quattro verbi, tutti cablati; emissione token e nascita casa arrivano con `ugo casa nuova` |
@@ -145,6 +145,25 @@ del provider è **zero per progetto**: qui si spende l'Ollama che oggi sta quasi
 | ✅ | **Il giocattolo preferito viene dal genoma** | La preferenza fra arredi NON si impara (l'evento scarica noia per costruzione: ogni peso imparerebbe rumore) — la decide il **carattere**: il giocherellone pesa la palla, il pigro il cuscino. Individualità vera a zero motori nuovi: due gosini nella stessa stanza sviluppano posti preferiti diversi. Pesi dai `trait_sets` dentro `somethingToDo()`, che oggi sceglie solo il più vicino |
 | ✅ | **La ruminazione: pensa coi modelli locali** | Da fermo oggi non è vuoto (volizione, solitudine, sogno) ma non rumina. Un giro locale a bassa frequenza quando è idle: pesca due ricordi, prova un accostamento (Ollama batch), e l'esito buono diventa candidato `insight` per il sogno, una **domanda per te** (il canale `askQuestion`/desideri esiste già), o due battute con l'altro gosino (i binari del consiglio esistono già, e girano già su locale). Regole dure: **mai** `llmClient` del provider, frequenza bassa con quiete notturna, e ciò che produce passa dal vaglio del sogno — non diventa memoria da solo |
 | ✅ | **I feed, e il consiglio del mattino** | `feeds.py` sul pattern dei sync clienti (tabelle `rss_feeds`/`feed_items` con RLS a mano), embedding Ollama, e al sogno l'incrocio vettoriale novità×`customer_chunks`. Sopra una soglia ALTA di somiglianza: ricordo `insight` + desiderio — «è uscita X: proporla a Rossi SRL, che nel repo usa Y» — detto la mattina dal muso o dal pannello. **Mai in reception**: il cliente non deve vedere UGO consigliare ad altri sulla base dei suoi repo. Meglio un consiglio a settimana buono che tre al giorno tirati |
+
+## Gruppo 12 — Le sgosinate a costo zero
+
+Domanda del proprietario (2026-08-16): «possiamo aggiungere cose utili o sgosinate senza
+aumentare costi?» Sì, ed è una categoria sua: il ferro è già pagato (gli Ollama semi-fermi,
+MediaPipe già impacchettato nel muso), il resto è matematica deterministica o API gratuite
+senza chiave. **Zero dollari marginali per costruzione**; il costo vero da sorvegliare è la
+batteria del chiosco, che resta non misurata (STATE §7). In attesa che il proprietario dica
+quali lo accendono.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **Riconoscimento oggetti on-device** | MediaPipe (già nel muso per i volti) ha un rilevatore oggetti da ~4 MB nel browser: UGO vede *cosa* gli mostri — una mela vera, una tazza — e reagisce a zero token, come col rumore. Apre la strada a «gli insegni i tuoi oggetti» |
+| ⬜️ | **Visione coi modelli locali** | un modello vision su Ollama (moondream è piccolo): il ritaglio della camera diventa una frase che entra nella ruminazione. È «Input immagini» del gruppo 4, fatto senza provider |
+| ⬜️ | **Il meteo vero nella stanza** | open-meteo è gratis e senza registrazione: il cielo del recinto fa il tempo che fa fuori, e UGO borbotta della pioggia. Una chiamata ogni mezz'ora |
+| ⬜️ | **Il cielo di stanotte** | posizione di luna e pianeti è pura effemeride, zero rete: se Marte è visibile stasera, sopra il recinto c'è un puntino rossastro e UGO ogni tanto lo fissa. (Nato da «corpi quantistici in orbita vicino a Marte») |
+| ⬜️ | **Anniversari e stagioni** | `beings.arrival_at` c'è già: «un anno che Francesco è nel branco» diventa un desiderio del sogno, sagoma deterministica |
+| ⬜️ | **Parla nel sonno** | di notte, ogni tanto, un frammento del diario di ieri come borbottio in nuvoletta. Il diario c'è già |
+| ⬜️ | **TTS locale (Piper)** | è la riga del gruppo 4, richiamata qui perché è il maggior guadagno di carattere a zero costo ricorrente — ma è il cantiere più lungo del gruppo |
 
 ## Scartati, con motivo
 
