@@ -23,6 +23,7 @@ from .contradictions import run_contradictions
 from .customer_digest import run_digest
 from .enroll_step import run_enroll
 from .entities import run_entities
+from .family_backup import run_family_backup
 from .feeds import run_advise, run_review
 from .hygiene import run_hygiene
 from .ingest import run_ingest
@@ -47,6 +48,7 @@ STEPS = (
     "hygiene",
     "compaction",
     "backup",
+    "family",
 )
 
 #: ADR-019 fase 3: di chi e' ciascun passo. Non tutti hanno lo stesso perimetro,
@@ -58,7 +60,7 @@ STEPS = (
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
 PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene")
-PER_HOUSEHOLD = ("ingest", "enroll", "advise", "review", "digest", "anniversaries", "backup")
+PER_HOUSEHOLD = ("ingest", "enroll", "advise", "review", "digest", "anniversaries", "backup", "family")
 GLOBAL = ("compaction",)
 
 #: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
@@ -169,6 +171,8 @@ def _run_step(
             "missing": enrolled.missing,
             # ADR-057: le impronte ignote scadute, portate via da questo giro
             "expired": enrolled.expired,
+            # percezione giù stanotte: in coda per domani, non perse
+            "deferred": enrolled.deferred,
         }
     elif step == "reflect":
         result = run_reflect(conn, cfg, dream_date)
@@ -222,6 +226,17 @@ def _run_step(
         step_report[step] = {
             "days": compaction.days_compacted,
             "events_removed": compaction.events_removed,
+        }
+    elif step == "family":
+        # gruppo 5: pg_dump è del server e non filtra per riga — questo è il
+        # backup della FAMIGLIA, le sue sole righe, ripristinabile da sola
+        family = run_family_backup(conn, cfg, dream_date)
+        step_report[step] = {
+            "object": family.object_key,
+            "tables": family.tables,
+            "rows": family.rows,
+            "bytes": family.encrypted_bytes,
+            "pruned": family.pruned,
         }
     else:
         backup = run_backup(cfg, dream_date)

@@ -171,6 +171,19 @@ describe("NoiseGate", () => {
       expect(steady(usual, 78, 40, 400 * 16)).toBe(1);
     });
 
+    it("in stanza rumorosa una voce alta non è un botto (2026-08-16)", () => {
+      // il campo: «ha paura del rumore anche se impostato su stanza
+      // rumorosa». Una voce alta a un metro fa ~25 dB sopra il pavimento:
+      // a «bassa» deve passare, a «media» può ancora far saltare
+      const tough = new NoiseGate("bassa");
+      steady(tough, 48, 400);
+      expect(steady(tough, 73, 40, 400 * 16)).toBe(0);
+
+      const usual = new NoiseGate("media");
+      steady(usual, 48, 400);
+      expect(steady(usual, 73, 40, 400 * 16)).toBe(1);
+    });
+
     it("never startles at all when the owner says so", () => {
       const off = new NoiseGate("spenta");
       steady(off, 30, 300);

@@ -46,7 +46,10 @@ import type { SkyBody } from "./ephemeris.js";
  */
 const ZENITH = 0x5b9bd8;
 /** L'orizzonte, e quindi anche il colore della nebbia: sono la stessa cosa. */
-const HORIZON = 0xc4dcec;
+// meno bianco di prima (0xc4dcec): sullo schermo vero la fascia bassa della
+// cupola occupa mezza inquadratura, e un orizzonte quasi bianco diventava
+// «quella banda inguardabile» (parole del proprietario, 2026-08-16)
+const HORIZON = 0xa8cae6;
 /**
  * Il prato, sotto un cielo diurno.
  *
@@ -319,7 +322,7 @@ const PALETTES: Record<
   Record<SkyWeather, { stops: number[]; floor: number }>
 > = {
   day: {
-    clear: { stops: [0x3b7fc4, ZENITH, 0x7fb4e2, 0xa9cfea, HORIZON], floor: 0xffffff },
+    clear: { stops: [0x3b7fc4, ZENITH, 0x74acdd, 0x8fbde2, HORIZON], floor: 0xffffff },
     cloudy: { stops: [0x7c8fa3, 0x8fa3b5, 0xaebdc9, 0xc6d1d9, 0xd4dce2], floor: 0xd8dde0 },
     rain: { stops: [0x5a6a7a, 0x6b7b8a, 0x8a97a3, 0xa5aeb7, 0xb5bfc7], floor: 0xb9c2c6 },
   },
@@ -401,9 +404,12 @@ function skyTexture(state: SkyState): THREE.CanvasTexture {
   // proprio nel verso che si nota
   const [top, zenith, mid, low, horizonStop] = palette.stops;
   gradient.addColorStop(0, hex(top ?? 0));
-  gradient.addColorStop(0.55, hex(zenith ?? 0));
-  gradient.addColorStop(0.72, hex(mid ?? 0));
-  gradient.addColorStop(0.86, hex(low ?? 0));
+  gradient.addColorStop(0.5, hex(zenith ?? 0));
+  // la parte pallida si schiaccia in fondo: la fascia che la camera vede
+  // davvero è quella bassa, e con gli stop larghi metà inquadratura era una
+  // banda slavata uniforme — il degradé deve vivere DENTRO la parte visibile
+  gradient.addColorStop(0.74, hex(mid ?? 0));
+  gradient.addColorStop(0.92, hex(low ?? 0));
   gradient.addColorStop(1, hex(horizonStop ?? 0));
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, TEXTURE_PX, TEXTURE_PX);

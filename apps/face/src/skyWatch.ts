@@ -27,9 +27,37 @@ export interface WeatherAnswer {
 const GOLDEN_BELOW = 6;
 const GOLDEN_ABOVE = -6;
 
+/**
+ * Senza coordinate configurate il cielo NON deve restare inchiodato al
+ * giorno: visto in produzione — azzurro pieno alle 22:46, niente luna né
+ * stelle, perché `/v1/weather` rispondeva «non disponibile» e lo stato non
+ * cambiava mai. Il ripiego è un cielo italiano generico (Roma) col sereno
+ * fisso: la notte arriva comunque, agli orari giusti a un quarto d'ora
+ * vicino per tutta l'Italia. Dichiarato: senza `UGO_HOME_LAT/LON` la luna
+ * sorge dove sorgerebbe a Roma.
+ */
+const FALLBACK = { lat: 41.9, lon: 12.5 };
+
+/** il sole calcolato decide il cielo: giorno, ora d'oro, o notte con gli astri */
+function solarState(weather: SkyWeather, at: Date, lat: number, lon: number): SkyState {
+  const sun = sunAltitude(at, lat, lon);
+  if (sun >= GOLDEN_BELOW) return { mode: "day", weather };
+  if (sun > GOLDEN_ABOVE) return { mode: "golden", weather };
+  return {
+    mode: "night",
+    weather,
+    night: {
+      moon: { ...moonPhase(at), ...moonPosition(at, lat, lon) },
+      planets: visiblePlanets(at, lat, lon),
+    },
+  };
+}
+
 /** La risposta di soul diventa lo stato del cielo — pura, e quindi provabile. */
-export function skyStateFrom(answer: WeatherAnswer | undefined, at: Date): SkyState | undefined {
-  if (answer?.available !== true || answer.kind === undefined) return undefined;
+export function skyStateFrom(answer: WeatherAnswer | undefined, at: Date): SkyState {
+  if (answer?.available !== true || answer.kind === undefined) {
+    return solarState("clear", at, FALLBACK.lat, FALLBACK.lon);
+  }
   // le coordinate arrivano insieme al meteo, così si configurano in un posto
   // solo; senza, si ripiega sull'is_day di open-meteo (niente ora d'oro)
   const lat = answer.lat;
@@ -39,17 +67,7 @@ export function skyStateFrom(answer: WeatherAnswer | undefined, at: Date): SkySt
   }
   // gruppo 13: alba e tramonto VERI — il sole calcolato decide il cielo, agli
   // orari di casa tua e non a ore fisse
-  const sun = sunAltitude(at, lat, lon);
-  if (sun >= GOLDEN_BELOW) return { mode: "day", weather: answer.kind };
-  if (sun > GOLDEN_ABOVE) return { mode: "golden", weather: answer.kind };
-  return {
-    mode: "night",
-    weather: answer.kind,
-    night: {
-      moon: { ...moonPhase(at), ...moonPosition(at, lat, lon) },
-      planets: visiblePlanets(at, lat, lon),
-    },
-  };
+  return solarState(answer.kind, at, lat, lon);
 }
 
 /** fra un meteo e l'altro il SOLE si muove: il modo si ricalcola più spesso */
@@ -60,8 +78,7 @@ export const SKY_RECHECK_MS = 5 * 60_000;
 export function watchSky(soulHttp: string, apply: (state: SkyState) => void): void {
   let lastAnswer: WeatherAnswer | undefined;
   const applyNow = (): void => {
-    const state = skyStateFrom(lastAnswer, new Date());
-    if (state !== undefined) apply(state);
+    apply(skyStateFrom(lastAnswer, new Date()));
   };
   const tick = async (): Promise<void> => {
     try {

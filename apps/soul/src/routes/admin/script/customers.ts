@@ -103,7 +103,8 @@ async function loadCustomerSources() {
   }
   for (const m of src.mailAccounts) {
     parts.push(line("cust-mail-del", m.id, escape(m.username) + " @ " + escape(m.imapHost),
-      SOURCE_STATE[m.status] + " · solo lettura · UID " + m.lastUid));
+      SOURCE_STATE[m.status] + " · solo lettura · UID " + m.lastUid +
+      (m.senders ? " · solo da/per " + escape(m.senders) : " · tutta la cartella")));
   }
   for (const d of src.documents) {
     parts.push(line("cust-doc-del", d.id, escape(d.filename),
@@ -226,6 +227,9 @@ $("cust-mail-go").addEventListener("click", async () => {
         username,
         password,
         folder: $("cust-mail-folder").value.trim() || "INBOX",
+        // il pre-filtro: solo le mail di QUEL cliente, non tutta la casella
+        ...($("cust-mail-senders").value.trim() !== "" &&
+          { senders: $("cust-mail-senders").value.trim() }),
       }),
     });
     $("cust-mail-pass").value = "";

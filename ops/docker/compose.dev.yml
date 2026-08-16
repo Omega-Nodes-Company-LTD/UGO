@@ -109,6 +109,11 @@ services:
       S3_BUCKET_AUDIO: ${S3_BUCKET_AUDIO:-ugo-audio}
       UGO_WHISPER_MODEL: ${UGO_WHISPER_MODEL:-large-v3}
       UGO_AUDIO_RETENTION_DAYS: ${UGO_AUDIO_RETENTION_DAYS:-90}
+      # il fix della voce dimenticata (2026-08-16): l'arruolamento vocale va
+      # fatto dalla percezione, che tiene ECAPA — il sogno le manda il campione.
+      # Vuote = ripiego MFCC locale (ha senso solo in una casa senza percezione)
+      UGO_RECOGNITION_URL: ${UGO_RECOGNITION_URL:-http://percezione:8000}
+      UGO_INTERNAL_TOKEN: ${UGO_INTERNAL_TOKEN:?missing UGO_INTERNAL_TOKEN}
       # ADR-054 — le fonti dei clienti (0 = sincronizzazione spenta)
       UGO_CUSTOMER_SYNC_EVERY_H: ${UGO_CUSTOMER_SYNC_EVERY_H:-6}
       UGO_REPOS_DIR: /var/lib/ugo/repos

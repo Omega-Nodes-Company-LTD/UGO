@@ -85,6 +85,14 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
     type: z.literal("noise"),
     db: z.number().min(0),
     sheltered: z.array(z.string().max(64)).max(8).optional(),
+    /**
+     * 2026-08-16: la stanza è DICHIARATA rumorosa (sensibilità «bassa» sul
+     * chiosco). Un botto che passa comunque il cancello lì dentro pesa metà
+     * (`loud_noise_muffled`, la famiglia di ADR-056): in un'officina i
+     * fracassi sono parte della vita, e un maiale che ci vive non deve
+     * passare la giornata col cuore a mille.
+     */
+    roomLoud: z.boolean().optional(),
   }),
   z.object({ type: z.literal("tap") }),
   z.object({ type: z.literal("shake") }),

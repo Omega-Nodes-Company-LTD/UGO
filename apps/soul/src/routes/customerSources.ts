@@ -41,6 +41,14 @@ const mailSchema = z.object({
   username: z.string().min(1).max(200),
   password: z.string().min(1).max(300),
   folder: z.string().min(1).max(100).default("INBOX"),
+  /**
+   * Il pre-filtro del proprietario (2026-08-16): indirizzi e domini ammessi,
+   * separati da virgola («mario@rossi.it, @rossisrl.it»). Il sync indicizza
+   * un messaggio solo se mittente o destinatari combaciano; vuoto = tutta la
+   * cartella. Serve quando la casella è condivisa e per QUEL cliente vanno
+   * lette solo le mail sue.
+   */
+  senders: z.string().max(2000).optional(),
 });
 
 const presignSchema = z.object({
@@ -156,6 +164,7 @@ export function registerCustomerSourcesRoutes(
           imapPort: customerMailAccounts.imapPort,
           username: customerMailAccounts.username,
           folder: customerMailAccounts.folder,
+          senders: customerMailAccounts.senders,
           lastUid: customerMailAccounts.lastUid,
           lastSyncedAt: customerMailAccounts.lastSyncedAt,
           status: customerMailAccounts.status,
@@ -232,6 +241,8 @@ export function registerCustomerSourcesRoutes(
         username: parsed.data.username,
         password: encryptText(parsed.data.password, dataKey),
         folder: parsed.data.folder,
+        ...(parsed.data.senders !== undefined &&
+          parsed.data.senders.trim() !== "" && { senders: parsed.data.senders.trim() }),
       })
       .returning({ id: customerMailAccounts.id });
     if (row === undefined) return problem(reply, 500, "Internal Server Error");
