@@ -19,6 +19,7 @@ from .backup import backup_exists, run_backup
 from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
 from .contradictions import run_contradictions
+from .customer_digest import run_digest
 from .enroll_step import run_enroll
 from .entities import run_entities
 from .feeds import run_advise
@@ -37,6 +38,7 @@ STEPS = (
     "reflect",
     "recap",
     "advise",
+    "digest",
     "contradictions",
     "entities",
     "hygiene",
@@ -53,7 +55,7 @@ STEPS = (
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
 PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene")
-PER_HOUSEHOLD = ("ingest", "enroll", "advise", "backup")
+PER_HOUSEHOLD = ("ingest", "enroll", "advise", "digest", "backup")
 GLOBAL = ("compaction",)
 
 #: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
@@ -173,6 +175,10 @@ def _run_step(
         # ADR-060: il consiglio del mattino — feed x conoscenza clienti,
         # soglia alta, un desiderio al giorno per casa al massimo
         step_report[step] = run_advise(conn, cfg)
+    elif step == "digest":
+        # backlog gruppo 8: «a che punto siamo» pre-calcolato per cliente —
+        # la reception lo usa quando lo stato vivo di GitHub non c'è
+        step_report[step] = run_digest(conn, cfg)
     elif step == "contradictions":
         contradictions = run_contradictions(conn, cfg, dream_date)
         step_report[step] = {
