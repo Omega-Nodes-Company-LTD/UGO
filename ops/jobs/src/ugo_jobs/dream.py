@@ -25,6 +25,7 @@ from .feeds import run_advise
 from .hygiene import run_hygiene
 from .ingest import run_ingest
 from .markers import FULL, LIGHT, mark_step_done, step_done
+from .recap import run_recap
 from .reflect import run_reflect
 
 # contradictions sits between reflect and hygiene on purpose (ADR-023):
@@ -34,6 +35,7 @@ STEPS = (
     "ingest",
     "enroll",
     "reflect",
+    "recap",
     "advise",
     "contradictions",
     "entities",
@@ -50,7 +52,7 @@ STEPS = (
 #:   per casa       l'audio e' del branco, il backup e' della famiglia
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
-PER_EXEMPLAR = ("reflect", "contradictions", "entities", "hygiene")
+PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene")
 PER_HOUSEHOLD = ("ingest", "enroll", "advise", "backup")
 GLOBAL = ("compaction",)
 
@@ -163,6 +165,10 @@ def _run_step(
             "desires": result.desires_written,
             "diary": result.diary_written,
         }
+    elif step == "recap":
+        # backlog gruppo 2: il diario di stanotte diventa un desiderio con
+        # due_hint «stamattina» — la consegna passa dai canali che ci sono già
+        step_report[step] = run_recap(conn, cfg, dream_date)
     elif step == "advise":
         # ADR-060: il consiglio del mattino — feed x conoscenza clienti,
         # soglia alta, un desiderio al giorno per casa al massimo
