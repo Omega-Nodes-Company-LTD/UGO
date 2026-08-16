@@ -35,7 +35,7 @@ describe("skyStateFrom", () => {
         { available: true, kind: "clear", isDay: true, lat: 41.9, lon: 12.5 },
         at,
       );
-      if (state?.mode === "golden") {
+      if (state.mode === "golden") {
         golden = at;
         break;
       }
@@ -49,17 +49,25 @@ describe("skyStateFrom", () => {
       // mezzanotte e mezza di Roma: il sole calcolato dice notte fonda
       new Date("2026-08-16T22:30:00Z"),
     );
-    expect(state?.mode).toBe("night");
-    expect(state?.night).toBeDefined();
-    const moon = state?.night?.moon;
+    expect(state.mode).toBe("night");
+    expect(state.night).toBeDefined();
+    const moon = state.night?.moon;
     expect(moon?.fraction).toBeGreaterThanOrEqual(0);
     expect(moon?.fraction).toBeLessThanOrEqual(1);
     // i pianeti sono quelli sopra l'orizzonte: lista possibilmente vuota, mai assente
-    expect(Array.isArray(state?.night?.planets)).toBe(true);
+    expect(Array.isArray(state.night?.planets)).toBe(true);
   });
 
-  it("senza meteo il cielo resta quello di prima: undefined, non un default", () => {
-    expect(skyStateFrom({ available: false }, NIGHT)).toBeUndefined();
-    expect(skyStateFrom(undefined, NIGHT)).toBeUndefined();
+  it("senza meteo la NOTTE arriva comunque: sole calcolato su Roma, sereno fisso", () => {
+    // visto in produzione: senza UGO_HOME_LAT/LON il cielo restava azzurro
+    // alle 22:46 — lo stato non cambiava mai. Alle nove e mezza di sera
+    // italiane dev'essere notte, con la luna e le stelle
+    const state = skyStateFrom({ available: false }, NIGHT);
+    expect(state.mode).toBe("night");
+    expect(state.weather).toBe("clear");
+    expect(state.night?.moon.fraction).toBeGreaterThanOrEqual(0);
+    // e a mezzogiorno resta giorno: il ripiego segue il sole, non un'ora fissa
+    const noon = new Date("2026-08-16T11:00:00Z");
+    expect(skyStateFrom(undefined, noon).mode).toBe("day");
   });
 });
