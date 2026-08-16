@@ -5,6 +5,7 @@ import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { LlmClient, OllamaEmbeddingsClient,
   OllamaTextClient,
   OllamaVisionClient,
+  OpenAiTtsClient,
 } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
@@ -323,6 +324,19 @@ const app = buildServer({
       env.UGO_HOME_LON !== undefined && {
         weather: { home: { lat: env.UGO_HOME_LAT, lon: env.UGO_HOME_LON } },
       }),
+    // gruppo 13: la voce interim — si accende con la chiave, si spegne col
+    // budget (ogni frase è una riga di budget_ledger)
+    ...(env.OPENAI_API_KEY !== undefined && {
+      tts: new OpenAiTtsClient({
+        db,
+        apiKey: env.OPENAI_API_KEY,
+        dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
+        model: env.UGO_TTS_MODEL,
+        voice: env.UGO_TTS_VOICE,
+        timezone: env.TZ,
+        ...(env.OPENAI_BASE_URL !== undefined && { baseUrl: env.OPENAI_BASE_URL }),
+      }),
+    }),
   },
 });
 

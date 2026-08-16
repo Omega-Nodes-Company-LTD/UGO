@@ -50,9 +50,16 @@ col telefono in tasca e lo schermo spento. Per il dock questo basta.
 
 > **Una cosa da sapere sull'ascolto continuo.** Il riconoscimento vocale è quello del browser, e
 > quello di Chrome **non è locale**: mentre le orecchie sono accese, ciò che dici passa dai server di
-> Google per essere trascritto. La voce che UGO usa per rispondere, invece, è del telefono e non esce
-> di casa. Il pulsante **👂** è il modo di chiudere il rubinetto in qualsiasi momento; la soluzione
-> definitiva è la parola di richiamo riconosciuta sul dispositivo (`Ehi UGO`), che arriva con l'app.
+> Google per essere trascritto. Il pulsante **👂** è il modo di chiudere il rubinetto in qualsiasi
+> momento; la soluzione definitiva è la dettatura locale sul server di casa, che è in cantiere.
+
+> **E una sulla voce con cui risponde.** Di base la voce di UGO è quella del telefono e non esce di
+> casa. Se chi amministra il server attiva la **voce emotiva** (una chiave OpenAI nell'ambiente),
+> le frasi che UGO dice vengono sintetizzate da OpenAI: hanno un tono che segue il suo umore, ma
+> **quelle frasi escono di casa** — e possono contenere pezzi della vostra vita, perché UGO parla
+> di ciò che ricorda. È una scelta, non un default: senza chiave non parte niente, ogni frase
+> rispetta il tetto di spesa giornaliero, e a tetto raggiunto UGO torna alla voce del telefono
+> senza dire niente a nessuno.
 
 ## La prima conversazione
 

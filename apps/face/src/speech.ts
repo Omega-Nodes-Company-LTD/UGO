@@ -266,7 +266,50 @@ export class Speech {
    * same voice every time and on every device, and centred on the original
    * pitch so a house with one creature still sounds exactly as it did.
    */
+  /**
+   * Gruppo 13: la voce remota, quando c'è. `undefined` dal fornitore = si
+   * ripiega sulla voce di sistema — il degrado è dichiarato lato soul (204:
+   * niente chiave, o salvadanaio finito), e il muso non deve saperne il
+   * perché: deve solo continuare a parlare.
+   */
+  private remote: ((text: string, who?: string) => Promise<Blob | undefined>) | undefined;
+
+  public useRemoteVoice(remote: (text: string, who?: string) => Promise<Blob | undefined>): void {
+    this.remote = remote;
+  }
+
   public speak(text: string, who?: string): void {
+    const remote = this.remote;
+    if (remote === undefined) {
+      this.speakLocal(text, who);
+      return;
+    }
+    this.lastSpoken = text;
+    this.speaking = true;
+    remote(text, who)
+      .then(async (blob) => {
+        if (blob === undefined) {
+          this.speakLocal(text, who);
+          return;
+        }
+        const audio = new Audio(URL.createObjectURL(blob));
+        const done = (): void => {
+          setTimeout(() => {
+            this.speaking = false;
+          }, SPEECH_TAIL_MS);
+          URL.revokeObjectURL(audio.src);
+        };
+        audio.onended = done;
+        audio.onerror = done;
+        await audio.play();
+      })
+      .catch(() => {
+        // rete o riproduzione: la voce di sistema c'è sempre
+        this.speakLocal(text, who);
+      });
+  }
+
+  private speakLocal(text: string, who?: string): void {
     this.lastSpoken = text;
     if (!("speechSynthesis" in globalThis)) return;
     const utterance = new SpeechSynthesisUtterance(text);
