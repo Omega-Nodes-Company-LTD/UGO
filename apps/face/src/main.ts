@@ -416,7 +416,15 @@ const sensors = new Sensors(
     // niente — sa solo quanto è forte la stanza
     if (message.type === "noise") {
       const sheltered = renderer.shelteredNow?.() ?? [];
-      socket.send(sheltered.length > 0 ? { ...message, sheltered } : message);
+      // 2026-08-16: la stanza dichiarata rumorosa viaggia col botto — di là
+      // pesa metà (loud_noise_muffled), perché in un'officina il fracasso è
+      // parte della vita e non deve tenere il cuore a mille per un quarto d'ora
+      const enriched = {
+        ...message,
+        ...(sheltered.length > 0 && { sheltered }),
+        ...(savedSensitivity() === "bassa" && { roomLoud: true }),
+      };
+      socket.send(enriched);
       return;
     }
     socket.send(message);

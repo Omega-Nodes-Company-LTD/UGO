@@ -54,8 +54,15 @@ export const SENSITIVITIES: Readonly<
   alta: { jumpDb: 12, floorDb: 45 },
   /** the default: a door, a dropped pan, a dog — a lived-in room */
   media: { jumpDb: 14, floorDb: 50 },
-  /** a kitchen with a television in it, a workshop, a road outside */
-  bassa: { jumpDb: 22, floorDb: 60 },
+  /**
+   * a kitchen with a television in it, a workshop, a road outside.
+   *
+   * Alzata (2026-08-16) dopo il campo: col vecchio 22/60 il proprietario lo
+   * vedeva ancora «spaventato dal fracasso» in una stanza DICHIARATA
+   * rumorosa. Una voce alta a un metro fa ~25 dB sopra il pavimento: qui
+   * deve passare senza far saltare nessuno, e ci vuole un botto vero.
+   */
+  bassa: { jumpDb: 28, floorDb: 72 },
   /** he still hears the room, he simply never jumps at it */
   spenta: { jumpDb: Infinity, floorDb: Infinity },
 };
