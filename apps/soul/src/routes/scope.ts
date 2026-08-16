@@ -1,4 +1,4 @@
-import { gosini, type DbClient } from "@ugo/db";
+import { gosini, withHousehold, type DbClient } from "@ugo/db";
 import { asc, eq } from "drizzle-orm";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { canAdminister, householdOf, soleHousehold } from "../services/tenantAuth.js";
@@ -91,6 +91,35 @@ export async function householdScope(
   if (scope.ok) return scope.householdId;
   await problem(reply, scope.status, scope.title, scope.detail);
   return undefined;
+}
+
+/**
+ * ADR-062: risolve la casa E la dichiara al database, in un colpo solo.
+ *
+ * `work` gira dentro `withHousehold` — una transazione con
+ * `SET LOCAL app.household_id`, che è l'unica cosa che le politiche RLS
+ * leggono. Da quando `DATABASE_URL_APP` entrerà in servizio (tempo 2b), una
+ * query eseguita FUORI da qui non vedrà zero righe per sbaglio: le vedrà per
+ * costruzione, e il test se ne accorge.
+ *
+ * L'unità di scoping è l'unità di lavoro, non la richiesta: il pensiero — le
+ * chiamate al modello — sta fuori, perché una transazione tenuta aperta
+ * attraverso una chiamata LLM è una connessione `idle in transaction` per la
+ * durata del pensiero. Un handler che alterna query e modello chiama
+ * `inHousehold` più volte.
+ *
+ * `undefined` = la risposta problem è già partita, come `householdScope`.
+ */
+export async function inHousehold<T>(
+  db: DbClient,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  options: ScopeOptions,
+  work: (tx: DbClient, householdId: string) => Promise<T>,
+): Promise<T | undefined> {
+  const householdId = await householdScope(db, request, reply, options);
+  if (householdId === undefined) return undefined;
+  return withHousehold(db, householdId, (tx) => work(tx, householdId));
 }
 
 async function problem(

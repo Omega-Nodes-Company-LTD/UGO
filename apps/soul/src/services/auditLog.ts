@@ -89,7 +89,13 @@ export interface AuditEntry {
 }
 
 export interface AuditLogger {
-  record: (entry: AuditEntry) => Promise<void>;
+  /**
+   * ADR-062: `on` è la transazione di `inHousehold`, quando c'è. Il giornale
+   * resta UN punto di scrittura — cambia solo su quale connessione scrive:
+   * sotto `ugo_app` una riga attribuita a una casa passa il `WITH CHECK`
+   * soltanto dentro la transazione che ha dichiarato quella casa.
+   */
+  record: (entry: AuditEntry, on?: DbClient) => Promise<void>;
 }
 
 export function createAuditLog(
@@ -97,9 +103,9 @@ export function createAuditLog(
   logger?: { warn: (data: Record<string, unknown>, message: string) => void },
 ): AuditLogger {
   return {
-    async record(entry: AuditEntry): Promise<void> {
+    async record(entry: AuditEntry, on?: DbClient): Promise<void> {
       try {
-        await db.insert(auditLog).values({
+        await (on ?? db).insert(auditLog).values({
           verb: entry.verb,
           outcome: entry.outcome,
           householdId: entry.householdId ?? entry.actor?.householdId ?? null,
