@@ -89,6 +89,13 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("tap") }),
   z.object({ type: z.literal("shake") }),
   /**
+   * Gruppo 12: il corpo ha riconosciuto una COSA davanti alla camera —
+   * EfficientDet on-device, il video non esce mai. `kind` è la categoria in
+   * snake_case («apple», «teddy_bear»), mai un'immagine: al registro degli
+   * eventi interessa che ha visto una mela, non la foto della mela.
+   */
+  z.object({ type: z.literal("seen_object"), kind: z.string().min(1).max(24) }),
+  /**
    * ADR-058: la mela. Un premio deliberato, e non un tocco qualunque.
    *
    * Il bersaglio è il **muso**, non tutta la tela: `tap` è la carezza e arriva

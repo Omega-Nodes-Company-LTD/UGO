@@ -417,6 +417,13 @@ export class FaceGateway {
         this.pushMood(send);
         return;
       }
+      case "seen_object": {
+        // gruppo 12: ha visto una cosa. Il corpo ha già reagito da solo (zero
+        // token); qui resta la traccia — categoria e basta, mai un'immagine —
+        // così il sogno e la ruminazione possono raccontarla domani
+        await this.recordEvent("seen_object", { kind: message.kind });
+        return;
+      }
       case "voice_sample": {
         // ADR-057: biometria dal chiosco SOLO dentro la finestra aperta dal
         // claim del volto. Fuori finestra il frame si ignora e si annota — un

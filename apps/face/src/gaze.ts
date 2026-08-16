@@ -87,6 +87,13 @@ interface FaceDetectorLike {
 }
 
 export interface CameraGazeHandle {
+  /**
+   * Gruppo 12: il video della camera, per chi vuole guardarci dentro con un
+   * ALTRO rilevatore (gli oggetti). Una camera sola, due paia d'occhi —
+   * aprirne una seconda per gli oggetti sarebbe il doppio di batteria per lo
+   * stesso vetro. Assente sul puntatore, che una camera non ce l'ha.
+   */
+  video?: HTMLVideoElement;
   stop: () => void;
 }
 
@@ -160,6 +167,7 @@ export async function startCameraGaze(
   };
   void loop();
   return {
+    video,
     stop: () => {
       running = false;
       detector.close?.();

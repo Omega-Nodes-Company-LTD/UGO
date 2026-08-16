@@ -10,6 +10,7 @@ import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { myBuildId, shouldReload } from "./version.js";
 import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noiseGate.js";
 import { mountLogPanel } from "./logPanel.js";
+import { startObjectSpotter } from "./objectSpotter.js";
 import { Speech } from "./speech.js";
 import { worthSending } from "./heard.js";
 import { watchSky } from "./skyWatch.js";
@@ -529,6 +530,18 @@ micButton.addEventListener("click", () => {
       // due sorgenti sulle stesse pupille vuol dire che vince l'ultima che ha
       // parlato: da qui in poi decide la camera, e il dito si toglie di mezzo
       pointerGaze.stop();
+      // gruppo 12: gli occhi per le cose, sulla STESSA camera — un giro ogni
+      // tre secondi, on-device, e il video non esce mai. La reazione è del
+      // corpo (zero token); a soul va solo la categoria, per il registro
+      if (camera.video !== undefined) {
+        void startObjectSpotter(camera.video, (spotted) => {
+          showSpeech(
+            spotted.kind === "apple" ? "Grunf! Una mela!? Per me?" : `Oh, ${spotted.label}!`,
+          );
+          renderer.reflex(spotted.kind === "apple" ? "wiggle" : "perkUp");
+          sendToSoul({ type: "seen_object", kind: spotted.kind });
+        });
+      }
     }
     startListening();
     micButton.hidden = true;
