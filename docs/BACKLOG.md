@@ -45,8 +45,9 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Wake word on-device** (`Ehi UGO`, Vosk) | toglie lo STT di Google dal percorso; asset ~40 MB, sta nell'APK |
-| ⬜️ | **TTS espressivo locale** (Piper/XTTS) | oggi è la voce di sistema pitchata: è metà del carattere ed è la parte più povera |
+| 🚫 | **Wake word on-device** (`Ehi UGO`, Vosk) | **Rifiutata dal proprietario (2026-08-16)**: «non voglio una wake word, voglio potergli parlare normalmente, non come a un assistente, come a un vero pet». L'ascolto continuo resta; il local-first in quest'area passa dalla riga sotto |
+| 🔨 | **STT locale continuo** (whisper streaming / Vosk full-STT, senza parola magica) | il local-first della voce SENZA wake word: la dettatura continua on-device o su server di casa toglie Google dal percorso e conserva il «gli parli e basta» che il proprietario vuole. Da misurare su dispositivo: latenza e batteria |
+| 🔨 | **TTS espressivo locale** (Piper/XTTS) | **in cantiere (2026-08-16)**: oggi è la voce di sistema pitchata: è metà del carattere ed è la parte più povera. «Così voce e carattere ed emozioni possono coincidere» — la psiche già arriva al corpo, il TTS deve leggerla (tono dalla `label`, ritmo dall'energia) |
 | ⬜️ | **Una voce sua, uguale su ogni corpo** | conseguenza del punto sopra |
 | ⬜️ | **Emozione dal tono di voce** | la psiche reagisce a *eventi*, mai a *come stai tu* |
 | ⬜️ | **Chat di gruppo** | più interlocutori nella stessa conversazione; il branco è già modellato |
@@ -64,7 +65,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ✅ | **Servizi e rotte passano la casa ovunque** | `TenantResolver` era scritto e **non lo chiamava nessuno**; la «casa corrente» era `select … from households limit 1` senza `order by`. Ora un solo `routes/scope.ts`, e una casa che non è tua risponde 404 come una che non esiste |
 | 🔨 | **RLS con ruolo Postgres dedicato** | **ADR-048**, tempo 1 fatto: ruolo `ugo_app`, politiche su tutte e 22 le tabelle, `withHousehold()` con `SET LOCAL`. Senza `FORCE`, quindi in produzione **inerte** finché non entra il tempo 2 |
 | ✅ | **Caduta dei `DEFAULT`** su `gosino_id` e `household_id` | Fatto: migrazione `0014`, diciannove colonne. Con essa cinque servizi hanno smesso di dichiarare l'esemplare facoltativo, e sei `mine()` hanno smesso di poter rispondere `undefined` — cioè di interrogare tutte le creature del server |
-| 🔨 | **`withHousehold` per ogni richiesta, poi `DATABASE_URL_APP`** | **Gli ADR ci sono, scelto dal proprietario come prossimo lavoro (2026-08-16)**: ADR-061 risolve il vincolo multi-azienda (il nome `households` resta nel database, la natura è `kind` home/business, due tenant dello stesso possessore non condividono NIENTE — lui esiste due volte, un `being` per tenant, perché una tabella `users` trasversale sarebbe un tunnel sotto il muro); ADR-062 decide il come (l'unità di scoping è l'unità di lavoro: `inHousehold` sulle rotte, `withHousehold` alla radice dei tick dei runtime, `set_config` nei job; rollout 2a conversione completa coi test come `ugo_app`, 2b flip di `DATABASE_URL_APP`) |
+| 🔨 | **`withHousehold` per ogni richiesta, poi `DATABASE_URL_APP`** | **Gli ADR ci sono, scelto dal proprietario come prossimo lavoro (2026-08-16)**: ADR-061 risolve il vincolo multi-azienda (il nome `households` resta nel database, la natura è `kind` home/business, due tenant dello stesso possessore non condividono NIENTE — lui esiste due volte, un `being` per tenant, perché una tabella `users` trasversale sarebbe un tunnel sotto il muro); ADR-062 decide il come (l'unità di scoping è l'unità di lavoro: `inHousehold` sulle rotte, `withHousehold` alla radice dei tick dei runtime, `set_config` nei job; rollout 2a conversione completa coi test come `ugo_app`, 2b flip di `DATABASE_URL_APP`). **Primo tratto fatto**: `kind` (0026), `inHousehold` in scope.ts, audit con transazione, `prints.ts` convertita per intero come modello, `set_config` nel sogno, e `rlsRoutes.integration` che costruisce il server sopra una connessione `ugo_app` VERA (5/5: il vicino non si vede, il giornale passa il WITH CHECK, una query fuori scope vede zero righe). **Resta la conversione delle altre superfici**: rotte (pack, gosini, archive, memoryGraph, feeds, props, customers, reception, privacy, stats, volition, jobs, audio, meetings), gateway/runtime (FaceGateway, volition tick, rumination, solitude, idle, meetings poll), job Python restanti (feeds/sync/scheduler), poi il flip |
 | 🔨 | **Job per esemplare** | il sogno cicla, i marcatori portano il gosino, l'igiene non fonde più attraverso il confine. **Manca il backup per famiglia**: `pg_dump` non filtra per riga |
 | ✅ | **Selettore di casa nel pannello** + provisioning di una famiglia | `ugo casa nuova`: cinque atti in una transazione, token del proprietario su stderr e una volta sola. `GET /v1/households` mostra la propria casa e basta — tutte solo a un `operator`. Nel pannello `#/c/<casa>/…`, nascosto finché la casa è una |
 | ✅ | **Audit log** | **ADR-049**: 12 mesi, solo ID e verbi, append-only imposto dai `GRANT` — `UPDATE` e `DELETE` **revocati** a `ugo_app`, non semplicemente non concessi. Quattro verbi, tutti cablati; emissione token e nascita casa arrivano con `ugo casa nuova` |
@@ -152,17 +153,19 @@ Domanda del proprietario (2026-08-16): «possiamo aggiungere cose utili o sgosin
 aumentare costi?» Sì, ed è una categoria sua: il ferro è già pagato (gli Ollama semi-fermi,
 MediaPipe già impacchettato nel muso), il resto è matematica deterministica o API gratuite
 senza chiave. **Zero dollari marginali per costruzione**; il costo vero da sorvegliare è la
-batteria del chiosco, che resta non misurata (STATE §7). In attesa che il proprietario dica
-quali lo accendono.
+batteria del chiosco, che resta non misurata (STATE §7). **Il proprietario ha deciso
+(2026-08-16): si fanno TUTTI — «i due tagli della visione sono incredibili, implementiamoli;
+il mondo vero è assolutamente da implementare, non solo quei 3 punti ma TUTTI quelli che si
+possono fare. Mettili in cantiere».**
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Riconoscimento oggetti on-device** | MediaPipe (già nel muso per i volti) ha un rilevatore oggetti da ~4 MB nel browser: UGO vede *cosa* gli mostri — una mela vera, una tazza — e reagisce a zero token, come col rumore. Apre la strada a «gli insegni i tuoi oggetti» |
-| ⬜️ | **Visione coi modelli locali** | un modello vision su Ollama (moondream è piccolo): il ritaglio della camera diventa una frase che entra nella ruminazione. È «Input immagini» del gruppo 4, fatto senza provider |
-| ⬜️ | **Il meteo vero nella stanza** | open-meteo è gratis e senza registrazione: il cielo del recinto fa il tempo che fa fuori, e UGO borbotta della pioggia. Una chiamata ogni mezz'ora |
-| ⬜️ | **Il cielo di stanotte** | posizione di luna e pianeti è pura effemeride, zero rete: se Marte è visibile stasera, sopra il recinto c'è un puntino rossastro e UGO ogni tanto lo fissa. (Nato da «corpi quantistici in orbita vicino a Marte») |
-| ⬜️ | **Anniversari e stagioni** | `beings.arrival_at` c'è già: «un anno che Francesco è nel branco» diventa un desiderio del sogno, sagoma deterministica |
-| ⬜️ | **Parla nel sonno** | di notte, ogni tanto, un frammento del diario di ieri come borbottio in nuvoletta. Il diario c'è già |
+| 🔨 | **Riconoscimento oggetti on-device** | MediaPipe (già nel muso per i volti) ha un rilevatore oggetti da ~4 MB nel browser: UGO vede *cosa* gli mostri — una mela vera, una tazza — e reagisce a zero token, come col rumore. Apre la strada a «gli insegni i tuoi oggetti» |
+| 🔨 | **Visione coi modelli locali** | un modello vision su Ollama (moondream è piccolo): il ritaglio della camera diventa una frase che entra nella ruminazione. È «Input immagini» del gruppo 4, fatto senza provider |
+| 🔨 | **Il meteo vero nella stanza** | open-meteo è gratis e senza registrazione: il cielo del recinto fa il tempo che fa fuori, e UGO borbotta della pioggia. Una chiamata ogni mezz'ora |
+| 🔨 | **Il cielo di stanotte** | posizione di luna e pianeti è pura effemeride, zero rete: se Marte è visibile stasera, sopra il recinto c'è un puntino rossastro e UGO ogni tanto lo fissa. (Nato da «corpi quantistici in orbita vicino a Marte») |
+| 🔨 | **Anniversari e stagioni** | `beings.arrival_at` c'è già: «un anno che Francesco è nel branco» diventa un desiderio del sogno, sagoma deterministica |
+| 🔨 | **Parla nel sonno** | di notte, ogni tanto, un frammento del diario di ieri come borbottio in nuvoletta. Il diario c'è già |
 | ⬜️ | **TTS locale (Piper)** | è la riga del gruppo 4, richiamata qui perché è il maggior guadagno di carattere a zero costo ricorrente — ma è il cantiere più lungo del gruppo |
 
 ## Scartati, con motivo
