@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import email
 import email.policy
+import email.utils
 import imaplib
 import json
 
@@ -30,6 +31,33 @@ def _plain_text(message: email.message.EmailMessage) -> str:
         return str(body.get_content())
     except (KeyError, LookupError):
         return ""
+
+
+def address_allowed(message: email.message.EmailMessage, senders: str | None) -> bool:
+    """Il pre-filtro del proprietario (2026-08-16): la casella non è tutta sua.
+
+    «Io gli do la casella, ma lui non deve usare per quel cliente la casella
+    [intera]: posso dargli mittenti e destinatari tra cui leggere.» Le voci
+    sono indirizzi o domini separati da virgola («mario@rossi.it,
+    @rossisrl.it»); un messaggio passa se UNO fra mittente e destinatari
+    combacia. Vuoto o null = tutta la cartella, il comportamento di prima.
+    Pura, e quindi provabile senza un server IMAP.
+    """
+    if senders is None or senders.strip() == "":
+        return True
+    entries = [entry.strip().lower() for entry in senders.split(",") if entry.strip()]
+    fields: list[str] = []
+    for header in ("from", "to", "cc"):
+        fields.extend(str(value) for value in (message.get_all(header) or []))
+    addresses = [address.lower() for _n, address in email.utils.getaddresses(fields) if address]
+    for address in addresses:
+        for entry in entries:
+            if entry.startswith("@"):
+                if address.endswith(entry):
+                    return True
+            elif address == entry:
+                return True
+    return False
 
 
 def strip_quotes(text: str) -> str:
@@ -77,6 +105,12 @@ def sync_mail_account(conn: psycopg.Connection, cfg: JobsConfig, account: dict) 
                 if raw is None:
                     continue
                 message = email.message_from_bytes(raw, policy=email.policy.default)
+                # il pre-filtro PRIMA di ogni indicizzazione: un messaggio
+                # fuori perimetro non lascia traccia — nemmeno un chunk — ma
+                # il suo UID si consuma comunque, o lo rileggeremmo per sempre
+                if not address_allowed(message, account.get("senders")):
+                    highest = max(highest, uid)
+                    continue
                 text = strip_quotes(_plain_text(message))
                 subject = str(message.get("subject", "")).strip()
                 message_id = str(message.get("message-id", f"uid-{uid}")).strip()
@@ -117,7 +151,7 @@ def run_mail(conn: psycopg.Connection, cfg: JobsConfig, household_id: str) -> li
     rows = conn.execute(
         """
         select m.id, m.household_id, m.customer_id, m.imap_host, m.imap_port,
-               m.username, m.password, m.folder, m.last_uid
+               m.username, m.password, m.folder, m.senders, m.last_uid
         from customer_mail_accounts m
         join customers c on c.id = m.customer_id
         where m.household_id = %s and c.archived_at is null
@@ -134,6 +168,7 @@ def run_mail(conn: psycopg.Connection, cfg: JobsConfig, household_id: str) -> li
         "username",
         "password",
         "folder",
+        "senders",
         "last_uid",
     ]
     reports = []

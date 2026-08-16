@@ -206,14 +206,14 @@ describe("/v1/pack dice anche il volto (il 404 della pagina «I volti»)", () =>
       headers: { authorization: `Bearer ${token}` },
     });
     expect(response.statusCode).toBe(200);
-    const pack = response.json() as {
+    const pack = response.json<{
       beings: { displayName: string; hasFaceProfile: boolean }[];
-    };
+    }>();
     const known = pack.beings.find((being) => being.displayName === "Volto Noto");
     expect(known?.hasFaceProfile).toBe(true);
     expect(
       pack.beings.filter((being) => being.displayName !== "Volto Noto")
-        .every((being) => being.hasFaceProfile === false),
+        .every((being) => !being.hasFaceProfile),
     ).toBe(true);
   });
 });
