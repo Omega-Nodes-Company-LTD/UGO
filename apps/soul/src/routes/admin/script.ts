@@ -6,6 +6,7 @@ import { COUNCIL_JS } from "./script/council.js";
 import { CUSTOMERS_JS } from "./script/customers.js";
 import { DATA_JS } from "./script/data.js";
 import { EFFICACY_JS } from "./script/efficacy.js";
+import { FEEDS_JS } from "./script/feeds.js";
 import { EXEMPLARS_JS } from "./script/exemplars.js";
 import { GRAPH_JS } from "./script/graph.js";
 import { PACK_JS } from "./script/pack.js";
@@ -30,6 +31,7 @@ export const ADMIN_SCRIPT = [
   CORE_JS,
   ROUTER_JS,
   ROOMS_JS,
+  FEEDS_JS,
   CUSTOMERS_JS,
   PROPS_JS,
   PRINTS_JS,

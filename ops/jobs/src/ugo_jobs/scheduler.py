@@ -135,8 +135,12 @@ def main() -> int:
     from threading import Thread
 
     from .customer_sync import run_sync_forever
+    from .feeds import run_feeds_forever
 
     Thread(target=run_sync_forever, args=(cfg,), daemon=True).start()
+    # ADR-060: i feed hanno il loro passo, come le fonti dei clienti — un
+    # thread a cadenza propria, e il sogno non dipende da nessuno dei due
+    Thread(target=run_feeds_forever, args=(cfg,), daemon=True).start()
     return run_forever(cfg, cfg.dream_at)
 
 

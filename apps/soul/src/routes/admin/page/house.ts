@@ -320,4 +320,32 @@ export const HOUSE_PAGES = `
     <div id="forget-msg"></div>
   </div>
 </section>
+
+<section class="page" data-page="feed">
+  <div class="page-head">
+    <p class="eyebrow">La casa</p>
+    <h1>I feed</h1>
+    <p>Le fonti che UGO legge da solo (ADR-060): le scarica coi job, le impara <b>sognando</b>,
+       e quando una novità somiglia davvero a quello su cui lavora un cliente, la mattina te
+       lo dice — «è uscita X, magari proporla a Y». Al massimo <b>un consiglio al giorno</b>,
+       e mai in reception: l'incrocio con i clienti resta in casa.</p>
+  </div>
+
+  <div class="block">
+    <h2>Iscrivilo a un feed</h2>
+    <div class="row">
+      <div><label for="feed-url">Indirizzo (RSS o Atom)</label>
+        <input id="feed-url" data-testid="feed-url" placeholder="https://blog.example.com/feed.xml" maxlength="500"></div>
+      <div><label for="feed-label">Come lo chiami</label>
+        <input id="feed-label" data-testid="feed-label" placeholder="changelog di React" maxlength="120"></div>
+      <button id="feed-go" data-testid="feed-go">Iscrivilo</button>
+    </div>
+    <div id="feed-msg"></div>
+  </div>
+
+  <div class="block">
+    <h2>Cosa sta seguendo</h2>
+    <div id="feed-list" data-testid="feed-list"></div>
+  </div>
+</section>
 `;

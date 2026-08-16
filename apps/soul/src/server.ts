@@ -23,6 +23,7 @@ import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerCustomersRoutes } from "./routes/customers.js";
 import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
 import { registerPrintRoutes } from "./routes/prints.js";
+import { registerFeedRoutes } from "./routes/feeds.js";
 import { registerPropRoutes } from "./routes/props.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
 import { AnswerCache } from "./services/reception/answerCache.js";
@@ -218,6 +219,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // socket che li mostrano — e' l'unica cosa che i due hanno in comune, ed e'
     // il motivo per cui il pannello si vede sul chiosco senza ricaricare.
     registerPropRoutes(app, { db: options.db, guard, hub: scenes });
+    // ADR-060: i feed della casa — la lista; il download è dei job
+    registerFeedRoutes(app, { db: options.db, guard, audit });
     // ADR-057: le facce che non sappiamo di chi siano. Guardata tutta: qui
     // dentro ci sono impronte di persone che non hanno acconsentito.
     registerPrintRoutes(app, {
