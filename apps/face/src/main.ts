@@ -416,6 +416,18 @@ function startListening(): void {
     (what) => {
       trouble("il riconoscitore si e' fermato: " + what);
     },
+    // Il freno ha mollato (speech.ts): su questo dispositivo le sessioni
+    // muoiono appena nate — tipicamente un Android in cui il misuratore di
+    // rumore tiene il microfono — e insistere era il bip di sistema a ciclo
+    // continuo piu' una coda di richieste che bloccava il prompt della
+    // webcam. Le orecchie si spengono DAVVERO e il bottone lo mostra: i
+    // sensi restano accesi (rumore, luce, camera), manca solo la dettatura,
+    // e un altro tocco sul bottone riprova.
+    () => {
+      app.dataset.ears = "off";
+      setLocalState("idle");
+      earsButton.textContent = "🔇 orecchie spente";
+    },
   );
   if (started) app.dataset.ears = "on";
 }
