@@ -71,9 +71,11 @@ test("posture is its own axis: an exhausted UGO lies down while still idle", asy
 
 test("a tap is answered by the body itself, with no round trip to soul", async ({ page }) => {
   await open(page, "&wander=off");
-  await page.getByTestId("face-canvas").click();
+  // in un angolo: al centro c'è il muso (con wander=off, SEMPRE), e da
+  // ADR-058 quel click è una mela — `wiggle`, non la carezza `happyGrunt`
+  await page.getByTestId("face-canvas").click({ position: { x: 30, y: 30 } });
   await expect
-    .poll(async () => (await body(page)).lastGesture, { timeout: 5_000 })
+    .poll(async () => (await body(page)).lastGesture, { timeout: 15_000 })
     .toBe("happyGrunt");
 });
 
