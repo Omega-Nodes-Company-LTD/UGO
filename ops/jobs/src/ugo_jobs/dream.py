@@ -153,6 +153,8 @@ def _run_step(
             "enrolled": enrolled.enrolled,
             "refused": enrolled.refused,
             "missing": enrolled.missing,
+            # ADR-057: le impronte ignote scadute, portate via da questo giro
+            "expired": enrolled.expired,
         }
     elif step == "reflect":
         result = run_reflect(conn, cfg, dream_date)

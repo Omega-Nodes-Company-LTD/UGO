@@ -24,12 +24,20 @@ from .voice import load_audio
 
 REQUEST_KIND = "enrollment_requested"
 
+#: ADR-057: quanto vive un'impronta di uno sconosciuto senza un nome. Stesso
+#: numero di `UNKNOWN_PRINT_RETENTION_DAYS` in `packages/db/schema/prints.ts`
+#: e della rotta `POST /v1/prints/expire`: se uno dei due cambia, cambiano
+#: insieme o la promessa scritta in `/documentation` diventa falsa da un lato.
+UNKNOWN_PRINT_RETENTION_DAYS = 30
+
 
 @dataclass
 class EnrollStepResult:
     enrolled: int
     refused: int
     missing: int
+    #: ADR-057: impronte ignote scadute portate via da QUESTO giro
+    expired: int = 0
 
 
 def _pending(conn: psycopg.Connection) -> list[tuple[str, str, str, str]]:
@@ -67,10 +75,42 @@ def _outcome(
     )
 
 
+def _expire_unknown_prints(conn: psycopg.Connection, cfg: JobsConfig) -> int:
+    """ADR-057, la retention APPLICATA: le impronte ignote più vecchie di
+    trenta giorni si distruggono nel sogno, non quando qualcuno si ricorda di
+    chiamare la rotta. Era il debito che pesava di più in STATE §7: una
+    retention dichiarata a chi entra in casa e applicata solo a mano è una
+    promessa scritta, non mantenuta."""
+    gone = conn.execute(
+        """
+        delete from unknown_prints
+        where household_id = %s
+          and last_seen_at < now() - make_interval(days => %s)
+        returning id
+        """,
+        (cfg.household_id, UNKNOWN_PRINT_RETENTION_DAYS),
+    ).fetchall()
+    if gone:
+        # lo stesso verbo della rotta, così il giornale non distingue CHI ha
+        # mantenuto la promessa — conta che sia mantenuta (id e verbi, mai dati)
+        conn.execute(
+            """
+            insert into audit_log (household_id, verb, outcome, resource_type, resource_id)
+            values (%s, 'prints_expired', 'ok', 'print', %s)
+            """,
+            (cfg.household_id, str(len(gone))),
+        )
+    return len(gone)
+
+
 def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
+    # prima si butta il vecchio, poi si impara il nuovo: l'ordine è la
+    # minimizzazione — un'impronta scaduta non deve sopravvivere nemmeno al
+    # giro che la sta per superare
+    expired = _expire_unknown_prints(conn, cfg)
     requests = _pending(conn)
     if not requests:
-        return EnrollStepResult(enrolled=0, refused=0, missing=0)
+        return EnrollStepResult(enrolled=0, refused=0, missing=0, expired=expired)
 
     client = boto3.client(
         "s3",
@@ -79,7 +119,7 @@ def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
         aws_secret_access_key=cfg.s3_secret_key,
     )
     data_key = parse_data_key(cfg.data_key_b64)
-    result = EnrollStepResult(enrolled=0, refused=0, missing=0)
+    result = EnrollStepResult(enrolled=0, refused=0, missing=0, expired=expired)
 
     for request_id, gosino_id, being_id, object_key in requests:
         if not object_key:
