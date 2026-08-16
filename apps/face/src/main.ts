@@ -275,6 +275,10 @@ function onServerMessage(message: ServerToFaceMessage): void {
         mine: false,
       });
       showSpeech(message.text, message.who);
+      // gruppo 12: un `murmur` è parlare nel sonno — la nuvoletta appare e il
+      // registro ricorda, ma la voce NON parte e nessuno si gira a guardare:
+      // un borbottio notturno che sveglia la casa è una sveglia
+      if (message.murmur === true) return;
       speech.speak(message.text, message.who);
       // and the others turn to look at whoever is talking: a room where
       // nobody reacts to anybody is two creatures in the same picture, not

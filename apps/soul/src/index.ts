@@ -22,6 +22,7 @@ import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { CouncilService } from "./services/council/councilService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
 import { RuminationService } from "./services/rumination.js";
+import { SleepTalk } from "./services/sleepTalk.js";
 import { storeVoiceSample } from "./services/voiceEnrolment.js";
 import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
@@ -322,6 +323,10 @@ if (meetings !== undefined) {
 // ADR-059: la ruminazione — pensa coi modelli locali, mai col provider.
 // Cavalca il battito delle iniziative invece di avere un ciclo suo: stesso
 // sfalsamento, un solo posto da guardare quando ci si chiede «cosa gira».
+// gruppo 12: parla nel sonno — di notte, un frammento del diario di ieri
+// come nuvoletta senza voce. Stesso battito delle iniziative, zero token.
+const sleepTalk = new SleepTalk({ db, hourOf });
+
 const rumination = new RuminationService({
   db,
   local: localText,
@@ -347,6 +352,15 @@ const volitionTimer = setInterval(() => {
           })
           .catch((error: unknown) => {
             app.log.warn(error, "initiative tick failed");
+          });
+        sleepTalk
+          .maybe(runtime)
+          .then((did) => {
+            // id e basta, mai il frammento (regola 6)
+            if (did !== "nothing") app.log.info({ gosino: runtime.id }, "sleep talk");
+          })
+          .catch((error: unknown) => {
+            app.log.warn(error, "sleep talk failed");
           });
         rumination
           .maybe(

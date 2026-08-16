@@ -168,7 +168,17 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
     vars: z.record(z.string(), z.number()),
     who: z.string().optional(),
   }),
-  z.object({ type: z.literal("speak"), text: z.string(), who: z.string().optional() }),
+  /**
+   * `murmur` (gruppo 12): parla nel sonno. La nuvoletta appare e il registro
+   * ricorda, ma il TTS NON parte — un borbottio notturno che sveglia la casa
+   * non è un borbottio, è una sveglia. Assente = la frase di sempre, a voce.
+   */
+  z.object({
+    type: z.literal("speak"),
+    text: z.string(),
+    who: z.string().optional(),
+    murmur: z.boolean().optional(),
+  }),
   z.object({ type: z.literal("state"), state: z.enum(FACE_STATES), who: z.string().optional() }),
   z.object({ type: z.literal("glyph"), pattern: z.enum(GLYPH_PATTERNS), who: z.string().optional() }),
   // ADR-027: soul decides an initiative, the body performs it. The id is a

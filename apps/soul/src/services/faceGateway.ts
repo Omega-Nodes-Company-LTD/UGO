@@ -110,6 +110,17 @@ export class FaceGateway {
   }
 
   /**
+   * Gruppo 12: parla nel sonno. La nuvoletta senza la voce — il muso mostra
+   * e il registro ricorda, ma il TTS non parte: un borbottio che sveglia la
+   * casa non è un borbottio, è una sveglia.
+   */
+  public broadcastMurmur(text: string): void {
+    for (const send of this.senders) {
+      send({ type: "speak", text, murmur: true });
+    }
+  }
+
+  /**
    * ADR-027: soul decides an initiative, the body performs it. A face that
    * does not know the gesture drops it — the decision must not depend on which
    * renderer happens to be running.
