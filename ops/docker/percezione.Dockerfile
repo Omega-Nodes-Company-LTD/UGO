@@ -29,9 +29,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# libgomp per onnxruntime; curl e ca-certificates per prendersi i pesi all'avvio
+# libgomp per onnxruntime; curl e ca-certificates per prendersi i pesi
+# all'avvio; tesseract (con l'italiano) per la lettura su gesto (ADR-065)
 RUN apt-get update \
   && apt-get install -y --no-install-recommends libgomp1 curl ca-certificates \
+       tesseract-ocr tesseract-ocr-ita tesseract-ocr-eng \
   && rm -rf /var/lib/apt/lists/*
 
 # torch CPU dal suo indice: la ruota con CUDA pesa 2,5 GB in più per una
@@ -50,7 +52,7 @@ RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 
   && pip install --no-cache-dir \
        "fastapi>=0.115" "uvicorn[standard]>=0.32" "speechbrain>=1.0" \
        "onnxruntime>=1.19" "psycopg[binary]>=3.2" "numpy>=1.26" "cryptography>=43.0" \
-       "faster-whisper>=1.0" "piper-tts>=1.7" \
+       "faster-whisper>=1.0" "piper-tts>=1.7" "pytesseract>=0.3" "pillow>=10.0" \
   && pip install --no-cache-dir --no-deps ./ops/jobs \
   # le due metà devono essere della stessa famiglia, e l'unico modo di saperlo
   # è caricarle: un import qui costa secondi e trasforma un guasto al deploy in

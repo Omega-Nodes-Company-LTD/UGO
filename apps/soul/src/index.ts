@@ -9,6 +9,7 @@ import { LlmClient, OllamaEmbeddingsClient,
 } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
+import { SceneReader } from "./services/sceneReader.js";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
 import { characterFrom } from "./services/council/character.js";
@@ -141,7 +142,20 @@ const [bootstrapTraits] = await db
   .limit(1);
 const bootstrapCharacter = characterFrom(bootstrapTraits?.traits);
 const llm = llmFor(bootstrapHouseholdId, bootstrapExemplar.id);
-const chat = new ChatService({
+// ADR-065: la lettura su gesto anche per l'apparato di avvio — la rotta
+// /v1/chat parla con QUESTA istanza, e «leggi» dalla PWA deve funzionare
+// come dal chiosco. `() => face` perché il gateway nasce più sotto.
+const bootstrapPercezione =
+  env.UGO_RECOGNITION_URL === undefined || env.UGO_INTERNAL_TOKEN === undefined
+    ? undefined
+    : new RecognitionClient({
+        baseUrl: env.UGO_RECOGNITION_URL,
+        token: env.UGO_INTERNAL_TOKEN,
+        householdId: bootstrapHouseholdId,
+      });
+// l'annotazione esplicita spezza il cerchio dell'inferenza: chat → lettore →
+// gateway → chat (il lettore guarda il corpo solo al momento del gesto)
+const chat: ChatService = new ChatService({
   db,
   embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
   llm,
@@ -151,10 +165,16 @@ const chat = new ChatService({
   gosinoId: bootstrapExemplar.id,
   character: bootstrapCharacter,
   ...(web !== undefined && { web }),
+  ...(bootstrapPercezione !== undefined && {
+    reader: new SceneReader({
+      gateway: (): FaceGateway => face,
+      ocr: (image) => bootstrapPercezione.ocr(image),
+    }),
+  }),
 });
 
 const audio = audioStorageFromEnv(env);
-const face = new FaceGateway({
+const face: FaceGateway = new FaceGateway({
   db,
   chat,
   psyche,

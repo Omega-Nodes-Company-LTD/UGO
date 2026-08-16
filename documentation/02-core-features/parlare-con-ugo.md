@@ -44,6 +44,21 @@ I ricordi che non tornano mai utili sbiadiscono: dopo un mese senza essere richi
 e i doppioni vengono fusi in uno solo. È voluto. Un ricordo che non usi mai non è un ricordo, è
 zavorra. Se una cosa ti sta a cuore, nominala ogni tanto: torna a pesare.
 
+## Le parole che sono gesti
+
+Tre forme fisse fanno qualcosa di preciso, subito e gratis — le risponde lui, senza scomodare
+il modello:
+
+- **`ricordami di … alle …`** — diventa un promemoria: al momento giusto te lo dice lui.
+- **`cerca: …`** — apre la finestra sul mondo: la ricerca passa dal motore di casa e la risposta
+  arriva in due frasi. La domanda esce verso i motori di ricerca, ma senza nome né casa attaccati.
+- **`leggi`** (anche `leggi lo schermo`) — UGO guarda con la camera del corpo e ti dice **cosa c'è
+  scritto** davanti a lui: un'etichetta, un cartello, lo schermo del computer. Funziona solo se
+  glielo chiedi tu, solo a camera accesa, e la lettura avviene in casa: l'immagine non esce e non
+  viene salvata da nessuna parte — resta solo il testo letto, nella biografia cifrata come tutto.
+
+Sono gesti, non abitudini sue: UGO non cerca e non legge mai da solo.
+
 ## L'umore
 
 In basso a sinistra, accanto al pulsante del microfono, c'è sempre **una parola sola**: `sereno`,

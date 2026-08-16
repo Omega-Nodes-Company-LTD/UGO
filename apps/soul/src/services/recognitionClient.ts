@@ -122,6 +122,32 @@ export class RecognitionClient {
     }
   }
 
+  /**
+   * La lettura su gesto (ADR-065): tesseract sul servizio di percezione.
+   *
+   * `undefined` = OCR giù o irraggiungibile; la stringa vuota invece è una
+   * risposta vera («ho guardato e non c'è scritto niente») e chi chiama deve
+   * poter distinguere le due cose.
+   */
+  public async ocr(imageBase64: string): Promise<string | undefined> {
+    try {
+      const response = await this.fetchImpl(new URL("/v1/ocr", this.deps.baseUrl), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${this.deps.token}`,
+        },
+        body: JSON.stringify({ image: imageBase64 }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) return undefined;
+      const body = (await response.json()) as { text?: string };
+      return typeof body.text === "string" ? body.text : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   /** Chi è questo volto, dal ritaglio che il corpo ha già fatto. */
   public async byFace(imageBase64: string): Promise<Recognised | undefined> {
     return this.ask("/v1/identify/face", {

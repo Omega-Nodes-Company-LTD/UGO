@@ -152,10 +152,13 @@ export class FaceGateway {
     }
   }
 
-  /** Gruppo 12: «fammi dare un'occhiata» — lo sguardo si chiede, mai si prende. */
-  public askGlimpse(): void {
+  /**
+   * Gruppo 12: «fammi dare un'occhiata» — lo sguardo si chiede, mai si prende.
+   * `fine` (ADR-065): a 640px, per leggere invece che per raccontare.
+   */
+  public askGlimpse(fine = false): void {
     for (const send of this.senders) {
-      send({ type: "glimpse_ask" });
+      send({ type: "glimpse_ask", ...(fine && { fine: true }) });
     }
   }
 

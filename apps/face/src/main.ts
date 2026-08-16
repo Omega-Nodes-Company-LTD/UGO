@@ -65,20 +65,31 @@ const speech = new Speech();
 let activeCamera: { video?: HTMLVideoElement } | null = null;
 
 /**
- * Uno sguardo della stanza: 320px di JPEG, solo quando soul lo CHIEDE e solo
- * a camera già accesa. I pixel vanno al server di casa, il modello locale li
- * racconta, e nessuno li scrive da nessuna parte.
+ * Uno sguardo della stanza: JPEG, solo quando soul lo CHIEDE e solo a camera
+ * già accesa. I pixel vanno al server di casa, il modello locale li racconta,
+ * e nessuno li scrive da nessuna parte.
+ *
+ * `fine` (ADR-065): 640px per LEGGERE — l'OCR su 320px vede macchie, non
+ * lettere. Il tetto del contratto (120 000 caratteri di base64) non si tocca:
+ * si cala la qualità finché il frame ci sta, e se non ci sta non si manda.
  */
-function captureGlimpse(): string | undefined {
+const GLIMPSE_MAX_B64 = 120_000;
+
+function captureGlimpse(fine = false): string | undefined {
   const video = activeCamera?.video;
   if (video === undefined || video.videoWidth === 0) return undefined;
+  const width = fine ? 640 : 320;
   const frame = document.createElement("canvas");
-  frame.width = 320;
-  frame.height = Math.max(1, Math.round((320 * video.videoHeight) / video.videoWidth));
+  frame.width = width;
+  frame.height = Math.max(1, Math.round((width * video.videoHeight) / video.videoWidth));
   const ctx = frame.getContext("2d");
   if (ctx === null) return undefined;
   ctx.drawImage(video, 0, 0, frame.width, frame.height);
-  return frame.toDataURL("image/jpeg", 0.6).split(",")[1];
+  for (const quality of [0.6, 0.45, 0.3]) {
+    const image = frame.toDataURL("image/jpeg", quality).split(",")[1];
+    if (image !== undefined && image.length <= GLIMPSE_MAX_B64) return image;
+  }
+  return undefined;
 }
 let lastPresenceAt = 0;
 /** who is in this room (ADR-036); one nameless entry until the roster lands */
@@ -350,7 +361,7 @@ function onServerMessage(message: ServerToFaceMessage): void {
     case "glimpse_ask": {
       // gruppo 12: «fammi dare un'occhiata». Solo a camera accesa — a camera
       // spenta la risposta è niente, che è la risposta giusta
-      const image = captureGlimpse();
+      const image = captureGlimpse(message.fine ?? false);
       if (image !== undefined) socket.send({ type: "glimpse", image });
       return;
     }

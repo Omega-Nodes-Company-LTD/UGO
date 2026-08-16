@@ -69,4 +69,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [061](./061-il-tenant-e-unorganizzazione.md) | Il tenant è un'organizzazione: casa O azienda | Accettata |
 | [062](./062-rls-si-accende.md) | RLS si accende: la transazione che dichiara la casa | Accettata |
 | [063](./063-la-finestra-sul-mondo.md) | La finestra sul mondo: la ricerca web, su gesto esplicito | Accettata |
-| 064 | *(prossimo numero disponibile)* | — |
+| [065](./065-la-lettura-su-gesto.md) | La lettura su gesto: «leggi», e UGO guarda cosa c'è scritto | Accettata |
+| 066 | *(prossimo numero disponibile)* | — |

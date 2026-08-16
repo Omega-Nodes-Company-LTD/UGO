@@ -55,7 +55,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ✅ | **Riconoscimento facciale del proprietario** | **ADR-044/045**: ArcFace misurato su LFW (EER 0,98%, soglia 0,30), la camera si accende davvero, la fusione fonde decisioni e non punteggi. Restava scritto come da fare, e non lo era |
 | ✅ | **Insegnargli una faccia, e chi non conosce ancora** | **ADR-057**: te lo chiede lui alla seconda volta che ti rivede, riusando `desires`. Prima serviva chiudere un buco **in produzione**: `_guard` non guardava mai `no_vision` mentre un commento diceva di sì |
 | ✅ | **La voce dopo il volto, dal chiosco** | **gruppo 11** (ADR-057 completato): il claim del volto apre desiderio + finestra di 30 minuti + invito `enroll_voice` sul chiosco; il corpo registra 10 s (ricetta del pannello) e manda `voice_sample`, accettato solo dentro la finestra, che si consuma al primo campione. Stessi rifiuti a monte del pannello (`storeVoiceSample`) |
-| ⬜️ | Cattura schermo con OCR | valore alto, superficie privacy enorme: **serve una decisione, non un'implementazione** |
+| ✅ | Cattura schermo con OCR | **ADR-065 (decisione cliccata 2026-08-16: «sì, solo su gesto esplicito»)**: «leggi» in chat/voce — sguardo `fine` a 640px chiesto al corpo, tesseract in casa (`/v1/ocr` sulla percezione, ita+eng), quattro esiti distinti, niente salvato, mai in automatico, mai in reception. La variante che *capisce* lo schermo (vision model) resta legata alla GPU |
 
 ## Gruppo 5 — Il vicinato (ADR-019, fasi 2 e 3)
 

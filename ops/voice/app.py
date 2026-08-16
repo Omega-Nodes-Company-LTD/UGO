@@ -20,6 +20,7 @@ from __future__ import annotations
 import base64
 import io
 import os
+import shutil
 import wave
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -185,6 +186,7 @@ def health() -> dict[str, object]:
         "face": MODELS.face is not None,
         "stt": MODELS.stt is not None,
         "tts": MODELS.tts is not None,
+        "ocr": shutil.which("tesseract") is not None,
     }
 
 
@@ -224,6 +226,49 @@ def transcribe_endpoint(query: TranscribeQuery) -> Transcribed:
     )
     text = " ".join(segment.text.strip() for segment in segments).strip()
     return Transcribed(text=text)
+
+
+#: lo stesso tetto del frame `glimpse` nel contratto del muso
+MAX_OCR_B64 = 120_000
+
+
+class OcrQuery(BaseModel):
+    """Uno sguardo da leggere: JPEG in base64, lo stesso frame di `glimpse`."""
+
+    image: str = Field(min_length=1, max_length=MAX_OCR_B64)
+
+
+class OcrText(BaseModel):
+    text: str
+
+
+@app.post("/v1/ocr", dependencies=[Depends(guard)])
+def ocr_endpoint(query: OcrQuery) -> OcrText:
+    """La lettura su gesto esplicito (ADR-065): tesseract, in casa.
+
+    Decisione cliccata dal proprietario (2026-08-16): l'OCR si fa, ma SOLO su
+    gesto esplicito — «leggi» detto o scritto al chiosco. I pixel arrivano
+    dallo stesso canale dell'occhiata (chiesti, mai spontanei), si leggono
+    QUI con tesseract (ita+eng: gli schermi mischiano le lingue), e non si
+    scrivono da nessuna parte. Testo vuoto = ha guardato e non c'era niente
+    da leggere: è una risposta, non un errore.
+    """
+    try:
+        import pytesseract
+        from PIL import Image
+    except Exception as missing:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail="OCR non installato") from missing
+    raw = base64.b64decode(query.image, validate=True)
+    try:
+        picture = Image.open(io.BytesIO(raw))
+        picture.load()
+    except Exception as broken:  # noqa: BLE001
+        raise HTTPException(status_code=422, detail="immagine illeggibile") from broken
+    try:
+        text = pytesseract.image_to_string(picture, lang="ita+eng")
+    except pytesseract.TesseractNotFoundError as missing:
+        raise HTTPException(status_code=503, detail="tesseract non installato") from missing
+    return OcrText(text=text.strip())
 
 
 #: lo stesso tetto di `/v1/tts` in soul: una frase, non un capitolo
