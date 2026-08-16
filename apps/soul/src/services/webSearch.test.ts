@@ -35,7 +35,7 @@ function searx(answer: object | undefined): SearxClient {
     fetchImpl: (() => {
       if (answer === undefined) return Promise.reject(new Error("down"));
       return Promise.resolve(new Response(JSON.stringify(answer), { status: 200 }));
-    }) as typeof fetch,
+    }),
   });
 }
 
