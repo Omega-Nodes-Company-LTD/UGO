@@ -335,6 +335,8 @@ const app = buildServer({
     ...(recognition !== undefined && { prints: recognition }),
     // gruppo 13: la dettatura locale passa dallo stesso servizio di percezione
     ...(recognition !== undefined && { stt: recognition }),
+    // decisione 2026-08-16: la voce di casa (Piper) sta sullo stesso servizio
+    ...(recognition !== undefined && { ttsLocal: recognition }),
     // gruppo 12: il meteo vero — solo se la casa ha detto dove sta
     ...(env.UGO_HOME_LAT !== undefined &&
       env.UGO_HOME_LON !== undefined && {

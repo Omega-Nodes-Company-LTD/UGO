@@ -7,6 +7,7 @@ import type { FastifyInstance } from "fastify";
 import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { instructionsFor } from "../../src/routes/tts.js";
+import { RecognitionClient } from "../../src/services/recognitionClient.js";
 import { issueToken } from "../../src/services/tenantAuth.js";
 import { buildServer } from "../../src/server.js";
 import { createHouse, type TestHouse } from "./helpers/tenancy.js";
@@ -135,5 +136,93 @@ describe("POST /v1/tts", () => {
       payload: { text: "a".repeat(301) },
     });
     expect(response.statusCode).toBe(400);
+  });
+});
+
+/**
+ * La voce di casa (decisione 2026-08-16): Piper come gradino di mezzo.
+ * Fornitore giù o assente → la percezione sintetizza (WAV, zero ledger);
+ * anche lei giù → 204 e voce di sistema. Percezione = stub HTTP vero,
+ * client reale.
+ */
+describe("POST /v1/tts — la catena con la voce di casa", () => {
+  it("fornitore irraggiungibile: la frase esce comunque, in WAV e gratis", async () => {
+    const said: string[] = [];
+    const percezione = createServer((request, response) => {
+      let body = "";
+      request.on("data", (chunk: Buffer) => (body += chunk.toString()));
+      request.on("end", () => {
+        said.push((JSON.parse(body) as { text: string }).text);
+        response.writeHead(200, { "content-type": "audio/wav" });
+        response.end(Buffer.from("RIFF-finto-wav-di-un-grugnito"));
+      });
+    });
+    await new Promise<void>((resolve) => percezione.listen(0, "127.0.0.1", resolve));
+    const address = percezione.address();
+    if (address === null || typeof address === "string") throw new Error("no stub address");
+
+    const chained = buildServer({
+      db,
+      mqtt: { url: "mqtt://127.0.0.1:1" },
+      ollamaUrl: "http://127.0.0.1:1",
+      logger: false,
+      features: {
+        chat: undefined as never,
+        psyche: undefined as never,
+        // il fornitore esiste ma non risponde: il gradino sotto deve reggere
+        tts: new OpenAiTtsClient({
+          db,
+          apiKey: "test-key",
+          dailyBudgetUsd: 0.5,
+          baseUrl: "http://127.0.0.1:1",
+          timezone: "Europe/Rome",
+        }),
+        ttsLocal: (householdId: string) =>
+          new RecognitionClient({
+            baseUrl: `http://127.0.0.1:${String(address.port)}`,
+            token: "interno-di-test",
+            householdId,
+          }),
+      },
+    });
+    const response = await chained.inject({
+      method: "POST",
+      url: "/v1/tts",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { text: "Grunf! La voce di casa regge.", mood: "quieto" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toContain("audio/wav");
+    expect(response.rawPayload.toString()).toContain("RIFF");
+    expect(said).toEqual(["Grunf! La voce di casa regge."]);
+    await chained.close();
+    await new Promise<void>((resolve) => percezione.close(() => { resolve(); }));
+  });
+
+  it("anche la percezione giù: 204, e il muso si arrangia con la voce di sistema", async () => {
+    const deaf = buildServer({
+      db,
+      mqtt: { url: "mqtt://127.0.0.1:1" },
+      ollamaUrl: "http://127.0.0.1:1",
+      logger: false,
+      features: {
+        chat: undefined as never,
+        psyche: undefined as never,
+        ttsLocal: (householdId: string) =>
+          new RecognitionClient({
+            baseUrl: "http://127.0.0.1:1",
+            token: "interno-di-test",
+            householdId,
+          }),
+      },
+    });
+    const response = await deaf.inject({
+      method: "POST",
+      url: "/v1/tts",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { text: "Nessuno mi sente." },
+    });
+    expect(response.statusCode).toBe(204);
+    await deaf.close();
   });
 });

@@ -60,6 +60,11 @@ col telefono in tasca e lo schermo spento. Per il dock questo basta.
 > di ciò che ricorda. È una scelta, non un default: senza chiave non parte niente, ogni frase
 > rispetta il tetto di spesa giornaliero, e a tetto raggiunto UGO torna alla voce del telefono
 > senza dire niente a nessuno.
+>
+> In mezzo ai due gradini c'è la **voce di casa**: se il server di casa ha il servizio di
+> percezione acceso, le frasi si sintetizzano lì — gratis, con una voce sempre uguale, e **senza
+> che niente esca di casa**. La catena completa è: voce emotiva (se c'è la chiave e c'è budget) →
+> voce di casa → voce del telefono. Qualunque gradino manchi, UGO parla comunque.
 
 ## La prima conversazione
 

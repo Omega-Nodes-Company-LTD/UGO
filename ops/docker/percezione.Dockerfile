@@ -50,12 +50,12 @@ RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 
   && pip install --no-cache-dir \
        "fastapi>=0.115" "uvicorn[standard]>=0.32" "speechbrain>=1.0" \
        "onnxruntime>=1.19" "psycopg[binary]>=3.2" "numpy>=1.26" "cryptography>=43.0" \
-       "faster-whisper>=1.0" \
+       "faster-whisper>=1.0" "piper-tts>=1.7" \
   && pip install --no-cache-dir --no-deps ./ops/jobs \
   # le due metà devono essere della stessa famiglia, e l'unico modo di saperlo
   # è caricarle: un import qui costa secondi e trasforma un guasto al deploy in
   # una build rossa
-  && python -c "import torch, torchaudio, speechbrain, onnxruntime; print('encoder ok')" 
+  && python -c "import torch, torchaudio, speechbrain, onnxruntime, piper; print('encoder ok')"
 
 COPY ops/voice/app.py /app/app.py
 # lo stesso script provato a mano: idempotente, con --retry, e con lo SHA-256

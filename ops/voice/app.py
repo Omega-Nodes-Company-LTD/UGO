@@ -18,13 +18,16 @@ container di mezzo da decodificare e senza un decoder in più da tenere sicuro.
 from __future__ import annotations
 
 import base64
+import io
 import os
+import wave
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated, AsyncIterator, Literal
 
 import numpy as np
 import psycopg
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 
 SAMPLE_RATE = 16_000
@@ -98,6 +101,7 @@ class Models:
         self.voice = None
         self.face = None
         self.stt = None
+        self.tts = None
 
     def load(self) -> None:
         from ugo_jobs.ecapa import EcapaVoiceEncoder
@@ -128,6 +132,27 @@ class Models:
                 )
             except Exception:  # noqa: BLE001
                 self.stt = None
+        # decisione cliccata (2026-08-16): Piper come ripiego della voce — fra
+        # il TTS emotivo del provider e la voce di sistema del browser ci sta
+        # una voce DI CASA, gratuita e sempre uguale. Il download avviene qui,
+        # nel lifespan, cioè prima che la porta apra (ADR-047): nessuna frase
+        # può arrivare a un servizio senza pesi. `UGO_PIPER_VOICE=` vuota = la
+        # casa non la vuole, e /v1/synthesize risponde 503
+        self.tts = None
+        piper_voice = os.environ.get("UGO_PIPER_VOICE", "it_IT-paola-medium")
+        if piper_voice:
+            try:
+                from piper import PiperVoice
+                from piper.download_voices import download_voice
+
+                voices_dir = Path(os.environ.get("UGO_MODELS_DIR", "/models")) / "piper"
+                voices_dir.mkdir(parents=True, exist_ok=True)
+                model_path = voices_dir / f"{piper_voice}.onnx"
+                if not model_path.exists():
+                    download_voice(piper_voice, voices_dir)
+                self.tts = PiperVoice.load(model_path)
+            except Exception:  # noqa: BLE001
+                self.tts = None
 
 
 MODELS = Models()
@@ -159,6 +184,7 @@ def health() -> dict[str, object]:
         "voice": MODELS.voice is not None,
         "face": MODELS.face is not None,
         "stt": MODELS.stt is not None,
+        "tts": MODELS.tts is not None,
     }
 
 
@@ -198,6 +224,33 @@ def transcribe_endpoint(query: TranscribeQuery) -> Transcribed:
     )
     text = " ".join(segment.text.strip() for segment in segments).strip()
     return Transcribed(text=text)
+
+
+#: lo stesso tetto di `/v1/tts` in soul: una frase, non un capitolo
+MAX_TTS_CHARS = 300
+
+
+class SynthQuery(BaseModel):
+    """Una frase da dire con la voce di casa."""
+
+    text: str = Field(min_length=1, max_length=MAX_TTS_CHARS)
+
+
+@app.post("/v1/synthesize", dependencies=[Depends(guard)])
+def synthesize_endpoint(query: SynthQuery) -> Response:
+    """La voce di casa (decisione 2026-08-16): Piper, gratuita e locale.
+
+    È il gradino di mezzo della catena di `/v1/tts` in soul: prima il TTS
+    emotivo del provider (se c'è chiave e budget), poi QUESTA voce, e in fondo
+    la voce di sistema del browser. Niente esce di casa e niente tocca il
+    `budget_ledger`: la sintesi è onnxruntime su CPU, WAV in risposta.
+    """
+    if MODELS.tts is None:
+        raise HTTPException(status_code=503, detail="voce locale non caricata")
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav_file:
+        MODELS.tts.synthesize_wav(query.text, wav_file)
+    return Response(content=buffer.getvalue(), media_type="audio/wav")
 
 
 @app.post("/v1/identify/voice", dependencies=[Depends(guard)])
