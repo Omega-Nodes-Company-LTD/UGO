@@ -24,6 +24,7 @@ import { registerCustomersRoutes } from "./routes/customers.js";
 import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
 import { registerPrintRoutes } from "./routes/prints.js";
 import { registerFeedRoutes } from "./routes/feeds.js";
+import { registerSttRoute, type SttRouteDeps } from "./routes/stt.js";
 import { registerTtsRoute, type TtsRouteDeps } from "./routes/tts.js";
 import { registerWeatherRoute, type WeatherDeps } from "./routes/weather.js";
 import { registerPropRoutes } from "./routes/props.js";
@@ -118,6 +119,8 @@ export interface ServerOptions extends HealthDeps {
     weather?: WeatherDeps;
     /** gruppo 13: la voce interim — assente = 204 e voce di sistema */
     tts?: TtsRouteDeps["tts"];
+    /** gruppo 13: la dettatura locale, per casa — assente = 501 e browser */
+    stt?: SttRouteDeps["transcriber"];
   };
 }
 
@@ -167,6 +170,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       prints,
       weather,
       tts,
+      stt,
       ...v1
     } = options.features;
     // first, and before every route below it: Fastify binds onRequest hooks to
@@ -203,6 +207,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerWeatherRoute(app, weather ?? {});
     // gruppo 13: la voce interim — il salvadanaio sta nel client (regola 3)
     registerTtsRoute(app, { db: options.db, ...(tts !== undefined && { tts }) });
+    registerSttRoute(app, { db: options.db, ...(stt !== undefined && { transcriber: stt }) });
     registerJobsRoutes(app, {
       db: options.db,
       guard,

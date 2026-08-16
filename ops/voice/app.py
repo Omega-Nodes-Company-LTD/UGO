@@ -97,6 +97,7 @@ class Models:
     def __init__(self) -> None:
         self.voice = None
         self.face = None
+        self.stt = None
 
     def load(self) -> None:
         from ugo_jobs.ecapa import EcapaVoiceEncoder
@@ -109,6 +110,24 @@ class Models:
         except Exception:  # noqa: BLE001
             # il volto è opzionale: una casa senza camere deve partire lo stesso
             self.face = None
+        # gruppo 13: la dettatura locale — faster-whisper su CPU, la strada
+        # che toglie Google dalle orecchie. Opzionale come il volto: una casa
+        # che non la vuole (UGO_STT_MODEL vuota) parte lo stesso, e il chiosco
+        # continua col riconoscitore del browser
+        self.stt = None
+        stt_model = os.environ.get("UGO_STT_MODEL", "small")
+        if stt_model:
+            try:
+                from faster_whisper import WhisperModel
+
+                self.stt = WhisperModel(
+                    stt_model,
+                    device="cpu",
+                    compute_type="int8",
+                    download_root=os.environ.get("UGO_MODELS_DIR", "/models"),
+                )
+            except Exception:  # noqa: BLE001
+                self.stt = None
 
 
 MODELS = Models()
@@ -139,7 +158,46 @@ def health() -> dict[str, object]:
         "ok": True,
         "voice": MODELS.voice is not None,
         "face": MODELS.face is not None,
+        "stt": MODELS.stt is not None,
     }
+
+
+class TranscribeQuery(BaseModel):
+    """PCM int16 a 16 kHz in base64 — lo stesso formato di `identify/voice`."""
+
+    audio: str = Field(min_length=1)
+
+
+class Transcribed(BaseModel):
+    text: str
+
+
+@app.post("/v1/transcribe", dependencies=[Depends(guard)])
+def transcribe_endpoint(query: TranscribeQuery) -> Transcribed:
+    """La dettatura locale (gruppo 13): niente esce di casa.
+
+    Il chiosco manda l'enunciato, whisper lo trascrive QUI, e il testo torna
+    sulla stessa strada di `heard_text`. `vad_filter` toglie code e respiri;
+    la lingua è fissata all'italiano — è la lingua di casa, e lasciarla
+    indovinare a whisper su clip corti è il modo di ricevere trascrizioni
+    in croato.
+    """
+    if MODELS.stt is None:
+        raise HTTPException(status_code=503, detail="modello di dettatura non caricato")
+    # non `decode_pcm`: quello pretende un secondo pieno (giusto per
+    # l'identità), ma un «sì» detto al chiosco dura meno — qui bastano 0,4 s
+    raw = base64.b64decode(query.audio, validate=True)
+    if len(raw) < int(0.8 * SAMPLE_RATE):
+        raise HTTPException(status_code=422, detail="troppo corto")
+    pcm = (np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32_768.0).copy()
+    segments, _info = MODELS.stt.transcribe(
+        pcm,
+        language="it",
+        vad_filter=True,
+        beam_size=1,
+    )
+    text = " ".join(segment.text.strip() for segment in segments).strip()
+    return Transcribed(text=text)
 
 
 @app.post("/v1/identify/voice", dependencies=[Depends(guard)])
