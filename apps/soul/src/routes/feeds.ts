@@ -1,0 +1,133 @@
+import { feedItems, rssFeeds, type DbClient } from "@ugo/db";
+import { and, desc, eq, sql } from "drizzle-orm";
+import type { FastifyInstance, FastifyReply } from "fastify";
+import { z } from "zod";
+import type { AuditLogger } from "../services/auditLog.js";
+import type { PreHandler } from "./guard.js";
+import { householdScope } from "./scope.js";
+
+/**
+ * I feed della casa (ADR-060): iscriversi, spegnere, disdire.
+ *
+ * Solo admin, come i clienti: quali feed segue una casa dice a cosa lavora lo
+ * studio, e non sono affari del muso né della reception. Il download e
+ * l'embedding NON passano da qui — sono dei job (`feeds.py`), a cadenza loro:
+ * queste rotte scrivono solo la lista.
+ */
+
+const addSchema = z.object({
+  url: z.url().max(500).refine((value) => /^https?:\/\//.test(value), {
+    message: "solo http(s)",
+  }),
+  label: z.string().min(1).max(120),
+});
+
+const toggleSchema = z.object({ enabled: z.boolean() });
+
+export interface FeedRoutesDeps {
+  db: DbClient;
+  guard: PreHandler;
+  audit?: AuditLogger;
+}
+
+function problem(reply: FastifyReply, status: number, title: string): FastifyReply {
+  return reply
+    .code(status)
+    .type("application/problem+json")
+    .send({ type: "about:blank", title, status });
+}
+
+export function registerFeedRoutes(app: FastifyInstance, deps: FeedRoutesDeps): void {
+  const { db, guard, audit } = deps;
+  const admin = { preHandler: guard };
+  const scope = (
+    request: Parameters<PreHandler>[0],
+    reply: FastifyReply,
+  ): Promise<string | undefined> => householdScope(db, request, reply, { requireAdmin: true });
+
+  app.get("/v1/feeds", admin, async (request, reply) => {
+    const householdId = await scope(request, reply);
+    if (householdId === undefined) return reply;
+    const rows = await db
+      .select({
+        id: rssFeeds.id,
+        url: rssFeeds.url,
+        label: rssFeeds.label,
+        enabled: rssFeeds.enabled,
+        lastFetchedAt: rssFeeds.lastFetchedAt,
+        lastStatus: rssFeeds.lastStatus,
+        items: sql<string>`(select count(*) from ${feedItems} where ${feedItems.feedId} = ${rssFeeds.id})`,
+        advised: sql<string>`(select count(*) from ${feedItems} where ${feedItems.feedId} = ${rssFeeds.id} and ${feedItems.advisedAt} is not null)`,
+      })
+      .from(rssFeeds)
+      .where(eq(rssFeeds.householdId, householdId))
+      .orderBy(desc(rssFeeds.createdAt));
+    return {
+      feeds: rows.map((row) => ({
+        ...row,
+        items: Number(row.items),
+        advised: Number(row.advised),
+        lastFetchedAt: row.lastFetchedAt?.toISOString() ?? null,
+      })),
+    };
+  });
+
+  app.post("/v1/feeds", admin, async (request, reply) => {
+    const householdId = await scope(request, reply);
+    if (householdId === undefined) return reply;
+    const parsed = addSchema.safeParse(request.body);
+    if (!parsed.success) return problem(reply, 400, "Bad Request");
+    const [row] = await db
+      .insert(rssFeeds)
+      .values({ householdId, url: parsed.data.url, label: parsed.data.label })
+      .onConflictDoNothing()
+      .returning({ id: rssFeeds.id });
+    // lo stesso URL due volte non è un errore da 500: è già iscritto
+    if (row === undefined) return problem(reply, 409, "Conflict");
+    await audit?.record({
+      verb: "feed_added",
+      outcome: "ok",
+      householdId,
+      actor: request.tenant,
+      resourceType: "feed",
+      resourceId: row.id,
+    });
+    return reply.code(201).send({ id: row.id });
+  });
+
+  app.patch("/v1/feeds/:id", admin, async (request, reply) => {
+    const householdId = await scope(request, reply);
+    if (householdId === undefined) return reply;
+    const { id } = request.params as { id: string };
+    const parsed = toggleSchema.safeParse(request.body);
+    if (!parsed.success) return problem(reply, 400, "Bad Request");
+    const updated = await db
+      .update(rssFeeds)
+      .set({ enabled: parsed.data.enabled })
+      .where(and(eq(rssFeeds.id, id), eq(rssFeeds.householdId, householdId)))
+      .returning({ id: rssFeeds.id });
+    if (updated.length === 0) return problem(reply, 404, "Not Found");
+    return reply.code(204).send();
+  });
+
+  app.delete("/v1/feeds/:id", admin, async (request, reply) => {
+    const householdId = await scope(request, reply);
+    if (householdId === undefined) return reply;
+    const { id } = request.params as { id: string };
+    // il cascade porta via anche gli item: disdire un feed è disdirlo tutto
+    const gone = await db
+      .delete(rssFeeds)
+      .where(and(eq(rssFeeds.id, id), eq(rssFeeds.householdId, householdId)))
+      .returning({ id: rssFeeds.id });
+    if (gone.length === 0) return problem(reply, 404, "Not Found");
+    await audit?.record({
+      verb: "feed_removed",
+      outcome: "ok",
+      householdId,
+      actor: request.tenant,
+      resourceType: "feed",
+      resourceId: id,
+    });
+    return reply.code(204).send();
+  });
+}

@@ -328,6 +328,14 @@ function sendToSoul(message: FaceToServerMessage): void {
 // local zero-token reactions: startle immediately, tell soul right after
 const sensors = new Sensors(
   (message) => {
+    // ADR-056 (gruppo 10): il botto viaggia con chi era al riparo quando è
+    // suonato. Arricchito QUI e non dentro `sensors`, che dei corpi non sa
+    // niente — sa solo quanto è forte la stanza
+    if (message.type === "noise") {
+      const sheltered = renderer.shelteredNow?.() ?? [];
+      socket.send(sheltered.length > 0 ? { ...message, sheltered } : message);
+      return;
+    }
     socket.send(message);
   },
   () => {
@@ -415,6 +423,18 @@ function startListening(): void {
     // dichiara e' indistinguibile da una stanza silenziosa.
     (what) => {
       trouble("il riconoscitore si e' fermato: " + what);
+    },
+    // Il freno ha mollato (speech.ts): su questo dispositivo le sessioni
+    // muoiono appena nate — tipicamente un Android in cui il misuratore di
+    // rumore tiene il microfono — e insistere era il bip di sistema a ciclo
+    // continuo piu' una coda di richieste che bloccava il prompt della
+    // webcam. Le orecchie si spengono DAVVERO e il bottone lo mostra: i
+    // sensi restano accesi (rumore, luce, camera), manca solo la dettatura,
+    // e un altro tocco sul bottone riprova.
+    () => {
+      app.dataset.ears = "off";
+      setLocalState("idle");
+      earsButton.textContent = "🔇 orecchie spente";
     },
   );
   if (started) app.dataset.ears = "on";

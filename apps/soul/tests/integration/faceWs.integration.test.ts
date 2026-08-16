@@ -202,6 +202,27 @@ describe("WS /v1/face", () => {
     await face.close();
   });
 
+  it("dietro il cespuglio il botto arriva attutito: metà colpo, e l'evento lo dice", async () => {
+    const { url } = await startSoul(15);
+    const face = await connectFace(url);
+    const hello = await face.waitFor("mood");
+    const stressBefore = hello.type === "mood" ? (hello.vars.stress ?? 0) : 0;
+
+    // la casa a esemplare solo manda `""`, che è il suo `who` di sempre
+    face.send({ type: "noise", db: 95, sheltered: [""] });
+    const mood = await face.waitFor("mood", 2);
+    const delta = mood.type === "mood" ? (mood.vars.stress ?? 0) - stressBefore : 0;
+    // `loud_noise` pieno è +0.2: attutito deve stare ben sotto, e sopra zero —
+    // il riparo smorza, non cancella
+    expect(delta).toBeGreaterThan(0.03);
+    expect(delta).toBeLessThan(0.15);
+
+    const rows = await db.select().from(events).where(eq(events.type, "noise"));
+    const mine = rows.find((row) => (row.payload as { sheltered?: boolean }).sheltered === true);
+    expect(mine).toBeDefined();
+    await face.close();
+  });
+
   it("heard_text triggers the full chat loop: thinking → talking → speak + mood", async () => {
     stub.nextResponse = { text: "Grunf, tutto bene qui in casa." };
     const { url } = await startSoul(15);

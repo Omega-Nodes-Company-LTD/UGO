@@ -42,6 +42,9 @@ export interface ExportBundle {
   customerGosini: unknown[];
   /** ADR-058: le mele date dai clienti — solo id e istanti, com'è la riga */
   customerRewards: unknown[];
+  /** ADR-060: i feed della casa e le novità scaricate — contenuto pubblico */
+  rssFeeds: unknown[];
+  feedItems: unknown[];
   /** metadata only — the hash grants nothing, so not even that leaves */
   customerTokens: unknown[];
   tickets: unknown[];
@@ -108,6 +111,8 @@ export class ExportService {
       customers,
       customerGosini,
       customerRewards,
+      rssFeeds,
+      feedItems,
       customerTokens,
       tickets,
       customerMessages,
@@ -164,6 +169,10 @@ export class ExportService {
                  where household_id = ${householdId} order by created_at`),
         rows(sql`select id, customer_id, gosino_id, message_id, ts from customer_rewards
                  where household_id = ${householdId} order by ts`),
+        rows(sql`select id, url, label, enabled, last_fetched_at, created_at from rss_feeds
+                 where household_id = ${householdId} order by created_at`),
+        rows(sql`select id, feed_id, guid, title, link, published_at, advised_at from feed_items
+                 where household_id = ${householdId} order by created_at`),
         rows(sql`select id, customer_id, label, created_at, last_used_at, expires_at, revoked_at
                  from customer_access_tokens
                  where household_id = ${householdId} order by created_at`),
@@ -213,6 +222,8 @@ export class ExportService {
       customers: this.decryptColumn(customers, ["notes"]),
       customerGosini,
       customerRewards,
+      rssFeeds,
+      feedItems,
       customerTokens,
       tickets: this.decryptColumn(tickets, ["title", "body"]),
       customerMessages: this.decryptColumn(customerMessages),

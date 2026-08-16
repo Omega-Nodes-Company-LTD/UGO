@@ -60,6 +60,12 @@ export interface FaceRenderer {
    * il che è meglio di una mela che si dà toccando ovunque.
    */
   snoutAt?(at: { x: number; y: number }): string | undefined;
+  /**
+   * ADR-056 (gruppo 10): chi sta dietro un riparo in questo istante — i loro
+   * `who`, per il frame `noise`. Facoltativo: il corpo 2D non ha una stanza né
+   * ripari, e lì il botto arriva intero com'è sempre arrivato.
+   */
+  shelteredNow?(): string[];
   start(): void;
   stop(): void;
   /** what the body is currently doing, for the e2e hooks */

@@ -52,6 +52,38 @@ describe("exponential decay toward baseline", () => {
     expect(later.umore).toBeCloseTo(BASELINES.umore, 3);
   });
 
+  it("il pisolino (gruppo 10) ricarica con un tetto: due cuscini non fanno una notte", () => {
+    const perturbations = perturbationsForEvent("napped");
+    expect(perturbations).toHaveLength(1);
+    const [nap] = perturbations;
+    if (nap === undefined) throw new Error("missing perturbation");
+    expect(nap.variable).toBe("energia");
+    expect(nap.amount).toBeGreaterThan(0);
+    // il tetto vale al massimo due colpi pieni: oltre, il cuscino smette di
+    // bastare e il vero pieno resta la notte
+    expect(nap.ceiling).toBeLessThanOrEqual(nap.amount * 2);
+    let state = emptyState();
+    for (let i = 0; i < 10; i += 1) {
+      state = applyPerturbations(state, perturbations, NOON, "napped");
+    }
+    // l'energia ha la SUA baseline (giorno/notte), non quella della tabella
+    const gained = varsAt(state, NOON, 12).energia - varsAt(emptyState(), NOON, 12).energia;
+    expect(gained).toBeLessThanOrEqual((nap.ceiling ?? 1) + 1e-9);
+  });
+
+  it("il botto attutito (gruppo 10) è metà del pieno, su ogni asse che conta", () => {
+    // il riparo smorza, non cambia natura: stessa variabile, stessa τ, metà
+    // colpo e metà tetto — se qualcuno ritara `loud_noise`, questo test gli
+    // ricorda che l'attutito va ritarato insieme
+    const [full] = perturbationsForEvent("loud_noise");
+    const [muffled] = perturbationsForEvent("loud_noise_muffled");
+    if (full === undefined || muffled === undefined) throw new Error("missing perturbation");
+    expect(muffled.variable).toBe(full.variable);
+    expect(muffled.tauHours).toBe(full.tauHours);
+    expect(muffled.amount).toBeCloseTo(full.amount / 2, 10);
+    expect(muffled.ceiling).toBeCloseTo((full.ceiling ?? 0) / 2, 10);
+  });
+
   it("a loud-noise spike (τ 15 min) fades much faster than heat stress", () => {
     const noise = applyPerturbations(emptyState(), [...perturbationsForEvent("loud_noise")], NOON);
     const heat = applyPerturbations(emptyState(), [...perturbationsForEvent("heat_stress")], NOON);

@@ -21,6 +21,7 @@ from .config import ConfigError, JobsConfig
 from .contradictions import run_contradictions
 from .enroll_step import run_enroll
 from .entities import run_entities
+from .feeds import run_advise
 from .hygiene import run_hygiene
 from .ingest import run_ingest
 from .markers import FULL, LIGHT, mark_step_done, step_done
@@ -33,6 +34,7 @@ STEPS = (
     "ingest",
     "enroll",
     "reflect",
+    "advise",
     "contradictions",
     "entities",
     "hygiene",
@@ -49,7 +51,7 @@ STEPS = (
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
 PER_EXEMPLAR = ("reflect", "contradictions", "entities", "hygiene")
-PER_HOUSEHOLD = ("ingest", "enroll", "backup")
+PER_HOUSEHOLD = ("ingest", "enroll", "advise", "backup")
 GLOBAL = ("compaction",)
 
 #: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
@@ -159,6 +161,10 @@ def _run_step(
             "desires": result.desires_written,
             "diary": result.diary_written,
         }
+    elif step == "advise":
+        # ADR-060: il consiglio del mattino — feed x conoscenza clienti,
+        # soglia alta, un desiderio al giorno per casa al massimo
+        step_report[step] = run_advise(conn, cfg)
     elif step == "contradictions":
         contradictions = run_contradictions(conn, cfg, dream_date)
         step_report[step] = {

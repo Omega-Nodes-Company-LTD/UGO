@@ -162,6 +162,20 @@
       "when": 1786828022026,
       "tag": "0022_la-mela-del-cliente-rls",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1786877374246,
+      "tag": "0023_i-feed-del-mattino",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786877374247,
+      "tag": "0024_i-feed-del-mattino-rls",
+      "breakpoints": true
     }
   ]
 }

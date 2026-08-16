@@ -8,6 +8,7 @@ import { GesturePlayer } from "./gestures.js";
 import { DEFAULT_TRAITS, Pig, type Traits } from "./pig.js";
 import { NEUTRAL_VARS, type PsycheVars, computePose } from "./pose.js";
 import { PostureMixer, choosePosture } from "./posture.js";
+import { tastesFrom } from "./tastes.js";
 import { ACTIVITY_IT, Wanderer } from "./wander.js";
 
 /**
@@ -102,6 +103,9 @@ export class Inhabitant {
     // on the floor and nothing standing on it, which is the worst way for a
     // body to fail because it looks like the socket died
     this.pig = new Pig({ ...DEFAULT_TRAITS, ...traits });
+    // gruppo 10: i gusti sugli arredi vengono dal genoma, una volta per vita —
+    // il carattere non cambia perché ti sei annoiato (quello lo fa la noia)
+    this.wanderer.setTastes(tastesFrom(traits));
     this.autonomy = new Autonomy(this.player);
     this.wandering = wander;
     const now = performance.now();
@@ -199,8 +203,17 @@ export class Inhabitant {
     this.onUsedProp = listener;
   }
 
+  /** ADR-056 (gruppo 10): al riparo adesso — lo chiede il frame `noise`. */
+  public get sheltered(): boolean {
+    return this.wanderer.sheltered;
+  }
+
   public reflex(kind: string): void {
-    this.autonomy.reflex(kind, performance.now());
+    // un botto sentito da dietro il cespuglio non fa saltare: drizza le
+    // orecchie. È il gemello locale di `loud_noise_muffled` — il riparo deve
+    // funzionare anche nel corpo, o la psiche dice una cosa e il corpo un'altra
+    const muffled = kind === "noise" && this.sheltered;
+    this.autonomy.reflex(muffled ? "perkUp" : kind, performance.now());
   }
 
   public dispose(): void {

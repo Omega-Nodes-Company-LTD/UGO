@@ -23,7 +23,10 @@ test("the face connects and shows UGO's mood", async ({ page }) => {
 
 test("a tap wakes attention: alert state, mood refresh and Glyph pattern", async ({ page }) => {
   await openFace(page);
-  await page.getByTestId("face-canvas").click();
+  // in un ANGOLO, non al centro: da ADR-058 un click sul muso è una mela
+  // (`reward`, che non cambia stato), e col vagabondaggio acceso il maiale
+  // ogni tanto sta proprio lì — il click al centro era una moneta lanciata
+  await page.getByTestId("face-canvas").click({ position: { x: 30, y: 30 } });
   await expect(page.getByTestId("app")).toHaveAttribute("data-state", "alert");
   await expect(page.getByTestId("mood-label")).not.toHaveText("");
   // §4.1: the state is also readable across the room, on the Glyph LEDs

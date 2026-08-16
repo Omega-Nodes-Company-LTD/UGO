@@ -83,6 +83,21 @@ arruolamento**: il volto glielo insegni perché te lo chiede lui. Quello che c'�
 È la pagina più delicata del pannello, e la spiegazione sta tutta in
 [le facce](./le-facce.md).
 
+## I feed
+
+Le fonti che UGO legge da solo: gli dai un indirizzo RSS o Atom (il blog di uno strumento che
+usate, il changelog di una libreria) e un nome, e i job lo scaricano a intervalli regolari.
+Le novità le **impara sognando**: la notte le incrocia con quello che sa dei tuoi clienti, e
+se una somiglia davvero a quello su cui uno di loro lavora, la mattina il gosino che lo segue
+si sveglia con un consiglio in testa — «è uscita X, magari proporla a Rossi» — e te lo dice
+come dice il resto delle cose che gli premono.
+
+Tre cose da sapere:
+- **al massimo un consiglio al giorno**, e solo quando la somiglianza è forte: se tace, è
+  perché non c'era niente che valesse la pena dirti;
+- l'incrocio con i clienti **resta in casa**: in reception non se ne parla mai;
+- ogni feed mostra l'ultimo giro e gli eventuali errori — un feed rotto non ferma gli altri.
+
 ## Correggerlo
 
 Nel **branco**, sotto l'arruolamento vocale, c'è *Correggilo*: gli dici che ha sbagliato nome, che

@@ -311,14 +311,20 @@ export class FaceGateway {
         return;
       }
       case "noise": {
-        await this.recordEvent("noise", { db: message.db });
+        // ADR-056 (gruppo 10): se QUESTA creatura era già dietro un riparo, il
+        // colpo arriva attutito. La lista porta i `who` della stanza: il mio id
+        // se il registro c'è, `""` per la casa a esemplare solo — che è l'unico
+        // caso in cui `""` può comparire, quindi non serve contare i presenti.
+        const sheltered =
+          message.sheltered?.some((who) => who === this.deps.gosinoId || who === "") ?? false;
+        await this.recordEvent("noise", { db: message.db, sheltered });
         // ADR-029: the body is the one holding the room's noise floor, so a
         // `noise` frame already means "this startled me". Re-judging it here
         // against an absolute threshold threw away the only calibrated
         // information in the system — and on a phone with AGC, an
         // uncalibrated number means nothing anyway.
         {
-          await this.deps.psyche.applyEventType("loud_noise", at);
+          await this.deps.psyche.applyEventType(sheltered ? "loud_noise_muffled" : "loud_noise", at);
           if (this.state !== "sleeping") this.setState("alert", send);
           this.pushMood(send);
         }
@@ -386,6 +392,9 @@ export class FaceGateway {
         // `ceiling` su `used_prop` è ciò che chiude quell'anello.
         await this.recordEvent("used_prop", { kind: message.kind });
         await this.deps.psyche.applyEventType("used_prop", at);
+        // gruppo 10: il cuscino in più è un pisolino — energia col suo tetto.
+        // Additivo e non sostitutivo: il cuscino resta anche un passatempo
+        if (message.kind === "cushion") await this.deps.psyche.applyEventType("napped", at);
         this.pushMood(send);
         return;
       }

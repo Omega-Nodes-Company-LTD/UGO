@@ -24,6 +24,20 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
    Parla più vicino, in un ambiente meno rumoroso.
 4. Se dice `oggi ho finito le parole` (o una frase simile), non è rotto: ha esaurito il budget
    giornaliero. Riprende da mezzanotte. Chi gestisce il server può alzare il limite.
+5. Se il bottone è passato da solo a **🔇 orecchie spente**, il riconoscimento vocale su quel
+   telefono non riesce a restare acceso (succede su alcuni Android: si spaventa ai rumori ma non
+   trascrive quello che dici). UGO ci prova qualche volta e poi smette da solo, invece di suonare
+   all'infinito il bip del microfono. Un tocco sul bottone riprova; se torna a spegnersi, su quel
+   dispositivo la dettatura non è disponibile — tutto il resto (rumori, luce, camera) funziona.
+
+## Fa il suono del microfono a ripetizione, o non riesco ad attivare la camera
+
+Erano due facce dello stesso problema, ed è corretto dalla versione con il cielo azzurro: su
+alcuni telefoni il riconoscimento vocale moriva appena avviato e UGO lo riavviava all'infinito —
+ogni riavvio suonava il bip di sistema, e la coda di richieste bloccava la finestra dei permessi
+della camera («impossibile chiedere l'autorizzazione: ci sono popup aperti»). Se ti succede
+ancora: aggiorna la pagina e controlla che la versione in basso a destra sia cambiata — se non
+cambia, il muso servito è ancora quello vecchio e serve chi gestisce il server.
 
 ## Il telefono non trova UGO
 

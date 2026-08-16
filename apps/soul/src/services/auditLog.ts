@@ -62,6 +62,10 @@ export const AUDIT_VERBS = [
   "prints_expired",
   /** ADR-058: una mela data da un cliente — il gosino premiato, mai il testo */
   "customer_reward_given",
+  /** ADR-060: la casa si è iscritta a un feed */
+  "feed_added",
+  /** ADR-060: un feed disdetto — il cascade porta via anche gli item */
+  "feed_removed",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

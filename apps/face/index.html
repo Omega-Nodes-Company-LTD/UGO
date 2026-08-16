@@ -55,6 +55,26 @@
         align-items: center;
         gap: 1rem;
         font-size: 0.9rem;
+        /* la barra si piega invece di traboccare: su un telefono i controlli
+           sono più larghi dello schermo, e un bottone tagliato a metà fuori
+           dal bordo è un bottone che non esiste */
+        flex-wrap: wrap;
+        row-gap: 0.35rem;
+      }
+      /* Telefono: l'umore su una riga sua, i controlli centrati sotto.
+         Senza, l'etichetta lunga («spaventato dal fracasso») si impilava in
+         colonna a sinistra e spingeva il selettore della stanza oltre il
+         bordo destro — l'interfaccia era letteralmente inutilizzabile. */
+      @media (max-width: 700px) {
+        #hud {
+          justify-content: center;
+          gap: 0.4rem;
+          font-size: 0.8rem;
+        }
+        #mood-label {
+          flex-basis: 100%;
+          text-align: center;
+        }
       }
       #speak-text {
         position: absolute;

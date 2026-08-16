@@ -55,6 +55,29 @@ export function worthReporting(error: string): boolean {
 /** Grace after the mouth stops, for room reverb and a slow recognizer. */
 const SPEECH_TAIL_MS = 800;
 
+/**
+ * Il freno sul riavvio del riconoscitore.
+ *
+ * Chrome chiude le sessioni da solo e riavviarle è il prezzo dichiarato del
+ * «sempre in ascolto» — ma su certi Android la sessione **muore subito**, ogni
+ * volta: il microfono è già in mano al misuratore di rumore e il servizio di
+ * riconoscimento non riesce a prenderlo. Riavviare ogni 300 ms in quello stato
+ * vuol dire tre cose insieme, tutte viste sul telefono del proprietario: il
+ * bip di sistema di apertura microfono **a ciclo continuo**, una coda di
+ * richieste che blocca il prompt dei permessi della webcam («non posso
+ * abilitarla, dice che ci sono popup aperti»), e nessuna frase riconosciuta
+ * comunque.
+ *
+ * Quindi: una sessione che muore entro `QUICK_DEATH_MS` senza aver sentito
+ * niente allunga l'attesa del riavvio (300 ms → 2 s → 5 s → 15 s), e dopo
+ * `GIVES_UP_AFTER` morti di fila si **spegne e lo dice**, invece di suonare
+ * il bip all'infinito. Una sessione che vive o che sente qualcosa azzera
+ * tutto: il comportamento sano resta identico a prima.
+ */
+const QUICK_DEATH_MS = 1500;
+const RESTART_BACKOFF_MS = [300, 2000, 5000, 15000] as const;
+const GIVES_UP_AFTER = 8;
+
 export class Speech {
   private recognition: SpeechRecognitionLike | undefined;
   /** true while the mouth is busy, so the ears do not hear the mouth */
@@ -126,10 +149,13 @@ export class Speech {
      * seppellirebbe quelli veri sotto il rumore.
      */
     onTrouble?: (what: string) => void,
+    /** Il freno ha mollato: le orecchie sono SPENTE, e la UI deve dirlo. */
+    onGaveUp?: () => void,
   ): boolean {
     const Ctor = this.recognitionCtor();
     if (Ctor === undefined) return false;
     this.listening = true;
+    let quickDeaths = 0;
 
     const session = (): void => {
       if (!this.listening) return;
@@ -139,7 +165,12 @@ export class Speech {
       recognition.continuous = true;
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
+      const bornAt = performance.now();
+      // «ha sentito qualcosa» azzera il freno: una sessione che ascolta
+      // davvero puo' morire presto senza essere malata (una frase secca)
+      let heardAnything = false;
       recognition.onresult = (event) => {
+        heardAnything = true;
         if (this.speaking) return;
         for (let index = event.resultIndex; index < event.results.length; index += 1) {
           const text = event.results[index]?.[0]?.transcript ?? "";
@@ -150,7 +181,10 @@ export class Speech {
       // the loud thing happening right now is somebody talking. Without this
       // a threshold can only trade "startles at every word" against "never
       // startles at all"; with it, neither trade is necessary.
-      recognition.onspeechstart = () => onVoice?.();
+      recognition.onspeechstart = () => {
+        heardAnything = true;
+        onVoice?.();
+      };
       recognition.onspeechend = () => onVoice?.();
       // a session that ends — by timeout, silence or error — is restarted,
       // otherwise "always listening" quietly becomes "listened once". Ma
@@ -161,7 +195,24 @@ export class Speech {
         if (worthReporting(what)) onTrouble?.(what);
       };
       recognition.onend = () => {
-        if (this.listening) setTimeout(session, 300);
+        if (!this.listening) return;
+        // il freno: su certi Android la sessione muore appena nata — il
+        // microfono e' del misuratore di rumore e il servizio non riesce a
+        // prenderlo. Ogni `start()` li' suona il bip di sistema: riavviare
+        // ogni 300 ms e' un campanello perpetuo, non un orecchio.
+        const diedQuickly = performance.now() - bornAt < QUICK_DEATH_MS && !heardAnything;
+        quickDeaths = diedQuickly ? quickDeaths + 1 : 0;
+        if (quickDeaths >= GIVES_UP_AFTER) {
+          this.listening = false;
+          onTrouble?.(
+            "il riconoscitore non riesce a restare acceso su questo dispositivo: orecchie spente",
+          );
+          onGaveUp?.();
+          return;
+        }
+        const wait =
+          RESTART_BACKOFF_MS[Math.min(quickDeaths, RESTART_BACKOFF_MS.length - 1)] ?? 300;
+        setTimeout(session, wait);
       };
       try {
         recognition.start();

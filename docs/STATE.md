@@ -1862,6 +1862,78 @@ nota che spiega, scheda del cliente col conteggio della stessa finestra.
   `renderer3d`, `pig`, `main`, e il banco. **Il bundle va ricostruito**: soul
   serve il muso già compilato, e la versione si vede in basso a destra.
 
+## 6-tricies. Il telefono vero: la barra, il bip, la webcam
+
+Tre segnalazioni dal telefono del proprietario, tutte lo stesso pomeriggio, e
+due erano la stessa cosa.
+
+**La barra traboccava.** Su 412 px l'etichetta dell'umore («spaventato dal
+fracasso») si impilava in colonna a sinistra e il selettore della stanza finiva
+tagliato oltre il bordo: l'interfaccia era inutilizzabile. Adesso l'HUD si
+piega (`flex-wrap`), e sotto i 700 px l'umore prende una riga sua coi controlli
+centrati sotto. Verificato al banco a 412×890.
+
+**Il bip a ciclo continuo, e la webcam «bloccata dai popup».** Su certi
+Android la sessione del riconoscitore muore appena nata — il microfono è già
+in mano al misuratore di rumore, per questo *si spaventa ma non trascrive* — e
+`speech.ts` la riavviava ogni 300 ms per sempre: ogni `start()` suona il bip di
+sistema, e la coda di richieste bloccava il prompt dei permessi della camera
+(«non posso abilitarla, dice che ci sono popup aperti»). Adesso c'è un freno:
+una sessione morta in culla (<1,5 s senza aver sentito niente) allunga
+l'attesa (300 ms → 2 s → 5 s → 15 s), e dopo otto morti di fila le orecchie si
+spengono **davvero** — bottone su «🔇 orecchie spente», riga nel registro — un
+tocco riprova. Il caso sano resta byte per byte quello di prima, e il freno ha
+i suoi unit test (`speech.test.ts`, riconoscitore finto: quello vero non
+esiste fuori dal browser, ma il freno è logica nostra). La dettatura su quei
+dispositivi resta indisponibile finché non arriva la wake word on-device
+(Fase 3, ADR-006): adesso però lo **dice**, invece di suonare il campanello.
+
+## 6-untricies. Il gruppo 10: gli oggetti che contano, e la testa che rumina
+
+Cinque punti nati da una conversazione col proprietario, chiusi in un giro. Il
+filo comune promesso — «i binari esistono già quasi tutti» — ha retto: nessun
+motore nuovo dove bastava una leva, e zero token del provider su tutto.
+
+**Il cespuglio smorza i botti.** Il riparo era espressivo ma inerte: si
+nascondeva e lo stress arrivava intero. Ora il frame `noise` porta i `who` di
+chi era già al riparo, e per loro soul applica `loud_noise_muffled` (metà
+colpo, metà tetto, stessa τ). Il primo botto arriva sempre intero. Il corpo fa
+la sua parte: nascosto non salta, drizza le orecchie. «Al riparo» si misura dal
+punto di nascondiglio, non dal centro — il primo taglio riparava mezzo recinto,
+l'ha preso il test.
+
+**Il cuscino è un pisolino.** `napped` all'arrivo: +0,1 di energia, tetto 0,2 —
+due pisolini e poi resta la notte. Il gosino esausto (sotto 0,12 si corica) si
+rimette in piedi prima se ha un cuscino: coricarsi lì o per terra adesso è
+diverso davvero.
+
+**Il giocattolo preferito viene dal genoma** (`tastes.ts`): l'ardito pesa la
+palla, il flemmatico il cuscino, il timido bazzica il cespuglio — moltiplicatori
+[0.6-1.5] sulla distanza percepita, la paura non fa shopping, senza genoma è il
+corpo di prima. NON si impara, ed è la decisione: `used_prop` scarica noia per
+costruzione, ogni peso imparato imparerebbe rumore.
+
+**La ruminazione (ADR-059).** Da fermo pensa coi modelli locali: accostamenti
+fra ricordi (in `events`, vagliati dal sogno — mai dritti in `memories`),
+domande per il proprietario (desiderio `pending`, li dice `sayDesire`), due
+battute con l'altro gosino (nella giornata di entrambi, scalda come un saluto).
+Mai il provider; la notte è del sogno; il distanziatore conta i tentativi.
+Cavalca il battito delle iniziative: nessun ciclo nuovo.
+
+**I feed e il consiglio del mattino (ADR-060).** `rss_feeds`+`feed_items`
+(0023 + 0024 a mano per RLS), thread di fetch come i sync clienti, embedding
+locale, e al sogno l'incrocio con `customer_chunks`: sotto distanza 0,40 un
+desiderio «è uscita X, proporla a Rossi» per il gosino giusto, `stamattina`.
+Un consiglio al giorno al massimo, mai in reception, testo dei feed in chiaro
+perché pubblico (dichiarato in ADR). I vettori da seme dei test hanno insegnato
+una cosa da scrivere: con componenti tutte positive qualunque coppia è
+coseno-vicina — i semi vanno centrati su zero, o la soglia non respinge niente.
+
+Verifica: tutto ciò che gira senza il modello Ollama è girato QUI su Postgres
+vero (ruminazione 7/7, feed pytest 6/6, rotte feed 4/4, wander 21/21, tastes
+4/4, psyche 33/33); faceWs e i passi del sogno che vogliono il modello restano
+alla CI. Turbo 37/37 a ogni commit.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

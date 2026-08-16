@@ -21,6 +21,7 @@ import { IdleConsolidation } from "./services/idleConsolidation.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { CouncilService } from "./services/council/councilService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
+import { RuminationService } from "./services/rumination.js";
 import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
@@ -305,6 +306,18 @@ if (meetings !== undefined) {
   pollTimer.unref();
 }
 
+// ADR-059: la ruminazione — pensa coi modelli locali, mai col provider.
+// Cavalca il battito delle iniziative invece di avere un ciclo suo: stesso
+// sfalsamento, un solo posto da guardare quando ci si chiede «cosa gira».
+const rumination = new RuminationService({
+  db,
+  local: localText,
+  localUp: () => localTextUp,
+  hourOf,
+  enabled: () => env.UGO_RUMINATION === "on",
+  gapMin: env.UGO_RUMINATION_GAP_MIN,
+});
+
 const volitionTimer = setInterval(() => {
   // every exemplar decides for himself, and they are staggered so two of them
   // never speak on top of each other
@@ -321,6 +334,20 @@ const volitionTimer = setInterval(() => {
           })
           .catch((error: unknown) => {
             app.log.warn(error, "initiative tick failed");
+          });
+        rumination
+          .maybe(
+            runtime,
+            registry.all(runtime.householdId).filter((mate) => mate.id !== runtime.id),
+          )
+          .then((report) => {
+            // IDs only, never the words he thought (rule 6)
+            if (report.did !== "nothing") {
+              app.log.info({ did: report.did, gosino: runtime.id }, "rumination");
+            }
+          })
+          .catch((error: unknown) => {
+            app.log.warn(error, "rumination failed");
           });
       },
       index * 7_000,
