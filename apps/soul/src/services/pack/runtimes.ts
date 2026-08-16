@@ -101,6 +101,8 @@ export interface RuntimeDeps {
    * arrivato dal chiosco. Assente = i frame `voice_sample` si ignorano.
    */
   audio?: AudioStorageConfig;
+  /** ADR-063: la finestra sul mondo, condivisa — la query non porta la casa */
+  web?: { ask: (query: string) => Promise<string | undefined> };
 }
 
 /**
@@ -166,6 +168,7 @@ async function buildRuntime(
     ...(deps.speciesMap !== undefined && {
       pack: new PackService(deps.db, deps.speciesMap, row.id, row.householdId),
     }),
+    ...(deps.web !== undefined && { web: deps.web }),
   });
   // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.
   // Due gosini sotto lo stesso tetto imparano cose diverse, ed è il punto.

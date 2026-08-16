@@ -38,7 +38,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 |---|---|---|
 | ⬜️ | **Tool calling dentro il budget guard** | insieme minimo e sorvegliato: leggi psiche, cerca in memoria, registra evento, invalida ricordo. **Idea del proprietario (2026-08-16): il banco di prova sono le interfacce del chiosco** — dirgli di andare in un'altra stanza, chiamare un altro gosino. È il posto giusto per cominciare: i canali esistono già (`gesture`, `speak`, il registro delle stanze, `peer_chat` della ruminazione), l'azione è reversibile e si vede a occhio se ha funzionato. **MA (2026-08-16): la formulazione così com'è convince pochissimo il proprietario — da riguardare insieme prima di scrivere l'ADR**, non partire |
 | ⬜️ | **Server MCP** | altri agenti interrogano la memoria di UGO; quasi gratis dato l'API esistente |
-| ⬜️ | **Ricerca web** | oggi UGO non sa nulla di ciò che è successo dopo l'addestramento. **Decisioni del proprietario (2026-08-16)**: si fa con **SearXNG self-hosted** nel compose (zero costo per query, zero API key) + sintesi coi modelli locali (pattern ruminazione: zero token del provider); sulla privacy: le query escono verso i motori ma non sono riconducibili a chi in casa le ha fatte, e questo basta — da **dichiarare** nell'ADR, non da «sistemare» |
+| ✅ | **Ricerca web** | **ADR-063 (gruppo 13)**: «cerca: …» in chat — gesto esplicito risposto PRIMA del provider (la famiglia di ADR-028/055), SearXNG nel compose senza porte host, sintesi col modello locale e ripiego deterministico sui titoli, mai in reception, postura privacy del proprietario scritta nell'ADR. Si accende con SEARXNG_URL |
 | 🚫 | Integrazioni in uscita (Todoist, Notion) | riapribile: serve sapere quali usi davvero |
 
 ## Gruppo 4 — Voce e presenza

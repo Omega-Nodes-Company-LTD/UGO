@@ -68,4 +68,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [060](./060-i-feed-e-il-consiglio-del-mattino.md) | I feed, e il consiglio del mattino | Accettata |
 | [061](./061-il-tenant-e-unorganizzazione.md) | Il tenant è un'organizzazione: casa O azienda | Accettata |
 | [062](./062-rls-si-accende.md) | RLS si accende: la transazione che dichiara la casa | Accettata |
-| 063 | *(prossimo numero disponibile)* | — |
+| [063](./063-la-finestra-sul-mondo.md) | La finestra sul mondo: la ricerca web, su gesto esplicito | Accettata |
+| 064 | *(prossimo numero disponibile)* | — |
