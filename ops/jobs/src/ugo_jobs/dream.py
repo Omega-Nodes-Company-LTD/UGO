@@ -171,6 +171,8 @@ def _run_step(
             "missing": enrolled.missing,
             # ADR-057: le impronte ignote scadute, portate via da questo giro
             "expired": enrolled.expired,
+            # percezione giù stanotte: in coda per domani, non perse
+            "deferred": enrolled.deferred,
         }
     elif step == "reflect":
         result = run_reflect(conn, cfg, dream_date)

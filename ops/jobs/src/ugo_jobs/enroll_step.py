@@ -9,12 +9,15 @@ one thing we promised not to.
 
 from __future__ import annotations
 
+import base64
 import json
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
 import boto3
+import httpx
+import numpy as np
 import psycopg
 
 from .config import JobsConfig
@@ -38,6 +41,43 @@ class EnrollStepResult:
     missing: int
     #: ADR-057: impronte ignote scadute portate via da QUESTO giro
     expired: int = 0
+    #: percezione giù stanotte: la richiesta resta in coda e si riprova domani
+    deferred: int = 0
+
+
+def _remote_enroll(
+    cfg: JobsConfig, gosino_id: str, being_id: str, samples: np.ndarray
+) -> str:
+    """L'arruolamento dove vive ECAPA (il fix della voce dimenticata).
+
+    Il sogno arruolava con l'encoder di ripiego (MFCC: l'immagine dei job non
+    porta torch, per scelta) mentre il riconoscitore vivo usa ECAPA sulla
+    percezione — e `identify_voice` confronta solo profili dello stesso
+    modello. Risultato visto in produzione: profilo scritto, persona MAI
+    riconosciuta. Il campione adesso va al servizio che tiene l'encoder
+    giusto; `deferred` = percezione giù, si riprova domani notte.
+    """
+    pcm = np.clip(np.asarray(samples, dtype=np.float32), -1.0, 1.0)
+    audio = base64.b64encode((pcm * 32767.0).astype("<i2").tobytes()).decode()
+    try:
+        response = httpx.post(
+            f"{cfg.recognition_url}/v1/enroll/voice",
+            json={
+                "audio": audio,
+                "being_id": being_id,
+                "gosino_id": gosino_id,
+                "household_id": cfg.household_id,
+            },
+            headers={"authorization": f"Bearer {cfg.internal_token}"},
+            timeout=60,
+        )
+    except Exception:  # noqa: BLE001 — rete giù: non è un verdetto
+        return "deferred"
+    if response.status_code == 200:
+        return "enrolled"
+    if response.status_code == 403:
+        return "refused"
+    return "deferred"
 
 
 def _pending(conn: psycopg.Connection) -> list[tuple[str, str, str, str]]:
@@ -131,13 +171,28 @@ def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
                 client.download_fileobj(cfg.s3_bucket_audio, object_key, handle)
                 handle.flush()
                 samples = load_audio(handle.name)
-            enroll_voice(
-                conn,
-                gosino_id=gosino_id,
-                being_id=being_id,
-                samples=samples,
-                data_key=data_key,
-            )
+            if cfg.recognition_url and cfg.internal_token:
+                outcome = _remote_enroll(cfg, gosino_id, being_id, samples)
+                if outcome == "deferred":
+                    # NESSUNA riga di esito: la richiesta resta pendente e il
+                    # clip resta nel bucket — domani notte si riprova
+                    result.deferred += 1
+                    continue
+                if outcome == "refused":
+                    _outcome(conn, gosino_id, being_id, request_id, "refused:remote")
+                    result.refused += 1
+                    continue
+            else:
+                # casa senza percezione: l'encoder di ripiego, dichiarato — e
+                # senza percezione non c'è nemmeno un riconoscitore vivo che
+                # possa restare deluso dal modello diverso
+                enroll_voice(
+                    conn,
+                    gosino_id=gosino_id,
+                    being_id=being_id,
+                    samples=samples,
+                    data_key=data_key,
+                )
         except EnrollmentRefused as refusal:
             _outcome(conn, gosino_id, being_id, request_id, f"refused:{refusal}")
             result.refused += 1
