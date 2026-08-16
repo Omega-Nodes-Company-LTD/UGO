@@ -12,6 +12,7 @@ import {
 import { and, asc, eq, gte } from "drizzle-orm";
 import type { ChatService } from "./chatService.js";
 import type { PsycheService } from "./psycheService.js";
+import { voiceAskOpen, type VoiceSampleResult } from "./voiceEnrolment.js";
 
 export interface FaceGatewayDeps {
   /** ADR-032: which exemplar this gateway is the body of (ADR-048 tempo 2: required) */
@@ -47,6 +48,13 @@ export interface FaceGatewayDeps {
    * onesto e non un mezzo servizio.
    */
   reward?: (input: { act?: string | undefined; at: Date }) => Promise<void>;
+  /**
+   * ADR-057, la seconda metà: dove va a finire un campione di voce arrivato
+   * dal chiosco. Iniettata perché il deposito tocca il bucket, che il gateway
+   * non possiede. Assente = il frame `voice_sample` si ignora — una casa senza
+   * object storage non può arruolare voci, dal pannello come dal chiosco.
+   */
+  voiceSample?: (input: { beingId: string; audio: Buffer }) => Promise<VoiceSampleResult>;
 }
 
 export type FaceSender = (message: ServerToFaceMessage) => void;
@@ -109,6 +117,19 @@ export class FaceGateway {
   public broadcastGesture(id: string): void {
     for (const send of this.senders) {
       send({ type: "gesture", id });
+    }
+  }
+
+  /**
+   * ADR-057, la seconda metà: «fatti sentire la voce», detto dal chiosco.
+   *
+   * Parte dal claim del volto nel pannello, ma l'invito appare dove la persona
+   * sta davvero — sullo schermo del corpo. Ogni corpo connesso lo mostra; la
+   * finestra che lo rende valido la tiene soul (`voiceAskOpen`), non il corpo.
+   */
+  public broadcastAskVoice(beingId: string, name: string): void {
+    for (const send of this.senders) {
+      send({ type: "enroll_voice", beingId, name });
     }
   }
 
@@ -383,6 +404,30 @@ export class FaceGateway {
         await this.recordEvent("shake", {});
         await this.deps.psyche.applyEventType("shake", at);
         this.pushMood(send);
+        return;
+      }
+      case "voice_sample": {
+        // ADR-057: biometria dal chiosco SOLO dentro la finestra aperta dal
+        // claim del volto. Fuori finestra il frame si ignora e si annota — un
+        // corpo che deposita voci quando vuole non è un corpo, è un
+        // registratore abusivo. Solo id nel registro, mai l'audio (regola 6).
+        const store = this.deps.voiceSample;
+        if (store === undefined) return;
+        if (!(await voiceAskOpen(this.deps.db, message.beingId, at))) {
+          await this.recordEvent("voice_sample_rejected", { beingId: message.beingId });
+          return;
+        }
+        const stored = await store({
+          beingId: message.beingId,
+          audio: Buffer.from(message.audio, "base64"),
+        });
+        await this.recordEvent("voice_sample", {
+          beingId: message.beingId,
+          outcome: stored.outcome,
+        });
+        if (stored.outcome === "queued") {
+          send({ type: "speak", text: "Grunf, ti ho sentito! Stanotte imparo la tua voce." });
+        }
         return;
       }
       case "used_prop": {

@@ -131,6 +131,25 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
   // ADR-030: which body he is in right now. Until this existed UGO could ask
   // to go out and never find out that he had been taken.
   z.object({ type: z.literal("mode"), mode: z.enum(["home", "portable"]) }),
+  /**
+   * ADR-057, il pezzo mancante: la voce, registrata dal chiosco.
+   *
+   * Sale SOLO in risposta a un `enroll_voice` recente: soul tiene aperta la
+   * richiesta per una finestra breve (`VOICE_ASK_WINDOW_MIN`) e fuori da
+   * quella il frame viene ignorato — un corpo che può depositare biometria
+   * quando vuole non è un corpo, è un registratore abusivo.
+   *
+   * Il tetto è aritmetica, come per `audio` su `heard_text`: dieci secondi di
+   * webm/opus a voce (la stessa ricetta del pannello, ~2-4 kB/s) sono
+   * 20-40 000 byte, cioè al massimo ~54 000 caratteri di base64. 120 000
+   * lascia margine per microfoni loquaci e rifiuta qualunque cosa non sia
+   * un clip di arruolamento.
+   */
+  z.object({
+    type: z.literal("voice_sample"),
+    beingId: z.uuid(),
+    audio: z.string().min(1).max(120_000),
+  }),
 ]);
 export type FaceToServerMessage = z.infer<typeof faceToServerSchema>;
 
@@ -186,6 +205,21 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
         rot: z.number(),
       }),
     ),
+  }),
+  /**
+   * ADR-057, il pezzo mancante: «fatti sentire la voce».
+   *
+   * Parte quando un volto ignoto viene rivendicato dal pannello: UGO ha
+   * appena imparato la faccia di `name`, e chiede — dal chiosco, dove la
+   * persona sta davvero — di parlargli, così dopo la riconosce anche senza
+   * vederla. Il corpo mostra un invito temporaneo; se nessuno lo tocca entro
+   * la finestra, scade e non se ne fa niente.
+   */
+  z.object({
+    type: z.literal("enroll_voice"),
+    beingId: z.string(),
+    name: z.string().min(1).max(80),
+    who: z.string().optional(),
   }),
   z.object({
     type: z.literal("roster"),
