@@ -2114,6 +2114,7 @@ PR #38, SearXNG di PR #43).
 | **Sa cominciare, non sa declinare** | Teso o esausto risponde comunque, sempre, subito: l'unica cosa che lo zittisce è il budget esaurito, che è il rifiuto di un contabile | Il passo gemello di ADR-027: risposta più corta, o dopo, o un grugnito — con interruttore del proprietario |
 | **Un solo ciclo di iniziativa** per tutto soul | Con più gosini in casa due creature parlerebbero addosso l'una all'altra | Per esemplare, insieme ad ADR-019 fase 3. `SolitudeMonitor` e `IdleConsolidation` ora almeno appartengono a un esemplare invece di leggere l'intero database |
 | Stato faccia di soul **per processo**, non per connessione | Due schede aperte si vedono lo stesso stato; gli e2e devono ordinarsi (`z-body.e2e.spec.ts`) | Diventa reale con più corpi per casa (ADR-019 fase 3): lì lo stato va per esemplare |
+| **Caccia ai difetti del 2026-08-16: 36 candidati aperti** | La famiglia dominante è lo scope multi-tenant dimenticato sul gemello adiacente (`searchTranscripts`, `/v1/memories/search`, `_pending` dell'arruolamento); con l'RLS inerte il DB non fa da rete. Più XSS (nome stanza, etichetta feed), budget guard TOCTOU, retention S3 non paginata, STT locale morto | Elenco completo con file:riga e severità in `docs/BACKLOG.md` gruppo 19. I tre capitali sono verificati a mano; si correggono con TDD reale, un difetto per commit |
 
 ## 8. Prossimo passo operativo
 

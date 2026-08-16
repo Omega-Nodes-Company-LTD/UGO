@@ -1,8 +1,10 @@
 # Backlog — il lavoro deciso e non ancora fatto
 
 Fonte: analisi competitiva del 2026-08-10 su dieci progetti simili, più le fasi aperte di ADR-018,
-ADR-019 e ADR-020. Questo file esiste perché il piano non viva soltanto nella testa di chi lo sta
-eseguendo: si lavora **un punto per commit**, un gruppo per pull request.
+ADR-019 e ADR-020. I gruppi 14–19 vengono dall'analisi dei buchi del 2026-08-16 (giro completo
+BO/`admin`/muso, reception come stanza, onboarding cliente, container mancanti, sgosinate dei
+competitor, e la caccia ai difetti). Questo file esiste perché il piano non viva soltanto nella
+testa di chi lo sta eseguendo: si lavora **un punto per commit**, un gruppo per pull request.
 
 Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con motivo.
 
@@ -190,6 +192,154 @@ del codice.
 | ✅ | **I compleanni dei gosini** | **fatto**: nel passo `anniversaries`, da `born_at` — il desiderio va al FESTEGGIATO («oggi compio 2 anni!»), non all'anziano |
 | ✅ | **Il suono della pioggia** | **fatto**: WebAudio procedurale (rumore bianco + passa-basso, volume sotto ogni voce), solo se nel cielo vero piove, mai di notte, spento coi sensi |
 | ✅ | **La rassegna del mattino** | **fatto**: passo `review` del sogno — massimo due titoli delle ultime 24 h in un desiderio «stamattina» per l'anziano; titoli pubblici, sagoma deterministica |
+
+## Gruppo 14 — Il giro completo delle superfici (buchi BO / `/admin` / muso)
+
+Nato dall'analisi del 2026-08-16 (regola 12: BO + `/admin` + FE, tutti e tre). Non feature nuove:
+**dati che esistono e non hanno una superficie**, contratti che un lato riempie e l'altro ignora,
+rotte senza consumatore. Il filo comune: il backend compila, ma il proprietario non vede — o vede
+il vecchio mondo. Quasi tutto è cablatura, non invenzione.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **`GET /v1/beings` che il pannello chiama non esiste** | `admin/script/prints.ts:42` fa `call("/v1/beings")`, ma esistono solo `GET /v1/pack`, `POST/PATCH /v1/beings`. La pagina **Volti** va in 404: `select` `print-who` vuota, `faces-list` mai popolata, il claim delle impronte (2ª metà di ADR-057) irraggiungibile. Correggere il chiamante a `/v1/pack` o aggiungere la rotta. **È anche il bug capitale del gruppo 19** |
+| ⬜️ | **L'audit log non è ispezionabile da nessuna interfaccia** | `auditLog` si legge solo da `psql`. Serve la vista in sola lettura nel pannello promessa dalla DoD del gruppo 5 §8 |
+| ⬜️ | **Il diario notturno non è mai mostrato** | `diaryEntries` (scritto da `reflect` ogni notte) arriva all'utente solo di rimbalzo (prima frase di un desiderio, murmur). Nessuna rotta, nessuna pagina |
+| ⬜️ | **I token di casa si creano e revocano solo via DB** | `accessTokens` non ha CRUD né UI — mentre i token *cliente* hanno `POST/DELETE /v1/customers/:id/tokens` e pannello completo. Asimmetria da chiudere |
+| ⬜️ | **Nessuna vista delle conversazioni di casa** | `messages` è mostrato solo come `count`; la reception *cliente* ha `/conversazioni`, il proprietario di casa no. Riuso della stessa forma |
+| ⬜️ | **Chi è stato riconosciuto e quando non è elencato** | `perceptionEvents` non ha superficie; `psycheBaselines` (deriva ADR-012) e le righe di `budgetLedger` neppure (solo aggregati) |
+| ⬜️ | **Le correzioni sono write-only dal pannello** | si aggiunge (`script/voice.ts:54`) ma non si vede né si ritira. `corrections` senza lista |
+| ⬜️ | **Il genoma si sceglie una volta e non si rilegge** | `traitSets` visibile solo alla nascita (`script/birth.ts`); nessuna pagina lo modifica dopo |
+| ⬜️ | **`reward.act` è sempre `null`** | il contratto lo definisce per premiare una riga precisa delle iniziative, ma il pannello non ha bottone «premia» e il muso lo omette: `actEfficacy` è alimentata solo dalla mela cliente. Aggiungere il premio dal pannello |
+| ⬜️ | **`used_prop.who` attraversa il socket e muore** | il muso lo manda (`main.ts:458`), `faceGateway.ts:497` legge solo `kind`: in una stanza di due il sollievo dalla noia può finire sulla creatura sbagliata — il difetto che lo schema dichiara di voler evitare. **Anche bug (gruppo 19)** |
+| ⬜️ | **`seen_object` e `glimpse` sono scritti e mai mostrati** | nessuna pagina filtra `seen_object`; `glimpse` vive solo in RAM. Cosa UGO ha guardato non è ispezionabile |
+| ⬜️ | **Sei cause della psiche su 21 restano in inglese** | `exemplars.ts` etichetta 15 tipi; mancano `reward`, `loud_noise_muffled`, `used_prop`, `napped`, `excited_voice`, `calm_voice` |
+| ⬜️ | **Il pannello non sa quali chioschi/stanze sono connessi** | `SceneHub` lo sa in RAM ma non lo espone; né mostra se un corpo è `home` o `portable`, né la profondità della coda offline |
+| ⬜️ | **`/health` non controlla la percezione** | controlla `db`/`mqtt`/`ollama` ma non `ops/voice`, da cui dipendono volto e voce |
+| ⬜️ | **I job lavorano senza lasciare un rapporto visibile** | esito del backup notturno, di hygiene/compaction/contradictions, dell'ultimo sogno passo-per-passo, e gli item dei feed: tutti invisibili dal pannello (solo conteggi o log del container) |
+| ⬜️ | **Azioni admin che oggi si fanno solo in SQL** | rename stanza (ADR-039), ritiro gosino (`retired_at`), creare un ricordo a mano, annullare/aggiungere desideri, eliminare riunioni + vista trascrizioni, `POST /v1/prints/expire` senza bottone, budget giornaliero da UI, persistenza dell'interruttore iniziativa (oggi torna all'env al riavvio), CRUD case (kind/fuso/chiusura) |
+| ⬜️ | **Rotte senza consumatore** | `GET /v1/memories/graph/size`, `POST /v1/beings/:id/enroll/voice` (presign), `GET /v1/memories/search` (e per giunta aperta — bug), `POST /v1/reception/tickets`: o si cablano o si tolgono |
+
+## Gruppo 15 — La reception è una nostra stanza (il porcello 3D per il cliente)
+
+Direttiva del proprietario (2026-08-16): «la reception deve essere vista dal cliente come una
+nostra stanza, deve vedere il porcello come lo vedo io in stanza, con l'aggiunta della chat e
+dello spazio ticket». Oggi non è così: `apps/reception/app/parla/page.tsx:204` mostra un avatar
+2D SVG (`components/avatar.tsx`, dichiarato «non il renderer del corpo di casa»), colore da hash
+del seed, animazione dal ciclo della richiesta e non dalla psiche. La buona notizia: il corpo 3D
+è già disaccoppiato dal WS (`body/faceRenderer.ts`, interfaccia imperativa), dipende solo da
+`three` e `@ugo/shared/{face,props}`, e la `Room` di default è già un prato neutro. Il confine di
+ADR-051/053 regge per costruzione: un solo residente, mai `setSky`/`setProps`/roster.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **Estrarre il corpo in un package condiviso** | `apps/face/src/body/*` (+ `renderer.ts` 2D) → `@ugo/face-body` con `three` come dep; sia `apps/face` sia `apps/reception` lo importano. La parte sporca (`main.ts`: socket/sensori/portable) NON si porta dietro |
+| ⬜️ | **Il porcello del gosino scelto nella reception** | componente client (`"use client"`, dynamic import `ssr:false`) che monta `createFace` con un solo residente e scena neutra; fallback all'avatar 2D su device senza WebGL |
+| ⬜️ | **Esporre l'aspetto del gosino** | `character.traits` in `/v1/reception/me` (query già pronta: `traitSets` per `gosinoId`, `order by version desc limit 1`, `characterFrom(...)`, `runtimes.ts:145`) per `setResidents` — stessa geometria da genoma del muso di casa |
+| ⬜️ | **Esporre l'emozione senza WS** | arricchire la risposta di `/v1/reception/chat` (oggi solo `{reply,degraded,cached,ticketId?}`) con `{ mood:{label,vars}, gesture? }` dalla psiche del gosino; il client chiama `setMood`/`reflex` sul dato pollato. Rispetta il «niente WS» di ADR-053 |
+| ⬜️ | **Layout stanza + pannelli** | canvas 3D accanto a chat e ai tab ticket/lavori/conversazioni già esistenti. ADR per il renderer condiviso e per il contratto di stato reception |
+
+## Gruppo 16 — Onboarding cliente e consenso voce/volto
+
+Direttiva del proprietario (2026-08-16): l'onboarding cliente deve chiedere «o la faccia e voce
+o almeno la voce, altrimenti gli resta solo la chat — ma devono sapere a cosa rinunciano se dicono
+no». Stato: nessun onboarding con consenso; la voce del cliente è **solo browser**, il volto non
+esiste per i clienti, e `recognition_profiles` è FK solo su `beings`. **ADR-053 vieta oggi il
+riconoscimento sul canale reception**: quindi restare solo-chat non toglie nulla — il «cosa perdi»
+va prima *costruito*, altrimenti la schermata di consenso mentirebbe. È lavoro di prodotto +
+architettura + normativa, non una schermata.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **ADR-066: il muro di ADR-053 si abbatte con consenso** | base giuridica esplicita (embedding vocali/facciali = dati art. 9 GDPR, cfr. ADR-045/016), informativa in italiano piano, DPIA (già segnalata aperta in STATE §7) |
+| ⬜️ | **Modello dati biometrico cliente** | l'attuale `recognition_profiles` è being-only: tabella nuova con consenso versionato, `is_minor` che blocca a monte, opt-out `no_vision`/`no_audio` prima della pipeline (regola 9), embedding ciphertext in `bytea` (ADR-016) |
+| ⬜️ | **Tubo audio e camera sul canale reception** | oggi `/v1/reception/*` non ha audio; camera con indicatore visibile quando attiva (ADR-016) |
+| ⬜️ | **Le feature che voce/volto sbloccano** | saluto personale, ri-accesso a bassa frizione, continuità di conversazione — così il «no» ha un costo reale da dichiarare |
+| ⬜️ | **Flusso UI a tre esiti** | volto+voce / solo voce / solo chat, con la schermata che elenca *esplicitamente* cosa si perde; consenso registrato e revocabile da `impostazioni`, gestione minori |
+
+## Gruppo 17 — I container che mancano in produzione
+
+Nota del proprietario (2026-08-16): «in produzione abbiamo solo soul e jobs; serve un'istruzione
+per i nuovi container». Esistono immagine e compose per `percezione`, `searxng` e `reception`, ma
+non sono deployati/documentati, e alcune env non sono cablate — perciò riconoscimento, ricerca web
+e la reception stessa restano spenti anche col ferro pronto.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **Procedura «onboarda un nuovo container»** | sezione riusabile in `OPS_COOLIFY.md`: Dockerfile (multi-stage, non-root, `read_only`), servizio nel compose (rete `backend`, mai porte host salvo loopback, profilo se on-demand), env nel blocco **e** in `.env.example`, healthcheck, sezione runbook sul modello di §2.3-bis |
+| ⬜️ | **Cablare `percezione` davvero** | `UGO_RECOGNITION_URL` non è passato a soul nel compose → riconoscimento spento anche col container su; renderlo di prima classe + healthcheck in soul |
+| ⬜️ | **Deployare `searxng`** | zero righe nel runbook e `SEARXNG_URL` non cablato su soul → la «finestra sul mondo» (ADR-063) non è raggiungibile in produzione |
+| ⬜️ | **Deployare `reception`** | container + BFF esistono e cablati nel compose, ma nessuna sezione nel runbook Coolify |
+| ⬜️ | **`ANTHROPIC_API_KEY` su `jobs`** | `config.py` la legge e il fallback del sogno la richiede, ma il compose non la passa. **Chiude il bug del gruppo 19** |
+
+## Gruppo 18 — Le sgosinate dei competitor (a costo zero, senza corpo né GPU)
+
+Dalla domanda del proprietario del 2026-08-16: cosa hanno i venti principali compagni artificiali
+(Replika, Nomi, Kindroid, ElliQ, Home Assistant Assist, Alexa+…) che a noi manca **ed è fattibile
+senza corpo fisico, senza GPU e senza API a pagamento**. I mattoni ci sono quasi tutti
+(`diaryEntries`, feed RSS, meteo, psiche, `traitSets`, Piper, Ollama). Le voci che duplicano
+gruppi esistenti (proattività→2, chat di gruppo/input immagini→4, fallback LLM/RAG→7) NON si
+ripetono qui: sono già in cantiere.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **Check-in proattivi programmati** | UGO si fa vivo a orari/eventi (stile Replika/ElliQ), sopra i `desires` che già esistono — parente stretto del gruppo 2 |
+| ⬜️ | **Diario/journaling con riassunto serale** | consegnato all'utente; `diaryEntries` esiste già, oggi non è mai mostrato (gruppo 14) |
+| ⬜️ | **Memory book / timeline dei ricordi** | consultabile e navigabile, sopra il grafo di memoria esistente |
+| ⬜️ | **Timer, sveglie e promemoria vocali** | parità Alexa/Assist; ADR-028 ha già i gesti espliciti come binario |
+| ⬜️ | **Liste (spesa, cose da fare) a voce** | mostrate anche nel pannello |
+| ⬜️ | **Intent locali deterministici** | i comandi ricorrenti risolti senza LLM (parità Home Assistant: ~90% dei comandi), a costo zero e privati |
+| ⬜️ | **Mood del branco nel tempo, con grafico** | il dato psiche c'è già (parente del gruppo 14 `psycheBaselines`) |
+| ⬜️ | **Personalità/tratti regolabili dopo la nascita** | stile Kindroid; riusa `traitSets` (parente del gruppo 14) |
+| ⬜️ | **Giochi vocali e storie della buonanotte** | generate/lette con Ollama locale + Piper |
+| ⬜️ | **Rassegna RSS a voce su richiesta** | i feed ci sono (gruppo 10); esporne il riassunto quando lo chiedi |
+| ⬜️ | **Export e oblio self-service dal muso** | esistono via `/v1/privacy/*`, manca l'accesso dal chiosco (dove Replika ha preso 5M€ dal Garante nel 2025) |
+
+## Gruppo 19 — Difetti trovati (caccia del 2026-08-16)
+
+Analisi di lettura su contratti, backend, migrazioni, `ops/jobs`, `ops/docker`, muso. La famiglia
+dominante è **lo scope multi-tenant applicato su un percorso e dimenticato sul gemello adiacente**;
+con l'RLS oggi «presente e inerte» (gruppo 5), il database non fa da rete — sono difetti attivi.
+I tre capitali (`searchTranscripts`, `/v1/memories/search`, `GET /v1/beings`) sono stati verificati
+a mano. Si correggono con TDD reale (Testcontainers per lo scope, Playwright per l'XSS e la pagina
+Volti), un difetto per commit.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **ALTA — `searchTranscripts()` senza scope** | `packages/memory/src/transcripts.ts:22`: nessun `household_id`/`gosino_id` (la gemella `searchMemories` sì). Casa A può pescare trascrizioni cifrate di casa B |
+| ⬜️ | **ALTA — `GET /v1/memories/search` aperta e senza esemplare** | `routes/v1.ts:101`: nessun `guard` (le altre rotte d'archivio sì), `chat.search` senza `gosinoId`. `curl …?q=…&k=50` senza token restituisce memorie in chiaro di ogni casa |
+| ⬜️ | **ALTA — XSS via nome stanza/creatura** | `apps/face/src/main.ts:249`: `roomPick.innerHTML` interpola grezzo; `escapeHtml` esiste ma non è usato. Una stanza `<img onerror=…>` esfiltra `localStorage.ugo_token` su ogni chiosco |
+| ⬜️ | **ALTA — STT locale morto per ordine di init** | `main.ts:639` vs `553`: lo `ScriptProcessorNode` si monta solo se `audioTap` è già definito, ma il tap arriva dopo. Con `?stt=locale` `/v1/stt` non è mai chiamato, in silenzio |
+| ⬜️ | **ALTA — `_pending()` dell'arruolamento senza `household_id`** | `ops/jobs/.../enroll_step.py:43`: passo per-casa; il sogno di A trova la richiesta di B, fallisce nel proprio bucket, e il `not exists` fa saltare B — che non si arruola mai |
+| ⬜️ | **ALTA — clip vocale non cancellato sugli errori** | `enroll_step.py:139`: `delete_object` solo sul successo; su rifiuto (es. `is_minor`) il `.webm` resta in `inbox/`. Viola «l'audio di un enrollment non è mai tenuto» |
+| ⬜️ | **ALTA — memo TTS senza casa nella chiave, rotta aperta** | `routes/tts.ts:56`: chiave `${mood} ${text}` per-processo; casa B riceve l'audio già pagato da A senza toccare `budget_ledger` |
+| ⬜️ | **ALTA — budget guard TOCTOU + pagato-ma-non-registrato** | `packages/memory/src/llmClient.ts:133`: il check del tetto e la scrittura sul ledger sono staccati dalla rete; richieste concorrenti passano tutte, e se `parse`/insert falliscono la chiamata è già pagata e non registrata |
+| ⬜️ | **MEDIA — sconto batch 0.5 su chiamata sincrona** | `batch.py:29,100`: `BATCH_DISCOUNT` applicato ma `_ask_anthropic` non usa la Batches API; il ledger sottostima 2× |
+| ⬜️ | **MEDIA — ledger scritto solo `if conn is not None`** | `batch.py:116` (default `None`): un chiamante che ometta `conn` paga fuori dal salvadanaio senza errore |
+| ⬜️ | **MEDIA — `post()` percezione senza timeout, await nella catena WS** | `recognitionClient.ts:212`: se il container si pianta, ogni `face_seen` lascia una promise appesa con immagine in heap |
+| ⬜️ | **MEDIA — `list_objects_v2` senza paginazione** | `ingest.py:172,188` + `backup.py:67`: S3 tronca a 1000 → retention audio (90gg) e backup (30gg) non più applicate |
+| ⬜️ | **MEDIA — `zip(pieces, vectors)` senza `strict`** | `ingest.py:139`: se Ollama torna meno embedding, i segmenti in eccesso non si scrivono e poi l'audio si cancella: perdita definitiva |
+| ⬜️ | **MEDIA — password Postgres sulla command line** | `backup.py:46`: visibile in `/proc/*/cmdline`; usare `PGPASSWORD`/`.pgpass` |
+| ⬜️ | **MEDIA — indici mancanti su `gosino_id`/`household_id`** | `events`, `messages`, `meetings`, `diary`, `psyche-snapshots`, `transcript_segments`: ogni query e la policy RLS filtrano lì → seq scan a ogni turno di chat |
+| ⬜️ | **MEDIA — scene push con `?stanza=` invece del `roomSlug` restituito** | `props.ts:124,138`: spostare un arredo senza il param non aggiorna il chiosco della stanza vera |
+| ⬜️ | **MEDIA — bottone «orecchie» inefficace con `?stt=locale`** | `main.ts:689`: `speech.isListening()` resta `false`; il toggle non spegne mai il microfono locale |
+| ⬜️ | **MEDIA — «orecchie spente» non spegne** | `sensors.ts:84` + `main.ts:610`: `stream`/`AudioContext` non chiusi, il loop `rAF` continua a riempire l'anello; traccia mic resta `live` |
+| ⬜️ | **MEDIA — CORS `origin:true` riflette ogni Origin** | `server.ts:143`: il bearer sta in `localStorage` sulla stessa origin → amplifica le rotte aperte e l'XSS |
+| ⬜️ | **MEDIA — payload base64 senza `max_length`** | `ops/voice/app.py:44,53,194,348`: una POST da 200 MB va in OOM il container degli encoder |
+| ⬜️ | **MEDIA — token percezione confrontato non a tempo costante** | `ops/voice/app.py:87` (`!=`), mentre soul usa `timingSafeEqual` |
+| ⬜️ | **MEDIA — env mancanti nel compose** | `compose.dev.yml:93,199`: `jobs` senza `ANTHROPIC_API_KEY`, `soul` senza `SEARXNG_URL`/`UGO_RECOGNITION_URL`. Gemello del gruppo 17 |
+| ⬜️ | **MEDIA — loop delle case dentro il `try`** | `scheduler.py:105`: se la prima casa solleva, le successive non sognano quella notte, e il log non nomina chi è rimasto fuori |
+| ⬜️ | **MEDIA — `voiceAskOpen` senza scope né transazione** | `voiceEnrolment.ts:122`: due `voice_sample` concorrenti passano entrambi; `objectKey` al minuto → due depositi nello stesso minuto si sovrascrivono |
+| ⬜️ | **MEDIA — coda `waiting[]` del WS senza tetto** | `faceWs.ts:85`: prima di `resolveHousehold`, un corpo con coda offline piena (o ostile) accumula MB per connessione |
+| ⬜️ | **MEDIA — HTTP mockato in un test (regola Zero-Mock)** | `recognitionClient.test.ts:12`: resta verde se la percezione cambia forma della risposta — il guasto di ADR-045 |
+| ⬜️ | **MEDIA — `escape()` non codifica le doppie virgolette** | `admin/script/feeds.ts:18`: valore in contesto attributo → XSS via etichetta feed |
+| ⬜️ | **MEDIA — `/debug/chat` senza `preHandler`, servita in produzione** | `debugChat.ts:61`: punta su `/v1/chat` aperta → chat pronta per chiunque raggiunga soul, consuma budget |
+| ⬜️ | **MEDIA — insert sul ledger dentro `catch{return undefined}` senza log** | `ttsClient.ts:109`: audio pagato e non registrato quando la scrittura fallisce |
+| ⬜️ | **MEDIA — `aboutThisFace` senza scope, non transazionale, `catch {}` vuoto** | `faceGateway.ts:293`: doppio desiderio «chi è?» su frame concorrenti, guasti silenziosi |
+| ⬜️ | **BASSA — confini HTTP del muso con `as`, senza `safeParse`** | `skyWatch.ts:69`, `main.ts:169,239,536`: Zod applicato solo al WS; un 502 HTML fa sparire il selettore senza dire perché |
+| ⬜️ | **BASSA — file oltre le 200 righe, insert `messages` duplicato 4×** | `chatService.ts` (455) e `main.ts` (829); un campo nuovo dimenticato in una delle quattro strade rompe in produzione |
+| ⬜️ | **BASSA — shutdown non pulisce due timer** | `index.ts:522`: `pollTimer` riunioni e `idleTimer` fuori scope → `Connection terminated` a ogni SIGTERM |
+| ⬜️ | **BASSA — `except` nudo tratta 403 come «bucket inesistente»** | `ingest.py:184` + `backup.py:96`: messaggio fuorviante su credenziali scadute. (`hygiene.py:8` importa `json` inutilizzato) |
 
 ## Scartati, con motivo
 
