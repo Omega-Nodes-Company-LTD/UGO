@@ -64,6 +64,18 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
    * The first bang still lands its full 0.20 — that one is a real fright.
    */
   loud_noise: [{ variable: "stress", amount: 0.2, tauHours: 0.25, ceiling: 0.25 }],
+  /**
+   * ADR-056 (gruppo 10): lo stesso botto, sentito da dietro il cespuglio.
+   *
+   * Metà colpo e metà tetto, stessa τ: il riparo smorza, non cancella — un
+   * animale nascosto sente comunque che fuori c'è baccano. Il primo botto
+   * arriva sempre intero (quando suona, lui non è ancora dietro): questa
+   * variante la sente solo chi era GIÀ al riparo, ed è ciò che rende il
+   * nascondersi una scelta che funziona invece che un teatrino. In una stanza
+   * rumorosa il plateau abituato scende da ~0,55 a ~0,42: sotto la soglia
+   * dell'ansia, e si vede — nell'etichetta, nei grafici, in come parla.
+   */
+  loud_noise_muffled: [{ variable: "stress", amount: 0.1, tauHours: 0.25, ceiling: 0.125 }],
   /** same family, same reason: a phone in a pocket must not terrorise him */
   shake: [{ variable: "stress", amount: 0.1, ceiling: 0.18 }],
   meeting_completed: [{ variable: "curiosita", amount: 0.1 }],

@@ -70,7 +70,22 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
     image: z.string().max(56_000).optional(),
   }),
   z.object({ type: z.literal("light"), lux: z.number().min(0) }),
-  z.object({ type: z.literal("noise"), db: z.number().min(0) }),
+  /**
+   * ADR-056 (gruppo 10): il botto, e chi era al riparo quando è arrivato.
+   *
+   * `sheltered` elenca i `who` delle creature che in quel momento stanno
+   * dietro un riparo: per loro il colpo di stress arriva **attutito** — un
+   * nascondiglio che non protegge da niente è scenografia, non un riparo.
+   * È una lista e non un booleano perché il frame è della STANZA: in una
+   * stanza di due, uno è dietro il cespuglio e l'altro no. La casa a
+   * esemplare solo senza registro manda `[""]`, che è il suo `who` di
+   * sempre. Assente = nessuno al riparo, cioè il frame di prima, intatto.
+   */
+  z.object({
+    type: z.literal("noise"),
+    db: z.number().min(0),
+    sheltered: z.array(z.string().max(64)).max(8).optional(),
+  }),
   z.object({ type: z.literal("tap") }),
   z.object({ type: z.literal("shake") }),
   /**

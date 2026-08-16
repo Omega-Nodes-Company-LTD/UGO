@@ -328,6 +328,14 @@ function sendToSoul(message: FaceToServerMessage): void {
 // local zero-token reactions: startle immediately, tell soul right after
 const sensors = new Sensors(
   (message) => {
+    // ADR-056 (gruppo 10): il botto viaggia con chi era al riparo quando è
+    // suonato. Arricchito QUI e non dentro `sensors`, che dei corpi non sa
+    // niente — sa solo quanto è forte la stanza
+    if (message.type === "noise") {
+      const sheltered = renderer.shelteredNow?.() ?? [];
+      socket.send(sheltered.length > 0 ? { ...message, sheltered } : message);
+      return;
+    }
     socket.send(message);
   },
   () => {

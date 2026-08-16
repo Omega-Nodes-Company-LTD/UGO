@@ -253,6 +253,13 @@ export class Webgl3dFace implements FaceRenderer {
     for (const person of this.pick(who)) person.reflex(kind);
   }
 
+  /** ADR-056 (gruppo 10): chi è dietro un riparo adesso, per il frame `noise`. */
+  public shelteredNow(): string[] {
+    return [...this.people.entries()]
+      .filter(([, person]) => person.sheltered)
+      .map(([id]) => id);
+  }
+
   public start(): void {
     const loop = (t: number): void => {
       this.raf = requestAnimationFrame(loop);

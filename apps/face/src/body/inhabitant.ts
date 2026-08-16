@@ -199,8 +199,17 @@ export class Inhabitant {
     this.onUsedProp = listener;
   }
 
+  /** ADR-056 (gruppo 10): al riparo adesso — lo chiede il frame `noise`. */
+  public get sheltered(): boolean {
+    return this.wanderer.sheltered;
+  }
+
   public reflex(kind: string): void {
-    this.autonomy.reflex(kind, performance.now());
+    // un botto sentito da dietro il cespuglio non fa saltare: drizza le
+    // orecchie. È il gemello locale di `loud_noise_muffled` — il riparo deve
+    // funzionare anche nel corpo, o la psiche dice una cosa e il corpo un'altra
+    const muffled = kind === "noise" && this.sheltered;
+    this.autonomy.reflex(muffled ? "perkUp" : kind, performance.now());
   }
 
   public dispose(): void {

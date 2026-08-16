@@ -52,6 +52,19 @@ describe("exponential decay toward baseline", () => {
     expect(later.umore).toBeCloseTo(BASELINES.umore, 3);
   });
 
+  it("il botto attutito (gruppo 10) è metà del pieno, su ogni asse che conta", () => {
+    // il riparo smorza, non cambia natura: stessa variabile, stessa τ, metà
+    // colpo e metà tetto — se qualcuno ritara `loud_noise`, questo test gli
+    // ricorda che l'attutito va ritarato insieme
+    const [full] = perturbationsForEvent("loud_noise");
+    const [muffled] = perturbationsForEvent("loud_noise_muffled");
+    if (full === undefined || muffled === undefined) throw new Error("missing perturbation");
+    expect(muffled.variable).toBe(full.variable);
+    expect(muffled.tauHours).toBe(full.tauHours);
+    expect(muffled.amount).toBeCloseTo(full.amount / 2, 10);
+    expect(muffled.ceiling).toBeCloseTo((full.ceiling ?? 0) / 2, 10);
+  });
+
   it("a loud-noise spike (τ 15 min) fades much faster than heat stress", () => {
     const noise = applyPerturbations(emptyState(), [...perturbationsForEvent("loud_noise")], NOON);
     const heat = applyPerturbations(emptyState(), [...perturbationsForEvent("heat_stress")], NOON);

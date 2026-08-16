@@ -287,3 +287,38 @@ describe("il riparo", () => {
     }
   });
 });
+
+/**
+ * Gruppo 10: il riparo che FUNZIONA. `sheltered` è ciò che il frame `noise`
+ * spedisce a soul: per chi è dietro, il botto arriva attutito
+ * (`loud_noise_muffled`), ed è la differenza fra nascondersi e fare teatro.
+ */
+describe("sheltered: al riparo adesso", () => {
+  const BUSH = { id: "sh", kind: "bush" as const, x: 1.2, z: 0.4 };
+  const CUSHION = { id: "c1", kind: "cushion" as const, x: 1.2, z: 0.4 };
+  const eager = (): Wanderer => new Wanderer(dice([0.01, 0.5]));
+
+  it("becomes true once the flight to the bush lands, and not at the start", () => {
+    const w = eager();
+    w.setPen(20, 20);
+    w.setAttractions([BUSH]);
+    expect(w.sheltered).toBe(false);
+    let whenArrived: number | undefined;
+    for (let t = 0; t <= 25_000; t += FRAME) {
+      if (w.step(t, "idle", 0.1, 0.8, 1, true, 0.9).reached?.id === BUSH.id) {
+        whenArrived = t;
+        break;
+      }
+    }
+    expect(whenArrived).toBeDefined();
+    expect(w.sheltered).toBe(true);
+  });
+
+  it("a cushion is not a shelter, however close he stands", () => {
+    const w = eager();
+    w.setPen(20, 20);
+    w.setAttractions([CUSHION]);
+    for (let t = 0; t <= 25_000; t += FRAME) w.step(t, "idle", 0.9, 0.8, 1, true, 0);
+    expect(w.sheltered).toBe(false);
+  });
+});

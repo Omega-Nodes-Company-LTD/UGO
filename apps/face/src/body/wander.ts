@@ -200,6 +200,31 @@ export class Wanderer {
     return this.walkAmount > 0.02 || this.rootAmount > 0.02;
   }
 
+  /**
+   * ADR-056 (gruppo 10): è al riparo **adesso**?
+   *
+   * «Al riparo» è stare addosso a un arredo-riparo, con un margine: il punto
+   * d'arrivo della fuga è il lato opposto alla camera (`BEHIND`), quindi la
+   * distanza dal centro può superare il raggio anche a nascondiglio riuscito.
+   * Non guarda lo stress né come ci è arrivato: un maiale finito dietro il
+   * cespuglio per noia è riparato uguale — è la posizione a proteggere, non
+   * l'intenzione. Lo legge il frame `noise`: per chi è qui il botto arriva
+   * attutito (`loud_noise_muffled`), ed è ciò che rende il nascondersi una
+   * cosa che funziona invece che un teatrino.
+   */
+  public get sheltered(): boolean {
+    for (const prop of this.attractions) {
+      if (PROP_NATURE[prop.kind].shelter !== true) continue;
+      // dal punto di nascondiglio (`goalFor`: il lato opposto alla camera),
+      // NON dal centro: accanto o davanti al cespuglio si è visti e sentiti
+      // come in mezzo alla stanza. Il margine oltre l'arrivo copre il
+      // grufolare sul posto senza estendersi a mezza stanza.
+      const goal = this.goalFor(prop);
+      if (Math.hypot(goal.x - this.x, goal.z - this.z) <= BODY_HALF + 0.6) return true;
+    }
+    return false;
+  }
+
   /** True when he would like to be on his feet: the posture driver asks this. */
   public get wantsToMove(): boolean {
     return this.activity !== "still";
