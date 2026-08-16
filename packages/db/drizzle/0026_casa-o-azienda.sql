@@ -1,0 +1,2 @@
+ALTER TABLE "households" ADD COLUMN "kind" text DEFAULT 'home' NOT NULL;--> statement-breakpoint
+ALTER TABLE "households" ADD CONSTRAINT "households_kind" CHECK ("households"."kind" in ('home', 'business'));

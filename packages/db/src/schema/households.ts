@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { check, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { bytea } from "./types.js";
 
 /**
@@ -13,13 +13,24 @@ import { bytea } from "./types.js";
  * So the house holds the pack, the exemplars and the money; the gosino holds
  * the character, the memories and the mood.
  */
-export const households = pgTable("households", {
+export const households = pgTable(
+  "households",
+  {
   id: uuid("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   /** stable, human-typeable handle — used in URLs, logs and the panel */
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
+  /**
+   * ADR-061: la natura del tenant — una casa (PET, ricordi, affetto) o
+   * un'azienda (reception, clienti, ticket). Il nome tecnico `households`
+   * resta; la lingua cambia dove la vedono le persone. Oggi descrive, non
+   * vieta: è il posto dove il futuro gating vive, non un regolamento
+   * retroattivo. `text` + check, non enum Postgres (la trappola di
+   * drizzle-kit che non genera CREATE TYPE è già stata pagata due volte).
+   */
+  kind: text("kind").notNull().default("home"),
   /** the house's own clock and language: two families, two answers */
   timezone: text("timezone").notNull().default("Europe/Rome"),
   locale: text("locale").notNull().default("it-IT"),
@@ -33,7 +44,9 @@ export const households = pgTable("households", {
   wrappedDataKey: bytea("wrapped_data_key"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   closedAt: timestamp("closed_at", { withTimezone: true }),
-});
+  },
+  (table) => [check("households_kind", sql`${table.kind} in ('home', 'business')`)],
+);
 
 /** The bootstrap house, seeded alongside `ugo-prime` (ADR-015, ADR-019). */
 export const PRIME_HOUSEHOLD_ID = "00000000-0000-4000-8000-000000000002";

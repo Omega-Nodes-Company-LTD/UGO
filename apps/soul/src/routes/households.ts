@@ -33,6 +33,9 @@ export function registerHouseholdRoutes(app: FastifyInstance, deps: { db: DbClie
         id: households.id,
         slug: households.slug,
         name: households.name,
+        // ADR-061: casa o azienda — il selettore lo mostra, perché chi
+        // possiede entrambe deve vedere in quale mondo sta scrivendo
+        kind: households.kind,
         timezone: households.timezone,
       })
       .from(households)
