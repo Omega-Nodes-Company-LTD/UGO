@@ -123,3 +123,46 @@ describe("il freno sul riavvio (le orecchie che non suonano il campanello)", () 
     expect(FakeRecognition.born.length).toBe(1);
   });
 });
+
+describe("i verdetti e il registro (il telefono del proprietario, secondo giro)", () => {
+  it("su not-allowed si arrende SUBITO: un verdetto non si ritenta a suon di bip", () => {
+    const speech = new Speech();
+    const gaveUp = vi.fn();
+    const troubles: string[] = [];
+    speech.listen(
+      () => undefined,
+      undefined,
+      (what) => troubles.push(what),
+      gaveUp,
+    );
+    last().onerror?.({ error: "not-allowed" });
+    last().onend?.();
+    expect(speech.isListening()).toBe(false);
+    expect(gaveUp).toHaveBeenCalledTimes(1);
+    // UNA sola sessione: zero riavvii, zero bip in piu'
+    expect(FakeRecognition.born.length).toBe(1);
+    expect(troubles.some((t) => t.includes("nega"))).toBe(true);
+  });
+
+  it("otto network fanno UNA riga nel registro, non otto fotocopie", () => {
+    const speech = new Speech();
+    const troubles: string[] = [];
+    speech.listen(
+      () => undefined,
+      undefined,
+      (what) => troubles.push(what),
+    );
+    for (let i = 0; i < 20 && speech.isListening(); i += 1) {
+      last().onerror?.({ error: "network" });
+      last().onend?.();
+      const count = FakeRecognition.born.length;
+      for (let ms = 0; ms < 60_000 && FakeRecognition.born.length === count; ms += 100) {
+        if (!speech.isListening()) break;
+        vi.advanceTimersByTime(100);
+      }
+    }
+    // una riga per la classe `network`, piu' quella finale di resa
+    expect(troubles.filter((t) => t.includes("network"))).toHaveLength(1);
+    expect(troubles.at(-1)).toContain("orecchie spente");
+  });
+});

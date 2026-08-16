@@ -421,8 +421,10 @@ function startListening(): void {
     // raggiungeva il proprio servizio, il corpo riavviava la sessione per
     // sempre e non lo diceva a nessuno. Un orecchio che non sente e non lo
     // dichiara e' indistinguibile da una stanza silenziosa.
+    // la frase completa la compone `speech.ts`, che sa distinguere un
+    // contrattempo da un verdetto: qui si riferisce e basta
     (what) => {
-      trouble("il riconoscitore si e' fermato: " + what);
+      trouble(what);
     },
     // Il freno ha mollato (speech.ts): su questo dispositivo le sessioni
     // muoiono appena nate — tipicamente un Android in cui il misuratore di
