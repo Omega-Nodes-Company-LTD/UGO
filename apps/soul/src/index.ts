@@ -301,6 +301,11 @@ const app = buildServer({
     // ADR-057: rivendicare un'impronta ignota passa dallo stesso servizio che
     // tiene gli encoder, e con lo stesso client per casa
     ...(recognition !== undefined && { prints: recognition }),
+    // gruppo 12: il meteo vero — solo se la casa ha detto dove sta
+    ...(env.UGO_HOME_LAT !== undefined &&
+      env.UGO_HOME_LON !== undefined && {
+        weather: { home: { lat: env.UGO_HOME_LAT, lon: env.UGO_HOME_LON } },
+      }),
   },
 });
 

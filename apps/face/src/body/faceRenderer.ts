@@ -66,6 +66,12 @@ export interface FaceRenderer {
    * ripari, e lì il botto arriva intero com'è sempre arrivato.
    */
   shelteredNow?(): string[];
+  /**
+   * Gruppo 12: il tempo che fa e — di notte — cosa c'è lassù. Facoltativo
+   * come tutto ciò che riguarda la stanza: il corpo 2D non ha un cielo, e un
+   * meteo che arriva lì va ignorato, non fatto fallire.
+   */
+  setSky?(state: import("./room3d.js").SkyState): void;
   start(): void;
   stop(): void;
   /** what the body is currently doing, for the e2e hooks */

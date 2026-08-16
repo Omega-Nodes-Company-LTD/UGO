@@ -190,6 +190,11 @@ export class Webgl3dFace implements FaceRenderer {
     this.spreadProps();
   }
 
+  /** Gruppo 12: il tempo che fa fuori, e il cielo di stanotte. */
+  public setSky(state: import("./room3d.js").SkyState): void {
+    this.room.setSky(state);
+  }
+
   /**
    * ADR-058: hai mirato al muso? E di chi?
    *

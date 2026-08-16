@@ -12,6 +12,7 @@ import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noi
 import { mountLogPanel } from "./logPanel.js";
 import { Speech } from "./speech.js";
 import { worthSending } from "./heard.js";
+import { watchSky } from "./skyWatch.js";
 import { mountVoiceInvite } from "./voiceInvite.js";
 import { FaceSocket } from "./ws.js";
 
@@ -545,6 +546,10 @@ renderer.start();
 void socket.start();
 // the picker asks the soul which rooms exist; it never blocks the body
 void loadRooms();
+// gruppo 12: il cielo del recinto segue quello vero — meteo da soul ogni
+// mezz'ora, e di notte luna e pianeti calcolati qui (zero rete). Un corpo 2D
+// non ha un cielo e ignora tutto, come per gli arredi
+watchSky(soulHttp, (state) => renderer.setSky?.(state));
 
 
 // ---- portable mode wiring (§4.2) ------------------------------------------
