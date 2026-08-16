@@ -78,6 +78,17 @@ const QUICK_DEATH_MS = 1500;
 const RESTART_BACKOFF_MS = [300, 2000, 5000, 15000] as const;
 const GIVES_UP_AFTER = 8;
 
+/**
+ * Gli errori che sono un VERDETTO, non un contrattempo.
+ *
+ * `not-allowed` e `service-not-allowed` sono il sistema che dice NO al
+ * riconoscimento: ritentare otto volte è un bip ogni volta per una risposta
+ * che non cambierà — visto sul telefono del proprietario, il registro pieno
+ * di `not-allowed`/`network` alternati per due minuti. Su un verdetto ci si
+ * arrende SUBITO; il backoff resta per il tempo che può cambiare (`network`).
+ */
+const VERDICTS = ["not-allowed", "service-not-allowed"] as const;
+
 export class Speech {
   private recognition: SpeechRecognitionLike | undefined;
   /** true while the mouth is busy, so the ears do not hear the mouth */
@@ -156,6 +167,17 @@ export class Speech {
     if (Ctor === undefined) return false;
     this.listening = true;
     let quickDeaths = 0;
+    // una riga per CLASSE di errore, non una per tentativo: il registro del
+    // proprietario era un muro di `not-allowed`/`network` fotocopiati, e otto
+    // copie della stessa notizia non sono piu' notizia della prima
+    const alreadyTold = new Set<string>();
+    let verdict = false;
+
+    const giveUp = (why: string): void => {
+      this.listening = false;
+      onTrouble?.(why);
+      onGaveUp?.();
+    };
 
     const session = (): void => {
       if (!this.listening) return;
@@ -192,10 +214,20 @@ export class Speech {
       // irraggiungibile diventano un orecchio che non sente e non lo dice.
       recognition.onerror = (event) => {
         const what = event.error ?? "sconosciuto";
-        if (worthReporting(what)) onTrouble?.(what);
+        verdict ||= (VERDICTS as readonly string[]).includes(what);
+        if (worthReporting(what) && !alreadyTold.has(what)) {
+          alreadyTold.add(what);
+          onTrouble?.("il riconoscitore si e' fermato: " + what);
+        }
       };
       recognition.onend = () => {
         if (!this.listening) return;
+        // un VERDETTO (permesso negato) non si ritenta: la risposta non
+        // cambia, e ogni tentativo suona il bip di sistema
+        if (verdict) {
+          giveUp("il sistema nega il riconoscimento vocale: orecchie spente (un tocco riprova)");
+          return;
+        }
         // il freno: su certi Android la sessione muore appena nata — il
         // microfono e' del misuratore di rumore e il servizio non riesce a
         // prenderlo. Ogni `start()` li' suona il bip di sistema: riavviare
@@ -203,11 +235,7 @@ export class Speech {
         const diedQuickly = performance.now() - bornAt < QUICK_DEATH_MS && !heardAnything;
         quickDeaths = diedQuickly ? quickDeaths + 1 : 0;
         if (quickDeaths >= GIVES_UP_AFTER) {
-          this.listening = false;
-          onTrouble?.(
-            "il riconoscitore non riesce a restare acceso su questo dispositivo: orecchie spente",
-          );
-          onGaveUp?.();
+          giveUp("il riconoscitore non riesce a restare acceso su questo dispositivo: orecchie spente");
           return;
         }
         const wait =

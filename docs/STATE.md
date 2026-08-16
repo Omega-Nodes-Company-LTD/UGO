@@ -1888,6 +1888,14 @@ esiste fuori dal browser, ma il freno è logica nostra). La dettatura su quei
 dispositivi resta indisponibile finché non arriva la wake word on-device
 (Fase 3, ADR-006): adesso però lo **dice**, invece di suonare il campanello.
 
+Secondo giro, dal registro del telefono vero: gli errori alternavano
+`not-allowed` e `network`, e il freno li trattava uguali — otto tentativi a
+suon di bip per un permesso che non sarebbe cambiato, e otto righe fotocopia
+nel registro. Ora `not-allowed`/`service-not-allowed` sono un **verdetto**: ci
+si arrende alla prima sessione, zero riavvii. E il registro riceve UNA riga per
+classe di errore per accensione, più quella di resa: otto copie della stessa
+notizia non sono più notizia della prima.
+
 ## 6-untricies. Il gruppo 10: gli oggetti che contano, e la testa che rumina
 
 Cinque punti nati da una conversazione col proprietario, chiusi in un giro. Il
