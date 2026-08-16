@@ -64,4 +64,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [056](./056-il-mondo-ha-un-pavimento-e-delle-cose.md) | Il mondo ha un pavimento, e delle cose | Accettata |
 | [057](./057-chi-sei-l-arruolamento-che-chiede-lui.md) | Chi sei? L'arruolamento che chiede lui | Accettata |
 | [058](./058-il-premio-il-legame-e-cio-che-impara.md) | Il premio, il legame, e ciò che impara | Accettata |
-| 059 | *(prossimo numero disponibile)* | — |
+| [059](./059-la-ruminazione.md) | La ruminazione: pensa coi modelli locali | Accettata |
+| 060 | *(prossimo numero disponibile)* | — |

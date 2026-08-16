@@ -76,6 +76,10 @@ export const soulEnvSchema = z.object({
   UGO_CUSTOMER_DAILY_BUDGET_USD: z.coerce.number().positive().default(0.25),
   /** ADR-058: mele per cliente in sette giorni; `customers.weekly_reward_limit` scavalca */
   UGO_CUSTOMER_WEEKLY_REWARDS: z.coerce.number().int().min(0).default(2),
+  /** ADR-059: la ruminazione sui modelli locali — zero token del provider */
+  UGO_RUMINATION: z.enum(["on", "off"]).default("on"),
+  /** minuti fra un pensiero e l'altro, per gosino (tentativi, non successi) */
+  UGO_RUMINATION_GAP_MIN: z.coerce.number().int().positive().default(45),
   // ADR-045: il servizio di percezione (voce e volto). Assente = UGO risponde
   // senza sapere chi ha davanti, che è il comportamento di ogni versione fino
   // a ieri: la biometria si accende, non si subisce.
