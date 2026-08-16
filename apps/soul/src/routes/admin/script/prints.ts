@@ -69,12 +69,18 @@ $("print-claim").addEventListener("click", async () => {
   if (PRINT_PICKED === "") return;
   $("print-claim").disabled = true;
   try {
-    await call("/v1/prints/" + PRINT_PICKED + "/claim", {
+    const learned = await call("/v1/prints/" + PRINT_PICKED + "/claim", {
       method: "POST",
       body: JSON.stringify({ beingId: $("print-who").value }),
     });
     PRINT_PICKED = "";
-    say("prints-msg", "Imparato. Da adesso lo riconosce guardandolo.", "ok");
+    // ADR-057, la seconda meta': se il claim ha aperto anche la richiesta
+    // della voce, sul chiosco c'e' un bottone che aspetta — e chi rivendica
+    // dal pannello deve saperlo, o quel bottone sembra spuntato dal nulla
+    say("prints-msg", learned.voiceAsked
+      ? "Imparato. Da adesso lo riconosce guardandolo — e sul chiosco gli sta " +
+        "chiedendo anche la voce: c'e' un bottone, vale mezz'ora."
+      : "Imparato. Da adesso lo riconosce guardandolo.", "ok");
     await loadPrints();
   } catch (error) {
     // un 403 qui e' una protezione che funziona, non un guasto, e va detto

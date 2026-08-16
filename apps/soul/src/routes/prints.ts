@@ -3,6 +3,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { AuditLogger } from "../services/auditLog.js";
+import { openVoiceAsk } from "../services/voiceEnrolment.js";
 import type { PreHandler } from "./guard.js";
 import { eldestExemplarOf, householdScope } from "./scope.js";
 
@@ -35,6 +36,12 @@ export interface PrintRoutesDeps {
       gosinoId: string;
     }) => Promise<"learned" | "refused" | "unreachable">;
   };
+  /**
+   * ADR-057, la seconda metà: i corpi della casa, per l'invito «fatti sentire
+   * la voce» che parte quando il volto è appena stato imparato. Facoltativa —
+   * senza registro il claim funziona uguale, solo senza invito sul chiosco.
+   */
+  faces?: (householdId: string) => { askVoice: (beingId: string, name: string) => void };
 }
 
 function problem(reply: FastifyReply, status: number, title: string, detail?: string): void {
@@ -118,7 +125,13 @@ export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps)
       problem(reply, 502, "Recognition unavailable");
       return reply;
     }
-    return reply.send({ learned: true });
+    // ADR-057, la seconda metà: il volto è imparato, e nell'occasione UGO
+    // chiede anche la voce — desiderio + finestra aperta + invito sul chiosco.
+    // Se la persona è minore, ha l'opt-out audio o ha già un profilo vocale,
+    // `openVoiceAsk` non apre niente e il claim resta solo un claim.
+    const ask = await openVoiceAsk(deps.db, { householdId, beingId: parsed.data.beingId });
+    if (ask !== undefined) deps.faces?.(householdId).askVoice(parsed.data.beingId, ask.name);
+    return reply.send({ learned: true, voiceAsked: ask !== undefined });
   });
 
   /** Cancellarne una. Il gesto che rende vera tutta la pagina. */

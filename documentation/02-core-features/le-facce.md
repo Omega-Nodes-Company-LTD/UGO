@@ -1,8 +1,8 @@
 ---
 title: "Le facce"
 description: "UGO ricorda i volti. Come te lo chiede, cosa conserva di chi non conosce, per quanto, e come si cancella."
-version: "0.12.0"
-last_updated: "2026-08-15"
+version: "0.13.0"
+last_updated: "2026-08-16"
 author: "ThinkPink Studio"
 ---
 
@@ -22,8 +22,13 @@ hai il dovere di poterglielo dire.
 3. Quando è il momento — non di notte, non mentre stai facendo altro — te lo chiede a voce:
    *«Chi è quella persona che ho visto e non conosco?»*
 4. Tu rispondi dal pannello, in **I volti**: scegli chi è, e da lì in poi la riconosce.
-5. Se quella persona è d'accordo, UGO le chiede anche di parlare qualche secondo, così dopo la
-   riconosce anche senza vederla — al buio, o da un'altra stanza.
+5. Se quella persona è d'accordo, UGO le chiede anche di parlare, così dopo la riconosce anche
+   senza vederla — al buio, o da un'altra stanza. Funziona così: appena rispondi nel pannello,
+   sullo schermo di UGO compare un bottone **«🎙 la voce di …»**. La persona lo tocca, parla
+   dieci secondi, e ha finito. Il bottone vale mezz'ora e sparisce da solo: fuori da quella
+   finestra UGO **non accetta voci**, da nessuno schermo — e la registrazione viene distrutta
+   la notte stessa, appena l'impronta è nata. Se non vi va, ignorate il bottone: scade e non
+   se ne fa niente.
 
 ## Cosa conserva di chi non conosce ancora
 
@@ -35,7 +40,8 @@ di sì**. È una scelta consapevole di chi ha installato UGO, e viene con quattr
 - **non esce mai da casa.** Il video non lascia il telefono: il ritaglio va al tuo server e si
   ferma lì. Nemmeno il pannello riesce a scaricarla;
 - **scade da sola dopo 30 giorni** dall'ultima volta che quella persona è passata. Non è un
-  archivio: è una domanda a cui non hai ancora risposto, e dopo un mese decade;
+  archivio: è una domanda a cui non hai ancora risposto, e dopo un mese decade. È il sogno
+  notturno a farla decadere, ogni notte, senza che nessuno debba ricordarsene;
 - **la puoi cancellare subito**, una per una, dal pannello.
 
 Trenta giorni e non un anno: l'audit log tiene verbi e identificativi per dodici mesi, questo tiene

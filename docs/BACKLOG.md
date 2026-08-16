@@ -29,14 +29,14 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | | Punto | Note |
 |---|---|---|
 | ⬜️ | **Notifiche push dalla PWA** | un `desire` che matura oggi muore se non guardi lo schermo |
-| ⬜️ | **Recap della giornata consegnato** | il digest del sogno esiste; manca la consegna al mattino |
+| ✅ | **Recap della giornata consegnato** | **gruppo 11**: passo `recap` del sogno (per esemplare) — la prima frase del diario di stanotte diventa un desiderio `stamattina`, e lo consegnano il saluto del risveglio o l'iniziativa. Zero token, tetto 240 caratteri, niente diario ⇒ niente segnaposto |
 | ⬜️ | **Template di riassunto per contesto** | riunione / cliente / famiglia, in versione minima |
 
 ## Gruppo 3 — Azione (UGO che fa, non solo parla)
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Tool calling dentro il budget guard** | insieme minimo e sorvegliato: leggi psiche, cerca in memoria, registra evento, invalida ricordo |
+| ⬜️ | **Tool calling dentro il budget guard** | insieme minimo e sorvegliato: leggi psiche, cerca in memoria, registra evento, invalida ricordo. **Idea del proprietario (2026-08-16): il banco di prova sono le interfacce del chiosco** — dirgli di andare in un'altra stanza, chiamare un altro gosino. È il posto giusto per cominciare: i canali esistono già (`gesture`, `speak`, il registro delle stanze, `peer_chat` della ruminazione), l'azione è reversibile e si vede a occhio se ha funzionato — un tool che sbaglia sposta un maiale su uno schermo, non tocca dati |
 | ⬜️ | **Server MCP** | altri agenti interrogano la memoria di UGO; quasi gratis dato l'API esistente |
 | ⬜️ | **Ricerca web** | oggi UGO non sa nulla di ciò che è successo dopo l'addestramento |
 | 🚫 | Integrazioni in uscita (Todoist, Notion) | riapribile: serve sapere quali usi davvero |
@@ -53,7 +53,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ⬜️ | **Input immagini** | mandagli una foto e la commenta |
 | ✅ | **Riconoscimento facciale del proprietario** | **ADR-044/045**: ArcFace misurato su LFW (EER 0,98%, soglia 0,30), la camera si accende davvero, la fusione fonde decisioni e non punteggi. Restava scritto come da fare, e non lo era |
 | ✅ | **Insegnargli una faccia, e chi non conosce ancora** | **ADR-057**: te lo chiede lui alla seconda volta che ti rivede, riusando `desires`. Prima serviva chiudere un buco **in produzione**: `_guard` non guardava mai `no_vision` mentre un commento diceva di sì |
-| ⬜️ | **La voce dopo il volto, dal chiosco** | UGO chiede di parlare, ma i dieci secondi li registra ancora solo il pannello. Il percorso esiste tutto, manca il pezzo di `main.ts` |
+| ✅ | **La voce dopo il volto, dal chiosco** | **gruppo 11** (ADR-057 completato): il claim del volto apre desiderio + finestra di 30 minuti + invito `enroll_voice` sul chiosco; il corpo registra 10 s (ricetta del pannello) e manda `voice_sample`, accettato solo dentro la finestra, che si consuma al primo campione. Stessi rifiuti a monte del pannello (`storeVoiceSample`) |
 | ⬜️ | Cattura schermo con OCR | valore alto, superficie privacy enorme: **serve una decisione, non un'implementazione** |
 
 ## Gruppo 5 — Il vicinato (ADR-019, fasi 2 e 3)
@@ -64,7 +64,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | ✅ | **Servizi e rotte passano la casa ovunque** | `TenantResolver` era scritto e **non lo chiamava nessuno**; la «casa corrente» era `select … from households limit 1` senza `order by`. Ora un solo `routes/scope.ts`, e una casa che non è tua risponde 404 come una che non esiste |
 | 🔨 | **RLS con ruolo Postgres dedicato** | **ADR-048**, tempo 1 fatto: ruolo `ugo_app`, politiche su tutte e 22 le tabelle, `withHousehold()` con `SET LOCAL`. Senza `FORCE`, quindi in produzione **inerte** finché non entra il tempo 2 |
 | ✅ | **Caduta dei `DEFAULT`** su `gosino_id` e `household_id` | Fatto: migrazione `0014`, diciannove colonne. Con essa cinque servizi hanno smesso di dichiarare l'esemplare facoltativo, e sei `mine()` hanno smesso di poter rispondere `undefined` — cioè di interrogare tutte le creature del server |
-| ⬜️ | **`withHousehold` per ogni richiesta, poi `DATABASE_URL_APP`** | L'altra metà del tempo 2, e serve un ADR: oggi `withHousehold` non è chiamato da nessuna parte in soul, quindi passare a `ugo_app` darebbe zero righe a ogni query — muto, non isolato |
+| ⬜️ | **`withHousehold` per ogni richiesta, poi `DATABASE_URL_APP`** | L'altra metà del tempo 2, e serve un ADR: oggi `withHousehold` non è chiamato da nessuna parte in soul, quindi passare a `ugo_app` darebbe zero righe a ogni query — muto, non isolato. **Vincolo nuovo dal proprietario (2026-08-16)**: il tenant non è più «una famiglia» — è un'organizzazione, casa O azienda. La stessa persona può possedere un maiale a casa come PET (ricordi, affetto) e uno in azienda a seguire clienti (reception, ticket): due tenant con nature diverse e un possessore solo. L'ADR del tempo 2 deve decidere se `households` diventa `organizations` con un `kind` (home/business), cosa condividono (l'identità del possessore, i token?) e cosa MAI (ricordi, clienti, budget) |
 | 🔨 | **Job per esemplare** | il sogno cicla, i marcatori portano il gosino, l'igiene non fonde più attraverso il confine. **Manca il backup per famiglia**: `pg_dump` non filtra per riga |
 | ✅ | **Selettore di casa nel pannello** + provisioning di una famiglia | `ugo casa nuova`: cinque atti in una transazione, token del proprietario su stderr e una volta sola. `GET /v1/households` mostra la propria casa e basta — tutte solo a un `operator`. Nel pannello `#/c/<casa>/…`, nascosto finché la casa è una |
 | ✅ | **Audit log** | **ADR-049**: 12 mesi, solo ID e verbi, append-only imposto dai `GRANT` — `UPDATE` e `DELETE` **revocati** a `ugo_app`, non semplicemente non concessi. Quattro verbi, tutti cablati; emissione token e nascita casa arrivano con `ugo casa nuova` |
@@ -108,7 +108,7 @@ ripete la domanda (cache, zero token), apre un ticket con conferma, e lo ritrova
 | ✅ | **Cache risposte + statistiche** (migrazione 0018) | hash esatto + semantico, `knowledge_epoch`, mai su stato vivo; preferenza per gosino |
 | ✅ | **Suite reception (Next.js, voice-first)** | Accesso, Parla, I lavori, I ticket, Le conversazioni, Il branco, Impostazioni; container isolato su `reception-net`; E2E Playwright su backend vero |
 | ✅ | **Documentazione e giro finale** | `/documentation/02-core-features/la-reception.md`, SECURITY_COMPLIANCE §5, `pnpm audit`, dichiarazione BO+`/admin`+FE in STATE §9 |
-| ⬜️ | **Riassunto «a che punto siamo» pre-calcolato** | oggi lo stato vivo è on-demand con memo 60s; un digest per cliente scritto dal sogno lo renderebbe gratis anche a freddo |
+| ✅ | **Riassunto «a che punto siamo» pre-calcolato** | **gruppo 11**: passo `digest` del sogno (per casa) scrive `customers.digest` cifrato — ticket aperti, repo con ultimo commit, documenti e frammenti; la reception lo usa quando il blocco vivo di GitHub non c'è, con «aggiornato al …» accanto. Lo stato vivo resta on-demand e mai in cache |
 | ⬜️ | **IMAP OAuth2** (Gmail senza app password) | fuori dalla v1, dichiarato in ADR-054 |
 
 ## Gruppo 9 — Il mondo in cui vive (ADR-056, ADR-058)

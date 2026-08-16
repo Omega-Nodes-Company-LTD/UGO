@@ -12,6 +12,7 @@ import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noi
 import { mountLogPanel } from "./logPanel.js";
 import { Speech } from "./speech.js";
 import { worthSending } from "./heard.js";
+import { mountVoiceInvite } from "./voiceInvite.js";
 import { FaceSocket } from "./ws.js";
 
 const PRESENCE_COOLDOWN_MS = 30_000;
@@ -88,6 +89,17 @@ const { remember } = mountLogPanel(
 function trouble(what: string): void {
   remember({ who: "⚠ il corpo", text: what, at: Date.now(), mine: false });
 }
+
+// ADR-057, la seconda metà: quando il pannello rivendica un volto, UGO chiede
+// anche la voce — e la chiede QUI, dove la persona sta davvero. Il bottone è
+// temporaneo; la finestra vera la tiene soul, il TTL locale è solo cortesia.
+const voiceInvite = mountVoiceInvite({
+  hud: requireElement("#hud"),
+  send: (message) => {
+    sendToSoul(message);
+  },
+  trouble,
+});
 
 /**
  * Quale muso stai guardando, e ricaricarlo da solo quando ne esce uno nuovo.
@@ -295,6 +307,18 @@ function onServerMessage(message: ServerToFaceMessage): void {
       // di nuovo ogni volta che il proprietario sposta qualcosa dal pannello —
       // senza la seconda cosa dovrebbe ricaricare il chiosco a ogni cuscino.
       renderer.setProps?.(message.props);
+      return;
+    case "enroll_voice":
+      // ADR-057, la seconda metà: il volto è appena stato imparato, e UGO
+      // chiede anche la voce. Nel registro, così si capisce da dove è
+      // spuntato il bottone.
+      remember({
+        who: nameOf(message.who) ?? "UGO",
+        text: `vorrei sentire la voce di ${message.name} (c'è un bottone qui sotto)`,
+        at: Date.now(),
+        mine: false,
+      });
+      voiceInvite.offer(message.beingId, message.name);
       return;
   }
 }

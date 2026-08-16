@@ -13,6 +13,7 @@ it two.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import TypeVar
 from zoneinfo import ZoneInfo
@@ -146,6 +147,25 @@ def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None
     return "".join(part.get("text", "") for part in body.get("content", []))
 
 
+#: una recinzione markdown attorno a tutto il contenuto: ```json ... ``` o
+#: ``` ... ```, con spazi e a capo di contorno
+_FENCE = re.compile(r"^\s*```(?:json)?\s*\n?(.*?)\n?\s*```\s*$", re.DOTALL)
+
+
+def bare_json(content: str) -> str:
+    """Il JSON, sbucciato dalla recinzione markdown se il modello ce l'ha messa.
+
+    Il percorso Ollama chiede ``format: "json"`` e non recinta mai; l'API del
+    fallback (ADR-001) non ha l'equivalente, e una notte ha risposto con
+    ```` ```json {...} ``` ```` — sogno fermo su un errore di *confezione*, non
+    di contenuto. Qui si toglie SOLO una recinzione che avvolge l'intero corpo:
+    un JSON già nudo passa intatto, e qualunque altra sbavatura resta un errore
+    vero che deve continuare a fare rumore.
+    """
+    match = _FENCE.match(content)
+    return match.group(1) if match is not None else content
+
+
 def ask_batch_model(
     cfg: JobsConfig,
     prompt: str,
@@ -182,7 +202,7 @@ def ask_batch_model(
             content = _ask_anthropic(cfg, prompt, conn)
 
     try:
-        return schema.model_validate_json(content)
+        return schema.model_validate_json(bare_json(content))
     except ValidationError as error:
         raise RuntimeError(
             f"batch model returned invalid JSON for {schema.__name__}: {error}"

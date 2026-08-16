@@ -13,7 +13,7 @@ import {
   runMigrations,
 } from "@ugo/db";
 import { LlmClient } from "@ugo/memory";
-import { decryptText } from "@ugo/shared";
+import { decryptText, encryptText } from "@ugo/shared";
 import { startLlmStub, startPostgres, type LlmStub } from "@ugo/factories";
 import type { FastifyInstance } from "fastify";
 import { and, eq } from "drizzle-orm";
@@ -267,6 +267,32 @@ describe("the conversation", () => {
       payload: { gosinoId: houseB.gosinoId, text: "Ciao" },
     });
     expect(response.statusCode).toBe(404);
+  });
+
+  it("«a che punto siamo» senza GitHub pesca il digest del sogno, con la data", async () => {
+    // gruppo 11: questa build non ha l'adapter GitHub — esattamente il freddo
+    // in cui il digest pre-calcolato è l'unico stato che la reception ha
+    stub.reset();
+    await db
+      .update(customers)
+      .set({
+        digest: encryptText("Ticket aperti: 2.\nRepo negozio: ultimo commit abc1234 (ok).", dataKey),
+        digestAt: new Date("2026-08-15T02:30:00Z"),
+      })
+      .where(eq(customers.id, customerA.id));
+    stub.nextResponse = { text: "Siamo al commit abc1234, grunf." };
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/reception/chat",
+      headers: receptionHeaders(customerA.token),
+      payload: { gosinoId: houseA.gosinoId, text: "A che punto siamo con i lavori?" },
+    });
+    expect(response.statusCode).toBe(200);
+    const dynamic = stub.requests.at(-1)?.body.system.at(-1)?.text ?? "";
+    expect(dynamic).toContain("Il punto dei lavori (aggiornato al 2026-08-15)");
+    expect(dynamic).toContain("abc1234");
+    // e resta un ripiego: il ciphertext non entra mai nel prompt
+    expect(dynamic).not.toContain("v1:");
   });
 });
 

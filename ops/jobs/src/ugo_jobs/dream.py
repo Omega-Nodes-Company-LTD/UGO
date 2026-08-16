@@ -19,12 +19,14 @@ from .backup import backup_exists, run_backup
 from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
 from .contradictions import run_contradictions
+from .customer_digest import run_digest
 from .enroll_step import run_enroll
 from .entities import run_entities
 from .feeds import run_advise
 from .hygiene import run_hygiene
 from .ingest import run_ingest
 from .markers import FULL, LIGHT, mark_step_done, step_done
+from .recap import run_recap
 from .reflect import run_reflect
 
 # contradictions sits between reflect and hygiene on purpose (ADR-023):
@@ -34,7 +36,9 @@ STEPS = (
     "ingest",
     "enroll",
     "reflect",
+    "recap",
     "advise",
+    "digest",
     "contradictions",
     "entities",
     "hygiene",
@@ -50,8 +54,8 @@ STEPS = (
 #:   per casa       l'audio e' del branco, il backup e' della famiglia
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
-PER_EXEMPLAR = ("reflect", "contradictions", "entities", "hygiene")
-PER_HOUSEHOLD = ("ingest", "enroll", "advise", "backup")
+PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene")
+PER_HOUSEHOLD = ("ingest", "enroll", "advise", "digest", "backup")
 GLOBAL = ("compaction",)
 
 #: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
@@ -153,6 +157,8 @@ def _run_step(
             "enrolled": enrolled.enrolled,
             "refused": enrolled.refused,
             "missing": enrolled.missing,
+            # ADR-057: le impronte ignote scadute, portate via da questo giro
+            "expired": enrolled.expired,
         }
     elif step == "reflect":
         result = run_reflect(conn, cfg, dream_date)
@@ -161,10 +167,18 @@ def _run_step(
             "desires": result.desires_written,
             "diary": result.diary_written,
         }
+    elif step == "recap":
+        # backlog gruppo 2: il diario di stanotte diventa un desiderio con
+        # due_hint «stamattina» — la consegna passa dai canali che ci sono già
+        step_report[step] = run_recap(conn, cfg, dream_date)
     elif step == "advise":
         # ADR-060: il consiglio del mattino — feed x conoscenza clienti,
         # soglia alta, un desiderio al giorno per casa al massimo
         step_report[step] = run_advise(conn, cfg)
+    elif step == "digest":
+        # backlog gruppo 8: «a che punto siamo» pre-calcolato per cliente —
+        # la reception lo usa quando lo stato vivo di GitHub non c'è
+        step_report[step] = run_digest(conn, cfg)
     elif step == "contradictions":
         contradictions = run_contradictions(conn, cfg, dream_date)
         step_report[step] = {

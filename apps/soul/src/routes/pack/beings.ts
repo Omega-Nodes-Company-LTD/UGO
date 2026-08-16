@@ -12,8 +12,8 @@ import {
   uuidParam,
   type PackRouteDeps,
 } from "./shared.js";
-import { putAudioObject } from "../audio.js";
 import { eldestExemplarOf, householdScope } from "../scope.js";
+import { storeVoiceSample } from "../../services/voiceEnrolment.js";
 
 /** Ten seconds of speech at Opus bitrates is well under this. */
 const MAX_ENROLLMENT_BYTES = 4 * 1024 * 1024;
@@ -222,41 +222,26 @@ export function registerBeingRoutes(
         }
         const householdId = await householdScope(db, request, reply, { requireAdmin: true });
         if (householdId === undefined) return reply;
-        const [being] = await db
-          .select({ isMinor: beings.isMinor, noAudio: beings.noAudio })
-          .from(beings)
-          .where(and(eq(beings.id, id), eq(beings.householdId, householdId)));
-        if (being === undefined) {
+        // il servizio rifiuta PRIMA di scrivere nel bucket (ADR-016), e da
+        // quando il chiosco è un secondo chiamante i controlli vivono lì
+        const stored = await storeVoiceSample(
+          { db, storage },
+          { householdId, beingId: id, audio: body },
+        );
+        if (stored.outcome === "not_found") {
           return reply
             .code(404)
             .type("application/problem+json")
             .send(problem("Being not found", 404));
         }
-        if (being.isMinor || being.noAudio) {
+        if (stored.outcome === "refused") {
           return reply
             .code(403)
             .type("application/problem+json")
-            .send(
-              problem(
-                "Biometric enrollment refused",
-                403,
-                being.isMinor ? "minor_biometrics_forbidden" : "opted_out_of_audio",
-              ),
-            );
+            .send(problem("Biometric enrollment refused", 403, stored.reason));
         }
-        // refuse BEFORE storing: audio for someone we promised not to model
-        // must not sit in the bucket even for a night (ADR-016)
-        const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
-        const objectKey = `inbox/enroll_${id.slice(0, 8)}_${stamp}.webm`;
-        await putAudioObject(storage, objectKey, body, "audio/webm");
-        await db.insert(perceptionEvents).values({
-          gosinoId: await eldestExemplarOf(db, householdId),
-          modality: "audio_speech",
-          beingId: id,
-          observed: { kind: "enrollment_requested", object_key: objectKey, channel: "home" },
-        });
         request.log.info({ beingId: id, bytes: body.length }, "enrollment audio stored");
-        return reply.code(202).send({ status: "queued", objectKey });
+        return reply.code(202).send({ status: "queued", objectKey: stored.objectKey });
       },
     );
   }

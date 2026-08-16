@@ -22,6 +22,7 @@ import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { CouncilService } from "./services/council/councilService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
 import { RuminationService } from "./services/rumination.js";
+import { storeVoiceSample } from "./services/voiceEnrolment.js";
 import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
@@ -135,6 +136,7 @@ const chat = new ChatService({
   character: bootstrapCharacter,
 });
 
+const audio = audioStorageFromEnv(env);
 const face = new FaceGateway({
   db,
   chat,
@@ -147,9 +149,13 @@ const face = new FaceGateway({
         at,
       ),
     ),
+  // ADR-057: anche il corpo di ripiego può ricevere un `voice_sample` — la
+  // finestra la controlla il gateway, il deposito è lo stesso del pannello
+  ...(audio !== undefined && {
+    voiceSample: (input: { beingId: string; audio: Buffer }) =>
+      storeVoiceSample({ db, storage: audio }, { householdId: bootstrapHouseholdId, ...input }),
+  }),
 });
-
-const audio = audioStorageFromEnv(env);
 const dataKey = parseDataKey(env.UGO_DATA_KEY);
 const embedder = new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL);
 const privacy = {
@@ -236,6 +242,8 @@ const registry = await GosinoRegistry.load({
   initiativeEnabled: () => initiative.on(),
   hourOf,
   ...(recognition !== undefined && { recognition }),
+  // ADR-057: senza bucket niente `voice_sample`, dal chiosco come dal pannello
+  ...(audio !== undefined && { audio }),
 });
 
 const app = buildServer({

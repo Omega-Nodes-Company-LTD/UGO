@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import psycopg
 import pytest
 
-from ugo_jobs.batch import ask_batch_model
+from ugo_jobs.batch import ask_batch_model, bare_json
 from ugo_jobs.reflect import ReflectionOutput
 from test_dream import REFLECTION, make_config
 
@@ -101,6 +101,24 @@ def test_prefers_the_local_model_when_it_answers(
         assert handler.seen == []  # the API was never touched
         spend = conn.execute("select count(*) from budget_ledger").fetchone()
         assert spend is not None and spend[0] == 0  # free, as designed
+
+
+def test_il_json_recintato_si_sbuccia_quello_nudo_passa_intatto() -> None:
+    """Il sogno in produzione si è fermato su ```` ```json {...} ``` ````: il
+    fallback API non ha il ``format: "json"`` di Ollama e una notte ha
+    incartato la risposta in una recinzione markdown. Un errore di confezione
+    non deve fermare la notte; un errore di contenuto sì, e deve restare tale."""
+    for fence in ("json", ""):
+        fenced = f"```{fence}\n{json.dumps(REFLECTION)}\n```"
+        assert ReflectionOutput.model_validate_json(bare_json(fenced)).diary
+
+    bare = json.dumps(REFLECTION)
+    assert bare_json(bare) == bare
+
+    # una recinzione che non avvolge TUTTO il corpo non è confezione: qualunque
+    # sbavatura vera deve continuare a fare rumore, non essere ripulita
+    chatty = "Ecco il riassunto: ```json\n{}\n``` spero vada bene"
+    assert bare_json(chatty) == chatty
 
 
 def test_without_an_api_key_it_fails_loudly_instead_of_silently(

@@ -176,6 +176,13 @@
       "when": 1786877374247,
       "tag": "0024_i-feed-del-mattino-rls",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1786900151918,
+      "tag": "0025_il-punto-dei-lavori",
+      "breakpoints": true
     }
   ]
 }

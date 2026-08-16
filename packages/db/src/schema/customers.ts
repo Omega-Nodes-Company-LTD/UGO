@@ -49,6 +49,15 @@ export const customers = pgTable(
      * answer cache (ADR-055) only serves entries minted at the same epoch.
      */
     knowledgeEpoch: integer("knowledge_epoch").notNull().default(0),
+    /**
+     * Il digest «a che punto siamo», pre-calcolato dal sogno (backlog
+     * gruppo 8): ticket aperti, fonti e loro freschezza, in prosa
+     * deterministica. AES-256-GCM sotto la DEK della casa (regola 6: dentro
+     * ci sono titoli di ticket). La reception lo usa quando lo stato vivo di
+     * GitHub non c'è — gratis anche a freddo, con la data accanto.
+     */
+    digest: text("digest"),
+    digestAt: timestamp("digest_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
   },

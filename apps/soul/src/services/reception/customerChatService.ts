@@ -218,7 +218,7 @@ export class CustomerChatService {
   private async buildDynamicSystem(request: CustomerChatRequest, at: Date): Promise<string> {
     const { db, dataKey, embedder, github } = this.deps;
     const [customer] = await db
-      .select({ name: customers.name })
+      .select({ name: customers.name, digest: customers.digest, digestAt: customers.digestAt })
       .from(customers)
       .where(eq(customers.id, request.context.customerId));
 
@@ -276,6 +276,19 @@ export class CustomerChatService {
       lines.push(...knowledge);
     }
     if (live !== undefined) lines.push(live);
+    else if (isLiveStateQuestion(request.text) && customer?.digest != null) {
+      // il ripiego pre-calcolato (backlog gruppo 8): quando lo stato vivo non
+      // c'è — niente repo GitHub, adapter spento — la domanda «a che punto
+      // siamo» trovava il vuoto. Il sogno scrive la fotografia ogni notte; la
+      // data accanto è ciò che la rende onesta invece che spacciata per viva.
+      try {
+        const when =
+          customer.digestAt === null ? "" : ` (aggiornato al ${customer.digestAt.toISOString().slice(0, 10)})`;
+        lines.push(`Il punto dei lavori${when}:\n${decryptText(customer.digest, dataKey)}`);
+      } catch {
+        // chiave ruotata: la risposta va avanti senza il digest
+      }
+    }
     return lines.join("\n");
   }
 

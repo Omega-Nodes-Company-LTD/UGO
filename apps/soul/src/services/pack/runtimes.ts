@@ -3,11 +3,13 @@ import { DEFAULT_LOCALE } from "@ugo/prompts";
 import type { SpeciesMap } from "@ugo/shared";
 import type { EmbeddingsClient, LlmClient, LocalTextClient } from "@ugo/memory";
 import { desc, eq, isNull } from "drizzle-orm";
+import type { AudioStorageConfig } from "../../routes/audio.js";
 import { ChatService } from "../chatService.js";
 import { characterFrom, type Character } from "../council/character.js";
 import { FaceGateway } from "../faceGateway.js";
 import { PackService } from "../packService.js";
 import { PsycheService } from "../psycheService.js";
+import { storeVoiceSample } from "../voiceEnrolment.js";
 import { Curiosity } from "../volition/curiosity.js";
 import { EfficacyService } from "../volition/efficacy.js";
 import { RewardService } from "../volition/reward.js";
@@ -94,6 +96,11 @@ export interface RuntimeDeps {
   recognition?: (householdId: string) => {
     byVoice: (audioBase64: string) => Promise<{ beingId?: string | undefined } | undefined>;
   };
+  /**
+   * ADR-057, la seconda metà: il bucket dove finisce un campione di voce
+   * arrivato dal chiosco. Assente = i frame `voice_sample` si ignorano.
+   */
+  audio?: AudioStorageConfig;
 }
 
 /**
@@ -163,6 +170,7 @@ async function buildRuntime(
   // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.
   // Due gosini sotto lo stesso tetto imparano cose diverse, ed è il punto.
   const efficacy = new EfficacyService(deps.db, row.id);
+  const audio = deps.audio;
   const reward = new RewardService({
     db: deps.db,
     gosinoId: row.id,
@@ -176,6 +184,12 @@ async function buildRuntime(
     gosinoId: row.id,
     reward: (input) => reward.give(input),
     ...(deps.recognition !== undefined && { recognition: deps.recognition(row.householdId) }),
+    // ADR-057: il deposito è lo stesso del pannello (`storeVoiceSample`), coi
+    // controlli a monte dentro — minore e opt-out si rifiutano PRIMA del bucket
+    ...(audio !== undefined && {
+      voiceSample: (input: { beingId: string; audio: Buffer }) =>
+        storeVoiceSample({ db: deps.db, storage: audio }, { householdId: row.householdId, ...input }),
+    }),
   });
   const volition = new VolitionService({
     db: deps.db,

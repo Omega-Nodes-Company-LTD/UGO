@@ -228,6 +228,18 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       guard,
       audit,
       ...(prints !== undefined && { recognition: prints }),
+      // ADR-057, la seconda metà: il claim del volto manda l'invito «fatti
+      // sentire la voce» sui corpi della casa — tutti, perché la persona sta
+      // davanti a uno di loro e soul non sa quale
+      ...(registry !== undefined && {
+        faces: (householdId: string) => ({
+          askVoice: (beingId: string, name: string): void => {
+            for (const runtime of registry.all(householdId)) {
+              runtime.gateway.broadcastAskVoice(beingId, name);
+            }
+          },
+        }),
+      }),
     });
     if (speciesMap !== undefined) {
       registerPackRoutes(app, {
