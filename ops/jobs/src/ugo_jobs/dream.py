@@ -23,7 +23,7 @@ from .contradictions import run_contradictions
 from .customer_digest import run_digest
 from .enroll_step import run_enroll
 from .entities import run_entities
-from .feeds import run_advise
+from .feeds import run_advise, run_review
 from .hygiene import run_hygiene
 from .ingest import run_ingest
 from .markers import FULL, LIGHT, mark_step_done, step_done
@@ -39,6 +39,7 @@ STEPS = (
     "reflect",
     "recap",
     "advise",
+    "review",
     "digest",
     "anniversaries",
     "contradictions",
@@ -57,7 +58,7 @@ STEPS = (
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
 PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene")
-PER_HOUSEHOLD = ("ingest", "enroll", "advise", "digest", "anniversaries", "backup")
+PER_HOUSEHOLD = ("ingest", "enroll", "advise", "review", "digest", "anniversaries", "backup")
 GLOBAL = ("compaction",)
 
 #: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
@@ -188,6 +189,10 @@ def _run_step(
         # backlog gruppo 8: «a che punto siamo» pre-calcolato per cliente —
         # la reception lo usa quando lo stato vivo di GitHub non c'è
         step_report[step] = run_digest(conn, cfg)
+    elif step == "review":
+        # gruppo 13: la rassegna del mattino — i titoli nuovi dei feed, detti
+        # a voce; la metà generalista del consiglio ai clienti
+        step_report[step] = run_review(conn, cfg)
     elif step == "anniversaries":
         # gruppo 12: il giorno in cui qualcuno è entrato nel branco non passa
         # più inosservato — un desiderio per l'anziano, zero token

@@ -171,7 +171,11 @@ possono fare. Mettili in cantiere».**
 ## Gruppo 13 — Il programma espanso (direttiva del proprietario, 2026-08-16)
 
 «Non solo il mondo vero ma TUTTE le proposte che hai fatto, espanse a quello fattibile non
-nominato.» Il cantiere permanente, in ordine di attacco: ogni punto resta un commit, ogni
+nominato.» **Decisione GPU (2026-08-16)**: il server resta CPU; il nodo GPU (Hetzner GEX44,
+~€190/mese, RTX 4000 Ada 20 GB) si prende **per la commercializzazione** — sbloccherà XTTS
+emotivo in tempo reale, modelli locali 14-32B (chat fallback), visione seria (qwen-VL) e
+whisper large. Fino ad allora si fa tutto ciò che gira su CPU. Il cantiere, in ordine di
+attacco: ogni punto resta un commit, ogni
 gruppo di punti una PR, e i grandi (voce, tool calling, ricerca) hanno il loro ADR prima
 del codice.
 
@@ -181,11 +185,11 @@ del codice.
 | ⬜️ | **STT locale continuo** | faster-whisper è GIÀ nelle dipendenze dei job (ingest): un endpoint di trascrizione sul servizio di percezione, il chiosco manda i clip che già ritaglia, e Google esce dal percorso. Senza wake word: gli parli e basta |
 | ⬜️ | **Tool calling dal chiosco** (gruppo 3) | «vai in cucina», «chiama Silvio» — sui modelli locali, fuori dal budget del provider; ADR prima |
 | ⬜️ | **Ricerca web con SearXNG** (gruppo 3) | container nel compose + sintesi locale; ADR con la postura privacy dichiarata |
-| ⬜️ | **Alba e tramonto veri** | il sole c'è già in `ephemeris.ts` (serve al tempo siderale): esporlo e far transire il cielo agli orari VERI invece che a ore fisse — l'oro dell'alba è una tavolozza in più |
-| ⬜️ | **Le stagioni nel recinto** | il prato che ingiallisce d'estate, le foglie d'autunno: una data, una tavolozza, zero rete. La metà rimasta della riga «anniversari e stagioni» |
-| ⬜️ | **I compleanni dei gosini** | `gosini.born_at` c'è: il branco festeggia anche loro, stesso passo del sogno degli anniversari |
-| ⬜️ | **Il suono della pioggia** | WebAudio procedurale (rumore filtrato), zero asset: quando fuori piove, nel recinto si sente — piano, e spegnibile |
-| ⬜️ | **La rassegna del mattino** | i feed esistono (ADR-060): oltre al consiglio-cliente, una riga di rassegna nel recap del mattino — sagoma deterministica sui titoli nuovi |
+| ✅ | **Alba e tramonto veri** | **fatto**: `sunAltitude` esposto dalle effemeridi; sopra +6° giorno, sotto −6° notte, in mezzo l'ORA D'ORO con tavolozze crepuscolari per sereno/coperto/pioggia. Il modo si ricalcola ogni 5′ (l'ora d'oro dura poco), il meteo resta ogni 30′ |
+| ✅ | **Le stagioni nel recinto** | **fatto**: stagioni meteorologiche, tavolozza del prato per stagione (primavera coi fiorellini, estate secca, autunno con le foglie, inverno pallido), decisa all'avvio del muso |
+| ✅ | **I compleanni dei gosini** | **fatto**: nel passo `anniversaries`, da `born_at` — il desiderio va al FESTEGGIATO («oggi compio 2 anni!»), non all'anziano |
+| ✅ | **Il suono della pioggia** | **fatto**: WebAudio procedurale (rumore bianco + passa-basso, volume sotto ogni voce), solo se nel cielo vero piove, mai di notte, spento coi sensi |
+| ✅ | **La rassegna del mattino** | **fatto**: passo `review` del sogno — massimo due titoli delle ultime 24 h in un desiderio «stamattina» per l'anziano; titoli pubblici, sagoma deterministica |
 
 ## Scartati, con motivo
 

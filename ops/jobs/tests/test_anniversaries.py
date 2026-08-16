@@ -7,7 +7,7 @@ che le altre date tacciono, e che il vicino non riceve auguri altrui.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from uuid import uuid4
 
 import psycopg
@@ -61,6 +61,35 @@ def test_l_anniversario_di_oggi_diventa_auguri_con_gli_anni_giusti(
     assert any("Francesco" in w and "3 anni" in w for w in wishes)
     assert any("Sofia" in w and "un anno" in w for w in wishes)
     assert not any("Nadia" in w or "Novella" in w for w in wishes)
+
+
+def test_il_compleanno_del_gosino_e_suo_non_dell_anziano(
+    conn: psycopg.Connection, pg_url: str
+) -> None:
+    house = make_house(conn, f"casa-anni-{uuid4().hex[:8]}")
+    elder = make_gosino(conn, house, "ugo")
+    young = make_gosino(conn, house, "silvio")
+    # il festeggiato: nato due anni fa, oggi
+    conn.execute("update gosini set born_at = '2024-08-16T10:00:00Z' where id = %s", (young,))
+    conn.commit()
+
+    cfg = db_only_config(pg_url, household_id=house)
+    report = run_anniversaries(conn, cfg, today=date(2026, 8, 16))
+    assert report == {"written": 1}
+
+    # il desiderio è del festeggiato: è LUI che lo dirà, non l'anziano
+    assert any("compleanno" in w and "2 anni" in w for w in desires_of(conn, young))
+    assert desires_of(conn, elder) == []
+
+    # nato quest'anno (il default di born_at è oggi): benvenuto, non festeggiato
+    fresh_house = make_house(conn, f"casa-anni-{uuid4().hex[:8]}")
+    newborn = make_gosino(conn, fresh_house, "bruno")
+    conn.commit()
+    cfg2 = db_only_config(pg_url, household_id=fresh_house)
+    assert run_anniversaries(conn, cfg2, today=datetime.now(tz=timezone.utc).date()) == {
+        "written": 0
+    }
+    assert desires_of(conn, newborn) == []
 
 
 def test_il_vicino_non_riceve_auguri_altrui(conn: psycopg.Connection, pg_url: str) -> None:

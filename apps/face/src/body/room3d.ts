@@ -76,6 +76,53 @@ const FLOOR_MOTTLE = "#6b9a4c";
 const FLOOR_BLADE = "#abd484";
 
 /**
+ * Le stagioni nel recinto (gruppo 13): il prato segue il calendario.
+ *
+ * Stagioni meteorologiche (marzo-maggio primavera, e via di tre in tre): una
+ * data, una tavolozza, zero rete. La primavera è il prato di sempre; l'estate
+ * ingiallisce e secca; l'autunno si spegne e si copre di foglie; l'inverno
+ * impallidisce nel freddo. Si decide all'avvio del muso: un chiosco acceso a
+ * cavallo dell'equinozio cambia stagione alla prima ricarica, e va bene così.
+ */
+export type Season = "primavera" | "estate" | "autunno" | "inverno";
+
+export function seasonOf(at: Date): Season {
+  const month = at.getMonth() + 1;
+  if (month >= 3 && month <= 5) return "primavera";
+  if (month >= 6 && month <= 8) return "estate";
+  if (month >= 9 && month <= 11) return "autunno";
+  return "inverno";
+}
+
+interface FloorPalette {
+  base: string;
+  speck: string;
+  mottle: string;
+  blade: string;
+  /** i tocchi della stagione: fiori in primavera, foglie in autunno */
+  accents?: string[];
+}
+
+const FLOOR_SEASONS: Record<Season, FloorPalette> = {
+  primavera: {
+    base: FLOOR_BASE,
+    speck: FLOOR_SPECK,
+    mottle: FLOOR_MOTTLE,
+    blade: FLOOR_BLADE,
+    accents: ["#f2ecc9", "#e8d27a"],
+  },
+  estate: { base: "#9aa85a", speck: "#adbb6a", mottle: "#87954a", blade: "#c9cf7e" },
+  autunno: {
+    base: "#8a9152",
+    speck: "#9c9d5c",
+    mottle: "#76814a",
+    blade: "#b3a45e",
+    accents: ["#c07a3e", "#a05c34", "#8a5a40"],
+  },
+  inverno: { base: "#8b9884", speck: "#9daa96", mottle: "#778472", blade: "#b9c4b2" },
+};
+
+/**
  * Quanto si estende il pavimento — e con lui il fondale.
  *
  * Era 34, ed era un difetto: la camera si allontana con lo schermo e con quante
@@ -150,15 +197,16 @@ function context(size: number): CanvasRenderingContext2D {
  * truogolo, cioè roba da aia. Su terriccio scuro sembravano posati su un
  * pavimento di cantina.
  */
-function floorTexture(): THREE.CanvasTexture {
+function floorTexture(season: Season): THREE.CanvasTexture {
+  const palette = FLOOR_SEASONS[season];
   const ctx = context(TEXTURE_PX);
   const rng = mulberry32(20260815);
-  ctx.fillStyle = FLOOR_BASE;
+  ctx.fillStyle = palette.base;
   ctx.fillRect(0, 0, TEXTURE_PX, TEXTURE_PX);
 
   // macchie piccole e poco contrastate: grandi diventavano crateri, e siccome
   // la trama si ripete diventavano gli **stessi** crateri ogni quattro unità
-  ctx.fillStyle = FLOOR_MOTTLE;
+  ctx.fillStyle = palette.mottle;
   for (let i = 0; i < 34; i += 1) {
     const r = 6 + rng() * 18;
     ctx.beginPath();
@@ -178,9 +226,20 @@ function floorTexture(): THREE.CanvasTexture {
     ctx.rotate(rng() * Math.PI);
     // un filo su tre è più chiaro: è quel che fa sembrare l'erba illuminata da
     // sopra invece che colorata di verde
-    ctx.fillStyle = rng() < 0.34 ? FLOOR_BLADE : FLOOR_SPECK;
+    ctx.fillStyle = rng() < 0.34 ? palette.blade : palette.speck;
     ctx.fillRect(-1.5 - rng() * 2, -0.55, 3 + rng() * 4, 1.1);
     ctx.restore();
+  }
+
+  // i tocchi della stagione: fiorellini in primavera, foglie cadute in
+  // autunno — pochi e piccoli, o il prato diventa un motivo da tovaglia
+  for (const accent of palette.accents ?? []) {
+    for (let i = 0; i < 12; i += 1) {
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.arc(rng() * TEXTURE_PX, rng() * TEXTURE_PX, 0.9 + rng() * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   const texture = new THREE.CanvasTexture(ctx.canvas);
@@ -241,7 +300,8 @@ export interface NightSky {
 }
 
 export interface SkyState {
-  mode: "day" | "night";
+  /** `golden` (gruppo 13): l'ora d'oro — il sole fra −6° e +6°, agli orari veri */
+  mode: "day" | "night" | "golden";
   weather: SkyWeather;
   /** cosa c'è lassù stanotte; ignorato di giorno e sotto le nuvole */
   night?: NightSky;
@@ -252,9 +312,12 @@ export interface SkyState {
  * colore della nebbia — sono la stessa cosa, ed è ciò che rende invisibile
  * l'orlo del pavimento. `floor` è il moltiplicatore del prato: il pavimento è
  * `MeshBasicMaterial`, quindi la sua «luce» si abbassa da qui, non dalle
- * lampade.
+ * lampade. La terza riga è l'ora d'oro (gruppo 13): il sole fra −6° e +6°.
  */
-const PALETTES: Record<"day" | "night", Record<SkyWeather, { stops: number[]; floor: number }>> = {
+const PALETTES: Record<
+  "day" | "night" | "golden",
+  Record<SkyWeather, { stops: number[]; floor: number }>
+> = {
   day: {
     clear: { stops: [0x3b7fc4, ZENITH, 0x7fb4e2, 0xa9cfea, HORIZON], floor: 0xffffff },
     cloudy: { stops: [0x7c8fa3, 0x8fa3b5, 0xaebdc9, 0xc6d1d9, 0xd4dce2], floor: 0xd8dde0 },
@@ -264,6 +327,13 @@ const PALETTES: Record<"day" | "night", Record<SkyWeather, { stops: number[]; fl
     clear: { stops: [0x05080f, 0x0d1626, 0x16233a, 0x22334c, 0x32455e], floor: 0x5a6875 },
     cloudy: { stops: [0x090b10, 0x10141c, 0x181e28, 0x222a36, 0x2c3542], floor: 0x4c565f },
     rain: { stops: [0x07090d, 0x0c1016, 0x131820, 0x1b222c, 0x232c37], floor: 0x434c54 },
+  },
+  // l'ora d'oro: blu-viola in alto che scende nell'ambra all'orizzonte — è la
+  // fisica del crepuscolo, non una decorazione, e dura quanto dura davvero
+  golden: {
+    clear: { stops: [0x2e3f6e, 0x4a5a8c, 0x9a7a7e, 0xd89a62, 0xf2c078], floor: 0xdec1a0 },
+    cloudy: { stops: [0x4a4f5e, 0x5e6270, 0x84788a, 0xa8928e, 0xc0a494], floor: 0xc2b0a2 },
+    rain: { stops: [0x33373f, 0x42464f, 0x5c5560, 0x776862, 0x8d7a70], floor: 0x93857b },
   },
 };
 
@@ -355,8 +425,11 @@ export class Room {
   private readonly skyMaterial: THREE.MeshBasicMaterial;
   private skyMap: THREE.CanvasTexture;
 
-  public constructor(private readonly scene: THREE.Scene) {
-    const map = floorTexture();
+  public constructor(
+    private readonly scene: THREE.Scene,
+    season: Season = seasonOf(new Date()),
+  ) {
+    const map = floorTexture(season);
     const sky = skyTexture({ mode: "day", weather: "clear" });
     this.skyMap = sky;
     this.textures.push(map);

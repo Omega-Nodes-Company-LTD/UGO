@@ -324,3 +324,51 @@ def run_feeds_forever(
         done += 1
         sleep(every)
     return 0
+
+
+# --- la rassegna del mattino (gruppo 13) -------------------------------------
+
+#: due titoli al massimo: è una rassegna detta a voce, non un lettore RSS
+REVIEW_MAX_TITLES = 2
+
+
+def run_review(conn: psycopg.Connection, cfg: JobsConfig) -> dict:
+    """Le novità dei feed delle ultime 24 ore, dette la mattina.
+
+    La metà generalista di ``run_advise``: quello incrocia i feed coi clienti
+    e parla solo sopra una soglia alta; questa dice semplicemente che cosa è
+    uscito — sagoma deterministica sui titoli, zero token. I titoli dei feed
+    sono pubblici per definizione (stessa postura di ADR-060): possono stare
+    in un desiderio in chiaro. Una volta per notte grazie al marcatore del
+    passo; niente novità, niente segnaposto.
+    """
+    rows = conn.execute(
+        """
+        select i.title from feed_items i
+        where i.household_id = %s
+          and coalesce(i.published_at, i.created_at) > now() - interval '24 hours'
+        order by coalesce(i.published_at, i.created_at) desc
+        limit %s
+        """,
+        (cfg.household_id, REVIEW_MAX_TITLES),
+    ).fetchall()
+    if not rows:
+        return {"written": 0}
+    eldest = conn.execute(
+        "select id from gosini where household_id = %s and retired_at is null "
+        "order by born_at limit 1",
+        (cfg.household_id,),
+    ).fetchone()
+    if eldest is None:
+        return {"written": 0}
+    titles = "; ".join(f"«{str(row[0])[:120]}»" for row in rows)
+    conn.execute(
+        "insert into desires (gosino_id, text, due_hint, status) values (%s, %s, %s, 'pending')",
+        (
+            str(eldest[0]),
+            f"Racconta le novità dai feed: {titles}.",
+            "stamattina",
+        ),
+    )
+    conn.commit()
+    return {"written": 1}
