@@ -54,9 +54,6 @@ def run_anniversaries(
         """,
         (cfg.household_id, when.month, when.day, when),
     ).fetchall()
-    if not rows:
-        return {"written": 0}
-
     gosino_id = eldest_of(conn, cfg.household_id)
     if gosino_id is None:
         return {"written": 0}
@@ -70,6 +67,35 @@ def run_anniversaries(
             (
                 gosino_id,
                 f"Fai gli auguri a {display_name}: oggi è {_years_text(years)} che è nel branco.",
+                "oggi",
+            ),
+        )
+        written += 1
+
+    # gruppo 13: anche il branco festeggia i suoi — il compleanno del gosino,
+    # da `born_at`. Il desiderio va al festeggiato stesso: è LUI che lo dirà
+    # («oggi compio un anno!»), e in una casa a più esemplari è il suo giorno,
+    # non quello dell'anziano
+    birthdays = conn.execute(
+        """
+        select id, name, born_at from gosini
+        where household_id = %s and retired_at is null
+          and extract(month from born_at) = %s
+          and extract(day from born_at) = %s
+          and born_at::date < %s
+        """,
+        (cfg.household_id, when.month, when.day, when),
+    ).fetchall()
+    for born_id, name, born_at in birthdays:
+        years = when.year - born_at.year
+        if years < 1:
+            continue
+        conn.execute(
+            "insert into desires (gosino_id, text, due_hint, status) values (%s, %s, %s, 'pending')",
+            (
+                born_id,
+                f"Oggi è il tuo compleanno: compi {_years_text(years).replace('un anno', 'un anno intero')}! "
+                "Dillo a qualcuno, con orgoglio da gosino.",
                 "oggi",
             ),
         )
