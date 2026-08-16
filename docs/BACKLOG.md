@@ -160,13 +160,32 @@ possono fare. Mettili in cantiere».**
 
 | | Punto | Note |
 |---|---|---|
-| 🔨 | **Riconoscimento oggetti on-device** | MediaPipe (già nel muso per i volti) ha un rilevatore oggetti da ~4 MB nel browser: UGO vede *cosa* gli mostri — una mela vera, una tazza — e reagisce a zero token, come col rumore. Apre la strada a «gli insegni i tuoi oggetti» |
-| 🔨 | **Visione coi modelli locali** | un modello vision su Ollama (moondream è piccolo): il ritaglio della camera diventa una frase che entra nella ruminazione. È «Input immagini» del gruppo 4, fatto senza provider |
-| 🔨 | **Il meteo vero nella stanza** | open-meteo è gratis e senza registrazione: il cielo del recinto fa il tempo che fa fuori, e UGO borbotta della pioggia. Una chiamata ogni mezz'ora |
-| 🔨 | **Il cielo di stanotte** | posizione di luna e pianeti è pura effemeride, zero rete: se Marte è visibile stasera, sopra il recinto c'è un puntino rossastro e UGO ogni tanto lo fissa. (Nato da «corpi quantistici in orbita vicino a Marte») |
-| 🔨 | **Anniversari e stagioni** | `beings.arrival_at` c'è già: «un anno che Francesco è nel branco» diventa un desiderio del sogno, sagoma deterministica |
-| 🔨 | **Parla nel sonno** | di notte, ogni tanto, un frammento del diario di ieri come borbottio in nuvoletta. Il diario c'è già |
+| ✅ | **Riconoscimento oggetti on-device** | **fatto**: EfficientDet-Lite0 via MediaPipe nel browser (modello vendorizzato come il blaze_face), un giro ogni 3 s per la batteria, 10 min di silenzio per categoria, persone ignorate (se ne occupa il volto). Nuvoletta e gesto a zero token; a soul solo la categoria (`seen_object`) |
+| ✅ | **Visione coi modelli locali** | **fatto**: l'occhiata — lo sguardo si CHIEDE (`glimpse_ask`), il chiosco risponde solo a camera accesa (JPEG 320px), `OllamaVisionClient` (OLLAMA_VISION_MODEL) lo trasforma in una frase che entra dalla ruminazione e il sogno vaglia. I pixel vivono in memoria e si consumano alla lettura: mai su disco |
+| ✅ | **Il meteo vero nella stanza** | **fatto**: GET /v1/weather (open-meteo via soul, memo 30 min, UGO_HOME_LAT/LON facoltative), tavolozze giorno/notte × sereno/coperto/pioggia su cielo, nebbia e prato |
+| ✅ | **Il cielo di stanotte** | **fatto**: effemeridi calcolate (`ephemeris.ts`, Schlyter ~1°), fase della luna provata su date vere (la nuova del 6/1/2000 e la piena dell'eclissi del 21), 150 stelle deterministiche, pianeti col loro colore. Sotto le nuvole niente astri |
+| ✅ | **Anniversari e stagioni** | **fatto** (gli anniversari): passo `anniversaries` del sogno da `beings.arrival_at` — «oggi è N anni che X è nel branco», zero token. Le stagioni restano nel gruppo 13 |
+| ✅ | **Parla nel sonno** | **fatto**: frame `speak` con `murmur` (nuvoletta senza voce), frammento di 3-6 parole del diario di ieri, solo di notte a corpo connesso, distanziatore 45 min, mai il testo negli eventi |
 | ⬜️ | **TTS locale (Piper)** | è la riga del gruppo 4, richiamata qui perché è il maggior guadagno di carattere a zero costo ricorrente — ma è il cantiere più lungo del gruppo |
+
+## Gruppo 13 — Il programma espanso (direttiva del proprietario, 2026-08-16)
+
+«Non solo il mondo vero ma TUTTE le proposte che hai fatto, espanse a quello fattibile non
+nominato.» Il cantiere permanente, in ordine di attacco: ogni punto resta un commit, ogni
+gruppo di punti una PR, e i grandi (voce, tool calling, ricerca) hanno il loro ADR prima
+del codice.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **TTS espressivo locale (Piper)** | il più grande guadagno di carattere: container Piper nel compose, soul serve l'audio, il muso lo suona; il tono legge la psiche (label → voce, energia → ritmo). È la riga del gruppo 4, qui perché è il prossimo grande |
+| ⬜️ | **STT locale continuo** | faster-whisper è GIÀ nelle dipendenze dei job (ingest): un endpoint di trascrizione sul servizio di percezione, il chiosco manda i clip che già ritaglia, e Google esce dal percorso. Senza wake word: gli parli e basta |
+| ⬜️ | **Tool calling dal chiosco** (gruppo 3) | «vai in cucina», «chiama Silvio» — sui modelli locali, fuori dal budget del provider; ADR prima |
+| ⬜️ | **Ricerca web con SearXNG** (gruppo 3) | container nel compose + sintesi locale; ADR con la postura privacy dichiarata |
+| ⬜️ | **Alba e tramonto veri** | il sole c'è già in `ephemeris.ts` (serve al tempo siderale): esporlo e far transire il cielo agli orari VERI invece che a ore fisse — l'oro dell'alba è una tavolozza in più |
+| ⬜️ | **Le stagioni nel recinto** | il prato che ingiallisce d'estate, le foglie d'autunno: una data, una tavolozza, zero rete. La metà rimasta della riga «anniversari e stagioni» |
+| ⬜️ | **I compleanni dei gosini** | `gosini.born_at` c'è: il branco festeggia anche loro, stesso passo del sogno degli anniversari |
+| ⬜️ | **Il suono della pioggia** | WebAudio procedurale (rumore filtrato), zero asset: quando fuori piove, nel recinto si sente — piano, e spegnibile |
+| ⬜️ | **La rassegna del mattino** | i feed esistono (ADR-060): oltre al consiglio-cliente, una riga di rassegna nel recap del mattino — sagoma deterministica sui titoli nuovi |
 
 ## Scartati, con motivo
 
