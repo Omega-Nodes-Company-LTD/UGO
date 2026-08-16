@@ -111,6 +111,18 @@ export const EVENT_PERTURBATIONS: Readonly<Record<string, readonly Perturbation[
     { variable: "umore", amount: 0.03, ceiling: 0.06 },
   ],
   /**
+   * Gruppo 10: il pisolino. Si aggiunge a `used_prop` quando l'arredo è il
+   * cuscino — coricarsi lì o per terra non può essere identico, o il cuscino
+   * è un disegno di cuscino.
+   *
+   * Solo energia, e col tetto: due pisolini e poi il cuscino smette di
+   * ricaricare — come i materassi veri, che non sostituiscono la notte. Il
+   * numero è tarato sulla soglia del coricarsi (sotto 0,12 di energia si
+   * sdraia): un pisolino lo rimette in piedi, due lo lasciano riposato, e la
+   * notte resta l'unico vero pieno.
+   */
+  napped: [{ variable: "energia", amount: 0.1, ceiling: 0.2 }],
+  /**
    * ADR-030: he asked to go out, and he was taken out. The strongest good
    * thing that can happen to him, and it lasts — a walk is not a compliment.
    */

@@ -392,6 +392,9 @@ export class FaceGateway {
         // `ceiling` su `used_prop` è ciò che chiude quell'anello.
         await this.recordEvent("used_prop", { kind: message.kind });
         await this.deps.psyche.applyEventType("used_prop", at);
+        // gruppo 10: il cuscino in più è un pisolino — energia col suo tetto.
+        // Additivo e non sostitutivo: il cuscino resta anche un passatempo
+        if (message.kind === "cushion") await this.deps.psyche.applyEventType("napped", at);
         this.pushMood(send);
         return;
       }
