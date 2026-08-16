@@ -2069,6 +2069,41 @@ tesseract, pytesseract, pillow) e il **bundle del muso** (cattura fine,
 orecchie locali). Righe stantie chiuse nel BACKLOG (retention impronte di
 PR #38, SearXNG di PR #43).
 
+## 6-quinquetricies. Le sei segnalazioni dal campo, e il backup per famiglia
+
+Il proprietario ha provato il sistema in casa e ha riportato sei cose, con
+gli screenshot. Tutte diagnosticate e corrette lo stesso giorno:
+
+1. **«I volti» morta con HTTP 404** — lo script chiamava `GET /v1/beings`,
+   una rotta MAI esistita. Ora legge `/v1/pack`, che ha guadagnato
+   `hasFaceProfile`.
+2. **La voce insegnata e subito dimenticata** — il passo `enroll` del sogno
+   arruolava con l'encoder di ripiego (MFCC: l'immagine dei job non porta
+   torch), il riconoscitore vivo usa ECAPA, e `identify_voice` confronta
+   solo profili dello stesso modello: profilo scritto, persona mai
+   riconosciuta. Ora l'arruolamento passa dalla percezione
+   (`POST /v1/enroll/voice`), con `deferred` se è giù (si riprova domani).
+   ⚠️ i profili vocali già scritti sono MFCC: vanno ri-registrati una volta.
+3. **Paura del rumore in «stanza rumorosa»** — soglie di `bassa` alzate
+   (28 dB di salto, 72 di pavimento) e la stanza dichiarata rumorosa viaggia
+   col frame (`noise.roomLoud`): il botto che passa comunque pesa metà.
+4. **Non sapeva di avere un corpo** — il blocco d'identità cached ora
+   descrive l'incarnazione al livello di specie (cache invalidata una volta,
+   costo dichiarato).
+5. **Cielo diurno alle 22:46** — senza `UGO_HOME_LAT/LON` lo stato del cielo
+   non cambiava mai; ora il ripiego è il sole calcolato su Roma col sereno
+   fisso, e la banda bianca all'orizzonte è stata compressa e scurita
+   (verifica di leggibilità al banco).
+6. **La casella intera per un cliente** — colonna `senders` (0027), filtro
+   nel sync prima di ogni indicizzazione, campo «Solo da/per» in `/admin`.
+
+Più il **backup per famiglia** (gruppo 5, chiuso): passo `family` del sogno,
+tar di NDJSON con le sole righe della casa, tabelle scoperte dallo schema,
+cifrato, stessa retention del backup dell'anima.
+
+Note di rilascio cumulative: da ricostruire il **bundle del muso**,
+l'immagine dei **job** e l'immagine della **percezione**.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
