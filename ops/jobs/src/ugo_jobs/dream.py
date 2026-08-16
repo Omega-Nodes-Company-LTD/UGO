@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 import psycopg
 
+from .anniversaries import run_anniversaries
 from .backup import backup_exists, run_backup
 from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
@@ -39,6 +40,7 @@ STEPS = (
     "recap",
     "advise",
     "digest",
+    "anniversaries",
     "contradictions",
     "entities",
     "hygiene",
@@ -55,7 +57,7 @@ STEPS = (
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
 PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene")
-PER_HOUSEHOLD = ("ingest", "enroll", "advise", "digest", "backup")
+PER_HOUSEHOLD = ("ingest", "enroll", "advise", "digest", "anniversaries", "backup")
 GLOBAL = ("compaction",)
 
 #: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
@@ -186,6 +188,10 @@ def _run_step(
         # backlog gruppo 8: «a che punto siamo» pre-calcolato per cliente —
         # la reception lo usa quando lo stato vivo di GitHub non c'è
         step_report[step] = run_digest(conn, cfg)
+    elif step == "anniversaries":
+        # gruppo 12: il giorno in cui qualcuno è entrato nel branco non passa
+        # più inosservato — un desiderio per l'anziano, zero token
+        step_report[step] = run_anniversaries(conn, cfg)
     elif step == "contradictions":
         contradictions = run_contradictions(conn, cfg, dream_date)
         step_report[step] = {
