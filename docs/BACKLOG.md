@@ -129,6 +129,23 @@ nulla era da inventare: pezzi costruiti e mai raccordati.
 | ⬜️ | **La retention delle impronte ignote nel giro notturno** | La rotta c'è e funziona; nessuno la chiama da solo. Una retention dichiarata e non applicata è peggio di nessuna retention |
 | ⬜️ | **Misurare la batteria del corpo 3D** | Il debito è di ADR-026 e questa PR lo peggiora: una superficie in più e fino a otto arredi. Il numero lo dà solo un telefono |
 
+## Gruppo 10 — Gli oggetti che contano, e la testa che non sta mai ferma
+
+Nato da una conversazione col proprietario dopo il gruppo 9: «magari ogni oggetto ha una
+funzione», «quando è fermo pensa, o ha uno stato vuoto?», «se gli dessi dei feed RSS potrebbe
+impararli sognando?». Il filo comune: **i binari esistono già quasi tutti** — psiche con tetti,
+volizione con `askQuestion` su Ollama, consiglio dei gosini su modello locale, sogno che
+distilla `insight` e desideri, indice vettoriale dei clienti — e il costo marginale in token
+del provider è **zero per progetto**: qui si spende l'Ollama che oggi sta quasi sempre fermo.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **Il cespuglio smorza i botti** | Oggi il riparo è espressivo ma inerte: si nasconde e lo stress arriva intero lo stesso. Nascosto = colpi `loud_noise` dimezzati (primo botto sempre intero: si spaventa, corre dietro, e DA LÌ arrivano attutiti). Campo facoltativo per creatura sul frame `noise` — in una stanza di due, uno è dietro e l'altro no — più variante attutita della perturbazione. Plateau in stanza rumorosa: ~0,55 → ~0,42, visibile in etichetta e grafici |
+| ⬜️ | **Il cuscino è un pisolino** | Coricarsi sul cuscino o per terra oggi è identico. All'arrivo sul cuscino: `+energia` con tetto — il gosino esausto (sotto 0,12 si corica) si riprende visibilmente prima. Anti-farming già in casa: tetto + evento solo all'arrivo + raffreddamento per oggetto |
+| ⬜️ | **Il giocattolo preferito viene dal genoma** | La preferenza fra arredi NON si impara (l'evento scarica noia per costruzione: ogni peso imparerebbe rumore) — la decide il **carattere**: il giocherellone pesa la palla, il pigro il cuscino. Individualità vera a zero motori nuovi: due gosini nella stessa stanza sviluppano posti preferiti diversi. Pesi dai `trait_sets` dentro `somethingToDo()`, che oggi sceglie solo il più vicino |
+| ⬜️ | **La ruminazione: pensa coi modelli locali** | Da fermo oggi non è vuoto (volizione, solitudine, sogno) ma non rumina. Un giro locale a bassa frequenza quando è idle: pesca due ricordi, prova un accostamento (Ollama batch), e l'esito buono diventa candidato `insight` per il sogno, una **domanda per te** (il canale `askQuestion`/desideri esiste già), o due battute con l'altro gosino (i binari del consiglio esistono già, e girano già su locale). Regole dure: **mai** `llmClient` del provider, frequenza bassa con quiete notturna, e ciò che produce passa dal vaglio del sogno — non diventa memoria da solo |
+| ⬜️ | **I feed, e il consiglio del mattino** | `feeds.py` sul pattern dei sync clienti (tabelle `rss_feeds`/`feed_items` con RLS a mano), embedding Ollama, e al sogno l'incrocio vettoriale novità×`customer_chunks`. Sopra una soglia ALTA di somiglianza: ricordo `insight` + desiderio — «è uscita X: proporla a Rossi SRL, che nel repo usa Y» — detto la mattina dal muso o dal pannello. **Mai in reception**: il cliente non deve vedere UGO consigliare ad altri sulla base dei suoi repo. Meglio un consiglio a settimana buono che tre al giorno tirati |
+
 ## Scartati, con motivo
 
 - **Marketplace di skill** — vale per dieci famiglie come per una: non è il collo di bottiglia.
