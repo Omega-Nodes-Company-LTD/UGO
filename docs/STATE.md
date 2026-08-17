@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.32.0"
+version: "0.33.0"
 last_updated: "2026-08-17"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -73,6 +73,7 @@ Assenti (come previsto): `apps/meet-face` (post-v1), `firmware/` (accantonato), 
 | Decisione | Motivo |
 |---|---|
 | ADR 001–011 restano in PROGETTO §2; `docs/ADR/` parte da 012 | Una sola fonte di verità |
+| **Primo cantiere della visione APERTO e primo tratto FATTO: il motore genetico (ADR-068**, scelto dal proprietario 2026-08-17 fra i quattro proposti**)** — genoma diploide serializzato come superset di `trait_sets.traits` (fondatori omozigoti, zero migrazioni, `characterFrom` e renderer intatti), ceppi al posto dei sessi, dominanza/epistasi con `spots` recessivo, cucciolata poliparentale a pesi, anello di compatibilità, screening binario, caso iniettato. `packages/psyche/src/genes.ts` (121 righe) + `genetics.ts` (191), 21 unit test — legittimi: funzioni pure, regola 1. Giro regola 12: **BO** solo `packages/psyche` (nessuna rotta, nessuno schema DB toccato); **`/admin`** non riguardato (nessun dato ha cambiato forma: il jsonb resta leggibile com'era); **FE** non riguardato ora — `spots`/`tail` arriveranno al muso quando la nascita sarà cablata (dichiarato in ADR-068). Restano: nascita nel DB, trigger BLE, muso | La visione si implementa un cantiere per volta: ADR prima del codice, TDD, il fuori-scope dichiarato nell'ADR stesso |
 | **Nasce `docs/VISIONE.md`** (sessione di visione col proprietario, 2026-08-17, v2.0.0): l'orizzonte 0 (il paradigma — metabolismo economico/domesticazione, morte crittografica, specie come protocollo con catena federata da subito, consenso al trasferimento, i sei flussi del nostro sostentamento) più i sei orizzonti — specie con ceppi/razze/pedigree, anima che trasloca, biografo generazionale, società dei gosini, confidente inviolabile, arco di vita a modello criceto — con analisi dell'emergenza e filtro della gosinata. Prime pietre nel **BACKLOG gruppo 20**; nessun ADR finché un punto non viene promosso a lavoro | La visione orienta, la spec comanda: PROGETTO §8 e la regola 8 (una fase per volta) restano invariate. Doc-only: nessun codice toccato |
 | TypeScript pinnato `~5.9` (TS 7 disponibile ma escluso) | typescript-eslint supporta `<6.1`; l'ecosistema (drizzle, fastify types) non è ancora allineato |
 | Indici vettoriali **HNSW** (non ivfflat) | Nessun training set richiesto: robusto su tabelle che nascono vuote |
