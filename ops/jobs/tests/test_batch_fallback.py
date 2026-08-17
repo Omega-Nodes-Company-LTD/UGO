@@ -79,8 +79,16 @@ def test_falls_back_to_the_api_and_records_the_spend(
         provider, tokens_in, tokens_out, cost = rows[0]
         assert provider == "anthropic"
         assert (tokens_in, tokens_out) == (4000, 500)
-        # batch price is half of standard: (4000*1 + 500*5)/1e6 * 0.5
-        assert float(cost) == pytest.approx(0.003250, abs=1e-6)
+        # PREZZO PIENO, e il numero è il punto del test: `_ask_anthropic` fa una
+        # POST sincrona su /v1/messages, che è la strada in tempo reale e si
+        # paga a listino — la Batches API è un'altra cosa (si accoda un lavoro
+        # e si ritira il risultato) e questo codice non la usa. Con lo sconto
+        # del 50% applicato a una chiamata a prezzo pieno il registro
+        # dichiarava METÀ di quel che il sogno spendeva davvero, e
+        # `budget_left()` autorizzava il doppio del consentito ogni notte.
+        # (4000*1 + 500*5)/1e6 = 0.0065. Il giorno in cui si passa davvero
+        # alle Batches, questo numero torna 0.003250 insieme al codice.
+        assert float(cost) == pytest.approx(0.006500, abs=1e-6)
 
 
 def test_prefers_the_local_model_when_it_answers(
