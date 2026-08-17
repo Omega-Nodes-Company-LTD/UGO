@@ -2479,11 +2479,23 @@ telefono, il guscio, lo stack Vexa.
 ## Materiale partner (2026-08-17)
 
 `docs/partner/` contiene il **partner brief in inglese a nome OmegaNodes.ai**
-(`UGO-Partner-Brief-OmegaNodes.pdf`): progetto, novità, confronto competitor, piano per
-chiudere i gap, strategia economica (i sei flussi di `VISIONE.md` §0) e i sei orizzonti.
-Screenshot reali del muso (chiosco e bench di `apps/face`, Chromium headless);
-`build_brief.py` rigenera il PDF. Doc-only: nessun codice di prodotto toccato, quindi il
-giro BO+`/admin`+FE non si applica — nessuna delle tre superfici è cambiata.
+(`UGO-Partner-Brief-OmegaNodes.pdf`, 23 pagine): cosa è UGO, architettura, i motori (psiche,
+sogno, memoria misurata, riconoscimento), il pannello, i costi, la sicurezza, il confronto coi
+competitor **coi buchi dichiarati**, la strategia economica (i sei flussi di `VISIONE.md` §0) e i
+sei orizzonti.
+
+**La regola del documento è la stessa del progetto: si cita la fonte.** Ogni pagina porta in
+fondo il file che la prova, e gli estratti di codice sono verbatim. I numeri sono contati sul
+working tree — 38 tabelle, 30 migrazioni, 93 rotte, 762 test TS + 108 pytest, 67 decisioni
+registrate: se cambiano, il brief invecchia e va rigenerato (`python3 build_brief.py`).
+
+Gli screenshot sono catture reali: il chiosco e il bench di `apps/face` con Chromium headless, e
+il pannello `/admin` servito da un `soul` vero contro Postgres+pgvector vero (testcontainers),
+**seminato con dati sintetici** — dichiarato nella didascalia del PDF, e va tenuto vero.
+
+Doc-only: nessun codice di prodotto toccato, quindi il giro BO+`/admin`+FE non si applica —
+nessuna delle tre superfici è cambiata. Gli harness usati per gli scatti sono stati rimossi dopo
+l'uso; la ricetta per rifarli sta in `docs/partner/README.md`.
 
 ## Prossimi Passi
 
