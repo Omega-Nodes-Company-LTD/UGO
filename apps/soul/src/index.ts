@@ -379,6 +379,18 @@ const app = buildServer({
   },
 });
 
+/**
+ * I battiti periodici che vivono dentro un `if`, e che lo spegnimento deve
+ * poter fermare lo stesso.
+ *
+ * `pollTimer` e `idleTimer` nascevano in uno scope di blocco e restavano
+ * invisibili a `shutdown`: a ogni SIGTERM il poller delle riunioni ripartiva
+ * (ogni tre secondi) su un `db.$client` che `Promise.allSettled` stava
+ * chiudendo, e il log si riempiva di `Connection terminated` mentre il
+ * processo se ne andava. Raccolti qui, si fermano insieme agli altri.
+ */
+const periodic: NodeJS.Timeout[] = [];
+
 const MEETINGS_POLL_MS = 3000;
 if (meetings !== undefined) {
   const pollTimer = setInterval(() => {
@@ -387,6 +399,7 @@ if (meetings !== undefined) {
     });
   }, MEETINGS_POLL_MS);
   pollTimer.unref();
+  periodic.push(pollTimer);
 }
 
 // ADR-059: la ruminazione — pensa coi modelli locali, mai col provider.
@@ -511,6 +524,7 @@ if (env.UGO_IDLE_CONSOLIDATION_MINUTES > 0) {
     });
   }, SOLITUDE_TICK_MS);
   idleTimer.unref();
+  periodic.push(idleTimer);
 }
 
 const snapshotTimer = setInterval(() => {
@@ -526,6 +540,7 @@ const shutdown = (signal: NodeJS.Signals): void => {
   clearInterval(solitudeTimer);
   clearInterval(volitionTimer);
   clearInterval(localProbeTimer);
+  for (const timer of periodic) clearInterval(timer);
   void Promise.allSettled([app.close(), db.$client.end()]).then(() => {
     process.exit(0);
   });

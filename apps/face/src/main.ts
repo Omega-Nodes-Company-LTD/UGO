@@ -233,10 +233,35 @@ function showSpeech(text: string, who?: string): void {
  * lot of moving parts for a control used twice a year.
  */
 async function loadRooms(): Promise<void> {
-  let rooms: { room: string; gosini: { name: string }[] }[] = [];
+  let rooms: { room: string; gosini: { name: string }[] }[];
   try {
     const res = await fetch(`${soulHttp}/v1/rooms`);
-    rooms = ((await res.json()) as { rooms?: typeof rooms }).rooms ?? [];
+    const payload = (await res.json()) as { rooms?: unknown };
+    // Setacciato invece che creduto sulla parola. Non con Zod: portarlo nel
+    // bundle del chiosco per tre campi costerebbe più di quanto valga, e la
+    // batteria del corpo è già un debito aperto (STATE §7). Qui basta
+    // scartare ciò che non ha la forma giusta — un proxy che risponde HTML
+    // con lo stato buono faceva arrivare `undefined` fin dentro le voci del
+    // selettore, che leggeva «undefined · vuota».
+    rooms = (Array.isArray(payload.rooms) ? payload.rooms : [])
+      .filter(
+        (entry): entry is { room: string; gosini?: unknown } =>
+          typeof entry === "object" &&
+          entry !== null &&
+          typeof (entry as { room?: unknown }).room === "string" &&
+          (entry as { room: string }).room !== "",
+      )
+      .map((entry) => ({
+        room: entry.room,
+        gosini: (Array.isArray(entry.gosini) ? entry.gosini : [])
+          .filter(
+            (who): who is { name: string } =>
+              typeof who === "object" &&
+              who !== null &&
+              typeof (who as { name?: unknown }).name === "string",
+          )
+          .map((who) => ({ name: who.name })),
+      }));
   } catch {
     return; // no soul yet: the picker simply does not appear
   }
