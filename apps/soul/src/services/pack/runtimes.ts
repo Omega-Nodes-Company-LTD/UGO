@@ -108,6 +108,8 @@ export interface RuntimeDeps {
   web?: { ask: (query: string) => Promise<string | undefined> };
   /** ADR-064: le spinte («vai in…», «chiama…») — il servizio sa lui chi è chi */
   nudges?: { answer: (gosinoId: string, text: string, at: Date) => Promise<string | undefined> };
+  /** gruppo 4 — input immagini: il vision locale, condiviso come `web` */
+  vision?: { describe: (jpegBase64: string) => Promise<string | undefined> };
 }
 
 /**
@@ -189,6 +191,7 @@ async function buildRuntime(
     ...(nudges !== undefined && {
       nudges: { answer: (text: string, at: Date) => nudges.answer(row.id, text, at) },
     }),
+    ...(deps.vision !== undefined && { vision: deps.vision }),
   });
   // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.
   // Due gosini sotto lo stesso tetto imparano cose diverse, ed è il punto.

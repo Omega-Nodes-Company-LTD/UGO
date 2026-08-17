@@ -154,6 +154,11 @@ const bootstrapPercezione =
         token: env.UGO_INTERNAL_TOKEN,
         householdId: bootstrapHouseholdId,
       });
+// gruppo 12: gli occhi che raccontano — il modello vision locale, se c'è
+const localVision =
+  env.OLLAMA_VISION_MODEL === undefined
+    ? undefined
+    : new OllamaVisionClient(env.OLLAMA_URL, env.OLLAMA_VISION_MODEL);
 // ADR-064: le spinte — il servizio nasce PRIMA di ogni chat (l'apparato di
 // avvio e i runtime lo vogliono fra le dipendenze) e legge il registro al
 // momento del gesto, quando esiste da un pezzo
@@ -179,6 +184,9 @@ const chat: ChatService = new ChatService({
     }),
   }),
   nudges: { answer: (text, at) => nudges.answer(bootstrapExemplar.id, text, at) },
+  ...(localVision !== undefined && {
+    vision: { describe: (image: string) => localVision.describe(image) },
+  }),
 });
 
 const audio = audioStorageFromEnv(env);
@@ -235,11 +243,6 @@ const localText = new OllamaTextClient(
   env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
 );
 let localTextUp = false;
-// gruppo 12: gli occhi che raccontano — il modello vision locale, se c'è
-const localVision =
-  env.OLLAMA_VISION_MODEL === undefined
-    ? undefined
-    : new OllamaVisionClient(env.OLLAMA_URL, env.OLLAMA_VISION_MODEL);
 let localVisionUp = false;
 const probeLocal = (): void => {
   localText
@@ -305,6 +308,10 @@ const registry = await GosinoRegistry.load({
   ...(audio !== undefined && { audio }),
   ...(web !== undefined && { web }),
   nudges: { answer: (gosinoId, text, at) => nudges.answer(gosinoId, text, at) },
+  // gruppo 4 — input immagini: gli stessi occhi locali delle occhiate
+  ...(localVision !== undefined && {
+    vision: { describe: (image: string) => localVision.describe(image) },
+  }),
 });
 registryRef = registry;
 

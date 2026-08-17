@@ -58,6 +58,12 @@ export interface ChatServiceDeps {
    * risposta. Solo sul canale di casa; assente = le forme non esistono.
    */
   nudges?: { answer: (text: string, at: Date) => Promise<string | undefined> };
+  /**
+   * Gruppo 4 — input immagini: il modello vision LOCALE che trasforma la foto
+   * in una frase. I pixel muoiono qui: al provider arriva la descrizione.
+   * Assente = una foto arriva comunque, ma UGO dice che non riesce a vederla.
+   */
+  vision?: { describe: (jpegBase64: string) => Promise<string | undefined> };
   /** the household's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
@@ -395,6 +401,21 @@ export class ChatService {
       if (found.length === 0) throw new BeingNotFoundError(request.beingId);
     }
 
+    // gruppo 4 — input immagini: la foto diventa una frase QUI, col modello
+    // locale, e al provider arriva solo quella. Se gli occhi locali mancano o
+    // sono giù, UGO lo dice invece di fingere di aver visto
+    let modelText = request.text;
+    if (request.imageBase64 !== undefined) {
+      const seen =
+        this.deps.vision === undefined
+          ? undefined
+          : await this.deps.vision.describe(request.imageBase64);
+      modelText =
+        seen === undefined || seen === ""
+          ? `${request.text}\n[Ti hanno mandato una foto, ma i tuoi occhi locali adesso non funzionano: dillo con onestà.]`
+          : `${request.text}\n[Nella foto che ti mostrano: ${seen}]`;
+    }
+
     const view = await psyche.applyEventType("conversation_turn", at);
     const retrieved = await searchMemories(
       db,
@@ -435,7 +456,7 @@ export class ChatService {
           this.deps.character,
         ),
         history,
-        userText: request.text,
+        userText: modelText,
       },
       at,
     );

@@ -72,6 +72,13 @@ E due sono **richieste, non comandi** — passano dal suo carattere, e può dirt
 È il punto in cui UGO smette di essere solo qualcuno che risponde: è un animale a cui chiedi
 le cose, non un telecomando che le esegue.
 
+## Fargli vedere una foto
+
+Tocca **📷** in basso e scegli una foto dal telefono: UGO la guarda e la commenta. La foto
+viene rimpicciolita sul tuo dispositivo, la «vede» il modello di casa, e **non esce mai
+verso servizi esterni né viene salvata**: resta solo il suo commento nella conversazione.
+Se il server di casa non ha gli occhi accesi, te lo dice invece di inventare.
+
 ## L'umore
 
 In basso a sinistra, accanto al pulsante del microfono, c'è sempre **una parola sola**: `sereno`,
