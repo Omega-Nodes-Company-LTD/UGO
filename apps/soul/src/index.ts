@@ -452,7 +452,11 @@ const app = buildServer({
         weeklyRewards: env.UGO_CUSTOMER_WEEKLY_REWARDS,
         llmFor,
         embedder,
-        github: new GithubLiveService({ db, dataKey }),
+        github: new GithubLiveService({
+          db,
+          dataKey,
+          ...(env.GITHUB_API_URL !== undefined && { baseUrl: env.GITHUB_API_URL }),
+        }),
       },
     }),
     // ADR-057: rivendicare un'impronta ignota passa dallo stesso servizio che
