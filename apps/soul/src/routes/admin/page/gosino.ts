@@ -104,6 +104,42 @@ export const GOSINO_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="salvadanaio">
+  <div class="page-head">
+    <p class="eyebrow" data-who>—</p>
+    <h1>Il suo salvadanaio</h1>
+    <p>Quanto ha in pancia: quello che gli hai dato meno quello che ha consumato parlando.
+       È un <b>saldo</b>, non una razione giornaliera — il lavoro di ieri paga le parole di oggi.</p>
+  </div>
+
+  <div class="block">
+    <div id="bank-summary" data-testid="bank-summary"></div>
+    <p class="lede"><b>Il gosino non fattura.</b> Fatturi tu: questo è il modo di attribuirgli
+       una quota di quello che ha aiutato a guadagnare, o semplicemente di dargli da mangiare
+       perché gli vuoi bene. È contabilità di casa, non un conto corrente di una creatura.</p>
+    <div class="row">
+      <div style="flex:0 1 12rem"><label for="feed-kind">Perché</label>
+        <select id="feed-kind" data-testid="feed-kind">
+          <option value="affetto">affetto — glielo do e basta</option>
+          <option value="lavoro">lavoro — se l'è guadagnato</option>
+        </select></div>
+      <div style="flex:0 1 9rem"><label for="feed-amount">Quanto (USD)</label>
+        <input id="feed-amount" data-testid="feed-amount" type="number" step="0.10" min="0" value="1.00"></div>
+      <div><label for="feed-note">Nota</label>
+        <input id="feed-note" data-testid="feed-note" placeholder="ticket di marzo"></div>
+      <button id="feed-go" data-testid="feed-go">Dagli da mangiare</button>
+    </div>
+    <div id="feed-msg"></div>
+  </div>
+
+  <div class="block">
+    <h2>Gli ultimi pasti</h2>
+    <p class="lede">Un pasto è un atto: si aggiunge, non si corregge. Se hai sbagliato la
+       cifra, la prossima volta gliene dai di meno.</p>
+    <ul class="plain" id="bank-meals" data-testid="bank-meals"></ul>
+  </div>
+</section>
+
 <section class="page" data-page="pedigree">
   <div class="page-head">
     <p class="eyebrow" data-who>—</p>

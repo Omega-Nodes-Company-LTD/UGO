@@ -11,9 +11,9 @@
  * sync by hand.
  */
 export const ROUTER_JS = `
-const GOSINO_PAGES = ["stato", "volonta", "memoria", "pedigree"];
+const GOSINO_PAGES = ["stato", "volonta", "memoria", "salvadanaio", "pedigree"];
 const PAGE_TITLE = { stato: "Come sta", volonta: "Cosa ha deciso lui", memoria: "Cosa ricorda",
-  pedigree: "Da chi discende" };
+  salvadanaio: "Il suo salvadanaio", pedigree: "Da chi discende" };
 let GOSINI = [];
 let WHO = "";
 /** Le case che questo token può vedere. Quasi sempre una, e allora non si vede. */
@@ -105,6 +105,8 @@ async function openPage(page) {
     await section(loadHouses, "house-msg");
   } else if (page === "conti") {
     await section(loadStats, "stats-msg");
+    // ADR-072: l'interruttore della fame vive coi conti, che è dove si guarda
+    await section(loadMetabolism, "meta-msg");
   } else if (page === "riunioni") {
     await section(loadMeetings, "meet-msg");
   } else if (page === "stanze") {
@@ -134,6 +136,9 @@ async function openPage(page) {
   } else if (page === "pedigree") {
     // ADR-070: da chi discende, e se le firme dei genitori reggono
     await section(loadPedigree, "pedigree-msg");
+  } else if (page === "salvadanaio") {
+    // ADR-072: quanto ha in pancia, e i pasti che gli sono stati dati
+    await section(loadPiggyBank, "feed-msg");
   }
 }
 

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { bytea } from "./types.js";
 
 /**
@@ -36,6 +36,14 @@ export const households = pgTable(
   locale: text("locale").notNull().default("it-IT"),
   /** null falls back to the process-wide default */
   dailyBudgetUsd: numeric("daily_budget_usd", { precision: 10, scale: 4 }),
+  /**
+   * Il metabolismo (ADR-072): ogni esemplare ha un salvadanaio suo, e a saldo
+   * esaurito ha fame. **Spento per default, e apposta**: acceso d'ufficio,
+   * ogni installazione esistente si sveglierebbe con le creature affamate
+   * dopo un aggiornamento — la sorpresa che la visione vieta. Il tetto della
+   * casa resta comunque il muro esterno: la fame stringe, non allarga.
+   */
+  metabolism: boolean("metabolism").notNull().default(false),
   /**
    * Dove sta questa casa, per il cielo del recinto (gruppo 12).
    *

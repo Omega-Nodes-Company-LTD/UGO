@@ -232,6 +232,20 @@
       "when": 1786993094980,
       "tag": "0032_condemned_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1786995634744,
+      "tag": "0033_strange_dragon_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1786995658278,
+      "tag": "0034_il-salvadanaio-rls",
+      "breakpoints": true
     }
   ]
 }

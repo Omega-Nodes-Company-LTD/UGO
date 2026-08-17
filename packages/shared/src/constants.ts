@@ -23,6 +23,14 @@ export type CustomerSourceType = (typeof CUSTOMER_SOURCE_TYPES)[number];
 export const CUSTOMER_SOURCE_STATUSES = ["pending", "ok", "error"] as const;
 export type CustomerSourceStatus = (typeof CUSTOMER_SOURCE_STATUSES)[number];
 
+/**
+ * Where a meal came from (ADR-072). Two sources, both legitimate: the family
+ * that feeds him because he is loved, and the work he did. Neither means the
+ * creature invoices anybody — his human does, and attributes a share.
+ */
+export const FEEDING_KINDS = ["affetto", "lavoro"] as const;
+export type FeedingKind = (typeof FEEDING_KINDS)[number];
+
 export const MEMORY_KINDS = ["fact", "preference", "episode", "insight"] as const;
 export type MemoryKind = (typeof MEMORY_KINDS)[number];
 

@@ -11,6 +11,7 @@ import { EXEMPLARS_JS } from "./script/exemplars.js";
 import { GRAPH_JS } from "./script/graph.js";
 import { PACK_JS } from "./script/pack.js";
 import { PEDIGREE_JS } from "./script/pedigree.js";
+import { PIGGYBANK_JS } from "./script/piggybank.js";
 import { PRINTS_JS } from "./script/prints.js";
 import { PROPS_JS } from "./script/props.js";
 import { SPARKS_JS } from "./script/sparks.js";
@@ -57,4 +58,5 @@ export const ADMIN_SCRIPT = [
   COUNCIL_JS,
   BIRTH_JS,
   PEDIGREE_JS,
+  PIGGYBANK_JS,
 ].join("\n");
