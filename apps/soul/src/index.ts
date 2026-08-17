@@ -34,6 +34,7 @@ import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
 import { buildServer } from "./server.js";
+import { createHousehold } from "./services/householdService.js";
 import type { Capability } from "./routes/capabilities.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -391,6 +392,19 @@ const capabilities = (): Capability[] => [
 const app = buildServer({
   db,
   capabilities,
+  // ADR-061: la stessa nascita di `ugo casa nuova`, ma dal pannello — perché
+  // «una persona può avere più case e più negozi» finché crearne una vuol dire
+  // entrare nel container è una promessa scritta e non una funzione
+  createHouse: (input) =>
+    createHousehold(db, parseDataKey(env.UGO_DATA_KEY), {
+      slug: input.slug,
+      name: input.name,
+      ...(input.timezone !== undefined && { timezone: input.timezone }),
+      ...(input.gosinoName !== undefined && { gosinoName: input.gosinoName }),
+      ...(input.kind !== undefined && {
+        kind: input.kind === "azienda" ? ("business" as const) : ("home" as const),
+      }),
+    }),
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,

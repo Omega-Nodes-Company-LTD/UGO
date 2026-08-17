@@ -91,6 +91,8 @@ async function openPage(page) {
     await section(drawGosiniCards, "stats-msg");
     await section(showPlace, "place-msg");
     await section(loadCapabilities, "stats-msg");
+  } else if (page === "case") {
+    await section(loadHouses, "house-msg");
   } else if (page === "conti") {
     await section(loadStats, "stats-msg");
   } else if (page === "riunioni") {

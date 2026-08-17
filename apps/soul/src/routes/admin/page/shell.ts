@@ -47,6 +47,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
     <nav class="rail-group">
       <small>La casa</small>
       <a href="#/casa" data-nav="casa">Sommario</a>
+      <a href="#/case" data-nav="case">Le case</a>
       <a href="#/stanze" data-nav="stanze">Le stanze</a>
       <a href="#/arredi" data-nav="arredi">Gli arredi</a>
       <a href="#/branco" data-nav="branco">Il branco</a>

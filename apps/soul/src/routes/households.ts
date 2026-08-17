@@ -3,6 +3,7 @@ import { asc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { PreHandler } from "./guard.js";
+import type { AuditLogger } from "../services/auditLog.js";
 import { householdScope } from "./scope.js";
 import { canAdminister } from "../services/tenantAuth.js";
 
@@ -49,6 +50,25 @@ export async function searchPlace(query: string): Promise<FoundPlace[]> {
     }));
 }
 
+const newHouseSchema = z.object({
+  slug: z.string().min(1).max(60),
+  name: z.string().min(1).max(120),
+  // ADR-061: in italiano dove lo leggono le persone, home/business nel database
+  kind: z.enum(["casa", "azienda"]).optional(),
+  timezone: z.string().min(1).max(60).optional(),
+  gosinoName: z.string().min(1).max(60).optional(),
+});
+
+const houseSettingsSchema = z
+  .object({
+    name: z.string().min(1).max(120).optional(),
+    kind: z.enum(["home", "business"]).optional(),
+    timezone: z.string().min(1).max(60).optional(),
+    locale: z.string().min(2).max(20).optional(),
+    dailyBudgetUsd: z.number().min(0).max(1000).optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, "niente da cambiare");
+
 const placeSchema = z.object({
   place: z.string().min(1).max(120),
   lat: z.number().min(-90).max(90),
@@ -72,7 +92,20 @@ const placeSchema = z.object({
  */
 export function registerHouseholdRoutes(
   app: FastifyInstance,
-  deps: { db: DbClient; guard: PreHandler; findPlace?: (query: string) => Promise<FoundPlace[]> },
+  deps: {
+    db: DbClient;
+    guard: PreHandler;
+    findPlace?: (query: string) => Promise<FoundPlace[]>;
+    /** ADR-061: far nascere una casa dal pannello; assente = solo da CLI */
+    createHouse?: (input: {
+      slug: string;
+      name: string;
+      kind?: "casa" | "azienda" | undefined;
+      timezone?: string | undefined;
+      gosinoName?: string | undefined;
+    }) => Promise<{ householdId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
+    audit?: AuditLogger;
+  },
 ): void {
   /**
    * `GET /v1/places?q=…` — cerca un posto. Guardata: è una chiamata verso
@@ -97,6 +130,92 @@ export function registerHouseholdRoutes(
         .type("application/problem+json")
         .send({ type: "about:blank", title: "Geocoding unavailable", status: 503 });
     }
+  });
+
+  /**
+   * `POST /v1/households` — nasce una casa.
+   *
+   * Esisteva solo come `ugo casa nuova` sulla riga di comando, cioè non
+   * esisteva per chi il pannello lo usa: ADR-061 dice che una persona può
+   * avere più case e più negozi, e finché crearne una voleva dire entrare nel
+   * container quella promessa era scritta e basta.
+   *
+   * Il token del proprietario torna UNA VOLTA SOLA, come dal CLI: in database
+   * esiste solo come SHA-256, e se si perde si riemette — non si recupera.
+   */
+  app.post("/v1/households", { preHandler: deps.guard }, async (request, reply) => {
+    const tenant = request.tenant ?? null;
+    // solo un operatore: creare una casa non è amministrare la propria
+    if (tenant === null || !canAdminister(tenant) || tenant.householdId !== null) {
+      return reply
+        .code(403)
+        .type("application/problem+json")
+        .send({ type: "about:blank", title: "Forbidden", status: 403 });
+    }
+    const parsed = newHouseSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).type("application/problem+json").send({
+        type: "about:blank",
+        title: "Invalid household",
+        status: 400,
+        detail: z.prettifyError(parsed.error),
+      });
+    }
+    if (deps.createHouse === undefined) {
+      return reply
+        .code(501)
+        .type("application/problem+json")
+        .send({ type: "about:blank", title: "Household creation not configured", status: 501 });
+    }
+    try {
+      const born = await deps.createHouse(parsed.data);
+      await deps.audit?.record({
+        verb: "household_created",
+        outcome: "ok",
+        householdId: born.householdId,
+        resourceType: "household",
+        resourceId: born.householdId,
+      });
+      await deps.audit?.record({
+        verb: "token_issued",
+        outcome: "ok",
+        householdId: born.householdId,
+        resourceType: "token",
+        resourceId: born.tokenId,
+      });
+      return await reply.code(201).send(born);
+    } catch (error) {
+      return reply.code(409).type("application/problem+json").send({
+        type: "about:blank",
+        title: "Household not created",
+        status: 409,
+        detail: error instanceof Error ? error.message : "slug già in uso",
+      });
+    }
+  });
+
+  /** `PATCH /v1/household` — nome, natura, fuso, lingua, tetto di spesa. */
+  app.patch("/v1/household", { preHandler: deps.guard }, async (request, reply) => {
+    const parsed = houseSettingsSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).type("application/problem+json").send({
+        type: "about:blank",
+        title: "Invalid settings",
+        status: 400,
+        detail: z.prettifyError(parsed.error),
+      });
+    }
+    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
+    const { dailyBudgetUsd, ...rest } = parsed.data;
+    await deps.db
+      .update(households)
+      .set({
+        ...rest,
+        ...(dailyBudgetUsd !== undefined && { dailyBudgetUsd: dailyBudgetUsd.toFixed(4) }),
+      })
+      .where(eq(households.id, householdId));
+    return reply.send({ ok: true });
   });
 
   /** `GET /v1/household/place` — dove sta, per rimostrarlo nel pannello. */
@@ -160,6 +279,10 @@ export function registerHouseholdRoutes(
         // possiede entrambe deve vedere in quale mondo sta scrivendo
         kind: households.kind,
         timezone: households.timezone,
+        locale: households.locale,
+        // il posto, per mostrarlo nell'elenco senza una seconda chiamata
+        place: households.place,
+        dailyBudgetUsd: households.dailyBudgetUsd,
       })
       .from(households)
       .where(isNull(households.closedAt))
