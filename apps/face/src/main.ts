@@ -246,21 +246,26 @@ async function loadRooms(): Promise<void> {
   // pick it at all.
   if (rooms.length === 0) return;
   const current = params.get("stanza")?.toLowerCase();
-  roomPick.innerHTML = rooms
-    .map((r) => {
-      const chosen = r.room.toLowerCase() === current ? " selected" : "";
-      // ADR-039: a room can be empty now, and "cucina · " with nothing after
-      // the separator reads like a bug rather than like an empty room
-      const names = r.gosini.map((g) => g.name).join(", ");
-      const who = names === "" ? " · vuota" : ` · ${names}`;
-      return `<option value="${r.room}"${chosen}>${r.room}${who}</option>`;
-    })
-    .join("");
+
+  // Costruito con le API del DOM e non con `innerHTML`: il nome di una stanza
+  // e il nome di una creatura sono testo che arriva dal pannello, e finivano
+  // interpolati grezzi dentro un attributo (`value="${r.room}"`). Una stanza
+  // chiamata `"><img src=x onerror=…>` eseguiva script sull'origin di soul, su
+  // ogni chiosco che apriva il selettore — e lì accanto, in `localStorage`,
+  // c'è il token. `escapeHtml` di `logPanel.ts` non sarebbe bastato: passa da
+  // `textContent`, che NON codifica le virgolette doppie, ed è corretto solo
+  // in contesto testo. `new Option(...)` non ha un contesto da sbagliare.
+  roomPick.replaceChildren();
   // an explicit "nobody in particular" entry, so the choice is reversible
-  roomPick.insertAdjacentHTML(
-    "afterbegin",
-    `<option value=""${current === undefined ? " selected" : ""}>— nessuna stanza —</option>`,
-  );
+  roomPick.append(new Option("— nessuna stanza —", "", false, current === undefined));
+  for (const r of rooms) {
+    // ADR-039: a room can be empty now, and "cucina · " with nothing after
+    // the separator reads like a bug rather than like an empty room
+    const names = r.gosini.map((g) => g.name).join(", ");
+    const who = names === "" ? " · vuota" : ` · ${names}`;
+    const chosen = r.room.toLowerCase() === current;
+    roomPick.append(new Option(`${r.room}${who}`, r.room, false, chosen));
+  }
   roomPick.hidden = false;
 }
 

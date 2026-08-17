@@ -142,10 +142,17 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       options.logger === false ? false : { redact: ["req.headers.authorization", "req.headers.cookie"] },
   };
   const app = Fastify(serverOptions);
-  // the face app is served from a different origin (kiosk/vite) on the same
-  // tailnet; no cookies or credentials are involved, so a permissive CORS is
-  // the correct posture for this single-user, never-public service (ADR-007)
-  app.register(cors, { origin: true });
+  // In produzione il muso lo serve soul (`faceRoot`, cioè `UGO_FACE_DIR`):
+  // stessa origin, quindi CORS non serve a niente e riflettere qualunque
+  // `Origin` regala soltanto a una pagina qualsiasi il diritto di LEGGERE le
+  // risposte di soul. La giustificazione storica — «no cookies or
+  // credentials» — copre i cookie e non copre il resto: il pannello tiene il
+  // bearer in `localStorage` sulla stessa origin, e le rotte aperte per
+  // ADR-007 rispondono comunque a chi le chiama.
+  //
+  // In dev il muso gira su Vite, su una porta diversa: lì la posizione
+  // permissiva resta quella giusta, ed è l'unico posto in cui serviva.
+  app.register(cors, { origin: options.faceRoot === undefined });
   // audio arrives as bytes, not JSON: without this Fastify refuses the body
   // with a 415 before any route sees it
   app.addContentTypeParser(
@@ -207,7 +214,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         ...(registry !== undefined && { registry }),
       });
     }
-    registerDebugChatRoute(app);
+    // Guardata: è una pagina di chat pronta all'uso che scrive nella biografia
+    // della casa e spende il salvadanaio, e l'immagine di produzione la serve
+    // esattamente come in sviluppo. «Debug» è il nome, non un confine.
+    registerDebugChatRoute(app, guard);
     // il selettore del pannello: aperta al solo token, che e' gia' abbastanza
     // — dice quali case *quel* token puo' vedere, e per quasi tutti e' una
     registerHouseholdRoutes(app, { db: options.db });
