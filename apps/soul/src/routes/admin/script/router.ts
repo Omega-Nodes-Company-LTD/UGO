@@ -111,6 +111,9 @@ async function openPage(page) {
     await section(loadMeetings, "meet-msg");
   } else if (page === "stanze") {
     await section(loadRooms, "rooms-msg");
+  } else if (page === "liste") {
+    // ADR-076: la spesa e le cose da fare, riempite parlando
+    await section(loadLists, "list-msg");
   } else if (page === "feed") {
     await section(loadFeeds, "feed-msg");
   } else if (page === "clienti") {

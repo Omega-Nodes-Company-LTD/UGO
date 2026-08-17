@@ -293,8 +293,8 @@ ripetono qui: sono già in cantiere.
 | ⬜️ | **Diario/journaling con riassunto serale** | consegnato all'utente; `diaryEntries` esiste già, oggi non è mai mostrato (gruppo 14) |
 | ⬜️ | **Memory book / timeline dei ricordi** | consultabile e navigabile, sopra il grafo di memoria esistente |
 | ⬜️ | **Timer, sveglie e promemoria vocali** | parità Alexa/Assist; ADR-028 ha già i gesti espliciti come binario |
-| ⬜️ | **Liste (spesa, cose da fare) a voce** | mostrate anche nel pannello |
-| ⬜️ | **Intent locali deterministici** | i comandi ricorrenti risolti senza LLM (parità Home Assistant: ~90% dei comandi), a costo zero e privati |
+| ✅ | **Liste (spesa, cose da fare) a voce** | **FATTO (ADR-076)**: gesto risolto prima del provider (zero token, zero righe sul ledger — provato), `list_items` della casa con lista a testo libero, parser puro che fallisce chiuso (9 unit test), pannello con spunta e cestino |
+| 🔨 | **Intent locali deterministici** | la famiglia esiste e cresce: promemoria e sveglie (ADR-028), ricerca web (ADR-063), lettura su gesto (ADR-065), spinte (ADR-064), **liste (ADR-076)**. Ogni gesto nuovo si aggiunge allo stesso binario: pura, testabile per esempi, fallisce chiuso |
 | ⬜️ | **Mood del branco nel tempo, con grafico** | il dato psiche c'è già (parente del gruppo 14 `psycheBaselines`) |
 | ⬜️ | **Personalità/tratti regolabili dopo la nascita** | stile Kindroid; riusa `traitSets` (parente del gruppo 14) |
 | ⬜️ | **Giochi vocali e storie della buonanotte** | generate/lette con Ollama locale + Piper |

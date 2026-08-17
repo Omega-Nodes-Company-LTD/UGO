@@ -135,6 +135,23 @@ bolletta.
 Il conto lo tiene lui: chi gestisce il server può vederlo, insieme al risparmio ottenuto riusando le
 parti fisse del suo carattere, sulla pagina di stato.
 
+## Le liste
+
+Tre frasi, e la lista si riempie da sola:
+
+- **«aggiungi il latte alla spesa»** — lo segna.
+- **«cosa c'è nella spesa?»** — te la legge.
+- **«ho preso il pane»** — lo spunta.
+
+Le liste le inventi parlando: «segna le viti M3 in ferramenta» crea la lista *ferramenta*
+senza che tu debba prepararla. Sono **della casa**, non di un gosino: la spesa è una sola
+anche se in casa ce ne sono tre. Le trovi anche nel pannello, in **Le liste**, dove puoi
+spuntare e cancellare a mano.
+
+Una cosa che vale la pena sapere: **queste frasi non costano niente.** UGO le capisce da solo,
+in casa, senza chiedere a nessuno — quindi non consumano il budget della giornata e non escono
+dal tuo server. Vale anche per i promemoria («ricordami di…»).
+
 ## Prossimi Passi
 
 - [In giro](./in-giro.md) — portarlo fuori casa e registrare a vista.

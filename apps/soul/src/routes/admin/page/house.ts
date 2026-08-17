@@ -385,6 +385,28 @@ export const HOUSE_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="liste">
+  <div class="page-head">
+    <p class="eyebrow">La casa</p>
+    <h1>Le liste</h1>
+    <p>La spesa, le cose da fare, quello che serve in ferramenta. Si riempiono <b>parlando</b>
+       — «aggiungi il latte alla spesa», «ho preso il pane», «cosa c'è nella spesa?» — e
+       queste frasi <b>non costano niente</b>: UGO le capisce in casa, senza chiedere a
+       nessuno. Sono della casa, non di un gosino: la spesa è una sola anche se sono in tre.</p>
+  </div>
+  <div class="block">
+    <div class="row">
+      <div style="flex:0 1 12rem"><label for="list-name">Lista</label>
+        <input id="list-name" data-testid="list-name" placeholder="spesa"></div>
+      <div><label for="list-text">Cosa</label>
+        <input id="list-text" data-testid="list-text" placeholder="latte"></div>
+      <button id="list-add" data-testid="list-add">Aggiungi</button>
+    </div>
+    <div id="lists-all" data-testid="lists-all"></div>
+    <div id="list-msg"></div>
+  </div>
+</section>
+
 <section class="page" data-page="dati">
   <div class="page-head">
     <p class="eyebrow">La casa</p>

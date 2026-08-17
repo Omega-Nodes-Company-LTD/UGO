@@ -1,4 +1,12 @@
-import { beings, desires, diaryEntries, gosini, messages, type DbClient } from "@ugo/db";
+import {
+  beings,
+  desires,
+  diaryEntries,
+  gosini,
+  listItems,
+  messages,
+  type DbClient,
+} from "@ugo/db";
 import {
   searchMemories,
   searchTranscripts,
@@ -15,6 +23,7 @@ import { buildPackPrompt, selfLine } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
 import { readGestureOf, replyForReading, type ReadOutcome } from "./sceneReader.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
+import { confirmList, parseListCommand, type ListCommand } from "./volition/lists.js";
 import { searchQueryOf } from "./webSearch.js";
 
 /** top-k per channel (PROGETTO §5.4: k=6 casa, k=10 riunioni) */
@@ -301,6 +310,101 @@ export class ChatService {
     });
   }
 
+  /**
+   * Esegue il gesto di lista (ADR-076) e registra lo scambio. Nessuna
+   * chiamata al provider, quindi **nessuna riga sul `budget_ledger`**: è
+   * precisamente il punto — i comandi ricorrenti costano zero e restano in
+   * casa.
+   */
+  private async applyList(
+    command: ListCommand,
+    request: ChatRequest,
+    at: Date,
+  ): Promise<ChatResponse> {
+    const { db, dataKey, psyche } = this.deps;
+    const householdId = this.deps.householdId;
+    let reply: string;
+
+    if (command.action === "read") {
+      const rows = await db
+        .select({ text: listItems.text })
+        .from(listItems)
+        .where(
+          and(
+            eq(listItems.householdId, householdId),
+            eq(listItems.list, command.list),
+            eq(listItems.done, false),
+          ),
+        )
+        .orderBy(listItems.at);
+      reply = confirmList(
+        command,
+        rows.map((row) => this.readable(row.text)).filter((text) => text !== ""),
+      );
+    } else if (command.action === "add") {
+      await db.insert(listItems).values({
+        householdId,
+        list: command.list,
+        text: encryptText(command.item ?? "", dataKey),
+        ...(request.beingId !== undefined && { beingId: request.beingId }),
+      });
+      reply = confirmList(command);
+    } else {
+      // spuntare: si cerca fra le righe aperte quella che combacia, e il
+      // confronto avviene in chiaro perché il testo è cifrato a riposo
+      const rows = await db
+        .select({ id: listItems.id, text: listItems.text })
+        .from(listItems)
+        .where(
+          and(
+            eq(listItems.householdId, householdId),
+            eq(listItems.list, command.list),
+            eq(listItems.done, false),
+          ),
+        );
+      const wanted = (command.item ?? "").toLowerCase();
+      const hit = rows.find((row) => this.readable(row.text).toLowerCase().includes(wanted));
+      if (hit !== undefined) {
+        await db
+          .update(listItems)
+          .set({ done: true, doneAt: at })
+          .where(eq(listItems.id, hit.id));
+        reply = confirmList(command);
+      } else {
+        reply = `Non trovo ${command.item ?? ""} nella lista ${command.list}.`;
+      }
+    }
+
+    const owner = { gosinoId: this.deps.gosinoId };
+    await db.insert(messages).values([
+      {
+        ...owner,
+        ts: at,
+        channel: request.channel,
+        role: "user",
+        beingId: request.beingId ?? null,
+        text: encryptText(request.text, dataKey),
+      },
+      {
+        ...owner,
+        ts: new Date(at.getTime() + 1),
+        channel: request.channel,
+        role: "assistant",
+        text: encryptText(reply, dataKey),
+      },
+    ]);
+    return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+  }
+
+  /** Il testo di una riga, o stringa vuota se la chiave non la apre. */
+  private readable(value: string): string {
+    try {
+      return decryptText(value, this.deps.dataKey);
+    } catch {
+      return "";
+    }
+  }
+
   public async handle(request: ChatRequest, at: Date = new Date()): Promise<ChatResponse> {
     const { db, embedder, llm, psyche, dataKey } = this.deps;
 
@@ -309,6 +413,19 @@ export class ChatService {
     // reached: instant, and it costs nothing. A reminder is filed as a desire
     // with a clock on it, and initiative voices it when the moment comes.
     const wall = this.wallClock(at);
+
+    /**
+     * ADR-076: «aggiungi il latte alla spesa» è un gesto, non una
+     * conversazione. Risposto qui, prima del provider: istantaneo, gratuito e
+     * privato — e lo scambio finisce comunque nella biografia cifrato come
+     * ogni altro, perché una scorciatoia sul costo non è una scorciatoia
+     * sulla memoria.
+     */
+    const listCommand = parseListCommand(request.text);
+    if (listCommand !== undefined) {
+      return this.applyList(listCommand, request, at);
+    }
+
     const reminder = parseReminder(request.text, wall.hour, wall.minute);
     if (reminder !== undefined) {
       await db.insert(desires).values({

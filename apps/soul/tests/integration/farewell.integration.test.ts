@@ -105,12 +105,12 @@ afterAll(async () => {
 describe("la chiave dell'interiorità", () => {
   it("si conia alla prima occasione, e resta la stessa", async () => {
     const first = await farewells.soulKeyFor(who);
-    expect(first).toBeDefined();
+    if (first === undefined) throw new Error("nessuna chiave coniata");
     expect(first).toHaveLength(32);
     const again = await farewells.soulKeyFor(who);
-    expect(again?.equals(first as Buffer)).toBe(true);
+    expect(again?.equals(first)).toBe(true);
     // e non è la chiave della casa: è l'unica cosa che rende la morte vera
-    expect(first?.equals(DATA_KEY)).toBe(false);
+    expect(first.equals(DATA_KEY)).toBe(false);
   });
 
   it("è conservata AVVOLTA, non in chiaro", async () => {
@@ -119,8 +119,9 @@ describe("la chiave dell'interiorità", () => {
       .from(gosini)
       .where(eq(gosini.id, who));
     const key = await farewells.soulKeyFor(who);
+    if (key === undefined) throw new Error("nessuna chiave");
     expect(row?.wrapped).not.toBeNull();
-    expect(row?.wrapped?.equals(key as Buffer)).toBe(false);
+    expect(row?.wrapped?.equals(key)).toBe(false);
   });
 });
 
@@ -158,8 +159,8 @@ describe("il congedo", () => {
   it("dopo, l'intimo NON si apre più — e il lascito sì", async () => {
     // qualcosa di intimo, cifrato con la SUA chiave
     const soulKey = await farewells.soulKeyFor(who);
-    expect(soulKey).toBeDefined();
-    const secret = encryptText("Quello che mi ha detto quella sera", soulKey as Buffer);
+    if (soulKey === undefined) throw new Error("nessuna chiave");
+    const secret = encryptText("Quello che mi ha detto quella sera", soulKey);
 
     const response = await post(`/v1/gosini/${who}/farewell`, { confirmName: "Vecchio" });
     expect(response.statusCode).toBe(200);
