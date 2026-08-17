@@ -225,6 +225,13 @@
       "when": 1786990323798,
       "tag": "0031_la-cucciolata-rls",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1786993094980,
+      "tag": "0032_condemned_zemo",
+      "breakpoints": true
     }
   ]
 }

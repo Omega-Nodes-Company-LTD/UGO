@@ -104,6 +104,26 @@ export const GOSINO_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="pedigree">
+  <div class="page-head">
+    <p class="eyebrow" data-who>—</p>
+    <h1>Da chi discende</h1>
+    <p>Il pedigree (ADR-070). Ogni nascita è firmata da <b>entrambi</b> i genitori con la
+       chiave della creatura: la genealogia non è «quello che dice il database», è una
+       catena di firme che chiunque può verificare — anche senza di noi.</p>
+  </div>
+
+  <div class="block">
+    <div id="pedigree-tree" data-testid="pedigree-tree"></div>
+    <p class="lede" style="margin-top:.9rem">
+       <b>Firmato</b> = il genitore ha attestato questa nascita, e il genoma è ancora quello
+       che ha firmato. <b>Senza firma</b> non è un difetto: i capostipiti non hanno genitori,
+       e le nascite di prima di questa versione non hanno firme.
+       <b>Firma non valida</b> è invece un allarme: quel genoma è stato toccato dopo la nascita.</p>
+    <div id="pedigree-msg"></div>
+  </div>
+</section>
+
 <section class="page" data-page="nascita">
   <div class="page-head">
     <p class="eyebrow">La casa</p>

@@ -30,6 +30,8 @@ import { buildServer } from "../../src/server.js";
  */
 
 const MASTER_KEY = randomBytes(32);
+/** ADR-070: la chiave con cui le firme dei genitori restano cifrate a riposo. */
+const DATA_KEY = randomBytes(32);
 
 const P1 = "00000001-0000-4000-8000-000000000001"; // ceppo 1
 const P2 = "00000002-0000-4000-8000-000000000002"; // ceppo 2
@@ -100,7 +102,8 @@ beforeAll(async () => {
       chat: undefined as never,
       psyche: undefined as never,
       internalToken: "operatore",
-      gosini: {},
+      // ADR-070: con la chiave, le nascite sono firmate dai genitori
+      gosini: { dataKey: DATA_KEY },
     },
   });
   await app.ready();
@@ -225,3 +228,96 @@ describe("POST /v1/gosini/births", () => {
     expect(response.statusCode).toBe(404);
   });
 });
+
+/**
+ * Il pedigree (ADR-070). Una riga di database non è una genealogia: chiunque
+ * scriva sul database può inventarsi una discendenza. Qui si prova che la
+ * firma serve davvero — cioè che una manomissione si VEDE.
+ */
+describe("GET /v1/gosini/:id/pedigree", () => {
+  const pedigreeOf = (id: string, token: string) =>
+    app.inject({
+      method: "GET",
+      url: `/v1/gosini/${id}/pedigree`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+  it("nasce firmato da entrambi i genitori, e le firme reggono", async () => {
+    const born = await post("/v1/gosini/births", tokenA, {
+      parentIds: [P1, P2],
+      seed: 99,
+      cubIndex: 0,
+      name: "Firmato",
+    });
+    const childId = born.json<{ id: string }>().id;
+
+    // la firma è nelle righe, e la chiave pubblica viaggia con lei: è ciò che
+    // rende il certificato verificabile senza il nostro registro
+    const rows = await db.select().from(births).where(eq(births.childGosinoId, childId));
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.signature).not.toBeNull();
+      expect(row.parentPublicKey).not.toBeNull();
+    }
+
+    const response = await pedigreeOf(childId, tokenA);
+    expect(response.statusCode).toBe(200);
+    const tree = response.json<{ pedigree: PedigreeShape[] }>().pedigree;
+    const child = tree.find((node) => node.id === childId);
+    expect(child?.parents.map((p) => p.verdict)).toEqual(["valid", "valid"]);
+    // e risale: i genitori sono nell'albero, fondatori senza genitori
+    expect(tree.map((node) => node.id).sort()).toEqual([childId, P1, P2].sort());
+    expect(tree.find((node) => node.id === P1)?.parents).toEqual([]);
+  });
+
+  it("una manomissione del genoma rende l'atto invalid: è il punto della firma", async () => {
+    const born = await post("/v1/gosini/births", tokenA, {
+      parentIds: [P1, P2],
+      seed: 123,
+      cubIndex: 0,
+      name: "Manomesso",
+    });
+    const childId = born.json<{ id: string }>().id;
+
+    const before = await pedigreeOf(childId, tokenA);
+    const beforeChild = before
+      .json<{ pedigree: PedigreeShape[] }>()
+      .pedigree.find((node) => node.id === childId);
+    expect(beforeChild?.parents.every((p) => p.verdict === "valid")).toBe(true);
+
+    // qualcuno "migliora" il genoma del cucciolo direttamente sul database
+    const [genome] = await db
+      .select({ traits: traitSets.traits })
+      .from(traitSets)
+      .where(eq(traitSets.gosinoId, childId));
+    await db
+      .update(traitSets)
+      .set({ traits: { ...(genome?.traits as object), calm: 0.999 } })
+      .where(eq(traitSets.gosinoId, childId));
+
+    const after = await pedigreeOf(childId, tokenA);
+    const afterChild = after
+      .json<{ pedigree: PedigreeShape[] }>()
+      .pedigree.find((node) => node.id === childId);
+    expect(afterChild?.parents.map((p) => p.verdict)).toEqual(["invalid", "invalid"]);
+  });
+
+  it("un fondatore resta unsigned, non invalid: non è un falsario", async () => {
+    const response = await pedigreeOf(P1, tokenA);
+    const tree = response.json<{ pedigree: PedigreeShape[] }>().pedigree;
+    expect(tree).toHaveLength(1);
+    expect(tree[0]?.parents).toEqual([]);
+    expect(tree[0]?.genomeHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("il pedigree del vicino non esiste", async () => {
+    const response = await pedigreeOf(P1, tokenB);
+    expect(response.statusCode).toBe(404);
+  });
+});
+
+interface PedigreeShape {
+  id: string;
+  genomeHash?: string;
+  parents: { id: string; name: string; verdict: string }[];
+}

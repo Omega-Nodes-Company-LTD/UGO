@@ -10,6 +10,7 @@ import { FEEDS_JS } from "./script/feeds.js";
 import { EXEMPLARS_JS } from "./script/exemplars.js";
 import { GRAPH_JS } from "./script/graph.js";
 import { PACK_JS } from "./script/pack.js";
+import { PEDIGREE_JS } from "./script/pedigree.js";
 import { PRINTS_JS } from "./script/prints.js";
 import { PROPS_JS } from "./script/props.js";
 import { SPARKS_JS } from "./script/sparks.js";
@@ -55,4 +56,5 @@ export const ADMIN_SCRIPT = [
   EFFICACY_JS,
   COUNCIL_JS,
   BIRTH_JS,
+  PEDIGREE_JS,
 ].join("\n");
