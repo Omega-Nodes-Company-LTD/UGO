@@ -54,6 +54,20 @@ export function worthReporting(error: string): boolean {
 
 /** Grace after the mouth stops, for room reverb and a slow recognizer. */
 const SPEECH_TAIL_MS = 800;
+/**
+ * Quarantena sui risultati del riconoscitore del browser dopo che la bocca ha
+ * chiuso. Il riconoscitore **finalizza in ritardo**: la trascrizione di quello
+ * che UGO ha appena detto arriva 1-2 secondi dopo la fine dell'audio, cioè
+ * oltre gli 800 ms di coda — con `speaking` già falso, entrava come frase
+ * tua (visto in produzione 2026-08-17, Silvio che si risponde da solo).
+ * Un risultato finalizzato entro questa finestra è quasi certamente la sua
+ * voce: una risposta umana vera dura più a lungo e finalizza più tardi.
+ * Solo per i risultati del browser: le orecchie locali campionano dal vivo e
+ * a loro bastano gli 800 ms di riverbero.
+ */
+const RESULT_TAIL_MS = 2500;
+/** Quante frasi dette si ricordano per il filtro dell'eco. */
+const SPOKEN_MEMORY = 3;
 
 /**
  * Il freno sul riavvio del riconoscitore.
@@ -93,12 +107,22 @@ export class Speech {
   private recognition: SpeechRecognitionLike | undefined;
   /** true while the mouth is busy, so the ears do not hear the mouth */
   private speaking = false;
-  private lastSpoken: string | undefined;
+  private lastSpoken: string[] = [];
+  /** when the mouth last closed, for the result quarantine */
+  private mouthClosedAt = Number.NEGATIVE_INFINITY;
   private listening = false;
 
-  /** What UGO said last, for the echo filter in `heard.ts`. */
-  public spokenLast(): string | undefined {
+  /** The last few things UGO said, newest last, for the echo filter in `heard.ts`. */
+  public spokenLast(): readonly string[] {
     return this.lastSpoken;
+  }
+
+  private remember(text: string): void {
+    // `speak` con voce remota che ripiega su `speakLocal` passa di qui due
+    // volte con la stessa frase: una copia basta
+    if (this.lastSpoken.at(-1) === text) return;
+    this.lastSpoken.push(text);
+    if (this.lastSpoken.length > SPOKEN_MEMORY) this.lastSpoken.shift();
   }
 
   public isListening(): boolean {
@@ -198,7 +222,9 @@ export class Speech {
       let heardAnything = false;
       recognition.onresult = (event) => {
         heardAnything = true;
-        if (this.speaking) return;
+        // la quarantena: un risultato finalizzato mentre parla O nei secondi
+        // subito dopo è la sua voce che torna dal riconoscitore in ritardo
+        if (this.speaking || performance.now() - this.mouthClosedAt < RESULT_TAIL_MS) return;
         for (let index = event.resultIndex; index < event.results.length; index += 1) {
           const text = event.results[index]?.[0]?.transcript ?? "";
           if (text.trim() !== "") onText(text);
@@ -289,7 +315,7 @@ export class Speech {
       this.speakLocal(text, who);
       return;
     }
-    this.lastSpoken = text;
+    this.remember(text);
     this.speaking = true;
     remote(text, who)
       .then(async (blob) => {
@@ -299,6 +325,7 @@ export class Speech {
         }
         const audio = new Audio(URL.createObjectURL(blob));
         const done = (): void => {
+          this.mouthClosedAt = performance.now();
           setTimeout(() => {
             this.speaking = false;
           }, SPEECH_TAIL_MS);
@@ -315,7 +342,7 @@ export class Speech {
   }
 
   private speakLocal(text: string, who?: string): void {
-    this.lastSpoken = text;
+    this.remember(text);
     if (!("speechSynthesis" in globalThis)) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "it-IT";
@@ -326,6 +353,7 @@ export class Speech {
     // the tail matters: the room keeps a little reverb, and the recognizer is
     // still chewing on the last syllable when `onend` fires
     const done = (): void => {
+      this.mouthClosedAt = performance.now();
       setTimeout(() => {
         this.speaking = false;
       }, SPEECH_TAIL_MS);

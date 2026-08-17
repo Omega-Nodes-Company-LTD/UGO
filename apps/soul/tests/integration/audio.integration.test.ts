@@ -208,12 +208,8 @@ describe("POST /v1/beings/:id/enroll/voice/audio", () => {
 
     expect(response.statusCode).toBe(202);
     const { objectKey } = response.json<{ objectKey: string }>();
-    // <id8>_<AAAAMMGGHHMMSS>_<nonce>: il timbro arriva ai SECONDI e porta un
-    // suffisso casuale. Con la precisione al minuto — che è ciò che questa
-    // riga asseriva — due depositi nello stesso minuto per lo stesso essere
-    // producevano la stessa chiave, e il secondo sovrascriveva il primo nel
-    // bucket lasciando due righe `enrollment_requested` che puntavano a un
-    // solo oggetto.
+    // secondi + nonce anti-collisione: due depositi ravvicinati per lo stesso
+    // essere non si sovrascrivono più nel bucket (#50)
     expect(objectKey).toMatch(/^inbox\/enroll_[0-9a-f]{8}_\d{14}_[0-9a-f]{8}\.webm$/);
 
     const listed = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "inbox/" }));

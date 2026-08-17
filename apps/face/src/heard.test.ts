@@ -27,6 +27,29 @@ describe("what reaches soul when the face never stops listening", () => {
     expect(worthSending("meno male, allora andiamo a fare la spesa", { spoken: said })).toBe(true);
   });
 
+  // seen in production 2026-08-17: the recognizer garbled Silvio's pitched-up
+  // voice («Esplorare il» → «questi rari in»), word overlap fell to 3/6, and
+  // he answered his own spoken desire
+  it("refuses the garbled echo where only the tail survived", () => {
+    const said = "Esplorare il giardino al mattino";
+    expect(worthSending("questi rari in giardino al mattino", { spoken: said })).toBe(false);
+  });
+
+  it("checks every recent sentence, not only the very last one", () => {
+    const spoken = ["Esplorare il giardino al mattino", "Grunf, che fame che ho"];
+    expect(worthSending("questi rari in giardino al mattino", { spoken })).toBe(false);
+    expect(worthSending("dopo pranzo usciamo a fare due passi insieme", { spoken })).toBe(true);
+  });
+
+  it("still hears a person quoting three of his words inside their own sentence", () => {
+    const said = "Esplorare il giardino al mattino";
+    expect(
+      worthSending("secondo me esplorare il giardino adesso è una pessima idea, piove forte", {
+        spoken: said,
+      }),
+    ).toBe(true);
+  });
+
   it("treats accents and punctuation as noise, not as meaning", () => {
     expect(normalize("Perché, però!")).toBe("perche pero");
     expect(isEcho("PERCHÉ PERÒ", "perche pero")).toBe(true);
