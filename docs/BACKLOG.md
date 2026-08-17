@@ -211,7 +211,7 @@ il vecchio mondo. Quasi tutto è cablatura, non invenzione.
 | ⬜️ | **Le correzioni sono write-only dal pannello** | si aggiunge (`script/voice.ts:54`) ma non si vede né si ritira. `corrections` senza lista |
 | ⬜️ | **Il genoma si sceglie una volta e non si rilegge** | `traitSets` visibile solo alla nascita (`script/birth.ts`); nessuna pagina lo modifica dopo |
 | ⬜️ | **`reward.act` è sempre `null`** | il contratto lo definisce per premiare una riga precisa delle iniziative, ma il pannello non ha bottone «premia» e il muso lo omette: `actEfficacy` è alimentata solo dalla mela cliente. Aggiungere il premio dal pannello |
-| ⬜️ | **`used_prop.who` attraversa il socket e muore** | il muso lo manda (`main.ts:458`), `faceGateway.ts:497` legge solo `kind`: in una stanza di due il sollievo dalla noia può finire sulla creatura sbagliata — il difetto che lo schema dichiara di voler evitare. **Anche bug (gruppo 19)** |
+| 🚫 | ~~`used_prop.who` attraversa il socket e muore~~ | **Non era un difetto (verificato 2026-08-17)**: `forFrame` in `faceWs.ts` instrada già il frame al gateway della creatura nominata, e `recordEvent` scrive `gosino_id` sulla riga. Il sollievo dalla noia finisce sull'esemplare giusto e l'evento lo dice. La segnalazione guardava `faceGateway.ts` isolatamente e non vedeva l'instradamento a monte |
 | ⬜️ | **`seen_object` e `glimpse` sono scritti e mai mostrati** | nessuna pagina filtra `seen_object`; `glimpse` vive solo in RAM. Cosa UGO ha guardato non è ispezionabile |
 | ⬜️ | **Sei cause della psiche su 21 restano in inglese** | `exemplars.ts` etichetta 15 tipi; mancano `reward`, `loud_noise_muffled`, `used_prop`, `napped`, `excited_voice`, `calm_voice` |
 | ⬜️ | **Il pannello non sa quali chioschi/stanze sono connessi** | `SceneHub` lo sa in RAM ma non lo espone; né mostra se un corpo è `home` o `portable`, né la profondità della coda offline |
@@ -295,51 +295,54 @@ ripetono qui: sono già in cantiere.
 | ⬜️ | **Rassegna RSS a voce su richiesta** | i feed ci sono (gruppo 10); esporne il riassunto quando lo chiedi |
 | ⬜️ | **Export e oblio self-service dal muso** | esistono via `/v1/privacy/*`, manca l'accesso dal chiosco (dove Replika ha preso 5M€ dal Garante nel 2025) |
 
-## Gruppo 19 — Difetti trovati (caccia del 2026-08-16)
+## Gruppo 19 — Difetti trovati (caccia del 2026-08-16), corretti il 2026-08-17
 
 Analisi di lettura su contratti, backend, migrazioni, `ops/jobs`, `ops/docker`, muso. La famiglia
 dominante è **lo scope multi-tenant applicato su un percorso e dimenticato sul gemello adiacente**;
 con l'RLS oggi «presente e inerte» (gruppo 5), il database non fa da rete — sono difetti attivi.
 I tre capitali (`searchTranscripts`, `/v1/memories/search`, `GET /v1/beings`) sono stati verificati
-a mano. Si correggono con TDD reale (Testcontainers per lo scope, Playwright per l'XSS e la pagina
+a mano. **Corretti tutti tranne due**, in otto commit tematici: resta aperto il
+refactor dei file oltre le 200 righe (è un refactor, non una correzione), e una segnalazione si è
+rivelata infondata alla verifica (`used_prop.who`, vedi gruppo 14). Il `GET /v1/beings` del pannello
+resta nel **gruppo 14**, dove è un buco di superficie prima che un difetto. Si correggono con TDD reale (Testcontainers per lo scope, Playwright per l'XSS e la pagina
 Volti), un difetto per commit.
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **ALTA — `searchTranscripts()` senza scope** | `packages/memory/src/transcripts.ts:22`: nessun `household_id`/`gosino_id` (la gemella `searchMemories` sì). Casa A può pescare trascrizioni cifrate di casa B |
-| ⬜️ | **ALTA — `GET /v1/memories/search` aperta e senza esemplare** | `routes/v1.ts:101`: nessun `guard` (le altre rotte d'archivio sì), `chat.search` senza `gosinoId`. `curl …?q=…&k=50` senza token restituisce memorie in chiaro di ogni casa |
-| ⬜️ | **ALTA — XSS via nome stanza/creatura** | `apps/face/src/main.ts:249`: `roomPick.innerHTML` interpola grezzo; `escapeHtml` esiste ma non è usato. Una stanza `<img onerror=…>` esfiltra `localStorage.ugo_token` su ogni chiosco |
-| ⬜️ | **ALTA — STT locale morto per ordine di init** | `main.ts:639` vs `553`: lo `ScriptProcessorNode` si monta solo se `audioTap` è già definito, ma il tap arriva dopo. Con `?stt=locale` `/v1/stt` non è mai chiamato, in silenzio |
-| ⬜️ | **ALTA — `_pending()` dell'arruolamento senza `household_id`** | `ops/jobs/.../enroll_step.py:43`: passo per-casa; il sogno di A trova la richiesta di B, fallisce nel proprio bucket, e il `not exists` fa saltare B — che non si arruola mai |
-| ⬜️ | **ALTA — clip vocale non cancellato sugli errori** | `enroll_step.py:139`: `delete_object` solo sul successo; su rifiuto (es. `is_minor`) il `.webm` resta in `inbox/`. Viola «l'audio di un enrollment non è mai tenuto» |
-| ⬜️ | **ALTA — memo TTS senza casa nella chiave, rotta aperta** | `routes/tts.ts:56`: chiave `${mood} ${text}` per-processo; casa B riceve l'audio già pagato da A senza toccare `budget_ledger` |
-| ⬜️ | **ALTA — budget guard TOCTOU + pagato-ma-non-registrato** | `packages/memory/src/llmClient.ts:133`: il check del tetto e la scrittura sul ledger sono staccati dalla rete; richieste concorrenti passano tutte, e se `parse`/insert falliscono la chiamata è già pagata e non registrata |
-| ⬜️ | **MEDIA — sconto batch 0.5 su chiamata sincrona** | `batch.py:29,100`: `BATCH_DISCOUNT` applicato ma `_ask_anthropic` non usa la Batches API; il ledger sottostima 2× |
-| ⬜️ | **MEDIA — ledger scritto solo `if conn is not None`** | `batch.py:116` (default `None`): un chiamante che ometta `conn` paga fuori dal salvadanaio senza errore |
-| ⬜️ | **MEDIA — `post()` percezione senza timeout, await nella catena WS** | `recognitionClient.ts:212`: se il container si pianta, ogni `face_seen` lascia una promise appesa con immagine in heap |
-| ⬜️ | **MEDIA — `list_objects_v2` senza paginazione** | `ingest.py:172,188` + `backup.py:67`: S3 tronca a 1000 → retention audio (90gg) e backup (30gg) non più applicate |
-| ⬜️ | **MEDIA — `zip(pieces, vectors)` senza `strict`** | `ingest.py:139`: se Ollama torna meno embedding, i segmenti in eccesso non si scrivono e poi l'audio si cancella: perdita definitiva |
-| ⬜️ | **MEDIA — password Postgres sulla command line** | `backup.py:46`: visibile in `/proc/*/cmdline`; usare `PGPASSWORD`/`.pgpass` |
-| ⬜️ | **MEDIA — indici mancanti su `gosino_id`/`household_id`** | `events`, `messages`, `meetings`, `diary`, `psyche-snapshots`, `transcript_segments`: ogni query e la policy RLS filtrano lì → seq scan a ogni turno di chat |
-| ⬜️ | **MEDIA — scene push con `?stanza=` invece del `roomSlug` restituito** | `props.ts:124,138`: spostare un arredo senza il param non aggiorna il chiosco della stanza vera |
-| ⬜️ | **MEDIA — bottone «orecchie» inefficace con `?stt=locale`** | `main.ts:689`: `speech.isListening()` resta `false`; il toggle non spegne mai il microfono locale |
-| ⬜️ | **MEDIA — «orecchie spente» non spegne** | `sensors.ts:84` + `main.ts:610`: `stream`/`AudioContext` non chiusi, il loop `rAF` continua a riempire l'anello; traccia mic resta `live` |
-| ⬜️ | **MEDIA — CORS `origin:true` riflette ogni Origin** | `server.ts:143`: il bearer sta in `localStorage` sulla stessa origin → amplifica le rotte aperte e l'XSS |
-| ⬜️ | **MEDIA — payload base64 senza `max_length`** | `ops/voice/app.py:44,53,194,348`: una POST da 200 MB va in OOM il container degli encoder |
-| ⬜️ | **MEDIA — token percezione confrontato non a tempo costante** | `ops/voice/app.py:87` (`!=`), mentre soul usa `timingSafeEqual` |
-| ⬜️ | **MEDIA — env mancanti nel compose** | `compose.dev.yml:93,199`: `jobs` senza `ANTHROPIC_API_KEY`, `soul` senza `SEARXNG_URL`/`UGO_RECOGNITION_URL`. Gemello del gruppo 17 |
-| ⬜️ | **MEDIA — loop delle case dentro il `try`** | `scheduler.py:105`: se la prima casa solleva, le successive non sognano quella notte, e il log non nomina chi è rimasto fuori |
-| ⬜️ | **MEDIA — `voiceAskOpen` senza scope né transazione** | `voiceEnrolment.ts:122`: due `voice_sample` concorrenti passano entrambi; `objectKey` al minuto → due depositi nello stesso minuto si sovrascrivono |
-| ⬜️ | **MEDIA — coda `waiting[]` del WS senza tetto** | `faceWs.ts:85`: prima di `resolveHousehold`, un corpo con coda offline piena (o ostile) accumula MB per connessione |
-| ⬜️ | **MEDIA — HTTP mockato in un test (regola Zero-Mock)** | `recognitionClient.test.ts:12`: resta verde se la percezione cambia forma della risposta — il guasto di ADR-045 |
-| ⬜️ | **MEDIA — `escape()` non codifica le doppie virgolette** | `admin/script/feeds.ts:18`: valore in contesto attributo → XSS via etichetta feed |
-| ⬜️ | **MEDIA — `/debug/chat` senza `preHandler`, servita in produzione** | `debugChat.ts:61`: punta su `/v1/chat` aperta → chat pronta per chiunque raggiunga soul, consuma budget |
-| ⬜️ | **MEDIA — insert sul ledger dentro `catch{return undefined}` senza log** | `ttsClient.ts:109`: audio pagato e non registrato quando la scrittura fallisce |
-| ⬜️ | **MEDIA — `aboutThisFace` senza scope, non transazionale, `catch {}` vuoto** | `faceGateway.ts:293`: doppio desiderio «chi è?» su frame concorrenti, guasti silenziosi |
-| ⬜️ | **BASSA — confini HTTP del muso con `as`, senza `safeParse`** | `skyWatch.ts:69`, `main.ts:169,239,536`: Zod applicato solo al WS; un 502 HTML fa sparire il selettore senza dire perché |
-| ⬜️ | **BASSA — file oltre le 200 righe, insert `messages` duplicato 4×** | `chatService.ts` (455) e `main.ts` (829); un campo nuovo dimenticato in una delle quattro strade rompe in produzione |
-| ⬜️ | **BASSA — shutdown non pulisce due timer** | `index.ts:522`: `pollTimer` riunioni e `idleTimer` fuori scope → `Connection terminated` a ogni SIGTERM |
-| ⬜️ | **BASSA — `except` nudo tratta 403 come «bucket inesistente»** | `ingest.py:184` + `backup.py:96`: messaggio fuorviante su credenziali scadute. (`hygiene.py:8` importa `json` inutilizzato) |
+| ✅ | **ALTA — `searchTranscripts()` senza scope** | `packages/memory/src/transcripts.ts:22`: nessun `household_id`/`gosino_id` (la gemella `searchMemories` sì). Casa A può pescare trascrizioni cifrate di casa B |
+| ✅ | **ALTA — `GET /v1/memories/search` aperta e senza esemplare** | `routes/v1.ts:101`: nessun `guard` (le altre rotte d'archivio sì), `chat.search` senza `gosinoId`. `curl …?q=…&k=50` senza token restituisce memorie in chiaro di ogni casa |
+| ✅ | **ALTA — XSS via nome stanza/creatura** | `apps/face/src/main.ts:249`: `roomPick.innerHTML` interpola grezzo; `escapeHtml` esiste ma non è usato. Una stanza `<img onerror=…>` esfiltra `localStorage.ugo_token` su ogni chiosco |
+| ✅ | **ALTA — STT locale morto per ordine di init** | `main.ts:639` vs `553`: lo `ScriptProcessorNode` si monta solo se `audioTap` è già definito, ma il tap arriva dopo. Con `?stt=locale` `/v1/stt` non è mai chiamato, in silenzio |
+| ✅ | **ALTA — `_pending()` dell'arruolamento senza `household_id`** | `ops/jobs/.../enroll_step.py:43`: passo per-casa; il sogno di A trova la richiesta di B, fallisce nel proprio bucket, e il `not exists` fa saltare B — che non si arruola mai |
+| ✅ | **ALTA — clip vocale non cancellato sugli errori** | `enroll_step.py:139`: `delete_object` solo sul successo; su rifiuto (es. `is_minor`) il `.webm` resta in `inbox/`. Viola «l'audio di un enrollment non è mai tenuto» |
+| ✅ | **ALTA — memo TTS senza casa nella chiave, rotta aperta** | `routes/tts.ts:56`: chiave `${mood} ${text}` per-processo; casa B riceve l'audio già pagato da A senza toccare `budget_ledger` |
+| ✅ | **ALTA — budget guard TOCTOU + pagato-ma-non-registrato** | `packages/memory/src/llmClient.ts:133`: il check del tetto e la scrittura sul ledger sono staccati dalla rete; richieste concorrenti passano tutte, e se `parse`/insert falliscono la chiamata è già pagata e non registrata |
+| ✅ | **MEDIA — sconto batch 0.5 su chiamata sincrona** | `batch.py:29,100`: `BATCH_DISCOUNT` applicato ma `_ask_anthropic` non usa la Batches API; il ledger sottostima 2× |
+| ✅ | **MEDIA — ledger scritto solo `if conn is not None`** | `batch.py:116` (default `None`): un chiamante che ometta `conn` paga fuori dal salvadanaio senza errore |
+| ✅ | **MEDIA — `post()` percezione senza timeout, await nella catena WS** | `recognitionClient.ts:212`: se il container si pianta, ogni `face_seen` lascia una promise appesa con immagine in heap |
+| ✅ | **MEDIA — `list_objects_v2` senza paginazione** | `ingest.py:172,188` + `backup.py:67`: S3 tronca a 1000 → retention audio (90gg) e backup (30gg) non più applicate |
+| ✅ | **MEDIA — `zip(pieces, vectors)` senza `strict`** | `ingest.py:139`: se Ollama torna meno embedding, i segmenti in eccesso non si scrivono e poi l'audio si cancella: perdita definitiva |
+| ✅ | **MEDIA — password Postgres sulla command line** | `backup.py:46`: visibile in `/proc/*/cmdline`; usare `PGPASSWORD`/`.pgpass` |
+| ✅ | **MEDIA — indici mancanti su `gosino_id`/`household_id`** | `events`, `messages`, `meetings`, `diary`, `psyche-snapshots`, `transcript_segments`: ogni query e la policy RLS filtrano lì → seq scan a ogni turno di chat |
+| ✅ | **MEDIA — scene push con `?stanza=` invece del `roomSlug` restituito** | `props.ts:124,138`: spostare un arredo senza il param non aggiorna il chiosco della stanza vera |
+| ✅ | **MEDIA — bottone «orecchie» inefficace con `?stt=locale`** | `main.ts:689`: `speech.isListening()` resta `false`; il toggle non spegne mai il microfono locale |
+| ✅ | **MEDIA — «orecchie spente» non spegne** | `sensors.ts:84` + `main.ts:610`: `stream`/`AudioContext` non chiusi, il loop `rAF` continua a riempire l'anello; traccia mic resta `live` |
+| ✅ | **MEDIA — CORS `origin:true` riflette ogni Origin** | `server.ts:143`: il bearer sta in `localStorage` sulla stessa origin → amplifica le rotte aperte e l'XSS |
+| ✅ | **MEDIA — payload base64 senza `max_length`** | `ops/voice/app.py:44,53,194,348`: una POST da 200 MB va in OOM il container degli encoder |
+| ✅ | **MEDIA — token percezione confrontato non a tempo costante** | `ops/voice/app.py:87` (`!=`), mentre soul usa `timingSafeEqual` |
+| ✅ | **MEDIA — env mancanti nel compose** | `compose.dev.yml:93,199`: `jobs` senza `ANTHROPIC_API_KEY`, `soul` senza `SEARXNG_URL`/`UGO_RECOGNITION_URL`. Gemello del gruppo 17 |
+| ✅ | **MEDIA — loop delle case dentro il `try`** | `scheduler.py:105`: se la prima casa solleva, le successive non sognano quella notte, e il log non nomina chi è rimasto fuori |
+| ✅ | **MEDIA — `voiceAskOpen` senza scope né transazione** | `voiceEnrolment.ts:122`: due `voice_sample` concorrenti passano entrambi; `objectKey` al minuto → due depositi nello stesso minuto si sovrascrivono |
+| ✅ | **MEDIA — coda `waiting[]` del WS senza tetto** | `faceWs.ts:85`: prima di `resolveHousehold`, un corpo con coda offline piena (o ostile) accumula MB per connessione |
+| ✅ | **MEDIA — HTTP mockato in un test (regola Zero-Mock)** | `recognitionClient.test.ts:12`: resta verde se la percezione cambia forma della risposta — il guasto di ADR-045 |
+| ✅ | **MEDIA — `escape()` non codifica le doppie virgolette** | `admin/script/feeds.ts:18`: valore in contesto attributo → XSS via etichetta feed |
+| ✅ | **MEDIA — `/debug/chat` senza `preHandler`, servita in produzione** | `debugChat.ts:61`: punta su `/v1/chat` aperta → chat pronta per chiunque raggiunga soul, consuma budget |
+| ✅ | **MEDIA — insert sul ledger dentro `catch{return undefined}` senza log** | `ttsClient.ts:109`: audio pagato e non registrato quando la scrittura fallisce |
+| ✅ | **MEDIA — `aboutThisFace` senza scope, non transazionale, `catch {}` vuoto** | `faceGateway.ts:293`: doppio desiderio «chi è?» su frame concorrenti, guasti silenziosi |
+| ✅ | **BASSA — confini HTTP del muso con `as`, senza `safeParse`** | `skyWatch.ts:69`, `main.ts:169,239,536`: Zod applicato solo al WS; un 502 HTML fa sparire il selettore senza dire perché |
+| ⬜️ | **BASSA — file oltre le 200 righe, insert `messages` duplicato 4×** | `chatService.ts` (455) e `main.ts` (829); un campo nuovo dimenticato in una delle quattro strade rompe in produzione. **Lasciata aperta di proposito**: è un refactor, non una correzione, e mescolarlo al lotto di fix del 2026-08-17 avrebbe reso illeggibili entrambi |
+| ✅ | **BASSA — shutdown non pulisce due timer** | `index.ts:522`: `pollTimer` riunioni e `idleTimer` fuori scope → `Connection terminated` a ogni SIGTERM |
+| ✅ | **BASSA — `except` nudo tratta 403 come «bucket inesistente»** | `ingest.py:184` + `backup.py:96`: messaggio fuorviante su credenziali scadute. (`hygiene.py:8` importa `json` inutilizzato) |
 
 ## Scartati, con motivo
 
