@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.31.0"
+version: "0.32.0"
 last_updated: "2026-08-17"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -73,6 +73,7 @@ Assenti (come previsto): `apps/meet-face` (post-v1), `firmware/` (accantonato), 
 | Decisione | Motivo |
 |---|---|
 | ADR 001–011 restano in PROGETTO §2; `docs/ADR/` parte da 012 | Una sola fonte di verità |
+| **Nasce `docs/VISIONE.md`** (sessione di visione col proprietario, 2026-08-17): sei orizzonti — specie/pedigree, anima che trasloca, biografo generazionale, società dei gosini, confidente inviolabile, arco di vita — con analisi dell'emergenza e filtro della gosinata. Prime pietre nel **BACKLOG gruppo 20**; nessun ADR finché un punto non viene promosso a lavoro | La visione orienta, la spec comanda: PROGETTO §8 e la regola 8 (una fase per volta) restano invariate. Doc-only: nessun codice toccato |
 | TypeScript pinnato `~5.9` (TS 7 disponibile ma escluso) | typescript-eslint supporta `<6.1`; l'ecosistema (drizzle, fastify types) non è ancora allineato |
 | Indici vettoriali **HNSW** (non ivfflat) | Nessun training set richiesto: robusto su tabelle che nascono vuote |
 | Enum Postgres per i domini chiusi (source/channel/kind/status) | Il DB stesso rifiuta i valori invalidi, non solo Zod |

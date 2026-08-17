@@ -350,6 +350,27 @@ Volti), un difetto per commit.
 | ✅ | **BASSA — shutdown non pulisce due timer** | `index.ts:522`: `pollTimer` riunioni e `idleTimer` fuori scope → `Connection terminated` a ogni SIGTERM |
 | ✅ | **BASSA — `except` nudo tratta 403 come «bucket inesistente»** | `ingest.py:184` + `backup.py:96`: messaggio fuorviante su credenziali scadute. (`hygiene.py:8` importa `json` inutilizzato) |
 
+## Gruppo 20 — La Visione: le prime pietre (docs/VISIONE.md, sessione del 2026-08-17)
+
+Dalla sessione di visione col proprietario: cosa UGO può **diventare** — la specie, l'anima
+che trasloca, il biografo generazionale, la società dei gosini, il confidente inviolabile,
+l'arco della vita. Il documento nord-stella è [`docs/VISIONE.md`](./VISIONE.md); qui stanno
+solo i **primi passi apribili**, ognuno col suo orizzonte. Regola invariata: la visione
+orienta, la spec comanda — ogni punto promosso a lavoro parte dal suo ADR.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **Cucciolate: ricombinazione del genoma** (orizz. 1) | due `psyche_baselines`/`traitSets` → figlio con mutazione; codice puro zero-token in `packages/psyche`; il trasporto BLE è già nel gruppo 6 |
+| ⬜️ | **Pedigree, gradino 1: certificati di nascita firmati** (orizz. 1) | firma di ENTRAMBI i genitori con le chiavi di casa; genealogia = catena di firme verificabile offline; niente blockchain finché non c'è più di un allevamento |
+| ⬜️ | **Genoma strutturale** (emergenza, fonte 4) | i geni controllano regole attive, soglie delle spinte (ADR-064), τ memoria, repertorio grugniti, stile del sogno — non solo scalari |
+| ⬜️ | **Arco di vita: età sulle baseline** (orizz. 6) | stessa equazione della psiche con τ in anni + gene della longevità; anziano = decadimento episodico su, consolidato preservato (ADR-021); voce/setole/grugniti dall'età |
+| ⬜️ | **Il rito dell'eredità** (orizz. 3) | passaggio dell'anima al successore: ricordi intimi sigillati o dimenticati per scelta; morte ≠ oblio (`ugo forget` resta il binario GDPR) |
+| ⬜️ | **Manifesto del confidente inviolabile** (orizz. 5) | dichiarare in `/documentation` le tre proprietà (chiavi della famiglia, anima esportabile, diritto di trasloco): è già tutto vero, va solo detto |
+| ⬜️ | **UGO elettrodomestico di sé stesso** (orizz. 5, gradino 2) | l'anima su mini-PC/telefono dentro il guscio; ADR-001 (zero GPU) lo consente; dipende dal «Fallback LLM locale» (gruppo 7) |
+| ⬜️ | **Federazione fra branchi** (orizz. 4) | resta scartata come feature di breve termine (v. sotto, ADR-019: «è il confine»); qui è orizzonte: si apre solo dopo specie+pedigree, filtro privacy a monte dello scambio |
+| 🚫 | **Blockchain per l'anima** | nessun problema di fiducia multi-parte in un sistema mono-proprietario local-first; immutabilità vs oblio GDPR; l'append-only c'è già con due `REVOKE` (ADR-049). Per il pedigree la porta è legittima, ma al gradino che la fiducia richiede (VISIONE, orizz. 1) |
+| 🚫 | **Hardware esotico / parti mobili** | ADR-003: zero guasti meccanici; il corpo-telefono nel guscio È l'hardware che nessuno usa così |
+
 ## Scartati, con motivo
 
 - **Marketplace di skill** — vale per dieci famiglie come per una: non è il collo di bottiglia.
