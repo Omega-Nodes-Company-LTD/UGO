@@ -121,7 +121,7 @@ def cover_page(canvas, doc):
     canvas.setFillColor(HexColor("#aab2c5"))
     canvas.setFont("Helvetica", 9.5)
     canvas.drawString(MARGIN, 16.5 * mm, "August 2026  ·  Confidential — for discussion purposes")
-    canvas.drawRightString(PAGE_W - MARGIN, 16.5 * mm, "info@thinkpinkstudio.it")
+    canvas.drawRightString(PAGE_W - MARGIN, 16.5 * mm, "info@omeganodes.ai")
     canvas.restoreState()
 
 def body_page(canvas, doc):
@@ -510,8 +510,7 @@ story += [
         "planning and building toward.", BODY),
     Spacer(1, 10),
     Table([[Paragraph('<font color="#c9a227"><b>OmegaNodes.ai</b></font>  ·  '
-                      '<font color="#ffffff">with ThinkPink Studio  ·  '
-                      'info@thinkpinkstudio.it  ·  August 2026</font>',
+                      '<font color="#ffffff">info@omeganodes.ai  ·  August 2026</font>',
                       st("contact", fontSize=10.5, leading=14, alignment=TA_CENTER,
                          textColor=white))]],
           colWidths=[CW],
