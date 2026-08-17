@@ -139,6 +139,27 @@ export const GOSINO_PAGES = `
     </div>
     <div id="new-msg"></div>
   </div>
+
+  <div class="block">
+    <h2>Oppure: una cucciolata</h2>
+    <p class="lede">Due genomi si ricombinano (ADR-068): ceppi, dominanza, un pizzico di caso.
+       <b>Non si disegna: si sceglie tra i nati</b> — genera la cucciolata, guarda i cuccioli,
+       adotta quello che ti guarda storto. Un cucciolo bocciato dallo screening non può nascere.</p>
+    <div class="row">
+      <div><label for="litter-a">Primo genitore</label>
+        <select id="litter-a" data-testid="litter-a"></select></div>
+      <div><label for="litter-b">Secondo genitore</label>
+        <select id="litter-b" data-testid="litter-b"></select></div>
+      <button id="litter-go" data-testid="litter-go">Genera la cucciolata</button>
+    </div>
+    <div id="litter-cubs" data-testid="litter-cubs" class="litter"></div>
+    <div class="row" style="margin-top:1rem">
+      <div><label for="litter-name">Nome del cucciolo scelto</label>
+        <input id="litter-name" data-testid="litter-name" placeholder="Nino"></div>
+      <button id="litter-adopt" data-testid="litter-adopt" disabled>Adotta</button>
+    </div>
+    <div id="litter-msg"></div>
+  </div>
 </section>
 `;
 
@@ -161,6 +182,17 @@ export const DIAL_STYLES = `
                  border: 1px solid transparent; width: 100%; text-align: left;
                  color: var(--ink); font-weight: 400; }
   .gosino-card:hover { border-color: var(--line-strong); }
+  .litter { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+            gap: .6rem; margin-top: .9rem; }
+  .cub { background: var(--surface-2); border: 1px solid transparent; border-radius: var(--r);
+         padding: .7rem .85rem; text-align: left; color: var(--ink); font-weight: 400; }
+  .cub:hover { border-color: var(--line-strong); }
+  .cub[data-picked="true"] { border-color: var(--data); }
+  .cub h4 { font-size: .9rem; margin: 0 0 .25rem; }
+  .cub .persona { font-size: .78rem; color: var(--ink-3); }
+  .cub .coat { font-size: .78rem; color: var(--ink-2); margin-top: .3rem; }
+  .cub[data-viable="false"] { opacity: .55; }
+  .cub .warn { font-size: .75rem; color: var(--err, #b3261e); margin-top: .3rem; }
   .gosino-card h4, .gosino-card .persona, .gosino-card .mood { text-decoration: none; }
   .gosino-card h4 { font-size: .95rem; margin: 0; }
   .gosino-card .persona { font-size: .78rem; color: var(--ink-3); }

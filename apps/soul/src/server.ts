@@ -17,6 +17,7 @@ import { registerFaceStatic } from "./routes/faceStatic.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerCouncilRoutes } from "./routes/council.js";
 import { registerGosiniRoutes } from "./routes/gosini.js";
+import { registerLitterRoutes } from "./routes/litters.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
@@ -340,6 +341,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         db: options.db,
         guard,
         ...gosini,
+        ...(registry !== undefined && { registry }),
+      });
+      // ADR-069: the litter lives and dies with the population routes
+      registerLitterRoutes(app, {
+        db: options.db,
+        guard,
         ...(registry !== undefined && { registry }),
       });
     }
