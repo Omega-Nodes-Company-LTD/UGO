@@ -40,13 +40,27 @@ class EnrollStepResult:
     expired: int = 0
 
 
-def _pending(conn: psycopg.Connection) -> list[tuple[str, str, str, str]]:
-    """Requests with no outcome recorded yet — idempotent by construction."""
+def _pending(conn: psycopg.Connection, cfg: JobsConfig) -> list[tuple[str, str, str, str]]:
+    """Requests with no outcome recorded yet — idempotent by construction.
+
+    Della CASA, come la gemella qui sotto. `run_enroll` è un passo per casa
+    (``PER_HOUSEHOLD`` in ``dream.py``), e senza questo filtro il sogno della
+    casa A pescava anche la richiesta della casa B: cercava l'oggetto nel
+    PROPRIO bucket, non lo trovava, e scriveva comunque l'esito. Da quel
+    momento il ``not exists`` faceva saltare quella richiesta al sogno della
+    casa B, che era l'unico a poterla soddisfare — e l'arruolamento di B non
+    avveniva mai, senza che nessuno se ne accorgesse.
+
+    `perception_events` non porta la casa sulla riga: si passa da `gosini`,
+    come fa la politica RLS.
+    """
     rows = conn.execute(
         """
         select r.id, r.gosino_id, r.being_id, r.observed->>'object_key'
         from perception_events r
-        where r.observed->>'kind' = %s
+        join gosini g on g.id = r.gosino_id
+        where g.household_id = %s
+          and r.observed->>'kind' = %s
           and r.being_id is not null
           and not exists (
             select 1 from perception_events d
@@ -55,7 +69,7 @@ def _pending(conn: psycopg.Connection) -> list[tuple[str, str, str, str]]:
           )
         order by r.occurred_at
         """,
-        (REQUEST_KIND,),
+        (cfg.household_id, REQUEST_KIND),
     ).fetchall()
     return [(str(a), str(b), str(c), d) for a, b, c, d in rows]
 
@@ -103,12 +117,24 @@ def _expire_unknown_prints(conn: psycopg.Connection, cfg: JobsConfig) -> int:
     return len(gone)
 
 
+def _discard(client: object, cfg: JobsConfig, object_key: str) -> None:
+    """Il clip se ne va, qualunque cosa sia successo.
+
+    Non solleva mai: un bucket che non risponde non deve fermare la notte, e
+    l'unica cosa peggiore di un clip rimasto è un sogno che si ferma su di lui.
+    """
+    try:
+        client.delete_object(Bucket=cfg.s3_bucket_audio, Key=object_key)  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001 — la retention riproverà al giro dopo
+        pass
+
+
 def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
     # prima si butta il vecchio, poi si impara il nuovo: l'ordine è la
     # minimizzazione — un'impronta scaduta non deve sopravvivere nemmeno al
     # giro che la sta per superare
     expired = _expire_unknown_prints(conn, cfg)
-    requests = _pending(conn)
+    requests = _pending(conn, cfg)
     if not requests:
         return EnrollStepResult(enrolled=0, refused=0, missing=0, expired=expired)
 
@@ -139,15 +165,26 @@ def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
                 data_key=data_key,
             )
         except EnrollmentRefused as refusal:
+            # RIFIUTATO non vuol dire conservato. La cancellazione stava sul
+            # solo percorso di successo, quindi il clip di un minore
+            # (`is_minor`, ADR-016) — l'unico audio che avevamo promesso di non
+            # tenere — restava in `inbox/` a tempo indefinito, e di lì veniva
+            # ripreso come una registrazione qualunque. Un rifiuto deve
+            # distruggere PIÙ in fretta di un successo, non di meno.
+            _discard(client, cfg, object_key)
             _outcome(conn, gosino_id, being_id, request_id, f"refused:{refusal}")
             result.refused += 1
             continue
         except Exception:  # noqa: BLE001 — one bad clip must not stop the night
+            # e un clip che non si riesce a usare non è un clip da tenere: la
+            # richiesta è comunque chiusa da `_outcome`, quindi nessuno tornerà
+            # mai a leggerlo
+            _discard(client, cfg, object_key)
             _outcome(conn, gosino_id, being_id, request_id, "failed")
             result.missing += 1
             continue
         # the clip has done its job: it must not survive the night
-        client.delete_object(Bucket=cfg.s3_bucket_audio, Key=object_key)
+        _discard(client, cfg, object_key)
         _outcome(conn, gosino_id, being_id, request_id, "enrolled")
         result.enrolled += 1
 
