@@ -246,6 +246,13 @@
       "when": 1786995658278,
       "tag": "0034_il-salvadanaio-rls",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1786998403212,
+      "tag": "0035_late_living_lightning",
+      "breakpoints": true
     }
   ]
 }

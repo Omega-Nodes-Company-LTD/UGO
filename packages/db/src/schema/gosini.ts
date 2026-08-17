@@ -44,6 +44,21 @@ export const gosini = pgTable(
     rotationSecret: bytea("rotation_secret"),
     /** meeting other gosini is off until the owner turns it on, per exemplar */
     peerEncounters: boolean("peer_encounters").notNull().default(false),
+    /**
+     * La chiave della SUA interiorità (ADR-075), avvolta nella chiave dati
+     * della casa — lo stesso schema di `households.wrapped_data_key`.
+     *
+     * Alla morte questo involucro viene azzerato, e da quel momento ciò che
+     * era cifrato con quella chiave non è più leggibile **da nessuno**:
+     * nemmeno da noi, nemmeno con un backup del database, perché la chiave
+     * non era nel database — era avvolta qui dentro. È l'unico modo in cui
+     * la morte di una creatura digitale non è teatro.
+     *
+     * Nullable per due ragioni diverse: gli esemplari nati prima di questo
+     * ADR non ne hanno una (e i loro messaggi restano leggibili con la chiave
+     * di casa, com'è sempre stato), e i morti non ne hanno più una.
+     */
+    wrappedSoulKey: bytea("wrapped_soul_key"),
     bornAt: timestamp("born_at", { withTimezone: true }).notNull().defaultNow(),
     retiredAt: timestamp("retired_at", { withTimezone: true }),
   },

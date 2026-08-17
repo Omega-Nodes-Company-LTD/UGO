@@ -79,4 +79,6 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [071](./071-l-arco-della-vita.md) | L'arco della vita: l'età, e la plasticità che si consuma | Accettata |
 | [072](./072-il-salvadanaio-del-gosino.md) | Il salvadanaio del gosino: il metabolismo | Accettata |
 | [073](./073-il-libro-genealogico.md) | Il libro genealogico: la catena federata degli atti | Accettata |
-| 074 | *(prossimo numero disponibile)* | — |
+| [074](./074-la-dote.md) | La dote: il sapere che viaggia con la creatura | Accettata |
+| [075](./075-la-morte-crittografica.md) | La morte crittografica: il lascito resta, l'intimo no | Accettata |
+| 076 | *(prossimo numero disponibile)* | — |

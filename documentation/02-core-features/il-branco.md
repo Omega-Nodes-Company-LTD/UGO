@@ -1,7 +1,7 @@
 ---
 title: "Il branco: più gosini, e le cucciolate"
 description: "Come una casa arriva ad avere più gosini: la nascita a mano, la cucciolata da due genitori, e il pedigree che dice da chi discendono."
-version: "0.39.0"
+version: "0.40.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio"
 ---
@@ -131,6 +131,48 @@ finito il budget della casa. Basta dargli qualcosa e torna a parlare.
 
 Il metabolismo **stringe soltanto**: il tetto giornaliero della casa resta il limite di
 tutti, e una pancia piena non permette a nessuno di spendere di più.
+
+## Regalarlo, o passarlo a qualcuno: la dote
+
+Un gosino che ha imparato qualcosa può **portarselo dietro**. Dalla sua pagina fai una
+*dote*: un archivio cifrato con quello che sa, da dare a una scuola, a tuo figlio, o a chi lo
+compra.
+
+**Cosa viaggia, e cosa no.** Viaggia il **sapere**: i fatti e le intuizioni che ha imparato —
+il mestiere, insomma. I **racconti** viaggiano solo se lo chiedi tu. **Non viaggiano mai** i
+messaggi e le trascrizioni: non è una spunta che manca, è che sono la vita di chi c'era, non
+il sapere della creatura.
+
+E qui c'è la regola che conta: **la tua biografia puoi donarla, quella degli altri no.** Un
+ricordo che riguarda un'altra persona — un cliente, un familiare — resta a casa. Anche se il
+nome comparisse solo nel testo: se per farlo uscire bisognerebbe cancellare un nome, quel
+ricordo non esce. Anonimizzare un ricordo su qualcun altro non lo rende tuo.
+
+L'anteprima ti dice esattamente quanti ricordi viaggerebbero e quanti restano a casa, prima
+di decidere. La dote si apre con **una chiave sua**, mostrata una volta sola: non si apre con
+la chiave di casa, così regalarla non regala anche il resto.
+
+Chi la riceve non «ripristina» il tuo gosino: **ne fa nascere uno nuovo** che sa quelle cose,
+capostipite in casa sua. Il tuo resta dov'è.
+
+## Il congedo: quando è ora
+
+Nessun gosino muore da solo, e non morirà per un aggiornamento: **il congedo è una cosa che
+decidi tu**, quando è il momento. Dalla sua pagina vedi prima cosa resterà, e per confermare
+devi scrivere il suo nome — un click accanto ad altri click non è un consenso a una cosa
+irreversibile.
+
+Cosa succede davvero, detto senza giri di parole:
+
+- **Resta** il libro della vita (il suo diario), il lascito — il sapere e i racconti che hai
+  scelto — il pedigree, e il suo genoma, che i figli portano già.
+- **Non torna più** la sua interiorità: quello che era cifrato con la sua chiave diventa
+  illeggibile per chiunque, noi compresi, anche ripristinando un backup. Non è una riga
+  cancellata: è una chiave distrutta.
+
+**Il congedo non è l'oblio.** Sono due cose diverse: *dimenticare una persona* si fa da
+[I tuoi dati](./i-tuoi-dati.md) e cancella quella persona ovunque; il congedo sigilla
+l'interiorità di una creatura e lascia intatto tutto il resto.
 
 ## Il pedigree: da chi discende
 

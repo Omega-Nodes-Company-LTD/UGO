@@ -1,0 +1,1 @@
+ALTER TABLE "gosini" ADD COLUMN "wrapped_soul_key" "bytea";
