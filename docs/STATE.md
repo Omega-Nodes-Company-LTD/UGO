@@ -2138,6 +2138,28 @@ stanza: i turni di tutti col nome davanti; sull'API resta ADR-032. Test 2/2.
 
 Note di rilascio: da ricostruire il **bundle del muso** (bottone 📷).
 
+## 6-octricies. L'eco storpiata: Silvio che si risponde da solo
+
+Dal campo (2026-08-17): Silvio dice ad alta voce un desiderio («Esplorare il
+giardino al mattino»), il riconoscitore del browser risente la sua voce
+acuta e la **storpia** («questi rari in giardino al mattino»), la
+sovrapposizione di parole esatte scende a 3/6 — sotto la soglia 0.6 del
+filtro anti-eco — e la frase entra come se fosse del proprietario. Silvio
+risponde a sé stesso. Due difese, entrambe in `apps/face`:
+
+- **`heard.ts`**: oltre alla sovrapposizione, una **corsa contigua** di ≥3
+  parole in ordine che copre metà del sentito è eco — l'ordine è l'unica
+  cosa che la storpiatura non fabbrica. E il confronto va sulle **ultime 3
+  frasi dette** (`speech.spokenLast()` ora è una lista), perché il
+  riconoscitore può finalizzare l'eco di una frase quando UGO ne ha già
+  detta un'altra. Test 9/9, incluso il caso di produzione verbatim.
+- **`speech.ts`**: quarantena `RESULT_TAIL_MS` (2,5 s) sui risultati del
+  riconoscitore del browser dopo la chiusura della bocca — finalizza in
+  ritardo, e gli 800 ms di coda non bastavano. Solo browser: le orecchie
+  locali campionano dal vivo e restano com'erano.
+
+Note di rilascio: da ricostruire il **bundle del muso** (immagine soul).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
