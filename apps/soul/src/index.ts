@@ -34,6 +34,7 @@ import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
 import { buildServer } from "./server.js";
+import type { Capability } from "./routes/capabilities.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
 
@@ -316,8 +317,80 @@ const registry = await GosinoRegistry.load({
 });
 registryRef = registry;
 
+/**
+ * Cosa è acceso e cosa no, con il perché scritto accanto.
+ *
+ * Tre volte di fila una funzione spenta si è presentata come una funzione
+ * rotta — «la camera non mi funziona» senza `OLLAMA_VISION_MODEL`, un cielo
+ * sereno durante un temporale senza le coordinate della casa, un «cerca:»
+ * inesistente senza `SEARXNG_URL` — e ogni volta la diagnosi è costata una
+ * lettura del codice. Spenta è uno stato legittimo; spenta che finge di
+ * essere rotta no.
+ */
+const capabilities = (): Capability[] => [
+  {
+    id: "vision",
+    label: "Guardare le foto che gli mandi",
+    on: localVision !== undefined,
+    ...(localVision === undefined && {
+      why: "manca OLLAMA_VISION_MODEL (e il modello va scaricato in Ollama). Senza, alle foto risponde che non riesce a vederle.",
+    }),
+  },
+  {
+    id: "recognition",
+    label: "Riconoscere voce e volto",
+    on: env.UGO_RECOGNITION_URL !== undefined && env.UGO_INTERNAL_TOKEN !== undefined,
+    ...(!(env.UGO_RECOGNITION_URL !== undefined && env.UGO_INTERNAL_TOKEN !== undefined) && {
+      why: "manca UGO_RECOGNITION_URL o UGO_INTERNAL_TOKEN: il servizio di percezione non viene mai chiamato.",
+    }),
+  },
+  {
+    id: "web",
+    label: "Cercare sul web («cerca: …»)",
+    on: env.SEARXNG_URL !== undefined,
+    ...(env.SEARXNG_URL === undefined && {
+      why: "manca SEARXNG_URL: il gesto «cerca:» non esiste e la frase va al modello come una qualunque.",
+    }),
+  },
+  {
+    id: "ttsProvider",
+    label: "Voce espressiva del provider",
+    on: env.OPENAI_API_KEY !== undefined,
+    ...(env.OPENAI_API_KEY === undefined && {
+      why: "manca OPENAI_API_KEY: si scende alla voce di casa (Piper) o a quella di sistema.",
+    }),
+  },
+  {
+    id: "sttLocal",
+    label: "Dettatura locale (whisper in casa)",
+    // passa dallo stesso servizio di percezione: se non c'è quello, non c'è
+    // nemmeno il ponte /v1/stt, che risponde 501 e rimanda al browser
+    on: recognition !== undefined,
+    ...(recognition === undefined && {
+      why: "serve il servizio di percezione (UGO_RECOGNITION_URL): senza, le orecchie restano quelle del browser.",
+    }),
+  },
+  {
+    id: "meetings",
+    label: "Riunioni (Vexa)",
+    on: env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined,
+    ...(!(env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined) && {
+      why: "mancano VEXA_API_URL/VEXA_API_KEY: non può entrare in una call.",
+    }),
+  },
+  {
+    id: "audio",
+    label: "Registrazioni e arruolamento voce",
+    on: audio !== undefined,
+    ...(audio === undefined && {
+      why: "manca la configurazione S3_*: senza deposito non si registra e non si impara una voce.",
+    }),
+  },
+];
+
 const app = buildServer({
   db,
+  capabilities,
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,

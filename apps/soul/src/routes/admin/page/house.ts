@@ -44,6 +44,15 @@ export const HOUSE_PAGES = `
     </div>
     <div id="stats-msg"></div>
   </div>
+
+  <div class="block">
+    <h2>Cosa sa fare, adesso</h2>
+    <p class="lede">Quasi tutto qui sotto &egrave; facoltativo: spento &egrave; uno stato legittimo.
+       Quel che non &egrave; legittimo &egrave; una funzione spenta che si comporta come una funzione
+       rotta &mdash; «la camera non mi funziona» quando la camera non c'entra niente. Se manca
+       qualcosa, qui c'&egrave; scritto cosa impostare.</p>
+    <div id="capabilities" data-testid="capabilities"></div>
+  </div>
 </section>
 
 <section class="page" data-page="stanze">
