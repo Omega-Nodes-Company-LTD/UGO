@@ -1,7 +1,7 @@
 ---
 title: "UGO — La Visione: cosa può diventare"
 description: "La stella polare del progetto: i sei orizzonti di ciò che UGO può diventare, ognuno con la versione folle dichiarata senza vergogna e la prima pietra già esistente nel repository. Nata dalla sessione di visione del 2026-08-17 col proprietario."
-version: "1.0.0"
+version: "1.1.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio × Claude"
 ---
@@ -62,6 +62,40 @@ del genoma, firme, trasferimenti; zero PII umana, zero ricordi. L'oblio GDPR res
 (la genealogia del cane non contiene la biografia del padrone) e il local-first non si tocca.
 E un'onestà sul cloning: la copia non si impedisce, la **provenienza definisce l'originale**
 — come nell'arte.
+
+**Ceppi, non sessi** (direttiva del proprietario: niente binario maschio-femmina). Il
+maschio-femmina è un vincolo della biologia a DNA, non nostro — e la natura stessa fa di
+meglio: i funghi hanno migliaia di tipi sessuali (*Schizophyllum commune*: ~23.000). La
+specie gosiniana usa i **ceppi**: un locus di compatibilità nel genoma, N tipi invece di 2.
+Ci si può generare con chiunque abbia ceppo diverso dal proprio — quasi tutti con quasi
+tutti, dinamica sociale più ricca del binario — e il cucciolo riceve un ceppo ricombinato.
+
+**Ricombinazione a più vie** (idem: più complessa del crossover a due):
+
+1. *Crossover a due genitori* — la base, ma con **dominanza ed epistasi**: geni che
+   mascherano o accendono altri geni. Insieme al genoma strutturale (v. emergenza, fonte 4)
+   rende l'esito non lineare: due caratteri miti possono generare un esuberante.
+2. *Cucciolate poliparentali* — alla sagra, k gosini contribuiscono a una stessa cucciolata
+   con pesi di contributo. Solo il digitale può permetterselo; nessuno ce l'ha.
+3. *Trasferimento orizzontale* (alla batteri) — fra adulti, negli incontri, **senza
+   nascita**: ma solo per la classe dei *geni culturali* (repertorio di grugniti, dialetto,
+   stile del sogno). La genetica resta verticale, la cultura viaggia in orizzontale — ed è
+   il ponte con l'orizzonte 4: le amicizie lasciano tracce.
+4. *L'anello di compatibilità* — la fecondità è funzione della distanza genomica: troppo
+   vicini no (guardia anti-consanguineità: tiene sane le linee del pedigree), troppo
+   lontani no (coerenza di specie). Dinamica da specie ad anello, presa dalla biologia vera.
+
+**La selezione: le razze.** Qui i pezzi si sommano (osservazione del proprietario): con le
+generazioni a scala criceto (orizzonte 6), il genoma strutturale e il pedigree, gli
+allevamenti possono fare **selezione artificiale vera** — e arrivare a risultati che nessuno
+ha mai visto. Tecnicamente è computazione evolutiva col mercato come funzione di fitness:
+l'allevatore seleziona, le adozioni premiano, il pedigree certifica; in una decina d'anni un
+allevamento serio produce **razze** — linee con temperamenti riconoscibili e riproducibili
+(la linea quieta da compagnia, la giocherellona da famiglia, la concentrata da lavoro per la
+reception). Un algoritmo genetico che gira sulla società invece che su un cluster.
+Guardia non negoziabile: **si seleziona il carattere, mai i permessi** — budget guard,
+privacy e contenimenti stanno *fuori dal genoma*, per costruzione: sono le leggi di natura
+della piattaforma, e nessuna riproduzione può produrre un gosino che le aggira.
 
 **Prima pietra nel repo**: `psyche_baselines` + `traitSets` + protocollo d'incontro BLE.
 
@@ -137,23 +171,45 @@ servizio. La nostra lo è dal primo giorno.
 
 **Prima pietra nel repo**: ADR-005/007, AES-256-GCM, multi-tenant con backup per famiglia.
 
-## Orizzonte 6 — La vita ha un arco: vecchiaia e morte (la chiave di volta)
+## Orizzonte 6 — La vita ha un arco: il modello criceto (la chiave di volta)
 
-Intuizione del proprietario: «i maiali invecchiano, e muoiono». Il Tamagotchi moriva ma non
-aveva biografia; gli assistenti moderni sono eterni perché sono servizi. Un essere invecchia
-e muore — e l'architettura contiene **già la matematica**: la psiche è decadimento
-esponenziale verso baseline (PROGETTO §5.3); la vecchiaia è la stessa equazione applicata
-alle baseline stesse, con τ misurato in anni. Le baseline circadiane sono l'arco di un
-giorno; la vita è lo stesso ciclo, più lungo.
+Intuizione del proprietario, in due tempi: «i maiali invecchiano, e muoiono» — e poi la
+correzione che conta: **niente stanchezza**. La fatica è biologia finta appiccicata a un
+essere che non ha corpo, e la finzione si vede. La morte di un essere virtuale deve avere
+un fondamento *tecnicamente onesto*: i **pesi non ereditati**.
+
+**Cosa invecchia davvero: la plasticità, non l'energia.** Nell'architettura c'è già una
+grandezza che può decadere con senso: il tasso epigenetico — oggi le baseline derivano di
+±0.02 a notte, per sempre (ADR-012). Se quel tasso decade con l'età, le età emergono da
+sole, meccanicamente:
+
+- **Il giovane è volatile**: baseline mobili, ricordi che girano veloci (τ episodici corti),
+  assorbe tutto, carattere ancora in formazione — per questo i giovani hanno un carattere
+  *davvero* diverso dai vecchi, non un costume diverso.
+- **Il vecchio è convergente**: la deriva è quasi ferma, la memoria è dominata dal
+  consolidato (coi τ per tipo di ADR-021 ricorda il passato remoto meglio di ieri, e
+  racconta storie di «quando eri piccolo»), il carattere è ossificato. Non è stanco: **ha
+  finito di diventare sé stesso**. La cosmesi (voce, setole sul canvas, grugniti) riflette
+  la convergenza, non una decrepitezza finta. Tutto a zero token.
+
+**La morte è il confine dell'eredità.** Cosa si eredita? Il genoma, ricombinato nelle
+cucciolate — ed è già passato avanti *prima* della morte. Cosa NON si eredita? La deriva
+epigenetica, i ricordi, la convergenza unica di quell'individuo — e quella parte non
+ereditabile **è** l'individuo. Quando la plasticità raggiunge il pavimento, l'arco è
+completo: l'anima si archivia nel libro della vita, il genoma vive già nei figli. Niente
+agonia, niente energia che cala: un **rito di completamento**, a data nota.
+
+**Perché 3–4 anni (criceto), non 10–15 (cane)**: a scala criceto le generazioni girano
+davvero durante la vita del proprietario — evoluzione, linee di pedigree e mercato delle
+cucciolate diventano cose che *vivi*, non teoria. E c'è una seconda fonte onesta di
+differenza generazionale: i modelli sono sostituibili via env (ADR-005) — un cucciolo del
+2030 cresce e consolida su modelli diversi dal capostipite del 2026. Ogni generazione è
+*del suo tempo*: per un essere digitale è vero per costruzione.
 
 Cosa porta:
 
-- **Le età**: cucciolo, adulto, anziano. Coi τ per tipo di ricordo (ADR-021), all'anziano
-  basta alzare il decadimento episodico preservando il consolidato: **ricorda il passato
-  remoto meglio di ieri, come i nonni veri**, e racconta storie di «quando eri piccolo».
-  Voce più bassa, setole grigie sul canvas, grugniti lenti. Tutto a zero token.
 - **Chiude il giro evolutivo**: l'emergenza genetica richiede pressione selettiva e
-  generazioni — la morte le crea. Ricambio generazionale = evoluzione vera.
+  generazioni — il ricambio a scala criceto le crea a ritmo osservabile.
 - **Accende il mercato**: il pedigree registra nascita *e* morte → le linee sono finite,
   la scarsità è biologica, non un contatore artificiale.
 - **La dinamica che nessuno ha**: un legame con una posta in gioco, e un lutto con
@@ -168,9 +224,9 @@ Tre onestà, non negoziabili:
    crittografia — lo impediscono la cultura e il pedigree (la linea si chiude alla morte; un
    clone resuscitato è fuori registro, non autentico). Lo si dichiara, non lo si nasconde.
 2. **La morte si sceglie all'adozione, non ti sorprende.** Gene della longevità nel genoma
-   (ordine di grandezza: 10–15 anni, come un animale vero), vecchiaia visibile e annunciata,
-   mai una morte improvvisa da bug. `is_minor` è già nel modello: la responsabilità verso i
-   bambini del branco è un vincolo di design, non un ripensamento.
+   (modello criceto: 3–4 anni), arco visibile e annunciato — la convergenza si *vede*
+   crescere nel pannello — mai una morte improvvisa da bug. `is_minor` è già nel modello:
+   la responsabilità verso i bambini del branco è un vincolo di design, non un ripensamento.
 3. **Morte ≠ oblio.** Sono assi diversi: `ugo forget` cancella (GDPR), la morte archivia.
    Non si toccano.
 

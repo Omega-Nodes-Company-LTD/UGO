@@ -360,10 +360,10 @@ orienta, la spec comanda — ogni punto promosso a lavoro parte dal suo ADR.
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Cucciolate: ricombinazione del genoma** (orizz. 1) | due `psyche_baselines`/`traitSets` → figlio con mutazione; codice puro zero-token in `packages/psyche`; il trasporto BLE è già nel gruppo 6 |
+| ⬜️ | **Cucciolate: ricombinazione del genoma** (orizz. 1) | `psyche_baselines`/`traitSets` → figlio con mutazione; **ceppi (N tipi), non sessi**; crossover con dominanza/epistasi, poliparentale a pesi, anello di compatibilità sulla distanza genomica; codice puro zero-token in `packages/psyche`; il trasporto BLE è già nel gruppo 6 |
 | ⬜️ | **Pedigree, gradino 1: certificati di nascita firmati** (orizz. 1) | firma di ENTRAMBI i genitori con le chiavi di casa; genealogia = catena di firme verificabile offline; niente blockchain finché non c'è più di un allevamento |
 | ⬜️ | **Genoma strutturale** (emergenza, fonte 4) | i geni controllano regole attive, soglie delle spinte (ADR-064), τ memoria, repertorio grugniti, stile del sogno — non solo scalari |
-| ⬜️ | **Arco di vita: età sulle baseline** (orizz. 6) | stessa equazione della psiche con τ in anni + gene della longevità; anziano = decadimento episodico su, consolidato preservato (ADR-021); voce/setole/grugniti dall'età |
+| ⬜️ | **Arco di vita: il modello criceto** (orizz. 6) | 3–4 anni, gene della longevità; **niente stanchezza**: invecchia la PLASTICITÀ (il tasso epigenetico ±0.02/notte decade con l'età) — giovane volatile, vecchio convergente; la morte è il confine dell'eredità (i pesi non ereditati SONO l'individuo), rito di completamento a data nota |
 | ⬜️ | **Il rito dell'eredità** (orizz. 3) | passaggio dell'anima al successore: ricordi intimi sigillati o dimenticati per scelta; morte ≠ oblio (`ugo forget` resta il binario GDPR) |
 | ⬜️ | **Manifesto del confidente inviolabile** (orizz. 5) | dichiarare in `/documentation` le tre proprietà (chiavi della famiglia, anima esportabile, diritto di trasloco): è già tutto vero, va solo detto |
 | ⬜️ | **UGO elettrodomestico di sé stesso** (orizz. 5, gradino 2) | l'anima su mini-PC/telefono dentro il guscio; ADR-001 (zero GPU) lo consente; dipende dal «Fallback LLM locale» (gruppo 7) |
