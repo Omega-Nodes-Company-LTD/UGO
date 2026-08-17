@@ -201,10 +201,14 @@ export class ChatService {
   /**
    * The last turns of *this* conversation (§5.5 block 5).
    *
-   * Scoped by being and by time: without it, a question from one being
-   * arrives with somebody else's thread as context — UGO answering Paola
-   * while reading Ivan's turns. Assistant replies have no being_id, so they
-   * are matched by the window alone, which keeps each exchange intact.
+   * ADR-067 — la chat di gruppo: sul canale di CASA il filo è della stanza,
+   * non della persona. Una stanza è uno spazio condiviso — chi parla sente le
+   * risposte date agli altri — quindi UGO rilegge i turni di TUTTI, col nome
+   * davanti quando lo sa («Ivan: …»), ed è ciò che gli permette di seguire
+   * una conversazione a più voci invece di otto monologhi interlacciati.
+   *
+   * Sugli altri canali resta lo scoping per persona di ADR-032: una domanda
+   * dall'API non deve arrivare col filo di qualcun altro come contesto.
    */
   private async loadHistory(
     channel: ChatRequest["channel"],
@@ -213,16 +217,24 @@ export class ChatService {
   ): Promise<LlmHistoryTurn[]> {
     const since = new Date(at.getTime() - HISTORY_WINDOW_HOURS * 3_600_000);
     const rows = await this.deps.db
-      .select({ role: messages.role, text: messages.text, ts: messages.ts })
+      .select({
+        role: messages.role,
+        text: messages.text,
+        ts: messages.ts,
+        speaker: beings.displayName,
+      })
       .from(messages)
+      .leftJoin(beings, eq(messages.beingId, beings.id))
       .where(
         and(
           this.mine(messages),
           eq(messages.channel, channel),
           gte(messages.ts, since),
-          beingId === undefined
-            ? or(isNull(messages.beingId), sql`${messages.role} <> 'user'`)
-            : or(eq(messages.beingId, beingId), sql`${messages.role} <> 'user'`),
+          channel === "home"
+            ? undefined
+            : beingId === undefined
+              ? or(isNull(messages.beingId), sql`${messages.role} <> 'user'`)
+              : or(eq(messages.beingId, beingId), sql`${messages.role} <> 'user'`),
         ),
       )
       .orderBy(desc(messages.ts), asc(messages.id))
@@ -232,7 +244,15 @@ export class ChatService {
       .filter((row): row is typeof row & { role: "user" | "assistant" } =>
         ["user", "assistant"].includes(row.role),
       )
-      .map((row) => ({ role: row.role, content: decryptText(row.text, this.deps.dataKey) }));
+      .map((row) => {
+        const text = decryptText(row.text, this.deps.dataKey);
+        // il nome davanti solo in gruppo: su un filo per-persona sarebbe rumore
+        const named =
+          channel === "home" && row.role === "user" && row.speaker !== null
+            ? `${row.speaker}: ${text}`
+            : text;
+        return { role: row.role, content: named };
+      });
   }
 
   /**
