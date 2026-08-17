@@ -28,6 +28,12 @@ export interface Traits {
    */
   spots: number;
   tail: number;
+  /**
+   * L'età che si vede (ADR-071): 0 fino a metà vita, poi le setole
+   * sbiadiscono. Riflette la CONVERGENZA — ha finito di diventare sé stesso —
+   * non una decrepitezza finta: niente posture curve, niente passo lento.
+   */
+  greying: number;
 }
 
 export const DEFAULT_TRAITS: Traits = {
@@ -39,6 +45,7 @@ export const DEFAULT_TRAITS: Traits = {
   hue: 0.95,
   spots: 0.1,
   tail: 0.5,
+  greying: 0,
 };
 
 /** Below this the coat is plain: carriers (one high allele) show nothing. */
@@ -121,18 +128,21 @@ export class Pig {
   private readonly depth: number;
 
   public constructor(traits: Traits = DEFAULT_TRAITS) {
-    const skin = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setHSL(traits.hue, 0.6, 0.77),
-      roughness: 0.88,
-    });
-    const limb = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setHSL(traits.hue, 0.55, 0.71),
-      roughness: 0.88,
-    });
-    const snoutMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setHSL(traits.hue, 0.52, 0.67),
-      roughness: 0.82,
-    });
+    /**
+     * Greying desaturates and lightens: the pigment goes, the hue stays. A
+     * grey pig is still a pink pig that has lived, not a different animal.
+     */
+    const grey = Math.min(1, Math.max(0, traits.greying));
+    const aged = (saturation: number, lightness: number): THREE.Color =>
+      new THREE.Color().setHSL(
+        traits.hue,
+        saturation * (1 - grey * 0.72),
+        lightness + (1 - lightness) * grey * 0.35,
+      );
+
+    const skin = new THREE.MeshStandardMaterial({ color: aged(0.6, 0.77), roughness: 0.88 });
+    const limb = new THREE.MeshStandardMaterial({ color: aged(0.55, 0.71), roughness: 0.88 });
+    const snoutMat = new THREE.MeshStandardMaterial({ color: aged(0.52, 0.67), roughness: 0.82 });
     const dark = new THREE.MeshStandardMaterial({
       color: new THREE.Color().setHSL(traits.hue, 0.45, 0.22),
       roughness: 0.55,
@@ -161,7 +171,7 @@ export class Pig {
     const shown = Math.round(spotting * SPOT_SITES.length);
     if (shown > 0) {
       const spotMat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color().setHSL(traits.hue, 0.5, lerp(0.6, 0.42, spotting)),
+        color: aged(0.5, lerp(0.6, 0.42, spotting)),
         roughness: 0.9,
       });
       for (const site of SPOT_SITES.slice(0, shown)) {

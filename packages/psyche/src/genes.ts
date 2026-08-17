@@ -30,6 +30,8 @@ export const GENE_KEYS = [
   "affection",
   "calm",
   "talkativeness",
+  // how long the arc lasts (ADR-071): hamster scale, 2.5–5 years
+  "longevity",
 ] as const;
 
 export type GeneKey = (typeof GENE_KEYS)[number];
@@ -65,6 +67,7 @@ export const GENE_CATALOG: Record<GeneKey, { default: number; expression: Expres
   affection: { default: 0.5, expression: "blend" },
   calm: { default: 0.5, expression: "blend" },
   talkativeness: { default: 0.5, expression: "blend" },
+  longevity: { default: 0.5, expression: "blend" },
 };
 
 /** Epistasis, declared once: shyness masks the talkative gene (ADR-068 §2). */

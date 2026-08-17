@@ -1,5 +1,6 @@
 import { gosini, households, psycheBaselines, traitSets, type DbClient } from "@ugo/db";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
+import { lifeAt } from "@ugo/psyche";
 import type { SpeciesMap } from "@ugo/shared";
 import type { EmbeddingsClient, LlmClient, LocalTextClient } from "@ugo/memory";
 import { desc, eq, isNull } from "drizzle-orm";
@@ -48,6 +49,13 @@ export interface GosinoRuntime {
   /** "cucina", "studio" — the room whose device shows him (ADR-036) */
   where: string | undefined;
   character: Character;
+  /**
+   * Cosa serve al corpo per disegnare LUI (ADR-071): il genoma più ciò che
+   * dipende dall'età — il grigio. Separato da `character.traits` apposta: un
+   * gene si eredita, il grigio si vive, e confonderli vorrebbe dire che un
+   * cucciolo può nascere già canuto.
+   */
+  bodyTraits: Record<string, number>;
   psyche: PsycheService;
   gateway: FaceGateway;
   volition: VolitionService;
@@ -137,7 +145,7 @@ async function seedBaselines(
 /** Builds the whole apparatus for one exemplar. */
 async function buildRuntime(
   deps: RuntimeDeps,
-  row: { id: string; householdId: string; name: string; where: string | null },
+  row: { id: string; householdId: string; name: string; where: string | null; bornAt?: Date },
 ): Promise<GosinoRuntime> {
   const [house] = await deps.db
     .select({ timezone: households.timezone, locale: households.locale })
@@ -153,6 +161,15 @@ async function buildRuntime(
     .orderBy(desc(traitSets.version))
     .limit(1);
   const character = characterFrom(traits[0]?.traits);
+  /**
+   * ADR-071: il muso non ha un orologio della vita, quindi il grigio glielo
+   * calcola l'anima e glielo manda come un parametro di disegno qualunque.
+   */
+  const greying =
+    row.bornAt === undefined
+      ? 0
+      : lifeAt(row.bornAt, new Date(), character.traits.longevity).greying;
+  const bodyTraits: Record<string, number> = { ...character.traits, greying };
 
   // ADR-031, il pezzo che mancava: le baseline erano **calcolate e buttate**.
   // Un flemmatico ricavava uno stress di riposo basso e la psiche non lo
@@ -244,6 +261,7 @@ async function buildRuntime(
     name: row.name,
     where: row.where ?? undefined,
     character,
+    bodyTraits,
     psyche,
     gateway,
     volition,
@@ -270,6 +288,7 @@ export class GosinoRegistry {
         householdId: gosini.householdId,
         name: gosini.name,
         where: gosini.locationLabel,
+        bornAt: gosini.bornAt,
       })
       .from(gosini)
       .where(isNull(gosini.retiredAt))
