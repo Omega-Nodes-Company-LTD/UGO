@@ -24,6 +24,7 @@ const EXPECTED_TABLES = [
   "budget_ledger",
   "gosini",
   "trait_sets",
+  "births",
   "bonds",
   "relations",
   "recognition_profiles",
@@ -108,6 +109,21 @@ describe("migrations on a pristine postgres", () => {
     for (const row of rls) {
       expect(row.relrowsecurity, `RLS disabled on ${row.relname}`).toBe(true);
     }
+  });
+
+  // ADR-069: the lineage is a household fact behind the wall, and an act, not
+  // a record to correct — UPDATE and DELETE are not granted, like the audit log
+  it("puts the lineage behind the household wall, append-only for ugo_app", async () => {
+    const policies = await db.execute<{ policyname: string }>(sql`
+      select policyname from pg_policies where schemaname = 'public' and tablename = 'births'
+    `);
+    expect(policies.some((row) => row.policyname === "births_household")).toBe(true);
+
+    const grants = await db.execute<{ privilege_type: string }>(sql`
+      select privilege_type from information_schema.role_table_grants
+      where grantee = 'ugo_app' and table_name = 'births'
+    `);
+    expect(grants.map((row) => row.privilege_type).sort()).toEqual(["INSERT", "SELECT"]);
   });
 
   // the reception channel exists in the database, not only in TypeScript

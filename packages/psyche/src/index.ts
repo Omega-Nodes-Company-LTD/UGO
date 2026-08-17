@@ -25,3 +25,33 @@ export {
 } from "./engine.js";
 export { EVENT_PERTURBATIONS, perturbationsForEvent } from "./events.js";
 export { pickLabel, labelPhrase, STARTLE_WINDOW_MS } from "./labels.js";
+export {
+  GENE_KEYS,
+  GENE_CATALOG,
+  CEPPI,
+  TALKATIVENESS_EPISTASIS,
+  expressGene,
+  expressedTraits,
+  toTraitSet,
+  founderGenome,
+  type GeneKey,
+  type Expression,
+  type Allele,
+  type Genome,
+} from "./genes.js";
+export {
+  COMPAT_MIN_DISTANCE,
+  COMPAT_MAX_DISTANCE,
+  ALLELE_MUTATION_RATE,
+  ALLELE_MUTATION_SPAN,
+  CEPPO_MUTATION_RATE,
+  genomeDistance,
+  canMate,
+  mate,
+  screen,
+  mulberry32,
+  type MateRefusalReason,
+  type MateVerdict,
+  type LitterOptions,
+  type ScreenVerdict,
+} from "./genetics.js";

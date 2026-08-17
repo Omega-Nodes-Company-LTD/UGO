@@ -121,6 +121,8 @@ async function openPage(page) {
   } else if (page === "nascita") {
     drawDials();
     await section(drawBirthRooms, "new-msg");
+    // ADR-069: the litter needs to know who the possible parents are
+    await section(drawLitterParents, "litter-msg");
   } else if (page === "stato") {
     // the 48-hour series lives on /v1/stats, so the plot needs it too
     await section(loadPsyche, "stats-msg");
