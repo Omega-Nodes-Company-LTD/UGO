@@ -1,8 +1,8 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.9.0"
-last_updated: "2026-08-10"
+version: "0.10.0"
+last_updated: "2026-08-17"
 author: "ThinkPink Studio"
 ---
 
@@ -24,20 +24,33 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
    Parla più vicino, in un ambiente meno rumoroso.
 4. Se dice `oggi ho finito le parole` (o una frase simile), non è rotto: ha esaurito il budget
    giornaliero. Riprende da mezzanotte. Chi gestisce il server può alzare il limite.
-5. Se il bottone è passato da solo a **🔇 orecchie spente**, il riconoscimento vocale su quel
-   telefono non riesce a restare acceso (succede su alcuni Android: si spaventa ai rumori ma non
-   trascrive quello che dici). UGO ci prova qualche volta e poi smette da solo, invece di suonare
-   all'infinito il bip del microfono. Un tocco sul bottone riprova; se torna a spegnersi, su quel
-   dispositivo la dettatura non è disponibile — tutto il resto (rumori, luce, camera) funziona.
+5. Su alcuni Android il riconoscimento vocale del telefono non riesce a restare acceso (si
+   spaventa ai rumori ma non trascrive quello che dici, e ogni tentativo suona il bip del
+   microfono). UGO ci prova qualche volta, poi **passa da solo alla dettatura di casa**: ascolta
+   dal microfono già aperto, senza più bip, e la voce viene trascritta dal server di casa invece
+   che dal telefono. Se lo vedi nel registro (`passo alla dettatura in casa`), è tutto normale —
+   e se lo ricorda: dalla prossima accensione parte direttamente così, senza rifare i bip.
+6. Se il bottone è passato da solo a **🔇 orecchie spente**, nemmeno la dettatura di casa era
+   disponibile (il server non la offre, o non risponde). Un tocco sul bottone riprova; tutto il
+   resto (rumori, luce, camera) continua a funzionare.
 
 ## Fa il suono del microfono a ripetizione, o non riesco ad attivare la camera
 
-Erano due facce dello stesso problema, ed è corretto dalla versione con il cielo azzurro: su
-alcuni telefoni il riconoscimento vocale moriva appena avviato e UGO lo riavviava all'infinito —
-ogni riavvio suonava il bip di sistema, e la coda di richieste bloccava la finestra dei permessi
-della camera («impossibile chiedere l'autorizzazione: ci sono popup aperti»). Se ti succede
-ancora: aggiorna la pagina e controlla che la versione in basso a destra sia cambiata — se non
-cambia, il muso servito è ancora quello vecchio e serve chi gestisce il server.
+Erano due facce dello stesso problema: su alcuni telefoni il riconoscimento vocale moriva appena
+avviato e UGO lo riavviava all'infinito — ogni riavvio suonava il bip di sistema, e la coda di
+richieste bloccava la finestra dei permessi della camera («impossibile chiedere l'autorizzazione:
+ci sono popup aperti»). Adesso succedono due cose, in ordine:
+
+1. UGO smette di insistere dopo pochi tentativi, invece di suonare all'infinito.
+2. Passa **alla dettatura di casa**: la voce viene trascritta dal server di casa, ascoltando il
+   microfono già aperto — quindi niente più bip — e il telefono se lo ricorda per le accensioni
+   successive.
+
+Se il bip a ripetizione ti succede ancora: aggiorna la pagina e controlla che la versione in basso
+a destra sia cambiata — se non cambia, il muso servito è ancora quello vecchio e serve chi
+gestisce il server. Se invece vuoi forzare di nuovo il riconoscitore del telefono (per esempio
+dopo un aggiornamento di Android), apri UGO una volta con `?stt=browser` in fondo all'indirizzo:
+cancella il ricordo e riprova da lì.
 
 ## Il telefono non trova UGO
 

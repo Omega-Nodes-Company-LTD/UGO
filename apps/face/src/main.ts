@@ -13,6 +13,7 @@ import { mountLogPanel } from "./logPanel.js";
 import { startObjectSpotter } from "./objectSpotter.js";
 import { RainSound } from "./rainSound.js";
 import { Speech } from "./speech.js";
+import { EarsChoice } from "./earsChoice.js";
 import { worthSending } from "./heard.js";
 import { UtteranceGate } from "./utteranceGate.js";
 import { toPcm16Base64 } from "./voiceClip.js";
@@ -597,20 +598,32 @@ function handleHeardText(text: string): void {
 }
 
 /**
- * Gruppo 4, la metà chiosco della dettatura locale — dietro `?stt=locale`, e
- * SOLO dietro: le orecchie del telefono si sono già rotte una volta per
- * fretta (STATE §6-tricies), quindi il default resta il riconoscitore del
- * browser finché la strada locale non è misurata su un dispositivo vero.
+ * Gruppo 4, la metà chiosco della dettatura locale.
+ *
+ * Nata dietro `?stt=locale` e solo dietro; da STATE §6-terquadragies è
+ * anche il ripiego AUTOMATICO del telefono su cui il riconoscitore del
+ * browser non resta acceso (il microfono è del misuratore di rumore, ogni
+ * `start()` è un bip di sistema). La decisione su quale orecchio usare — e
+ * su cosa fare quando uno muore — sta in `EarsChoice`, che è pura e testata;
+ * qui c'è solo il cablaggio.
  *
  * Il giro: la presa contigua sul microfono già aperto (`sensors.tapAudio`),
  * il cancello puro decide gli enunciati, ogni enunciato va a `/v1/stt` e il
  * testo entra dallo stesso `handleHeardText` del browser. 501 = il server
- * non ha la dettatura: si torna al browser e lo si dice; tre guasti di fila
- * = idem. Niente esce di casa finché funziona: è tutto il punto.
+ * non ha la dettatura; tre guasti di fila = whisper muto: in entrambi i casi
+ * decide `EarsChoice` se c'è un'altra strada o se le orecchie si spengono.
+ * Niente esce di casa finché funziona: è tutto il punto.
  */
-const wantsLocalEars = params.get("stt") === "locale";
+const ears = new EarsChoice(params.get("stt"), localStorage);
 let localEarsOn = false;
 let localEarsTapWired = false;
+
+/** Le orecchie si spengono DAVVERO, e l'interfaccia lo dice. */
+function earsOff(): void {
+  app.dataset.ears = "off";
+  setLocalState("idle");
+  earsButton.textContent = "🔇 orecchie spente";
+}
 
 function startLocalEars(): void {
   localEarsOn = true;
@@ -628,7 +641,7 @@ function startLocalEars(): void {
         body: JSON.stringify({ audio }),
       });
       if (response.status === 501) {
-        fallBackToBrowser("la dettatura locale non è configurata sul server");
+        localeFailed("la dettatura in casa non è configurata sul server");
         return;
       }
       if (!response.ok) throw new Error(String(response.status));
@@ -639,15 +652,22 @@ function startLocalEars(): void {
       }
     } catch {
       failures += 1;
-      if (failures >= 3) fallBackToBrowser("whisper non risponde: torno al riconoscitore del browser");
+      if (failures >= 3) localeFailed("whisper non risponde");
     }
   };
 
-  const fallBackToBrowser = (why: string): void => {
+  const localeFailed = (why: string): void => {
     if (!localEarsOn) return;
     localEarsOn = false;
-    trouble(why);
-    startBrowserListening();
+    // niente ping-pong: se il browser si è già arreso (o è rotto per memoria)
+    // le orecchie si spengono e lo dicono, invece di rimbalzare fra due morti
+    if (ears.localeFailed() === "browser") {
+      trouble(why + ": torno al riconoscitore del browser");
+      startBrowserListening();
+    } else {
+      trouble(why + ": orecchie spente (un tocco riprova)");
+      earsOff();
+    }
   };
 
   sensors.tapAudio((samples, rate) => {
@@ -672,7 +692,7 @@ function startListening(): void {
       trouble("microfono non disponibile");
     });
   }
-  if (wantsLocalEars) {
+  if (ears.first() === "locale") {
     startLocalEars();
     return;
   }
@@ -704,13 +724,20 @@ function startBrowserListening(): void {
     // muoiono appena nate — tipicamente un Android in cui il misuratore di
     // rumore tiene il microfono — e insistere era il bip di sistema a ciclo
     // continuo piu' una coda di richieste che bloccava il prompt della
-    // webcam. Le orecchie si spengono DAVVERO e il bottone lo mostra: i
+    // webcam. La resa non e' piu' la fine: se la dettatura in casa e'
+    // percorribile si passa a lei — ascolta il microfono GIA' aperto, quindi
+    // zero bip — e il dispositivo se lo ricorda per il prossimo avvio.
+    // Altrimenti le orecchie si spengono DAVVERO e il bottone lo mostra: i
     // sensi restano accesi (rumore, luce, camera), manca solo la dettatura,
     // e un altro tocco sul bottone riprova.
-    () => {
-      app.dataset.ears = "off";
-      setLocalState("idle");
-      earsButton.textContent = "🔇 orecchie spente";
+    (why) => {
+      if (ears.browserGaveUp(sensors.micIsOn()) === "locale") {
+        trouble(why + ": passo alla dettatura in casa");
+        startLocalEars();
+      } else {
+        trouble(why + ": orecchie spente (un tocco riprova)");
+        earsOff();
+      }
     },
   );
   if (started) app.dataset.ears = "on";

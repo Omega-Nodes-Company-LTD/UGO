@@ -78,8 +78,10 @@ describe("il freno sul riavvio (le orecchie che non suonano il campanello)", () 
     }
 
     expect(speech.isListening()).toBe(false);
+    // la resa porta il MOTIVO: è il chiamante a decidere la strada dopo
+    // (dettatura in casa o orecchie spente) e a comporre il messaggio giusto
     expect(gaveUp).toHaveBeenCalledTimes(1);
-    expect(troubles.at(-1)).toContain("orecchie spente");
+    expect(gaveUp).toHaveBeenCalledWith(expect.stringContaining("non riesce a restare acceso"));
     // otto morti, non venti: dopo essersi arreso NON nascono altre sessioni
     expect(FakeRecognition.born.length).toBe(8);
   });
@@ -139,9 +141,12 @@ describe("i verdetti e il registro (il telefono del proprietario, secondo giro)"
     last().onend?.();
     expect(speech.isListening()).toBe(false);
     expect(gaveUp).toHaveBeenCalledTimes(1);
+    expect(gaveUp).toHaveBeenCalledWith(expect.stringContaining("nega"));
     // UNA sola sessione: zero riavvii, zero bip in piu'
     expect(FakeRecognition.born.length).toBe(1);
-    expect(troubles.some((t) => t.includes("nega"))).toBe(true);
+    // il registro riceve la classe di errore; la riga di resa la compone il
+    // chiamante, che sa se dopo c'è un'altra strada o il silenzio
+    expect(troubles.some((t) => t.includes("not-allowed"))).toBe(true);
   });
 
   it("otto network fanno UNA riga nel registro, non otto fotocopie", () => {
@@ -161,8 +166,10 @@ describe("i verdetti e il registro (il telefono del proprietario, secondo giro)"
         vi.advanceTimersByTime(100);
       }
     }
-    // una riga per la classe `network`, piu' quella finale di resa
-    expect(troubles.filter((t) => t.includes("network"))).toHaveLength(1);
-    expect(troubles.at(-1)).toContain("orecchie spente");
+    // una riga per la classe `network`, e NIENT'ALTRO: la riga di resa è del
+    // chiamante (via `onGaveUp`), qui non registrato apposta
+    expect(troubles).toHaveLength(1);
+    expect(troubles[0]).toContain("network");
+    expect(speech.isListening()).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.30.0"
+version: "0.31.0"
 last_updated: "2026-08-17"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -2330,6 +2330,51 @@ env, unit 4 + integrazione 4 nuovi; **`/admin`** — nessuna modifica, e non ser
 è un messaggio sul canale ticket, e il pannello li mostra già come conversazioni; **FE** —
 `apps/reception` (Parla, api.ts, BFF); `apps/face` e `faceContracts.ts` non toccati. Rilascio:
 redeploy di **entrambe** le immagini — soul (rotta+env) e reception (UI).
+
+## 6-terquadragies. Il bip che non finiva: la resa del browser diventa la strada di casa
+
+Dal campo (2026-08-17, screenshot): la PWA «continua a fare il rumore del microfono e non sente
+quello che dico». È il difetto già diagnosticato in §6-tricies — su certi Android il riconoscitore
+del browser non riesce a prendere il microfono, che è del misuratore di rumore, e ogni `start()`
+suona il bip di sistema — ma la cura di allora era un **fallimento educato**: dopo un minuto circa
+di bip, «orecchie spente, un tocco riprova». Il tocco rifaceva il minuto di bip. Intanto la strada
+buona esisteva già dal gruppo 4: la dettatura in casa (`/v1/stt` → whisper sulla percezione), che
+ascolta il microfono **già aperto** dal misuratore — quindi zero bip e zero contesa — ma andava
+attivata a mano con `?stt=locale`, e nessuno sul divano scrive query string.
+
+Ora la resa del browser è un bivio, non una fine, e la decisione sta in un modulo puro:
+
+- **`earsChoice.ts` (nuovo, testato coi numeri)** — quando il freno di `speech.ts` molla, si passa
+  alla dettatura in casa se è percorribile (microfono acceso, strada locale non già morta in
+  sessione); il dispositivo **se lo ricorda** (`localStorage`, chiave `ugo-ears`), così alla
+  prossima accensione parte direttamente dalla strada che funziona invece di rifare il minuto di
+  bip; se anche la strada in casa muore (501 o whisper muto) le orecchie si spengono e lo dicono —
+  **niente ping-pong** fra due strade morte, in nessuna combinazione di ordine. `?stt=browser` è
+  la via d'uscita diagnostica: forza il browser E cancella il ricordo (per quando un aggiornamento
+  di sistema aggiusta il riconoscitore). Il default per un dispositivo sano resta byte per byte
+  quello di prima: browser, zero cambiamenti.
+- **`speech.ts`** — la resa porta il **motivo** al chiamante (`onGaveUp(why)`) e non compone più
+  il messaggio finale: «orecchie spente» era una bugia nel caso in cui subito dopo si accende la
+  dettatura in casa. Il freno, i verdetti e il registro a una riga per classe restano identici.
+- **`main.ts`** — solo cablaggio: i due esiti di `EarsChoice` diventano righe di registro oneste
+  («passo alla dettatura in casa» / «orecchie spente (un tocco riprova)») e stato del bottone.
+
+### Il giro completo (regola 12)
+
+- **BO** — nessuna modifica, e non serviva: `/v1/stt` esiste dal gruppo 13, il contratto non
+  cambia, e sul deployment del proprietario la percezione c'è (`UGO_RECOGNITION_URL`), quindi il
+  ponte risponde davvero;
+- **`/admin`** — nessuna modifica, e non serviva: nessun dato ha cambiato forma, scope o nome; la
+  scelta delle orecchie è stato locale del dispositivo, non del server;
+- **FE** — `earsChoice.ts` + test, `speech.ts` + test aggiornati, `main.ts`,
+  `documentation/04-troubleshooting/problemi-comuni.md`. **Il bundle del muso va ricostruito**:
+  finché la versione in basso a destra non cambia, il telefono suona ancora i bip di prima.
+
+Verificato qui: face typecheck + eslint `--max-warnings=0` + 182 unit (12 nuovi su `earsChoice`,
+quelli del freno aggiornati al nuovo contratto) + build Vite. Resta da misurare sul telefono vero
+la qualità della dettatura whisper in stanza (latenza e resa del cancello degli enunciati): è la
+riga «giro `?stt=locale` su dispositivo» di §7, che questo cambiamento rende finalmente
+raggiungibile senza query string.
 
 ## 7. Debito tecnico e rischi aperti
 
