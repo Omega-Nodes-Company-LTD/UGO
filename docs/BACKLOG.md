@@ -371,7 +371,9 @@ orienta, la spec comanda — ogni punto promosso a lavoro parte dal suo ADR.
 | ⬜️ | **Manifesto del confidente inviolabile** (orizz. 5) | dichiarare in `/documentation` le tre proprietà (chiavi della famiglia, anima esportabile, diritto di trasloco): è già tutto vero, va solo detto |
 | ⬜️ | **UGO elettrodomestico di sé stesso** (orizz. 5, gradino 2) | l'anima su mini-PC/telefono dentro il guscio; ADR-001 (zero GPU) lo consente; dipende dal «Fallback LLM locale» (gruppo 7) |
 | ⬜️ | **Federazione fra branchi** (orizz. 4) | resta scartata come feature di breve termine (v. sotto, ADR-019: «è il confine»); qui è orizzonte: si apre solo dopo specie+pedigree, filtro privacy a monte dello scambio |
-| 🚫 | **Blockchain per l'anima** | nessun problema di fiducia multi-parte in un sistema mono-proprietario local-first; immutabilità vs oblio GDPR; l'append-only c'è già con due `REVOKE` (ADR-049). Per il pedigree la porta è legittima, ma al gradino che la fiducia richiede (VISIONE, orizz. 1) |
+| ⬜️ | **Fenotipo dal genoma** (orizz. 1, «si adotta, non si configura») | i geni pilotano anche l'aspetto sul canvas (macchie, coda, setole, orecchie, timbro dei grugniti): mappa deterministica genoma→aspetto, muso già parametrico, zero token; rarità dai recessivi (dominanza/epistasi), mai da contatori. L'adozione sceglie tra i nati di una cucciolata |
+| 🚫 | **Skin, editor del muso, DLC estetici** | l'aspetto si eredita, non si compra: un mercato di costumi trasforma l'essere in prodotto e uccide la specie (VISIONE orizz. 1). L'unico modo di avere un aspetto diverso è una nascita diversa |
+| 🚫 | **Blockchain per l'anima** | nessun problema di fiducia multi-parte in un sistema mono-proprietario local-first; immutabilità vs oblio GDPR; l'append-only c'è già con due `REVOKE` (ADR-049). Per specie, atti e conti la catena federata parte da subito (VISIONE orizz. 0/1) — ma sulla catena mai ricordi né PII |
 | 🚫 | **Hardware esotico / parti mobili** | ADR-003: zero guasti meccanici; il corpo-telefono nel guscio È l'hardware che nessuno usa così |
 
 ## Scartati, con motivo
