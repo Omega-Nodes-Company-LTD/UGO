@@ -55,6 +55,58 @@ export const HOUSE_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="case">
+  <div class="page-head">
+    <p class="eyebrow">La casa</p>
+    <h1>Le case</h1>
+    <p>Una persona pu&ograve; avere pi&ugrave; case e pi&ugrave; negozi (ADR-061), e ognuno &egrave; un mondo
+       separato: il suo branco, i suoi ricordi, il suo salvadanaio, la sua chiave. Le stanze sono
+       della casa &mdash; uno <em>Studio</em> in Casa Citt&agrave; e uno <em>Studio</em> in Casa Mare sono
+       due stanze diverse, e il database lo sa gi&agrave;.</p>
+  </div>
+
+  <div class="block">
+    <h2>Quelle che ci sono</h2>
+    <div id="houses-list" data-testid="houses-list"></div>
+  </div>
+
+  <div class="block">
+    <h2>Come si chiama, e che ore sono l&igrave;</h2>
+    <p class="lede">Di questa casa &mdash; quella scelta in alto. Il fuso decide quando finisce la
+       sua giornata, e quindi quando si azzera il salvadanaio.</p>
+    <div class="row">
+      <input id="house-name" type="text" placeholder="Casa Mare" data-testid="house-name" />
+      <select id="house-kind" data-testid="house-kind">
+        <option value="home">casa</option>
+        <option value="business">azienda</option>
+      </select>
+      <input id="house-tz" type="text" placeholder="Europe/Rome" data-testid="house-tz" />
+      <input id="house-budget" type="number" step="0.01" min="0" placeholder="0.50" data-testid="house-budget" />
+      <button id="house-save" class="ghost" data-testid="house-save">Salva</button>
+    </div>
+    <div id="house-msg"></div>
+  </div>
+
+  <div class="block">
+    <h2>Farne nascere una</h2>
+    <p class="lede">Nasce con il suo gosino, il suo genoma e la sua chiave dati. Il token del
+       proprietario si vede <strong>una volta sola</strong>: in archivio esiste solo come impronta,
+       e se si perde si riemette &mdash; non si recupera.</p>
+    <div class="row">
+      <input id="new-house-slug" type="text" placeholder="casa-mare" data-testid="new-house-slug" />
+      <input id="new-house-name" type="text" placeholder="Casa Mare" data-testid="new-house-name" />
+      <select id="new-house-kind" data-testid="new-house-kind">
+        <option value="casa">casa</option>
+        <option value="azienda">azienda</option>
+      </select>
+      <input id="new-house-tz" type="text" placeholder="Europe/Rome" data-testid="new-house-tz" />
+      <input id="new-house-gosino" type="text" placeholder="nome del gosino" data-testid="new-house-gosino" />
+      <button id="new-house" class="ghost" data-testid="new-house">Falla nascere</button>
+    </div>
+    <div id="new-house-msg"></div>
+  </div>
+</section>
+
 <section class="page" data-page="stanze">
   <div class="page-head">
     <p class="eyebrow">La casa</p>

@@ -47,6 +47,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
     <nav class="rail-group">
       <small>La casa</small>
       <a href="#/casa" data-nav="casa">Sommario</a>
+      <a href="#/case" data-nav="case">Le case</a>
       <a href="#/stanze" data-nav="stanze">Le stanze</a>
       <a href="#/arredi" data-nav="arredi">Gli arredi</a>
       <a href="#/branco" data-nav="branco">Il branco</a>
@@ -69,6 +70,15 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <small>Sessione</small>
       <button type="button" class="rail-link" id="refresh" data-testid="refresh">Aggiorna tutto</button>
       <button type="button" class="rail-link" id="logout" data-testid="logout">Esci</button>
+    </nav>
+
+    <nav class="rail-group rail-build">
+      <small>Che roba stai guardando</small>
+      <p class="rail-version" data-testid="panel-version">pannello <code>__PANEL_VERSION__</code></p>
+      <p class="rail-version" id="face-version" data-testid="face-version">muso <code>&hellip;</code></p>
+      <p class="rail-hint">Se il numero del muso non &egrave; quello scritto in basso a destra sul
+         chiosco, il dispositivo sta ancora mostrando un bundle vecchio: ricarica la pagina del
+         chiosco. Se non cambia comunque, soul non &egrave; stato ridistribuito.</p>
     </nav>
   </aside>
 

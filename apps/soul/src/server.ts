@@ -60,6 +60,20 @@ export interface ServerOptions extends HealthDeps {
    */
   capabilities?: () => Capability[];
   /**
+   * ADR-061: far nascere una casa dal pannello.
+   *
+   * Iniettata perché serve la chiave madre, che il server non possiede: è la
+   * stessa `createHousehold` che usa `ugo casa nuova`, e senza di lei la
+   * rotta risponde 501 invece di fingere.
+   */
+  createHouse?: (input: {
+    slug: string;
+    name: string;
+    kind?: "casa" | "azienda" | undefined;
+    timezone?: string | undefined;
+    gosinoName?: string | undefined;
+  }) => Promise<{ householdId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
+  /**
    * v1 feature surface; omitted only by infra-focused tests.
    *
    * `guard` è escluso perché nasce qui dentro (`createAuthGuard(audit)`, con
@@ -233,7 +247,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerDebugChatRoute(app, guard);
     // il selettore del pannello: aperta al solo token, che e' gia' abbastanza
     // — dice quali case *quel* token puo' vedere, e per quasi tutti e' una
-    registerHouseholdRoutes(app, { db: options.db, guard });
+    registerHouseholdRoutes(app, {
+      db: options.db,
+      guard,
+      audit,
+      ...(options.createHouse !== undefined && { createHouse: options.createHouse }),
+    });
     // cosa è acceso e cosa no: il pannello lo mostra invece di far cercare
     // un guasto dove c'è solo una variabile non impostata
     if (options.capabilities !== undefined) {
