@@ -251,6 +251,10 @@ riconoscimento sul canale reception**: quindi restare solo-chat non toglie nulla
 va prima *costruito*, altrimenti la schermata di consenso mentirebbe. È lavoro di prodotto +
 architettura + normativa, non una schermata.
 
+Dal 2026-08-17 esiste **il benvenuto neutro** del primo ingresso (`/benvenuto`, STATE
+§6-unquadragies): chi ti ascolta, la voce che resta nel browser, i ticket, il ritmo — senza
+biometria, dichiarandolo. Il flusso a tre esiti di questo gruppo si innesterà lì, non al posto suo.
+
 | | Punto | Note |
 |---|---|---|
 | ⬜️ | **ADR-066: il muro di ADR-053 si abbatte con consenso** | base giuridica esplicita (embedding vocali/facciali = dati art. 9 GDPR, cfr. ADR-045/016), informativa in italiano piano, DPIA (già segnalata aperta in STATE §7) |

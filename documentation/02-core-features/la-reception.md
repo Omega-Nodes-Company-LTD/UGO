@@ -25,7 +25,11 @@ né alle chiavi, e il pannello resta privato come sempre.
 4. Clicca **Emetti un token** e consegna al cliente il codice che compare: è l'unica volta
    che lo vedrai. Se si perde, revoca e riemetti.
 
-Il cliente apre l'indirizzo della reception, incolla il token, sceglie il gosino — e parla.
+Il cliente apre l'indirizzo della reception e incolla il token. La prima volta su un
+dispositivo lo accoglie **il benvenuto**: mezzo minuto di guida che gli dice chi lo ascolta,
+che la sua voce non lascia mai il browser, come le richieste diventano ticket e perché il
+gosino ha un ritmo. Poi sceglie il gosino — e parla. La guida non si ripresenta ai rientri;
+la ritrova quando vuole in **Impostazioni → Rileggi il benvenuto**.
 
 ## Dagli qualcosa da sapere
 

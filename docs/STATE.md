@@ -2257,6 +2257,40 @@ pannello ha il selettore «Chi ci mando» accanto al link.
 girano in questa sandbox — il caso nuovo di `meetings.integration.test.ts` va confermato in CI
 o al primo deploy, come il resto della riga già aperta in §7.
 
+## 6-unquadragies. Il benvenuto del cliente (l'onboarding che non c'era)
+
+Domanda del proprietario (2026-08-17): «l'onboarding del cliente lo abbiamo?». No: dopo il
+token il cliente veniva sbattuto su «Con chi vuoi parlare?» senza una parola — niente patto
+sulla voce, niente spiegazione dei ticket, niente sul ritmo. La prima esperienza del cliente
+pagante era un modulo.
+
+Ora c'è **`/benvenuto`**: al primo ingresso **per dispositivo** (flag in `localStorage`, lo
+stesso pattern del token — ADR-035/052) la porta non manda al branco ma a quattro carte,
+personalizzate da `/me`: chi ti ascolta (i gosini assegnati, per nome), la tua voce resta qui
+(ADR-053, con la variante onesta per i browser senza Web Speech API), le richieste diventano
+ticket (ADR-052, con la frase esatta «apri un ticket: …»), e il ritmo (ADR-055 detto senza
+numeri, più la mela di ADR-058 col conto settimanale vero). «Esci» butta il token ma **non**
+la memoria del dispositivo: la guida non si ripresenta ai rientri, e vive in Impostazioni →
+«Rileggi il benvenuto». Sul benvenuto la nav non compare: sta prima della casa.
+
+**Dichiarato ad alta voce, nella pagina stessa**: qui non c'è nessun consenso biometrico,
+perché sul canale reception il riconoscimento non esiste (ADR-053) e un consenso a una cosa
+che non esiste mentirebbe. Il flusso a tre esiti del gruppo 16 si innesterà **in** questa
+pagina, non al posto suo.
+
+**Il giro completo (regola 12):**
+- **BO** — nessuna modifica, e non serviva: `/v1/reception/me` portava già tutto (gosini,
+  mele, nome del cliente); nessuna rotta nuova, nessun contratto cambiato;
+- **`/admin`** — nessuna modifica, e non serviva: nessun dato ha cambiato forma, scope o nome;
+- **FE** — la superficie è `apps/reception` (pagina nuova, porta, impostazioni, nav,
+  `session.ts`); `apps/face` e `faceContracts.ts` non toccati. **Nota di rilascio**: la
+  reception è un'immagine propria — il benvenuto arriva dal cliente col redeploy del
+  container `reception`, non di soul.
+
+**Verificato**: build+lint+unit di reception verdi; gli E2E ora attraversano il benvenuto in
+OGNI ingresso (contesto vergine = primo ingresso) più il test dedicato «una volta per
+dispositivo» — girano in CI, questa sandbox non ha runtime container.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
