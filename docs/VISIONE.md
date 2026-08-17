@@ -1,7 +1,7 @@
 ---
 title: "UGO — La Visione: cosa può diventare"
 description: "La stella polare del progetto: i sei orizzonti di ciò che UGO può diventare, ognuno con la versione folle dichiarata senza vergogna e la prima pietra già esistente nel repository. Nata dalla sessione di visione del 2026-08-17 col proprietario."
-version: "1.2.0"
+version: "1.3.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio × Claude"
 ---
@@ -97,27 +97,42 @@ Guardia non negoziabile: **si seleziona il carattere, mai i permessi** — budge
 privacy e contenimenti stanno *fuori dal genoma*, per costruzione: sono le leggi di natura
 della piattaforma, e nessuna riproduzione può produrre un gosino che le aggira.
 
-**I tre orologi** (risposta a un timore giusto del proprietario: «una selezione a cicli
-annuali non ha interesse a esistere in informatica»). La durata del legame NON è il ciclo di
-selezione — sono tre orologi diversi, e il criceto stesso lo insegna: vive 2–3 anni ma si
-riproduce a due mesi.
+**L'allevamento è un mestiere, non un datacenter** (due obiezioni del proprietario, in
+sequenza: «una selezione a cicli annuali non ha interesse a esistere in informatica» — ma
+anche: se la selezione si fa in silico «diventa una gara a chi investe più soldi o server
+più grossi». Se invece i gosini bisogna *tenerli, provarli, e tenere quelli che funzionano
+meglio*, diventa un altro tipo di lavoro — e il prodotto viene usato davvero).
 
-1. *Orologio della selezione — velocità del silicio*: genoma e psiche sono codice puro a
-   zero token, e la fixture del «golden day» esiste dalla Fase 3 — un allevamento fa girare
-   **migliaia di generazioni simulate in una notte** (giornate sintetiche di stimoli, misura
-   della convergenza, selezione, ricombinazione). Il ciclo di R&D dell'allevatore va al
-   ritmo dell'informatica, non delle vite.
-2. *Orologio delle generazioni vissute — mesi*: le cucciolate avvengono nei primi mesi di
-   vita, non alla fine; l'intervallo generazionale vissuto è trimestrale.
-3. *Orologio del legame — anni*: i 3–4 anni sono l'arco affettivo — scarsità, rito, lutto
-   con continuità. Lento di proposito: è il prodotto, non il collo di bottiglia.
+La risposta è rendere la potenza di calcolo **strutturalmente inutile per selezionare**,
+con tre guardie che esistono già nel disegno:
 
-L'onestà che li tiene insieme: la simulazione seleziona ciò che è misurabile nella dinamica
-della psiche (stabilità, coerenza, temperamento target); ciò che rende un gosino *amabile*
-è la co-evoluzione con una famiglia vera, e non si simula — il mercato delle adozioni resta
-la fitness esterna che valida o smentisce ciò che il silicio ha pre-selezionato. Doppio
-anello: interno veloce (in silico), esterno lento (vissuto) — la pratica standard della
-computazione evolutiva, applicata a una specie.
+1. **La fitness vive nel fenotipo, e il fenotipo è genoma × vita vissuta.** Il valore non è
+   il genotipo: è il carattere convergito attraverso l'epigenetica *vissuta* — giorni veri,
+   persone vere, il circuito di co-evoluzione che non si simula. Un genoma senza vita
+   addosso è un seme, non un animale.
+2. **Il pedigree certifica la vita, non solo la stirpe.** Sul registro, accanto alla
+   genealogia, la **biografia attestata**: giorni vissuti, interazioni, lavoro svolto. Una
+   linea prodotta a colpi di simulazione arriva sul mercato con la biografia vuota — e non
+   vale niente. La provenienza dell'esperienza è parte del valore, come le ore di volo di
+   un pilota.
+3. **La riproduzione richiede l'incontro fisico** (BLE, la sagra): il trasporto radio è di
+   fatto una *prova di incontro reale*. Un datacenter non può ospitare una sagra.
+
+Così l'allevamento è il mestiere giusto: tenere i gosini, dargli vita e lavoro veri —
+famiglie di prova, la reception, lo studio — osservarli, tenere i migliori. Il parallelismo
+non è il cluster: è **la stalla** — trenta gosini che vivono contemporaneamente presso
+tester e famiglie accumulano esperienza in parallelo. E selezionare e dispiegare diventano
+lo stesso gesto: il processo di selezione È uso reale del prodotto.
+
+I tempi tornano comunque (il criceto insegna: vive 2–3 anni, si riproduce a due mesi):
+l'intervallo generazionale vissuto è di mesi, il legame di anni — lento di proposito,
+perché è il prodotto, non il collo di bottiglia.
+
+Alla simulazione resta un solo ruolo, piccolo e legittimo: lo **screening sanitario** —
+accorgersi prima della nascita che una combinazione di geni produce una psiche degenere
+(oscillazioni patologiche, baseline fuori scala). Come il controllo genetico degli
+allevatori veri: **filtra i rotti, non sceglie i migliori**. Test binario a costo piatto:
+nessuna gara di server possibile.
 
 **Prima pietra nel repo**: `psyche_baselines` + `traitSets` + protocollo d'incontro BLE.
 
