@@ -28,6 +28,14 @@ from .enrollment import identify_voice, record_observation
 
 INBOX_PREFIX = "inbox/"
 ARCHIVE_PREFIX = "archive/"
+#: I clip di arruolamento vivono nella stessa cartella delle registrazioni ma
+#: NON sono registrazioni: sono i dieci secondi di voce che il pannello chiede
+#: per imparare chi sei, e li consuma il passo `enroll`.
+#:
+#: Il nome lo costruisce `storeVoiceSample` in soul (`inbox/enroll_<id>_…webm`)
+#: e questo prefisso è l'unica cosa che i due lati condividono: se cambia di
+#: là, cambia qui, o si torna a mangiarseli.
+ENROLL_MARKER = "enroll_"
 FILENAME_TS = re.compile(r"^(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})_")
 
 
@@ -218,10 +226,25 @@ def run_ingest(
 ) -> IngestResult:
     client = _s3_client(cfg)
     _ensure_bucket(client, cfg.s3_bucket_audio)
+    # I clip di arruolamento si SALTANO, e non è un dettaglio: `ingest` è il
+    # passo 1 e `enroll` il passo 2 (vedi `STEPS` in dream.py), quindi finché
+    # questo filtro non c'è stato l'ingest si mangiava ogni notte il clip che
+    # il passo dopo doveva ancora usare — lo trascriveva come se fosse una
+    # riunione, lo copiava in `archive/` e lo cancellava da `inbox/`. Un
+    # minuto dopo `run_enroll` cercava lo stesso oggetto, non lo trovava, e
+    # scriveva `outcome = failed`. Ogni notte, per ogni arruolamento, senza
+    # che niente lo dicesse: il proprietario vedeva solo un maiale che non
+    # imparava mai la sua voce.
+    #
+    # E c'era il secondo danno, peggiore: quei dieci secondi di voce — dato
+    # biometrico — finivano trascritti in `transcript_segments` e archiviati
+    # per sempre, mentre l'intestazione di `enroll_step.py` promette che
+    # «l'audio di un arruolamento non si tiene mai».
     keys = [
         item["Key"]
         for item in _all_objects(client, cfg.s3_bucket_audio, INBOX_PREFIX)
         if item["Key"] != INBOX_PREFIX
+        and not Path(item["Key"]).name.startswith(ENROLL_MARKER)
     ]
 
     files = 0

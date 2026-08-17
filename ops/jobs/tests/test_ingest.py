@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import replace
+from pathlib import Path
 
 import boto3
 import numpy as np
@@ -75,7 +76,7 @@ def test_file_archived_and_second_run_is_noop(audio_env) -> None:  # noqa: ANN00
     cfg, client = audio_env
     listing = client.list_objects_v2(Bucket=cfg.s3_bucket_audio)
     keys = [item["Key"] for item in listing.get("Contents", [])]
-    assert f"archive/2026-08-06_1530_riunione-gusci.wav" in keys
+    assert "archive/2026-08-06_1530_riunione-gusci.wav" in keys
     assert AUDIO_KEY not in keys
 
     with psycopg.connect(cfg.database_url) as conn:
@@ -153,3 +154,38 @@ def test_a_known_voice_gets_a_name_and_a_stranger_does_not(audio_env, tmp_path) 
     # our own resident is named; the neighbours' identical voiceprint is not
     assert attributed == {parlante}, attributed
     assert sosia not in attributed
+
+
+def test_enrolment_clips_survive_the_ingest(audio_env) -> None:  # noqa: ANN001
+    """L'ingest NON si mangia i clip di arruolamento.
+
+    `ingest` è il passo 1 del sogno e `enroll` il passo 2 (vedi `STEPS` in
+    `dream.py`), e `run_ingest` prendeva ogni oggetto sotto `inbox/` — compresi
+    i dieci secondi di voce che il pannello deposita per farsi imparare una
+    persona. Li trascriveva come se fossero una riunione, li copiava in
+    `archive/` e li cancellava da `inbox/`; un minuto dopo `run_enroll`
+    cercava lo stesso oggetto, non lo trovava, e scriveva `failed`. Ogni
+    notte, per ogni arruolamento, e nel database restava solo la parola
+    «failed» senza il perché.
+
+    Il secondo danno era peggiore del primo: quella voce — dato biometrico —
+    finiva trascritta in `transcript_segments` e archiviata per sempre, mentre
+    `enroll_step.py` promette in intestazione che «l'audio di un arruolamento
+    non si tiene mai».
+    """
+    cfg, client = audio_env
+    enrol_key = "inbox/enroll_98999611_20260817094318_c9c8b0ea.webm"
+    client.put_object(Bucket=cfg.s3_bucket_audio, Key=enrol_key, Body=b"voce da imparare")
+
+    with psycopg.connect(cfg.database_url) as conn:
+        before = conn.execute("select count(*) from transcript_segments").fetchone()[0]
+        result = run_ingest(conn, cfg, "2026-08-17")
+        after = conn.execute("select count(*) from transcript_segments").fetchone()[0]
+
+    # non l'ha nemmeno guardato: né trascritto, né archiviato, né cancellato
+    assert result.files == 0
+    assert after == before
+    listing = client.list_objects_v2(Bucket=cfg.s3_bucket_audio)
+    keys = [item["Key"] for item in listing.get("Contents", [])]
+    assert enrol_key in keys, "il clip deve restare in inbox/ per il passo enroll"
+    assert f"archive/{Path(enrol_key).name}" not in keys

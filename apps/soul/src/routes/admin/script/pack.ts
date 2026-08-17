@@ -1,5 +1,19 @@
 /** The pack table: render, create, and amend the protections. */
 export const PACK_JS = `
+/**
+ * Gli esiti dell'arruolamento tradotti. Le chiavi sono quelle che scrive
+ * \`enroll_step.py\`; un esito sconosciuto si mostra grezzo invece di
+ * sparire, perché una parola strana è informazione e un vuoto no.
+ */
+const WHY = {
+  "no_object": "la registrazione non è arrivata nel deposito",
+  "failed:NoSuchKey": "la registrazione non c'era più quando il sogno l'ha cercata",
+  "failed:ClientError": "il deposito non ha risposto",
+  "refused:minor_biometrics_forbidden": "è segnato come minorenne, e ai minori non si prende la voce",
+  "refused:opted_out_of_audio": "ha l'interruttore «non ascoltare» acceso",
+  "refused:remote": "il servizio di percezione ha rifiutato",
+};
+
 // --- il branco -------------------------------------------------------------
 let pack = [];
 // Two quick actions start two refreshes, and without this the SLOWER one wins
@@ -19,11 +33,29 @@ async function refresh() {
     const voice = b.hasVoiceProfile
       ? "impronta vocale · " + b.voiceSamples + " campion" + (b.voiceSamples === 1 ? "e" : "i")
       : b.isMinor || b.noAudio ? "nessuna impronta, per scelta" : "voce non ancora insegnata";
+    // Cosa è successo all'ultimo arruolamento, in italiano e nel pannello.
+    // Le righe c'erano già in perception_events e non le mostrava nessuno:
+    // per sapere perché una voce non veniva imparata bisognava aprire psql e
+    // sapere cosa cercare, cioè non saperlo. Un'attesa e un guasto NON sono
+    // la stessa cosa e non devono leggersi uguale.
+    const enrolment = () => {
+      const outcome = b.voiceOutcome;
+      const when = b.voiceOutcomeAt ? " (" + b.voiceOutcomeAt.slice(0, 16).replace("T", " ") + ")" : "";
+      if (b.voicePending > 0) {
+        return '<div class="because">In attesa: ' + b.voicePending + " registrazion" +
+          (b.voicePending === 1 ? "e" : "i") + " da imparare stanotte." +
+          (outcome ? " Ultimo tentativo: " + escape(WHY[outcome] ?? outcome) + when + "." : "") + "</div>";
+      }
+      if (!outcome || outcome === "enrolled") return "";
+      return '<div class="because err">Ultimo tentativo non riuscito: ' +
+        escape(WHY[outcome] ?? outcome) + when + "</div>";
+    };
     const drop = b.hasVoiceProfile
       ? '<button class="ghost" data-drop-voice="' + b.id + '" data-testid="drop-voice">scorda la voce</button>'
       : "";
     return '<article class="being" data-testid="pack-row"><h4>' + escape(b.displayName) + "</h4>" +
       '<div class="species">' + (SPECIES_LABEL[b.species] ?? escape(b.species)) + " · " + voice + "</div>" +
+      enrolment() +
       '<div class="bond"><div><span>conoscenza</span>' + meter(b.familiarity) + "</div>" +
       // affinity is signed, so it is drawn on a 0..1 scale centred on neutral
       '<div><span>affinità</span>' + meter((b.affinity + 1) / 2, 0.5) + "</div></div>" +
