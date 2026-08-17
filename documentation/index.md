@@ -1,8 +1,8 @@
 ---
 title: "UGO — Manuale"
 description: "Cos'è UGO, come parlargli e cosa ricorda: la guida per chi lo usa, non per chi lo sviluppa."
-version: "0.30.0"
-last_updated: "2026-08-15"
+version: "0.36.0"
+last_updated: "2026-08-17"
 author: "ThinkPink Studio"
 ---
 
@@ -35,6 +35,7 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 - [Il corpo di UGO](./02-core-features/il-corpo-di-ugo.md) — posture, gesti, la stanza in cui sta, gli arredi, la carezza e la mela.
 - [Quando comincia lui](./02-core-features/quando-comincia-lui.md) — si fa vivo, ti chiama, ti fa domande sue.
 - [Il pannello](./02-core-features/il-pannello.md) — come sta e perché, cosa ha deciso da solo, il consiglio.
+- [Il branco](./02-core-features/il-branco.md) — più gosini in casa: la nascita a mano, le cucciolate, il pedigree.
 - [Parlare con UGO](./02-core-features/parlare-con-ugo.md) — voce, memoria, umore.
 - [In giro](./02-core-features/in-giro.md) — registrare a vista, privacy, biglietto da visita.
 - [Le facce](./02-core-features/le-facce.md) — come impara a riconoscerti, cosa conserva di chi non conosce, come si cancella.

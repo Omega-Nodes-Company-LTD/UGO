@@ -53,7 +53,7 @@ UGO/
 │   └── memory/                # embeddings Ollama, retrieval re-rank, llmClient budget guard
 ├── tests/factories/           # Faker + embedding da seed + helper infra (ollama reale, stub LLM)
 ├── documentation/             # manuale utente (getting-started, core-features, troubleshooting)
-│                              # NB: non copre ancora il branco (nessuna feature esposta)
+│                              # include «Il branco»: cucciolate, adozione, pedigree (ADR-068/069/070)
 └── ops/
     ├── docker/                # compose.dev (reti internal), soul/jobs Dockerfile non-root, mosquitto
     └── jobs/                  # sogno: ingest audio, riflessione, igiene, backup, restore
