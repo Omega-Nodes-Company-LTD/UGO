@@ -23,6 +23,18 @@ export class Sensors {
   private lastShakeAt = 0;
   private audioContext: AudioContext | undefined;
   private audioTap: ((samples: Float32Array, sampleRate: number) => void) | undefined;
+  /** la sorgente viva, per poter agganciare la presa anche a microfono già acceso */
+  private source: MediaStreamAudioSourceNode | undefined;
+  /** montata una volta sola, qualunque sia l'ordine di arrivo */
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- stessa scelta deliberata di `mountTap`
+  private tapNode: ScriptProcessorNode | undefined;
+  /**
+   * Le tracce vere. Senza questo riferimento «orecchie spente» spegneva solo
+   * l'anello: il flusso restava `live`, e il pallino rosso del browser acceso.
+   */
+  private stream: MediaStream | undefined;
+  /** l'anello del misuratore: si ferma davvero quando si spegne */
+  private metering = false;
 
   public constructor(
     private readonly send: SendFn,
@@ -57,6 +69,40 @@ export class Sensors {
   }
 
   /**
+   * Il microfono si spegne DAVVERO: tracce fermate, grafo audio smontato,
+   * anello del misuratore interrotto.
+   *
+   * «Orecchie spente» svuotava soltanto la finestra (`forgetVoice`), ma il
+   * ciclo `requestAnimationFrame` continuava a girare e a rimetterci dentro
+   * il buffer un fotogramma dopo: la finestra si ripopolava da sola. E le
+   * tracce restavano `live`, cioè il pallino rosso del browser acceso su uno
+   * spegnimento che non spegneva — la distanza fra quel che il muso dice e
+   * quel che il muso fa, proprio sulla cosa in cui quella distanza pesa di più.
+   */
+  public stopMicrophone(): void {
+    this.metering = false;
+    this.clip?.forget();
+    this.clip = undefined;
+    if (this.tapNode !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- si smonta ciò che `mountTap` ha montato
+      this.tapNode.onaudioprocess = null;
+      this.tapNode.disconnect();
+      this.tapNode = undefined;
+    }
+    this.source?.disconnect();
+    this.source = undefined;
+    for (const track of this.stream?.getTracks() ?? []) track.stop();
+    this.stream = undefined;
+    void this.audioContext?.close();
+    this.audioContext = undefined;
+  }
+
+  /** Il microfono è acceso adesso? Lo chiede il muso per il suo interruttore. */
+  public micIsOn(): boolean {
+    return this.metering;
+  }
+
+  /**
    * That was a voice, not a bang. Held a little past the words themselves,
    * because `onspeechend` arrives before the room stops ringing.
    */
@@ -74,6 +120,46 @@ export class Sensors {
    */
   public tapAudio(tap: (samples: Float32Array, sampleRate: number) => void): void {
     this.audioTap = tap;
+    // e si aggancia SUBITO se il microfono è già acceso. Prima la presa si
+    // montava solo dentro `startMicrophone`, sotto un `if (this.audioTap !==
+    // undefined)` — ma l'ordine reale è l'opposto: `startMicrophone()` viene
+    // await-ato all'avvio e `tapAudio(...)` arriva dopo, da `startLocalEars`.
+    // La condizione era quindi sempre falsa, il nodo non nasceva mai,
+    // `onaudioprocess` non esisteva, e con `?stt=locale` la dettatura locale
+    // era morta: nemmeno i tre guasti di fila che fanno ripiegare sul browser,
+    // perché nessuno chiamava mai `/v1/stt`. Le orecchie restavano sorde e
+    // basta.
+    this.mountTap();
+  }
+
+  /**
+   * La presa contigua sul microfono già aperto. Idempotente: chiamarla due
+   * volte non raddoppia il nodo, e senza microfono acceso non fa nulla —
+   * ci penserà `startMicrophone`.
+   */
+  private mountTap(): void {
+    const context = this.audioContext;
+    const source = this.source;
+    if (context === undefined || source === undefined) return;
+    if (this.audioTap === undefined || this.tapNode !== undefined) return;
+    /* eslint-disable @typescript-eslint/no-deprecated -- scelta deliberata:
+       ScriptProcessorNode è deprecato ma funziona ovunque, e l'alternativa
+       (AudioWorklet) vuole un modulo separato da servire — complessità di
+       bundle per un percorso che oggi vive dietro `?stt=locale`. Quando la
+       dettatura locale diventerà il default, si migra al worklet. */
+    const processor = context.createScriptProcessor(4096, 1, 1);
+    source.connect(processor);
+    // il processore emette solo se è collegato a valle; il guadagno a zero
+    // evita che il microfono esca dagli altoparlanti
+    const mute = context.createGain();
+    mute.gain.value = 0;
+    processor.connect(mute);
+    mute.connect(context.destination);
+    processor.onaudioprocess = (event) => {
+      this.audioTap?.(event.inputBuffer.getChannelData(0), context.sampleRate);
+    };
+    /* eslint-enable @typescript-eslint/no-deprecated */
+    this.tapNode = processor;
   }
 
   /** microphone level meter → noise events, judged against the room (ADR-029) */
@@ -81,39 +167,26 @@ export class Sensors {
     // Automatic gain control is ON by default, and it is what made a silent
     // room read as a loud one: AGC amplifies quiet input until it fills the
     // range. For a level meter we want what the room actually did.
+    if (this.metering) return; // già acceso: non si aprono due microfoni
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { autoGainControl: false, noiseSuppression: false, echoCancellation: false },
     });
+    this.stream = stream;
     this.audioContext = new AudioContext();
     const source = this.audioContext.createMediaStreamSource(stream);
+    this.source = source;
     const analyser = this.audioContext.createAnalyser();
     analyser.fftSize = 2048;
     source.connect(analyser);
     const buffer = new Float32Array(analyser.fftSize);
     this.clip = new VoiceClip(this.audioContext.sampleRate);
 
-    if (this.audioTap !== undefined) {
-      /* eslint-disable @typescript-eslint/no-deprecated -- scelta deliberata:
-         ScriptProcessorNode è deprecato ma funziona ovunque, e l'alternativa
-         (AudioWorklet) vuole un modulo separato da servire — complessità di
-         bundle per un percorso che oggi vive dietro `?stt=locale`. Quando la
-         dettatura locale diventerà il default, si migra al worklet. */
-      const context = this.audioContext;
-      const processor = context.createScriptProcessor(4096, 1, 1);
-      source.connect(processor);
-      // il processore emette solo se è collegato a valle; il guadagno a zero
-      // evita che il microfono esca dagli altoparlanti
-      const mute = context.createGain();
-      mute.gain.value = 0;
-      processor.connect(mute);
-      mute.connect(context.destination);
-      processor.onaudioprocess = (event) => {
-        this.audioTap?.(event.inputBuffer.getChannelData(0), context.sampleRate);
-      };
-      /* eslint-enable @typescript-eslint/no-deprecated */
-    }
+    // se la dettatura locale si era già annunciata, la presa nasce qui
+    this.mountTap();
 
+    this.metering = true;
     const tick = (): void => {
+      if (!this.metering) return;
       analyser.getFloatTimeDomainData(buffer);
       let sum = 0;
       for (const sample of buffer) sum += sample * sample;

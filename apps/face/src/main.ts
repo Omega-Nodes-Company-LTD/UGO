@@ -568,6 +568,15 @@ function startLocalEars(): void {
 }
 
 function startListening(): void {
+  // Riaccendere le orecchie riapre il microfono, che ora `stopListening()`
+  // spegne davvero. Il click sul bottone è il gesto dell'utente che
+  // `getUserMedia` richiede, quindi il permesso non viene richiesto due volte:
+  // il browser lo ricorda per l'origin.
+  if (!sensors.micIsOn()) {
+    void sensors.startMicrophone().catch(() => {
+      trouble("microfono non disponibile");
+    });
+  }
   if (wantsLocalEars) {
     startLocalEars();
     return;
@@ -614,10 +623,15 @@ function startBrowserListening(): void {
 
 function stopListening(): void {
   // ADR-045: le orecchie spente devono anche dimenticare, o "spento" vorrebbe
-  // dire solo "non manda"
+  // dire solo "non manda".
+  //
+  // E devono spegnere il microfono, non solo svuotare la finestra:
+  // `forgetVoice()` da solo buttava l'anello che il misuratore riempiva di
+  // nuovo un fotogramma dopo, con le tracce ancora `live` e il pallino rosso
+  // del browser acceso. Spento vuol dire spento.
   localEarsOn = false;
-  sensors.forgetVoice();
   speech.stopListening();
+  sensors.stopMicrophone();
   app.dataset.ears = "off";
   setLocalState("idle");
 }
@@ -692,7 +706,13 @@ micButton.addEventListener("click", () => {
 });
 
 earsButton.addEventListener("click", () => {
-  if (speech.isListening()) {
+  // Si chiede al MUSO se sta ascoltando, non al riconoscitore del browser.
+  // `speech.isListening()` è falso per costruzione quando le orecchie sono
+  // quelle locali (`?stt=locale` non chiama mai `speech.listen()`): il
+  // bottone prendeva sempre il ramo «accendi», e non c'era modo di zittire
+  // il microfono dall'interfaccia. `dataset.ears` lo sanno entrambi i
+  // percorsi, ed è quello che l'utente vede scritto sul bottone.
+  if (app.dataset.ears === "on") {
     stopListening();
     earsButton.textContent = "🔇 orecchie spente";
   } else {
