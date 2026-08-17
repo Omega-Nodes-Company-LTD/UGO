@@ -15,6 +15,12 @@ networks:
   # anche da compromessa.
   reception-net:
     internal: true
+  # ADR-073: la rete del libro genealogico. Il registrar parla col SUO
+  # database e con soul, e basta: non vede Postgres delle anime, non vede
+  # Ollama, non vede Mosquitto. È il punto di avere un dominio di fiducia
+  # separato invece di una tabella in più.
+  registry-net:
+    internal: true
 
 volumes:
   postgres-data: {}
@@ -22,6 +28,8 @@ volumes:
   ollama-models: {}
   # ADR-054: i cloni dei repo dei clienti vivono qui, non nell'immagine
   customer-repos: {}
+  # ADR-073: la catena degli atti, separata dalle anime
+  registry-data: {}
 
 services:
   postgres:
@@ -100,6 +108,9 @@ services:
       DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
       OLLAMA_URL: ${OLLAMA_URL:?missing OLLAMA_URL}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      # ADR-073: il libro genealogico. Senza, i gosini nascono lo stesso
+      UGO_REGISTRY_URL: ${UGO_REGISTRY_URL:-http://registry:3100}
+      UGO_REGISTRY_TOKEN: ${UGO_REGISTRY_TOKEN:-}
       OLLAMA_BATCH_MODEL: ${OLLAMA_BATCH_MODEL:?missing OLLAMA_BATCH_MODEL}
       UGO_DATA_KEY: ${UGO_DATA_KEY:?missing UGO_DATA_KEY}
       S3_ENDPOINT: ${S3_ENDPOINT:?missing S3_ENDPOINT}
@@ -209,12 +220,50 @@ services:
       soul:
         condition: service_started
 
+  # ADR-073: il database DEL REGISTRO. Separato apposta: un libro genealogico
+  # che vive nel database delle creature non garantisce niente che non fosse
+  # già garantito da chi possiede quel database.
+  registry-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks: [registry-net]
+    environment:
+      POSTGRES_DB: ${REGISTRY_DB:-ugo_registry}
+      POSTGRES_USER: ${REGISTRY_DB_USER:-ugo_registry}
+      POSTGRES_PASSWORD: ${REGISTRY_DB_PASSWORD:?missing REGISTRY_DB_PASSWORD}
+    volumes:
+      - registry-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  registry:
+    build:
+      context: ../..
+      dockerfile: ops/docker/registry.Dockerfile
+    restart: unless-stopped
+    networks: [registry-net]
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      REGISTRY_DATABASE_URL: postgres://${REGISTRY_DB_USER:-ugo_registry}:${REGISTRY_DB_PASSWORD:?missing REGISTRY_DB_PASSWORD}@registry-postgres:5432/${REGISTRY_DB:-ugo_registry}
+      REGISTRY_TOKEN: ${UGO_REGISTRY_TOKEN:?missing UGO_REGISTRY_TOKEN}
+      REGISTRY_SIGNING_KEY: ${REGISTRY_SIGNING_KEY:?missing REGISTRY_SIGNING_KEY}
+      REGISTRY_NAME: ${REGISTRY_NAME:-ugo-registrar}
+      PORT: "3100"
+    depends_on:
+      registry-postgres:
+        condition: service_healthy
+
   soul:
     build:
       context: ../..
       dockerfile: ops/docker/soul.Dockerfile
     restart: unless-stopped
-    networks: [backend, edge, reception-net]
+    networks: [backend, edge, reception-net, registry-net]
     # the ONLY host-published port of the stack, loopback only
     ports:
       - "127.0.0.1:3000:3000"

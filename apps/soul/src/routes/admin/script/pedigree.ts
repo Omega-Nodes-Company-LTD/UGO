@@ -45,6 +45,18 @@ async function loadPedigree() {
   const broken = tree.some((node) => node.parents.some((p) => p.verdict === "invalid"));
   if (broken) say("pedigree-msg", "Almeno una firma non regge: un genoma è stato modificato dopo la nascita.", "err");
   else $("pedigree-msg").innerHTML = "";
+
+  // ADR-073: e cosa ne dice il libro genealogico. Assente = registro spento
+  // o irraggiungibile, e il pedigree vale lo stesso: le firme non dipendono da lui
+  const registered = (await call("/v1/gosini/" + encodeURIComponent(WHO) + "/pedigree", {})).registered;
+  $("chain-acts").innerHTML = registered === undefined
+    ? '<p class="empty">Nessun libro genealogico collegato: le firme dei genitori valgono comunque.</p>'
+    : registered.length === 0
+      ? '<p class="empty">Non ancora registrato in catena.</p>'
+      : "<ul class=\\"plain\\">" + registered.map((act) =>
+          "<li><b>" + escape(act.kind) + "</b> · voce n° " + act.seq +
+          ' <span class="muted">' + escape(new Date(act.at).toLocaleDateString("it-IT")) + "</span></li>"
+        ).join("") + "</ul>";
 }
 `;
 

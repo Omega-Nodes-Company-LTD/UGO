@@ -142,6 +142,37 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@22.20.1)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.11)(yaml@2.9.0))
 
+  apps/registry:
+    dependencies:
+      '@ugo/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      fastify:
+        specifier: ^5.11.2
+        version: 5.11.2
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@testcontainers/postgresql':
+        specifier: ^12.1.0
+        version: 12.1.0
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsx:
+        specifier: ^4.20.7
+        version: 4.23.11
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@22.20.1)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.11)(yaml@2.9.0))
+
   apps/soul:
     dependencies:
       '@aws-sdk/client-s3':

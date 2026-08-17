@@ -7,6 +7,7 @@ import { z } from "zod";
 import { characterFrom } from "../services/council/character.js";
 import { loadParents, previewLitter } from "../services/genetics.js";
 import { PedigreeService } from "../services/pedigreeService.js";
+import type { RegistryClient } from "../services/registryClient.js";
 import { RoomCatalogue } from "../services/roomCatalogue.js";
 import type { PreHandler } from "./guard.js";
 import { householdScope } from "./scope.js";
@@ -53,6 +54,8 @@ export interface LitterRoutesDeps {
    * it a birth still happens — the lineage is simply `unsigned`.
    */
   peers?: { keysFor: (gosinoId: string) => Promise<GosinoKeys> };
+  /** ADR-073: il libro genealogico. Assente = si nasce senza registrazione. */
+  chain?: RegistryClient;
 }
 
 export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDeps): void {
@@ -71,7 +74,10 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
       Number.isFinite(asked) && asked > 0 ? asked : undefined,
     );
     if (tree === undefined) return reply.status(404).send({ error: "non esiste" });
-    return reply.send({ pedigree: tree });
+    // ADR-073: e cosa ne dice il libro genealogico. Registro giù = pedigree
+    // comunque leggibile: le firme dei genitori valgono senza di lui
+    const registered = await deps.chain?.actsFor(id);
+    return reply.send({ pedigree: tree, ...(registered !== undefined && { registered }) });
   });
 
   app.post("/v1/gosini/litters", { preHandler: deps.guard }, async (request, reply) => {
@@ -190,6 +196,36 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
       });
     }
     await deps.db.insert(births).values(lineage);
+
+    /**
+     * ADR-073: l'atto va nel libro genealogico. **Se il registro è giù il
+     * gosino è nato lo stesso**: la pubblicazione è un fatto successivo, non
+     * una condizione della nascita.
+     */
+    const signedParents = lineage.filter(
+      (row): row is typeof row & { signature: Buffer; parentPublicKey: Buffer } =>
+        row.signature !== undefined && row.parentPublicKey !== undefined,
+    );
+    if (deps.chain !== undefined && signedParents.length === parents.length) {
+      const outcome = await deps.chain.publish({
+        kind: "birth",
+        gosinoId: id,
+        genomeHash: certificate.genomeHash,
+        at: certificate.bornAt,
+        generation,
+        parents: signedParents.map((row) => ({
+          gosinoId: row.parentGosinoId,
+          publicKey: row.parentPublicKey.toString("base64"),
+          signature: row.signature.toString("base64"),
+        })),
+      });
+      if (!outcome.published) {
+        request.log.warn(
+          { gosinoId: id, reason: outcome.reason },
+          "birth not published to the registry: the creature is born anyway",
+        );
+      }
+    }
 
     await deps.registry?.reload();
 
