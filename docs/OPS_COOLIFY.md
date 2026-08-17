@@ -181,11 +181,18 @@ restano in coda e si riprovano la notte dopo.
    interna: un servizio che dice chi sei non deve essere raggiungibile da fuori. Deve stare
    sulla **stessa rete Docker** di soul e jobs (in Coolify: stesso «network» delle altre
    risorse, come postgres e ollama).
-3. **Volume persistente su `/models`**, scrivibile. È l'unica cosa da ricordare: il container si
-   scarica i pesi da solo al primo avvio e li verifica; senza volume li riscarica a ogni
-   redeploy. Col whisper e Piper il primo avvio scarica di più di prima: **~800 MB in tutto**
-   (ecapa+arcface ~250 MB, whisper `small` ~460 MB, la voce Piper ~65 MB). Se il volume non è
-   scrivibile il container si ferma subito e lo scrive nei log.
+3. **Volume persistente su `/models`**, scrivibile. In Coolify: **Storages → + Add → Volume**,
+   Destination Path `/models` (il nome lo genera lui, la Source Path resta vuota). È l'unica
+   cosa da ricordare: il container si scarica i pesi da solo al primo avvio e li verifica;
+   senza volume li riscarica a ogni redeploy. Col whisper e Piper il primo avvio scarica
+   **~800 MB in tutto** (ecapa+arcface ~250 MB, whisper `small` ~460 MB, la voce Piper ~65 MB).
+   Se il volume non è scrivibile il container si ferma subito e lo scrive nei log.
+   > **«/models non è scrivibile» al primo avvio?** Succede se il volume è stato creato da
+   > un'immagine precedente al 2026-08-17 (il mount point nasceva di root, il container gira
+   > da utente 10001). Una riga dal server sistema il volume esistente:
+   > `docker run --rm -v <NOME_VOLUME>:/models alpine chown 10001:10001 /models`
+   > (il nome del volume è nella pagina Storages), poi **Restart**. Le immagini nuove
+   > preparano la cartella col proprietario giusto da sole.
 4. Variabili (Available at Buildtime **spenta** su tutte, come al §2.4.3):
    `DATABASE_URL` (come soul) · `UGO_DATA_KEY=<UGO_DATA_KEY>` ·
    `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` (lo stesso di soul: il servizio lo pretende anche

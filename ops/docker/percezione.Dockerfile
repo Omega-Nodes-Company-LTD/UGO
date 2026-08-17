@@ -67,7 +67,13 @@ COPY ops/docker/percezione-entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/fetch-models.sh /usr/local/bin/entrypoint.sh
 
 RUN groupadd --gid 10001 percezione \
-  && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin percezione
+  && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin percezione \
+  # la cartella dei pesi nasce GIÀ del suo utente: un volume nominato vuoto
+  # eredita proprietario e permessi da qui al primo montaggio. Senza questa
+  # riga il mount point lo crea Docker come root, il container gira da 10001,
+  # e l'avvio muore su «/models non è scrivibile» — visto in produzione al
+  # primo deploy su Coolify (2026-08-17)
+  && mkdir -p /models && chown 10001:10001 /models
 USER 10001:10001
 
 EXPOSE 8000
