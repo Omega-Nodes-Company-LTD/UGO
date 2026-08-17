@@ -28,6 +28,13 @@ export interface MeetingRef {
   meetingId: string;
   platform: string;
   nativeId: string;
+  /**
+   * Chi è andato in call, e di quale casa è (ADR-019). Facoltativi sul tipo
+   * perché un ref ricostruito altrove può non saperlo: in quel caso valgono
+   * i default di boot — che sono il comportamento di prima, non uno nuovo.
+   */
+  gosinoId?: string;
+  householdId?: string;
 }
 
 const transcriptsResponseSchema = z.object({
@@ -63,9 +70,11 @@ export function parseMeetingUrl(rawUrl: string): { platform: string; nativeId: s
 export interface MeetingsDeps {
   db: DbClient;
   /**
-   * Which creature goes to the meeting, and whose house pays (ADR-019 phase 2).
-   * Every write here used to fall on the `DEFAULT`, so a second family's calls
-   * were transcribed into the first one's biography.
+   * The DEFAULT creature for a join that does not say who (ADR-019 phase 2).
+   * It used to be the only one: whoever the owner meant to send, the eldest
+   * of the bootstrap house went, and the transcript landed in his biography.
+   * Since the panel grew a «chi ci mando» selector, `join` carries the chosen
+   * exemplar per meeting and this is only the fallback.
    */
   gosinoId: string;
   /** ADR-048: `transcript_segments` carries the house on the row now */
@@ -95,6 +104,14 @@ export class MeetingsService {
     return [...this.activeRefs.values()];
   }
 
+  /** the ref's own who, or the boot defaults for a ref that does not say */
+  private whoOf(ref: MeetingRef): { gosinoId: string; householdId: string } {
+    return {
+      gosinoId: ref.gosinoId ?? this.deps.gosinoId,
+      householdId: ref.householdId ?? this.deps.householdId,
+    };
+  }
+
   public async pollAll(at: Date = new Date()): Promise<void> {
     for (const ref of this.activeRefs.values()) {
       await this.pollOnce(ref, at);
@@ -112,7 +129,11 @@ export class MeetingsService {
     });
   }
 
-  public async join(rawUrl: string, title?: string): Promise<MeetingRef> {
+  public async join(
+    rawUrl: string,
+    title?: string,
+    who?: { gosinoId: string; householdId: string },
+  ): Promise<MeetingRef> {
     const { platform, nativeId } = parseMeetingUrl(rawUrl);
     const response = await this.vexaFetch("/bots", {
       method: "POST",
@@ -126,7 +147,7 @@ export class MeetingsService {
     const inserted = await this.deps.db
       .insert(meetings)
       .values({
-        gosinoId: this.deps.gosinoId,
+        gosinoId: who?.gosinoId ?? this.deps.gosinoId,
         platform,
         title: title ?? null,
         status: "live",
@@ -135,7 +156,13 @@ export class MeetingsService {
       .returning({ id: meetings.id });
     const row = inserted[0];
     if (row === undefined) throw new Error("meeting insert returned no row");
-    const ref = { meetingId: row.id, platform, nativeId };
+    const ref: MeetingRef = {
+      meetingId: row.id,
+      platform,
+      nativeId,
+      gosinoId: who?.gosinoId ?? this.deps.gosinoId,
+      householdId: who?.householdId ?? this.deps.householdId,
+    };
     this.activeRefs.set(ref.meetingId, ref);
     return ref;
   }
@@ -153,7 +180,7 @@ export class MeetingsService {
     // a finished meeting is an experience, not just a closed row (§4.3):
     // it feeds curiosity and leaves a digest behind before the night job runs
     await this.deps.db.insert(events).values({
-      gosinoId: this.deps.gosinoId,
+      gosinoId: this.whoOf(ref).gosinoId,
       ts: at,
       source: "meet",
       type: "meeting_completed",
@@ -208,7 +235,7 @@ export class MeetingsService {
     const digest = `Riunione "${title}" del ${at.toISOString().slice(0, 10)}: ${result.text}`;
     const [embedding] = await this.deps.embedder.embed([digest]);
     await this.deps.db.insert(memories).values({
-      gosinoId: this.deps.gosinoId,
+      gosinoId: this.whoOf(ref).gosinoId,
       kind: "insight",
       text: digest,
       ...(embedding !== undefined && { embedding }),
@@ -239,7 +266,7 @@ export class MeetingsService {
       await this.deps.db.insert(transcriptSegments).values(
         fresh.map((segment, index) => ({
           meetingId: ref.meetingId,
-          householdId: this.deps.householdId,
+          householdId: this.whoOf(ref).householdId,
           speaker: segment.speaker ?? null,
           t0: segment.start ?? 0,
           t1: segment.end ?? segment.start ?? 0,
@@ -277,7 +304,7 @@ export class MeetingsService {
       at,
     );
     await this.deps.db.insert(messages).values({
-      gosinoId: this.deps.gosinoId,
+      gosinoId: this.whoOf(ref).gosinoId,
       ts: at,
       channel: "meeting",
       role: "assistant",

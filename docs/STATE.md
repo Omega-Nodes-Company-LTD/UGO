@@ -2,7 +2,7 @@
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
 version: "0.30.0"
-last_updated: "2026-08-15"
+last_updated: "2026-08-17"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -1720,8 +1720,9 @@ conoscenza+cache 7, schema 9, pytest 70); `pnpm --filter reception test:e2e` —
 branco, giro di chat, ticket raccolto e ritrovato, lavori, uscita: 5 su 5.
 
 **Restano fuori, dichiarati** (in coda al gruppo 8 del backlog): digest «a che punto siamo»
-pre-calcolato dal sogno; IMAP OAuth2; il dominio pubblico vero e la rotazione del segreto
-sono un atto di deploy, non di repository.
+pre-calcolato dal sogno; IMAP OAuth2. Il dominio pubblico vero e la rotazione del segreto
+restano un atto di deploy e non di repository — ma **le istruzioni per compierlo ora ci sono**
+(§6-novemtricies): runbook §2.7, §5.7, e i modi di provare la reception in locale nel README.
 
 ## 6-novemvicies. Il mondo, chi sei, e la mela (ADR-056, ADR-057, ADR-058)
 
@@ -2173,6 +2174,89 @@ fantasma di `expire` (§6-quinquetricies): l'irrobustimento di
 scritta nel commento di testa di `prints.ts`. Suite rlsRoutes 5/5 × 6 giri
 consecutivi in locale su Postgres vero.
 
+## 6-novemtricies. La reception aveva un container e nessuna istruzione per montarlo
+
+Domanda del proprietario (2026-08-17): «dove posso testare la reception, e come le do un
+dominio?». Non era una richiesta di codice — era il buco che §6-octovicies aveva dichiarato
+chiudendo il gruppo 8 («il dominio pubblico vero è un atto di deploy, non di repository») e che
+nessuno aveva più riaperto. Il risultato era una feature completa, testata su backend vero, e
+irraggiungibile per chiunque non avesse letto le ADR: **il runbook di deploy non nominava la
+reception in nessuna delle sue 783 righe**, e il README non diceva che esiste.
+
+Nessuna riga di prodotto è cambiata. È cambiato quel che serve per usarlo:
+
+- **`docs/OPS_COOLIFY.md`** — **§2.7** la risorsa reception: dominio, record DNS, HTTPS
+  obbligatorio (senza, il browser nega il microfono e la suite voice-first resta una tastiera),
+  le quattro variabili che vanno e **le quattro che non devono comparirci mai**, e la rete. Su
+  quest'ultima il runbook dice la verità invece di far finta: con la rete predefinita di Coolify
+  la segregazione di ADR-051 **non è riprodotta**, ed è scritto lì insieme a cosa la compensa e
+  a come farla davvero. Poi: le variabili della reception aggiunte a **soul-api** (§2.4 — senza
+  `UGO_RECEPTION_TOKEN` soul non registra affatto quelle rotte, ed è la prima causa di «404 su
+  tutto») e a **jobs** (§2.5 — sincronizzazione delle fonti, e il volume persistente per i cloni
+  senza il quale ogni redeploy riclona), il bucket `ugo-docs` (§3), tre prove pubbliche nello
+  smoke test (§4.7), **§5.7 il primo cliente** dal pannello, sei voci di troubleshooting, la
+  rotazione a due risorse in ordine (§8), e i due valori nuovi nel foglio (§9).
+- **`README.md`** — «Provare la reception in locale»: lo stack col compose (`:3001` accanto a
+  soul su `:3000`), la UI in hot reload, e gli E2E che si portano dietro backend, cliente,
+  gosino e token senza preparare niente. Con dentro il pezzo che mancava davvero: come si
+  ottiene un token cliente da riga di comando quando non si vuole passare dal pannello.
+
+**Il giro completo (regola 12):** **BO** — nessuna modifica, e non serviva: il codice era già
+corretto e verde, il difetto era nel dire come si accende; **`/admin`** — nessuna modifica, la
+sezione «I clienti» esiste dal gruppo 8 e il runbook §5.7 ora la percorre passo per passo invece
+di darla per trovata; **FE** — nessuna modifica ad `apps/face` né ai contratti condivisi: la
+superficie toccata è `apps/reception`, e solo nella documentazione. Nessun bundle da ricostruire.
+
+## 6-quadragies. Il pannello mentiva sulla casa, e in riunione andava sempre lo stesso
+
+Due segnalazioni del proprietario guardando il pannello (2026-08-17), tutte e due della stessa
+famiglia: la promessa scritta e mantenuta a metà.
+
+**La casa non viaggiava.** Il commento sopra `forWho` diceva «ADR-019 fase 3: la casa viaggia
+con OGNI chiamata». La mantenevano sette chiamate su una cinquantina: stanze, branco, volti,
+relazioni, feed, clienti, arredi, nascita, grafo, export/oblio chiamavano `/v1/...` nudo. Con
+una casa sola il server risolve da sé e non si vede niente; con due, metà pannello risponde
+400 «Which house?» e l'altra metà — il caso peggiore — mostra i dati della casa risolta dal
+token sotto il titolo della casa scelta. In più: la sonda del login era `/v1/stats` (che con
+due case risponde 400, letto come «token non valido»: non si entrava proprio), il boot caricava
+il branco **prima** di sapere quale casa si guardasse, e i link di «Le case» portano lo slug
+mentre `?casa=` esige un uuid — la validazione scartava lo slug **in silenzio** e ricadeva
+sulla casa sbagliata.
+
+La correzione non è cinquanta call site diligenti — è il **telaio**: `call()` ora passa da
+`scoped()`, che appende `casa=` a ogni chiamata `/v1/*` quando una casa è scelta. Una sezione
+nuova del pannello nasce scoped senza che nessuno debba ricordarselo. Intorno: sonda del login
+su `/v1/households` (401 senza token, nessuna casa richiesta), boot che risolve la casa **per
+prima**, con due case si entra nella prima invece di collezionare 400 (`history.replaceState`,
+l'indirizzo lo dice), e `houseOf()` normalizza slug→id sui link. Il test non legge il codice:
+**esegue** `scoped()` in una VM (`script.test.ts`) — staccarlo da `call()` o romperne la
+logica è un test rosso, non una promessa tradita fra sei mesi.
+
+**In riunione andava sempre lo stesso.** «Mandalo in call» non chiedeva chi: `MeetingsService`
+era inchiodato al boot su `bootstrapExemplar`, quindi con due gosini ci andava sempre il primo
+della casa di boot, e trascrizione, evento, messaggi e digest finivano nella **sua** biografia,
+qualunque cosa il pannello lasciasse credere. Ora: `join` porta `{gosinoId, householdId}` per
+riunione (validato nella casa, 404 sull'altrui — anti-BOLA come ovunque; senza indicazione va
+il più anziano della casa, che è il comportamento di prima detto ad alta voce), **ogni**
+scrittura della riunione atterra sul prescelto, `GET /v1/meetings` dice chi ci è andato, e il
+pannello ha il selettore «Chi ci mando» accanto al link.
+
+**Il giro completo (regola 12):**
+- **BO** — `routes/meetings.ts` (schema + risoluzione del chi), `services/meetingsService.ts`
+  (il chi per riunione su riga/segmenti/evento/digest/messaggi), `routes/archive.ts` (`who`
+  nell'elenco), `server.ts` (wiring). Test d'integrazione esteso: la riunione del secondo
+  esemplare scrive nella biografia del secondo esemplare;
+- **`/admin`** — `core.ts` (`scoped()`, sonda, boot), `router.ts` (`houseOf`, `go()`),
+  `archive.ts` (selettore e «chi» nell'elenco), `page/house.ts` (markup), `script.test.ts`
+  (due test nuovi che eseguono la logica). Il pannello viaggia nell'immagine di soul: basta il
+  redeploy di soul, nessun bundle del muso da ricostruire;
+- **FE** — `apps/face` e `faceContracts.ts` **non toccati**, e non serviva: il muso arriva già
+  con `/?stanza=` per dispositivo e non usa le rotte del pannello.
+
+**Verificato**: `pnpm turbo build lint test` 27/27; i test d'integrazione (Testcontainers) non
+girano in questa sandbox — il caso nuovo di `meetings.integration.test.ts` va confermato in CI
+o al primo deploy, come il resto della riga già aperta in §7.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -2221,6 +2305,8 @@ consecutivi in locale su Postgres vero.
 | ~~Caccia ai difetti del 2026-08-16: 36 candidati~~ | — | **Chiusa il 2026-08-17** in otto commit tematici (gruppo 19 del BACKLOG): scope multi-tenant su trascrizioni/ricerca/arruolamento, XSS di stanza e di feed, CORS, `/debug/chat`, budget guard TOCTOU e sconto batch, clip vocali non cancellati, paginazione S3, password di `pg_dump`, dettatura locale morta, microfono che non si spegneva, timeout sulla percezione, cinque indici (migrazione 0027), env del compose. **Restano due righe**: il refactor dei file oltre le 200 righe (sotto), e `used_prop.who`, che alla verifica non era un difetto |
 | **Il giro completo dei fix non è provato end-to-end** | Le correzioni del 2026-08-17 sono verificate con tipi, lint, build e unit puri; i test di integrazione (Testcontainers) e gli e2e (Playwright) non girano in questa sandbox — nessun runtime container | Da eseguire al primo deploy, in particolare `transcripts.integration.test.ts` (il confine fra due case), la migrazione 0027 contro Postgres vero, e il giro `?stt=locale` su dispositivo. Il bundle del muso va ricostruito: soul lo serve già costruito |
 | **File oltre le 200 righe, insert `messages` duplicato quattro volte** | `chatService.ts` (455 righe) e `apps/face/src/main.ts` (829): un campo nuovo su `messages` dimenticato in una delle quattro strade rompe in produzione, e tre su quattro resterebbero verdi | Regola 10. Lasciato fuori dal lotto di fix di proposito: è un refactor, e mescolarlo alle correzioni avrebbe reso illeggibili entrambi |
+| **`/v1/volition/enabled` è un interruttore di processo** (visto durante §6-quadragies) | Spegnere «comincia lui» dal pannello spegne l'iniziativa di TUTTE le case e di tutti gli esemplari: `initiative.set()` è stato di processo, senza `gosino_id` né `household_id` | Oggi con una casa è indistinguibile dal giusto; diventa reale col vicinato. Serve un ADR (stato per esemplare, come il resto di ADR-027) prima di toccarlo — non un fix al volo dal pannello |
+| **L'oblio di un cliente non ha né rotta né bottone** (trovato scrivendo il runbook, §6-novemtricies) | ADR-052 dice «l'oblio di un cliente è il cascade dalla sua riga `customers`» e le FK cascata ci sono, ma non esiste `DELETE /v1/customers/:id`, il pannello si ferma all'archiviazione e `forgetService` conosce solo i `beings`. Una richiesta GDPR di cancellazione da parte di un cliente oggi si evade **a mano sul database** | Documentato com'è, non come dovrebbe essere (runbook §5.7, `documentation/…/la-reception.md`). Il seguito è piccolo e ha una forma già decisa: la rotta con la conferma scritta di `/v1/privacy/forget`, il verbo d'audit `customer_forgotten`, e i documenti nel bucket che vanno cancellati insieme alle righe — il cascade del database non li tocca |
 
 ## 8. Prossimo passo operativo
 

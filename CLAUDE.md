@@ -54,7 +54,12 @@ Dopo ogni modifica: `tsc --noEmit`, `eslint . --max-warnings=0`, build. Se rosso
       vincolo nuovo le rompe esattamente come rompe la produzione);
     - **`/admin`** — `apps/soul/src/routes/admin/` (`page.ts`, `script/*.ts`): se un dato ha
       cambiato forma, scope o nome, il pannello lo mostra ancora com'era. Un pannello che
-      mostra il vecchio mondo è più dannoso di un pannello che non mostra niente;
+      mostra il vecchio mondo è più dannoso di un pannello che non mostra niente. **Le regole
+      strutturali del pannello** (imparate a caro prezzo, STATE §6-quadragies): ogni chiamata
+      passa da `call()` — mai `fetch` diretto verso `/v1/*` — perché `call()` porta la casa
+      (`scoped()`, ADR-019 fase 3) e `script.test.ts` la ESEGUE; ogni id raggiunto dallo
+      script esiste nel markup (stesso test); un'azione che riguarda un esemplare chiede
+      **quale** esemplare — mai «va il default» mentre il pannello mostra un altro;
     - **FE** — `apps/face/src` (il corpo: muso, sensori, voce, WS). Attenzione ai **contratti
       condivisi**: `packages/shared/src/faceContracts.ts` sta in mezzo, e i due lati possono
       restare verdi separatamente mentre la giunzione è rotta — è precisamente come UGO ha

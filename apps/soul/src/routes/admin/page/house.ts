@@ -334,6 +334,8 @@ export const HOUSE_PAGES = `
   <div class="block">
     <h2>Riunioni</h2>
     <div class="row">
+      <div><label for="meet-who">Chi ci mando</label>
+        <select id="meet-who" data-testid="meet-who"></select></div>
       <div><label for="meet-url">Link della call</label>
         <input id="meet-url" data-testid="meet-url" placeholder="https://meet.google.com/abc-defg-hij"></div>
       <div><label for="meet-title">Titolo</label><input id="meet-title" data-testid="meet-title" placeholder="facoltativo"></div>

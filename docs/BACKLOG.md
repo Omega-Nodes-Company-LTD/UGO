@@ -114,6 +114,7 @@ ripete la domanda (cache, zero token), apre un ticket con conferma, e lo ritrova
 | ✅ | **Documentazione e giro finale** | `/documentation/02-core-features/la-reception.md`, SECURITY_COMPLIANCE §5, `pnpm audit`, dichiarazione BO+`/admin`+FE in STATE §9 |
 | ✅ | **Riassunto «a che punto siamo» pre-calcolato** | **gruppo 11**: passo `digest` del sogno (per casa) scrive `customers.digest` cifrato — ticket aperti, repo con ultimo commit, documenti e frammenti; la reception lo usa quando il blocco vivo di GitHub non c'è, con «aggiornato al …» accanto. Lo stato vivo resta on-demand e mai in cache |
 | ⬜️ | **IMAP OAuth2** (Gmail senza app password) | fuori dalla v1, dichiarato in ADR-054 |
+| ⬜️ | **L'oblio di un cliente non ha né rotta né bottone** | trovato scrivendo il runbook (2026-08-17). ADR-052 promette il cascade dalla riga `customers` e le FK ci sono, ma non esiste `DELETE /v1/customers/:id`, il pannello si ferma all'archiviazione, e `forgetService` conosce solo i `beings`: una richiesta GDPR si evade a mano sul database. Forma già decisa: rotta con la conferma scritta di `/v1/privacy/forget`, verbo `customer_forgotten`, **e i documenti nel bucket cancellati insieme alle righe** — il cascade del database non tocca S3 |
 
 ## Gruppo 9 — Il mondo in cui vive (ADR-056, ADR-058)
 
@@ -270,7 +271,7 @@ e la reception stessa restano spenti anche col ferro pronto.
 | ⬜️ | **Procedura «onboarda un nuovo container»** | sezione riusabile in `OPS_COOLIFY.md`: Dockerfile (multi-stage, non-root, `read_only`), servizio nel compose (rete `backend`, mai porte host salvo loopback, profilo se on-demand), env nel blocco **e** in `.env.example`, healthcheck, sezione runbook sul modello di §2.3-bis |
 | ⬜️ | **Cablare `percezione` davvero** | `UGO_RECOGNITION_URL` non è passato a soul nel compose → riconoscimento spento anche col container su; renderlo di prima classe + healthcheck in soul |
 | ⬜️ | **Deployare `searxng`** | zero righe nel runbook e `SEARXNG_URL` non cablato su soul → la «finestra sul mondo» (ADR-063) non è raggiungibile in produzione |
-| ⬜️ | **Deployare `reception`** | container + BFF esistono e cablati nel compose, ma nessuna sezione nel runbook Coolify |
+| ✅ | **Deployare `reception`** | **fatto il 2026-08-17** (STATE §6-novemtricies): runbook §2.7 (risorsa, dominio, DNS, HTTPS, le variabili che vanno e quelle vietate, la rete e cosa Coolify non segrega), variabili reception su soul-api §2.4 e su jobs §2.5, bucket `ugo-docs` §3, prove pubbliche §4.7, primo cliente §5.7, sei voci di troubleshooting, rotazione a due risorse §8, foglio dei valori §9. Il locale sta nel README |
 | ⬜️ | **`ANTHROPIC_API_KEY` su `jobs`** | `config.py` la legge e il fallback del sogno la richiede, ma il compose non la passa. **Chiude il bug del gruppo 19** |
 
 ## Gruppo 18 — Le sgosinate dei competitor (a costo zero, senza corpo né GPU)

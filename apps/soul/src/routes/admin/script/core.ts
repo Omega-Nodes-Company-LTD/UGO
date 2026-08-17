@@ -34,8 +34,23 @@ const say = (where, text, kind) => { $(where).innerHTML = ""; const d = document
 
 const SPECIES_LABEL = { human: "persona", dog: "cane", parrot: "pappagallo", reptile: "rettile" };
 
+/**
+ * ADR-019 fase 3: la casa viaggia con OGNI chiamata — qui, nel telaio, non
+ * nella disciplina di ogni loader. La promessa era scritta sopra 'forWho' e
+ * mantenuta da sette chiamate su cinquanta: con due case, mezzo pannello
+ * rispondeva 400 e l'altro mezzo mostrava la casa sbagliata sotto il titolo
+ * di quella giusta. Con una casa sola HOUSE resta vuota e non cambia nulla.
+ * Le rotte di vicinato ('/v1/households') il parametro lo ignorano per
+ * contratto, quindi portarlo sempre non costa niente a nessuno.
+ */
+const scoped = (path) => {
+  if (HOUSE === "" || !path.startsWith("/v1/")) return path;
+  if (/[?&]casa=/.test(path)) return path;
+  return path + (path.includes("?") ? "&" : "?") + "casa=" + encodeURIComponent(HOUSE);
+};
+
 async function call(path, options) {
-  const res = await fetch(path, {
+  const res = await fetch(scoped(path), {
     ...options,
     headers: headers(options?.body !== undefined, options?.contentType),
   });
@@ -66,9 +81,22 @@ async function section(load, where) {
 async function boot() {
   $("app").hidden = false;
   $("gate").hidden = true;
-  await section(refresh, "pack-msg");
-  // le case per prime: la popolazione dipende da quale casa si sta guardando
+  // la casa per PRIMA, davvero: ogni loader qui sotto passa da scoped(), e
+  // farli partire prima di sapere quale casa si guarda caricherebbe il branco
+  // di una casa e le stanze di un'altra
+  const entry = route();
+  if (entry.house !== undefined) HOUSE = entry.house;
   await section(loadCase, "stats-msg");
+  HOUSE = houseOf(HOUSE);
+  if (HOUSE === "" && CASE.length >= 2) {
+    // con due case «nessuna casa» non è uno stato: le chiamate senza ?casa=
+    // risponderebbero 400 su tutto. Si entra nella prima, e l'indirizzo lo
+    // dice — replaceState, non location.hash: niente doppio giro di go()
+    HOUSE = CASE[0].id;
+    const rest = entry.who === undefined ? "#/" + entry.page : "#/g/" + entry.who + "/" + entry.page;
+    history.replaceState(null, "", at(rest));
+  }
+  await section(refresh, "pack-msg");
   await section(loadGosini, "stats-msg");
   await go();
 }
@@ -76,7 +104,10 @@ async function boot() {
 $("save-token").addEventListener("click", async () => {
   keepToken($("token").value.trim(), $("stay").checked);
   try {
-    await call("/v1/stats", {});
+    // la sonda del token è una rotta che non chiede una casa: '/v1/stats'
+    // con due case risponde 400 «Which house?», che qui si leggeva come
+    // «token non valido» — e con due case non si entrava più nel pannello
+    await call("/v1/households", {});
     await boot();
   } catch (error) {
     dropToken();
@@ -94,7 +125,7 @@ $("logout").addEventListener("click", () => {
 // revoked meanwhile, you land on the door instead of on a broken panel
 window.addEventListener("DOMContentLoaded", async () => {
   if (token() === "") return;
-  try { await call("/v1/stats", {}); await boot(); }
+  try { await call("/v1/households", {}); await boot(); }
   catch { dropToken(); }
 });
 `;

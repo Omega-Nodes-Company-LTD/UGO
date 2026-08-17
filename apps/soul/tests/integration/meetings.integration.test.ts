@@ -4,6 +4,7 @@ import {
   budgetLedger,
   createDbClient,
   events,
+  gosini,
   meetings,
   memories,
   messages,
@@ -212,5 +213,44 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
     expect(digests[0]?.text).toContain("riunione di prova");
     expect(digests[0]?.embedding).toHaveLength(768);
     expect(JSON.stringify(digests[0]?.sourceRefs)).toContain(ref.meetingId);
+  });
+});
+
+describe("chi va in call: the chosen exemplar, not the boot one", () => {
+  /**
+   * Il difetto del pannello, visto dal database: il servizio era inchiodato
+   * al gosino di boot, quindi «mandalo in call» mandava sempre lo stesso e
+   * la trascrizione finiva nella sua biografia. Da qui in poi `join` porta
+   * il chi, e OGNI scrittura della riunione — riga, segmenti, evento,
+   * digest — atterra su di lui.
+   */
+  it("writes meeting, transcript and digest under the chosen one", async () => {
+    const [second] = await db
+      .insert(gosini)
+      .values({ householdId: PRIME_HOUSEHOLD_ID, name: "Silvio", locationLabel: "studio" })
+      .returning({ id: gosini.id });
+    if (second === undefined) throw new Error("second exemplar not seeded");
+
+    const ref = await service.join(MEET_URL, "call di Silvio", {
+      gosinoId: second.id,
+      householdId: PRIME_HOUSEHOLD_ID,
+    });
+    const [row] = await db.select().from(meetings).where(eq(meetings.id, ref.meetingId));
+    expect(row?.gosinoId).toBe(second.id);
+
+    vexa.segments = [{ speaker: "Anna", start: 1, end: 2, text: "Solo un appunto per Silvio." }];
+    expect(await service.pollOnce(ref)).toBe(1);
+    const segments = await db
+      .select()
+      .from(transcriptSegments)
+      .where(eq(transcriptSegments.meetingId, ref.meetingId));
+    expect(segments[0]?.householdId).toBe(PRIME_HOUSEHOLD_ID);
+
+    llmStub.nextResponse = { text: "Un appunto per Silvio, nient'altro." };
+    await service.stop(ref);
+    const hisDigests = await db.select().from(memories).where(eq(memories.gosinoId, second.id));
+    expect(hisDigests).toHaveLength(1);
+    expect(hisDigests[0]?.kind).toBe("insight");
+    expect(hisDigests[0]?.text).toContain("call di Silvio");
   });
 });

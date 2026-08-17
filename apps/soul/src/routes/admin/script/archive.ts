@@ -61,9 +61,19 @@ $("mem-list").addEventListener("click", async (event) => {
 
 // --- riunioni --------------------------------------------------------------
 async function loadMeetings() {
+  // CHI ci va si sceglie, non si subisce: prima andava sempre il primo
+  // esemplare della casa di boot, qualunque cosa questa pagina lasciasse
+  // credere. La scelta sopravvive a un ricarico dell'elenco.
+  const chosen = $("meet-who").value;
+  $("meet-who").innerHTML = GOSINI.map((g) =>
+    '<option value="' + g.id + '">' + escape(g.name) +
+    (g.where ? " · " + escape(g.where) : "") + "</option>").join("");
+  if (chosen !== "" && GOSINI.some((g) => g.id === chosen)) $("meet-who").value = chosen;
+
   const { meetings } = await call("/v1/meetings", {});
   $("meet-list").innerHTML = meetings.map((m) =>
     '<li data-testid="meet-item">' + escape(m.title ?? "(senza titolo)") + " — " + m.platform +
+    (m.who ? " — " + escape(m.who) : "") +
     ' <span class="flags">' + m.status + "</span></li>").join("") ||
     "<li>Nessuna riunione, ancora.</li>";
 }
@@ -71,14 +81,17 @@ async function loadMeetings() {
 $("meet-join").addEventListener("click", async () => {
   const url = $("meet-url").value.trim();
   if (!url) { say("meet-msg", "Serve il link della call.", "err"); return; }
+  const who = $("meet-who").value;
+  if (!who) { say("meet-msg", "Non c'è nessuno da mandare: fai nascere prima un gosino.", "err"); return; }
   const title = $("meet-title").value.trim();
+  const name = GOSINI.find((g) => g.id === who)?.name ?? "il gosino";
   try {
     await call("/v1/meetings/join", {
       method: "POST",
-      body: JSON.stringify({ url, ...(title ? { title } : {}) }),
+      body: JSON.stringify({ url, gosino: who, ...(title ? { title } : {}) }),
     });
     $("meet-url").value = "";
-    say("meet-msg", "Sta entrando. Prende appunti da solo; il digest arriva a fine call.", "ok");
+    say("meet-msg", name + " sta entrando. Prende appunti da solo; il digest arriva a fine call.", "ok");
     await loadMeetings();
   } catch (error) {
     say("meet-msg", error.status === 404
