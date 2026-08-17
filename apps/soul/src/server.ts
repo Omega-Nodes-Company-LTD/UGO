@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastif
 import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js";
 import { createAuditLog } from "./services/auditLog.js";
 import { createAuthGuard, registerTenantResolution } from "./routes/guard.js";
+import { registerCapabilitiesRoute, type Capability } from "./routes/capabilities.js";
 import { registerHouseholdRoutes } from "./routes/households.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
@@ -51,6 +52,13 @@ export interface ServerOptions extends HealthDeps {
   logger?: boolean;
   /** absolute path of the built face bundle; absent in dev, where Vite serves it */
   faceRoot?: string;
+  /**
+   * Quali funzioni facoltative sono accese, e perché le altre no.
+   *
+   * Valutata a ogni richiesta e non alla costruzione: una variabile aggiunta
+   * stanotte si vede stamattina senza riavviare per guardare.
+   */
+  capabilities?: () => Capability[];
   /**
    * v1 feature surface; omitted only by infra-focused tests.
    *
@@ -122,7 +130,8 @@ export interface ServerOptions extends HealthDeps {
       }) => Promise<"learned" | "refused" | "unreachable">;
     };
     /** gruppo 12: il meteo vero per il cielo del recinto; assente = rotta muta */
-    weather?: WeatherDeps;
+    /** `db` lo mette il server: chi lo costruisce porta solo il ripiego d'ambiente */
+    weather?: Omit<WeatherDeps, "db">;
     /** backlog gruppo 3: il server MCP di sola lettura — assente = la rotta non esiste */
     mcp?: { embedder: McpRouteDeps["embedder"] };
     /** gruppo 13: la voce interim — assente = 204 e voce di sistema */
@@ -224,10 +233,15 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerDebugChatRoute(app, guard);
     // il selettore del pannello: aperta al solo token, che e' gia' abbastanza
     // — dice quali case *quel* token puo' vedere, e per quasi tutti e' una
-    registerHouseholdRoutes(app, { db: options.db });
+    registerHouseholdRoutes(app, { db: options.db, guard });
+    // cosa è acceso e cosa no: il pannello lo mostra invece di far cercare
+    // un guasto dove c'è solo una variabile non impostata
+    if (options.capabilities !== undefined) {
+      registerCapabilitiesRoute(app, { guard, snapshot: options.capabilities });
+    }
     // gruppo 12: il tempo che fa, per il cielo del recinto. Aperta come
     // /v1/rooms — il corpo non porta un token — e muta senza coordinate
-    registerWeatherRoute(app, weather ?? {});
+    registerWeatherRoute(app, { db: options.db, ...(weather ?? {}) });
     // gruppo 13: la voce interim — il salvadanaio sta nel client (regola 3)
     // backlog gruppo 3: la memoria interrogabile da altri agenti, sola lettura
     if (mcp !== undefined) {

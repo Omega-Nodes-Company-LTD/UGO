@@ -16,9 +16,15 @@ describe("skyStateFrom", () => {
       { available: true, kind: "rain", isDay: true, lat: 41.9, lon: 12.5 },
       noon,
     );
-    expect(state).toEqual({ mode: "day", weather: "rain" });
+    expect(state.mode).toBe("day");
+    expect(state.weather).toBe("rain");
+    // e l'altezza VERA del sole viaggia col modo, invece di essere calcolata e
+    // buttata: a mezzogiorno d'agosto su Roma il sole sta attorno ai 62°, ed è
+    // il numero che decide dove va disegnato il disco
+    expect(state.sunAltitude).toBeCloseTo(61.9, 0);
     // senza coordinate si ripiega su is_day: niente ora d'oro, ma mai il buio
-    // a mezzogiorno
+    // a mezzogiorno — e nessuna altezza, perché senza un dove non esiste un
+    // «dov'è il sole»
     expect(skyStateFrom({ available: true, kind: "rain", isDay: true }, noon)).toEqual({
       mode: "day",
       weather: "rain",

@@ -162,6 +162,28 @@ export const BACKDROP_RADIUS = FLOOR_RADIUS * 1.05;
  */
 const FLOOR_TILE = 1.3;
 const TEXTURE_PX = 256;
+/**
+ * Dove sta il centro della cupola rispetto al pavimento, e — di conseguenza —
+ * **in che punto della trama cade l'orizzonte che la camera vede davvero**.
+ *
+ * Erano due numeri scollegati: la cupola si posizionava a `0.55` in fondo al
+ * file e la nebbia prendeva l'ULTIMO stop del degradé, cioè il colore che sta
+ * al fondo del cilindro — 99 unità SOTTO l'orizzonte, dove non guarda nessuno.
+ * Il commento diceva «oltre `fog.far` il piano è già del colore del cielo,
+ * non c'è nessun orlo da nascondere», e non era vero: il prato saturava su un
+ * pallido (#a8cae6, luminanza 77%) mentre la cupola lì sopra mostrava un blu
+ * ben più carico (#74acdd, 64%). Due colori diversi che si toccano sull'orlo
+ * geometrico del pavimento: la riga netta, e sotto la fascia slavata.
+ */
+const SKY_CENTER_FRACTION = 0.55;
+/**
+ * La `v` della trama all'altezza dell'orizzonte, ricavata dalla geometria
+ * invece che indovinata: il cilindro è alto `2 · FLOOR_RADIUS` e il suo fondo
+ * sta a `(SKY_CENTER_FRACTION − 1) · FLOOR_RADIUS`, quindi il raggio non
+ * conta e resta solo la frazione. `flipY` di three mette `v = 0` in fondo
+ * all'immagine, da cui l'uno-meno.
+ */
+const HORIZON_AT = 1 - (1 - SKY_CENTER_FRACTION) / 2;
 /** Fitti: un prato rado non è un prato, è un campo dopo la siccità. */
 const SPECKS = 520;
 
@@ -290,6 +312,40 @@ function floorTexture(season: Season): THREE.CanvasTexture {
  */
 const hex = (value: number): string => `#${value.toString(16).padStart(6, "0")}`;
 
+/** Le posizioni degli stop del cielo: una sola verità, usata per disegnare
+ *  il degradé E per sapere che colore ha il cielo dove tocca il prato. */
+const SKY_STOPS = [0, 0.5, 0.74, 0.92, 1] as const;
+
+const mix = (from: number, to: number, t: number): number => {
+  const lerp = (shift: number): number => {
+    const a = (from >> shift) & 255;
+    const b = (to >> shift) & 255;
+    return Math.round(a + (b - a) * t) << shift;
+  };
+  return lerp(16) | lerp(8) | lerp(0);
+};
+
+/**
+ * Il colore del cielo ALL'ORIZZONTE, campionato dal degradé nello stesso
+ * punto in cui la camera vede la cupola toccare il prato.
+ *
+ * È questo che deve avere la nebbia. Prendere l'ultimo stop — come si faceva —
+ * significa tingere il prato lontano di un colore che in quel punto il cielo
+ * non ha, e l'orlo del pavimento diventa una cucitura visibile.
+ */
+function skyAtHorizon(stops: readonly number[]): number {
+  for (let i = 1; i < SKY_STOPS.length; i += 1) {
+    const before = SKY_STOPS[i - 1] ?? 0;
+    const after = SKY_STOPS[i] ?? 1;
+    if (HORIZON_AT <= after) {
+      const span = after - before;
+      const t = span === 0 ? 0 : (HORIZON_AT - before) / span;
+      return mix(stops[i - 1] ?? 0, stops[i] ?? 0, t);
+    }
+  }
+  return stops[stops.length - 1] ?? 0;
+}
+
 /**
  * Il cielo adesso ha un tempo e un'ora (gruppo 12): il meteo VERO fuori dalla
  * finestra e — di notte — la luna con la sua fase e i pianeti a occhio nudo,
@@ -308,12 +364,22 @@ export interface SkyState {
   weather: SkyWeather;
   /** cosa c'è lassù stanotte; ignorato di giorno e sotto le nuvole */
   night?: NightSky;
+  /**
+   * L'altezza VERA del sole sull'orizzonte, in gradi, a quest'ora e a queste
+   * coordinate (`ephemeris.sunAltitude`).
+   *
+   * Era calcolata e buttata: serviva solo a decidere giorno/ora d'oro/notte,
+   * e il disco veniva messo a un'altezza inventata. Assente quando la casa non
+   * dichiara dove sta — e senza coordinate non esiste un «dove è il sole».
+   */
+  sunAltitude?: number;
 }
 
 /**
- * Le tavolozze: [alto, zenit, mezzo, basso, orizzonte]. L'orizzonte è anche il
- * colore della nebbia — sono la stessa cosa, ed è ciò che rende invisibile
- * l'orlo del pavimento. `floor` è il moltiplicatore del prato: il pavimento è
+ * Le tavolozze: [alto, zenit, mezzo, basso, orizzonte]. La nebbia NON è
+ * l'ultimo stop — è il colore che il degradé ha all'altezza dell'orizzonte
+ * visibile (`skyAtHorizon`). Con l'ultimo stop il prato lontano saturava su
+ * una tinta che il cielo lì non aveva, e l'orlo del pavimento si vedeva. `floor` è il moltiplicatore del prato: il pavimento è
  * `MeshBasicMaterial`, quindi la sua «luce» si abbassa da qui, non dalle
  * lampade. La terza riga è l'ora d'oro (gruppo 13): il sole fra −6° e +6°.
  */
@@ -395,6 +461,90 @@ function paintNight(ctx: CanvasRenderingContext2D, night: NightSky): void {
   }
 }
 
+/**
+ * La fascia di trama che la camera inquadra davvero: ±16° attorno
+ * all'orizzonte, che su questa geometria sono circa quindici punti di `v` per
+ * parte. Sole e nuvole vanno disegnati QUI dentro, o si dipingono in un pezzo
+ * di cielo che non vedrà mai nessuno — che è il modo in cui una feature
+ * esiste nel codice e non nel prodotto.
+ */
+const VISIBLE_ABOVE = HORIZON_AT - 0.16;
+
+/**
+ * Il sole, che semplicemente non c'era.
+ *
+ * `sunAltitude` era calcolato e speso solo per DECIDERE se è giorno, ora d'oro
+ * o notte: il disco non è mai stato disegnato, quindi un mezzogiorno sereno
+ * era un cielo azzurro e vuoto. L'azimut non lo sappiamo — la stanza non è
+ * orientata alla bussola — quindi la posizione orizzontale è una scelta
+ * stabile, e l'altezza è quella vera.
+ */
+function paintSun(
+  ctx: CanvasRenderingContext2D,
+  mode: SkyState["mode"],
+  altitudeDegrees: number,
+): void {
+  // L'altezza è quella VERA, mappata sulla cupola: 0° sull'orizzonte, 90° allo
+  // zenit, cioè in cima alla trama. Conseguenza da dire ad alta voce: la
+  // camera ha 32° di campo e guarda l'orizzonte, quindi vede sì e no i primi
+  // 16° di cielo — un sole di mezzogiorno d'agosto sta a ~60° ed è FUORI
+  // inquadratura, esattamente come da una finestra guardando dritto. Se lo si
+  // vuole sempre in quadro bisogna comprimere il cielo, che è una bugia
+  // dichiarata e una decisione del proprietario, non una scorciatoia mia.
+  const height = (Math.max(0, Math.min(90, altitudeDegrees)) / 90) * HORIZON_AT;
+  const y = (HORIZON_AT - height) * TEXTURE_PX;
+  const x = TEXTURE_PX * 0.62;
+  const radius = TEXTURE_PX * (mode === "golden" ? 0.05 : 0.035);
+  const core = mode === "golden" ? "#fff0d0" : "#fffdf2";
+  const halo = mode === "golden" ? "rgba(255,196,120," : "rgba(255,250,230,";
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, radius * 6);
+  glow.addColorStop(0, `${halo}0.85)`);
+  glow.addColorStop(0.35, `${halo}0.28)`);
+  glow.addColorStop(1, `${halo}0)`);
+  ctx.fillStyle = glow;
+  ctx.fillRect(x - radius * 6, y - radius * 6, radius * 12, radius * 12);
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = core;
+  ctx.fill();
+}
+
+/**
+ * Le nuvole, che pure non c'erano: «coperto» e «pioggia» cambiavano SOLO la
+ * tinta del degradé, quindi un temporale in corso si vedeva come un grigio
+ * uniforme — indistinguibile da una giornata smorta. Sono banchi morbidi e
+ * deterministici (stesso seme del prato: un cielo che si rimescola a ogni
+ * ricarica si nota), dipinti nella fascia visibile e più fitti sotto la
+ * pioggia.
+ */
+function paintClouds(ctx: CanvasRenderingContext2D, weather: SkyWeather, dark: boolean): void {
+  const rng = mulberry32(20260817);
+  const banks = weather === "rain" ? 14 : 9;
+  ctx.save();
+  for (let i = 0; i < banks; i += 1) {
+    const y = (VISIBLE_ABOVE + rng() * (HORIZON_AT - VISIBLE_ABOVE)) * TEXTURE_PX;
+    const x = rng() * TEXTURE_PX;
+    // più in basso = più lontano = più piatto e più piccolo, che è ciò che
+    // dà la profondità senza prospettiva vera
+    const depth = (y / TEXTURE_PX - VISIBLE_ABOVE) / (HORIZON_AT - VISIBLE_ABOVE);
+    const width = TEXTURE_PX * (0.30 - depth * 0.18) * (0.6 + rng() * 0.8);
+    const height = width * (0.22 + rng() * 0.12);
+    const alpha = (weather === "rain" ? 0.5 : 0.34) * (1 - depth * 0.45);
+    const tone = dark ? "40,46,56" : weather === "rain" ? "92,100,110" : "246,249,252";
+    for (let puff = 0; puff < 5; puff += 1) {
+      const px = x + (rng() - 0.5) * width;
+      const py = y + (rng() - 0.5) * height * 0.5;
+      const pr = height * (0.5 + rng() * 0.7);
+      const blob = ctx.createRadialGradient(px, py, 0, px, py, pr);
+      blob.addColorStop(0, `rgba(${tone},${alpha.toFixed(3)})`);
+      blob.addColorStop(1, `rgba(${tone},0)`);
+      ctx.fillStyle = blob;
+      ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+    }
+  }
+  ctx.restore();
+}
+
 function skyTexture(state: SkyState): THREE.CanvasTexture {
   const ctx = context(TEXTURE_PX);
   const palette = PALETTES[state.mode][state.weather];
@@ -403,14 +553,12 @@ function skyTexture(state: SkyState): THREE.CanvasTexture {
   // alzasse. Non si vede, ma un cielo che schiarisce salendo sarebbe sbagliato
   // proprio nel verso che si nota
   const [top, zenith, mid, low, horizonStop] = palette.stops;
-  gradient.addColorStop(0, hex(top ?? 0));
-  gradient.addColorStop(0.5, hex(zenith ?? 0));
-  // la parte pallida si schiaccia in fondo: la fascia che la camera vede
-  // davvero è quella bassa, e con gli stop larghi metà inquadratura era una
-  // banda slavata uniforme — il degradé deve vivere DENTRO la parte visibile
-  gradient.addColorStop(0.74, hex(mid ?? 0));
-  gradient.addColorStop(0.92, hex(low ?? 0));
-  gradient.addColorStop(1, hex(horizonStop ?? 0));
+  // le stesse posizioni che `skyAtHorizon` usa per campionare: se cambiano
+  // qui e non lì, la nebbia torna a non combaciare col cielo e la cucitura
+  // ricompare — quindi la lista è una sola
+  for (const [i, color] of [top, zenith, mid, low, horizonStop].entries()) {
+    gradient.addColorStop(SKY_STOPS[i] ?? 1, hex(color ?? 0));
+  }
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, TEXTURE_PX, TEXTURE_PX);
   // gli astri solo a cielo sereno: sotto le nuvole non si vedono, e
@@ -418,6 +566,12 @@ function skyTexture(state: SkyState): THREE.CanvasTexture {
   if (state.mode === "night" && state.weather === "clear" && state.night !== undefined) {
     paintNight(ctx, state.night);
   }
+  // il sole solo quando c'è davvero qualcosa da vedere: sotto le nuvole
+  // sarebbe la stessa bugia che gli astri di notte
+  if (state.mode !== "night" && state.weather === "clear" && state.sunAltitude !== undefined) {
+    paintSun(ctx, state.mode, state.sunAltitude);
+  }
+  if (state.weather !== "clear") paintClouds(ctx, state.weather, state.mode === "night");
   const texture = new THREE.CanvasTexture(ctx.canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -425,7 +579,11 @@ function skyTexture(state: SkyState): THREE.CanvasTexture {
 
 export class Room {
   public readonly object = new THREE.Group();
-  private readonly fog = new THREE.Fog(HORIZON, 10, 40);
+  private readonly fog = new THREE.Fog(
+    skyAtHorizon(PALETTES.day.clear.stops),
+    10,
+    40,
+  );
   private readonly textures: THREE.Texture[] = [];
   private readonly floorMaterial: THREE.MeshBasicMaterial;
   private readonly skyMaterial: THREE.MeshBasicMaterial;
@@ -476,7 +634,7 @@ export class Room {
     // il centro sta **sopra** l'orizzonte, così la metà bassa della trama —
     // quella pallida — cade dove guarda la camera, e l'azzurro pieno resta in
     // alto dove serve solo a non far vedere un bordo
-    sphere.position.y = FLOOR_RADIUS * 0.55;
+    sphere.position.y = FLOOR_RADIUS * SKY_CENTER_FRACTION;
     this.object.add(sphere);
 
     scene.add(this.object);
@@ -513,8 +671,9 @@ export class Room {
     this.skyMap.dispose();
     this.skyMap = next;
     const palette = PALETTES[state.mode][state.weather];
-    const horizonColor = palette.stops[4] ?? HORIZON;
-    this.fog.color.setHex(horizonColor);
+    // il colore che il cielo ha DOVE tocca il prato, non quello del fondo
+    // della trama: è la differenza fra una sfumatura e una cucitura
+    this.fog.color.setHex(skyAtHorizon(palette.stops));
     this.floorMaterial.color.setHex(palette.floor);
   }
 

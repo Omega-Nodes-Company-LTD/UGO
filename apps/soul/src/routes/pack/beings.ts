@@ -1,6 +1,6 @@
 import { beings, bonds, perceptionEvents, recognitionProfiles, type DbClient } from "@ugo/db";
 import { KNOWN_SPECIES, profileFor } from "@ugo/shared";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -49,6 +49,35 @@ export function registerBeingRoutes(
         // centroid is — the panel shows it so enrollment is not guesswork
         voiceSamples: recognitionProfiles.sampleCount,
         faceSamples: faceProfiles.sampleCount,
+        /**
+         * Com'è andato l'ULTIMO arruolamento vocale, e quanti ne restano in
+         * attesa. Esistevano già come righe di `perception_events` e non li
+         * mostrava nessuna interfaccia: per sapere perché un maiale non
+         * imparava una voce bisognava aprire `psql` e sapere cosa cercare —
+         * cioè non saperlo. L'esito porta la ragione (`failed:NoSuchKey`,
+         * `refused:minor_biometrics_forbidden`), che è ciò che serve per
+         * rimediare senza indovinare.
+         */
+        voiceOutcome: sql<string | null>`(
+          select d.observed->>'outcome' from perception_events d
+          where d.being_id = ${beings.id} and d.observed->>'kind' = 'enrollment'
+          order by d.occurred_at desc limit 1
+        )`,
+        voiceOutcomeAt: sql<string | null>`(
+          select d.occurred_at from perception_events d
+          where d.being_id = ${beings.id} and d.observed->>'kind' = 'enrollment'
+          order by d.occurred_at desc limit 1
+        )`,
+        voicePending: sql<number>`(
+          select count(*) from perception_events r
+          where r.being_id = ${beings.id}
+            and r.observed->>'kind' = 'enrollment_requested'
+            and not exists (
+              select 1 from perception_events d
+              where d.observed->>'kind' = 'enrollment'
+                and d.observed->>'request_id' = r.id::text
+            )
+        )`,
       })
       .from(beings)
       .leftJoin(bonds, and(eq(bonds.beingId, beings.id), eq(bonds.gosinoId, gosinoId)))

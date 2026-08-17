@@ -226,12 +226,17 @@ def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
             _outcome(conn, gosino_id, being_id, request_id, f"refused:{refusal}")
             result.refused += 1
             continue
-        except Exception:  # noqa: BLE001 — one bad clip must not stop the night
-            # un clip che non si riesce a usare non è un clip da tenere: la
-            # richiesta è comunque chiusa da `_outcome`, quindi nessuno tornerà
-            # mai a leggerlo
+        except Exception as error:  # noqa: BLE001 — one bad clip must not stop the night
+            # LA CLASSE dell'errore, non solo «failed». Per mesi questo ramo ha
+            # scritto la parola «failed» e basta: il proprietario vedeva un
+            # maiale che non imparava mai la sua voce e nel database c'era una
+            # riga che non diceva perché. La causa vera era che `ingest` — che
+            # gira PRIMA — si mangiava il clip, ma per scoprirlo è servito
+            # leggere il codice, perché il dato non lo diceva. Solo il nome
+            # della classe: mai il messaggio, che può portare chiavi e percorsi
+            # (regola 6).
             _discard(client, cfg, object_key)
-            _outcome(conn, gosino_id, being_id, request_id, "failed")
+            _outcome(conn, gosino_id, being_id, request_id, f"failed:{type(error).__name__}")
             result.missing += 1
             continue
         # the clip has done its job: it must not survive the night
