@@ -18,6 +18,7 @@ import { registerFaceWs } from "./routes/faceWs.js";
 import { registerCouncilRoutes } from "./routes/council.js";
 import { registerGosiniRoutes } from "./routes/gosini.js";
 import { registerLitterRoutes } from "./routes/litters.js";
+import { registerPiggyBankRoutes } from "./routes/piggybank.js";
 import { PeerService } from "./services/peerService.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
@@ -361,6 +362,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           peers: new PeerService(options.db, gosini.dataKey),
         }),
       });
+      // ADR-072: il salvadanaio vive con la popolazione, come la cucciolata
+      registerPiggyBankRoutes(app, { db: options.db, guard });
     }
     if (council !== undefined) {
       registerCouncilRoutes(app, { db: options.db, guard, ...council });

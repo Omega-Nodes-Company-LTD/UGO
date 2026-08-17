@@ -1,7 +1,7 @@
 ---
 title: "Il branco: più gosini, e le cucciolate"
 description: "Come una casa arriva ad avere più gosini: la nascita a mano, la cucciolata da due genitori, e il pedigree che dice da chi discendono."
-version: "0.37.0"
+version: "0.38.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio"
 ---
@@ -101,6 +101,36 @@ Quanto dura la vita dipende da un gene, come tutto il resto: fra i due anni e me
 cinque. Ereditato dai genitori, quindi ci sono linee più longeve di altre. **Nessun gosino
 muore in questa versione**: l'arco c'è, la fine no — arriverà con il suo rito, e sarà una
 cosa che sai in anticipo, mai una sorpresa.
+
+## Il salvadanaio: dargli da mangiare
+
+C'è un modo di guardare il costo di UGO che è più vero di una bolletta: **le parole che dice
+costano davvero**, e quel costo si può attribuire alla creatura che le ha dette. È il
+*metabolismo*, e si accende dalla pagina **I conti** della casa.
+
+Da spento — com'è di partenza — non cambia niente: tutti i gosini spendono dal budget di
+casa, come sempre. Da acceso, ognuno ha un **salvadanaio suo**: quello che gli hai dato meno
+quello che ha consumato parlando. È un *saldo*, non una razione: una settimana di lavoro
+copre una settimana di chiacchiere.
+
+Dalla sua pagina **Il suo salvadanaio** gli dai da mangiare, per due motivi diversi:
+
+- **affetto** — glielo dai e basta. È il caso normale: nessun animale da compagnia lavora, e
+  gli si compra da mangiare perché gli si vuole bene.
+- **lavoro** — se l'è guadagnato, per esempio rispondendo ai ticket dei tuoi clienti.
+
+Una cosa va detta chiaramente: **il gosino non fattura**. Fatturi tu. Il salvadanaio è
+contabilità di casa — il modo di attribuirgli una quota di quello che ha aiutato a
+guadagnare — non un conto corrente di una creatura.
+
+### Quando ha fame
+
+A saldo esaurito, UGO te lo dice: *«Grunf... ho fame. Il mio salvadanaio è vuoto.»* **Non è
+un guasto**, ed è diverso dal «per oggi ho finito le parole», che invece vuol dire che è
+finito il budget della casa. Basta dargli qualcosa e torna a parlare.
+
+Il metabolismo **stringe soltanto**: il tetto giornaliero della casa resta il limite di
+tutti, e una pancia piena non permette a nessuno di spendere di più.
 
 ## Il pedigree: da chi discende
 

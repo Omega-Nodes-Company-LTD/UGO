@@ -77,4 +77,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [069](./069-la-nascita.md) | La nascita: dalla cucciolata all'esemplare | Accettata |
 | [070](./070-il-pedigree.md) | Il pedigree: l'atto di nascita firmato dai genitori | Accettata |
 | [071](./071-l-arco-della-vita.md) | L'arco della vita: l'età, e la plasticità che si consuma | Accettata |
-| 072 | *(prossimo numero disponibile)* | — |
+| [072](./072-il-salvadanaio-del-gosino.md) | Il salvadanaio del gosino: il metabolismo | Accettata |
+| 073 | *(prossimo numero disponibile)* | — |

@@ -25,6 +25,7 @@ const EXPECTED_TABLES = [
   "gosini",
   "trait_sets",
   "births",
+  "feedings",
   "bonds",
   "relations",
   "recognition_profiles",
@@ -122,6 +123,20 @@ describe("migrations on a pristine postgres", () => {
     const grants = await db.execute<{ privilege_type: string }>(sql`
       select privilege_type from information_schema.role_table_grants
       where grantee = 'ugo_app' and table_name = 'births'
+    `);
+    expect(grants.map((row) => row.privilege_type).sort()).toEqual(["INSERT", "SELECT"]);
+  });
+
+  // ADR-072: il cibo è un fatto della casa e un atto, come il lignaggio
+  it("puts the meals behind the household wall, append-only for ugo_app", async () => {
+    const policies = await db.execute<{ policyname: string }>(sql`
+      select policyname from pg_policies where schemaname = 'public' and tablename = 'feedings'
+    `);
+    expect(policies.some((row) => row.policyname === "feedings_household")).toBe(true);
+
+    const grants = await db.execute<{ privilege_type: string }>(sql`
+      select privilege_type from information_schema.role_table_grants
+      where grantee = 'ugo_app' and table_name = 'feedings'
     `);
     expect(grants.map((row) => row.privilege_type).sort()).toEqual(["INSERT", "SELECT"]);
   });
