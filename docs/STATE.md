@@ -2116,6 +2116,28 @@ ricordi. Dipendenza nuova: `@modelcontextprotocol/sdk` (solo in soul).
 Niente scritture per costruzione: se un giorno serviranno, passeranno dalle
 spinte di ADR-064, non da un tool `write`.
 
+## 6-septricies. I verbi, la foto, e il filo della stanza
+
+Direttiva del proprietario: «parti da dove vuoi ma finisci». Le tre righe
+autonome rimaste del backlog, chiuse:
+
+**I primi due verbi (ADR-064)** — «vai in <stanza>» e «chiama <gosino>»
+esistono, e NON sono comandi: la spinta passa dallo stato (dorme/spaventato
+⇒ rifiuto CON risposta; stanco ⇒ obbedisce sbuffando — soglie scritte in
+`nudges.ts`), «vai» fa lo stesso giro del pannello (catalogo → reload),
+«chiama» passa dal corpo dell'altro. Eventi `nudge` nel registro. Solo
+canale casa. Test 9/9 su registro vero, inclusa la giunzione chat col
+provider undefined-as-never.
+
+**Input immagini (gruppo 4)** — bottone 📷 sul muso: foto ridotta sul
+dispositivo, descritta dal vision LOCALE, al provider arriva solo la frase.
+Occhi giù = onestà. Test 3/3 col provider che cattura.
+
+**La chat di gruppo (ADR-067)** — sul canale di casa il filo è della
+stanza: i turni di tutti col nome davanti; sull'API resta ADR-032. Test 2/2.
+
+Note di rilascio: da ricostruire il **bundle del muso** (bottone 📷).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

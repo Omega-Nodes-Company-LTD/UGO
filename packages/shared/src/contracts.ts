@@ -7,6 +7,13 @@ export const chatRequestSchema = z.object({
   channel: z.enum(MESSAGE_CHANNELS),
   text: z.string().min(1).max(2000),
   beingId: z.uuid().optional(),
+  /**
+   * Gruppo 4 — input immagini: una foto insieme alla frase, JPEG in base64.
+   * La guarda il modello vision LOCALE e al provider arriva solo la
+   * DESCRIZIONE: i pixel non escono mai di casa e non si scrivono da nessuna
+   * parte. Il tetto tiene un JPEG a 640px con margine.
+   */
+  imageBase64: z.string().max(200_000).optional(),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 

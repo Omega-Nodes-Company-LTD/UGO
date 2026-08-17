@@ -59,6 +59,26 @@ il modello:
 
 Sono gesti, non abitudini sue: UGO non cerca e non legge mai da solo.
 
+E due sono **richieste, non comandi** — passano dal suo carattere, e può dirti di no:
+
+- **`vai in cucina`** (o in un'altra stanza di casa) — se gli va, saluta e si sposta: lo ritrovi
+  sullo schermo di quella stanza. Se sta dormendo o ha appena preso uno spavento te lo dice,
+  e se è stanco obbedisce sbuffando. Una stanza che non esiste non lo confonde: ti risponde
+  che non la conosce.
+- **`chiama Silvio`** (o come si chiama l'altro gosino) — il corpo di Silvio, dovunque sia,
+  drizza le orecchie e risponde. Se non ha uno schermo acceso, UGO ti dice la verità: non
+  può sentirlo.
+
+È il punto in cui UGO smette di essere solo qualcuno che risponde: è un animale a cui chiedi
+le cose, non un telecomando che le esegue.
+
+## Fargli vedere una foto
+
+Tocca **📷** in basso e scegli una foto dal telefono: UGO la guarda e la commenta. La foto
+viene rimpicciolita sul tuo dispositivo, la «vede» il modello di casa, e **non esce mai
+verso servizi esterni né viene salvata**: resta solo il suo commento nella conversazione.
+Se il server di casa non ha gli occhi accesi, te lo dice invece di inventare.
+
 ## L'umore
 
 In basso a sinistra, accanto al pulsante del microfono, c'è sempre **una parola sola**: `sereno`,
