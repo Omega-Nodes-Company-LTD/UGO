@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.32.0"
+version: "0.33.0"
 last_updated: "2026-08-17"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -2475,6 +2475,15 @@ Non è più vero che «non resta software da scrivere»: quella frase valeva pri
 competitiva del 2026-08-10, che ha prodotto [`BACKLOG.md`](./BACKLOG.md) e circa venticinque punti
 aperti. Resta vero che le **validazioni** delle fasi 2/4/5 richiedono hardware o rete reale — il
 telefono, il guscio, lo stack Vexa.
+
+## Materiale partner (2026-08-17)
+
+`docs/partner/` contiene il **partner brief in inglese a nome OmegaNodes.ai**
+(`UGO-Partner-Brief-OmegaNodes.pdf`): progetto, novità, confronto competitor, piano per
+chiudere i gap, strategia economica (i sei flussi di `VISIONE.md` §0) e i sei orizzonti.
+Screenshot reali del muso (chiosco e bench di `apps/face`, Chromium headless);
+`build_brief.py` rigenera il PDF. Doc-only: nessun codice di prodotto toccato, quindi il
+giro BO+`/admin`+FE non si applica — nessuna delle tre superfici è cambiata.
 
 ## Prossimi Passi
 
