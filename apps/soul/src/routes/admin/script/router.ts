@@ -11,9 +11,9 @@
  * sync by hand.
  */
 export const ROUTER_JS = `
-const GOSINO_PAGES = ["stato", "volonta", "memoria", "salvadanaio", "pedigree"];
+const GOSINO_PAGES = ["stato", "volonta", "memoria", "salvadanaio", "pedigree", "vita"];
 const PAGE_TITLE = { stato: "Come sta", volonta: "Cosa ha deciso lui", memoria: "Cosa ricorda",
-  salvadanaio: "Il suo salvadanaio", pedigree: "Da chi discende" };
+  salvadanaio: "Il suo salvadanaio", pedigree: "Da chi discende", vita: "L'arco della vita" };
 let GOSINI = [];
 let WHO = "";
 /** Le case che questo token può vedere. Quasi sempre una, e allora non si vede. */
@@ -142,6 +142,9 @@ async function openPage(page) {
   } else if (page === "salvadanaio") {
     // ADR-072: quanto ha in pancia, e i pasti che gli sono stati dati
     await section(loadPiggyBank, "feed-msg");
+  } else if (page === "vita") {
+    // ADR-077: a che punto è dell'arco, e — se è nato prima — se lo accetta
+    await section(loadLife, "life-msg");
   }
 }
 
@@ -199,19 +202,22 @@ async function loadGosini() {
 }
 
 /**
- * L'età in una riga (ADR-071). La plasticità è la cosa che cambia davvero
- * con gli anni, quindi si dice in italiano invece che con un numero: quanto
- * la vita può ancora riscrivergli il carattere.
+ * L'età in una riga (ADR-071, riscritta da ADR-077).
+ *
+ * Diceva anche «quanto la vita può ancora riscriverlo», che era la plasticità
+ * in italiano — e la plasticità era la vita attesa divisa per l'età, cioè la
+ * data della morte con un passaggio d'algebra in mezzo. Adesso dice le tre
+ * cose che si vedono guardando un animale: quanti giorni ha, se è cucciolo o
+ * anziano, e com'è messo il pelo.
  */
 function ageLine(age) {
   const years = age.days / 365;
   const quanti = age.days < 60
     ? age.days + (age.days === 1 ? " giorno" : " giorni")
     : years < 1 ? Math.round(age.days / 30) + " mesi" : years.toFixed(1) + " anni";
-  const how = age.plasticity >= 1.6 ? "cambia in fretta"
-    : age.plasticity >= 0.8 ? "cambia col tempo"
-    : age.plasticity >= 0.4 ? "ormai cambia poco" : "è quello che è";
-  return escape(age.stage + " · " + quanti + " · " + how);
+  const coat = age.coat === "grigio" ? " · grigio"
+    : age.coat === "brizzolato" ? " · qualche setola grigia" : "";
+  return escape(age.stage + " · " + quanti + coat);
 }
 
 /** The house's front page: each creature with the mood he is actually in. */

@@ -56,8 +56,9 @@ export {
   type ScreenVerdict,
 } from "./genetics.js";
 export {
-  LIFESPAN_MIN_DAYS,
-  LIFESPAN_MAX_DAYS,
+  GUARANTEED_DAYS,
+  GIFT_MAX_DAYS,
+  JITTER_MAX_DAYS,
   CUB_UNTIL,
   ELDER_FROM,
   PLASTICITY_YOUNG,

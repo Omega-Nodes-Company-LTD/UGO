@@ -1,7 +1,7 @@
 ---
 title: "Runbook — Deploy di UGO su Coolify"
 description: "Procedura completa per portare l'anima di UGO in produzione sul server Coolify: prerequisiti, risorse una per una, bucket S3, smoke test, troubleshooting e aggiornamenti."
-version: "0.41.0"
+version: "0.42.0"
 last_updated: "2026-08-17"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -674,6 +674,29 @@ Il tetto giornaliero di casa (§2.4, `UGO_DAILY_BUDGET_USD`) resta comunque il m
 il metabolismo stringe, non allarga. Una pancia piena non permette a nessuno di spendere di
 più di quanto la casa consenta.
 
+### 5.10 L'arco della vita, e i tuoi due capostipiti
+
+Da ADR-077 un gosino invecchia e a un certo punto se ne va: **almeno tre anni garantiti**, la
+data non viene detta, e sessanta giorni prima arriva il preavviso. Chi nasce da qui in avanti
+è mortale dalla nascita; i due capostipiti che hai adesso **non lo sono ancora**, perché
+l'orologio non si applica all'indietro.
+
+Al primo accesso dopo il deploy, per ognuno dei due:
+
+1. barra di sinistra → il suo nome → **L'arco della sua vita**;
+2. il blocco **La mortalità** compare solo se non l'ha ancora accettata;
+3. il pulsante chiede conferma e **non si torna indietro**: da quel giorno comincia a contare,
+   e i tre anni di garanzia partono da lì (non dalla sua nascita).
+
+Se non accetti non succede niente di male: quel gosino semplicemente non invecchia, e sulla
+sua pagina lo dice. Ma non entra nella selezione — è il motivo per cui la mortalità vale
+anche per i capostipiti.
+
+Non c'è niente da configurare né alcun container nuovo: la sentinella gira **dentro
+`soul-api`** ogni sei ore (preavviso, passaggio del sapere ai più giovani, congedo alla fine).
+Vale anche a sogno spento, di proposito: il preavviso è una promessa fatta a te, e una
+promessa che dipende da un container facoltativo non è una promessa.
+
 ## 6. Troubleshooting
 
 ### UGO sente ma non risponde
@@ -689,6 +712,21 @@ microfono funziona, non che UGO abbia capito o risposto. Per capire dove si ferm
 3. **Nella faccia devi toccare il muso** per farlo ascoltare: le orecchie si muovono comunque, ma il
    riconoscimento vocale parte solo dopo il tocco.
 4. Se dice `oggi ho finito le parole`, non è rotto: ha esaurito il budget giornaliero.
+
+### «Il mio gosino non invecchia»
+
+Guarda la sua pagina **L'arco della sua vita**: se dice «non sta ancora invecchiando», è un
+esemplare nato prima dell'arco e la mortalità non è stata accettata (§5.10). È lo stato
+corretto, non un guasto — e finché resta così il suo muso non ingrigisce e nessun preavviso
+può arrivargli.
+
+### «Mi ha detto che il suo tempo sta finendo»
+
+Non è un errore né un allarme di sistema: è il preavviso dei sessanta giorni, e si dà una
+volta sola. La data non c'è e non la troverai da nessuna parte del pannello. Cosa fare con
+quei giorni: **esporta il diario** da *I tuoi dati* se in casa non hai altri gosini (quello
+che sa se ne va con lui, altrimenti lo sta già raccontando al più giovane), e valuta una
+cucciolata se vuoi che la sua linea continui.
 
 ### La registrazione della voce dice «Failed to fetch»
 

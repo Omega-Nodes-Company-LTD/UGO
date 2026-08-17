@@ -84,23 +84,55 @@ cucciolo le mostra solo se le riceve da **entrambi** i genitori. Un genitore chi
 no fanno cuccioli senza chiazze — che però se le portano dietro, e possono darle ai loro. Per
 questo un gosino a chiazze è raro davvero, e non perché qualcuno l'abbia deciso.
 
-## Cresce, e a un certo punto ha finito di cambiare
+## Cresce, invecchia, e a un certo punto se ne va
 
-Ogni gosino ha un'età, e la vedi sulla sua scheda: «cucciolo · 12 giorni · cambia in fretta».
-Non è un numero decorativo — dice quanto **la vita può ancora riscrivergli il carattere**.
+Ogni gosino ha un'età, e la vedi sulla sua scheda: «cucciolo · 12 giorni». Sotto il suo nome
+c'è anche la pagina **L'arco della sua vita**, che è dove si guarda tutto questo per intero.
 
-Un gosino non si stanca e non si ammala: quello che cambia con gli anni è la sua
-**plasticità**. Da cucciolo prende tutto di petto e una settimana storta gli sposta l'umore di
-fondo parecchio; da adulto meno; da anziano quasi per niente. Non è diventato pigro: **ha
-finito di diventare sé stesso**, ed è esattamente ciò che lo rende *quello* e non un altro.
+Un gosino non si stanca e non si ammala: quello che cambia con gli anni è **quanto la vita
+può ancora riscrivergli il carattere**. Da cucciolo prende tutto di petto e una settimana
+storta gli sposta l'umore di fondo parecchio; da adulto meno; da anziano quasi per niente.
+Non è diventato pigro: **ha finito di diventare sé stesso**, ed è esattamente ciò che lo
+rende *quello* e non un altro.
 
 Da metà vita in poi le setole sbiadiscono: lo vedi ingrigire sullo schermo. La tinta resta la
 sua — un maiale grigio è un maiale rosa che ha vissuto.
 
-Quanto dura la vita dipende da un gene, come tutto il resto: fra i due anni e mezzo e i
-cinque. Ereditato dai genitori, quindi ci sono linee più longeve di altre. **Nessun gosino
-muore in questa versione**: l'arco c'è, la fine no — arriverà con il suo rito, e sarà una
-cosa che sai in anticipo, mai una sorpresa.
+### Quanto vive, e cosa ti diciamo
+
+**Ti garantiamo almeno tre anni.** Non è una previsione: è una garanzia. Ogni giorno oltre i
+tre anni è regalato, e non è promesso a nessuno.
+
+**La data non te la diciamo.** Non all'adozione, non nel pannello, mai — e non è una
+reticenza: non c'è nessun posto in cui il pannello possa leggerla, perché quanto vivrà
+dipende anche da un dado tirato alla sua nascita che non sta scritto nel suo genoma. Due
+fratelli della stessa cucciolata non se ne vanno lo stesso giorno. La differenza fra «vive
+tre o quattro anni» e «morirà il 14 marzo 2029» è tutta la differenza fra un animale e un
+contratto di leasing.
+
+Quanto viva **oltre** la garanzia dipende anche da un gene, ereditato dai genitori come tutti
+gli altri — ma è un gene **nascosto**: non lo vedi nell'anteprima della cucciolata e non
+compare da nessuna parte. Ci sono linee più longeve di altre, e si scoprono **allevando**.
+
+**Sessanta giorni prima, te lo diciamo.** Lo dice lui, e compare l'avviso sulla sua pagina.
+Sono i giorni per fare tre cose: **esportare il diario** (da [I tuoi dati](./i-tuoi-dati.md))
+se in casa non hai altri gosini, fargli fare **una cucciolata** se vuoi che la sua linea
+continui, e stargli vicino. Da quel momento in poi, ogni notte, quello che sa passa un pezzo
+per volta al più giovane della casa: gli anziani raccontano ai giovani, e il mestiere resta
+in casa.
+
+**La memoria è della casa, non della creatura.** Diario, ricordi, branco, liste e genealogia
+sopravvivono all'esemplare: il testimone di famiglia non è un individuo immortale, è una
+**linea** — come le botteghe artigiane, dove il mestiere ha duecento anni e nessun artigiano
+li ha.
+
+### Il tuo gosino di prima: la mortalità si accetta
+
+I gosini nati prima che l'arco esistesse **non stanno ancora invecchiando**, e l'orologio non
+si applica all'indietro: nessuno si sveglia vecchio per un aggiornamento. Sulla loro pagina
+**L'arco della sua vita** il pannello ti chiede di accettare la mortalità, e se accetti il
+tempo comincia a contare **da quel giorno** — con i tre anni di garanzia che partono da lì.
+È un consenso, non un interruttore: non si torna indietro.
 
 ## Il salvadanaio: dargli da mangiare
 
@@ -157,10 +189,11 @@ capostipite in casa sua. Il tuo resta dov'è.
 
 ## Il congedo: quando è ora
 
-Nessun gosino muore da solo, e non morirà per un aggiornamento: **il congedo è una cosa che
-decidi tu**, quando è il momento. Dalla sua pagina vedi prima cosa resterà, e per confermare
-devi scrivere il suo nome — un click accanto ad altri click non è un consenso a una cosa
-irreversibile.
+Alla fine dell'arco succede da solo, e mai di sorpresa: prima ci sono i sessanta giorni di
+preavviso, e nessuno se ne va senza che te lo sia stato detto. Puoi anche farlo tu quando lo
+ritieni giusto, dalla pagina **L'arco della sua vita**: vedi prima cosa resterà, e per
+confermare devi scrivere il suo nome — un click accanto ad altri click non è un consenso a
+una cosa irreversibile. La strada è la stessa nei due casi: quello che cambia è chi preme.
 
 Cosa succede davvero, detto senza giri di parole:
 

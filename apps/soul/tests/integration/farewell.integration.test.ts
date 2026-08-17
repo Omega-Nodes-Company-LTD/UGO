@@ -31,7 +31,6 @@ const DATA_KEY = randomBytes(32);
 let pg: StartedPostgreSqlContainer;
 let db: DbClient;
 let app: FastifyInstance;
-let houseId: string;
 let token: string;
 let who: string;
 let farewells: FarewellService;
@@ -55,7 +54,6 @@ beforeAll(async () => {
     name: "Congedo",
     gosinoName: "Vecchio",
   });
-  houseId = house.householdId;
   token = house.ownerToken;
   who = house.gosinoId;
   farewells = new FarewellService(db, DATA_KEY);
@@ -74,9 +72,10 @@ beforeAll(async () => {
       importance: 0.8,
     },
   ]);
+  // il diario è scopato per esemplare, non per casa: `household_id` qui non
+  // esiste, e passarlo era un campo di troppo che nessun tipo controllava
   await db.insert(diaryEntries).values({
     gosinoId: who,
-    householdId: houseId,
     date: "2026-08-17",
     text: encryptText("Oggi è stata una buona giornata", DATA_KEY),
   });

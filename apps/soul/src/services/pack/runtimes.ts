@@ -145,7 +145,14 @@ async function seedBaselines(
 /** Builds the whole apparatus for one exemplar. */
 async function buildRuntime(
   deps: RuntimeDeps,
-  row: { id: string; householdId: string; name: string; where: string | null; bornAt?: Date },
+  row: {
+    id: string;
+    householdId: string;
+    name: string;
+    where: string | null;
+    mortalFrom?: Date | null;
+    jitter?: number | null;
+  },
 ): Promise<GosinoRuntime> {
   const [house] = await deps.db
     .select({ timezone: households.timezone, locale: households.locale })
@@ -164,11 +171,17 @@ async function buildRuntime(
   /**
    * ADR-071: il muso non ha un orologio della vita, quindi il grigio glielo
    * calcola l'anima e glielo manda come un parametro di disegno qualunque.
+   *
+   * ADR-077: e lo conta da `mortal_from`, non dalla nascita — un capostipite
+   * che non ha ancora accettato la mortalità non ingrigisce, perché non sta
+   * ancora percorrendo nessun arco. Col dado dell'esemplare dentro, che è ciò
+   * che rende il muso di due fratelli diverso lo stesso giorno.
    */
+  const mortalFrom = row.mortalFrom ?? undefined;
   const greying =
-    row.bornAt === undefined
+    mortalFrom === undefined
       ? 0
-      : lifeAt(row.bornAt, new Date(), character.traits.longevity).greying;
+      : lifeAt(mortalFrom, new Date(), character.traits.longevity, row.jitter ?? 0).greying;
   const bodyTraits: Record<string, number> = { ...character.traits, greying };
 
   // ADR-031, il pezzo che mancava: le baseline erano **calcolate e buttate**.
@@ -288,7 +301,8 @@ export class GosinoRegistry {
         householdId: gosini.householdId,
         name: gosini.name,
         where: gosini.locationLabel,
-        bornAt: gosini.bornAt,
+        mortalFrom: gosini.mortalFrom,
+        jitter: gosini.lifeJitterDays,
       })
       .from(gosini)
       .where(isNull(gosini.retiredAt))

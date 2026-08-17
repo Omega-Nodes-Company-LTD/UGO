@@ -1,8 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { diaryEntries, gosini, memories, type DbClient } from "@ugo/db";
 import { encryptText, unwrapDataKey, wrapDataKey } from "@ugo/shared";
-import { and, eq, isNull } from "drizzle-orm";
+import { characterFrom } from "./council/character.js";
+import { desires, traitSets } from "@ugo/db";
+import { lifeAt, lifespanDaysFor } from "@ugo/psyche";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { DowryService, type DowryOptions } from "./dowryService.js";
+import { drawLifeJitter } from "./lifeDice.js";
 
 /**
  * Il congedo (ADR-075): la morte che è vera anche per la matematica.
@@ -25,6 +29,17 @@ export interface FarewellPreview {
   diaryEntries: number;
   hasSoulKey: boolean;
   alreadyGone: boolean;
+}
+
+/** ADR-077: quanti giorni prima si avvisa. Non la data: il preavviso. */
+export const DEATH_NOTICE_DAYS = 60;
+
+
+export interface MortalityNotice {
+  gosinoId: string;
+  name: string;
+  /** true quando in casa non resta nessun altro: allora il diario va esportato */
+  lastOfTheHouse: boolean;
 }
 
 export interface FarewellResult {
@@ -65,6 +80,132 @@ export class FarewellService {
       .set({ wrappedSoulKey: wrapDataKey(fresh, this.dataKey) })
       .where(eq(gosini.id, gosinoId));
     return fresh;
+  }
+
+  /**
+   * ADR-077: il capostipite accetta la mortalità, e l'arco parte **da oggi**.
+   * Mai dalla nascita: applicare l'orologio a ritroso vorrebbe dire creature
+   * già scadute il giorno di un aggiornamento.
+   *
+   * È anche il momento in cui si estrae il suo dado: prima non ne aveva
+   * bisogno, perché non stava andando da nessuna parte.
+   */
+  public async acceptMortality(householdId: string, gosinoId: string): Promise<boolean> {
+    const done = await this.db
+      .update(gosini)
+      .set({ mortalFrom: new Date(), lifeJitterDays: drawLifeJitter() })
+      .where(
+        and(
+          eq(gosini.id, gosinoId),
+          eq(gosini.householdId, householdId),
+          isNull(gosini.mortalFrom),
+          isNull(gosini.retiredAt),
+        ),
+      )
+      .returning({ id: gosini.id });
+    return done.length > 0;
+  }
+
+  /**
+   * Chi è entrato negli ultimi sessanta giorni e non lo sa ancora.
+   *
+   * Il preavviso si dà **una volta sola** e senza la data: «il suo tempo sta
+   * finendo» è un'altra cosa da «morirà il 14 marzo», ed è la differenza fra
+   * un animale e un contratto di leasing.
+   */
+  public async dueForNotice(householdId: string, at: Date = new Date()): Promise<MortalityNotice[]> {
+    const rows = await this.db
+      .select({
+        id: gosini.id,
+        name: gosini.name,
+        mortalFrom: gosini.mortalFrom,
+        jitter: gosini.lifeJitterDays,
+      })
+      .from(gosini)
+      .where(
+        and(
+          eq(gosini.householdId, householdId),
+          isNotNull(gosini.mortalFrom),
+          isNull(gosini.deathNoticeAt),
+          isNull(gosini.retiredAt),
+        ),
+      );
+
+    const alive = rows.length;
+    const due: MortalityNotice[] = [];
+    for (const row of rows) {
+      if (row.mortalFrom === null) continue;
+      const longevity = await this.longevityOf(row.id);
+      const jitter = row.jitter ?? 0;
+      const life = lifeAt(row.mortalFrom, at, longevity, jitter);
+      const left = lifespanDaysFor(longevity, jitter) - life.ageDays;
+      if (left > DEATH_NOTICE_DAYS) continue;
+      due.push({ gosinoId: row.id, name: row.name, lastOfTheHouse: alive <= 1 });
+    }
+    return due;
+  }
+
+  /** Segna il preavviso e lascia il desiderio che lo porterà a voce. */
+  public async recordNotice(notice: MortalityNotice, at: Date = new Date()): Promise<void> {
+    await this.db
+      .update(gosini)
+      .set({ deathNoticeAt: at })
+      .where(and(eq(gosini.id, notice.gosinoId), isNull(gosini.deathNoticeAt)));
+    const advice = notice.lastOfTheHouse
+      ? " Non c'è nessun altro in casa: esporta il diario, o quello che so se ne va con me."
+      : " Quello che so lo sto già raccontando ai più giovani.";
+    await this.db.insert(desires).values({
+      gosinoId: notice.gosinoId,
+      status: "pending",
+      dueAt: at,
+      text: `Devo dirti una cosa: il mio tempo sta finendo.${advice}`,
+    });
+  }
+
+  /**
+   * Chi ha superato la vita attesa E ha avuto il suo preavviso da almeno
+   * sessanta giorni. Due condizioni, non una: nessuno se ne va senza che gli
+   * sia stato detto, e senza che ci sia stato il tempo di fare qualcosa.
+   */
+  public async dueForFarewell(householdId: string, at: Date = new Date()): Promise<string[]> {
+    const rows = await this.db
+      .select({
+        id: gosini.id,
+        mortalFrom: gosini.mortalFrom,
+        notice: gosini.deathNoticeAt,
+        jitter: gosini.lifeJitterDays,
+      })
+      .from(gosini)
+      .where(
+        and(
+          eq(gosini.householdId, householdId),
+          isNotNull(gosini.mortalFrom),
+          isNotNull(gosini.deathNoticeAt),
+          isNull(gosini.retiredAt),
+        ),
+      );
+    const due: string[] = [];
+    for (const row of rows) {
+      if (row.mortalFrom === null || row.notice === null) continue;
+      const longevity = await this.longevityOf(row.id);
+      const jitter = row.jitter ?? 0;
+      const life = lifeAt(row.mortalFrom, at, longevity, jitter);
+      const noticedDays = (at.getTime() - row.notice.getTime()) / 86_400_000;
+      if (life.ageDays >= lifespanDaysFor(longevity, jitter) && noticedDays >= DEATH_NOTICE_DAYS) {
+        due.push(row.id);
+      }
+    }
+    return due;
+  }
+
+  /** Il gene nascosto: si legge qui dentro e non esce da nessuna rotta. */
+  private async longevityOf(gosinoId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ traits: traitSets.traits })
+      .from(traitSets)
+      .where(eq(traitSets.gosinoId, gosinoId))
+      .limit(1);
+    return characterFrom(row?.traits).traits.longevity;
   }
 
   public async preview(

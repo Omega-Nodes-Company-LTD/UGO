@@ -2,6 +2,7 @@ import { gosini, households, traitSets, type DbClient } from "@ugo/db";
 import { generateDataKey, wrapDataKey } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { ARCHETYPES, characterFrom } from "./council/character.js";
+import { drawLifeJitter } from "./lifeDice.js";
 import { issueToken } from "./tenantAuth.js";
 
 /**
@@ -94,7 +95,15 @@ export async function createHousehold(
 
     const [born] = await tx
       .insert(gosini)
-      .values({ householdId: house.id, name: input.gosinoName ?? "ugo" })
+      .values({
+        householdId: house.id,
+        name: input.gosinoName ?? "ugo",
+        // ADR-077: anche il primo di una casa nuova nasce mortale. `mortal_from`
+        // nullo resta soltanto per chi c'era prima dell'arco — una porta di
+        // nascita che non lo scriva è una porta sull'immortalità
+        mortalFrom: new Date(),
+        lifeJitterDays: drawLifeJitter(),
+      })
       .returning({ id: gosini.id });
     if (born === undefined) throw new Error("l'esemplare non è stato creato");
 

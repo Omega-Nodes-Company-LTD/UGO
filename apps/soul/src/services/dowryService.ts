@@ -9,6 +9,7 @@ import {
 import { decryptText, encryptText, generateDataKey } from "@ugo/shared";
 import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { z } from "zod";
+import { drawLifeJitter } from "./lifeDice.js";
 import { buildRedactor } from "./privacy/redaction.js";
 
 /**
@@ -282,7 +283,9 @@ export class DowryService {
 
     const [born] = await this.db
       .insert(gosini)
-      .values({ householdId, name })
+      // ADR-077: chi nasce da una dote nasce adesso, quindi nasce mortale —
+      // la dote porta il sapere, non l'esenzione dall'arco
+      .values({ householdId, name, mortalFrom: new Date(), lifeJitterDays: drawLifeJitter() })
       .returning({ id: gosini.id });
     if (born === undefined) return undefined;
 

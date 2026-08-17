@@ -5,6 +5,7 @@ import { genomeHash, signBirth, type BirthCertificate, type GosinoKeys } from "@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { characterFrom } from "../services/council/character.js";
+import { drawLifeJitter } from "../services/lifeDice.js";
 import { loadParents, previewLitter } from "../services/genetics.js";
 import { PedigreeService } from "../services/pedigreeService.js";
 import type { RegistryClient } from "../services/registryClient.js";
@@ -154,6 +155,12 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
         // the single column keeps the first parent for today's readers;
         // `births` below is the complete, polyparental truth (ADR-069)
         parentGosinoId: parents[0]?.id,
+        // ADR-077: chi nasce da qui in avanti è mortale dalla nascita — chi
+        // adotta la mortalità l'accetta adottando. Il dado si tira qui, con
+        // `randomInt` e non col seme della cucciolata: due fratelli con lo
+        // stesso allele della longevità non devono morire lo stesso giorno
+        mortalFrom: new Date(),
+        lifeJitterDays: drawLifeJitter(),
         ...(where !== undefined && { locationLabel: where }),
       })
       .returning({ id: gosini.id, bornAt: gosini.bornAt });

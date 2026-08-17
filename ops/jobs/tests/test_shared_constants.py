@@ -32,8 +32,13 @@ def _number(source: Path, name: str) -> float:
 
 
 def test_the_life_curve_is_the_same_in_both_languages() -> None:
-    assert _number(LIFE_TS, "LIFESPAN_MIN_DAYS") == hygiene.LIFESPAN_MIN_DAYS
-    assert _number(LIFE_TS, "LIFESPAN_MAX_DAYS") == hygiene.LIFESPAN_MAX_DAYS
+    # ADR-077: garanzia + dono + dado. Il dado non entra nella curva della
+    # plasticita', ma entra nella vita attesa che la divide — quindi anche il
+    # suo tetto deve essere lo stesso numero nelle due lingue
+    assert _number(LIFE_TS, "GUARANTEED_DAYS") == hygiene.GUARANTEED_DAYS
+    assert _number(LIFE_TS, "GIFT_MAX_DAYS") == hygiene.GIFT_MAX_DAYS
+    assert _number(LIFE_TS, "GIFT_CURVE") == hygiene.GIFT_CURVE
+    assert _number(LIFE_TS, "JITTER_MAX_DAYS") == hygiene.JITTER_MAX_DAYS
     assert _number(LIFE_TS, "PLASTICITY_YOUNG") == hygiene.PLASTICITY_YOUNG
     assert _number(LIFE_TS, "PLASTICITY_OLD") == hygiene.PLASTICITY_OLD
     assert _number(LIFE_TS, "PLASTICITY_HALFWAY") == hygiene.PLASTICITY_HALFWAY
@@ -42,6 +47,15 @@ def test_the_life_curve_is_the_same_in_both_languages() -> None:
 def test_the_efficacy_decay_is_the_same_in_both_languages() -> None:
     """Il commento in `hygiene.py` lo prometteva da ADR-058: adesso è vero."""
     assert _number(EFFICACY_TS, "NIGHTLY_DECAY") == hygiene.EFFICACY_DECAY
+
+
+def test_the_guarantee_is_a_floor_in_python_too() -> None:
+    """ADR-077: nessun genoma, e nessun dado, vive meno di tre anni."""
+    assert hygiene.lifespan_days_for(0.0) == hygiene.GUARANTEED_DAYS
+    assert hygiene.lifespan_days_for(0.0, -500) == hygiene.GUARANTEED_DAYS
+    assert hygiene.lifespan_days_for(1.0) == hygiene.GUARANTEED_DAYS + hygiene.GIFT_MAX_DAYS
+    # e il dado somma giorni, uno per uno, senza toccare il resto
+    assert hygiene.lifespan_days_for(0.5, 30) == hygiene.lifespan_days_for(0.5) + 30
 
 
 def test_the_plasticity_curve_keeps_its_promise() -> None:

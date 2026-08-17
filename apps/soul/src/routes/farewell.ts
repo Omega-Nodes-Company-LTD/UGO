@@ -42,6 +42,24 @@ export interface FarewellRoutesDeps {
 export function registerFarewellRoutes(app: FastifyInstance, deps: FarewellRoutesDeps): void {
   const farewells = new FarewellService(deps.db, deps.dataKey);
 
+  /**
+   * ADR-077: il capostipite accetta la mortalità, **e l'arco parte da oggi**.
+   *
+   * Non è un interruttore di configurazione: è un consenso, si dà una volta e
+   * non si toglie — chiedere di tornare immortali sarebbe chiedere che la
+   * specie non funzioni. Chi è già mortale riceve `409`, che è la differenza
+   * fra «fatto» e «rifatto».
+   */
+  app.post("/v1/gosini/:id/mortality", { preHandler: deps.guard }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
+    if (householdId === undefined) return reply;
+    const accepted = await farewells.acceptMortality(householdId, id);
+    if (!accepted) return reply.status(409).send({ error: "già mortale, o non esiste" });
+    await deps.registry?.reload();
+    return reply.send({ mortal: true });
+  });
+
   app.post("/v1/gosini/:id/farewell/preview", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = previewSchema.safeParse(request.body ?? {});
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });

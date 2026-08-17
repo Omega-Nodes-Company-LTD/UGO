@@ -1,0 +1,1 @@
+ALTER TABLE "gosini" ADD COLUMN "life_jitter_days" integer;

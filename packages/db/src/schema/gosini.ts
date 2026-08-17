@@ -60,6 +60,36 @@ export const gosini = pgTable(
      */
     wrappedSoulKey: bytea("wrapped_soul_key"),
     bornAt: timestamp("born_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Da quando corre l'arco della vita (ADR-077).
+     *
+     * `null` = non ancora mortale, ed è lo stato dei capostipiti nati prima di
+     * quell'ADR: il pannello chiede al proprietario di accettare la mortalità,
+     * e da quel giorno — **non dalla nascita** — comincia a contare. Applicare
+     * l'orologio a ritroso vorrebbe dire creature già scadute il giorno di un
+     * aggiornamento, che è la morte da bug che la visione vieta.
+     *
+     * Per chi nasce da qui in avanti vale `born_at`: la mortalità è parte
+     * dell'atto di nascita, e chi adotta l'accetta adottando.
+     */
+    mortalFrom: timestamp("mortal_from", { withTimezone: true }),
+    /**
+     * ADR-077: il dado di QUESTO esemplare, in giorni, estratto una volta
+     * sola — alla nascita, o il giorno in cui un capostipite accetta la
+     * mortalità.
+     *
+     * Senza, la vita attesa sarebbe una funzione del genoma: due fratelli
+     * della stessa cucciolata morirebbero lo stesso giorno, e chiunque
+     * leggesse il gene nascosto avrebbe la data. Non negativo per
+     * costruzione (la garanzia dei tre anni è un pavimento), piccolo per
+     * scelta (il rumore non deve coprire la selezione).
+     *
+     * `null` = non ancora estratto, e vale zero: è lo stato dei capostipiti
+     * finché non accettano.
+     */
+    lifeJitterDays: integer("life_jitter_days"),
+    /** ADR-077: quando gli sono stati detti i sessanta giorni. Una volta sola. */
+    deathNoticeAt: timestamp("death_notice_at", { withTimezone: true }),
     retiredAt: timestamp("retired_at", { withTimezone: true }),
   },
   (table) => [

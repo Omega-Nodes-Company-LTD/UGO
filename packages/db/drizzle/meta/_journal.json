@@ -267,6 +267,20 @@
       "when": 1786998861174,
       "tag": "0037_le-liste-rls",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1787000359695,
+      "tag": "0038_shiny_puff_adder",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1787000834399,
+      "tag": "0039_dapper_george_stacy",
+      "breakpoints": true
     }
   ]
 }

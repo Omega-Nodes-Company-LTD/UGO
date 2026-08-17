@@ -26,7 +26,9 @@ let token: string;
 
 interface Listed {
   name: string;
-  age: { days: number; stage: string; fraction: number; plasticity: number; greying: number };
+  mortal: boolean;
+  farewellNotice: boolean;
+  age?: { days: number; stage: string; coat: string };
 }
 
 const list = async (): Promise<Listed[]> => {
@@ -51,11 +53,13 @@ beforeAll(async () => {
   const born = async (name: string, daysAgo: number, traits: object): Promise<void> => {
     const [row] = await db
       .insert(gosini)
-      .values({ householdId: house.householdId, name })
+      .values({ householdId: house.householdId, name, lifeJitterDays: 0 })
       .returning({ id: gosini.id });
     if (row === undefined) throw new Error("no exemplar");
+    // ADR-077: l'arco corre da `mortal_from`, e questi sono nati mortali
     await db.execute(
-      sql`update gosini set born_at = now() - make_interval(days => ${daysAgo}) where id = ${row.id}`,
+      sql`update gosini set born_at = now() - make_interval(days => ${daysAgo}),
+          mortal_from = now() - make_interval(days => ${daysAgo}) where id = ${row.id}`,
     );
     await db.insert(traitSets).values({
       householdId: house.householdId,
@@ -69,6 +73,19 @@ beforeAll(async () => {
   await born("Vecchio", 1300, { calm: 0.5, longevity: 0.5 });
   // un genoma di prima di ADR-071: nessun gene della longevità
   await born("Antico", 200, { calm: 0.5 });
+
+  // ADR-077: e uno nato prima che l'arco esistesse, che non l'ha ancora accettato
+  const [immortal] = await db
+    .insert(gosini)
+    .values({ householdId: house.householdId, name: "Capostipite" })
+    .returning({ id: gosini.id });
+  if (immortal === undefined) throw new Error("no exemplar");
+  await db.insert(traitSets).values({
+    householdId: house.householdId,
+    gosinoId: immortal.id,
+    version: 1,
+    traits: { calm: 0.5, longevity: 0.5 },
+  });
 
   app = buildServer({
     db,
@@ -92,32 +109,44 @@ afterAll(async () => {
 });
 
 describe("GET /v1/gosini porta l'età", () => {
-  it("un cucciolo di tre giorni è un cucciolo, e cambia in fretta", async () => {
+  it("un cucciolo di tre giorni è un cucciolo, col pelo ancora scuro", async () => {
     const cub = (await list()).find((g) => g.name === "Cucciolo");
-    expect(cub?.age.days).toBe(3);
-    expect(cub?.age.stage).toBe("cucciolo");
-    expect(cub?.age.plasticity).toBeGreaterThan(2);
-    expect(cub?.age.greying).toBe(0);
+    expect(cub?.age?.days).toBe(3);
+    expect(cub?.age?.stage).toBe("cucciolo");
+    expect(cub?.age?.coat).toBe("scuro");
   });
 
   it("un anziano ha finito di diventare sé stesso, ed è ingrigito", async () => {
     const elder = (await list()).find((g) => g.name === "Vecchio");
-    expect(elder?.age.stage).toBe("anziano");
-    expect(elder?.age.greying).toBeGreaterThan(0.8);
-    // la differenza che conta: quanto la vita può ancora riscriverlo
-    const cub = (await list()).find((g) => g.name === "Cucciolo");
-    expect(elder?.age.plasticity).toBeLessThan((cub?.age.plasticity ?? 9) / 5);
-  });
-
-  it("l'anziano non è fermo: impara poco, non niente", async () => {
-    const elder = (await list()).find((g) => g.name === "Vecchio");
-    expect(elder?.age.plasticity).toBeGreaterThan(0);
+    expect(elder?.age?.stage).toBe("anziano");
+    expect(elder?.age?.coat).toBe("grigio");
   });
 
   it("un genoma senza il gene della longevità vive nella media, e non rompe niente", async () => {
     const old = (await list()).find((g) => g.name === "Antico");
-    expect(old?.age.days).toBe(200);
-    expect(old?.age.stage).toBe("adulto");
-    expect(Number.isFinite(old?.age.fraction)).toBe(true);
+    expect(old?.age?.days).toBe(200);
+    expect(old?.age?.stage).toBe("adulto");
+    expect(old?.age?.coat).toBe("scuro");
+  });
+
+  /**
+   * ADR-077, la prova che vale più delle altre: **da quello che l'API manda
+   * non si ricava la data della morte**. `fraction` e `plasticity` c'erano, e
+   * da una qualunque delle due bastava una divisione; `greying` era la stessa
+   * cosa con un altro nome. Se qualcuno le rimette, questo test diventa rosso
+   * prima che il pannello le mostri.
+   */
+  it("non manda niente da cui si possa dividere per ottenere la vita attesa", async () => {
+    const elder = (await list()).find((g) => g.name === "Vecchio");
+    const age: Record<string, unknown> = { ...elder?.age };
+    expect(Object.keys(age).sort()).toEqual(["coat", "days", "stage"]);
+  });
+
+  it("un capostipite che non ha accettato la mortalità non ha età da mostrare", async () => {
+    const founder = (await list()).find((g) => g.name === "Capostipite");
+    expect(founder?.mortal).toBe(false);
+    expect(founder?.age).toBeUndefined();
+    // e nessuno gli ha detto niente, perché non c'è niente da dirgli
+    expect(founder?.farewellNotice).toBe(false);
   });
 });

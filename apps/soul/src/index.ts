@@ -22,6 +22,8 @@ import { ExportService } from "./services/privacy/exportService.js";
 import { ForgetService } from "./services/privacy/forgetService.js";
 import { PsycheService } from "./services/psycheService.js";
 import { IdleConsolidation } from "./services/idleConsolidation.js";
+import { MortalityWatch } from "./services/mortalityWatch.js";
+import { RegistryClient } from "./services/registryClient.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { CouncilService } from "./services/council/councilService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
@@ -648,6 +650,34 @@ if (env.UGO_IDLE_CONSOLIDATION_MINUTES > 0) {
   idleTimer.unref();
   periodic.push(idleTimer);
 }
+
+/**
+ * ADR-077: l'arco che finisce da solo. Sei ore — non è un lavoro urgente, ma
+ * deve girare anche nelle case dove il sogno è spento: il preavviso dei
+ * sessanta giorni è una promessa fatta al proprietario, e una promessa che
+ * dipende da un container opzionale non è una promessa.
+ */
+const mortality = new MortalityWatch({
+  db,
+  dataKey,
+  registry,
+  logger: app.log,
+  ...(env.UGO_REGISTRY_URL !== undefined &&
+    env.UGO_REGISTRY_TOKEN !== undefined && {
+      chain: new RegistryClient({
+        baseUrl: env.UGO_REGISTRY_URL,
+        token: env.UGO_REGISTRY_TOKEN,
+      }),
+    }),
+});
+const MORTALITY_TICK_MS = 6 * 3_600_000;
+const mortalityTimer = setInterval(() => {
+  mortality.tick().catch((error: unknown) => {
+    app.log.warn(error, "mortality tick failed");
+  });
+}, MORTALITY_TICK_MS);
+mortalityTimer.unref();
+periodic.push(mortalityTimer);
 
 const snapshotTimer = setInterval(() => {
   psyche.snapshot().catch((error: unknown) => {
