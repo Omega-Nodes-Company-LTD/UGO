@@ -73,7 +73,17 @@ document.addEventListener("click", async (event) => {
   } catch (error) { say("pack-msg", "Non cancellata: " + error.message, "err"); }
 });
 
-function escape(value) { const d = document.createElement("div"); d.textContent = value; return d.innerHTML; }
+// Le virgolette le codifica a mano, e non è pedanteria: \`textContent\` da solo
+// copre il contesto TESTO e non quello di ATTRIBUTO, e in \`feeds.ts\` questo
+// stesso helper finisce dentro un \`data-name="…"\`. Un feed etichettato
+// \`x" onmouseover="…\` usciva dall'attributo, e il token dell'operatore sta in
+// \`localStorage\` sulla stessa origin. Una funzione sola per due contesti deve
+// essere sicura nel più stretto dei due.
+function escape(value) {
+  const d = document.createElement("div");
+  d.textContent = value;
+  return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 
 $("add-being").addEventListener("click", async () => {
   const displayName = $("name").value.trim();

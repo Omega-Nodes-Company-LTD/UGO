@@ -40,6 +40,8 @@ export interface TtsClientOptions {
   /** il fuso della casa (ADR-050): decide il confine del giorno del ledger */
   timezone?: string;
   timeoutMs?: number;
+  /** stessa forma di `LlmClientOptions`: ID e classe dell'errore, mai il testo */
+  logger?: { warn: (data: Record<string, unknown>, message: string) => void };
 }
 
 export interface LocalTtsClient {
@@ -87,6 +89,7 @@ export class OpenAiTtsClient implements LocalTtsClient {
     // il muro PRIMA della chiamata: a salvadanaio vuoto non si spende, e la
     // voce di sistema è il ripiego dichiarato, non un errore
     if (!(await this.budgetLeft(spender, at))) return undefined;
+    let audio: Buffer;
     try {
       const response = await fetch(
         new URL("/v1/audio/speech", this.options.baseUrl ?? "https://api.openai.com"),
@@ -106,23 +109,38 @@ export class OpenAiTtsClient implements LocalTtsClient {
           signal: AbortSignal.timeout(this.options.timeoutMs ?? 20_000),
         },
       );
-      if (!response.ok) return undefined;
-      const audio = Buffer.from(await response.arrayBuffer());
-      const cost = text.length * ESTIMATED_USD_PER_CHAR;
-      await this.options.db.insert(budgetLedger).values({
-        date: this.today(at),
-        provider: "openai",
-        model: this.options.model ?? "gpt-4o-mini-tts",
-        tokensIn: text.length,
-        tokensOut: text.length,
-        costUsd: cost.toFixed(6),
-        householdId: spender.householdId,
-        gosinoId: spender.gosinoId,
-      });
-      return audio;
+      if (!response.ok) {
+        // la classe dell'errore, mai il corpo (regola 6): un 401 e un 429 si
+        // curano in modi opposti, e senza questa riga erano lo stesso silenzio
+        this.options.logger?.warn(
+          { status: response.status, householdId: spender.householdId },
+          "tts provider refused: falling back to the system voice",
+        );
+        return undefined;
+      }
+      audio = Buffer.from(await response.arrayBuffer());
     } catch {
       // irraggiungibile o scaduto: il muso parla con la voce di sistema
       return undefined;
     }
+
+    // Fuori dal `try`, e di proposito. La scrittura sul registro stava DENTRO,
+    // sotto un `catch` che restituiva `undefined`: se falliva dopo che l'audio
+    // era arrivato — ed era stato pagato — si buttava via l'audio, non si
+    // segnava la spesa, e non lo sapeva nessuno. Il salvadanaio perdeva una
+    // riga in silenzio, che è il modo esatto in cui un tetto smette di essere
+    // un tetto. Qui un guasto del registro risale, invece di sparire.
+    const cost = text.length * ESTIMATED_USD_PER_CHAR;
+    await this.options.db.insert(budgetLedger).values({
+      date: this.today(at),
+      provider: "openai",
+      model: this.options.model ?? "gpt-4o-mini-tts",
+      tokensIn: text.length,
+      tokensOut: text.length,
+      costUsd: cost.toFixed(6),
+      householdId: spender.householdId,
+      gosinoId: spender.gosinoId,
+    });
+    return audio;
   }
 }

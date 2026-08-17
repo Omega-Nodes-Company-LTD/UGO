@@ -9,7 +9,7 @@ import {
   type GlyphPattern,
   type ServerToFaceMessage,
 } from "@ugo/shared";
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte, isNull } from "drizzle-orm";
 import type { ChatService } from "./chatService.js";
 import type { PsycheService } from "./psycheService.js";
 import { toneOfBase64 } from "./prosody.js";
@@ -299,24 +299,27 @@ export class FaceGateway {
       const kept = await recognition.rememberUnknownFace(image);
       if (kept === undefined || kept.seenCount < ASK_AFTER_SIGHTINGS) return;
 
-      const [already] = await this.deps.db
-        .select({ id: unknownPrints.id, askedAt: unknownPrints.askedAt })
-        .from(unknownPrints)
-        .where(eq(unknownPrints.id, kept.printId));
-      if (already?.askedAt != null) return;
-      if (already === undefined) return;
+      // Si marca PRIMA di chiedere — se lo si marcasse dopo, un riavvio in
+      // mezzo produrrebbe la stessa domanda ogni sera — e si marca con un
+      // `update … where asked_at is null` che **rivendica** la riga: leggere
+      // prima e scrivere poi lasciava passare due frame `face_seen`
+      // concorrenti (la camera ne manda uno ogni 30 s per chiosco, e i due
+      // corpi di una stanza guardano lo stesso volto), che leggevano entrambi
+      // `askedAt = null` e inserivano entrambi il desiderio: UGO chiedeva due
+      // volte chi era quella persona. Qui vince chi arriva primo, e chi arriva
+      // secondo non trova più righe da aggiornare.
+      const claimed = await this.deps.db
+        .update(unknownPrints)
+        .set({ askedAt: at })
+        .where(and(eq(unknownPrints.id, kept.printId), isNull(unknownPrints.askedAt)))
+        .returning({ id: unknownPrints.id });
+      if (claimed.length === 0) return;
 
       await this.deps.db.insert(desires).values({
         gosinoId: this.deps.gosinoId,
         text: ASK_WHO,
         dueHint: "quando c'è qualcuno",
       });
-      // marcato **prima** che la domanda venga detta: se la si marcasse dopo,
-      // un riavvio in mezzo produrrebbe la stessa domanda ogni sera
-      await this.deps.db
-        .update(unknownPrints)
-        .set({ askedAt: at })
-        .where(eq(unknownPrints.id, kept.printId));
     } catch {
       // servizio spento, modello non caricato, rete: si continua senza sapere
       // chi è, che è esattamente quel che si faceva prima di ADR-057

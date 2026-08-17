@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import boto3
+from botocore.exceptions import ClientError
 import numpy as np
 import psycopg
 
@@ -137,7 +138,13 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, enc
 
     key_bytes = parse_data_key(cfg.data_key_b64)
     vectors = embed(cfg, [text for _t0, _t1, text in pieces])
-    for (t0, t1, text), vector in zip(pieces, vectors):
+    # `strict=True` e non per pedanteria: `zip` senza tronca in silenzio, e qui
+    # subito dopo si CANCELLA l'audio sorgente. Se Ollama restituiva meno
+    # embedding dei testi (un lotto parziale, un timeout su un pezzo), i
+    # segmenti in eccesso non venivano mai scritti, l'originale spariva lo
+    # stesso, e `IngestResult.segments` riportava un numero plausibile. Una
+    # perdita definitiva che si presentava come una notte riuscita.
+    for (t0, t1, text), vector in zip(pieces, vectors, strict=True):
         being_id = _attribute(conn, cfg, audio, t0, t1, encoder)
         conn.execute(
             """
@@ -166,11 +173,40 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, enc
     return len(pieces)
 
 
+def _ensure_bucket(client, bucket: str) -> None:  # noqa: ANN001
+    """Il bucket c'è, o si crea — ma solo se davvero non c'era.
+
+    L'`except Exception` nudo trattava «403 Forbidden» e «endpoint
+    irraggiungibile» come «non esiste»: con credenziali scadute si finiva a
+    provare una `create_bucket` e l'operatore leggeva un errore sulla
+    CREAZIONE di un bucket che esisteva benissimo, mentre il problema era
+    l'autenticazione. Qui un 404 crea, e tutto il resto risale così com'è.
+    """
+    try:
+        client.head_bucket(Bucket=bucket)
+    except ClientError as error:
+        if error.response.get("ResponseMetadata", {}).get("HTTPStatusCode") != 404:
+            raise
+        client.create_bucket(Bucket=bucket)
+
+
+def _all_objects(client, bucket: str, prefix: str):  # noqa: ANN001, ANN201
+    """Ogni oggetto sotto il prefisso, non i primi mille.
+
+    `list_objects_v2` tronca a 1000 chiavi e lo dice solo in `IsTruncated`, che
+    nessuno guardava. Passato il migliaio di file archiviati, la retention
+    dichiarata (`UGO_AUDIO_RETENTION_DAYS`) smetteva di vedere proprio i più
+    vecchi — quelli da cancellare — e una promessa di minimizzazione scadeva in
+    silenzio mentre i log continuavano a dire che il giro era andato bene.
+    """
+    for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
+        yield from page.get("Contents", [])
+
+
 def _prune_archive(cfg: JobsConfig, client) -> int:  # noqa: ANN001
     cutoff = datetime.now(timezone.utc) - timedelta(days=cfg.audio_retention_days)
     pruned = 0
-    response = client.list_objects_v2(Bucket=cfg.s3_bucket_audio, Prefix=ARCHIVE_PREFIX)
-    for item in response.get("Contents", []):
+    for item in _all_objects(client, cfg.s3_bucket_audio, ARCHIVE_PREFIX):
         if item["LastModified"] < cutoff:
             client.delete_object(Bucket=cfg.s3_bucket_audio, Key=item["Key"])
             pruned += 1
@@ -181,12 +217,12 @@ def run_ingest(
     conn: psycopg.Connection, cfg: JobsConfig, _dream_date: str, encoder=None  # noqa: ANN001
 ) -> IngestResult:
     client = _s3_client(cfg)
-    try:
-        client.head_bucket(Bucket=cfg.s3_bucket_audio)
-    except Exception:
-        client.create_bucket(Bucket=cfg.s3_bucket_audio)
-    response = client.list_objects_v2(Bucket=cfg.s3_bucket_audio, Prefix=INBOX_PREFIX)
-    keys = [item["Key"] for item in response.get("Contents", []) if item["Key"] != INBOX_PREFIX]
+    _ensure_bucket(client, cfg.s3_bucket_audio)
+    keys = [
+        item["Key"]
+        for item in _all_objects(client, cfg.s3_bucket_audio, INBOX_PREFIX)
+        if item["Key"] != INBOX_PREFIX
+    ]
 
     files = 0
     segments = 0

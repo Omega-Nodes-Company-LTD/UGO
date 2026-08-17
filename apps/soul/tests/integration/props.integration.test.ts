@@ -107,6 +107,7 @@ beforeAll(async () => {
   const psyche = await PsycheService.restore(db, new Date(), creature?.id ?? "");
   const chat = new ChatService({
     gosinoId: creature?.id ?? "",
+    householdId: house,
     character: characterFrom({}),
     db,
     // le rotte sotto test non li sfiorano; se un giorno lo faranno, questo

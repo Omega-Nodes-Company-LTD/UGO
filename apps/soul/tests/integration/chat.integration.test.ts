@@ -7,6 +7,7 @@ import {
   memories,
   messages,
   PRIME_GOSINO_ID,
+  PRIME_HOUSEHOLD_ID,
   runMigrations,
 } from "@ugo/db";
 import { EMBED_MODEL, startLlmStub, startOllama, type LlmStub, type OllamaHandle } from "@ugo/factories";
@@ -45,6 +46,7 @@ async function buildSession(budgetUsd = 0.5): Promise<FastifyInstance> {
   });
   const chat = new ChatService({
     gosinoId: PRIME_GOSINO_ID,
+    householdId: PRIME_HOUSEHOLD_ID,
     character: characterFrom({}),
     db,
     embedder,

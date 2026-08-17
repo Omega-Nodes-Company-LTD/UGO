@@ -26,10 +26,18 @@ from .config import JobsConfig
 
 TModel = TypeVar("TModel", bound=BaseModel)
 
-# Batch pricing is half of standard (PROGETTO §6), per million tokens.
+# Prezzo di listino, per milione di token.
 PRICE_IN_PER_MTOK = 1.0
 PRICE_OUT_PER_MTOK = 5.0
-BATCH_DISCOUNT = 0.5
+# Lo sconto batch e' 0.5 (PROGETTO §6) e qui vale 1.0, cioe' nessuno sconto:
+# `_ask_anthropic` fa una POST **sincrona** su /v1/messages, che e' la strada
+# in tempo reale e si paga a listino. La Batches API e' un'altra cosa — si
+# accoda un lavoro e si ritira il risultato — e questo codice non la usa.
+# Scontando a meta' una chiamata a prezzo pieno il registro dichiarava la
+# meta' di quel che il sogno spendeva davvero, e `budget_left()` autorizzava
+# il doppio del consentito ogni notte. Il giorno in cui si passa davvero alle
+# Batches, questa costante torna 0.5 insieme al codice che la giustifica.
+BATCH_DISCOUNT = 1.0
 
 MAX_TOKENS = 2000
 
@@ -96,7 +104,21 @@ def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None
     """ADR-001 fallback: the API in batch-priced mode when the local MoE is
     unavailable. It costs money, so it goes through the same piggy bank the
     real-time path uses (CLAUDE.md rule 3) — the ledger must show every cent,
-    whichever process spent it."""
+    whichever process spent it.
+
+    Senza connessione non si spende. Il registro stava sotto un
+    ``if conn is not None`` e ``conn`` ha il valore predefinito ``None``:
+    qualunque chiamante che lo omettesse — un test, uno script di una sera —
+    faceva una chiamata a pagamento fuori dal salvadanaio, senza tetto e senza
+    riga, e senza un errore che lo dicesse. La regola 3 non ammette una strada
+    a pagamento che non passa dal registro: se il registro non c'e', la strada
+    non si prende.
+    """
+    if conn is None:
+        raise RuntimeError(
+            "the paid ADR-001 fallback needs the ledger connection: "
+            "no piggy bank, no spending (CLAUDE.md rule 3)"
+        )
     response = httpx.post(
         f"{cfg.anthropic_base_url}/v1/messages",
         headers={
@@ -113,37 +135,36 @@ def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None
     )
     response.raise_for_status()
     body = response.json()
-    if conn is not None:
-        usage = body.get("usage", {})
-        tokens_in = int(usage.get("input_tokens", 0))
-        tokens_out = int(usage.get("output_tokens", 0))
-        cost = (
-            (tokens_in * PRICE_IN_PER_MTOK + tokens_out * PRICE_OUT_PER_MTOK)
-            / 1_000_000
-            * BATCH_DISCOUNT
-        )
-        # ADR-050: il giorno del ledger e' quello della CASA, non del server.
-        # `current_date` e' la data di Postgres, mentre `LlmClient` in soul
-        # calcola la propria con il fuso della famiglia: due strade che
-        # scrivono sulla stessa colonna e in fusi diversi rispondevano date
-        # diverse, cioe' un tetto giornaliero che si azzera due volte o mai.
-        conn.execute(
-            """
-            insert into budget_ledger
-              (date, provider, model, tokens_in, tokens_out, cost_usd, household_id, gosino_id)
-            values (%s, 'anthropic', %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                _today(cfg),
-                cfg.anthropic_batch_model,
-                tokens_in,
-                tokens_out,
-                round(cost, 6),
-                cfg.household_id,
-                cfg.gosino_id,
-            ),
-        )
-        conn.commit()
+    usage = body.get("usage", {})
+    tokens_in = int(usage.get("input_tokens", 0))
+    tokens_out = int(usage.get("output_tokens", 0))
+    cost = (
+        (tokens_in * PRICE_IN_PER_MTOK + tokens_out * PRICE_OUT_PER_MTOK)
+        / 1_000_000
+        * BATCH_DISCOUNT
+    )
+    # ADR-050: il giorno del ledger e' quello della CASA, non del server.
+    # `current_date` e' la data di Postgres, mentre `LlmClient` in soul
+    # calcola la propria con il fuso della famiglia: due strade che
+    # scrivono sulla stessa colonna e in fusi diversi rispondevano date
+    # diverse, cioe' un tetto giornaliero che si azzera due volte o mai.
+    conn.execute(
+        """
+        insert into budget_ledger
+          (date, provider, model, tokens_in, tokens_out, cost_usd, household_id, gosino_id)
+        values (%s, 'anthropic', %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            _today(cfg),
+            cfg.anthropic_batch_model,
+            tokens_in,
+            tokens_out,
+            round(cost, 6),
+            cfg.household_id,
+            cfg.gosino_id,
+        ),
+    )
+    conn.commit()
     return "".join(part.get("text", "") for part in body.get("content", []))
 
 

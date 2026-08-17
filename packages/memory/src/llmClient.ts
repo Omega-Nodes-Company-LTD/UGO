@@ -76,14 +76,20 @@ export interface LlmClientOptions {
   logger?: { warn: (data: Record<string, unknown>, message: string) => void };
 }
 
+/**
+ * Il conteggio, da solo: si legge PRIMA e indipendentemente dal resto, perché
+ * la spesa va segnata anche quando la forma del resto è cambiata sotto i piedi.
+ */
+const usageSchema = z.object({
+  input_tokens: z.number(),
+  output_tokens: z.number(),
+  cache_creation_input_tokens: z.number().optional(),
+  cache_read_input_tokens: z.number().optional(),
+});
+
 const messagesResponseSchema = z.object({
   content: z.array(z.object({ type: z.string(), text: z.string().optional() })),
-  usage: z.object({
-    input_tokens: z.number(),
-    output_tokens: z.number(),
-    cache_creation_input_tokens: z.number().optional(),
-    cache_read_input_tokens: z.number().optional(),
-  }),
+  usage: usageSchema,
 });
 
 function localDate(timezone: string, at: Date): string {
@@ -96,6 +102,22 @@ export class LlmClient {
   private readonly locale: string;
   private readonly householdId: string;
   private readonly gosinoId: string;
+  /**
+   * La coda del salvadanaio (regola 3).
+   *
+   * Il controllo del tetto e la scrittura sul registro stavano ai due capi di
+   * una chiamata di rete: N richieste concorrenti leggevano tutte lo stesso
+   * `spent`, passavano tutte, e il tetto smetteva di essere un tetto senza
+   * dirlo. Qui la sequenza «guarda quanto s'è speso → chiama → segna» diventa
+   * indivisibile, una richiesta per volta per ogni casa.
+   *
+   * Costa la concorrenza fra due turni della stessa famiglia, ed è un prezzo
+   * che si paga volentieri: `UGO_DAILY_BUDGET_USD` è un vincolo dichiarato, e
+   * un vincolo che si può scavalcare correndo non è un vincolo. Resta di
+   * processo, come l'istanza: due soul sullo stesso database si
+   * ri-sovrapporrebbero, e allora il posto giusto sarebbe il database.
+   */
+  private queue: Promise<unknown> = Promise.resolve();
 
   public constructor(private readonly options: LlmClientOptions) {
     this.baseUrl = options.baseUrl ?? "https://api.anthropic.com";
@@ -129,7 +151,21 @@ export class LlmClient {
     return own === null || own === undefined ? this.options.dailyBudgetUsd : Number(own);
   }
 
+  /**
+   * Accoda: la prossima chiamata comincia quando la precedente ha finito di
+   * segnare la spesa, comprese le chiamate finite male.
+   */
   public async chat(request: LlmChatRequest, at: Date = new Date()): Promise<LlmChatResult> {
+    const mine = this.queue.then(
+      () => this.chatSerialized(request, at),
+      () => this.chatSerialized(request, at),
+    );
+    // la coda non deve mai restare "rifiutata", o inghiottirebbe le successive
+    this.queue = mine.catch(() => undefined);
+    return mine;
+  }
+
+  private async chatSerialized(request: LlmChatRequest, at: Date): Promise<LlmChatResult> {
     const [spent, budgetUsd] = await Promise.all([this.spentTodayUsd(at), this.dailyBudgetUsd()]);
     if (spent >= budgetUsd) {
       this.options.logger?.warn(
@@ -179,13 +215,19 @@ export class LlmClient {
       throw new Error(`LLM provider error (status ${String(response.status)})`);
     }
 
-    const parsed = messagesResponseSchema.parse(await response.json());
-    const text = parsed.content.find((block) => block.type === "text")?.text ?? "";
+    // Da qui in giù la chiamata è GIÀ STATA PAGATA, e il registro va scritto
+    // qualunque cosa succeda alla forma della risposta. Prima si faceva
+    // `schema.parse(...)` e si segnava dopo: bastava che il provider
+    // aggiungesse un blocco inatteso perché ogni turno costasse senza lasciare
+    // una riga, e `UGO_DAILY_BUDGET_USD` smettesse di limitare in silenzio —
+    // esattamente il guasto che il salvadanaio esiste per impedire.
+    const payload: unknown = await response.json();
+    const counted = usageSchema.safeParse((payload as { usage?: unknown } | null)?.usage);
     const usage: TokenUsage = {
-      inputTokens: parsed.usage.input_tokens,
-      outputTokens: parsed.usage.output_tokens,
-      cacheCreationInputTokens: parsed.usage.cache_creation_input_tokens ?? 0,
-      cacheReadInputTokens: parsed.usage.cache_read_input_tokens ?? 0,
+      inputTokens: counted.success ? counted.data.input_tokens : 0,
+      outputTokens: counted.success ? counted.data.output_tokens : 0,
+      cacheCreationInputTokens: counted.success ? (counted.data.cache_creation_input_tokens ?? 0) : 0,
+      cacheReadInputTokens: counted.success ? (counted.data.cache_read_input_tokens ?? 0) : 0,
     };
     const costUsd = computeCostUsd(this.options.model, usage);
 
@@ -201,6 +243,17 @@ export class LlmClient {
       tokensOut: usage.outputTokens,
       costUsd: costUsd.toFixed(6),
     });
+    if (!counted.success) {
+      // segnata a zero e dichiarata: una riga a costo zero è una bugia più
+      // piccola di nessuna riga, e questo log è il solo modo di accorgersene
+      this.options.logger?.warn(
+        { householdId: this.householdId, model: this.options.model },
+        "provider usage unreadable: ledger row written with zero tokens",
+      );
+    }
+
+    const parsed = messagesResponseSchema.parse(payload);
+    const text = parsed.content.find((block) => block.type === "text")?.text ?? "";
 
     return { text, degraded: false, usage, costUsd };
   }

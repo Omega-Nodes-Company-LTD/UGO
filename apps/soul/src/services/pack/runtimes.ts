@@ -177,6 +177,7 @@ async function buildRuntime(
     timezone,
     locale,
     gosinoId: row.id,
+    householdId: row.householdId,
     character,
     ...(deps.speciesMap !== undefined && {
       pack: new PackService(deps.db, deps.speciesMap, row.id, row.householdId),

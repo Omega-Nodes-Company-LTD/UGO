@@ -15,5 +15,9 @@ export const psycheSnapshots = pgTable(
     vars: jsonb("vars").notNull(),
     label: text("label").notNull(),
   },
-  (table) => [index("psyche_snapshots_ts_idx").on(table.ts)],
+  (table) => [
+    index("psyche_snapshots_ts_idx").on(table.ts),
+    // la serie delle 48 ore del pannello è per esemplare, non per server
+    index("psyche_snapshots_gosino_ts_idx").on(table.gosinoId, table.ts.desc()),
+  ],
 );

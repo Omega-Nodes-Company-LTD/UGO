@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { PreHandler } from "./guard.js";
 
 /** Minimal dev-only chat page (Fase 1 DoD): no build step, no dependencies. */
 const PAGE = `<!doctype html>
@@ -58,8 +59,8 @@ document.getElementById("f").addEventListener("submit", async (e) => {
 </body>
 </html>`;
 
-export function registerDebugChatRoute(app: FastifyInstance): void {
-  app.get("/debug/chat", async (_request, reply) => {
+export function registerDebugChatRoute(app: FastifyInstance, guard: PreHandler): void {
+  app.get("/debug/chat", { preHandler: guard }, async (_request, reply) => {
     return reply.type("text/html; charset=utf-8").send(PAGE);
   });
 }

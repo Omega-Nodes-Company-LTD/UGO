@@ -129,7 +129,9 @@ export class PropService {
     householdId: string,
     id: string,
     at: { x: number; z: number; rot: number },
-  ): Promise<SceneProp | undefined> {
+    // `roomSlug` era già nella riga restituita e il tipo lo nascondeva: la
+    // rotta finiva per chiedere a chi chiama una cosa che aveva già in mano
+  ): Promise<(SceneProp & { roomSlug: string }) | undefined> {
     const [moved] = await this.db
       .update(placedProps)
       .set(at)
@@ -152,7 +154,16 @@ export class PropService {
    * riposizionando un cuscino — cioè il pannello punirebbe il ripensamento, che
    * è il modo in cui uno strumento diventa qualcosa che si ha paura di toccare.
    */
-  public async remove(householdId: string, id: string): Promise<{ kind: PropKind } | undefined> {
+  public async remove(
+    householdId: string,
+    id: string,
+    // `roomSlug` esce insieme al tipo: è la stanza in cui l'arredo STAVA, ed è
+    // l'unica che debba ridisegnarsi. La rotta prendeva invece la stanza da
+    // `?stanza=` in query, cioè da chi chiama: sbagliarla — o ometterla —
+    // toglieva l'arredo dal database e lasciava il chiosco della stanza vera a
+    // mostrare il vecchio arredamento fino a un ricaricamento a mano. Che è
+    // esattamente il problema per cui l'hub di ADR-056 esiste.
+  ): Promise<{ kind: PropKind; roomSlug: string } | undefined> {
     return this.db.transaction(async (tx) => {
       const [gone] = await tx
         .delete(placedProps)
@@ -163,7 +174,7 @@ export class PropService {
         .update(propStock)
         .set({ remaining: sql`${propStock.remaining} + 1` })
         .where(and(eq(propStock.householdId, householdId), eq(propStock.kind, gone.kind)));
-      return { kind: gone.kind as PropKind };
+      return { kind: gone.kind as PropKind, roomSlug: gone.roomSlug };
     });
   }
 

@@ -10,6 +10,7 @@ import { z } from "zod";
 import { BeingNotFoundError, type ChatService } from "../services/chatService.js";
 import type { GosinoRegistry } from "../services/pack/runtimes.js";
 import type { PsycheService } from "../services/psycheService.js";
+import type { PreHandler } from "./guard.js";
 import { eldestExemplarOf, resolveHousehold } from "./scope.js";
 
 export interface V1Deps {
@@ -18,6 +19,16 @@ export interface V1Deps {
   psyche: PsycheService;
   /** ADR-032: present once the house can hold more than one of them */
   registry?: GosinoRegistry;
+  /**
+   * Il guardiano di `/v1/memories/search`, e di quella soltanto.
+   *
+   * Le altre rotte di questo file restano aperte per la ragione dichiarata in
+   * `stt.ts` (ADR-007: mono-utente, mai pubblico). La ricerca no: restituisce
+   * il **testo** dei ricordi, che è esattamente ciò che `archive.ts` protegge
+   * scrivendo «these return stored content, not just counts». La stessa classe
+   * di dato non può essere guardata di là e aperta di qua.
+   */
+  guard: PreHandler;
 }
 
 /** RFC 7807 problem responses (PROGETTO §5.7). */
@@ -98,7 +109,7 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
     return reply.code(201).send({ id: inserted[0]?.id, moodLabel: view.label });
   });
 
-  app.get("/v1/memories/search", async (request, reply) => {
+  app.get("/v1/memories/search", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = memorySearchQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       problem(reply, 400, "Invalid search query", z.prettifyError(parsed.error));

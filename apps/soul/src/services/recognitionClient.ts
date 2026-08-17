@@ -51,6 +51,13 @@ export interface RecognitionDeps {
  * tre secondi è una creatura che sembra rotta.
  */
 const DEFAULT_TIMEOUT_MS = 1_500;
+/**
+ * Quanto sono più pazienti le strade che scrivono (conservare un'impronta,
+ * rivendicare un volto) rispetto a quelle che rispondono in una conversazione.
+ * Più larghe perché non fanno aspettare nessuno che parla — ma limitate,
+ * perché «nessun limite» significa promesse appese per sempre.
+ */
+const SLOW_PATH_FACTOR = 8;
 
 export class RecognitionClient {
   private readonly fetchImpl: typeof fetch;
@@ -188,6 +195,13 @@ export class RecognitionClient {
     beingId: string;
     gosinoId: string;
   }): Promise<"learned" | "refused" | "unreachable"> {
+    // stesso timeout largo di `post`: il pannello aspetta questa risposta, e
+    // «irraggiungibile» detto dopo dieci secondi è una risposta; non dirla
+    // affatto è una rotella che gira a vuoto
+    const abort = new AbortController();
+    const timer = setTimeout(() => {
+      abort.abort();
+    }, this.timeoutMs * SLOW_PATH_FACTOR);
     try {
       const response = await this.fetchImpl(`${this.deps.baseUrl}/v1/prints/claim`, {
         method: "POST",
@@ -201,18 +215,31 @@ export class RecognitionClient {
           gosino_id: input.gosinoId,
           household_id: this.deps.householdId,
         }),
+        signal: abort.signal,
       });
       if (response.status === 403) return "refused";
       return response.ok ? "learned" : "unreachable";
     } catch {
       return "unreachable";
+    } finally {
+      clearTimeout(timer);
     }
   }
 
   private async post(path: string, body: object): Promise<unknown> {
-    // senza timeout, a differenza di `ask`: conservare un'impronta non sta sul
-    // percorso critico di una risposta, e mollarlo a meta' lascerebbe un
-    // volto scritto solo a meta'
+    // Con un timeout, e piu' lungo di quello di `ask`. La motivazione
+    // originale — «conservare un'impronta non sta sul percorso critico di una
+    // risposta» — non reggeva: `rememberUnknownFace` passa di qui, ed e'
+    // await-ata dentro `aboutThisFace`, che e' await-ata da `handle('face_seen')`,
+    // che e' await-ata dal socket. Un servizio di percezione piantato che non
+    // chiude la connessione lasciava una promessa appesa PER SEMPRE a ogni
+    // frame — uno ogni 30 secondi per chiosco — ognuna con la sua immagine
+    // base64 in memoria. Meglio un'impronta persa che una perdita di memoria
+    // che si mangia il processo.
+    const abort = new AbortController();
+    const timer = setTimeout(() => {
+      abort.abort();
+    }, this.timeoutMs * SLOW_PATH_FACTOR);
     try {
       const response = await this.fetchImpl(`${this.deps.baseUrl}${path}`, {
         method: "POST",
@@ -221,11 +248,14 @@ export class RecognitionClient {
           authorization: `Bearer ${this.deps.token}`,
         },
         body: JSON.stringify(body),
+        signal: abort.signal,
       });
       if (!response.ok) return undefined;
       return await response.json();
     } catch {
       return undefined;
+    } finally {
+      clearTimeout(timer);
     }
   }
 

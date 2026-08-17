@@ -102,8 +102,16 @@ def run_forever(
         delay = (target - clock_now()).total_seconds()
         if delay > 0:
             sleep(delay)
-        try:
-            for house in _houses(cfg):
+        failed = 0
+        # Il `try` sta DENTRO il ciclo, e non attorno. Con l'`except` fuori,
+        # la prima casa che sollevava — un bucket irraggiungibile, un esemplare
+        # ritirato — faceva uscire dal ciclo, e tutte le case successive non
+        # sognavano affatto quella notte. Il log diceva `dream_failed` una
+        # volta sola e non nominava nemmeno chi era rimasto fuori: una famiglia
+        # poteva restare senza sogno per settimane senza che niente lo dicesse.
+        # Ora un guasto è di UNA casa, e le altre proseguono.
+        for house in _houses(cfg):
+            try:
                 # ADR-019 fase 3: «le 02:30» non e' piu' un'ora sola. Ogni casa
                 # ha il suo fuso (`households.timezone`), quindi ogni casa ha
                 # il suo ieri — e sveglia il sogno con il proprio, non con
@@ -114,10 +122,18 @@ def run_forever(
                     json.dumps({"dream_report": report, "household": house.household_id}),
                     flush=True,
                 )
-        except Exception as error:  # noqa: BLE001 - one bad night is not the end
-            # never crash the container: tomorrow's dream must still happen,
-            # and the step markers make the retry a no-op for what succeeded
-            print(json.dumps({"dream_failed": str(error)}), file=sys.stderr, flush=True)
+            except Exception as error:  # noqa: BLE001 - one bad night is not the end
+                # never crash the container: tomorrow's dream must still happen,
+                # and the step markers make the retry a no-op for what succeeded
+                failed += 1
+                print(
+                    json.dumps(
+                        {"dream_failed": str(error), "household": house.household_id}
+                    ),
+                    file=sys.stderr,
+                    flush=True,
+                )
+        if failed:
             sleep(RETRY_AFTER_FAILURE_S)
         done += 1
     return 0
