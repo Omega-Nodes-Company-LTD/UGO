@@ -106,6 +106,8 @@ export interface RuntimeDeps {
   audio?: AudioStorageConfig;
   /** ADR-063: la finestra sul mondo, condivisa — la query non porta la casa */
   web?: { ask: (query: string) => Promise<string | undefined> };
+  /** ADR-064: le spinte («vai in…», «chiama…») — il servizio sa lui chi è chi */
+  nudges?: { answer: (gosinoId: string, text: string, at: Date) => Promise<string | undefined> };
 }
 
 /**
@@ -159,6 +161,7 @@ async function buildRuntime(
   await seedBaselines(deps.db, row.id, character.baselines);
   const psyche = await PsycheService.restore(deps.db, new Date(), row.id);
   const recognition = deps.recognition?.(row.householdId);
+  const nudges = deps.nudges;
   // ADR-065: il lettore ha bisogno del gateway, che nasce DOPO la chat (il
   // gateway ha bisogno della chat). La scatola scioglie il cerchio: la chat
   // legge il corpo solo al momento del gesto, quando esiste da un pezzo.
@@ -182,6 +185,9 @@ async function buildRuntime(
         gateway: () => body.gateway,
         ocr: (image) => recognition.ocr(image),
       }),
+    }),
+    ...(nudges !== undefined && {
+      nudges: { answer: (text: string, at: Date) => nudges.answer(row.id, text, at) },
     }),
   });
   // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.

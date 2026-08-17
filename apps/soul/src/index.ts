@@ -9,6 +9,7 @@ import { LlmClient, OllamaEmbeddingsClient,
 } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
+import { NudgeService } from "./services/nudges.js";
 import { SceneReader } from "./services/sceneReader.js";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
@@ -153,6 +154,12 @@ const bootstrapPercezione =
         token: env.UGO_INTERNAL_TOKEN,
         householdId: bootstrapHouseholdId,
       });
+// ADR-064: le spinte — il servizio nasce PRIMA di ogni chat (l'apparato di
+// avvio e i runtime lo vogliono fra le dipendenze) e legge il registro al
+// momento del gesto, quando esiste da un pezzo
+let registryRef: GosinoRegistry | undefined = undefined;
+const nudges = new NudgeService({ db, registry: () => registryRef });
+
 // l'annotazione esplicita spezza il cerchio dell'inferenza: chat → lettore →
 // gateway → chat (il lettore guarda il corpo solo al momento del gesto)
 const chat: ChatService = new ChatService({
@@ -171,6 +178,7 @@ const chat: ChatService = new ChatService({
       ocr: (image) => bootstrapPercezione.ocr(image),
     }),
   }),
+  nudges: { answer: (text, at) => nudges.answer(bootstrapExemplar.id, text, at) },
 });
 
 const audio = audioStorageFromEnv(env);
@@ -296,7 +304,9 @@ const registry = await GosinoRegistry.load({
   // ADR-057: senza bucket niente `voice_sample`, dal chiosco come dal pannello
   ...(audio !== undefined && { audio }),
   ...(web !== undefined && { web }),
+  nudges: { answer: (gosinoId, text, at) => nudges.answer(gosinoId, text, at) },
 });
+registryRef = registry;
 
 const app = buildServer({
   db,

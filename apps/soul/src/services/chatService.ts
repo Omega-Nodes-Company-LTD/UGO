@@ -52,6 +52,12 @@ export interface ChatServiceDeps {
    * gesto non esiste e la frase va al modello come una qualunque.
    */
   reader?: { read: () => Promise<ReadOutcome> };
+  /**
+   * ADR-064: le spinte — «vai in cucina», «chiama Silvio». Non comandi:
+   * pressioni che passano dal carattere, e possono essere rifiutate CON una
+   * risposta. Solo sul canale di casa; assente = le forme non esistono.
+   */
+  nudges?: { answer: (text: string, at: Date) => Promise<string | undefined> };
   /** the household's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
@@ -351,6 +357,34 @@ export class ChatService {
         },
       ]);
       return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+    }
+
+    // ADR-064: le spinte — stessa famiglia deterministica, stessa strada in
+    // biografia. Solo il canale di casa: la reception non arriva qui, e l'API
+    // resta fuori finché non decidiamo altrimenti
+    if (this.deps.nudges !== undefined && request.channel === "home") {
+      const nudged = await this.deps.nudges.answer(request.text, at);
+      if (nudged !== undefined) {
+        const owner = { gosinoId: this.deps.gosinoId };
+        await db.insert(messages).values([
+          {
+            ...owner,
+            ts: at,
+            channel: request.channel,
+            role: "user",
+            beingId: request.beingId ?? null,
+            text: encryptText(request.text, dataKey),
+          },
+          {
+            ...owner,
+            ts: new Date(at.getTime() + 1),
+            channel: request.channel,
+            role: "assistant",
+            text: encryptText(nudged, dataKey),
+          },
+        ]);
+        return { reply: nudged, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+      }
     }
 
     if (request.beingId !== undefined) {
