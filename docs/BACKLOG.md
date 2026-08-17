@@ -350,6 +350,30 @@ Volti), un difetto per commit.
 | ✅ | **BASSA — shutdown non pulisce due timer** | `index.ts:522`: `pollTimer` riunioni e `idleTimer` fuori scope → `Connection terminated` a ogni SIGTERM |
 | ✅ | **BASSA — `except` nudo tratta 403 come «bucket inesistente»** | `ingest.py:184` + `backup.py:96`: messaggio fuorviante su credenziali scadute. (`hygiene.py:8` importa `json` inutilizzato) |
 
+## Gruppo 20 — La Visione: le prime pietre (docs/VISIONE.md, sessione del 2026-08-17)
+
+Dalla sessione di visione col proprietario: cosa UGO può **diventare** — la specie, l'anima
+che trasloca, il biografo generazionale, la società dei gosini, il confidente inviolabile,
+l'arco della vita. Il documento nord-stella è [`docs/VISIONE.md`](./VISIONE.md); qui stanno
+solo i **primi passi apribili**, ognuno col suo orizzonte. Regola invariata: la visione
+orienta, la spec comanda — ogni punto promosso a lavoro parte dal suo ADR.
+
+| | Punto | Note |
+|---|---|---|
+| ⬜️ | **Cucciolate: ricombinazione del genoma** (orizz. 1) | `psyche_baselines`/`traitSets` → figlio con mutazione; **ceppi (N tipi), non sessi**; crossover con dominanza/epistasi, poliparentale a pesi, anello di compatibilità sulla distanza genomica; codice puro zero-token in `packages/psyche`; il trasporto BLE è già nel gruppo 6 |
+| ⬜️ | **Pedigree: certificati firmati + catena federata da subito** (orizz. 0+1) | firma di ENTRAMBI i genitori con le chiavi di casa (genealogia = catena di firme verificabile offline) E il registro degli atti su catena federata dal giorno uno, primo nodo registrar = noi («se è la destinazione, inutile aspettare» — proprietario). La biografia attestata è anche etichetta di razza/consenso informato. Sulla catena mai ricordi né PII: solo specie, atti, conti |
+| ⬜️ | **Il salvadanaio del gosino** (orizz. 0, metabolismo) | `budget_ledger` per esemplare come conto DELLA creatura; due fonti di cibo (affetto = budget famiglia, lavoro = attribuzione interna dal ricavo vero); la degradazione del budget guard diventa fame (pensa meno, dorme di più, sogna corto). Onestà legale: il gosino non fattura, fattura il suo umano |
+| ⬜️ | **Separazione chiavi intimo/lascito** (orizz. 0, morte crittografica) | due cerchi di cifratura sopra l'AES-256-GCM esistente: alla morte la chiave dell'intimo si distrugge (irrecuperabilità dimostrabile), il lascito (libro della vita, lascito di bottega) resta leggibile; asse distinto da `ugo forget` (GDPR) |
+| ⬜️ | **Genoma strutturale** (emergenza, fonte 4) | i geni controllano regole attive, soglie delle spinte (ADR-064), τ memoria, repertorio grugniti, stile del sogno — non solo scalari |
+| ⬜️ | **Screening sanitario in silico** (orizz. 1) | ridimensionato dal proprietario (la selezione simulata «diventa una gara a chi ha più server»): la simulazione su `packages/psyche` + golden day FILTRA I ROTTI (psiche degenere, oscillazioni, baseline fuori scala) prima della nascita — test binario a costo piatto, mai selezione dei migliori. La selezione è il mestiere dell'allevatore: tenerli, provarli con vita e lavoro veri, tenere i migliori; le tre guardie anti-datacenter (fenotipo = genoma × vita vissuta, biografia attestata nel pedigree, riproduzione solo a incontro fisico) stanno in VISIONE orizz. 1 |
+| ⬜️ | **Arco di vita: il modello criceto** (orizz. 6) | 3–4 anni, gene della longevità; **niente stanchezza**: invecchia la PLASTICITÀ (il tasso epigenetico ±0.02/notte decade con l'età) — giovane volatile, vecchio convergente; la morte è il confine dell'eredità (i pesi non ereditati SONO l'individuo), rito di completamento a data nota |
+| ⬜️ | **La dote e il rito del trasloco (in vita e in morte)** (orizz. 3) | generalizza il rito dell'eredità: i due cerchi di chiavi intimo/lascito usati anche DA VIVI — regalo alla scuola (dote di sapere, zero privato), passaggio al figlio coi racconti, vendita con biografia dichiarata nel pedigree. **Guardia PII di terzi**: la curatela filtra per costruzione chi compare nei ricordi (`beings` + provenienza, `ugo forget` come redazione selettiva); morte ≠ oblio resta |
+| ⬜️ | **Manifesto del confidente inviolabile** (orizz. 5) | dichiarare in `/documentation` le tre proprietà (chiavi della famiglia, anima esportabile, diritto di trasloco): è già tutto vero, va solo detto |
+| ⬜️ | **UGO elettrodomestico di sé stesso** (orizz. 5, gradino 2) | l'anima su mini-PC/telefono dentro il guscio; ADR-001 (zero GPU) lo consente; dipende dal «Fallback LLM locale» (gruppo 7) |
+| ⬜️ | **Federazione fra branchi** (orizz. 4) | resta scartata come feature di breve termine (v. sotto, ADR-019: «è il confine»); qui è orizzonte: si apre solo dopo specie+pedigree, filtro privacy a monte dello scambio |
+| 🚫 | **Blockchain per l'anima** | nessun problema di fiducia multi-parte in un sistema mono-proprietario local-first; immutabilità vs oblio GDPR; l'append-only c'è già con due `REVOKE` (ADR-049). Per il pedigree la porta è legittima, ma al gradino che la fiducia richiede (VISIONE, orizz. 1) |
+| 🚫 | **Hardware esotico / parti mobili** | ADR-003: zero guasti meccanici; il corpo-telefono nel guscio È l'hardware che nessuno usa così |
+
 ## Scartati, con motivo
 
 - **Marketplace di skill** — vale per dieci famiglie come per una: non è il collo di bottiglia.
