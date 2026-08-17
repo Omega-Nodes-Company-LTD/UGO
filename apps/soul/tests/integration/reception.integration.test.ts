@@ -352,6 +352,74 @@ describe("the two cost walls (ADR-055)", () => {
   });
 });
 
+describe("le guide in PDF", () => {
+  it("«fammi una guida» istruisce il modello nel dinamico e marca la risposta", async () => {
+    stub.reset();
+    stub.nextResponse = {
+      text:
+        "Impostare il titolo nell'app X\n1. Apri Impostazioni.\n2. Scrivi il titolo e premi Salva.\n" +
+        "Se qualcosa non torna: ricarica la pagina.",
+    };
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/reception/chat",
+      headers: receptionHeaders(customerA.token),
+      payload: {
+        gosinoId: houseA.gosinoId,
+        text: "Fammi una guida: nell'app X come imposto il titolo?",
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{ reply: string; guide?: boolean }>();
+    expect(body.guide).toBe(true);
+    expect(body.reply).toContain("1. Apri Impostazioni.");
+    // l'istruzione della guida vive nel blocco DINAMICO: il prefisso cached
+    // non cambia di un byte (regola 2), e infatti non ha cache_control
+    const system = stub.requests.at(-1)?.body.system;
+    expect(system?.[2]?.text).toContain("GUIDA");
+    expect(system?.[2]?.cache_control).toBeUndefined();
+    expect(system?.[0]?.text).not.toContain("GUIDA");
+    expect(system?.[1]?.text).not.toContain("GUIDA");
+  });
+
+  it("una domanda normale non è una guida, e non porta l'istruzione", async () => {
+    stub.reset();
+    stub.nextResponse = { text: "Sta in main.ts, grunf." };
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/reception/chat",
+      headers: receptionHeaders(customerA.token),
+      payload: { gosinoId: houseA.gosinoId, text: "Dove sta la configurazione del logger?" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ guide?: boolean }>().guide).toBeUndefined();
+    expect(stub.requests.at(-1)?.body.system[2]?.text).not.toContain("GUIDA");
+  });
+
+  it("il PDF arriva come allegato vero, con la doppia credenziale", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/reception/guide-pdf",
+      headers: receptionHeaders(customerA.token),
+      payload: { text: "Titolo di prova\n1. Fai la cosa.\n2. Verifica → fatto." },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toContain("application/pdf");
+    expect(response.headers["content-disposition"]).toContain("guida.pdf");
+    expect(response.rawPayload.subarray(0, 5).toString()).toBe("%PDF-");
+  });
+
+  it("senza il token del cliente il PDF non esiste", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/reception/guide-pdf",
+      headers: { authorization: `Bearer ${RECEPTION_TOKEN}` },
+      payload: { text: "x" },
+    });
+    expect(response.statusCode).toBe(401);
+  });
+});
+
 describe("the tickets", () => {
   it("collects 'apri un ticket' deterministically: zero provider tokens", async () => {
     stub.reset();

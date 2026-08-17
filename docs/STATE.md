@@ -2257,6 +2257,80 @@ pannello ha il selettore «Chi ci mando» accanto al link.
 girano in questa sandbox — il caso nuovo di `meetings.integration.test.ts` va confermato in CI
 o al primo deploy, come il resto della riga già aperta in §7.
 
+## 6-unquadragies. Il benvenuto del cliente (l'onboarding che non c'era)
+
+Domanda del proprietario (2026-08-17): «l'onboarding del cliente lo abbiamo?». No: dopo il
+token il cliente veniva sbattuto su «Con chi vuoi parlare?» senza una parola — niente patto
+sulla voce, niente spiegazione dei ticket, niente sul ritmo. La prima esperienza del cliente
+pagante era un modulo.
+
+Ora c'è **`/benvenuto`**: al primo ingresso **per dispositivo** (flag in `localStorage`, lo
+stesso pattern del token — ADR-035/052) la porta non manda al branco ma a quattro carte,
+personalizzate da `/me`: chi ti ascolta (i gosini assegnati, per nome), la tua voce resta qui
+(ADR-053, con la variante onesta per i browser senza Web Speech API), le richieste diventano
+ticket (ADR-052, con la frase esatta «apri un ticket: …»), e il ritmo (ADR-055 detto senza
+numeri, più la mela di ADR-058 col conto settimanale vero). «Esci» butta il token ma **non**
+la memoria del dispositivo: la guida non si ripresenta ai rientri, e vive in Impostazioni →
+«Rileggi il benvenuto». Sul benvenuto la nav non compare: sta prima della casa.
+
+**Dichiarato ad alta voce, nella pagina stessa**: qui non c'è nessun consenso biometrico,
+perché sul canale reception il riconoscimento non esiste (ADR-053) e un consenso a una cosa
+che non esiste mentirebbe. Il flusso a tre esiti del gruppo 16 si innesterà **in** questa
+pagina, non al posto suo.
+
+**Il giro completo (regola 12):**
+- **BO** — nessuna modifica, e non serviva: `/v1/reception/me` portava già tutto (gosini,
+  mele, nome del cliente); nessuna rotta nuova, nessun contratto cambiato;
+- **`/admin`** — nessuna modifica, e non serviva: nessun dato ha cambiato forma, scope o nome;
+- **FE** — la superficie è `apps/reception` (pagina nuova, porta, impostazioni, nav,
+  `session.ts`); `apps/face` e `faceContracts.ts` non toccati. **Nota di rilascio**: la
+  reception è un'immagine propria — il benvenuto arriva dal cliente col redeploy del
+  container `reception`, non di soul.
+
+**Verificato**: build+lint+unit di reception verdi; gli E2E ora attraversano il benvenuto in
+OGNI ingresso (contesto vergine = primo ingresso) più il test dedicato «una volta per
+dispositivo» — girano in CI, questa sandbox non ha runtime container.
+
+## 6-duoquadragies. Le guide in PDF, e l'e2e che aspettava GitHub
+
+**Le guide** (richiesta del proprietario, 2026-08-17): un cliente chiede *«fammi una guida:
+nell'app X come imposto il titolo?»* e il gosino gliela scrive passo-passo, da principiante
+assoluto, col PDF da portarsi via.
+
+Com'è fatta, e perché così:
+- **la scorciatoia è deterministica** («fammi/scrivimi/preparami una guida: …», come «apri un
+  ticket:») ma a differenza del ticket **chiama il provider**: una guida si scrive, non si
+  raccoglie. Il flag `guide` deriva dalla DOMANDA, non dalla risposta — così il replay dalla
+  cache (ADR-055) lo conserva senza ri-parsare niente;
+- **l'istruzione di formato vive nel blocco dinamico** (un passo per riga, dove cliccare per
+  nome, il rimedio in fondo, niente markdown né emoji): il prefisso cached non cambia di un
+  byte (regola 2), e il test d'integrazione lo verifica sui blocchi veri;
+- **il PDF è impaginazione, non seconda generazione** (`guidePdf.ts`, pdfkit in soul): il testo
+  è quello già nel thread — zero token, niente quota, niente storage nuovo. Il contenuto vive
+  già cifrato in `customer_messages`, quindi export e oblio lo conoscono da lì; niente
+  migrazione. `POST /v1/reception/guide-pdf` con la stessa doppia credenziale; Helvetica è
+  WinAnsi, quindi i glifi tipografici del modello (frecce, virgolette curve, em-dash) si
+  traslitterano invece di stampare tofu — unit test sui byte, stream deflati e run hex decodificati;
+- **la voce annuncia, non legge**: dieci passi dettati sono rumore; il posto della guida è il
+  foglio. Contratto esteso (`guide` opzionale in `receptionChatResponseSchema`,
+  `receptionGuidePdfRequestSchema`), BFF che passa `content-disposition`, bottone «Scarica il
+  PDF» sotto la bolla, chip «Chiedimi una guida».
+
+**L'e2e che aspettava GitHub** (trovato dalla CI di PR #55): «the works page» è morto di
+timeout perché `/v1/reception/works` interroga **api.github.com vera** sul percorso caldo
+(`liveBlock`), e quel giorno GitHub ha tardato più dei 5s dell'assert. Un e2e che dipende
+dalla latenza di un terzo non è Zero-Mock: è una roulette. Ora `GITHUB_API_URL` è un env
+facoltativo del boot (default invariato: l'API vera), e il global-setup e2e lo punta su una
+porta morta di loopback — rifiuto in millisecondi, `repoBlock` ha già il try che degrada, la
+pagina mostra lo stato dal database. Stessa famiglia del Vexa stub e dello stub LLM: i
+container sono veri, i terzi su internet no.
+
+**Il giro completo (regola 12):** **BO** — contratti, chat service, `guidePdf.ts`, rotta,
+env, unit 4 + integrazione 4 nuovi; **`/admin`** — nessuna modifica, e non serviva: la guida
+è un messaggio sul canale ticket, e il pannello li mostra già come conversazioni; **FE** —
+`apps/reception` (Parla, api.ts, BFF); `apps/face` e `faceContracts.ts` non toccati. Rilascio:
+redeploy di **entrambe** le immagini — soul (rotta+env) e reception (UI).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

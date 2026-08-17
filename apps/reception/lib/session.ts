@@ -10,6 +10,7 @@
 
 const TOKEN_KEY = "reception_token";
 const GOSINO_KEY = "reception_gosino";
+const WELCOMED_KEY = "reception_welcomed";
 
 export function token(): string {
   if (typeof window === "undefined") return "";
@@ -26,6 +27,21 @@ export function dropToken(): void {
   localStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(GOSINO_KEY);
+}
+
+/**
+ * Il benvenuto si mostra UNA volta per dispositivo, non per accesso: la
+ * guida serve a chi non è mai entrato, non a chi rientra domani. Sopravvive
+ * a «Esci» apposta — buttare il token non rende smemorato il dispositivo —
+ * e da Impostazioni la si può rileggere quando si vuole.
+ */
+export function welcomed(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(WELCOMED_KEY) === "yes";
+}
+
+export function markWelcomed(): void {
+  localStorage.setItem(WELCOMED_KEY, "yes");
 }
 
 /** il gosino scelto persiste: la preferenza è metà del punto (ADR-052) */

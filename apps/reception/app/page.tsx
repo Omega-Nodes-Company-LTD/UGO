@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ApiError, call } from "../lib/api";
-import { keepToken } from "../lib/session";
+import { keepToken, welcomed } from "../lib/session";
 
 /**
  * La porta (ADR-052): il token personale, consegnato dallo studio una volta
@@ -27,7 +27,9 @@ export default function Accesso(): React.JSX.Element {
     keepToken(secret.trim(), persist);
     try {
       await call("/me");
-      router.push("/branco");
+      // il primo ingresso su questo dispositivo passa dal benvenuto: chi ti
+      // ascolta, dove va la voce, come nascono i ticket. Una volta sola.
+      router.push(welcomed() ? "/branco" : "/benvenuto");
     } catch (caught) {
       setError(
         caught instanceof ApiError && caught.status === 401

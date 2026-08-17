@@ -544,8 +544,10 @@ leggila prima di consegnare il token, è il testo che gli spiegherai a voce.
    gli ultimi commit non sono indicizzati: quelli il gosino li chiede a GitHub sul momento.
 5. **Metti i limiti**, se quelli di casa non ti bastano per questo cliente: domande l'ora, tetto del
    giorno, mele della settimana. Sono per-cliente e non chiedono redeploy.
-6. **Consegna l'indirizzo**: `https://<DOMINIO_RECEPTION>`. Il cliente incolla il token, sceglie il
-   gosino, e parla. Non deve installare niente.
+6. **Consegna l'indirizzo**: `https://<DOMINIO_RECEPTION>`. Il cliente incolla il token e al primo
+   ingresso viene accolto dal **benvenuto** — chi lo ascolta, dove va (e non va) la voce, come
+   nascono i ticket, il ritmo: non devi spiegarglielo tu al telefono. Poi sceglie il gosino, e
+   parla. Non deve installare niente.
 
 I ticket che raccoglie compaiono nella scheda del cliente: lo stato lo cambi tu (*aperto*, *in
 lavorazione*, *in attesa*, *chiuso*) e lui lo vede dalla sua parte. Il gosino **non esegue lavori**

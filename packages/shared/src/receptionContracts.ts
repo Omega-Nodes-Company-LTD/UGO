@@ -20,8 +20,24 @@ export const receptionChatResponseSchema = z.object({
   degraded: z.boolean(),
   /** true when the reply came from the answer cache (ADR-055): zero cost */
   cached: z.boolean(),
+  /**
+   * true when the customer asked for a GUIDE («fammi una guida: …»): the
+   * reply is a step-by-step walkthrough and the client offers the PDF.
+   * Derived from the QUESTION, not the answer — so a cached repeat keeps it.
+   */
+  guide: z.boolean().optional(),
 });
 export type ReceptionChatResponse = z.infer<typeof receptionChatResponseSchema>;
+
+/**
+ * The PDF of a guide the customer already holds in the thread: a formatting
+ * service, not a second generation — zero provider tokens, deterministic.
+ * The first line of `text` is the title; the rest are the steps.
+ */
+export const receptionGuidePdfRequestSchema = z.object({
+  text: z.string().min(1).max(20_000),
+});
+export type ReceptionGuidePdfRequest = z.infer<typeof receptionGuidePdfRequestSchema>;
 
 export const receptionTicketCreateSchema = z.object({
   gosinoId: z.uuid(),
