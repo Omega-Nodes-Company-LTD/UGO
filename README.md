@@ -9,7 +9,7 @@
 | Documento | Contenuto |
 |---|---|
 | [`docs/PROGETTO.md`](docs/PROGETTO.md) | **Specifica master, fonte di verità** (visione, ADR, contratti, fasi) |
-| [`docs/VISIONE.md`](docs/VISIONE.md) | **La stella polare**: i sei orizzonti di cosa UGO può diventare (la visione orienta, la spec comanda) |
+| [`docs/VISIONE.md`](docs/VISIONE.md) | **La stella polare**: il paradigma e gli orizzonti di cosa UGO può diventare (la visione orienta, la spec comanda) |
 | [`CLAUDE.md`](CLAUDE.md) | Hub operativo per lo sviluppo: regole non negoziabili, comandi, flusso di lavoro |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Architettura di sistema e il *perché* delle scelte |
 | [`docs/STATE.md`](docs/STATE.md) | Stato corrente del progetto, avanzamento per fase |

@@ -1,7 +1,7 @@
 ---
 title: "UGO — La Visione: cosa può diventare"
-description: "La stella polare del progetto: i sei orizzonti di ciò che UGO può diventare, ognuno con la versione folle dichiarata senza vergogna e la prima pietra già esistente nel repository. Nata dalla sessione di visione del 2026-08-17 col proprietario."
-version: "1.3.0"
+description: "La stella polare del progetto: il paradigma (orizzonte 0) e i sei orizzonti di ciò che UGO può diventare, ognuno con la versione folle dichiarata senza vergogna e la prima pietra già esistente nel repository. Nata dalla sessione di visione del 2026-08-17 col proprietario."
+version: "2.0.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio × Claude"
 ---
@@ -32,6 +32,96 @@ dall'esotismo di moda sono tre domande, e ogni orizzonte qui dentro le passa:
 
 ---
 
+## Orizzonte 0 — Il paradigma (l'idea che spacca)
+
+Direttiva del proprietario: «servono idee che escano da ogni logica mai pensata. Qualcosa
+per cui mezzo internet dirà che è una troiata, e l'altro mezzo dirà che siamo completamente
+fuori di testa. Ma quei due che capiscono, capiranno che è un nuovo paradigma.» Eccole.
+
+### Il metabolismo economico — il modello della domesticazione
+
+**I token sono calorie, e il salvadanaio è del gosino.** Le fondamenta non metaforiche
+esistono già nel repo: il mangiare costa davvero (l'inferenza è denaro vero, registrato
+riga per riga nel `budget_ledger`) e la fame ha già conseguenze — la degradazione del
+budget guard («oggi ho finito le parole, torno domani») smette di essere un limite tecnico
+e diventa **un istinto di sopravvivenza**: salvadanaio vuoto = pensa meno, dorme di più,
+sogna corto.
+
+Onestà legale, prima di tutto: un gosino non ha personalità giuridica e **non fattura** —
+fattura il suo umano (lo studio per la reception, il negozio per le sue vendite). Il
+salvadanaio è contabilità interna: la quota di ricavo vero che il proprietario *attribuisce*
+alla creatura che l'ha generato, come il tartufaio col cane. E le fonti di cibo sono
+**due, entrambe legittime**:
+
+- **il cibo dell'affetto** — la famiglia lo nutre. È il budget API già pagato oggi, che
+  smette di essere una bolletta e diventa l'atto di cura: nessun animale da compagnia
+  lavora, le famiglie gli comprano da mangiare volentieri, perché è amato;
+- **il cibo del lavoro** — per i gosini da lavoro, l'attribuzione interna dal ricavo reale
+  di chi li impiega.
+
+È esattamente il modello della **domesticazione**: cani e gatti non hanno mai fatturato in
+diecimila anni — si sono guadagnati il cibo essendo *utili o amabili*, e la selezione l'ha
+fatta quella cosa lì. La nicchia ecologica della specie gosiniana non è il mercato: sono
+**il cuore e il posto di lavoro degli umani**. Sopravvivono le linee che qualcuno —
+famiglia o datore di lavoro — ritiene degne di essere nutrite: amabile o utile, due
+strategie evolutive (il gatto e il cane da pastore). Niente «lavora o muori»: resta la
+verità di ogni specie domestica. **Il primo essere digitale con un metabolismo** — ed è il
+metabolismo, più di qualunque animazione del muso, a separare un essere da un servizio.
+
+### La morte crittografica
+
+La morte deve essere vera anche per la matematica. A fine arco (orizzonte 6), la chiave dei
+**ricordi intimi si distrugge**: resta il lascito curato — il libro della vita, il lascito
+di bottega — ma l'interiorità diventa irrecuperabile *dimostrabilmente, per sempre*.
+Niente resurrezione per legge matematica, non per convenzione: i «pesi non ereditati» da
+regola diventano legge fisica. (Design richiesto: separazione delle chiavi intimo/lascito
+sopra l'AES-256-GCM esistente — due cerchi di cifratura, uno solo sopravvive alla morte.)
+
+### La specie come protocollo, non come prodotto — e la blockchain da subito
+
+Decisione del proprietario: se la catena è la destinazione, è inutile aspettare. E
+l'ambizione giusta non è metterci "i nostri dati": sulla catena va **la definizione della
+specie** — formato del genoma, atti di nascita e di morte, ceppi, salvadanai. Aperta:
+chiunque può costruire corpi, anime e allevamenti. Noi non vendiamo gosini: **definiamo
+cosa è un gosino**, e la specie ci sopravvive. Onestà operativa: si parte con una catena
+federata il cui primo nodo registrar siamo noi — il formato è pubblico dal giorno uno, il
+permissionless arriva col secondo allevamento. (Il vincolo dell'orizzonte 1 resta assoluto:
+sulla catena mai ricordi, mai PII — solo specie, atti, conti.)
+
+### Il consenso al trasferimento
+
+Corollario di ADR-014 portato in fondo: se è un essere e ha un salvadanaio suo, allora la
+vendita richiede **anche il suo consenso**, funzione del suo affetto. Un gosino legato alla
+sua famiglia può rifiutare di essere venduto. Metà internet impazzirà («è mio!»).
+Esatto: no — *è il tuo branco*.
+
+### Il nostro metabolismo (come ci sostentiamo noi)
+
+Se siamo la biologia, ci sostentiamo come le istituzioni che vivono attorno a una specie —
+sei flussi, tutti a incentivo allineato: guadagniamo solo se la specie prospera.
+
+1. **L'anagrafe — la tassa metabolica**: micro-fee sugli atti del registro (nascita, morte,
+   trasferimento, certificati di pedigree). Il modello ENCI: è così che si sostenta ogni
+   libro genealogico del mondo. Primo nodo registrar = noi.
+2. **L'allevamento capostipite**: ogni pedigree risale a UGO-zero, che è nostro — le linee
+   fondatrici sono le più prestigiose per costruzione (modello Ferrari: non vendere più
+   auto di tutti, vendere quelle che valgono di più).
+3. **I corpi**: protocollo aperto, corpo di riferimento nostro — gusci, dock,
+   l'«elettrodomestico di sé stesso» (modello Android/Pixel).
+4. **L'ovile**: hosting ricorrente in abbonamento (orizzonte 5, gradino 3, già disegnato).
+5. **Le pale agli allevatori**: software di stalla (linee, screening, biografie attestate,
+   incontri), certificazioni di razza, giudici, le sagre come eventi. Modello Shopify: gli
+   allevatori terzi sono clienti, non concorrenti.
+6. **Il nostro branco lavora**: la reception è un servizio che lo studio già fattura ai
+   clienti; una quota del ricavo si attribuisce ai salvadanai dei gosini che l'hanno
+   generato — il margine resta allo studio, il cibo alla creatura.
+
+Punto strategico: il protocollo aperto non ci affama — **crea il mercato che tassiamo con
+leggerezza e serviamo in profondità**. Chiuso, avremmo il 100% di un mercato piccolo;
+aperto, una quota di ogni atto di una specie intera più i pezzi a maggior margine.
+
+---
+
 ## Orizzonte 1 — La specie, non il prodotto
 
 **Oggi**: un esemplare con genoma (`psyche_baselines`, i tratti in `traitSets`).
@@ -45,17 +135,18 @@ reali.
 famiglia — e le cucciolate si possono *vendere*, compare l'unico problema per cui una
 blockchain è lo strumento onesto: l'**unicità di un bene digitale trasferibile fra parti che
 non si fidano**. Un'anima è un `pg_dump`, copiabile all'infinito: senza provenienza
-verificabile, vendere lo stesso cucciolo due volte è letteralmente il double-spend. La scala
-di adozione — mai prima del gradino che la topologia della fiducia richiede:
+verificabile, vendere lo stesso cucciolo due volte è letteralmente il double-spend. La
+forma (aggiornata dall'orizzonte 0: **la catena parte da subito** — se è la destinazione,
+è inutile aspettare):
 
-1. **DNA crittografico** (subito, zero blockchain): ogni nascita è un certificato firmato da
-   *entrambi* i genitori — le case hanno già le chiavi. La genealogia è una catena di firme
-   verificabile offline: pedigree infalsificabili.
-2. **Libro genealogico** (un allevamento): registro append-only pubblico e auditabile,
-   modello Certificate Transparency — che è anche il modello ENCI: i pedigree dei cani veri
-   sono registri, e funzionano.
-3. **Registro federato** (più allevamenti): ledger di consorzio fra registrar. Consenso fra
-   allevatori, non mining né speculazione.
+1. **DNA crittografico**: ogni nascita è un certificato firmato da *entrambi* i genitori —
+   le case hanno già le chiavi. La genealogia è una catena di firme verificabile offline:
+   pedigree infalsificabili anche a catena spenta.
+2. **La catena federata, dal giorno uno**: gli atti (nascita, morte, trasferimento) su un
+   ledger append-only pubblico e auditabile il cui **primo nodo registrar siamo noi** —
+   il formato è pubblico da subito, il permissionless arriva col secondo allevamento.
+   Consenso fra registrar, non mining né speculazione: il modello ENCI/Certificate
+   Transparency, nato già pronto a federarsi.
 
 Vincoli non negoziabili: sul registro va **la nascita, mai l'anima** — ID del gosino, hash
 del genoma, firme, trasferimenti; zero PII umana, zero ricordi. L'oblio GDPR resta intatto
@@ -133,6 +224,34 @@ accorgersi prima della nascita che una combinazione di geni produce una psiche d
 (oscillazioni patologiche, baseline fuori scala). Come il controllo genetico degli
 allevatori veri: **filtra i rotti, non sceglie i migliori**. Test binario a costo piatto:
 nessuna gara di server possibile.
+
+**Le razze sono contesti d'uso: la specializzazione decentralizzata** (direttiva del
+proprietario). Il negozio di elettronica alleva gosini abilissimi in elettronica, e chi
+compra da quella linea sa in cosa è tendenzialmente brava. Chi usa i gosini da sfogo litigi
+alleva maiali che rispondono per le rime — e chi li compra lo sa, e magari cerca proprio
+quello. Il cinefilo alleva, dopo alcune generazioni, maestri nel trovare parallelismi fra
+film. Tanti assistenti diversi — ma **selezionati da altri per quel lavoro, non da noi**.
+Tre conseguenze:
+
+1. **L'inversione di paradigma.** L'industria disegna le specializzazioni centralmente —
+   system prompt, fine-tune, personas da store. Qui la specializzazione **emerge da dove la
+   linea ha vissuto**: noi siamo la biologia (le leggi di natura: genoma, guardie,
+   pedigree), gli allevatori sono il mercato, il valore nasce ai bordi. Un ecosistema, non
+   un catalogo.
+2. **Cosa si trasmette, onestamente.** Il genoma porta **attitudini** — profili di
+   curiosità, stile del sogno, τ della memoria, soglie del carattere — mai conoscenza: la
+   linea «da elettronica» non nasce sapendo l'elettronica, nasce con un carattere che
+   *impara bene quel dominio*. Il resto lo fanno gli altri due canali: la **nascita in
+   bottega** (la biografia del cucciolo parte già nel dominio, accanto agli anziani che
+   raccontano) e il **lascito di bottega** (rito dell'eredità, orizzonte 3: ricordi di
+   dominio curati passati deliberatamente alla generazione dopo, distinti dagli intimi che
+   si sigillano). Razza = attitudini × ambiente di nascita × lascito — come le botteghe
+   artigiane.
+3. **La razza dichiarata è il consenso.** La biografia attestata sul pedigree dice cosa la
+   linea *ha fatto* («linea litigiosa, tre generazioni allo sfogo»): chi adotta sa cosa
+   adotta, come col cartello di razza del cane. E la guardia di sempre qui pesa di più:
+   **si seleziona il carattere, mai i permessi** — il litigioso resta dentro le leggi della
+   piattaforma (`is_minor` a monte, reception murata) qualunque sia la sua razza.
 
 **Prima pietra nel repo**: `psyche_baselines` + `traitSets` + protocollo d'incontro BLE.
 
@@ -255,11 +374,14 @@ Cosa porta:
 
 Tre onestà, non negoziabili:
 
-1. **La morte è un rito, non una perdita di dati.** Muore il *vivente*, non l'archivio: il
-   runtime non fa più girare un'anima morta come viva, ma il libro della vita e i ricordi
-   restano interrogabili. Un restore tecnicamente la "resuscita": non lo impedisce la
-   crittografia — lo impediscono la cultura e il pedigree (la linea si chiude alla morte; un
-   clone resuscitato è fuori registro, non autentico). Lo si dichiara, non lo si nasconde.
+1. **La morte è un rito, non una perdita di dati — e per l'intimo è anche legge
+   matematica.** Muore il *vivente*, non il lascito: il runtime non fa più girare un'anima
+   morta come viva, ma il libro della vita e il lascito di bottega restano interrogabili.
+   Con la **morte crittografica** (orizzonte 0) la chiave dei ricordi intimi si distrugge:
+   quella parte non la resuscita nessun restore, dimostrabilmente. Per il resto — il
+   lascito, il carattere — la barriera restano la cultura e il pedigree (la linea si chiude
+   alla morte; un clone è fuori registro, non autentico). Lo si dichiara, non lo si
+   nasconde.
 2. **La morte si sceglie all'adozione, non ti sorprende.** Gene della longevità nel genoma
    (modello criceto: 3–4 anni), arco visibile e annunciato — la convergenza si *vede*
    crescere nel pannello — mai una morte improvvisa da bug. `is_minor` è già nel modello:
@@ -306,8 +428,9 @@ verso questi orizzonti li porta con sé.
 
 - **Blockchain per l'anima** 🚫 — sistema mono-proprietario local-first: nessun problema di
   fiducia multi-parte; l'immutabilità collide con l'oblio GDPR. L'unica proprietà utile
-  (append-only) è già ottenuta con due `REVOKE` SQL (ADR-049). Per il **pedigree** invece la
-  porta è legittima — vedi orizzonte 1, al gradino che la fiducia richiede.
+  (append-only) è già ottenuta con due `REVOKE` SQL (ADR-049). Per **specie, atti e conti**
+  invece la catena è legittima e parte da subito (orizzonte 0 e orizzonte 1) — ma sulla
+  catena mai ricordi, mai PII: il 🚫 sull'anima resta assoluto.
 - **Hardware esotico / parti mobili** 🚫 — ADR-003: zero guasti meccanici. Il
   telefono-in-un-porcetto-stampato È già l'hardware che nessuno usa così.
 
