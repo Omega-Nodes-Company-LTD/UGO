@@ -391,14 +391,17 @@ export class FaceGateway {
         // caso in cui `""` può comparire, quindi non serve contare i presenti.
         const sheltered =
           message.sheltered?.some((who) => who === this.deps.gosinoId || who === "") ?? false;
-        await this.recordEvent("noise", { db: message.db, sheltered });
+        // 2026-08-16: anche la stanza dichiarata rumorosa attutisce — in
+        // un'officina il fracasso è vita, non pericolo (famiglia ADR-056)
+        const softened = sheltered || message.roomLoud === true;
+        await this.recordEvent("noise", { db: message.db, sheltered, roomLoud: message.roomLoud === true });
         // ADR-029: the body is the one holding the room's noise floor, so a
         // `noise` frame already means "this startled me". Re-judging it here
         // against an absolute threshold threw away the only calibrated
         // information in the system — and on a phone with AGC, an
         // uncalibrated number means nothing anyway.
         {
-          await this.deps.psyche.applyEventType(sheltered ? "loud_noise_muffled" : "loud_noise", at);
+          await this.deps.psyche.applyEventType(softened ? "loud_noise_muffled" : "loud_noise", at);
           if (this.state !== "sleeping") this.setState("alert", send);
           this.pushMood(send);
         }

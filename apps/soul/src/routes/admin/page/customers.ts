@@ -84,6 +84,10 @@ export const CUSTOMER_PAGES = `
         <input id="cust-mail-pass" data-testid="cust-mail-pass" type="password"></div>
       <div><label for="cust-mail-folder">Cartella</label>
         <input id="cust-mail-folder" data-testid="cust-mail-folder" value="INBOX"></div>
+      <div style="flex:2"><label for="cust-mail-senders">Solo da/per (vuoto = tutta la cartella)</label>
+        <input id="cust-mail-senders" data-testid="cust-mail-senders"
+          placeholder="mario@rossi.it, @rossisrl.it"
+          title="indirizzi o domini separati da virgola: si indicizzano solo i messaggi in cui mittente o destinatari combaciano"></div>
       <button id="cust-mail-go" data-testid="cust-mail-go">Collega la casella</button>
     </div>
     <div class="row" style="margin-top:.5rem">

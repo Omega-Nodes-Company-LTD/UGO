@@ -1,0 +1,1 @@
+ALTER TABLE "customer_mail_accounts" ADD COLUMN "senders" text;

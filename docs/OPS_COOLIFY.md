@@ -165,29 +165,59 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
 8. Prova dalla shell di soul: `curl -s http://<HOST_OLLAMA>:11434/api/tags` → deve elencare
    `nomic-embed-text`.
 
-### 2.3-bis · percezione (riconoscimento delle persone)
+### 2.3-bis · percezione (riconoscimento, dettatura, voce di casa, lettura)
 
 Opzionale, e *deliberatamente* opzionale: senza, UGO risponde senza sapere chi ha davanti —
-com'è sempre stato. **La biometria si accende, non si subisce** (ADR-045).
+com'è sempre stato. **La biometria si accende, non si subisce** (ADR-045). Dal 2026-08-16 questo
+container fa QUATTRO mestieri: chi sta parlando/chi si è affacciato (voce+volto), la **dettatura
+locale** (whisper: Google esce dalle orecchie), la **voce di casa** (Piper: il gradino gratuito di
+`/v1/tts`), e la **lettura su gesto** («leggi», tesseract — ADR-065). E dal fix della voce
+dimenticata è anche **l'unico posto dove si arruolano le voci**: senza di lui, i campioni
+restano in coda e si riprovano la notte dopo.
 
 1. Tipo: **Application → Dockerfile**. Dockerfile: `ops/docker/percezione.Dockerfile`.
-   Build context: root del repo.
-2. **Nessun dominio e nessuna porta pubblicata.** Parla solo con soul, sulla rete interna: un
-   servizio che dice chi sei non deve essere raggiungibile da fuori.
-3. **Volume persistente su `/models`**, scrivibile. È l'unica cosa da ricordare: il container si
-   scarica i pesi da solo al primo avvio (~250 MB) e li verifica; senza volume li riscarica a
-   ogni redeploy. Se il volume non è scrivibile il container si ferma subito e lo scrive nei log,
-   invece di partire e riscaricare tutto ogni volta in silenzio.
-4. Variabili: `DATABASE_URL` (come soul) · `UGO_DATA_KEY=<UGO_DATA_KEY>` ·
+   Build context: root del repo. Stesso repo e branch di soul.
+2. **Nessun dominio e nessuna porta pubblicata.** Parla solo con soul e coi job, sulla rete
+   interna: un servizio che dice chi sei non deve essere raggiungibile da fuori. Deve stare
+   sulla **stessa rete Docker** di soul e jobs (in Coolify: stesso «network» delle altre
+   risorse, come postgres e ollama).
+3. **Volume persistente su `/models`**, scrivibile. In Coolify: **Storages → + Add → Volume**,
+   Destination Path `/models` (il nome lo genera lui, la Source Path resta vuota). È l'unica
+   cosa da ricordare: il container si scarica i pesi da solo al primo avvio e li verifica;
+   senza volume li riscarica a ogni redeploy. Col whisper e Piper il primo avvio scarica
+   **~800 MB in tutto** (ecapa+arcface ~250 MB, whisper `small` ~460 MB, la voce Piper ~65 MB).
+   Se il volume non è scrivibile il container si ferma subito e lo scrive nei log.
+   > **«/models non è scrivibile» al primo avvio?** Succede se il volume è stato creato da
+   > un'immagine precedente al 2026-08-17 (il mount point nasceva di root, il container gira
+   > da utente 10001). Una riga dal server sistema il volume esistente:
+   > `docker run --rm -v <NOME_VOLUME>:/models alpine chown 10001:10001 /models`
+   > (il nome del volume è nella pagina Storages), poi **Restart**. Le immagini nuove
+   > preparano la cartella col proprietario giusto da sole.
+4. Variabili (Available at Buildtime **spenta** su tutte, come al §2.4.3):
+   `DATABASE_URL` (come soul) · `UGO_DATA_KEY=<UGO_DATA_KEY>` ·
    `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` (lo stesso di soul: il servizio lo pretende anche
    sulla rete interna, perché non deve fidarsi della rete) · `TZ=Europe/Rome`.
+   Facoltative, coi loro default già giusti: `UGO_STT_MODEL=small` (vuota = niente dettatura) ·
+   `UGO_PIPER_VOICE=it_IT-paola-medium` (vuota = niente voce di casa). Per l'OCR non c'è niente
+   da configurare: tesseract è nell'immagine.
 5. **Il primo avvio è lento**: scarica i pesi prima di aprire la porta, quindi il healthcheck
-   resta rosso per un paio di minuti. È voluto — nessuna frase può arrivare a un servizio senza
-   pesi. Dai riavvii successivi parte in un attimo.
-6. Su soul, aggiungi: `UGO_RECOGNITION_URL=http://<HOST_PERCEZIONE>:8000`. E basta: non c'è
-   niente da lanciare a mano, né qui né altrove.
-7. Verifica: `curl -s http://<HOST_PERCEZIONE>:8000/health` → `voice: true` e `face: true`. Un
-   `false` significa che quel modello non ha caricato: guarda i log del container.
+   resta rosso per qualche minuto (con whisper e Piper anche 5-10, dipende dalla rete). È
+   voluto — nessuna frase può arrivare a un servizio senza pesi. Dai riavvii successivi parte
+   in un attimo. Limite RAM consigliato: **4 GB**.
+6. Su **soul**, aggiungi: `UGO_RECOGNITION_URL=http://<HOST_PERCEZIONE>:8000` (accende
+   riconoscimento, dettatura, voce di casa e «leggi» in un colpo solo).
+   Su **jobs**, aggiungi: `UGO_RECOGNITION_URL=http://<HOST_PERCEZIONE>:8000` **e**
+   `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` — è il fix della voce dimenticata: l'arruolamento
+   del sogno passa da qui, dove vive l'encoder giusto. Senza queste due variabili sui job, i
+   profili vocali tornano a nascere con l'encoder di ripiego e il riconoscitore vivo non li
+   vede. Redeploy di soul e jobs dopo averle aggiunte.
+7. Verifica: `curl -s http://<HOST_PERCEZIONE>:8000/health` →
+   `{"ok":true,"voice":true,"face":true,"stt":true,"tts":true,"ocr":true}`. Un `false` significa
+   che quel pezzo non ha caricato: guarda i log del container (le facoltative vuote danno
+   `false` di proposito).
+8. **Poi ri-registra le voci una volta** (§5.2 o l'invito dal chiosco): i profili arruolati
+   prima di questo fix sono del modello vecchio e non verranno mai riconosciuti dal vivo. Il
+   primo sogno dopo il deploy li rimpiazza col campione nuovo.
 
 **Se il container non parte**, i log dicono quale delle tre cose è: volume non scrivibile,
 download fallito, o **SHA che non corrisponde**. L'ultimo non è pignoleria: gli EER dichiarati
@@ -242,6 +272,10 @@ dire *di quanto* invece di litigare a impressioni.
    `S3_ACCESS_KEY` · `S3_SECRET_KEY` · `S3_BUCKET_AUDIO=ugo-audio` · `S3_BUCKET_BACKUP=ugo-backup` ·
    `UGO_WHISPER_MODEL=large-v3` · `UGO_AUDIO_RETENTION_DAYS=90` · `TZ=Europe/Rome` ·
    `UGO_DREAM_AT=02:30` (facoltativa: è già il default).
+   **Se hai la percezione (§2.3-bis)**, aggiungi anche qui:
+   `UGO_RECOGNITION_URL=http://<HOST_PERCEZIONE>:8000` · `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>`
+   — l'arruolamento vocale del sogno passa da lei (il fix della voce dimenticata, 2026-08-16);
+   senza, i profili nascono con l'encoder di ripiego e il riconoscitore vivo non li vede mai.
 3. **Chi fa la riflessione notturna.** Ogni notte UGO rilegge la giornata e ne ricava ricordi, diario
    e desideri. Serve un modello linguistico, e hai due strade:
    - **`OLLAMA_BATCH_MODEL=qwen3:30b-a3b`** (scaricato al §2.3) → la riflessione è **gratis** e non

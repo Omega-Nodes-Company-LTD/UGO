@@ -52,6 +52,18 @@ export interface ChatServiceDeps {
    * gesto non esiste e la frase va al modello come una qualunque.
    */
   reader?: { read: () => Promise<ReadOutcome> };
+  /**
+   * ADR-064: le spinte — «vai in cucina», «chiama Silvio». Non comandi:
+   * pressioni che passano dal carattere, e possono essere rifiutate CON una
+   * risposta. Solo sul canale di casa; assente = le forme non esistono.
+   */
+  nudges?: { answer: (text: string, at: Date) => Promise<string | undefined> };
+  /**
+   * Gruppo 4 — input immagini: il modello vision LOCALE che trasforma la foto
+   * in una frase. I pixel muoiono qui: al provider arriva la descrizione.
+   * Assente = una foto arriva comunque, ma UGO dice che non riesce a vederla.
+   */
+  vision?: { describe: (jpegBase64: string) => Promise<string | undefined> };
   /** the household's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
@@ -199,10 +211,14 @@ export class ChatService {
   /**
    * The last turns of *this* conversation (§5.5 block 5).
    *
-   * Scoped by being and by time: without it, a question from one being
-   * arrives with somebody else's thread as context — UGO answering Paola
-   * while reading Ivan's turns. Assistant replies have no being_id, so they
-   * are matched by the window alone, which keeps each exchange intact.
+   * ADR-067 — la chat di gruppo: sul canale di CASA il filo è della stanza,
+   * non della persona. Una stanza è uno spazio condiviso — chi parla sente le
+   * risposte date agli altri — quindi UGO rilegge i turni di TUTTI, col nome
+   * davanti quando lo sa («Ivan: …»), ed è ciò che gli permette di seguire
+   * una conversazione a più voci invece di otto monologhi interlacciati.
+   *
+   * Sugli altri canali resta lo scoping per persona di ADR-032: una domanda
+   * dall'API non deve arrivare col filo di qualcun altro come contesto.
    */
   private async loadHistory(
     channel: ChatRequest["channel"],
@@ -211,16 +227,24 @@ export class ChatService {
   ): Promise<LlmHistoryTurn[]> {
     const since = new Date(at.getTime() - HISTORY_WINDOW_HOURS * 3_600_000);
     const rows = await this.deps.db
-      .select({ role: messages.role, text: messages.text, ts: messages.ts })
+      .select({
+        role: messages.role,
+        text: messages.text,
+        ts: messages.ts,
+        speaker: beings.displayName,
+      })
       .from(messages)
+      .leftJoin(beings, eq(messages.beingId, beings.id))
       .where(
         and(
           this.mine(messages),
           eq(messages.channel, channel),
           gte(messages.ts, since),
-          beingId === undefined
-            ? or(isNull(messages.beingId), sql`${messages.role} <> 'user'`)
-            : or(eq(messages.beingId, beingId), sql`${messages.role} <> 'user'`),
+          channel === "home"
+            ? undefined
+            : beingId === undefined
+              ? or(isNull(messages.beingId), sql`${messages.role} <> 'user'`)
+              : or(eq(messages.beingId, beingId), sql`${messages.role} <> 'user'`),
         ),
       )
       .orderBy(desc(messages.ts), asc(messages.id))
@@ -230,7 +254,15 @@ export class ChatService {
       .filter((row): row is typeof row & { role: "user" | "assistant" } =>
         ["user", "assistant"].includes(row.role),
       )
-      .map((row) => ({ role: row.role, content: decryptText(row.text, this.deps.dataKey) }));
+      .map((row) => {
+        const text = decryptText(row.text, this.deps.dataKey);
+        // il nome davanti solo in gruppo: su un filo per-persona sarebbe rumore
+        const named =
+          channel === "home" && row.role === "user" && row.speaker !== null
+            ? `${row.speaker}: ${text}`
+            : text;
+        return { role: row.role, content: named };
+      });
   }
 
   /**
@@ -363,12 +395,55 @@ export class ChatService {
       return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
     }
 
+    // ADR-064: le spinte — stessa famiglia deterministica, stessa strada in
+    // biografia. Solo il canale di casa: la reception non arriva qui, e l'API
+    // resta fuori finché non decidiamo altrimenti
+    if (this.deps.nudges !== undefined && request.channel === "home") {
+      const nudged = await this.deps.nudges.answer(request.text, at);
+      if (nudged !== undefined) {
+        const owner = { gosinoId: this.deps.gosinoId };
+        await db.insert(messages).values([
+          {
+            ...owner,
+            ts: at,
+            channel: request.channel,
+            role: "user",
+            beingId: request.beingId ?? null,
+            text: encryptText(request.text, dataKey),
+          },
+          {
+            ...owner,
+            ts: new Date(at.getTime() + 1),
+            channel: request.channel,
+            role: "assistant",
+            text: encryptText(nudged, dataKey),
+          },
+        ]);
+        return { reply: nudged, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+      }
+    }
+
     if (request.beingId !== undefined) {
       const found = await db
         .select({ id: beings.id })
         .from(beings)
         .where(eq(beings.id, request.beingId));
       if (found.length === 0) throw new BeingNotFoundError(request.beingId);
+    }
+
+    // gruppo 4 — input immagini: la foto diventa una frase QUI, col modello
+    // locale, e al provider arriva solo quella. Se gli occhi locali mancano o
+    // sono giù, UGO lo dice invece di fingere di aver visto
+    let modelText = request.text;
+    if (request.imageBase64 !== undefined) {
+      const seen =
+        this.deps.vision === undefined
+          ? undefined
+          : await this.deps.vision.describe(request.imageBase64);
+      modelText =
+        seen === undefined || seen === ""
+          ? `${request.text}\n[Ti hanno mandato una foto, ma i tuoi occhi locali adesso non funzionano: dillo con onestà.]`
+          : `${request.text}\n[Nella foto che ti mostrano: ${seen}]`;
     }
 
     const view = await psyche.applyEventType("conversation_turn", at);
@@ -418,7 +493,7 @@ export class ChatService {
           this.deps.character,
         ),
         history,
-        userText: request.text,
+        userText: modelText,
       },
       at,
     );

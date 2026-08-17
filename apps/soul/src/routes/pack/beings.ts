@@ -1,6 +1,7 @@
 import { beings, bonds, perceptionEvents, recognitionProfiles, type DbClient } from "@ugo/db";
 import { KNOWN_SPECIES, profileFor } from "@ugo/shared";
 import { and, desc, eq } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { BeingNotFoundError, type BeingsService } from "../../services/beingsService.js";
@@ -30,6 +31,9 @@ export function registerBeingRoutes(
     const householdId = await householdScope(db, request, reply);
     if (householdId === undefined) return reply;
     const gosinoId = await eldestExemplarOf(db, householdId);
+    // ADR-057: anche il volto, per la pagina «I volti» — che chiamava una
+    // rotta /v1/beings mai esistita e moriva con un 404 (visto in produzione)
+    const faceProfiles = alias(recognitionProfiles, "face_profiles");
     const rows = await db
       .select({
         id: beings.id,
@@ -44,12 +48,17 @@ export function registerBeingRoutes(
         // whether UGO can already recognize the voice, and how well fed the
         // centroid is — the panel shows it so enrollment is not guesswork
         voiceSamples: recognitionProfiles.sampleCount,
+        faceSamples: faceProfiles.sampleCount,
       })
       .from(beings)
       .leftJoin(bonds, and(eq(bonds.beingId, beings.id), eq(bonds.gosinoId, gosinoId)))
       .leftJoin(
         recognitionProfiles,
         and(eq(recognitionProfiles.beingId, beings.id), eq(recognitionProfiles.modality, "voice")),
+      )
+      .leftJoin(
+        faceProfiles,
+        and(eq(faceProfiles.beingId, beings.id), eq(faceProfiles.modality, "face")),
       )
       .where(eq(beings.householdId, householdId))
       .orderBy(desc(beings.createdAt));
@@ -61,6 +70,7 @@ export function registerBeingRoutes(
         affinity: row.affinity ?? 0,
         hasVoiceProfile: row.voiceSamples !== null,
         voiceSamples: row.voiceSamples ?? 0,
+        hasFaceProfile: row.faceSamples !== null,
         channels: profileFor(deps.speciesMap, row.species).channels,
       })),
       knownSpecies: KNOWN_SPECIES,

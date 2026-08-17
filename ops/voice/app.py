@@ -314,6 +314,64 @@ def synthesize_endpoint(query: SynthQuery) -> Response:
     return Response(content=buffer.getvalue(), media_type="audio/wav")
 
 
+class EnrollVoiceQuery(BaseModel):
+    """Un campione di arruolamento: PCM int16 a 16 kHz in base64, come tutto."""
+
+    audio: str = Field(min_length=1)
+    being_id: str = Field(min_length=1)
+    gosino_id: str = Field(min_length=1)
+    household_id: str = Field(min_length=1)
+
+
+class Enrolled(BaseModel):
+    sample_count: int
+
+
+@app.post("/v1/enroll/voice", dependencies=[Depends(guard)])
+def enroll_voice_endpoint(query: EnrollVoiceQuery) -> Enrolled:
+    """L'arruolamento vocale, fatto DOVE vive l'encoder (il fix della voce
+    dimenticata, 2026-08-16).
+
+    Il sogno arruolava con l'encoder di ripiego (MFCC — l'immagine dei job
+    non porta torch, per scelta) mentre l'identificazione dal vivo usa ECAPA
+    qui: `identify_voice` confronta solo profili dello stesso modello, quindi
+    il profilo si scriveva e il riconoscitore vivo non lo vedeva MAI — «a
+    pochi minuti dalla registrazione, dimentica chi sono». Adesso il passo
+    `enroll` del sogno manda il campione qui, e il centroide nasce nello
+    stesso spazio in cui verrà confrontato.
+
+    Un 403 è `is_minor`/`no_audio` che fanno il loro lavoro, non un guasto.
+    """
+    from ugo_jobs.crypto import parse_data_key
+    from ugo_jobs.enrollment import EnrollmentRefused, enroll_voice
+
+    if MODELS.voice is None:
+        raise HTTPException(status_code=503, detail="modello vocale non caricato")
+    samples = decode_pcm(query.audio)
+    with _connect() as conn:
+        # il confine di casa si verifica QUI: l'essere deve stare nella casa
+        # dichiarata, o un chiamante potrebbe arruolare voci oltre il muro
+        belongs = conn.execute(
+            "select 1 from beings where id = %s and household_id = %s",
+            (query.being_id, query.household_id),
+        ).fetchone()
+        if belongs is None:
+            raise HTTPException(status_code=404, detail="essere non trovato in questa casa")
+        try:
+            total = enroll_voice(
+                conn,
+                gosino_id=query.gosino_id,
+                being_id=query.being_id,
+                samples=samples,
+                data_key=parse_data_key(os.environ["UGO_DATA_KEY"]),
+                encoder=MODELS.voice,
+            )
+        except EnrollmentRefused as refused:
+            raise HTTPException(status_code=403, detail=str(refused)) from refused
+        conn.commit()
+    return Enrolled(sample_count=total)
+
+
 @app.post("/v1/identify/voice", dependencies=[Depends(guard)])
 def identify_voice_endpoint(query: VoiceQuery) -> Recognised:
     from ugo_jobs.crypto import parse_data_key

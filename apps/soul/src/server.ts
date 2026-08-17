@@ -24,6 +24,7 @@ import { registerCustomersRoutes } from "./routes/customers.js";
 import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
 import { registerPrintRoutes } from "./routes/prints.js";
 import { registerFeedRoutes } from "./routes/feeds.js";
+import { registerMcpRoute, type McpRouteDeps } from "./routes/mcp.js";
 import { registerSttRoute, type SttRouteDeps } from "./routes/stt.js";
 import { registerTtsRoute, type TtsRouteDeps } from "./routes/tts.js";
 import { registerWeatherRoute, type WeatherDeps } from "./routes/weather.js";
@@ -122,6 +123,8 @@ export interface ServerOptions extends HealthDeps {
     };
     /** gruppo 12: il meteo vero per il cielo del recinto; assente = rotta muta */
     weather?: WeatherDeps;
+    /** backlog gruppo 3: il server MCP di sola lettura — assente = la rotta non esiste */
+    mcp?: { embedder: McpRouteDeps["embedder"] };
     /** gruppo 13: la voce interim — assente = 204 e voce di sistema */
     tts?: TtsRouteDeps["tts"];
     /** decisione 2026-08-16: la voce di casa (Piper), gradino di mezzo */
@@ -183,6 +186,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       customers,
       prints,
       weather,
+      mcp,
       tts,
       ttsLocal,
       stt,
@@ -225,6 +229,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // /v1/rooms — il corpo non porta un token — e muta senza coordinate
     registerWeatherRoute(app, weather ?? {});
     // gruppo 13: la voce interim — il salvadanaio sta nel client (regola 3)
+    // backlog gruppo 3: la memoria interrogabile da altri agenti, sola lettura
+    if (mcp !== undefined) {
+      registerMcpRoute(app, { db: options.db, embedder: mcp.embedder });
+    }
     registerTtsRoute(app, {
       db: options.db,
       ...(tts !== undefined && { tts }),

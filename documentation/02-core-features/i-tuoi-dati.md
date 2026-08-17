@@ -72,6 +72,14 @@ Serve un file solo, leggibile, con dentro l'intera vita di UGO in chiaro.
 2. Il file `anima.json` contiene messaggi, trascrizioni, ricordi, diario ed eventi, tutti decifrati.
 3. Conservalo come conserveresti un backup del telefono: dentro c'è tutto, in chiaro.
 
+## I tuoi agenti possono chiedergli le cose
+
+Se usi un assistente AI che parla il protocollo MCP, puoi dargli accesso in **sola lettura**
+alla memoria di UGO: puntalo a `http://<server di casa>:3000/v1/mcp` con il token di famiglia
+nell'intestazione `Authorization`. Vedrà tre strumenti: cercare nei ricordi, leggere il diario,
+sapere chi vive in casa. Non può scrivere niente, non vede biometria, e niente passa da servizi
+esterni: la ricerca usa i modelli di casa.
+
 ## Far dimenticare una persona
 
 Se qualcuno ti chiede di essere cancellato — o vuoi togliere di mezzo una persona per tuo conto —

@@ -9,6 +9,7 @@ import { LlmClient, OllamaEmbeddingsClient,
 } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
+import { NudgeService } from "./services/nudges.js";
 import { SceneReader } from "./services/sceneReader.js";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
@@ -153,6 +154,17 @@ const bootstrapPercezione =
         token: env.UGO_INTERNAL_TOKEN,
         householdId: bootstrapHouseholdId,
       });
+// gruppo 12: gli occhi che raccontano — il modello vision locale, se c'è
+const localVision =
+  env.OLLAMA_VISION_MODEL === undefined
+    ? undefined
+    : new OllamaVisionClient(env.OLLAMA_URL, env.OLLAMA_VISION_MODEL);
+// ADR-064: le spinte — il servizio nasce PRIMA di ogni chat (l'apparato di
+// avvio e i runtime lo vogliono fra le dipendenze) e legge il registro al
+// momento del gesto, quando esiste da un pezzo
+let registryRef: GosinoRegistry | undefined = undefined;
+const nudges = new NudgeService({ db, registry: () => registryRef });
+
 // l'annotazione esplicita spezza il cerchio dell'inferenza: chat → lettore →
 // gateway → chat (il lettore guarda il corpo solo al momento del gesto)
 const chat: ChatService = new ChatService({
@@ -171,6 +183,10 @@ const chat: ChatService = new ChatService({
       gateway: (): FaceGateway => face,
       ocr: (image) => bootstrapPercezione.ocr(image),
     }),
+  }),
+  nudges: { answer: (text, at) => nudges.answer(bootstrapExemplar.id, text, at) },
+  ...(localVision !== undefined && {
+    vision: { describe: (image: string) => localVision.describe(image) },
   }),
 });
 
@@ -228,11 +244,6 @@ const localText = new OllamaTextClient(
   env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
 );
 let localTextUp = false;
-// gruppo 12: gli occhi che raccontano — il modello vision locale, se c'è
-const localVision =
-  env.OLLAMA_VISION_MODEL === undefined
-    ? undefined
-    : new OllamaVisionClient(env.OLLAMA_URL, env.OLLAMA_VISION_MODEL);
 let localVisionUp = false;
 const probeLocal = (): void => {
   localText
@@ -297,7 +308,13 @@ const registry = await GosinoRegistry.load({
   // ADR-057: senza bucket niente `voice_sample`, dal chiosco come dal pannello
   ...(audio !== undefined && { audio }),
   ...(web !== undefined && { web }),
+  nudges: { answer: (gosinoId, text, at) => nudges.answer(gosinoId, text, at) },
+  // gruppo 4 — input immagini: gli stessi occhi locali delle occhiate
+  ...(localVision !== undefined && {
+    vision: { describe: (image: string) => localVision.describe(image) },
+  }),
 });
+registryRef = registry;
 
 const app = buildServer({
   db,
@@ -358,6 +375,9 @@ const app = buildServer({
     ...(recognition !== undefined && { stt: recognition }),
     // decisione 2026-08-16: la voce di casa (Piper) sta sullo stesso servizio
     ...(recognition !== undefined && { ttsLocal: recognition }),
+    // backlog gruppo 3: la memoria interrogabile da altri agenti (MCP, sola
+    // lettura, token di casa). Gli embedding sono quelli di Ollama: zero provider
+    mcp: { embedder },
     // gruppo 12: il meteo vero — solo se la casa ha detto dove sta
     ...(env.UGO_HOME_LAT !== undefined &&
       env.UGO_HOME_LON !== undefined && {

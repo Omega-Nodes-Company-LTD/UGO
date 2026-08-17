@@ -318,6 +318,68 @@ earPick.addEventListener("change", () => {
   sensors.setNoiseSensitivity(chosen);
 });
 
+/**
+ * Gruppo 4 — input immagini: fagli vedere una foto. Si riduce QUI a 640px
+ * JPEG (a moondream i pixel grandi non servono, e non devono viaggiare),
+ * parte verso la chat di casa, e il commento torna a voce come tutto il
+ * resto. I pixel non si salvano da nessuna parte: resta il commento.
+ */
+const photoButton = requireElement("#btn-photo");
+const photoFile = requireElement("#photo-file") as HTMLInputElement;
+const PHOTO_MAX_B64 = 190_000;
+
+async function photoToJpeg(file: File): Promise<string | undefined> {
+  const bitmap = await createImageBitmap(file);
+  const width = Math.min(640, bitmap.width);
+  const frame = document.createElement("canvas");
+  frame.width = width;
+  frame.height = Math.max(1, Math.round((width * bitmap.height) / bitmap.width));
+  const ctx = frame.getContext("2d");
+  if (ctx === null) return undefined;
+  ctx.drawImage(bitmap, 0, 0, frame.width, frame.height);
+  for (const quality of [0.7, 0.5, 0.35]) {
+    const image = frame.toDataURL("image/jpeg", quality).split(",")[1];
+    if (image !== undefined && image.length <= PHOTO_MAX_B64) return image;
+  }
+  return undefined;
+}
+
+photoButton.addEventListener("click", () => {
+  photoFile.click();
+});
+photoFile.addEventListener("change", () => {
+  const file = photoFile.files?.[0];
+  photoFile.value = "";
+  if (file === undefined) return;
+  void (async () => {
+    const image = await photoToJpeg(file).catch(() => undefined);
+    if (image === undefined) {
+      trouble("quella foto non si riesce a preparare: prova con un'altra");
+      return;
+    }
+    remember({ who: "tu", text: "📷 (gli hai fatto vedere una foto)", at: Date.now(), mine: true });
+    setLocalState("thinking");
+    try {
+      const response = await fetch(`${soulHttp}/v1/chat`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ channel: "home", text: "guarda questa foto!", imageBase64: image }),
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      const body = (await response.json()) as { reply?: string };
+      if (typeof body.reply === "string" && body.reply !== "") {
+        remember({ who: residents[0]?.name ?? "UGO", text: body.reply, at: Date.now(), mine: false });
+        showSpeech(body.reply);
+        speech.speak(body.reply, undefined);
+      }
+    } catch {
+      trouble("la foto non è arrivata: soul non risponde");
+    } finally {
+      setLocalState("idle");
+    }
+  })();
+});
+
 roomPick.addEventListener("change", () => {
   const next = new URL(location.href);
   if (roomPick.value === "") next.searchParams.delete("stanza");
@@ -446,7 +508,15 @@ const sensors = new Sensors(
     // niente — sa solo quanto è forte la stanza
     if (message.type === "noise") {
       const sheltered = renderer.shelteredNow?.() ?? [];
-      socket.send(sheltered.length > 0 ? { ...message, sheltered } : message);
+      // 2026-08-16: la stanza dichiarata rumorosa viaggia col botto — di là
+      // pesa metà (loud_noise_muffled), perché in un'officina il fracasso è
+      // parte della vita e non deve tenere il cuore a mille per un quarto d'ora
+      const enriched = {
+        ...message,
+        ...(sheltered.length > 0 && { sheltered }),
+        ...(savedSensitivity() === "bassa" && { roomLoud: true }),
+      };
+      socket.send(enriched);
       return;
     }
     socket.send(message);

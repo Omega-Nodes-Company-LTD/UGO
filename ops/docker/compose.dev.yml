@@ -117,6 +117,11 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # e il tetto, o il ripiego spenderebbe senza limite dichiarato
       UGO_DAILY_BUDGET_USD: ${UGO_DAILY_BUDGET_USD:-0.50}
+      # il fix della voce dimenticata (2026-08-16): l'arruolamento vocale va
+      # fatto dalla percezione, che tiene ECAPA — il sogno le manda il campione.
+      # Vuote = ripiego MFCC locale (ha senso solo in una casa senza percezione)
+      UGO_RECOGNITION_URL: ${UGO_RECOGNITION_URL:-http://percezione:8000}
+      UGO_INTERNAL_TOKEN: ${UGO_INTERNAL_TOKEN:?missing UGO_INTERNAL_TOKEN}
       # ADR-054 — le fonti dei clienti (0 = sincronizzazione spenta)
       UGO_CUSTOMER_SYNC_EVERY_H: ${UGO_CUSTOMER_SYNC_EVERY_H:-6}
       UGO_REPOS_DIR: /var/lib/ugo/repos

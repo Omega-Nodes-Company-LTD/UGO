@@ -46,6 +46,12 @@ class JobsConfig:
     dream_at: str = "02:30"
     audio_retention_days: int = 90
     backup_retention_days: int = 30
+    # ADR-045/il fix della voce dimenticata: il servizio di percezione, se c'è.
+    # L'arruolamento vocale va fatto DA LUI, che tiene ECAPA in memoria —
+    # l'immagine dei job non porta torch per scelta, e l'encoder di ripiego
+    # (MFCC) produce profili che il riconoscitore vivo non può confrontare.
+    recognition_url: str = ""
+    internal_token: str = ""
     # ADR-023: the ceiling the paid fallback respects. Same variable the chat
     # path reads, so one number governs the whole day whoever is spending it;
     # a house with its own `households.daily_budget_usd` overrides it.
@@ -93,4 +99,7 @@ class JobsConfig:
             # letto e mai usato: `backup_retention_days` restava al default
             backup_retention_days=int(os.environ.get("UGO_BACKUP_RETENTION_DAYS", "30")),
             daily_budget_usd=float(os.environ.get("UGO_DAILY_BUDGET_USD", "0.50")),
+            # gli stessi nomi che usa soul: un servizio, una coppia di variabili
+            recognition_url=os.environ.get("UGO_RECOGNITION_URL", ""),
+            internal_token=os.environ.get("UGO_INTERNAL_TOKEN", ""),
         )

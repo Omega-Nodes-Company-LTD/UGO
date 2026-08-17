@@ -1,6 +1,6 @@
 {
-  "id": "b9f9e74c-d40e-46d8-9d3c-12e25d22a014",
-  "prevId": "898da832-f272-43d7-860d-3657d338a598",
+  "id": "8944f361-e60e-45b3-b5d4-ae2814f96674",
+  "prevId": "b9f9e74c-d40e-46d8-9d3c-12e25d22a014",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2480,6 +2480,27 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "events_gosino_ts_idx": {
+          "name": "events_gosino_ts_idx",
+          "columns": [
+            {
+              "expression": "gosino_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ts",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2949,7 +2970,23 @@
           "default": "'pending'"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "meetings_gosino_idx": {
+          "name": "meetings_gosino_idx",
+          "columns": [
+            {
+              "expression": "gosino_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "meetings_gosino_id_gosini_id_fk": {
           "name": "meetings_gosino_id_gosini_id_fk",
@@ -3393,6 +3430,27 @@
               "expression": "channel",
               "isExpression": false,
               "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "messages_gosino_ts_idx": {
+          "name": "messages_gosino_ts_idx",
+          "columns": [
+            {
+              "expression": "gosino_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ts",
+              "isExpression": false,
+              "asc": false,
               "nulls": "last"
             }
           ],
@@ -3886,6 +3944,27 @@
               "expression": "ts",
               "isExpression": false,
               "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "psyche_snapshots_gosino_ts_idx": {
+          "name": "psyche_snapshots_gosino_ts_idx",
+          "columns": [
+            {
+              "expression": "gosino_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ts",
+              "isExpression": false,
+              "asc": false,
               "nulls": "last"
             }
           ],
@@ -4740,6 +4819,21 @@
           "columns": [
             {
               "expression": "being_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transcript_segments_household_idx": {
+          "name": "transcript_segments_household_idx",
+          "columns": [
+            {
+              "expression": "household_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

@@ -121,6 +121,12 @@ export function createAuditLog(
           { verb: entry.verb, reason: error instanceof Error ? error.name : "unknown" },
           "audit log write failed: the journal has a hole",
         );
+        // DENTRO una transazione l'errore NON si inghiotte: in Postgres un
+        // errore avvelena la transazione, il commit diventa rollback, e la
+        // rotta risponderebbe 200 su un lavoro che il database ha buttato —
+        // visto in CI su /v1/prints/expire (destroyed: 1, riga ancora lì).
+        // Il buco nel giornale è tollerato solo nel percorso fire-and-forget
+        if (on !== undefined) throw error;
       }
     },
   };

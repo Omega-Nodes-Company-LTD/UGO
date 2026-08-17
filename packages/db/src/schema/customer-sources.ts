@@ -93,6 +93,14 @@ export const customerMailAccounts = pgTable(
     /** AES-256-GCM ciphertext; read-only access, SMTP does not exist (ADR-054) */
     password: text("password").notNull(),
     folder: text("folder").notNull().default("INBOX"),
+    /**
+     * Il pre-filtro del proprietario (2026-08-16): «non deve usare tutta la
+     * casella per quel cliente». Indirizzi e domini ammessi, separati da
+     * virgola («mario@rossi.it, @rossisrl.it»); un messaggio si indicizza solo
+     * se uno fra mittente e destinatari combacia. Vuoto o null = tutta la
+     * cartella, che è il comportamento di prima.
+     */
+    senders: text("senders"),
     /** the IMAP UID high-water mark: only newer messages are fetched */
     lastUid: integer("last_uid").notNull().default(0),
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),

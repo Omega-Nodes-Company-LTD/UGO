@@ -38,13 +38,15 @@ async function loadPrints() {
         " Prima volta il " + whenShort(p.firstSeenAt) + ".</div></div>").join("");
 
   // le persone fra cui scegliere sono quelle del branco: rivendicare una faccia
-  // per qualcuno che non esiste non e' una cosa che deve essere possibile
-  const beings = (await call("/v1/beings", {})).beings ?? [];
+  // per qualcuno che non esiste non e' una cosa che deve essere possibile.
+  // La rotta e' /v1/pack: /v1/beings in GET non e' MAI esistita, e questa
+  // pagina moriva con un 404 sotto il selettore (visto in produzione)
+  const beings = (await call("/v1/pack", {})).beings ?? [];
   $("print-who").innerHTML = beings.map((b) =>
     '<option value="' + b.id + '">' + escape(b.displayName) + "</option>").join("");
 
   $("faces-list").innerHTML = (() => {
-    const known = beings.filter((b) => (b.recognition ?? []).some((r) => r.modality === "face"));
+    const known = beings.filter((b) => b.hasFaceProfile === true);
     if (known.length === 0) {
       return '<p class="empty">Non ha ancora imparato nessun volto.</p>';
     }
