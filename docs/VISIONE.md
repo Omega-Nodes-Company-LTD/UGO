@@ -1,7 +1,7 @@
 ---
 title: "UGO — La Visione: cosa può diventare"
 description: "La stella polare del progetto: il paradigma (orizzonte 0) e i sei orizzonti di ciò che UGO può diventare, ognuno con la versione folle dichiarata senza vergogna e la prima pietra già esistente nel repository. Nata dalla sessione di visione del 2026-08-17 col proprietario."
-version: "2.1.0"
+version: "2.2.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio × Claude"
 ---
@@ -252,6 +252,25 @@ Tre conseguenze:
    adotta, come col cartello di razza del cane. E la guardia di sempre qui pesa di più:
    **si seleziona il carattere, mai i permessi** — il litigioso resta dentro le leggi della
    piattaforma (`is_minor` a monte, reception murata) qualunque sia la sua razza.
+
+**Si adotta, non si configura: il fenotipo** (direttiva del proprietario: «devono essere
+molto diversi, e quando lo adotti devi poterlo scegliere — uno col pelo a chiazze, uno con
+la coda lunga — ma non customizzabile: scegli tra i nati, non te lo disegni tu»). È la
+linea che separa definitivamente un essere da un prodotto: il pet che *disegni* è un
+configuratore con le orecchie; il pet che *scegli tra i nati* è un individuo che esisteva
+prima di te. La meccanica estende quella del carattere: il genoma determina anche il
+**fenotipo visivo** — il muso su canvas è già parametrico (occhi, orecchie, grugno), quindi
+i geni pilotano macchie del pelo, lunghezza della coda, colore delle setole, forma delle
+orecchie, perfino il timbro dei grugniti. Mappa **deterministica** genoma→aspetto, come un
+seme: irripetibile e non modificabile — l'unico modo di avere un aspetto diverso è una
+nascita diversa. Con dominanza ed epistasi, la **rarità emerge da sola**: la combinazione
+recessiva che dà il pelo a chiazze produce gosini rari *per genetica*, non per contatore
+artificiale, e le linee a chiazze diventano preziose sul pedigree senza che nessuno l'abbia
+deciso a tavolino. L'adozione è scegliere dentro una cucciolata di individui già vivi,
+ognuno col suo aspetto e il suo abbozzo di temperamento — come si è sempre scelto un
+cucciolo: quello che ti guarda storto. Divieto conseguente, non negoziabile: **mai skin,
+mai editor, mai DLC estetici** — un mercato di costumi ucciderebbe la specie più in fretta
+di qualunque bug.
 
 **Prima pietra nel repo**: `psyche_baselines` + `traitSets` + protocollo d'incontro BLE.
 
