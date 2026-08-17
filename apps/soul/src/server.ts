@@ -19,6 +19,8 @@ import { registerCouncilRoutes } from "./routes/council.js";
 import { registerGosiniRoutes } from "./routes/gosini.js";
 import { registerLitterRoutes } from "./routes/litters.js";
 import { registerPiggyBankRoutes } from "./routes/piggybank.js";
+import { registerDowryRoutes } from "./routes/dowry.js";
+import { registerFarewellRoutes } from "./routes/farewell.js";
 import { PeerService } from "./services/peerService.js";
 import { RegistryClient } from "./services/registryClient.js";
 import type { CouncilService } from "./services/council/councilService.js";
@@ -111,6 +113,8 @@ export interface ServerOptions extends HealthDeps {
        * nasce lo stesso, senza atto in catena.
        */
       chain?: { baseUrl: string; token: string };
+      /** ADR-074: senza, il sapere adottato si ripesca solo per parole */
+      embedder?: { embed: (texts: string[]) => Promise<number[][]> };
     };
     /** ADR-032: the per-exemplar runtimes a socket can ask to be */
     registry?: GosinoRegistry;
@@ -374,6 +378,24 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       });
       // ADR-072: il salvadanaio vive con la popolazione, come la cucciolata
       registerPiggyBankRoutes(app, { db: options.db, guard });
+      // ADR-074/075: la dote e il congedo — servono la chiave della casa,
+      // che è ciò che avvolge la chiave dell'interiorità di ogni esemplare
+      if (gosini.dataKey !== undefined) {
+        registerDowryRoutes(app, {
+          db: options.db,
+          guard,
+          dataKey: gosini.dataKey,
+          ...(gosini.embedder !== undefined && { embedder: gosini.embedder }),
+          ...(registry !== undefined && { registry }),
+        });
+        registerFarewellRoutes(app, {
+          db: options.db,
+          guard,
+          dataKey: gosini.dataKey,
+          ...(registry !== undefined && { registry }),
+          ...(gosini.chain !== undefined && { chain: new RegistryClient(gosini.chain) }),
+        });
+      }
     }
     if (council !== undefined) {
       registerCouncilRoutes(app, { db: options.db, guard, ...council });

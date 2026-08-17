@@ -419,6 +419,8 @@ const app = buildServer({
     // ADR-070: la chiave della casa serve a firmare gli atti di nascita
     gosini: {
       dataKey,
+      // ADR-074: il sapere della dote entra ripescabile come tutto il resto
+      embedder,
       // ADR-073: si accende con l'indirizzo del registro; senza, si nasce
       // esattamente come prima, solo senza atto in catena
       ...(env.UGO_REGISTRY_URL !== undefined &&
