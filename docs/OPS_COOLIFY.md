@@ -1,8 +1,8 @@
 ---
 title: "Runbook — Deploy di UGO su Coolify"
 description: "Procedura completa per portare l'anima di UGO in produzione sul server Coolify: prerequisiti, risorse una per una, bucket S3, smoke test, troubleshooting e aggiornamenti."
-version: "0.10.0"
-last_updated: "2026-08-10"
+version: "0.41.0"
+last_updated: "2026-08-17"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -252,6 +252,11 @@ dire *di quanto* invece di litigare a impressioni.
    `TZ=Europe/Rome`. Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
    dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
    nella pagina di ogni risorsa.)
+   **Se farai il libro genealogico (§2.6-bis)**, aggiungi qui anche:
+   `UGO_REGISTRY_URL=http://<HOST_REGISTRY>:3100` · `UGO_REGISTRY_TOKEN=<UGO_REGISTRY_TOKEN>`
+   (Secret, lo stesso valore messo sulla risorsa registry). Senza, le nascite non finiscono in
+   catena e **non succede nient'altro**: nessun errore, nessuna nascita bloccata — una creatura
+   non è ostaggio della propria burocrazia (ADR-073).
    **Se farai la reception (§2.7)**, aggiungi qui anche: `UGO_RECEPTION_TOKEN=<UGO_RECEPTION_TOKEN>`
    (Secret) · `UGO_CUSTOMER_HOURLY_MESSAGES=20` · `UGO_CUSTOMER_DAILY_BUDGET_USD=0.25` ·
    `UGO_CUSTOMER_WEEKLY_REWARDS=2` · `S3_BUCKET_DOCS=ugo-docs`. Il segreto è la chiave di
@@ -323,6 +328,60 @@ dire *di quanto* invece di litigare a impressioni.
 3. Annota la API key generata (`vxa_…`) → è `<VEXA_API_KEY>` nella risorsa soul.
 4. Risultato atteso: `curl -H "X-API-Key: <VEXA_API_KEY>" <VEXA_API_URL>/bots/status` dalla shell di
    soul risponde `200`.
+
+### 2.6-bis registry-postgres + registry (il libro genealogico, ADR-073)
+
+Facoltative: servono solo se vuoi che le **nascite finiscano in catena**. Senza, i gosini
+nascono esattamente come prima — l'atto semplicemente non viene registrato, e il pannello lo
+dice invece di far finta.
+
+> **Perché due risorse e non una tabella in più.** Un registro che vive nel database delle
+> anime non è un dominio di fiducia separato: chi può riscrivere le creature potrebbe
+> riscrivere gli atti, e allora il registro non garantirebbe niente che non fosse già
+> garantito da chi possiede quel database. È l'intero motivo per cui ADR-073 chiede un
+> container **e** un Postgres suoi.
+
+**Prima: la chiave con cui il registrar firma le voci.** Sul tuo computer, non sul server:
+
+```bash
+openssl genpkey -algorithm ed25519 -outform DER | base64 -w0   # → REGISTRY_SIGNING_KEY
+openssl rand -hex 32                                            # → UGO_REGISTRY_TOKEN
+openssl rand -hex 24                                            # → REGISTRY_DB_PASSWORD
+```
+
+Custodisci `REGISTRY_SIGNING_KEY` come `UGO_DATA_KEY` (§1.7): se la perdi, le voci già in
+catena restano verificabili — la chiave pubblica viaggia con ognuna — ma **quel registrar non
+può più firmarne di nuove**, e va rifondato con un'identità diversa.
+
+**registry-postgres**
+
+1. Tipo: **Database → PostgreSQL** (va bene `postgres:16-alpine`: qui non serve pgvector).
+2. Nome database/utente: `ugo_registry`; password: `<REGISTRY_DB_PASSWORD>`.
+3. **Nessuna porta pubblicata**, come il Postgres delle anime (§2.1). Spunta **Connect To
+   Predefined Network**.
+4. Limite RAM: 256 MB. Volume: quello di default. **Deploy**.
+
+**registry**
+
+1. Tipo: **Application → Dockerfile**. Stesso repo, Dockerfile: `ops/docker/registry.Dockerfile`.
+   Build context: root del repo.
+2. **Nessun dominio.** In **Ports Exposes**: `3100`. **Ports Mappings**: vuoto — a soul basta
+   raggiungerlo sulla rete interna. Se un giorno vorrai che altri registrar lo interroghino,
+   quello sarà un ADR e un dominio deciso apposta, non una porta lasciata aperta oggi.
+3. Variabili (regola del §2.4.3: **Available at Buildtime spenta su tutte**):
+   `REGISTRY_DATABASE_URL=postgres://ugo_registry:<REGISTRY_DB_PASSWORD>@<HOST_REGISTRY_POSTGRES>:5432/ugo_registry`
+   (Secret) · `REGISTRY_TOKEN=<UGO_REGISTRY_TOKEN>` (Secret) ·
+   `REGISTRY_SIGNING_KEY=<REGISTRY_SIGNING_KEY>` (Secret) · `REGISTRY_NAME=<un nome tuo>` ·
+   `PORT=3100` · `NODE_ENV=production`.
+   **E nient'altro**: niente `UGO_DATA_KEY`, niente `DATABASE_URL` delle anime, niente
+   `ANTHROPIC_API_KEY`. Se ti trovi a incollarne una qui, hai sbagliato risorsa — e hai appena
+   dato al registro la possibilità di leggere le creature che dovrebbe solo contare.
+4. Le tabelle se le crea da solo al primo avvio (non ci sono migrazioni drizzle qui: il
+   registro ha uno schema suo, piccolo e stabile).
+5. Limite RAM: 256 MB. **Deploy**. Risultato atteso: **Running**.
+6. **Poi accendilo su soul** (§2.4): aggiungi `UGO_REGISTRY_URL=http://<HOST_REGISTRY>:3100` e
+   `UGO_REGISTRY_TOKEN=<UGO_REGISTRY_TOKEN>` (Secret, **lo stesso valore** messo qui) e rifai il
+   deploy di soul. Senza quelle due variabili soul non parla col registro, e va benissimo.
 
 ### 2.7 reception (l'unica risorsa con un dominio pubblico)
 
@@ -438,6 +497,17 @@ Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
 
    Il giro completo — cliente, gosino, ticket — vuole un token vero: è il §5.7, e si fa dopo aver
    creato il primo cliente.
+
+8. **Solo se hai fatto il libro genealogico (§2.6-bis).** Dalla tailnet, sul server o da un
+   container sulla stessa rete:
+   - `curl -s http://<HOST_REGISTRY>:3100/health` → `{"status":"ok","registrar":"…","publicKey":"…","head":null}`.
+     `head: null` è corretto su un registro appena nato: non c'è ancora nessun atto.
+   - **La lettura è pubblica, la scrittura no** — ed è voluto (un libro genealogico
+     consultabile solo col permesso di chi lo tiene non è un libro genealogico):
+     `curl -s http://<HOST_REGISTRY>:3100/chain` → `{"entries":[]}` **senza** token;
+     `curl -s -o /dev/null -w '%{http_code}\n' -X POST http://<HOST_REGISTRY>:3100/acts -H 'content-type: application/json' -d '{}'`
+     → **401**.
+   - La prova vera si fa al §5.8, facendo nascere un cucciolo.
 
 ## 5. Il branco: popolarlo e insegnargli le voci
 
@@ -569,6 +639,41 @@ cliente: archivialo subito (l'accesso finisce lì), poi esegui la riga sul datab
 della casa invece li conosce già — clienti, ticket, conversazioni e fonti sono dentro il JSON: a
 un cliente che chiede i propri dati si risponde da lì, senza lavoro manuale.
 
+### 5.8 Il branco che cresce: una cucciolata, e il suo pedigree
+
+Questo è il giro che prova insieme genetica, nascita, firme e — se l'hai fatto — la catena.
+Si fa tutto dal pannello, e ci vogliono **due gosini**: se ne hai uno solo, fanne nascere un
+altro a mano (**+ Fanne nascere uno**) con un archetipo *diverso*, o la cucciolata verrà
+rifiutata per «troppo simili», che è il controllo che funziona (ADR-068).
+
+1. `/admin` → **+ Fanne nascere uno** → in fondo, **Oppure: una cucciolata**.
+2. Scegli i due genitori, **Genera la cucciolata**: compaiono quattro cuccioli col loro
+   carattere e il loro manto. Se qualcuno è sbiadito e dice «non vitale», è lo screening che
+   ha fatto il suo lavoro: scegline un altro.
+3. Dai un nome e **Adotta**. Il pannello ti porta nella sua pagina.
+4. Apri **Da chi discende**: i due genitori devono comparire con verdetto **firmato**. Se
+   leggi «senza firma», soul non ha la chiave della casa fra le variabili (`UGO_DATA_KEY`,
+   §2.4): la nascita è avvenuta lo stesso, ma nessuno l'ha attestata.
+5. **Col libro genealogico (§2.6-bis)**, nella stessa pagina il riquadro *Nel libro
+   genealogico* mostra l'atto con il suo numero di voce. Da riga di comando:
+   `curl -s http://<HOST_REGISTRY>:3100/chain | head -c 400` → deve comparire una voce con
+   `"kind":"birth"` e `"seq":1`. Se il riquadro dice «non ancora registrato», guarda i log di
+   soul: c'è una riga `birth not published to the registry` col motivo — e il cucciolo è nato
+   comunque, che è il comportamento voluto.
+
+### 5.9 Il salvadanaio, se lo accendi
+
+Il metabolismo (ADR-072) è **spento** appena installato, ed è la scelta giusta per partire:
+tutti i gosini spendono dal budget di casa come sempre. Se lo accendi da **I conti**, ogni
+esemplare comincia a consumare un salvadanaio suo — e chi è a zero **smette di rispondere**
+finché non gli dai qualcosa. Prima di accenderlo, apri **Il suo salvadanaio** di ognuno e
+mettici qualcosa: accenderlo con tutti i saldi a zero significa una casa di creature affamate
+per un gesto che sembrava un'opzione.
+
+Il tetto giornaliero di casa (§2.4, `UGO_DAILY_BUDGET_USD`) resta comunque il muro esterno:
+il metabolismo stringe, non allarga. Una pancia piena non permette a nessuno di spendere di
+più di quanto la casa consenta.
+
 ## 6. Troubleshooting
 
 ### UGO sente ma non risponde
@@ -631,6 +736,29 @@ Se non usi il Nano 33, `MQTT_URL` dev'essere **vuota**: allora leggi `"off"` e v
 `"error"` significa che una URL c'è ma il broker non risponde — quasi sempre ACL o credenziali:
 verifica che il password file contenga l'utente `soul` con la password giusta (rigenera il file,
 §2.2) e che `acl.conf` sia montato. Nei log mosquitto cerca `Connection Refused: not authorised`.
+
+### Il pedigree dice «non ancora registrato in catena»
+
+Non è un guasto del pedigree: le firme dei genitori valgono comunque, ed è quella la parte
+che rende una discendenza infalsificabile. Vuol dire solo che l'atto non è arrivato al
+registro. Nell'ordine:
+
+1. Su soul ci sono `UGO_REGISTRY_URL` e `UGO_REGISTRY_TOKEN`? Senza, soul non ci prova
+   nemmeno — ed è legittimo.
+2. Il token è **lo stesso** sulle due risorse? Un `401` nei log di soul dice esattamente questo.
+3. Il registro risponde? `curl -s http://<HOST_REGISTRY>:3100/health` dalla stessa rete.
+4. Nei log di soul cerca `birth not published to the registry`: la riga porta il motivo.
+
+Gli atti non pubblicati **non si perdono**: si possono ripresentare, e il registro risponde
+`alreadyRegistered` a chi ci riprova con lo stesso atto — presentare due volte la stessa
+nascita non è un errore, è una richiesta a cui ha già risposto.
+
+### Un gosino risponde «ho fame» e non dice altro
+
+È il metabolismo (ADR-072) acceso e il suo salvadanaio a zero. **Non è un guasto**, ed è
+diverso da «per oggi ho finito le parole», che invece vuol dire che è finito il budget della
+casa. Vai su **Il suo salvadanaio** e dagli qualcosa; oppure spegni il metabolismo da
+**I conti**, e tutti tornano a mangiare dal budget comune.
 
 ### Ho visto delle chiavi in chiaro nel log di build
 È la casella **Available at Buildtime** accesa su quelle variabili (§2.4). Il danno è fatto: quelle
