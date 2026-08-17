@@ -102,6 +102,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       UGO_DATA_KEY: randomBytes(32).toString("base64"),
       UGO_INTERNAL_TOKEN: "e2e-internal",
       UGO_RECEPTION_TOKEN: RECEPTION_TOKEN,
+      // hermetic: '/works' asks GitHub live on the hot path, and an e2e that
+      // waits on the real api.github.com fails whenever GitHub is slow (seen
+      // in CI). A dead loopback port refuses in milliseconds instead.
+      GITHUB_API_URL: "http://127.0.0.1:9",
       UGO_AUTO_MIGRATE: "false",
       PORT: String(SOUL_PORT),
       TZ: "Europe/Rome",

@@ -16,6 +16,10 @@ async function enter(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByTestId("gate-token").fill(customerToken());
   await page.getByTestId("gate-go").click();
+  // ogni test parte da un contesto vergine, quindi ogni ingresso è un PRIMO
+  // ingresso: il benvenuto sta in mezzo, come per un cliente vero
+  await expect(page).toHaveURL(/\/benvenuto/);
+  await page.getByTestId("welcome-go").click();
   await expect(page).toHaveURL(/\/branco/);
 }
 
@@ -29,6 +33,33 @@ test("the wrong token stays at the door, the right one meets the pack", async ({
   const pack = page.getByTestId("pick-gosino");
   await expect(pack).toHaveCount(1);
   await expect(pack.first()).toContainText("Ugo");
+});
+
+test("the welcome greets once per device, says the pact, and stays reachable", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("gate-token").fill(customerToken());
+  await page.getByTestId("gate-go").click();
+  await expect(page).toHaveURL(/\/benvenuto/);
+
+  // il patto, per nome: chi ascolta, la voce che non parte, i ticket
+  await expect(page.getByTestId("welcome-pack")).toContainText("Ugo");
+  // la frase c'è in entrambe le varianti, con e senza Web Speech API
+  await expect(page.getByTestId("welcome-voice")).toContainText("riconoscimento vocale");
+  await expect(page.getByTestId("welcome-tickets")).toContainText("apri un ticket");
+  await page.getByTestId("welcome-go").click();
+  await expect(page).toHaveURL(/\/branco/);
+
+  // «Esci» butta il token, non la memoria del dispositivo: al rientro la
+  // guida non si ripresenta — chi la vuole la ritrova in Impostazioni
+  await page.goto("/impostazioni");
+  await page.getByTestId("logout").click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.getByTestId("gate-token").fill(customerToken());
+  await page.getByTestId("gate-go").click();
+  await expect(page).toHaveURL(/\/branco/);
+  await page.goto("/impostazioni");
+  await page.getByTestId("welcome-again").click();
+  await expect(page).toHaveURL(/\/benvenuto/);
 });
 
 test("a chat round-trip from the keyboard, and the transcript shows it", async ({ page }) => {

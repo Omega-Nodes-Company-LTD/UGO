@@ -16,6 +16,8 @@ const ROOMS = [
 export function Nav(): React.JSX.Element | null {
   const pathname = usePathname();
   if (pathname === "/") return null; // alla porta non c'è ancora una casa
+  // il benvenuto sta PRIMA della casa: niente scorciatoie finché non è letto
+  if (pathname === "/benvenuto") return null;
   return (
     <nav className="nav" aria-label="Le stanze">
       {ROOMS.map((room) => (

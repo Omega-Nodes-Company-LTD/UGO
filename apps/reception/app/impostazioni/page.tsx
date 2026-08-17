@@ -45,6 +45,21 @@ export default function Impostazioni(): React.JSX.Element {
             : "Questo browser non sa ascoltare: la tastiera funziona comunque, e la privacy è la stessa."}
         </p>
       </div>
+      <div className="card" style={{ marginBottom: "0.8rem" }}>
+        <p className="lede" style={{ marginTop: 0 }}>
+          La guida del primo ingresso — chi ti ascolta, dove va la voce, come nascono i ticket —
+          resta a portata di mano.
+        </p>
+        <button
+          className="ghost"
+          data-testid="welcome-again"
+          onClick={() => {
+            router.push("/benvenuto");
+          }}
+        >
+          Rileggi il benvenuto
+        </button>
+      </div>
       <div className="card">
         <p className="lede" style={{ marginTop: 0 }}>
           Il tuo token vive solo su questo dispositivo. Uscendo, lo dimentichiamo: per rientrare

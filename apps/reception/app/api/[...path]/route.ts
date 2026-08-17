@@ -63,6 +63,11 @@ async function forward(request: Request, params: Promise<{ path: string[] }>): P
       ...(response.headers.has("retry-after") && {
         "retry-after": response.headers.get("retry-after") ?? "",
       }),
+      // il PDF della guida viaggia come allegato: senza questo header il
+      // browser lo apre nella scheda invece di consegnarlo
+      ...(response.headers.has("content-disposition") && {
+        "content-disposition": response.headers.get("content-disposition") ?? "",
+      }),
     },
   });
 }

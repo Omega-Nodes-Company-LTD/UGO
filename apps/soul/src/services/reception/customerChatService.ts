@@ -40,6 +40,36 @@ export const CUSTOMER_BUDGET_REPLY =
 /** the deterministic ticket shortcut: zero provider tokens (ADR-055) */
 const TICKET_PREFIX = /^apri\s+(?:un\s+)?ticket[:\s]+(.+)$/is;
 
+/**
+ * The guide shortcut: «fammi una guida: nell'app X come imposto il titolo?».
+ * Unlike the ticket it DOES call the provider — a guide is written, not
+ * collected — but the switch is deterministic and derived from the QUESTION,
+ * so a cached repeat (ADR-055) keeps its `guide` flag without re-parsing
+ * the answer. The format instruction travels in the DYNAMIC block: the
+ * cached prefix does not change by a byte (rule 2).
+ */
+const GUIDE_PREFIX = /^(?:fammi|famme|scrivimi|preparami|crea(?:mi)?)\s+una\s+guida[:\s]+(.+)$/is;
+
+export function isGuideRequest(text: string): boolean {
+  return GUIDE_PREFIX.test(text.trim());
+}
+
+/**
+ * Detto al modello nel blocco dinamico, solo quando la domanda è una guida.
+ * Niente markdown e niente emoji: il testo va dritto in un PDF (WinAnsi),
+ * e una guida per chi «vuole il tempo sotto mano» è fatta di passi corti,
+ * non di formattazione.
+ */
+const GUIDE_INSTRUCTION =
+  "Il cliente ti chiede una GUIDA scritta. Rispondi SOLO con la guida, così:\n" +
+  "- prima riga: il titolo della guida, breve e concreto;\n" +
+  "- poi i passi numerati (1. 2. 3.), UN'azione per passo, frasi corte;\n" +
+  "- spiega come a un principiante assoluto: di' dove cliccare per nome, cosa si vede dopo, " +
+  "e come capire se il passo è riuscito;\n" +
+  "- se serve un prerequisito, dillo nel passo 1;\n" +
+  "- chiudi con una riga «Se qualcosa non torna: …» con il rimedio più probabile;\n" +
+  "- niente saluti, niente commenti prima o dopo, niente markdown, niente emoji.";
+
 /** how many knowledge chunks reach the prompt (ADR-054) */
 const CHUNKS_K = 8;
 
@@ -75,7 +105,15 @@ export interface CustomerChatDeps {
 
 export type CustomerChatResult =
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "ok"; reply: string; degraded: boolean; cached: boolean; ticketId?: string };
+  | {
+      kind: "ok";
+      reply: string;
+      degraded: boolean;
+      cached: boolean;
+      ticketId?: string;
+      /** the reply is a step-by-step guide: the client offers the PDF */
+      guide?: boolean;
+    };
 
 export interface CustomerChatRequest {
   context: CustomerContext;
@@ -138,6 +176,10 @@ export class CustomerChatService {
       return { kind: "ok", reply, degraded: false, cached: false, ticketId };
     }
 
+    // a guide is a question like the others: quota, cache and budget valgono.
+    // Il flag deriva dalla DOMANDA, così il replay dalla cache lo conserva.
+    const guide = isGuideRequest(request.text);
+
     // wall 3 (ADR-055): never for live-state questions — those are true only
     // in the moment they are asked
     const live = isLiveStateQuestion(request.text);
@@ -146,7 +188,7 @@ export class CustomerChatService {
       const remembered = await this.deps.cache?.lookup(cacheKey, request.text, at);
       if (remembered !== undefined) {
         await this.persistTurns(request, remembered, at, { cached: true });
-        return { kind: "ok", reply: remembered, degraded: false, cached: true };
+        return { kind: "ok", reply: remembered, degraded: false, cached: true, ...(guide && { guide }) };
       }
     }
 
@@ -158,10 +200,13 @@ export class CustomerChatService {
       house === undefined ? undefined : { timezone: house.timezone, locale: house.locale };
 
     const llm = this.deps.llmFor(context.householdId, gosinoId, clock);
+    const dynamicSystem = await this.buildDynamicSystem(request, at);
     const result = await llm.chat(
       {
         channel: "ticket",
-        dynamicSystem: await this.buildDynamicSystem(request, at),
+        // l'istruzione della guida vive QUI, nel dinamico: il prefisso
+        // cached non cambia di un byte (regola 2)
+        dynamicSystem: guide ? `${dynamicSystem}\n\n${GUIDE_INSTRUCTION}` : dynamicSystem,
         history: await this.loadHistory(request, at),
         userText: request.text,
       },
@@ -179,7 +224,14 @@ export class CustomerChatService {
     if (!live && !result.degraded) {
       await this.deps.cache?.store(cacheKey, request.text, result.text, at);
     }
-    return { kind: "ok", reply: result.text, degraded: result.degraded, cached: false };
+    return {
+      kind: "ok",
+      reply: result.text,
+      degraded: result.degraded,
+      cached: false,
+      // degradata = la voce del muro, non una guida: niente PDF da offrire
+      ...(guide && !result.degraded && { guide }),
+    };
   }
 
   /** A ticket collected on the customer's explicit words (ADR-052). */

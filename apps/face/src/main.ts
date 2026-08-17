@@ -600,7 +600,7 @@ function handleHeardText(text: string): void {
 /**
  * Gruppo 4, la metà chiosco della dettatura locale.
  *
- * Nata dietro `?stt=locale` e solo dietro; da STATE §6-unquadragies è
+ * Nata dietro `?stt=locale` e solo dietro; da STATE §6-terquadragies è
  * anche il ripiego AUTOMATICO del telefono su cui il riconoscitore del
  * browser non resta acceso (il microfono è del misuratore di rumore, ogni
  * `start()` è un bip di sistema). La decisione su quale orecchio usare — e

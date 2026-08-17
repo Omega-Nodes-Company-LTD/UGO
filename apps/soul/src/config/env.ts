@@ -70,6 +70,10 @@ export const soulEnvSchema = z.object({
   // interno: ruotare la superficie pubblica non deve toccare quella interna.
   // Assente = la reception non esiste e le sue rotte non vengono registrate.
   UGO_RECEPTION_TOKEN: optionalNonEmpty,
+  // Dove vive l'API GitHub dello stato vivo (ADR-054). Serve agli e2e per
+  // essere ermetici: '/works' la interroga sul percorso caldo, e un test che
+  // aspetta api.github.com vera è un test che fallisce quando GitHub tarda.
+  GITHUB_API_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   // ADR-055: i default dei contatori del cliente; ogni cliente può avere i
   // suoi dal pannello, senza deploy
   UGO_CUSTOMER_HOURLY_MESSAGES: z.coerce.number().int().positive().default(20),
