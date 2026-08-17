@@ -208,7 +208,9 @@ describe("POST /v1/beings/:id/enroll/voice/audio", () => {
 
     expect(response.statusCode).toBe(202);
     const { objectKey } = response.json<{ objectKey: string }>();
-    expect(objectKey).toMatch(/^inbox\/enroll_[0-9a-f]{8}_\d{8}\d{4}\.webm$/);
+    // secondi + nonce anti-collisione: due depositi ravvicinati per lo stesso
+    // essere non si sovrascrivono più nel bucket (#50)
+    expect(objectKey).toMatch(/^inbox\/enroll_[0-9a-f]{8}_\d{14}_[0-9a-f]{8}\.webm$/);
 
     const listed = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "inbox/" }));
     const stored = (listed.Contents ?? []).find((item) => item.Key === objectKey);
