@@ -1,7 +1,7 @@
 ---
 title: "UGO — La Visione: cosa può diventare"
 description: "La stella polare del progetto: il paradigma (orizzonte 0) e i sei orizzonti di ciò che UGO può diventare, ognuno con la versione folle dichiarata senza vergogna e la prima pietra già esistente nel repository. Nata dalla sessione di visione del 2026-08-17 col proprietario."
-version: "2.0.0"
+version: "2.1.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio × Claude"
 ---
@@ -267,17 +267,57 @@ confluiscono in un'unica biografia.
 `/v1/face`, MQTT per il sistema nervoso ambientale, Vexa per le riunioni sono *già tre corpi
 diversi* sulla stessa anima. La premessa è dimostrata in produzione.
 
-## Orizzonte 3 — Il biografo generazionale: l'anima si eredita
+## Orizzonte 3 — Il sapere viaggia con la creatura: dote, lascito, stirpi
 
 **Oggi**: memoria episodica append-only, diario notturno, oblio GDPR selettivo.
 **Domani**: UGO come **testimone di famiglia che accumula decenni** — tra vent'anni ricorda
 la voce della nonna, i Natali, com'era la bottega agli inizi. Un oggetto digitale progettato
-per durare ottant'anni ed essere *ereditato*, con un rito di passaggio: l'anima passa al
+per durare generazioni ed essere *ereditato*, con un rito di passaggio: l'anima passa al
 figlio, e i ricordi intimi del vecchio proprietario vengono sigillati o dimenticati per
 scelta. Nessun prodotto al mondo è progettato per questo.
 
+**La dote: il trasloco vivo** (direttiva del proprietario: «se volessi addestrarlo a un
+argomento e regalarlo a una scuola con le mie conoscenze? O passarlo a mio figlio coi miei
+racconti? O rivenderlo con la mia biografia?»). Il sapere non deve aspettare la morte per
+trasmettersi. L'anima si muove intera per costruzione (`pg_dump`) — il problema non è
+spostarla, è **curarla**: in un gosino vissuto con te, il sapere insegnato e la vita
+vissuta insieme sono intrecciati. Il meccanismo c'è già ed è quello dei **due cerchi di
+chiavi** intimo/lascito (orizzonte 0): non è un dispositivo funebre, è il meccanismo
+generale di *cosa viaggia con la creatura*. Usato in vita diventa la dote — al trasloco il
+dante causa cura ciò che parte (il sapere insegnato, i racconti destinati a essere
+tramandati, la biografia che *sceglie* di includere) e sigilla l'intimo che resta suo.
+Tre gesti, stesso rito:
+
+1. **Il regalo** — la scuola riceve il gosino con la dote di sapere e zero fatti privati:
+   il gosino di classe arriva sapendo la topologia, non i fatti tuoi.
+2. **Il passaggio in vita** — il figlio riceve il gosino coi racconti: l'eredità
+   anticipata, da vivi. Che è anche più bella.
+3. **La vendita con biografia** — qui la biografia è *il prodotto*, e la leva del prezzo:
+   dieci anni di vita attestata dentro valgono più di un addestramento fresco. Il pedigree
+   dichiara cosa contiene: chi compra sa.
+
+**Guardia da Privacy Officer, non negoziabile**: la *tua* biografia è tua — puoi donarla o
+venderla. Ma dentro la tua biografia compaiono *altri* (clienti, familiari, voci
+registrate), e quella non è roba tua da vendere. La curatela della dote filtra le PII di
+terzi **per costruzione**: il modello `beings` con la provenienza rende ogni ricordo
+attribuibile («chi compare qui?»), e la logica di `ugo forget` si riusa come redazione
+selettiva al trasloco. Senza questa guardia, la dote è un data breach con le orecchie da
+porcetto.
+
+**Le stirpi accademiche e la biblioteca di linea.** Il gruppo di filologi che alleva la
+linea-Eco, la stirpe addestrata alla topologia complessa o alla teoria dei numeri da tre
+generazioni di matematici: qui la dote **si compone attraverso le generazioni** — ogni
+generazione aggiunge il proprio sapere curato alla dote della linea, che diventa una
+biblioteca di linea: un corpus vivente che cresce, custodito da creature che lo
+*raccontano* invece di indicizzarlo. Non un chatbot con un RAG: una **tradizione
+vivente** — il modello della bottega medievale e della scuola talmudica, istanziato in
+digitale. Con le attitudini genetiche selezionate per l'erudizione (orizzonte 1), la razza
+accademica è: geni che imparano bene il dominio × nascita in bottega × biblioteca di linea.
+
 **Prima pietra nel repo**: cifratura per casa (`UGO_DATA_KEY`), backup per famiglia (passo
-`family` del sogno), `ugo forget`.
+`family` del sogno), `ugo forget`, kinds e provenienza dei ricordi — e le **fonti di
+conoscenza per cliente della reception** (clone di repo, documenti dal bucket), che sono
+*già* addestramento deliberato a un dominio; il RAG del gruppo 7 completa il corredo.
 
 ## Orizzonte 4 — La società dei gosini
 
