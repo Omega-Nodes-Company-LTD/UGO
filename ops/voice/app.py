@@ -18,6 +18,7 @@ container di mezzo da decodificare e senza un decoder in più da tenere sicuro.
 from __future__ import annotations
 
 import base64
+import hmac
 import io
 import os
 import shutil
@@ -37,12 +38,22 @@ SAMPLE_RATE = 16_000
 #: senza autenticazione sulla rete interna è un servizio che si fida della rete
 INTERNAL_TOKEN = os.environ.get("UGO_INTERNAL_TOKEN", "")
 
+#: Un tetto ai payload in base64, come ce l'hanno gia' OCR e sintesi.
+#: `decode_pcm` controllava solo il MINIMO: una POST da 200 MB veniva
+#: decodificata e convertita in float32 (quattro volte tanto in RAM) prima di
+#: qualunque verifica, e il container che tiene due gigabyte di encoder
+#: moriva di OOM — cioe' niente piu' voce ne' volto per tutta la casa, da una
+#: sola richiesta. 30 secondi di PCM a 16 kHz stanno in circa 1,3 MB; il
+#: ritaglio di un volto in un centinaio di kB.
+MAX_AUDIO_B64 = 4_000_000
+MAX_IMAGE_B64 = 400_000
+
 
 class VoiceQuery(BaseModel):
     """Una frase da attribuire."""
 
     #: PCM int16 little-endian a 16 kHz, mono, in base64
-    audio: str = Field(min_length=1)
+    audio: str = Field(min_length=1, max_length=MAX_AUDIO_B64)
     household_id: str = Field(min_length=1)
     gosino_id: str | None = None
 
@@ -51,7 +62,7 @@ class FaceQuery(BaseModel):
     """Un volto già ritagliato dal corpo, che la camera ce l'ha lui."""
 
     #: RGB uint8 112x112 in base64 — il ritaglio che ArcFace vuole
-    image: str = Field(min_length=1)
+    image: str = Field(min_length=1, max_length=MAX_IMAGE_B64)
     household_id: str = Field(min_length=1)
     gosino_id: str | None = None
 
@@ -91,7 +102,12 @@ def guard(authorization: Annotated[str | None, Header()] = None) -> None:
     """Nessun token, nessuna risposta — anche sulla rete interna."""
     if INTERNAL_TOKEN == "":
         raise HTTPException(status_code=503, detail="UGO_INTERNAL_TOKEN non configurato")
-    if authorization != f"Bearer {INTERNAL_TOKEN}":
+    # `compare_digest` e non `!=`: il confronto di Python esce al primo byte
+    # diverso, e quel tempo si misura. Soul usa `timingSafeEqual` per lo STESSO
+    # token (`tenantAuth.ts`, `reception.ts`), e un token che si estrae a byte
+    # da qui apre oblio, export e presign di là — sulla rete `backend`, dove
+    # basta che un servizio vicino (ollama, searxng) sia compromesso.
+    if not hmac.compare_digest(authorization or "", f"Bearer {INTERNAL_TOKEN}"):
         raise HTTPException(status_code=401, detail="non autorizzato")
 
 
@@ -193,7 +209,7 @@ def health() -> dict[str, object]:
 class TranscribeQuery(BaseModel):
     """PCM int16 a 16 kHz in base64 — lo stesso formato di `identify/voice`."""
 
-    audio: str = Field(min_length=1)
+    audio: str = Field(min_length=1, max_length=MAX_AUDIO_B64)
 
 
 class Transcribed(BaseModel):
@@ -349,7 +365,7 @@ def identify_face_endpoint(query: FaceQuery) -> Recognised:
 class RememberQuery(BaseModel):
     """Un volto che non è di nessuno che conosciamo (ADR-057)."""
 
-    image: str = Field(min_length=1)
+    image: str = Field(min_length=1, max_length=MAX_IMAGE_B64)
     household_id: str = Field(min_length=1)
 
 
