@@ -8,6 +8,27 @@
  * diagnosi è finita in una lettura del codice.
  */
 export const CAPABILITIES_JS = `
+/**
+ * La versione del muso servita da QUESTO soul, accanto a quella del pannello.
+ *
+ * Le due invecchiano insieme — le serve lo stesso processo — ma quella che si
+ * vede sul chiosco no: il dispositivo può tenere in cache un bundle vecchio.
+ * Averle una sopra l'altra rende il confronto immediato, e toglie di mezzo la
+ * domanda che è costata mezza mattina: «sto guardando le cose nuove o no?».
+ * Aperta e senza token, come la rotta.
+ */
+async function showFaceVersion() {
+  try {
+    const res = await fetch("/v1/version");
+    const body = await res.json();
+    const served = typeof body.version === "string" ? body.version : "?";
+    $("face-version").innerHTML = "muso <code>" + escape(served) + "</code>";
+  } catch (error) {
+    $("face-version").innerHTML = "muso <code>non raggiungibile</code>";
+  }
+}
+void showFaceVersion();
+
 async function loadCapabilities() {
   const list = (await call("/v1/capabilities", {})).capabilities ?? [];
   $("capabilities").innerHTML = list.map((c) =>

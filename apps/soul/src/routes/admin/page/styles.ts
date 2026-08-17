@@ -81,6 +81,16 @@ export const ADMIN_STYLES = `
            padding: 0 .5rem 1rem; letter-spacing: -.01em; }
   .brand span { color: var(--ink-3); font-weight: 400; }
   .rail-group { margin-top: .9rem; }
+  /* l'epoca di ciò che stai guardando: in fondo, sottovoce, ma sempre lì */
+  .rail-build { margin-top: 1.4rem; border-top: 1px solid var(--line); padding-top: .7rem; }
+  .rail-version {
+    margin: 0 0 .15rem; padding: 0 .55rem; font-size: .72rem; color: var(--ink-3);
+  }
+  .rail-version code { font-size: .72rem; color: var(--ink-2); }
+  .rail-hint {
+    margin: .4rem 0 0; padding: 0 .55rem; font-size: .68rem; line-height: 1.4;
+    color: var(--ink-3);
+  }
   .rail-group > small {
     display: block; padding: 0 .55rem .3rem; font-size: .69rem; font-weight: 600;
     text-transform: uppercase; letter-spacing: .09em; color: var(--ink-3);
