@@ -1,7 +1,7 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.10.0"
+version: "0.36.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio"
 ---
@@ -116,10 +116,33 @@ fa niente.
    rumore forte, è normale che sia già tornato calmo.
 3. Se resta identico per giorni anche parlandogli, segnalalo a chi gestisce il server.
 
+## Non riesco a fare una cucciolata: dice «troppo simili» o «ceppi uguali»
+
+Non è un guasto: sono i due controlli che tengono sane le linee.
+
+1. **Troppo simili** — i genomi dei due genitori sono quasi identici. Succede quasi sempre fra
+   due gosini fatti a mano con lo stesso archetipo. Prova con due caratteri diversi.
+2. **Ceppi uguali** — ogni gosino nasce con un *ceppo*, e ne servono due diversi. I ceppi sono
+   otto e assegnati alla nascita: con una terza creatura in casa quasi certamente funziona.
+3. Se hai un solo gosino oltre al capostipite e non vanno d'accordo, fanne nascere uno **a
+   mano** con un carattere lontano e riprova con quello.
+
+Il dettaglio dei tre rifiuti sta in [Il branco](../02-core-features/il-branco.md#perché-a-volte-rifiuta).
+
+## Nel pedigree c'è scritto «senza firma»
+
+**Non è un problema.** Vuol dire solo che per quella nascita non c'è niente da verificare: i
+capostipiti non hanno genitori, e i gosini nati prima di questa versione non hanno firme.
+
+L'unico verdetto che segnala davvero qualcosa è **firma non valida**: quel genoma è stato
+modificato dopo la nascita, scrivendo direttamente nel database. Se compare e nessuno ci ha
+messo le mani apposta, segnalalo a chi gestisce il server.
+
 ## Prossimi Passi
 
 - [Primo avvio](../01-getting-started/primo-avvio.md) — rifare il setup da zero.
 - [Parlare con UGO](../02-core-features/parlare-con-ugo.md) — come funzionano memoria e umore.
+- [Il branco](../02-core-features/il-branco.md) — cucciolate, adozione, pedigree.
 - [I tuoi dati](../02-core-features/i-tuoi-dati.md) — esportare o cancellare.
 
 ## UGO sussulta in continuazione, anche quando c'è silenzio
