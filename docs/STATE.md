@@ -2160,6 +2160,19 @@ risponde a sé stesso. Due difese, entrambe in `apps/face`:
 
 Note di rilascio: da ricostruire il **bundle del muso** (immagine soul).
 
+E il «flake» di rlsRoutes, che flake non era: la CI di questa PR l'ha
+ripescato (`expected [] to include <printId>` sul giornale dopo un DELETE
+con 200) e stavolta la causa è saltata fuori. **Le rotte di `prints.ts`
+rispondevano DENTRO la transazione**: `reply.send` nel callback di
+`inHousehold` esce prima del COMMIT di `withHousehold`, e chi agisce sul
+200 da un'altra connessione — la CI che interroga il giornale, il pannello
+che ricarica la lista — può leggere lo stato di prima. È lo stesso
+fantasma di `expire` (§6-quinquetricies): l'irrobustimento di
+`audit.record` era giusto ma curava un altro sintomo. Ora il callback
+**ritorna** il risultato e la rotta risponde a transazione chiusa; regola
+scritta nel commento di testa di `prints.ts`. Suite rlsRoutes 5/5 × 6 giri
+consecutivi in locale su Postgres vero.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

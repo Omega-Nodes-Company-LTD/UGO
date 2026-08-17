@@ -28,6 +28,15 @@ import { eldestExemplarOf, inHousehold } from "./scope.js";
  * funambolo. Le chiamate esterne (il riconoscitore) restano fuori dalla
  * transazione: una connessione tenuta aperta attraverso una HTTP è il costo
  * che ADR-062 §1 rifiuta.
+ *
+ * E una regola che questa superficie ha insegnato: **la risposta parte DOPO
+ * il COMMIT, mai dentro la transazione.** Un `reply.send` nel callback esce
+ * prima che `withHousehold` committi: chi agisce sul 200 da un'altra
+ * connessione — il pannello che ricarica la lista, la CI che interroga il
+ * giornale — può leggere lo stato di prima. E se il COMMIT poi fallisse, il
+ * 200 sarebbe una bugia. Visto due volte in CI come «flake» di rlsRoutes
+ * (2026-08-17) prima di capire che flake non era: il callback RITORNA il
+ * risultato, la rotta risponde quando la transazione è chiusa.
  */
 
 const claimSchema = z.object({ beingId: z.uuid() });
@@ -61,23 +70,28 @@ function problem(reply: FastifyReply, status: number, title: string, detail?: st
 
 export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps): void {
   app.get("/v1/prints/unknown", { preHandler: deps.guard }, async (request, reply) => {
-    await inHousehold(deps.db, request, reply, { requireAdmin: true }, async (db, householdId) => {
-      const rows = await db
-        .select({
-          id: unknownPrints.id,
-          modality: unknownPrints.modality,
-          model: unknownPrints.model,
-          seenCount: unknownPrints.seenCount,
-          firstSeenAt: unknownPrints.firstSeenAt,
-          lastSeenAt: unknownPrints.lastSeenAt,
-          askedAt: unknownPrints.askedAt,
-        })
-        .from(unknownPrints)
-        .where(eq(unknownPrints.householdId, householdId))
-        .orderBy(desc(unknownPrints.lastSeenAt));
-      await reply.send({ prints: rows, retentionDays: UNKNOWN_PRINT_RETENTION_DAYS });
-    });
-    return reply;
+    const rows = await inHousehold(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, householdId) =>
+        db
+          .select({
+            id: unknownPrints.id,
+            modality: unknownPrints.modality,
+            model: unknownPrints.model,
+            seenCount: unknownPrints.seenCount,
+            firstSeenAt: unknownPrints.firstSeenAt,
+            lastSeenAt: unknownPrints.lastSeenAt,
+            askedAt: unknownPrints.askedAt,
+          })
+          .from(unknownPrints)
+          .where(eq(unknownPrints.householdId, householdId))
+          .orderBy(desc(unknownPrints.lastSeenAt)),
+    );
+    if (rows === undefined) return reply;
+    return reply.send({ prints: rows, retentionDays: UNKNOWN_PRINT_RETENTION_DAYS });
   });
 
   /** «Quello è Marco.» Da qui in poi quella faccia ha un nome. */
@@ -169,28 +183,36 @@ export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps)
   /** Cancellarne una. Il gesto che rende vera tutta la pagina. */
   app.delete("/v1/prints/:id", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    await inHousehold(deps.db, request, reply, { requireAdmin: true }, async (db, householdId) => {
-      const gone = await db
-        .delete(unknownPrints)
-        .where(and(eq(unknownPrints.id, id), eq(unknownPrints.householdId, householdId)))
-        .returning({ id: unknownPrints.id });
-      if (gone.length === 0) {
-        problem(reply, 404, "Print not found");
-        return;
-      }
-      await deps.audit.record(
-        {
-          verb: "print_destroyed",
-          outcome: "ok",
-          householdId,
-          resourceType: "print",
-          resourceId: id,
-        },
-        db,
-      );
-      await reply.send({ destroyed: gone.length });
-    });
-    return reply;
+    const destroyed = await inHousehold(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, householdId) => {
+        const gone = await db
+          .delete(unknownPrints)
+          .where(and(eq(unknownPrints.id, id), eq(unknownPrints.householdId, householdId)))
+          .returning({ id: unknownPrints.id });
+        if (gone.length === 0) return 0;
+        await deps.audit.record(
+          {
+            verb: "print_destroyed",
+            outcome: "ok",
+            householdId,
+            resourceType: "print",
+            resourceId: id,
+          },
+          db,
+        );
+        return gone.length;
+      },
+    );
+    if (destroyed === undefined) return reply;
+    if (destroyed === 0) {
+      problem(reply, 404, "Print not found");
+      return reply;
+    }
+    return reply.send({ destroyed });
   });
 
   /**
@@ -202,30 +224,37 @@ export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps)
    * in cui la si dimostra.
    */
   app.post("/v1/prints/expire", { preHandler: deps.guard }, async (request, reply) => {
-    await inHousehold(deps.db, request, reply, { requireAdmin: true }, async (db, householdId) => {
-      const gone = await db
-        .delete(unknownPrints)
-        .where(
-          and(
-            eq(unknownPrints.householdId, householdId),
-            sql`${unknownPrints.lastSeenAt} < now() - make_interval(days => ${UNKNOWN_PRINT_RETENTION_DAYS})`,
-          ),
-        )
-        .returning({ id: unknownPrints.id });
-      if (gone.length > 0) {
-        await deps.audit.record(
-          {
-            verb: "prints_expired",
-            outcome: "ok",
-            householdId,
-            resourceType: "print",
-            resourceId: String(gone.length),
-          },
-          db,
-        );
-      }
-      await reply.send({ destroyed: gone.length, retentionDays: UNKNOWN_PRINT_RETENTION_DAYS });
-    });
-    return reply;
+    const destroyed = await inHousehold(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, householdId) => {
+        const gone = await db
+          .delete(unknownPrints)
+          .where(
+            and(
+              eq(unknownPrints.householdId, householdId),
+              sql`${unknownPrints.lastSeenAt} < now() - make_interval(days => ${UNKNOWN_PRINT_RETENTION_DAYS})`,
+            ),
+          )
+          .returning({ id: unknownPrints.id });
+        if (gone.length > 0) {
+          await deps.audit.record(
+            {
+              verb: "prints_expired",
+              outcome: "ok",
+              householdId,
+              resourceType: "print",
+              resourceId: String(gone.length),
+            },
+            db,
+          );
+        }
+        return gone.length;
+      },
+    );
+    if (destroyed === undefined) return reply;
+    return reply.send({ destroyed, retentionDays: UNKNOWN_PRINT_RETENTION_DAYS });
   });
 }
