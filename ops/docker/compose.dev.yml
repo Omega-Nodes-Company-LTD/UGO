@@ -109,6 +109,14 @@ services:
       S3_BUCKET_AUDIO: ${S3_BUCKET_AUDIO:-ugo-audio}
       UGO_WHISPER_MODEL: ${UGO_WHISPER_MODEL:-large-v3}
       UGO_AUDIO_RETENTION_DAYS: ${UGO_AUDIO_RETENTION_DAYS:-90}
+      # ADR-001 — il ripiego a pagamento quando il modello locale non c'è.
+      # `config.py` la legge e `batch.py` la pretende, ma il compose non la
+      # passava: con `OLLAMA_BATCH_MODEL` vuoto — la scelta consigliata dal
+      # runbook — la riflessione notturna moriva su un errore invece di
+      # ripiegare. Facoltativa: senza, resta solo la strada locale, dichiarata.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # e il tetto, o il ripiego spenderebbe senza limite dichiarato
+      UGO_DAILY_BUDGET_USD: ${UGO_DAILY_BUDGET_USD:-0.50}
       # il fix della voce dimenticata (2026-08-16): l'arruolamento vocale va
       # fatto dalla percezione, che tiene ECAPA — il sogno le manda il campione.
       # Vuote = ripiego MFCC locale (ha senso solo in una casa senza percezione)
@@ -242,6 +250,21 @@ services:
       # Fase 5 — riunioni (facoltative in dev)
       VEXA_API_URL: ${VEXA_API_URL:-}
       VEXA_API_KEY: ${VEXA_API_KEY:-}
+      # ADR-045/057 — il servizio di percezione: volto, voce, OCR, Piper, whisper.
+      # Mancava, quindi `env.UGO_RECOGNITION_URL` era `undefined` e il
+      # riconoscimento restava spento ANCHE con il container `percezione` su:
+      # si accendeva il servizio e non lo chiamava nessuno.
+      UGO_RECOGNITION_URL: ${UGO_RECOGNITION_URL:-}
+      # ADR-063 — la finestra sul mondo. Il compose avvia `searxng`, ma soul
+      # non riceveva l'indirizzo: un container che girava per niente e il
+      # gesto «cerca: …» che non esisteva.
+      SEARXNG_URL: ${SEARXNG_URL:-}
+      # gruppo 12 — dove sta la casa, per il meteo del recinto
+      UGO_HOME_LAT: ${UGO_HOME_LAT:-}
+      UGO_HOME_LON: ${UGO_HOME_LON:-}
+      # gruppo 13 — la voce: provider interim, poi Piper in casa
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_VISION_MODEL: ${OLLAMA_VISION_MODEL:-}
       UGO_OWNER_NAME: ${UGO_OWNER_NAME:-casa}
       PORT: "3000"
       TZ: ${TZ:-Europe/Rome}

@@ -5,12 +5,15 @@ pg_dump (custom format) → AES-256-GCM → ugo-backup/pg/<date>.dump.enc,
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 import boto3
+from botocore.exceptions import ClientError
 
 from .config import JobsConfig
 from .crypto import encrypt_bytes, parse_data_key
@@ -43,11 +46,29 @@ def _redact(text: str) -> str:
 
 
 def _dump_database(database_url: str) -> bytes:
+    # La password NON sta sulla riga di comando. `--dbname=<url>` la mette in
+    # `/proc/<pid>/cmdline`, che è leggibile da qualunque altro processo del
+    # container e da un `ps aux` durante un incidente — mentre poco sopra
+    # `_redact` si preoccupa di toglierla dallo stderr. Curare l'uscita e
+    # lasciarla sulla riga di comando era proteggere la finestra e lasciare la
+    # porta aperta. `PGPASSWORD` la passa nell'ambiente del solo figlio.
+    parts = urlsplit(database_url)
+    password = unquote(parts.password) if parts.password else None
+    safe_netloc = parts.netloc
+    if password is not None:
+        # si ricompone l'URL senza la password: resta utente, host, porta e db
+        user = f"{parts.username}@" if parts.username else ""
+        host = parts.hostname or ""
+        port = f":{parts.port}" if parts.port else ""
+        safe_netloc = f"{user}{host}{port}"
+    safe_url = urlunsplit((parts.scheme, safe_netloc, parts.path, parts.query, parts.fragment))
+
     completed = subprocess.run(
-        ["pg_dump", "--format=custom", f"--dbname={database_url}"],
+        ["pg_dump", "--format=custom", f"--dbname={safe_url}"],
         capture_output=True,
         check=False,
         timeout=600,
+        env={**os.environ, **({"PGPASSWORD": password} if password is not None else {})},
     )
     if completed.returncode != 0:
         # The reason lives in stderr, and throwing it away turned every failure
@@ -64,11 +85,13 @@ def _dump_database(database_url: str) -> bytes:
 def _prune_old(client, bucket: str, retention_days: int) -> int:  # noqa: ANN001
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
     pruned = 0
-    response = client.list_objects_v2(Bucket=bucket, Prefix=KEY_PREFIX)
-    for item in response.get("Contents", []):
-        if item["LastModified"] < cutoff:
-            client.delete_object(Bucket=bucket, Key=item["Key"])
-            pruned += 1
+    # paginato: `list_objects_v2` si ferma a 1000 chiavi, e i backup più vecchi
+    # — quelli da portare via — sono esattamente quelli che restavano fuori
+    for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=KEY_PREFIX):
+        for item in page.get("Contents", []):
+            if item["LastModified"] < cutoff:
+                client.delete_object(Bucket=bucket, Key=item["Key"])
+                pruned += 1
     return pruned
 
 
@@ -95,7 +118,12 @@ def run_backup(cfg: JobsConfig, dream_date: str) -> BackupResult:
     client = _s3_client(cfg)
     try:
         client.head_bucket(Bucket=cfg.s3_bucket_backup)
-    except Exception:
+    except ClientError as error:
+        # solo un 404 vuol dire «non c'è»: un 403 è un problema di credenziali,
+        # e mascherarlo da bucket mancante mandava l'operatore a cercare nel
+        # posto sbagliato proprio la notte in cui il backup non si faceva
+        if error.response.get("ResponseMetadata", {}).get("HTTPStatusCode") != 404:
+            raise
         client.create_bucket(Bucket=cfg.s3_bucket_backup)
     key = f"{KEY_PREFIX}{dream_date}.dump.enc"
     client.put_object(Bucket=cfg.s3_bucket_backup, Key=key, Body=sealed)

@@ -108,6 +108,7 @@ beforeAll(async () => {
   const psyche = await PsycheService.restore(db, new Date(), gosinoId);
   const chat = new ChatService({
     gosinoId,
+    householdId: house,
     character: characterFrom({}),
     db,
     // il percorso sotto test non li sfiora; se un giorno lo farà, questo cast

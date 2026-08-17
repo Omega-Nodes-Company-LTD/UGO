@@ -5,7 +5,6 @@ baseline drifts gently with the lived days (ADR-012, accepted).
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 
 import psycopg

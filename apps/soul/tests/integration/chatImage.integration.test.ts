@@ -21,6 +21,7 @@ const flatEmbedder: EmbeddingsClient = {
 let pg: StartedPostgreSqlContainer;
 let db: DbClient;
 let gosinoId = "";
+let householdId = "";
 // UNA chiave per tutto il file: la cronologia scritta da un test si rilegge
 // nel successivo, come in produzione
 const dataKey = randomBytes(32);
@@ -44,6 +45,7 @@ async function chatWith(
     psyche: await PsycheService.restore(db, new Date(), gosinoId),
     dataKey,
     gosinoId,
+    householdId,
     character: characterFrom({}),
     ...(vision !== undefined && { vision }),
   });
@@ -55,9 +57,10 @@ beforeAll(async () => {
   await runMigrations(url);
   db = createDbClient(url);
   const [house] = await db.select({ id: households.id }).from(households).limit(1);
+  householdId = house?.id ?? "";
   const [pig] = await db
     .insert(gosini)
-    .values({ householdId: house?.id ?? "", name: "ugo-foto" })
+    .values({ householdId, name: "ugo-foto" })
     .returning({ id: gosini.id });
   gosinoId = pig?.id ?? "";
 }, 240_000);

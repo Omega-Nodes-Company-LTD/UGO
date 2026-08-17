@@ -30,6 +30,7 @@ const flatEmbedder: EmbeddingsClient = {
 let pg: StartedPostgreSqlContainer;
 let db: DbClient;
 let gosinoId = "";
+let householdId = "";
 let ivan = "";
 let paola = "";
 const dataKey = randomBytes(32);
@@ -48,7 +49,7 @@ beforeAll(async () => {
   await runMigrations(url);
   db = createDbClient(url);
   const [house] = await db.select({ id: households.id }).from(households).limit(1);
-  const householdId = house?.id ?? "";
+  householdId = house?.id ?? "";
   const [pig] = await db
     .insert(gosini)
     .values({ householdId, name: "ugo-gruppo" })
@@ -115,6 +116,7 @@ async function chat(): Promise<ChatService> {
     psyche: await PsycheService.restore(db, new Date(), gosinoId),
     dataKey,
     gosinoId,
+    householdId,
     character: characterFrom({}),
   });
 }

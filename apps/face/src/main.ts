@@ -233,10 +233,35 @@ function showSpeech(text: string, who?: string): void {
  * lot of moving parts for a control used twice a year.
  */
 async function loadRooms(): Promise<void> {
-  let rooms: { room: string; gosini: { name: string }[] }[] = [];
+  let rooms: { room: string; gosini: { name: string }[] }[];
   try {
     const res = await fetch(`${soulHttp}/v1/rooms`);
-    rooms = ((await res.json()) as { rooms?: typeof rooms }).rooms ?? [];
+    const payload = (await res.json()) as { rooms?: unknown };
+    // Setacciato invece che creduto sulla parola. Non con Zod: portarlo nel
+    // bundle del chiosco per tre campi costerebbe più di quanto valga, e la
+    // batteria del corpo è già un debito aperto (STATE §7). Qui basta
+    // scartare ciò che non ha la forma giusta — un proxy che risponde HTML
+    // con lo stato buono faceva arrivare `undefined` fin dentro le voci del
+    // selettore, che leggeva «undefined · vuota».
+    rooms = (Array.isArray(payload.rooms) ? payload.rooms : [])
+      .filter(
+        (entry): entry is { room: string; gosini?: unknown } =>
+          typeof entry === "object" &&
+          entry !== null &&
+          typeof (entry as { room?: unknown }).room === "string" &&
+          (entry as { room: string }).room !== "",
+      )
+      .map((entry) => ({
+        room: entry.room,
+        gosini: (Array.isArray(entry.gosini) ? entry.gosini : [])
+          .filter(
+            (who): who is { name: string } =>
+              typeof who === "object" &&
+              who !== null &&
+              typeof (who as { name?: unknown }).name === "string",
+          )
+          .map((who) => ({ name: who.name })),
+      }));
   } catch {
     return; // no soul yet: the picker simply does not appear
   }
@@ -246,21 +271,26 @@ async function loadRooms(): Promise<void> {
   // pick it at all.
   if (rooms.length === 0) return;
   const current = params.get("stanza")?.toLowerCase();
-  roomPick.innerHTML = rooms
-    .map((r) => {
-      const chosen = r.room.toLowerCase() === current ? " selected" : "";
-      // ADR-039: a room can be empty now, and "cucina · " with nothing after
-      // the separator reads like a bug rather than like an empty room
-      const names = r.gosini.map((g) => g.name).join(", ");
-      const who = names === "" ? " · vuota" : ` · ${names}`;
-      return `<option value="${r.room}"${chosen}>${r.room}${who}</option>`;
-    })
-    .join("");
+
+  // Costruito con le API del DOM e non con `innerHTML`: il nome di una stanza
+  // e il nome di una creatura sono testo che arriva dal pannello, e finivano
+  // interpolati grezzi dentro un attributo (`value="${r.room}"`). Una stanza
+  // chiamata `"><img src=x onerror=…>` eseguiva script sull'origin di soul, su
+  // ogni chiosco che apriva il selettore — e lì accanto, in `localStorage`,
+  // c'è il token. `escapeHtml` di `logPanel.ts` non sarebbe bastato: passa da
+  // `textContent`, che NON codifica le virgolette doppie, ed è corretto solo
+  // in contesto testo. `new Option(...)` non ha un contesto da sbagliare.
+  roomPick.replaceChildren();
   // an explicit "nobody in particular" entry, so the choice is reversible
-  roomPick.insertAdjacentHTML(
-    "afterbegin",
-    `<option value=""${current === undefined ? " selected" : ""}>— nessuna stanza —</option>`,
-  );
+  roomPick.append(new Option("— nessuna stanza —", "", false, current === undefined));
+  for (const r of rooms) {
+    // ADR-039: a room can be empty now, and "cucina · " with nothing after
+    // the separator reads like a bug rather than like an empty room
+    const names = r.gosini.map((g) => g.name).join(", ");
+    const who = names === "" ? " · vuota" : ` · ${names}`;
+    const chosen = r.room.toLowerCase() === current;
+    roomPick.append(new Option(`${r.room}${who}`, r.room, false, chosen));
+  }
   roomPick.hidden = false;
 }
 
@@ -633,6 +663,15 @@ function startLocalEars(): void {
 }
 
 function startListening(): void {
+  // Riaccendere le orecchie riapre il microfono, che ora `stopListening()`
+  // spegne davvero. Il click sul bottone è il gesto dell'utente che
+  // `getUserMedia` richiede, quindi il permesso non viene richiesto due volte:
+  // il browser lo ricorda per l'origin.
+  if (!sensors.micIsOn()) {
+    void sensors.startMicrophone().catch(() => {
+      trouble("microfono non disponibile");
+    });
+  }
   if (wantsLocalEars) {
     startLocalEars();
     return;
@@ -679,10 +718,15 @@ function startBrowserListening(): void {
 
 function stopListening(): void {
   // ADR-045: le orecchie spente devono anche dimenticare, o "spento" vorrebbe
-  // dire solo "non manda"
+  // dire solo "non manda".
+  //
+  // E devono spegnere il microfono, non solo svuotare la finestra:
+  // `forgetVoice()` da solo buttava l'anello che il misuratore riempiva di
+  // nuovo un fotogramma dopo, con le tracce ancora `live` e il pallino rosso
+  // del browser acceso. Spento vuol dire spento.
   localEarsOn = false;
-  sensors.forgetVoice();
   speech.stopListening();
+  sensors.stopMicrophone();
   app.dataset.ears = "off";
   setLocalState("idle");
 }
@@ -757,7 +801,13 @@ micButton.addEventListener("click", () => {
 });
 
 earsButton.addEventListener("click", () => {
-  if (speech.isListening()) {
+  // Si chiede al MUSO se sta ascoltando, non al riconoscitore del browser.
+  // `speech.isListening()` è falso per costruzione quando le orecchie sono
+  // quelle locali (`?stt=locale` non chiama mai `speech.listen()`): il
+  // bottone prendeva sempre il ramo «accendi», e non c'era modo di zittire
+  // il microfono dall'interfaccia. `dataset.ears` lo sanno entrambi i
+  // percorsi, ed è quello che l'utente vede scritto sul bottone.
+  if (app.dataset.ears === "on") {
     stopListening();
     earsButton.textContent = "🔇 orecchie spente";
   } else {

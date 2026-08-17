@@ -150,6 +150,26 @@ def _expire_unknown_prints(conn: psycopg.Connection, cfg: JobsConfig) -> int:
     return len(gone)
 
 
+def _discard(client: object, cfg: JobsConfig, object_key: str) -> None:
+    """Il clip se ne va, qualunque cosa sia successo.
+
+    La cancellazione stava sul solo percorso di successo: il clip di un minore
+    (`is_minor`, ADR-016) — l'unico audio che l'intestazione di questo file
+    promette di non tenere — restava in `inbox/` a tempo indefinito, e di lì
+    veniva ripreso come una registrazione qualunque. Un rifiuto deve
+    distruggere PIÙ in fretta di un successo, non di meno.
+
+    NON si chiama su `deferred`: lì la percezione era giù, la richiesta resta
+    pendente e il clip serve al giro di domani notte.
+
+    Non solleva mai: un bucket che non risponde non deve fermare la notte.
+    """
+    try:
+        client.delete_object(Bucket=cfg.s3_bucket_audio, Key=object_key)  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001 — la retention riproverà al giro dopo
+        pass
+
+
 def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
     # prima si butta il vecchio, poi si impara il nuovo: l'ordine è la
     # minimizzazione — un'impronta scaduta non deve sopravvivere nemmeno al
@@ -186,6 +206,7 @@ def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
                     result.deferred += 1
                     continue
                 if outcome == "refused":
+                    _discard(client, cfg, object_key)
                     _outcome(conn, gosino_id, being_id, request_id, "refused:remote")
                     result.refused += 1
                     continue
@@ -201,15 +222,20 @@ def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
                     data_key=data_key,
                 )
         except EnrollmentRefused as refusal:
+            _discard(client, cfg, object_key)
             _outcome(conn, gosino_id, being_id, request_id, f"refused:{refusal}")
             result.refused += 1
             continue
         except Exception:  # noqa: BLE001 — one bad clip must not stop the night
+            # un clip che non si riesce a usare non è un clip da tenere: la
+            # richiesta è comunque chiusa da `_outcome`, quindi nessuno tornerà
+            # mai a leggerlo
+            _discard(client, cfg, object_key)
             _outcome(conn, gosino_id, being_id, request_id, "failed")
             result.missing += 1
             continue
         # the clip has done its job: it must not survive the night
-        client.delete_object(Bucket=cfg.s3_bucket_audio, Key=object_key)
+        _discard(client, cfg, object_key)
         _outcome(conn, gosino_id, being_id, request_id, "enrolled")
         result.enrolled += 1
 
