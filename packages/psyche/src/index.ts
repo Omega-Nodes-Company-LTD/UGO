@@ -55,3 +55,18 @@ export {
   type LitterOptions,
   type ScreenVerdict,
 } from "./genetics.js";
+export {
+  LIFESPAN_MIN_DAYS,
+  LIFESPAN_MAX_DAYS,
+  CUB_UNTIL,
+  ELDER_FROM,
+  PLASTICITY_YOUNG,
+  PLASTICITY_OLD,
+  lifespanDaysFor,
+  plasticityAt,
+  stageAt,
+  lifeAt,
+  lifeOf,
+  type Life,
+  type LifeStage,
+} from "./life.js";

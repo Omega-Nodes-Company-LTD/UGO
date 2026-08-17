@@ -190,6 +190,22 @@ async function loadGosini() {
   if (WHO === "" && GOSINI.length > 0) WHO = GOSINI[0].id;
 }
 
+/**
+ * L'età in una riga (ADR-071). La plasticità è la cosa che cambia davvero
+ * con gli anni, quindi si dice in italiano invece che con un numero: quanto
+ * la vita può ancora riscrivergli il carattere.
+ */
+function ageLine(age) {
+  const years = age.days / 365;
+  const quanti = age.days < 60
+    ? age.days + (age.days === 1 ? " giorno" : " giorni")
+    : years < 1 ? Math.round(age.days / 30) + " mesi" : years.toFixed(1) + " anni";
+  const how = age.plasticity >= 1.6 ? "cambia in fretta"
+    : age.plasticity >= 0.8 ? "cambia col tempo"
+    : age.plasticity >= 0.4 ? "ormai cambia poco" : "è quello che è";
+  return escape(age.stage + " · " + quanti + " · " + how);
+}
+
 /** The house's front page: each creature with the mood he is actually in. */
 async function drawGosiniCards() {
   const cards = [];
@@ -199,7 +215,10 @@ async function drawGosiniCards() {
     catch { /* one that cannot be read still gets a row, with a dash */ }
     cards.push('<a class="gosino-card" href="' + at("#/g/" + g.id + "/stato") + '">' +
       "<div><h4>" + escape(g.name) + (g.where ? ' <span class="persona">· ' + escape(g.where) + "</span>" : "") +
-      '</h4><div class="persona">' + escape(g.persona ?? "") + "</div></div>" +
+      '</h4><div class="persona">' + escape(g.persona ?? "") + "</div>" +
+      // ADR-071: quanti giorni ha, e quanto la vita può ancora cambiarlo
+      (g.age === undefined ? "" : '<div class="persona">' + ageLine(g.age) + "</div>") +
+      "</div>" +
       '<div class="mood">' + escape(mood) + "</div></a>");
   }
   $("gosini-cards").innerHTML = cards.length === 0

@@ -1,4 +1,5 @@
 import { gosini, traitSets, type DbClient } from "@ugo/db";
+import { lifeAt } from "@ugo/psyche";
 import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -150,9 +151,15 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
     const householdId = await householdScope(deps.db, request, reply);
     if (householdId === undefined) return reply;
     const rows = await deps.db
-      .select({ id: gosini.id, name: gosini.name, where: gosini.locationLabel })
+      .select({
+        id: gosini.id,
+        name: gosini.name,
+        where: gosini.locationLabel,
+        bornAt: gosini.bornAt,
+      })
       .from(gosini)
       .where(eq(gosini.householdId, householdId));
+    const now = new Date();
     const out = [];
     for (const row of rows) {
       const traits = await deps.db
@@ -160,7 +167,22 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
         .from(traitSets)
         .where(eq(traitSets.gosinoId, row.id))
         .limit(1);
-      out.push({ ...row, persona: characterFrom(traits[0]?.traits).persona });
+      const character = characterFrom(traits[0]?.traits);
+      // ADR-071: l'età non si conserva, si calcola da `born_at` e dal genoma
+      const life = lifeAt(row.bornAt, now, character.traits.longevity);
+      out.push({
+        id: row.id,
+        name: row.name,
+        where: row.where,
+        persona: character.persona,
+        age: {
+          days: Math.floor(life.ageDays),
+          stage: life.stage,
+          fraction: Number(life.fraction.toFixed(3)),
+          plasticity: Number(life.plasticity.toFixed(2)),
+          greying: Number(life.greying.toFixed(2)),
+        },
+      });
     }
     return reply.send({ gosini: out });
   });

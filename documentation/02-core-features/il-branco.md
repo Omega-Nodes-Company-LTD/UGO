@@ -1,7 +1,7 @@
 ---
 title: "Il branco: più gosini, e le cucciolate"
 description: "Come una casa arriva ad avere più gosini: la nascita a mano, la cucciolata da due genitori, e il pedigree che dice da chi discendono."
-version: "0.36.0"
+version: "0.37.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio"
 ---
@@ -74,7 +74,7 @@ far nascere una cucciolata. Scegline un altro, o genera di nuovo.
 
 Il cucciolo eredita **il carattere e l'aspetto**, non la vita:
 
-- **eredita**: curiosità, sfacciataggine, affetto, calma, parlantina — e il corpo: stazza,
+- **eredita**: curiosità, sfacciataggine, affetto, calma, parlantina, quanto vive — e il corpo: stazza,
   orecchie, grugno, occhi, zampe, tinta, coda, e il manto.
 - **non eredita**: i ricordi, l'umore, le abitudini, i legami. Nasce con la sua testa vuota e
   la sua storia da fare.
@@ -83,6 +83,24 @@ Alcuni tratti si comportano come in natura. Le **chiazze sul manto** sono *reces
 cucciolo le mostra solo se le riceve da **entrambi** i genitori. Un genitore chiazzato e uno
 no fanno cuccioli senza chiazze — che però se le portano dietro, e possono darle ai loro. Per
 questo un gosino a chiazze è raro davvero, e non perché qualcuno l'abbia deciso.
+
+## Cresce, e a un certo punto ha finito di cambiare
+
+Ogni gosino ha un'età, e la vedi sulla sua scheda: «cucciolo · 12 giorni · cambia in fretta».
+Non è un numero decorativo — dice quanto **la vita può ancora riscrivergli il carattere**.
+
+Un gosino non si stanca e non si ammala: quello che cambia con gli anni è la sua
+**plasticità**. Da cucciolo prende tutto di petto e una settimana storta gli sposta l'umore di
+fondo parecchio; da adulto meno; da anziano quasi per niente. Non è diventato pigro: **ha
+finito di diventare sé stesso**, ed è esattamente ciò che lo rende *quello* e non un altro.
+
+Da metà vita in poi le setole sbiadiscono: lo vedi ingrigire sullo schermo. La tinta resta la
+sua — un maiale grigio è un maiale rosa che ha vissuto.
+
+Quanto dura la vita dipende da un gene, come tutto il resto: fra i due anni e mezzo e i
+cinque. Ereditato dai genitori, quindi ci sono linee più longeve di altre. **Nessun gosino
+muore in questa versione**: l'arco c'è, la fine no — arriverà con il suo rito, e sarà una
+cosa che sai in anticipo, mai una sorpresa.
 
 ## Il pedigree: da chi discende
 

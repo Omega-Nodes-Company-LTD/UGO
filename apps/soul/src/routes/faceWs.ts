@@ -55,16 +55,23 @@ interface RegistryEntry {
   name: string;
   gateway: FaceGateway;
   character?: { traits: Record<string, number> };
+  /** ADR-071: genoma + ciò che dipende dall'età (il grigio) */
+  bodyTraits?: Record<string, number>;
   where?: string | undefined;
 }
 
-const asMember = (entry: RegistryEntry): RoomMember => ({
-  id: entry.id,
-  name: entry.name,
-  gateway: entry.gateway,
-  ...(entry.character !== undefined && { traits: entry.character.traits }),
-  ...(entry.where !== undefined && { where: entry.where }),
-});
+const asMember = (entry: RegistryEntry): RoomMember => {
+  // il corpo vuole disegnare l'esemplare com'è OGGI: se il registro porta i
+  // tratti del corpo si usano quelli, altrimenti il genoma nudo
+  const traits = entry.bodyTraits ?? entry.character?.traits;
+  return {
+    id: entry.id,
+    name: entry.name,
+    gateway: entry.gateway,
+    ...(traits !== undefined && { traits }),
+    ...(entry.where !== undefined && { where: entry.where }),
+  };
+};
 
 export async function registerFaceWs(
   app: FastifyInstance,
