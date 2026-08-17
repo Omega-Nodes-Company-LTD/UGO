@@ -1,4 +1,7 @@
+import { households, type DbClient } from "@ugo/db";
+import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import { resolveHousehold } from "./scope.js";
 
 /**
  * Il meteo vero, per il cielo del recinto (gruppo 12).
@@ -25,7 +28,21 @@ export function weatherKindOf(wmoCode: number): "clear" | "cloudy" | "rain" {
 }
 
 export interface WeatherDeps {
-  /** dove sta la casa; assente = la rotta risponde «non disponibile» */
+  /**
+   * Facoltativo di proposito: assente = si guarda solo il ripiego
+   * d'ambiente, che è ciò che serve ai test di questa rotta (mappatura dei
+   * codici WMO e memo, senza database). In produzione c'è sempre.
+   */
+  db?: DbClient;
+  /**
+   * Il ripiego storico: `UGO_HOME_LAT`/`UGO_HOME_LON` nell'ambiente.
+   *
+   * Resta solo per non spegnere il cielo alle installazioni che l'hanno già
+   * configurato così, ed è **deprecato**: le coordinate sono della CASA
+   * (`households.lat/lon`, dal pannello), perché con quelle nell'ambiente del
+   * processo servire due famiglie significa due server — cioè il contrario di
+   * ADR-019. Quando la casa ha il suo posto, questo non viene nemmeno letto.
+   */
   home?: { lat: number; lon: number };
   /** iniettabile nei test: il vero è open-meteo */
   fetchWeather?: (lat: number, lon: number) => Promise<{ code: number; isDay: boolean }>;
@@ -48,16 +65,35 @@ async function fromOpenMeteo(lat: number, lon: number): Promise<{ code: number; 
 }
 
 export function registerWeatherRoute(app: FastifyInstance, deps: WeatherDeps): void {
-  let memo: { at: number; body: object } | undefined;
+  const memo = new Map<string, { at: number; body: object }>();
 
-  app.get("/v1/weather", async (_request, reply) => {
-    const home = deps.home;
+  app.get("/v1/weather", async (request, reply) => {
+    // la casa prima dell'ambiente: il corpo non porta un token, e
+    // `resolveHousehold` sa già rispondere «l'unica che c'è» in quel caso
+    const db = deps.db;
+    let home = deps.home;
+    const scope = db === undefined ? undefined : await resolveHousehold(db, request);
+    if (db !== undefined && scope?.ok === true) {
+      const [row] = await db
+        .select({ lat: households.lat, lon: households.lon })
+        .from(households)
+        .where(eq(households.id, scope.householdId));
+      if (row?.lat != null && row.lon != null) {
+        home = { lat: Number(row.lat), lon: Number(row.lon) };
+      }
+    }
     if (home === undefined) {
+      // «non disponibile» e non un errore: una casa che non ha ancora detto
+      // dove sta è uno stato normale, e il pannello sa chiederlo
       return reply.send({ available: false });
     }
     const now = deps.now?.() ?? Date.now();
-    if (memo !== undefined && now - memo.at < MEMO_TTL_MS) {
-      return reply.send(memo.body);
+    // il memo è per COORDINATE, non per processo: con due case a bordo, una
+    // chiave sola serviva a tutte il tempo della prima che aveva chiesto
+    const key = `${home.lat.toFixed(3)},${home.lon.toFixed(3)}`;
+    const remembered = memo.get(key);
+    if (remembered !== undefined && now - remembered.at < MEMO_TTL_MS) {
+      return reply.send(remembered.body);
     }
     try {
       const current = await (deps.fetchWeather ?? fromOpenMeteo)(home.lat, home.lon);
@@ -70,7 +106,7 @@ export function registerWeatherRoute(app: FastifyInstance, deps: WeatherDeps): v
         lat: home.lat,
         lon: home.lon,
       };
-      memo = { at: now, body };
+      memo.set(key, { at: now, body });
       return await reply.send(body);
     } catch {
       // meteo irraggiungibile: il cielo resta quello di prima, dichiarandolo.

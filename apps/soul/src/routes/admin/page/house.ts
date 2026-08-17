@@ -21,6 +21,20 @@ export const HOUSE_PAGES = `
   </div>
 
   <div class="block">
+    <h2>Dove sta questa casa</h2>
+    <p class="lede">Serve al cielo del recinto: il tempo che fa lo prende da qui. Scrivi il
+       paese o la citt&agrave; e scegli dalla lista &mdash; le coordinate le trova lui, e restano
+       di <em>questa</em> casa: due famiglie sullo stesso server hanno due cieli.</p>
+    <div class="row">
+      <input id="place-q" type="text" placeholder="Torino" data-testid="place-q" />
+      <button id="place-find" class="ghost" data-testid="place-find">Cerca</button>
+    </div>
+    <div id="place-results" data-testid="place-results"></div>
+    <p class="lede" id="place-now" data-testid="place-now"></p>
+    <div id="place-msg"></div>
+  </div>
+
+  <div class="block">
     <h2>La giornata</h2>
     <div class="tiles" id="tiles" data-testid="stats"></div>
     <h3>Sta rispondendo tutto?</h3>

@@ -37,6 +37,21 @@ export const households = pgTable(
   /** null falls back to the process-wide default */
   dailyBudgetUsd: numeric("daily_budget_usd", { precision: 10, scale: 4 }),
   /**
+   * Dove sta questa casa, per il cielo del recinto (gruppo 12).
+   *
+   * Stava in `UGO_HOME_LAT`/`UGO_HOME_LON`, cioè nell'ambiente del PROCESSO —
+   * il che vuol dire un server per famiglia, che è esattamente ciò che ADR-019
+   * esiste per non fare. Il tempo che fa è della casa come il fuso e la
+   * lingua, e sta sulla riga della casa.
+   *
+   * `place` è come l'ha scritto una persona («Torino», «Via Roma 1, Milano»):
+   * si tiene per poterlo rimostrare nel pannello, perché due coordinate non
+   * dicono a nessuno se ha scelto il posto giusto.
+   */
+  lat: numeric("lat", { precision: 8, scale: 5 }),
+  lon: numeric("lon", { precision: 8, scale: 5 }),
+  place: text("place"),
+  /**
    * This house's data key (DEK), AES-256-GCM-wrapped with the master key in
    * UGO_DATA_KEY. Destroying this column erases the family beyond recovery —
    * which is what makes erasure demonstrable rather than merely careful.

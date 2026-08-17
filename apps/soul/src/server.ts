@@ -122,7 +122,8 @@ export interface ServerOptions extends HealthDeps {
       }) => Promise<"learned" | "refused" | "unreachable">;
     };
     /** gruppo 12: il meteo vero per il cielo del recinto; assente = rotta muta */
-    weather?: WeatherDeps;
+    /** `db` lo mette il server: chi lo costruisce porta solo il ripiego d'ambiente */
+    weather?: Omit<WeatherDeps, "db">;
     /** backlog gruppo 3: il server MCP di sola lettura — assente = la rotta non esiste */
     mcp?: { embedder: McpRouteDeps["embedder"] };
     /** gruppo 13: la voce interim — assente = 204 e voce di sistema */
@@ -224,10 +225,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerDebugChatRoute(app, guard);
     // il selettore del pannello: aperta al solo token, che e' gia' abbastanza
     // — dice quali case *quel* token puo' vedere, e per quasi tutti e' una
-    registerHouseholdRoutes(app, { db: options.db });
+    registerHouseholdRoutes(app, { db: options.db, guard });
     // gruppo 12: il tempo che fa, per il cielo del recinto. Aperta come
     // /v1/rooms — il corpo non porta un token — e muta senza coordinate
-    registerWeatherRoute(app, weather ?? {});
+    registerWeatherRoute(app, { db: options.db, ...(weather ?? {}) });
     // gruppo 13: la voce interim — il salvadanaio sta nel client (regola 3)
     // backlog gruppo 3: la memoria interrogabile da altri agenti, sola lettura
     if (mcp !== undefined) {

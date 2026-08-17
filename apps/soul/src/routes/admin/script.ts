@@ -16,6 +16,7 @@ import { SPARKS_JS } from "./script/sparks.js";
 import { RELATIONS_JS } from "./script/relations.js";
 import { ROOMS_JS } from "./script/rooms.js";
 import { ROUTER_JS } from "./script/router.js";
+import { PLACE_JS } from "./script/place.js";
 import { STATUS_JS } from "./script/status.js";
 import { VOICE_JS } from "./script/voice.js";
 import { VOLITION_JS } from "./script/volition.js";
@@ -44,6 +45,7 @@ export const ADMIN_SCRIPT = [
   GRAPH_JS,
   DATA_JS,
   STATUS_JS,
+  PLACE_JS,
   EXEMPLARS_JS,
   VOLITION_JS,
   EFFICACY_JS,

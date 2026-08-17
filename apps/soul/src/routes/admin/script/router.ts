@@ -89,6 +89,7 @@ async function openPage(page) {
     await section(loadStats, "stats-msg");
     await section(loadHealth, "stats-msg");
     await section(drawGosiniCards, "stats-msg");
+    await section(showPlace, "place-msg");
   } else if (page === "conti") {
     await section(loadStats, "stats-msg");
   } else if (page === "riunioni") {
