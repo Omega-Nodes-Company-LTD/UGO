@@ -189,8 +189,13 @@ export class Speech {
      * seppellirebbe quelli veri sotto il rumore.
      */
     onTrouble?: (what: string) => void,
-    /** Il freno ha mollato: le orecchie sono SPENTE, e la UI deve dirlo. */
-    onGaveUp?: () => void,
+    /**
+     * Il freno ha mollato: su questo dispositivo il riconoscitore del browser
+     * non resta acceso. Il motivo viaggia col callback perché è il CHIAMANTE
+     * a decidere la strada dopo — passare alla dettatura in casa o spegnere
+     * le orecchie — e il messaggio giusto dipende da quella scelta.
+     */
+    onGaveUp?: (why: string) => void,
   ): boolean {
     const Ctor = this.recognitionCtor();
     if (Ctor === undefined) return false;
@@ -204,8 +209,7 @@ export class Speech {
 
     const giveUp = (why: string): void => {
       this.listening = false;
-      onTrouble?.(why);
-      onGaveUp?.();
+      onGaveUp?.(why);
     };
 
     const session = (): void => {
@@ -256,7 +260,7 @@ export class Speech {
         // un VERDETTO (permesso negato) non si ritenta: la risposta non
         // cambia, e ogni tentativo suona il bip di sistema
         if (verdict) {
-          giveUp("il sistema nega il riconoscimento vocale: orecchie spente (un tocco riprova)");
+          giveUp("il sistema nega il riconoscimento vocale");
           return;
         }
         // il freno: su certi Android la sessione muore appena nata — il
@@ -266,7 +270,7 @@ export class Speech {
         const diedQuickly = performance.now() - bornAt < QUICK_DEATH_MS && !heardAnything;
         quickDeaths = diedQuickly ? quickDeaths + 1 : 0;
         if (quickDeaths >= GIVES_UP_AFTER) {
-          giveUp("il riconoscitore non riesce a restare acceso su questo dispositivo: orecchie spente");
+          giveUp("il riconoscitore non riesce a restare acceso su questo dispositivo");
           return;
         }
         const wait =
