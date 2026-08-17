@@ -282,7 +282,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       registerAudioRoutes(app, audio, guard);
     }
     if (meetings !== undefined) {
-      registerMeetingsRoutes(app, meetings, guard);
+      registerMeetingsRoutes(app, { db: options.db, service: meetings, guard });
     }
     if (privacy !== undefined) {
       registerPrivacyRoutes(app, { db: options.db, ...privacy, guard, audit });

@@ -1,4 +1,4 @@
-import { Script } from "node:vm";
+import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { ADMIN_SCRIPT } from "./script.js";
 import { ADMIN_PAGE } from "./page.js";
@@ -52,5 +52,47 @@ describe("the assembled panel script", () => {
     const wanted = [...ADMIN_SCRIPT.matchAll(/\$\("([^"]+)"\)/g)].map((match) => match[1]);
     const missing = [...new Set(wanted)].filter((id) => !ids.has(id));
     expect(missing).toEqual([]);
+  });
+
+  /**
+   * ADR-019 fase 3, con i denti. La promessa «la casa viaggia con OGNI
+   * chiamata» era un commento sopra `forWho`, e la manteneva un loader su
+   * sette: con due case il pannello rispondeva 400 su metà delle sezioni e
+   * mostrava la casa sbagliata sull'altra metà. Da qui in poi lo scope sta
+   * nel telaio — `call()` passa da `scoped()` — così una sezione nuova nasce
+   * scoped senza che nessuno debba ricordarselo. Questo test lo ESEGUE,
+   * non lo legge: se qualcuno stacca `scoped()` da `call()` o ne rompe la
+   * logica, qui diventa rosso.
+   */
+  it("carries the selected house on every API call, structurally", () => {
+    // call() must route through scoped(): the one line the whole rule hangs on
+    expect(ADMIN_SCRIPT).toMatch(/fetch\(scoped\(path\)/);
+
+    const source = /const scoped = \(path\) => \{[\s\S]*?\n\};/.exec(ADMIN_SCRIPT)?.[0];
+    expect(source, "scoped() moved or was renamed").toBeDefined();
+    const context = createContext({ HOUSE: "11111111-2222-4333-8444-555555555555" });
+    const scoped = new Script(`${source ?? ""}; scoped`).runInContext(context) as (
+      path: string,
+    ) => string;
+
+    // a bare path gains the house; an existing query string is appended to
+    expect(scoped("/v1/rooms")).toBe("/v1/rooms?casa=11111111-2222-4333-8444-555555555555");
+    expect(scoped("/v1/memories?q=x")).toBe(
+      "/v1/memories?q=x&casa=11111111-2222-4333-8444-555555555555",
+    );
+    // forWho already carries the house: no duplicate parameter
+    expect(scoped("/v1/stats?casa=altra")).toBe("/v1/stats?casa=altra");
+    // outside /v1 nothing changes, and with a single house nothing ever does
+    expect(scoped("/health")).toBe("/health");
+    context.HOUSE = "";
+    expect(scoped("/v1/rooms")).toBe("/v1/rooms");
+  });
+
+  it("probes the token on a route that does not demand a house", () => {
+    // '/v1/stats' as the gate probe answers 400 «Which house?» with two
+    // houses, which the gate reads as a bad token: nobody can log in
+    const gate = /save-token[\s\S]*?\n\}\);/.exec(ADMIN_SCRIPT)?.[0] ?? "";
+    expect(gate).toContain('call("/v1/households"');
+    expect(gate).not.toContain('call("/v1/stats"');
   });
 });

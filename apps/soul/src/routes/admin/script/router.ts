@@ -33,6 +33,15 @@ function route() {
 /** Il prefisso da mettere davanti a ogni link, quando la casa e' scelta. */
 const at = (hash) => HOUSE === "" ? hash : "#/c/" + encodeURIComponent(HOUSE) + hash.slice(1);
 
+/**
+ * Nei link la casa puo' arrivare come slug ('#/c/casa-mare/...') o come id:
+ * lo slug e' per gli umani, ma '?casa=' esige un uuid — la validazione di
+ * scope.ts scarta uno slug e ricade sulla casa risolta dal token, cioe' sui
+ * dati di UN'ALTRA casa senza nessun errore. Qui si normalizza sempre a id.
+ */
+const houseOf = (raw) =>
+  raw === "" ? "" : (CASE.find((c) => c.id === raw || c.slug === raw)?.id ?? raw);
+
 const withParam = (path, key, value) => value === ""
   ? path
   : path + (path.includes("?") ? "&" : "?") + key + "=" + encodeURIComponent(value);
@@ -124,8 +133,9 @@ async function openPage(page) {
 
 async function go() {
   const { page, who, house } = route();
-  if (house !== undefined && house !== HOUSE) {
-    HOUSE = house;
+  const target = house === undefined ? HOUSE : houseOf(house);
+  if (target !== HOUSE) {
+    HOUSE = target;
     // cambiare casa vuol dire cambiare popolazione: tenere il gosino di prima
     // significherebbe chiedere alla casa nuova di una creatura che non ha
     WHO = "";

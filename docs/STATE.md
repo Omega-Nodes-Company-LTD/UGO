@@ -2207,6 +2207,56 @@ sezione «I clienti» esiste dal gruppo 8 e il runbook §5.7 ora la percorre pas
 di darla per trovata; **FE** — nessuna modifica ad `apps/face` né ai contratti condivisi: la
 superficie toccata è `apps/reception`, e solo nella documentazione. Nessun bundle da ricostruire.
 
+## 6-quadragies. Il pannello mentiva sulla casa, e in riunione andava sempre lo stesso
+
+Due segnalazioni del proprietario guardando il pannello (2026-08-17), tutte e due della stessa
+famiglia: la promessa scritta e mantenuta a metà.
+
+**La casa non viaggiava.** Il commento sopra `forWho` diceva «ADR-019 fase 3: la casa viaggia
+con OGNI chiamata». La mantenevano sette chiamate su una cinquantina: stanze, branco, volti,
+relazioni, feed, clienti, arredi, nascita, grafo, export/oblio chiamavano `/v1/...` nudo. Con
+una casa sola il server risolve da sé e non si vede niente; con due, metà pannello risponde
+400 «Which house?» e l'altra metà — il caso peggiore — mostra i dati della casa risolta dal
+token sotto il titolo della casa scelta. In più: la sonda del login era `/v1/stats` (che con
+due case risponde 400, letto come «token non valido»: non si entrava proprio), il boot caricava
+il branco **prima** di sapere quale casa si guardasse, e i link di «Le case» portano lo slug
+mentre `?casa=` esige un uuid — la validazione scartava lo slug **in silenzio** e ricadeva
+sulla casa sbagliata.
+
+La correzione non è cinquanta call site diligenti — è il **telaio**: `call()` ora passa da
+`scoped()`, che appende `casa=` a ogni chiamata `/v1/*` quando una casa è scelta. Una sezione
+nuova del pannello nasce scoped senza che nessuno debba ricordarselo. Intorno: sonda del login
+su `/v1/households` (401 senza token, nessuna casa richiesta), boot che risolve la casa **per
+prima**, con due case si entra nella prima invece di collezionare 400 (`history.replaceState`,
+l'indirizzo lo dice), e `houseOf()` normalizza slug→id sui link. Il test non legge il codice:
+**esegue** `scoped()` in una VM (`script.test.ts`) — staccarlo da `call()` o romperne la
+logica è un test rosso, non una promessa tradita fra sei mesi.
+
+**In riunione andava sempre lo stesso.** «Mandalo in call» non chiedeva chi: `MeetingsService`
+era inchiodato al boot su `bootstrapExemplar`, quindi con due gosini ci andava sempre il primo
+della casa di boot, e trascrizione, evento, messaggi e digest finivano nella **sua** biografia,
+qualunque cosa il pannello lasciasse credere. Ora: `join` porta `{gosinoId, householdId}` per
+riunione (validato nella casa, 404 sull'altrui — anti-BOLA come ovunque; senza indicazione va
+il più anziano della casa, che è il comportamento di prima detto ad alta voce), **ogni**
+scrittura della riunione atterra sul prescelto, `GET /v1/meetings` dice chi ci è andato, e il
+pannello ha il selettore «Chi ci mando» accanto al link.
+
+**Il giro completo (regola 12):**
+- **BO** — `routes/meetings.ts` (schema + risoluzione del chi), `services/meetingsService.ts`
+  (il chi per riunione su riga/segmenti/evento/digest/messaggi), `routes/archive.ts` (`who`
+  nell'elenco), `server.ts` (wiring). Test d'integrazione esteso: la riunione del secondo
+  esemplare scrive nella biografia del secondo esemplare;
+- **`/admin`** — `core.ts` (`scoped()`, sonda, boot), `router.ts` (`houseOf`, `go()`),
+  `archive.ts` (selettore e «chi» nell'elenco), `page/house.ts` (markup), `script.test.ts`
+  (due test nuovi che eseguono la logica). Il pannello viaggia nell'immagine di soul: basta il
+  redeploy di soul, nessun bundle del muso da ricostruire;
+- **FE** — `apps/face` e `faceContracts.ts` **non toccati**, e non serviva: il muso arriva già
+  con `/?stanza=` per dispositivo e non usa le rotte del pannello.
+
+**Verificato**: `pnpm turbo build lint test` 27/27; i test d'integrazione (Testcontainers) non
+girano in questa sandbox — il caso nuovo di `meetings.integration.test.ts` va confermato in CI
+o al primo deploy, come il resto della riga già aperta in §7.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -2255,6 +2305,7 @@ superficie toccata è `apps/reception`, e solo nella documentazione. Nessun bund
 | ~~Caccia ai difetti del 2026-08-16: 36 candidati~~ | — | **Chiusa il 2026-08-17** in otto commit tematici (gruppo 19 del BACKLOG): scope multi-tenant su trascrizioni/ricerca/arruolamento, XSS di stanza e di feed, CORS, `/debug/chat`, budget guard TOCTOU e sconto batch, clip vocali non cancellati, paginazione S3, password di `pg_dump`, dettatura locale morta, microfono che non si spegneva, timeout sulla percezione, cinque indici (migrazione 0027), env del compose. **Restano due righe**: il refactor dei file oltre le 200 righe (sotto), e `used_prop.who`, che alla verifica non era un difetto |
 | **Il giro completo dei fix non è provato end-to-end** | Le correzioni del 2026-08-17 sono verificate con tipi, lint, build e unit puri; i test di integrazione (Testcontainers) e gli e2e (Playwright) non girano in questa sandbox — nessun runtime container | Da eseguire al primo deploy, in particolare `transcripts.integration.test.ts` (il confine fra due case), la migrazione 0027 contro Postgres vero, e il giro `?stt=locale` su dispositivo. Il bundle del muso va ricostruito: soul lo serve già costruito |
 | **File oltre le 200 righe, insert `messages` duplicato quattro volte** | `chatService.ts` (455 righe) e `apps/face/src/main.ts` (829): un campo nuovo su `messages` dimenticato in una delle quattro strade rompe in produzione, e tre su quattro resterebbero verdi | Regola 10. Lasciato fuori dal lotto di fix di proposito: è un refactor, e mescolarlo alle correzioni avrebbe reso illeggibili entrambi |
+| **`/v1/volition/enabled` è un interruttore di processo** (visto durante §6-quadragies) | Spegnere «comincia lui» dal pannello spegne l'iniziativa di TUTTE le case e di tutti gli esemplari: `initiative.set()` è stato di processo, senza `gosino_id` né `household_id` | Oggi con una casa è indistinguibile dal giusto; diventa reale col vicinato. Serve un ADR (stato per esemplare, come il resto di ADR-027) prima di toccarlo — non un fix al volo dal pannello |
 | **L'oblio di un cliente non ha né rotta né bottone** (trovato scrivendo il runbook, §6-novemtricies) | ADR-052 dice «l'oblio di un cliente è il cascade dalla sua riga `customers`» e le FK cascata ci sono, ma non esiste `DELETE /v1/customers/:id`, il pannello si ferma all'archiviazione e `forgetService` conosce solo i `beings`. Una richiesta GDPR di cancellazione da parte di un cliente oggi si evade **a mano sul database** | Documentato com'è, non come dovrebbe essere (runbook §5.7, `documentation/…/la-reception.md`). Il seguito è piccolo e ha una forma già decisa: la rotta con la conferma scritta di `/v1/privacy/forget`, il verbo d'audit `customer_forgotten`, e i documenti nel bucket che vanno cancellati insieme alle righe — il cascade del database non li tocca |
 
 ## 8. Prossimo passo operativo

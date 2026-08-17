@@ -1,4 +1,4 @@
-import { meetings, memories, type DbClient } from "@ugo/db";
+import { gosini, meetings, memories, type DbClient } from "@ugo/db";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -194,8 +194,11 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         startedAt: meetings.startedAt,
         endedAt: meetings.endedAt,
         status: meetings.status,
+        // chi ci è andato: senza, l'elenco del pannello non poteva dirlo
+        who: gosini.name,
       })
       .from(meetings)
+      .leftJoin(gosini, eq(meetings.gosinoId, gosini.id))
       .where(inArray(meetings.gosinoId, exemplarsOf(deps.db, householdId)))
       .orderBy(desc(meetings.startedAt))
       .limit(RECENT_LIMIT);
