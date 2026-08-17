@@ -158,6 +158,14 @@ export const GOSINO_PAGES = `
        <b>Firma non valida</b> è invece un allarme: quel genoma è stato toccato dopo la nascita.</p>
     <div id="pedigree-msg"></div>
   </div>
+
+  <div class="block">
+    <h2>Nel libro genealogico</h2>
+    <p class="lede">Gli atti di questa creatura registrati sulla catena (ADR-073): un
+       ordine pubblico e append-only che nessuno può riscrivere da solo — nemmeno noi.
+       Sulla catena ci sono <b>solo</b> id, impronte e firme: nessuna persona, nessun ricordo.</p>
+    <div id="chain-acts" data-testid="chain-acts"></div>
+  </div>
 </section>
 
 <section class="page" data-page="nascita">

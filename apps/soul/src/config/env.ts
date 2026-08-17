@@ -94,6 +94,13 @@ export const soulEnvSchema = z.object({
   // ADR-063: la finestra sul mondo — SearXNG in casa. Assente = il prefisso
   // «cerca:» non esiste e niente esce verso i motori
   SEARXNG_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  // ADR-073: il libro genealogico, in un container suo. Assenti = i gosini
+  // nascono esattamente come prima, solo senza atto in catena
+  UGO_REGISTRY_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  UGO_REGISTRY_TOKEN: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(16).optional(),
+  ),
   // gruppo 13: la voce interim (TTS emotivo OpenAI, finché non c'è la GPU per
   // XTTS locale). Assente = voce di sistema, come sempre. Attenzione
   // dichiarata in /documentation: ciò che UGO dice può contenere pezzi della

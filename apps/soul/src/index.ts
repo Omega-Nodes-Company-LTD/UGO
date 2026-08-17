@@ -417,7 +417,15 @@ const app = buildServer({
     // ADR-036: the population is its own surface — a house can hold several
     // creatures and never convene a council
     // ADR-070: la chiave della casa serve a firmare gli atti di nascita
-    gosini: { dataKey },
+    gosini: {
+      dataKey,
+      // ADR-073: si accende con l'indirizzo del registro; senza, si nasce
+      // esattamente come prima, solo senza atto in catena
+      ...(env.UGO_REGISTRY_URL !== undefined &&
+        env.UGO_REGISTRY_TOKEN !== undefined && {
+          chain: { baseUrl: env.UGO_REGISTRY_URL, token: env.UGO_REGISTRY_TOKEN },
+        }),
+    },
     psyche,
     face,
     privacy,

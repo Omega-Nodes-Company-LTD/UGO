@@ -23,6 +23,19 @@ export {
   type SignedCard,
 } from "./peer.js";
 export {
+  ACT_KINDS,
+  actHash,
+  entryHash,
+  genesisPrevHash,
+  signEntry,
+  verifyEntrySignature,
+  verifyChain,
+  type Act,
+  type ActKind,
+  type ChainEntry,
+  type ChainProblem,
+} from "./chain.js";
+export {
   genomeHash,
   signBirth,
   verifyBirth,

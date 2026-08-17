@@ -20,6 +20,7 @@ import { registerGosiniRoutes } from "./routes/gosini.js";
 import { registerLitterRoutes } from "./routes/litters.js";
 import { registerPiggyBankRoutes } from "./routes/piggybank.js";
 import { PeerService } from "./services/peerService.js";
+import { RegistryClient } from "./services/registryClient.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
@@ -105,6 +106,11 @@ export interface ServerOptions extends HealthDeps {
        * still happen, with an `unsigned` lineage.
        */
       dataKey?: Buffer;
+      /**
+       * ADR-073: il libro genealogico, in un container suo. Assente = si
+       * nasce lo stesso, senza atto in catena.
+       */
+      chain?: { baseUrl: string; token: string };
     };
     /** ADR-032: the per-exemplar runtimes a socket can ask to be */
     registry?: GosinoRegistry;
@@ -360,6 +366,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         // ADR-070: whoever holds the data key can mint the parents' signatures
         ...(gosini.dataKey !== undefined && {
           peers: new PeerService(options.db, gosini.dataKey),
+        }),
+        // ADR-073: gli atti vanno nel libro genealogico, se ce n'è uno
+        ...(gosini.chain !== undefined && {
+          chain: new RegistryClient(gosini.chain),
         }),
       });
       // ADR-072: il salvadanaio vive con la popolazione, come la cucciolata

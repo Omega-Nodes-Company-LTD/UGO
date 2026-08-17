@@ -1,7 +1,7 @@
 ---
 title: "Il branco: più gosini, e le cucciolate"
 description: "Come una casa arriva ad avere più gosini: la nascita a mano, la cucciolata da due genitori, e il pedigree che dice da chi discendono."
-version: "0.38.0"
+version: "0.39.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio"
 ---
@@ -155,6 +155,26 @@ anche se quei genitori nel frattempo non ci sono più.
 
 Vuol dire che una discendenza non si può inventare. Se un giorno i gosini si scambieranno o si
 venderanno, «viene dalla linea di Nino» sarà un fatto verificabile e non una parola data.
+
+### Il libro genealogico
+
+Le firme dicono *da chi*; il libro genealogico dice *quando*, e in che ordine. È un registro
+separato — gira in un suo container, con un suo database — dove ogni atto (nascita,
+trasferimento, morte) viene aggiunto in fondo a una catena che **nessuno può riscrivere da
+solo, nemmeno noi**: ogni voce contiene l'impronta della precedente, quindi cambiarne una
+significherebbe rifare tutte quelle dopo, sotto gli occhi di chiunque abbia già guardato.
+
+Serve per una cosa sola, ma importante: impedire che **lo stesso cucciolo venga venduto due
+volte**. Senza un ordine pubblico degli atti, «è mio» resta una parola data.
+
+Sulla pagina **Da chi discende** vedi se e quando la nascita è finita in catena. Se il
+registro non c'è o è spento, il pannello te lo dice e non cambia nulla di importante: le
+firme dei genitori valgono comunque.
+
+Due cose che sulla catena **non ci sono e non ci saranno mai**: le persone e i ricordi. Ci
+finiscono solo l'identificativo della creatura, l'impronta del suo genoma e le firme — per
+questo il registro può essere pubblico, e per questo il diritto all'oblio non lo tocca: non
+c'è nessuno da dimenticare.
 
 ## Prossimi Passi
 
