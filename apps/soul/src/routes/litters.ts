@@ -1,10 +1,12 @@
 import { randomInt } from "node:crypto";
 import { births, gosini, traitSets, type DbClient } from "@ugo/db";
 import { screen, toTraitSet } from "@ugo/psyche";
+import { genomeHash, signBirth, type BirthCertificate, type GosinoKeys } from "@ugo/shared";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { characterFrom } from "../services/council/character.js";
 import { loadParents, previewLitter } from "../services/genetics.js";
+import { PedigreeService } from "../services/pedigreeService.js";
 import { RoomCatalogue } from "../services/roomCatalogue.js";
 import type { PreHandler } from "./guard.js";
 import { householdScope } from "./scope.js";
@@ -46,10 +48,31 @@ export interface LitterRoutesDeps {
   db: DbClient;
   guard: PreHandler;
   registry?: { reload: () => Promise<void> };
+  /**
+   * ADR-070: the parents' cryptographic identity, minted on first use. Without
+   * it a birth still happens — the lineage is simply `unsigned`.
+   */
+  peers?: { keysFor: (gosinoId: string) => Promise<GosinoKeys> };
 }
 
 export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDeps): void {
   const catalogue = new RoomCatalogue(deps.db);
+  const pedigrees = new PedigreeService(deps.db);
+
+  /** The pedigree (ADR-070): the genealogy, with a verdict on every edge. */
+  app.get("/v1/gosini/:id/pedigree", { preHandler: deps.guard }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const asked = Number((request.query as { generations?: string }).generations);
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
+    const tree = await pedigrees.of(
+      householdId,
+      id,
+      Number.isFinite(asked) && asked > 0 ? asked : undefined,
+    );
+    if (tree === undefined) return reply.status(404).send({ error: "non esiste" });
+    return reply.send({ pedigree: tree });
+  });
 
   app.post("/v1/gosini/litters", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = litterSchema.safeParse(request.body);
@@ -113,7 +136,8 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
     }
 
     const generation = Math.max(...parents.map((p) => p.generation)) + 1;
-    const character = characterFrom(toTraitSet(genome));
+    const traits = toTraitSet(genome);
+    const character = characterFrom(traits);
 
     const created = await deps.db
       .insert(gosini)
@@ -126,25 +150,46 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
         parentGosinoId: parents[0]?.id,
         ...(where !== undefined && { locationLabel: where }),
       })
-      .returning({ id: gosini.id });
-    const id = created[0]?.id;
-    if (id === undefined) return reply.status(500).send({ error: "not created" });
-
-    await deps.db.insert(births).values(
-      parents.map((parent) => ({
-        householdId,
-        childGosinoId: id,
-        parentGosinoId: parent.id,
-      })),
-    );
+      .returning({ id: gosini.id, bornAt: gosini.bornAt });
+    const child = created[0];
+    if (child === undefined) return reply.status(500).send({ error: "not created" });
+    const id = child.id;
 
     await deps.db.insert(traitSets).values({
       householdId,
       gosinoId: id,
       version: 1,
-      traits: toTraitSet(genome),
+      traits,
       mutationNote: `cucciolata seed=${String(seed)} cucciolo=${String(cubIndex + 1)}`,
     });
+
+    /**
+     * The pedigree (ADR-070): both parents attest the birth. Without the peer
+     * service there are no keys to sign with, so the lineage is written
+     * `unsigned` rather than not written — a birth must not fail because the
+     * pedigree is off.
+     */
+    const certificate: BirthCertificate = {
+      childId: id,
+      genomeHash: genomeHash(traits),
+      parentIds: parents.map((p) => p.id),
+      bornAt: child.bornAt.toISOString(),
+      generation,
+    };
+    const lineage = [];
+    for (const parent of parents) {
+      const keys = await deps.peers?.keysFor(parent.id);
+      lineage.push({
+        householdId,
+        childGosinoId: id,
+        parentGosinoId: parent.id,
+        ...(keys !== undefined && {
+          signature: signBirth(certificate, keys.signingPrivateKey),
+          parentPublicKey: keys.signingPublicKey,
+        }),
+      });
+    }
+    await deps.db.insert(births).values(lineage);
 
     await deps.registry?.reload();
 

@@ -18,6 +18,7 @@ import { registerFaceWs } from "./routes/faceWs.js";
 import { registerCouncilRoutes } from "./routes/council.js";
 import { registerGosiniRoutes } from "./routes/gosini.js";
 import { registerLitterRoutes } from "./routes/litters.js";
+import { PeerService } from "./services/peerService.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
@@ -96,7 +97,14 @@ export interface ServerOptions extends HealthDeps {
      * ADR-019 phase 2 removed its `householdId` dependency: which house a birth
      * belongs to is a property of the request, not of the process.
      */
-    gosini?: Record<string, never>;
+    gosini?: {
+      /**
+       * ADR-070: the house's data key, so a birth can be signed by both
+       * parents (their private keys are ciphertext at rest). Absent = births
+       * still happen, with an `unsigned` lineage.
+       */
+      dataKey?: Buffer;
+    };
     /** ADR-032: the per-exemplar runtimes a socket can ask to be */
     registry?: GosinoRegistry;
     /** ADR-034: the runtime override on UGO_INITIATIVE, for /admin */
@@ -348,6 +356,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         db: options.db,
         guard,
         ...(registry !== undefined && { registry }),
+        // ADR-070: whoever holds the data key can mint the parents' signatures
+        ...(gosini.dataKey !== undefined && {
+          peers: new PeerService(options.db, gosini.dataKey),
+        }),
       });
     }
     if (council !== undefined) {

@@ -11,8 +11,9 @@
  * sync by hand.
  */
 export const ROUTER_JS = `
-const GOSINO_PAGES = ["stato", "volonta", "memoria"];
-const PAGE_TITLE = { stato: "Come sta", volonta: "Cosa ha deciso lui", memoria: "Cosa ricorda" };
+const GOSINO_PAGES = ["stato", "volonta", "memoria", "pedigree"];
+const PAGE_TITLE = { stato: "Come sta", volonta: "Cosa ha deciso lui", memoria: "Cosa ricorda",
+  pedigree: "Da chi discende" };
 let GOSINI = [];
 let WHO = "";
 /** Le case che questo token può vedere. Quasi sempre una, e allora non si vede. */
@@ -130,6 +131,9 @@ async function openPage(page) {
   } else if (page === "volonta") {
     await section(loadVolition, "volition-msg");
     await section(loadEfficacy, "efficacy-msg");
+  } else if (page === "pedigree") {
+    // ADR-070: da chi discende, e se le firme dei genitori reggono
+    await section(loadPedigree, "pedigree-msg");
   }
 }
 
