@@ -12,6 +12,7 @@ import {
   decryptText,
   encryptText,
   receptionChatRequestSchema,
+  receptionGuidePdfRequestSchema,
   receptionRewardRequestSchema,
   receptionTicketCreateSchema,
   receptionTicketReplySchema,
@@ -27,6 +28,7 @@ import {
   type CustomerRewardService,
 } from "../services/reception/customerReward.js";
 import type { GithubLiveService } from "../services/reception/githubLiveService.js";
+import { renderGuidePdf } from "../services/reception/guidePdf.js";
 
 /**
  * The reception's door into soul (ADR-051/052): the only routes a customer
@@ -190,11 +192,37 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
         degraded: result.degraded,
         cached: result.cached,
         ...(result.ticketId !== undefined && { ticketId: result.ticketId }),
+        ...(result.guide !== undefined && { guide: result.guide }),
       };
     } catch (error) {
       if (error instanceof GosinoNotAssignedError) return problem(reply, 404, "Not Found");
       throw error;
     }
+  });
+
+  /**
+   * La guida come PDF: impaginazione del testo che il cliente HA GIÀ nel
+   * thread — zero token, niente quota (non è una domanda), niente storage
+   * (il contenuto vive già cifrato in `customer_messages`). Stessa doppia
+   * credenziale di tutto il resto.
+   */
+  app.post("/v1/reception/guide-pdf", { preHandler: gate }, async (request, reply) => {
+    const context = request.receptionCustomer;
+    if (context === null) return problem(reply, 401, "Unauthorized");
+    const parsed = receptionGuidePdfRequestSchema.safeParse(request.body);
+    if (!parsed.success) return problem(reply, 400, "Bad Request");
+    const [customer] = await deps.db
+      .select({ name: customers.name })
+      .from(customers)
+      .where(eq(customers.id, context.customerId));
+    const pdf = await renderGuidePdf({
+      text: parsed.data.text,
+      customerName: customer?.name ?? "il cliente",
+    });
+    return reply
+      .type("application/pdf")
+      .header("content-disposition", 'attachment; filename="guida.pdf"')
+      .send(pdf);
   });
 
   /** the state of the work — the «I lavori» page (ADR-054) */

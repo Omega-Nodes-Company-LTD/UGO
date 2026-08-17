@@ -17,6 +17,25 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Scarica un file dal BFF e lo consegna al browser. Stesso filo di `call`
+ * (token nell'header dedicato), ma il corpo resta binario: niente json().
+ */
+export async function download(path: string, body: unknown, filename: string): Promise<void> {
+  const response = await fetch(`/api${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-reception-customer": token() },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new ApiError(`HTTP ${String(response.status)}`, response.status);
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function call<T>(path: string, options?: RequestInit): Promise<T> {
   const headers = new Headers(options?.headers);
   if (options?.body !== undefined) headers.set("content-type", "application/json");

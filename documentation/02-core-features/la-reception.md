@@ -51,6 +51,24 @@ cliente: cambia tu lo stato — *aperto*, *in lavorazione*, *in attesa*, *chiuso
 cliente lo vede dalla sua parte. Se risponde a un ticket chiuso, il ticket torna
 *in attesa*.
 
+## Le guide, in PDF
+
+Se il cliente chiede **«Fammi una guida: …»** — per esempio *«Fammi una guida: nell'app X come
+imposto il titolo?»* — il gosino non risponde a chiacchiere: scrive una guida vera, passo per
+passo, come la spiegherebbe a chi non ha mai visto l'applicazione. Un passo per riga, dove
+cliccare detto per nome, come capire se il passo è riuscito, e in fondo il rimedio più
+probabile se qualcosa non torna.
+
+Sotto la guida compare **Scarica il PDF**: un foglio pulito, col titolo, il nome del cliente e
+la data — da tenere accanto alla tastiera o da stampare. Il PDF è impaginazione del testo che
+il cliente ha già davanti: scaricarlo non costa nulla e non consuma domande. C'è anche il
+suggerimento **Chiedimi una guida** fra le scorciatoie sopra la tastiera.
+
+La stessa guida richiesta di nuovo arriva dalla memoria, gratis, come le altre risposte
+ricordate. E vale la regola di sempre: il gosino scrive con le carte del cliente in mano —
+repository, documenti, email collegate — quindi più fonti gli dai, più la guida parla della
+sua applicazione e non di una generica.
+
 ## I costi restano tuoi
 
 Tre protezioni, una dentro l'altra (le prime due regolabili per cliente nella scheda):

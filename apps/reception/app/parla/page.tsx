@@ -9,7 +9,7 @@ import type {
   ReceptionRewardResponse,
 } from "@ugo/shared";
 import { Avatar, type AvatarState } from "../../components/avatar";
-import { ApiError, call } from "../../lib/api";
+import { ApiError, call, download } from "../../lib/api";
 import { chosenGosino } from "../../lib/session";
 import { hush, listen, speak, speechAvailable, type ListenHandle } from "../../lib/speech";
 
@@ -23,12 +23,15 @@ import { hush, listen, speak, speechAvailable, type ListenHandle } from "../../l
 interface Turn {
   who: "me" | "ugo" | "hint";
   text: string;
+  /** la risposta è una guida passo-passo: sotto compare «Scarica il PDF» */
+  guide?: boolean;
 }
 
 const CHIPS = [
   { label: "Stato dei lavori", text: "A che punto sono i lavori?" },
   { label: "Le novità", text: "Ci sono novità sui repository?" },
   { label: "Apri un ticket", compose: "Apri un ticket: " },
+  { label: "Chiedimi una guida", compose: "Fammi una guida: " },
 ] as const;
 
 export default function Parla(): React.JSX.Element {
@@ -100,18 +103,27 @@ export default function Parla(): React.JSX.Element {
         method: "POST",
         body: JSON.stringify({ gosinoId: gosino, text: clean }),
       });
-      setThread((turns) => [...turns, { who: "ugo", text: reply.reply }]);
+      setThread((turns) => [
+        ...turns,
+        { who: "ugo", text: reply.reply, ...(reply.guide === true && { guide: true }) },
+      ]);
       if (reply.ticketId !== undefined) {
         setThread((turns) => [
           ...turns,
           { who: "hint", text: "Il ticket è nel tab «I ticket»: lì vedrai come procede." },
         ]);
       }
+      // una guida non si legge ad alta voce: dieci passi dettati sono rumore,
+      // il suo posto è il foglio. La voce annuncia e basta.
       if (voiceOn) {
         setAvatar("talking");
-        speak(gosino, reply.reply, () => {
-          setAvatar("idle");
-        });
+        speak(
+          gosino,
+          reply.guide === true ? "Ecco la guida: la trovi qui sotto, passo per passo, e puoi scaricarla in PDF." : reply.reply,
+          () => {
+            setAvatar("idle");
+          },
+        );
       } else {
         setAvatar("idle");
       }
@@ -239,6 +251,33 @@ export default function Parla(): React.JSX.Element {
         {thread.map((turn, index) => (
           <div key={index} className={`bubble ${turn.who}`}>
             {turn.text}
+            {turn.guide === true && (
+              <div style={{ marginTop: "0.6rem" }}>
+                <button
+                  className="ghost"
+                  data-testid="guide-pdf"
+                  onClick={() => {
+                    const title = turn.text.split("\n")[0]?.trim() ?? "guida";
+                    const slug =
+                      title
+                        .toLowerCase()
+                        .normalize("NFD")
+                        .replace(/[̀-ͯ]/g, "")
+                        .replace(/[^a-z0-9]+/g, "-")
+                        .replace(/^-+|-+$/g, "")
+                        .slice(0, 60) || "guida";
+                    void download("/guide-pdf", { text: turn.text }, `${slug}.pdf`).catch(() => {
+                      setThread((turns) => [
+                        ...turns,
+                        { who: "hint", text: "Il PDF non è arrivato: riprova fra un momento." },
+                      ]);
+                    });
+                  }}
+                >
+                  Scarica il PDF
+                </button>
+              </div>
+            )}
           </div>
         ))}
         {rewards !== null &&
