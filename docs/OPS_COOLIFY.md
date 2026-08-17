@@ -252,6 +252,12 @@ dire *di quanto* invece di litigare a impressioni.
    `TZ=Europe/Rome`. Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
    dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
    nella pagina di ogni risorsa.)
+   **Se farai la reception (§2.7)**, aggiungi qui anche: `UGO_RECEPTION_TOKEN=<UGO_RECEPTION_TOKEN>`
+   (Secret) · `UGO_CUSTOMER_HOURLY_MESSAGES=20` · `UGO_CUSTOMER_DAILY_BUDGET_USD=0.25` ·
+   `UGO_CUSTOMER_WEEKLY_REWARDS=2` · `S3_BUCKET_DOCS=ugo-docs`. Il segreto è la chiave di
+   registrazione: **senza `UGO_RECEPTION_TOKEN`, soul non registra affatto le rotte
+   `/v1/reception/*`** e la reception risponde 404 a tutto, per progetto (ADR-051). Gli altri tre
+   sono soltanto i default di casa: ogni cliente può avere i suoi dal pannello, senza redeploy.
 5. **Le migrazioni non devi configurarle**: soul le applica da solo all'avvio e scrive
    `migrations applied` nei log. Sono additive per contratto e protette da un lock, quindi due
    container che partono insieme non si pestano i piedi. La prima applicazione semina anche
@@ -276,6 +282,12 @@ dire *di quanto* invece di litigare a impressioni.
    `UGO_RECOGNITION_URL=http://<HOST_PERCEZIONE>:8000` · `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>`
    — l'arruolamento vocale del sogno passa da lei (il fix della voce dimenticata, 2026-08-16);
    senza, i profili nascono con l'encoder di ripiego e il riconoscitore vivo non li vede mai.
+   **Se farai la reception (§2.7)**, aggiungi anche: `UGO_CUSTOMER_SYNC_EVERY_H=6` (`0` = fonti
+   spente) · `S3_BUCKET_DOCS=ugo-docs` · `UGO_REPOS_DIR=/var/lib/ugo/repos` ·
+   `UGO_CUSTOMER_MAX_CHUNKS=5000`. Con `UGO_REPOS_DIR` serve anche un **volume persistente** su
+   quel percorso: i cloni dei repo dei clienti vivono lì e non nell'immagine (ADR-054); senza
+   volume, ogni redeploy riparte da un clone completo. È lo stesso thread del sogno, a cadenza
+   propria: non aggiungere una risorsa né una Scheduled Task.
 3. **Chi fa la riflessione notturna.** Ogni notte UGO rilegge la giornata e ne ricava ricordi, diario
    e desideri. Serve un modello linguistico, e hai due strade:
    - **`OLLAMA_BATCH_MODEL=qwen3:30b-a3b`** (scaricato al §2.3) → la riflessione è **gratis** e non
@@ -312,16 +324,76 @@ dire *di quanto* invece di litigare a impressioni.
 4. Risultato atteso: `curl -H "X-API-Key: <VEXA_API_KEY>" <VEXA_API_URL>/bots/status` dalla shell di
    soul risponde `200`.
 
+### 2.7 reception (l'unica risorsa con un dominio pubblico)
+
+Facoltativa: serve solo se UGO farà l'assistente ticket per i tuoi clienti. Se non ti serve,
+**non fare questa risorsa e non mettere `UGO_RECEPTION_TOKEN` su soul**: senza quel segreto le
+rotte `/v1/reception/*` non vengono nemmeno registrate, e la superficie pubblica non esiste.
+
+> **Qui il box del §2 si rovescia, e solo qui.** Su ogni altra risorsa il dominio che Coolify
+> propone va cancellato. La reception invece il dominio **deve** averlo: è la porta sulla strada
+> di ADR-051, l'unica cosa che Internet può toccare. Il motivo per cui si può fare è che questo
+> container non ha niente da rubare — nessun database, nessuna chiave dati, nessuna chiave del
+> provider — e la ragione per cui vale la pena farlo è che un cliente non installerà mai
+> Tailscale per aprire un ticket. **Soul resta senza dominio**: se ti ritrovi a metterne uno lì,
+> ti sei perso.
+
+1. Tipo: **Application → Dockerfile**. Stesso repo `<REPO_URL>`, branch di produzione.
+   Dockerfile: `ops/docker/reception.Dockerfile`. Build context: root del repo.
+2. **Ports Exposes**: `3001`. **Ports Mappings**: lascia vuoto — al traffico ci pensa il proxy di
+   Coolify col dominio, non una porta sull'host.
+3. **Domains**: `https://<DOMINIO_RECEPTION>` (es. `https://reception.tuostudio.it`). Prima crea
+   nel tuo DNS un record **A** che punti a `<IP_HETZNER>` e aspetta che risolva
+   (`dig +short <DOMINIO_RECEPTION>`), poi salva il dominio in Coolify: il certificato Let's
+   Encrypt lo prende da solo. Accendi **Force HTTPS** — e non è cosmesi: in HTTP il browser nega
+   il microfono, e la reception è voice-first (ADR-053). Su HTTP il cliente vedrebbe solo la
+   tastiera, senza capire perché.
+4. Variabili (regola del §2.4.3: **Available at Buildtime spenta su tutte**):
+   `SOUL_URL=http://<HOST_SOUL>:3000` · `UGO_RECEPTION_TOKEN=<UGO_RECEPTION_TOKEN>` (Secret, **lo
+   stesso identico valore** messo su soul al §2.4) · `NODE_ENV=production` · `PORT=3001`.
+   **E nient'altro.** Niente `DATABASE_URL`, niente `UGO_DATA_KEY`, niente `ANTHROPIC_API_KEY`,
+   niente `UGO_INTERNAL_TOKEN`: se ti trovi a incollare una di queste qui, hai sbagliato risorsa —
+   e hai appena messo su Internet la cosa che ADR-051 tiene fuori. Il container non le legge
+   nemmeno: il suo unico segreto è il token di servizio verso soul.
+5. **La rete, e cosa Coolify non sa fare da solo.** In compose la reception sta su `reception-net`,
+   una rete dedicata dove ci sono solo lei e soul: Postgres, Ollama e Mosquitto le restano
+   irraggiungibili anche da compromessa. Su Coolify hai due strade, e la differenza va detta:
+   - **semplice** — spunta **Connect To Predefined Network** come le altre risorse. Funziona
+     subito, ma la reception si trova sulla stessa rete di Postgres e Ollama: la segregazione di
+     rete di ADR-051 **non è riprodotta**. Resta comunque vero che non ha credenziali per nessuno
+     dei due, che Postgres chiede una password che lei non ha, e che nessuna delle loro porte è
+     pubblicata sull'host. È il compromesso accettabile per partire;
+   - **fedele all'ADR** — sul server: `docker network create --internal ugo-reception`, poi
+     **spegni** Connect To Predefined Network sulla risorsa reception e aggiungi `ugo-reception`
+     nel campo delle reti aggiuntive di reception **e** di soul (soul resta anche su
+     `ugo-backend`). Verifica dopo ogni redeploy con
+     `docker network inspect ugo-reception --format '{{range .Containers}}{{.Name}} {{end}}'`:
+     devono comparire due nomi, reception e soul, e nessun altro. Se dopo un redeploy ne compare
+     uno solo, Coolify ha ricreato il container senza la rete: riattaccala
+     (`docker network connect ugo-reception <CONTAINER>`) e mettilo nella lista delle cose da
+     controllare dopo ogni rilascio.
+6. Il container gira **non-root**: è nell'immagine (`USER ugo`), non devi farci niente. Il
+   **filesystem read-only** invece è una scelta di runtime, non dell'immagine: nel compose di
+   sviluppo c'è (`read_only: true` + tmpfs su `/tmp`), su Coolify no. Se vuoi la stessa postura,
+   aggiungila fra le opzioni Docker della risorsa (`--read-only --tmpfs /tmp`) e rifai il deploy:
+   la reception non scrive niente su disco, quindi o parte lo stesso o hai scoperto qualcosa che
+   vale la pena guardare. In nessun caso aggiungere volumi. Limite RAM: 512 MB. **Deploy**.
+7. Risultato atteso: `curl -s -o /dev/null -w '%{http_code}\n' https://<DOMINIO_RECEPTION>/` →
+   **200**, e la pagina dice «Vieni, entra» con la casella del token. La verifica vera è al §4.7,
+   e il primo cliente si fa al §5.7.
+
 ## 3. Bucket S3 esistente
 
 1. Nel pannello del tuo provider S3, verifica che il bucket sia **privato** (nessun accesso
    pubblico, niente policy `*`); attiva la cifratura lato server (SSE) se disponibile.
 2. Crea (o lascia creare al primo run: i job li creano da soli) i bucket/prefissi:
-   `ugo-audio/inbox/`, `ugo-audio/archive/`, `ugo-backup/pg/`.
+   `ugo-audio/inbox/`, `ugo-audio/archive/`, `ugo-backup/pg/`. **Con la reception (§2.7)** serve
+   anche `ugo-docs`, dove finiscono i documenti dei clienti: privato come gli altri, e senza
+   lifecycle — quei file valgono finché vale il rapporto col cliente, e se ne vanno con lui.
 3. Lifecycle (se il provider lo supporta — altrimenti ci pensano già i job):
    `ugo-audio/archive/` scadenza 90 giorni; `ugo-backup/pg/` scadenza 30 giorni.
 4. Le credenziali `<S3_ACCESS_KEY>/<S3_SECRET_KEY>` devono poter fare solo `Get/Put/Delete/List`
-   su questi due bucket: niente permessi account-wide.
+   su questi bucket: niente permessi account-wide.
 
 ## 4. Smoke test finale
 
@@ -348,6 +420,24 @@ Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
 6. Verifica che le rotte protette siano davvero protette:
    `curl -s -o /dev/null -w '%{http_code}\n' -X POST http://<TAILSCALE_IP>:3000/v1/jobs/dream`
    → atteso **401**; ripeti con `-H "Authorization: Bearer <UGO_INTERNAL_TOKEN>"` → atteso **202**.
+7. **Solo se hai fatto la reception (§2.7).** Questi tre comandi si eseguono da un computer
+   qualunque, fuori dalla tailnet: è il punto — sono la superficie pubblica.
+   - `curl -s -o /dev/null -w '%{http_code}\n' https://<DOMINIO_RECEPTION>/` → **200**, e in
+     `https` senza avvisi di certificato.
+   - **La porta è chiusa a chi non ha le due credenziali:**
+     `curl -s -o /dev/null -w '%{http_code}\n' https://<DOMINIO_RECEPTION>/api/me` → **401**. Il
+     BFF ci mette il segreto di servizio, ma il token del cliente non c'è: mancandone uno dei due
+     non si entra. Se qui leggi **200**, fermati e guarda il §6 «La reception risponde 200 senza
+     token».
+   - **La casa non è raggiungibile dalla strada:**
+     `curl -s -o /dev/null -w '%{http_code}\n' https://<DOMINIO_RECEPTION>/v1/stats` e
+     `curl -s -o /dev/null -w '%{http_code}\n' https://<DOMINIO_RECEPTION>/admin` → **404**
+     entrambi. Il pannello e le rotte di casa non abitano in quel container, e il proxy della
+     reception non li può nemmeno nominare: qualunque cosa arrivi su `/api/…` finisce sotto
+     `/v1/reception/…` di soul, e non altrove.
+
+   Il giro completo — cliente, gosino, ticket — vuole un token vero: è il §5.7, e si fa dopo aver
+   creato il primo cliente.
 
 ## 5. Il branco: popolarlo e insegnargli le voci
 
@@ -428,6 +518,54 @@ di qualunque altra, perché è la differenza tra pochi euro al mese e un ordine 
 
 Sotto, i semafori di **db**, **mqtt** e **ollama**: verde tutto a posto, giallo degrada ma vive, rosso
 guarda i log della risorsa. Sono gli stessi controlli di `/health`, senza doverli interrogare a mano.
+
+### 5.7 Il primo cliente (solo se hai fatto la §2.7)
+
+Un cliente non è di famiglia e non è un essere del branco: è un'organizzazione con cui lavori
+(ADR-052). Si crea dal pannello, in cinque minuti, e **tutto quello che segue si fa da lì** —
+`/admin` → sezione **I clienti**. La stessa cosa vista dalla parte del cliente sta in
+[`documentation/02-core-features/la-reception.md`](../documentation/02-core-features/la-reception.md):
+leggila prima di consegnare il token, è il testo che gli spiegherai a voce.
+
+1. **Crealo.** Nome dello studio o dell'azienda → **Crealo**. Il nome è solo un'etichetta di
+   pannello; lo slug lo deriva lui.
+2. **Dagli degli ascoltatori.** Spunta quali esemplari possono parlargli e **Salva gli
+   ascoltatori**. Senza almeno un gosino assegnato il cliente entra e non vede nessuno con cui
+   parlare — è la prima cosa che si dimentica. Se ne assegni più d'uno sceglie lui: la preferenza
+   è metà del punto.
+3. **Emetti il token.** **Emetti un token** mostra il valore **una volta sola**: in database c'è
+   solo lo SHA-256, e non esiste nessun modo di rileggerlo. Copialo e consegnalo su un canale che
+   non sia una email in chiaro. Se si perde, **revoca e riemetti** — non c'è recupero, per
+   progetto.
+4. **Digli cosa deve sapere** (facoltativo, ma è la differenza fra un centralino e un assistente):
+   sotto **Cosa sa del suo lavoro** colleghi il repository git (con un PAT se privato), una casella
+   email **in sola lettura**, e i documenti (pdf, txt, md, csv). L'indicizzazione la fa il thread
+   del §2.5 ogni `UGO_CUSTOMER_SYNC_EVERY_H` ore; **Sincronizza adesso** la forza. Le PR aperte e
+   gli ultimi commit non sono indicizzati: quelli il gosino li chiede a GitHub sul momento.
+5. **Metti i limiti**, se quelli di casa non ti bastano per questo cliente: domande l'ora, tetto del
+   giorno, mele della settimana. Sono per-cliente e non chiedono redeploy.
+6. **Consegna l'indirizzo**: `https://<DOMINIO_RECEPTION>`. Il cliente incolla il token, sceglie il
+   gosino, e parla. Non deve installare niente.
+
+I ticket che raccoglie compaiono nella scheda del cliente: lo stato lo cambi tu (*aperto*, *in
+lavorazione*, *in attesa*, *chiuso*) e lui lo vede dalla sua parte. Il gosino **non esegue lavori**
+— raccoglie richieste e risponde a domande: il perimetro è nel suo blocco regole, non nella tua
+buona fede.
+
+**Quando un rapporto finisce**, dal pannello hai due gesti:
+
+- **revoca un token** — quel dispositivo resta fuori dall'istante dopo;
+- **archivia il cliente** — tutti i suoi token smettono di valere insieme, e lui non entra più. I
+  dati restano.
+
+**La cancellazione vera non ha ancora un bottone**, ed è giusto saperlo prima di prometterla a un
+cliente: la riga `customers` cascata su tutto ciò che era suo (ticket, messaggi, token, fonti,
+indice, cache), ma oggi quel `delete` si esegue solo sul database, a mano, in una finestra
+dedicata — non c'è né una rotta né un comando di pannello, e `Far dimenticare qualcuno` (§5.4)
+riguarda le persone del branco, non le organizzazioni. Per una richiesta di cancellazione di un
+cliente: archivialo subito (l'accesso finisce lì), poi esegui la riga sul database. L'**export**
+della casa invece li conosce già — clienti, ticket, conversazioni e fonti sono dentro il JSON: a
+un cliente che chiede i propri dati si risponde da lì, senza lavoro manuale.
 
 ## 6. Troubleshooting
 
@@ -564,6 +702,59 @@ task abilitato, e i log dell'ultima esecuzione. Il job è idempotente: recuperar
 Gli step sono `ingest → enroll → reflect → hygiene → compaction → backup`: il report li elenca tutti,
 con `skipped (already done)` per quelli già chiusi.
 
+### Il cliente entra e vede «Questo token non apre la reception»
+
+È un **401**, e ha tre cause possibili, in quest'ordine di frequenza:
+
+1. **Il token è stato copiato a metà** (è lungo, e nella scheda si vede una volta sola). Revoca e
+   riemetti dal pannello: non c'è modo di rileggere quello vecchio.
+2. **I due `UGO_RECEPTION_TOKEN` non coincidono.** Il segreto di servizio deve avere lo stesso
+   valore identico sulla risorsa `reception` (§2.7) e su `soul-api` (§2.4). Se hai ruotato solo da
+   una parte, ogni cliente prende 401 anche con un token perfetto — nei log di soul lo vedi come
+   `unauthorized attempt on the reception` su `/v1/reception/me`.
+3. **Il token è scaduto o revocato.** Nella scheda del cliente lo stato si legge; riemetti.
+
+### La reception dice «La reception non risponde»
+
+È il BFF che non arriva a soul: guarda i log della risorsa `reception`.
+
+- `UGO_RECEPTION_TOKEN is not configured` → la variabile manca sul container reception. Il fail-fast
+  è alla prima richiesta, non all'avvio: per questo la risorsa risulta *Running* e non funziona.
+- errore di rete su `SOUL_URL` → i due container non si vedono. È il punto §2.7.5: verifica il nome
+  host di soul e che entrambi stiano sulla stessa rete (`docker network inspect …`). Dopo un
+  redeploy con la rete dedicata, la riattaccatura è la prima cosa da controllare.
+- **404 su tutto, con soul vivo** → su `soul-api` manca `UGO_RECEPTION_TOKEN`: senza quel segreto
+  soul non registra affatto le rotte `/v1/reception/*`. Aggiungila (§2.4) e **Redeploy soul**.
+
+### La reception risponde 200 senza token
+
+Non deve succedere, ed è l'unico caso di questo runbook in cui la risposta giusta è **spegnere il
+dominio adesso** e indagare dopo. Controlla, in ordine: che il dominio punti alla risorsa
+`reception` e non a `soul-api`; che su `soul-api` non sia comparso un dominio pubblico (§2.4.2: non
+ne deve avere nessuno); che nessuno abbia messo `UGO_INTERNAL_TOKEN` fra le variabili della
+reception. Finché non hai capito quale delle tre, il dominio resta staccato.
+
+### Un cliente entra ma non ha nessuno con cui parlare
+
+Non è un guasto: non gli è stato assegnato nessun gosino. Pannello → **I clienti** → la sua scheda →
+spunta gli esemplari → **Salva gli ascoltatori** (§5.7.2).
+
+### Il gosino risponde al cliente «non ho ancora letto il tuo lavoro»
+
+L'indice delle sue fonti è vuoto o non è ancora passato il giro di sincronizzazione. Controlla che
+sulla risorsa `jobs` ci siano `UGO_CUSTOMER_SYNC_EVERY_H` (diverso da `0`), `S3_BUCKET_DOCS` e il
+**volume persistente** su `UGO_REPOS_DIR` (§2.5); poi forza **Sincronizza adesso** dalla scheda del
+cliente. Se il repo è privato e il PAT è scaduto, lo stato della fonte lo dice nella scheda. Le PR e
+gli ultimi commit sono un'altra cosa: quelli arrivano da GitHub sul momento, e se mancano è il PAT,
+non l'indice.
+
+### Il cliente dice che il microfono non parte
+
+La reception è servita in HTTP, o il certificato non è valido: il browser concede il microfono solo
+in contesto sicuro, e lo nega senza spiegazioni comprensibili. Accendi **Force HTTPS** sulla risorsa
+(§2.7.3) e verifica che `https://<DOMINIO_RECEPTION>` apra senza avvisi. La tastiera continua a
+funzionare anche in HTTP, ed è per questo che il guasto passa inosservato per giorni.
+
 ## 7. Ripristino da backup (disaster recovery)
 
 Il backup è verificato da un test di round-trip, ma la procedura va provata **almeno una volta** sul
@@ -602,7 +793,14 @@ incidente.
    righe esistenti. Procedura: mantieni la vecchia chiave, decifra e ricifra `messages` e
    `transcript_segments` con la nuova (script di rotazione da eseguire in una finestra dedicata),
    poi sostituisci la variabile. Non ruotarla "al volo".
-3. Il codice legge tutto dalle env: nessun file da toccare, nessun rebuild necessario oltre al
+3. `UGO_RECEPTION_TOKEN` vive in **due** risorse (soul-api e reception) e la rotazione va fatta
+   nell'ordine giusto, o la porta pubblica cade: aggiorna il valore **prima su `soul-api`, poi
+   sulla reception**, e fai il redeploy della reception per ultimo. Fra i due deploy i clienti
+   prendono 401 — sono secondi, non minuti, ma valgono un avviso se stai ruotando in orario di
+   lavoro. I token dei clienti **non** vanno riemessi: sono un'altra tabella e un altro ciclo di
+   vita (ADR-052), ed è esattamente il motivo per cui il segreto della reception è dedicato e non
+   è `UGO_INTERNAL_TOKEN`.
+4. Il codice legge tutto dalle env: nessun file da toccare, nessun rebuild necessario oltre al
    redeploy.
 
 ## 9. Il foglio dei valori
@@ -620,6 +818,7 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 | `<MQTT_NANO_PASS>` | `openssl rand -hex 24` — utente `nano`, solo se userai il Nano 33 |
 | `<UGO_DATA_KEY>` | `openssl rand -base64 32` — **e una copia fuori dal server** (§1.7) |
 | `<UGO_INTERNAL_TOKEN>` | `openssl rand -hex 32` — è anche la password del pannello `/admin` |
+| `<UGO_RECEPTION_TOKEN>` | `openssl rand -hex 32` — solo con la reception (§2.7). **Dedicato**: non riusare `<UGO_INTERNAL_TOKEN>`, e va messo identico su due risorse |
 
 ### Da leggere durante il deploy
 
@@ -646,6 +845,7 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 | Valore | Cosa metterci |
 |---|---|
 | `<OWNER_NAME>` | come UGO chiama casa tua |
+| `<DOMINIO_RECEPTION>` | il dominio dei tuoi clienti, es. `reception.tuostudio.it` — record A verso `<IP_HETZNER>`. **L'unico dominio pubblico dell'installazione** (§2.7); vuoto se non fai la reception |
 | `<OLLAMA_RAM_LIMIT>` | 4 GB se Ollama fa solo embeddings; **24 GB** se ci gira anche il MoE del sogno |
 | `<OLLAMA_BATCH_MODEL>` | `qwen3:30b-a3b` se hai ≥32 GB di RAM libera, altrimenti vuoto (§2.5) |
 | `<IP_LAN_IOT>` | l'IP su cui esporre MQTT, solo se userai il Nano 33 |

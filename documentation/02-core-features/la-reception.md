@@ -2,7 +2,7 @@
 title: "La reception: UGO coi tuoi clienti"
 description: "Come dare a un cliente il suo accesso, cosa può chiedere al gosino, e come restano sotto controllo costi e richieste."
 version: "0.30.0"
-last_updated: "2026-08-15"
+last_updated: "2026-08-17"
 author: "System"
 ---
 
@@ -89,5 +89,9 @@ vocale. Se il browser non sa ascoltare, la tastiera fa lo stesso lavoro.
 - **Revoca un token** dalla scheda: quel dispositivo resta fuori subito.
 - **Archivia il cliente**: tutti i suoi token smettono di valere nello stesso istante; i
   dati restano per i tuoi archivi finché non decidi altrimenti.
-- L'export della casa include anche clienti, ticket e conversazioni; la cancellazione di un
-  cliente porta via tutto ciò che era suo.
+- L'export della casa include anche clienti, ticket e conversazioni: se un cliente ti chiede i
+  suoi dati, li trovi lì senza lavoro a mano.
+- **Cancellare del tutto un cliente non si fa ancora dal pannello.** Archiviarlo chiude
+  l'accesso nello stesso istante, ma i dati restano; l'eliminazione definitiva — che porta via
+  ticket, messaggi, token, fonti e indice insieme — oggi si esegue sul database. Se ti serve,
+  archivia subito e chiedila come intervento tecnico.
