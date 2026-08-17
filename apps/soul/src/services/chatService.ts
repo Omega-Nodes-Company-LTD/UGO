@@ -69,6 +69,16 @@ export interface ChatServiceDeps {
    */
   gosinoId: string;
   /**
+   * ADR-019/048: quale casa. Serve a ciò che è della casa e non
+   * dell'esemplare — le registrazioni delle riunioni, che due gosini sotto lo
+   * stesso tetto interrogano entrambi.
+   *
+   * Obbligatorio per la stessa ragione di `gosinoId`: `searchTranscripts` ha
+   * girato senza scope, e senza scope quella query attraversava il confine fra
+   * famiglie invece di fermarsi al tetto.
+   */
+  householdId: string;
+  /**
    * Chi è questo, dal genoma (ADR-015/031).
    *
    * Obbligatorio e non facoltativo di proposito: un carattere assente è un
@@ -370,8 +380,15 @@ export class ChatService {
       at,
       this.deps.gosinoId,
     );
-    // recordings made "in giro" are interrogable through chat (§4.2)
-    const transcripts = await searchTranscripts(db, embedder, request.text, TRANSCRIPT_K);
+    // recordings made "in giro" are interrogable through chat (§4.2) — of this
+    // house, and only of this house
+    const transcripts = await searchTranscripts(
+      db,
+      embedder,
+      request.text,
+      TRANSCRIPT_K,
+      this.deps.householdId,
+    );
     const recordings: string[] = [];
     for (const segment of transcripts) {
       try {
@@ -439,9 +456,22 @@ export class ChatService {
     };
   }
 
-  /** Debug/CLI semantic search (GET /v1/memories/search). */
+  /**
+   * Debug/CLI semantic search (GET /v1/memories/search).
+   *
+   * Scoped to this exemplar like every other retrieval: girava senza
+   * `gosinoId`, e `fetchCandidates` dice a chiare lettere che ometterlo
+   * significa «i ricordi di tutti» — di ogni creatura e di ogni casa.
+   */
   public async search(query: string, k: number): Promise<RankedMemory[]> {
-    return searchMemories(this.deps.db, this.deps.embedder, query, k);
+    return searchMemories(
+      this.deps.db,
+      this.deps.embedder,
+      query,
+      k,
+      new Date(),
+      this.deps.gosinoId,
+    );
   }
 
   /** exposed for tests asserting encrypted persistence */

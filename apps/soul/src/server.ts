@@ -50,8 +50,13 @@ export interface ServerOptions extends HealthDeps {
   logger?: boolean;
   /** absolute path of the built face bundle; absent in dev, where Vite serves it */
   faceRoot?: string;
-  /** v1 feature surface; omitted only by infra-focused tests */
-  features?: Omit<V1Deps, "db"> & {
+  /**
+   * v1 feature surface; omitted only by infra-focused tests.
+   *
+   * `guard` è escluso perché nasce qui dentro (`createAuthGuard(audit)`, con
+   * l'audit di questo server): chi costruisce il server non lo porta, lo riceve.
+   */
+  features?: Omit<V1Deps, "db" | "guard"> & {
     face?: FaceGateway;
     audio?: AudioStorageConfig;
     meetings?: MeetingsService;
@@ -191,6 +196,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerV1Routes(app, {
       db: options.db,
       ...v1,
+      guard,
       ...(registry !== undefined && { registry }),
     });
     if (initiative !== undefined) {

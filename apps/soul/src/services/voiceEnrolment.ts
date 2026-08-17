@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { beings, desires, perceptionEvents, recognitionProfiles, type DbClient } from "@ugo/db";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { putAudioObject, type AudioStorageConfig } from "../routes/audio.js";
@@ -51,8 +52,15 @@ export async function storeVoiceSample(
     };
   }
 
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
-  const objectKey = `inbox/enroll_${input.beingId.slice(0, 8)}_${stamp}.webm`;
+  // Il timbro arrivava al MINUTO, e due depositi nello stesso minuto per lo
+  // stesso essere producevano la stessa chiave: il secondo sovrascriveva il
+  // primo nel bucket, silenziosamente, lasciando due righe
+  // `enrollment_requested` che puntavano a un solo oggetto. I secondi non
+  // bastano (il chiosco può mandare due frame ravvicinati): serve qualcosa che
+  // non collida mai, ed è per questo che c'è il suffisso casuale.
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
+  const nonce = randomBytes(4).toString("hex");
+  const objectKey = `inbox/enroll_${input.beingId.slice(0, 8)}_${stamp}_${nonce}.webm`;
   await putAudioObject(deps.storage, objectKey, input.audio, "audio/webm");
   await deps.db.insert(perceptionEvents).values({
     gosinoId: await eldestExemplarOf(deps.db, input.householdId),

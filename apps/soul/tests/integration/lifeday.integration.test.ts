@@ -10,6 +10,7 @@ import {
   runMigrations,
   type DbClient,
   PRIME_GOSINO_ID,
+  PRIME_HOUSEHOLD_ID,
 } from "@ugo/db";
 import {
   EMBED_MODEL,
@@ -63,6 +64,7 @@ async function wake(hourOfDay: number): Promise<{
   const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const chat = new ChatService({
     gosinoId: PRIME_GOSINO_ID,
+    householdId: PRIME_HOUSEHOLD_ID,
     character: characterFrom({}),
     db,
     embedder,

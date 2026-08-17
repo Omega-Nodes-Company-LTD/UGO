@@ -163,6 +163,7 @@ const chat: ChatService = new ChatService({
   dataKey: parseDataKey(env.UGO_DATA_KEY),
   pack,
   gosinoId: bootstrapExemplar.id,
+  householdId: bootstrapHouseholdId,
   character: bootstrapCharacter,
   ...(web !== undefined && { web }),
   ...(bootstrapPercezione !== undefined && {
