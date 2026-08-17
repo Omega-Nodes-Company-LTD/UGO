@@ -17,5 +17,13 @@ export const events = pgTable(
     type: text("type").notNull(),
     payload: jsonb("payload").notNull().default({}),
   },
-  (table) => [index("events_ts_idx").on(table.ts)],
+  (table) => [
+    index("events_ts_idx").on(table.ts),
+    // Composto, e in quest'ordine: ogni lettura filtra per esemplare e ordina
+    // per tempo (`askedToGoOutRecently`, il sogno, la ruminazione), e la
+    // politica RLS valuta `gosino_id` su OGNI riga che tocca. Con il solo
+    // indice sul tempo si finiva in scansione sequenziale a ogni giro, e il
+    // profilo lo attribuiva al «RLS filter» invece che all'indice mancante.
+    index("events_gosino_ts_idx").on(table.gosinoId, table.ts.desc()),
+  ],
 );

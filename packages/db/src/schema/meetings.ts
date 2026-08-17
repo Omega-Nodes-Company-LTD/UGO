@@ -17,7 +17,11 @@ export const meetings = pgTable("meetings", {
   participants: jsonb("participants").notNull().default([]),
   audioUri: text("audio_uri"),
   status: text("status").notNull().default("pending"),
-});
+},
+(table) => [
+  // l'elenco delle riunioni è di un esemplare, e il poller le rilegge spesso
+  index("meetings_gosino_idx").on(table.gosinoId),
+]);
 
 export const transcriptSegments = pgTable(
   "transcript_segments",
@@ -52,6 +56,10 @@ export const transcriptSegments = pgTable(
   (table) => [
     index("transcript_segments_meeting_idx").on(table.meetingId),
     index("transcript_segments_being_idx").on(table.beingId),
+    // ADR-048 ha messo `household_id` sulla riga perché la politica RLS lo
+    // confrontasse senza sottoquery — ma senza indice quel confronto si paga
+    // su ogni riga letta, e da oggi ci passa anche `searchTranscripts`
+    index("transcript_segments_household_idx").on(table.householdId),
     index("transcript_segments_embedding_hnsw_idx").using(
       "hnsw",
       table.embedding.op("vector_cosine_ops"),

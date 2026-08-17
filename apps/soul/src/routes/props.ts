@@ -121,8 +121,10 @@ export function registerPropRoutes(app: FastifyInstance, deps: PropRoutesDeps): 
       problem(reply, 404, "Prop not found");
       return reply;
     }
-    const room = (request.query as { stanza?: string }).stanza;
-    if (room !== undefined && room !== "") await push(householdId, room);
+    // la stanza viene dall'arredo, non da chi chiama: `?stanza=` poteva
+    // mancare o essere sbagliata, e allora il chiosco della stanza giusta non
+    // riceveva mai lo `scene` — spostamento fatto nel database e invisibile
+    await push(householdId, moved.roomSlug);
     return reply.send(moved);
   });
 
@@ -135,8 +137,8 @@ export function registerPropRoutes(app: FastifyInstance, deps: PropRoutesDeps): 
       problem(reply, 404, "Prop not found");
       return reply;
     }
-    const room = (request.query as { stanza?: string }).stanza;
-    if (room !== undefined && room !== "") await push(householdId, room);
+    // idem: la stanza è quella in cui l'arredo stava, e la sa `remove`
+    await push(householdId, gone.roomSlug);
     return reply.send(gone);
   });
 

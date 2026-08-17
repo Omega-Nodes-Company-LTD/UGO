@@ -24,5 +24,13 @@ export const messages = pgTable(
     tokensOut: integer("tokens_out").notNull().default(0),
     costUsd: numeric("cost_usd", { precision: 10, scale: 6 }).notNull().default("0"),
   },
-  (table) => [index("messages_ts_idx").on(table.ts), index("messages_channel_idx").on(table.channel)],
+  (table) => [
+    index("messages_ts_idx").on(table.ts),
+    index("messages_channel_idx").on(table.channel),
+    // `loadHistory` gira a OGNI turno di chat filtrando per esemplare dentro
+    // una finestra di ore: senza questo era una scansione sequenziale che
+    // cresceva con la biografia della casa, cioè una risposta che rallenta
+    // per il solo fatto di aver parlato tanto.
+    index("messages_gosino_ts_idx").on(table.gosinoId, table.ts.desc()),
+  ],
 );

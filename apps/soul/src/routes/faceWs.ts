@@ -26,6 +26,13 @@ import { resolveHousehold } from "./scope.js";
 /** Frames that belong to the room, and so reach every creature in it. */
 export const SENSED_BY_THE_ROOM = new Set(["noise", "light", "tap", "shake", "face_seen", "mode"]);
 
+/**
+ * Quanti frame si tengono mentre si chiede al database di che casa è questo
+ * corpo. L'attesa è una sola andata e ritorno: chi ne manda di più sta
+ * scaricando una coda offline, e la conversazione di adesso sta nei primi.
+ */
+const MAX_HELD_FRAMES = 32;
+
 interface RoomMember {
   id: string;
   name: string;
@@ -84,10 +91,25 @@ export async function registerFaceWs(
     // "he ignored me once after a reconnect" is not a bug anyone can report.
     let deliver: ((text: string) => void) | undefined;
     const waiting: string[] = [];
+    let dropped = 0;
     socket.on("message", (incoming: Buffer | string) => {
       const text = String(incoming);
-      if (deliver === undefined) waiting.push(text);
-      else deliver(text);
+      if (deliver !== undefined) {
+        deliver(text);
+        return;
+      }
+      // Con un tetto. L'attesa dura una sola andata e ritorno al database, ma
+      // se il database è lento un corpo che si riconnette con la coda offline
+      // piena scarica qui tutto quello che ha (fino a 200 kB per frame di
+      // immagine), e non c'era niente che lo fermasse: megabyte per
+      // connessione, per un numero arbitrario di connessioni. Si tengono i
+      // primi, che sono i più vecchi e i più vicini a quel che stava
+      // succedendo; i successivi si contano e si dicono, invece di sparire.
+      if (waiting.length >= MAX_HELD_FRAMES) {
+        dropped += 1;
+        return;
+      }
+      waiting.push(text);
     });
 
     void (async () => {
@@ -204,6 +226,12 @@ export async function registerFaceWs(
             });
         }
       };
+      if (dropped > 0) {
+        // un silenzio contato è un guasto; un silenzio non contato è un
+        // mistero, ed è il modo in cui il muso ha smesso di rispondere una
+        // volta senza un solo test rosso (ADR-045)
+        app.log.warn({ dropped }, "face frames dropped while resolving the household");
+      }
       for (const held of waiting.splice(0)) deliver(held);
     })();
   });
