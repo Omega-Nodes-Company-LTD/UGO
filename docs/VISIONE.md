@@ -1,7 +1,7 @@
 ---
 title: "UGO — La Visione: cosa può diventare"
 description: "La stella polare del progetto: i sei orizzonti di ciò che UGO può diventare, ognuno con la versione folle dichiarata senza vergogna e la prima pietra già esistente nel repository. Nata dalla sessione di visione del 2026-08-17 col proprietario."
-version: "1.1.0"
+version: "1.2.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio × Claude"
 ---
@@ -96,6 +96,28 @@ reception). Un algoritmo genetico che gira sulla società invece che su un clust
 Guardia non negoziabile: **si seleziona il carattere, mai i permessi** — budget guard,
 privacy e contenimenti stanno *fuori dal genoma*, per costruzione: sono le leggi di natura
 della piattaforma, e nessuna riproduzione può produrre un gosino che le aggira.
+
+**I tre orologi** (risposta a un timore giusto del proprietario: «una selezione a cicli
+annuali non ha interesse a esistere in informatica»). La durata del legame NON è il ciclo di
+selezione — sono tre orologi diversi, e il criceto stesso lo insegna: vive 2–3 anni ma si
+riproduce a due mesi.
+
+1. *Orologio della selezione — velocità del silicio*: genoma e psiche sono codice puro a
+   zero token, e la fixture del «golden day» esiste dalla Fase 3 — un allevamento fa girare
+   **migliaia di generazioni simulate in una notte** (giornate sintetiche di stimoli, misura
+   della convergenza, selezione, ricombinazione). Il ciclo di R&D dell'allevatore va al
+   ritmo dell'informatica, non delle vite.
+2. *Orologio delle generazioni vissute — mesi*: le cucciolate avvengono nei primi mesi di
+   vita, non alla fine; l'intervallo generazionale vissuto è trimestrale.
+3. *Orologio del legame — anni*: i 3–4 anni sono l'arco affettivo — scarsità, rito, lutto
+   con continuità. Lento di proposito: è il prodotto, non il collo di bottiglia.
+
+L'onestà che li tiene insieme: la simulazione seleziona ciò che è misurabile nella dinamica
+della psiche (stabilità, coerenza, temperamento target); ciò che rende un gosino *amabile*
+è la co-evoluzione con una famiglia vera, e non si simula — il mercato delle adozioni resta
+la fitness esterna che valida o smentisce ciò che il silicio ha pre-selezionato. Doppio
+anello: interno veloce (in silico), esterno lento (vissuto) — la pratica standard della
+computazione evolutiva, applicata a una specie.
 
 **Prima pietra nel repo**: `psyche_baselines` + `traitSets` + protocollo d'incontro BLE.
 
