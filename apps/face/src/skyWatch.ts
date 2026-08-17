@@ -41,8 +41,10 @@ const FALLBACK = { lat: 41.9, lon: 12.5 };
 /** il sole calcolato decide il cielo: giorno, ora d'oro, o notte con gli astri */
 function solarState(weather: SkyWeather, at: Date, lat: number, lon: number): SkyState {
   const sun = sunAltitude(at, lat, lon);
-  if (sun >= GOLDEN_BELOW) return { mode: "day", weather };
-  if (sun > GOLDEN_ABOVE) return { mode: "golden", weather };
+  // l'altezza viaggia INSIEME al modo: serve a disegnare il disco dov'è
+  // davvero, e finora usciva da questa funzione come un booleano travestito
+  if (sun >= GOLDEN_BELOW) return { mode: "day", weather, sunAltitude: sun };
+  if (sun > GOLDEN_ABOVE) return { mode: "golden", weather, sunAltitude: sun };
   return {
     mode: "night",
     weather,
