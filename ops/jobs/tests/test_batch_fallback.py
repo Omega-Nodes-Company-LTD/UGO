@@ -79,8 +79,9 @@ def test_falls_back_to_the_api_and_records_the_spend(
         provider, tokens_in, tokens_out, cost = rows[0]
         assert provider == "anthropic"
         assert (tokens_in, tokens_out) == (4000, 500)
-        # batch price is half of standard: (4000*1 + 500*5)/1e6 * 0.5
-        assert float(cost) == pytest.approx(0.003250, abs=1e-6)
+        # il ripiego NON passa dalla Batches API: prezzo pieno, niente sconto
+        # 0.5 (#50) — (4000*1 + 500*5)/1e6
+        assert float(cost) == pytest.approx(0.006500, abs=1e-6)
 
 
 def test_prefers_the_local_model_when_it_answers(
