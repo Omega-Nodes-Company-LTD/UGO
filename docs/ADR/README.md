@@ -81,4 +81,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [073](./073-il-libro-genealogico.md) | Il libro genealogico: la catena federata degli atti | Accettata |
 | [074](./074-la-dote.md) | La dote: il sapere che viaggia con la creatura | Accettata |
 | [075](./075-la-morte-crittografica.md) | La morte crittografica: il lascito resta, l'intimo no | Accettata |
-| 076 | *(prossimo numero disponibile)* | — |
+| [076](./076-le-liste.md) | Le liste: la spesa e le cose da fare, a voce e a costo zero | Accettata |
+| 077 | *(prossimo numero disponibile)* | — |

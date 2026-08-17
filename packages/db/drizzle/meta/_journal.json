@@ -253,6 +253,20 @@
       "when": 1786998403212,
       "tag": "0035_late_living_lightning",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1786998848488,
+      "tag": "0036_sudden_iron_lad",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1786998861174,
+      "tag": "0037_le-liste-rls",
+      "breakpoints": true
     }
   ]
 }

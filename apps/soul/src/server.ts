@@ -21,6 +21,7 @@ import { registerLitterRoutes } from "./routes/litters.js";
 import { registerPiggyBankRoutes } from "./routes/piggybank.js";
 import { registerDowryRoutes } from "./routes/dowry.js";
 import { registerFarewellRoutes } from "./routes/farewell.js";
+import { registerListRoutes } from "./routes/lists.js";
 import { PeerService } from "./services/peerService.js";
 import { RegistryClient } from "./services/registryClient.js";
 import type { CouncilService } from "./services/council/councilService.js";
@@ -388,6 +389,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           ...(gosini.embedder !== undefined && { embedder: gosini.embedder }),
           ...(registry !== undefined && { registry }),
         });
+        // ADR-076: le liste si vedono e si spuntano anche dal pannello
+        registerListRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
         registerFarewellRoutes(app, {
           db: options.db,
           guard,
