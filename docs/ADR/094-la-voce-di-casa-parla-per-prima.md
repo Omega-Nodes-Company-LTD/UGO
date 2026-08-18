@@ -2,6 +2,8 @@
 
 **Stato: ACCETTATA** (2026-08-18). Fase B del piano, riplasmata dalla direttiva del
 proprietario: *«più che fallback, deve diventare la prima scelta, e remoto è il fallback»*.
+**§4 superato da ADR-095** lo stesso giorno: anche la risposta locale paga, a listino
+nominale, e i muri valgono per ogni anello.
 
 ## Contesto
 
