@@ -283,6 +283,11 @@ export function registerHouseholdRoutes(
         // il posto, per mostrarlo nell'elenco senza una seconda chiamata
         place: households.place,
         dailyBudgetUsd: households.dailyBudgetUsd,
+        // ADR-081: cosa può fare questa casa. Il pannello deve **non offrire**
+        // le porte che risponderebbero 403: un pulsante che rifiuta sempre è
+        // peggio di un pulsante che non c'è
+        isFoundry: households.isFoundry,
+        canBreed: households.canBreed,
       })
       .from(households)
       .where(isNull(households.closedAt))

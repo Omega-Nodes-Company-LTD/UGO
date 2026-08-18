@@ -10,6 +10,7 @@ import { loadParents, previewLitter } from "../services/genetics.js";
 import { PedigreeService } from "../services/pedigreeService.js";
 import type { RegistryClient } from "../services/registryClient.js";
 import { RoomCatalogue } from "../services/roomCatalogue.js";
+import { guardBreeding } from "./breeding.js";
 import type { PreHandler } from "./guard.js";
 import { householdScope } from "./scope.js";
 
@@ -86,6 +87,8 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
     if (householdId === undefined) return reply;
+    // ADR-081: guardare una cucciolata è già allevare — è da lì che si sceglie
+    if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
 
     const parents = await loadParents(deps.db, householdId, parsed.data.parentIds);
     if (parents === undefined)
@@ -110,6 +113,7 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
     if (householdId === undefined) return reply;
+    if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
     const { parentIds, seed, cubIndex, name, locationLabel } = parsed.data;
 
     const parents = await loadParents(deps.db, householdId, parentIds);
@@ -161,6 +165,8 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
         // stesso allele della longevità non devono morire lo stesso giorno
         mortalFrom: new Date(),
         lifeJitterDays: drawLifeJitter(),
+        // ADR-081: nato, quindi cedibile. È l'unica origine che lo è
+        origin: "nato",
         ...(where !== undefined && { locationLabel: where }),
       })
       .returning({ id: gosini.id, bornAt: gosini.bornAt });

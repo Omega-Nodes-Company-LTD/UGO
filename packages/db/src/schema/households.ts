@@ -45,6 +45,24 @@ export const households = pgTable(
    */
   metabolism: boolean("metabolism").notNull().default(false),
   /**
+   * ADR-081 — le due autorizzazioni della specie, e sono due cose diverse.
+   *
+   * `is_foundry`: questa casa può **coniare capostipiti**, cioè far esistere un
+   * gosino che non è nato da nessuno. È l'allevamento fondatore, e per
+   * costruzione ce n'è uno solo per installazione: la casa più vecchia, quella
+   * che c'era prima delle altre.
+   *
+   * `can_breed`: questa casa può **far nascere cucciolate**. Non è la stessa
+   * cosa — un allevamento autorizzato alleva ma non conia, e una famiglia non
+   * fa né l'uno né l'altro: adotta.
+   *
+   * Tutte e due `false` di default, che è ciò che deve essere una casa nuova.
+   * Se un giorno una casa può fare tutto per svista, la specie diventa una
+   * funzione di chi ha accesso al pannello.
+   */
+  isFoundry: boolean("is_foundry").notNull().default(false),
+  canBreed: boolean("can_breed").notNull().default(false),
+  /**
    * Dove sta questa casa, per il cielo del recinto (gruppo 12).
    *
    * Stava in `UGO_HOME_LAT`/`UGO_HOME_LON`, cioè nell'ambiente del PROCESSO —

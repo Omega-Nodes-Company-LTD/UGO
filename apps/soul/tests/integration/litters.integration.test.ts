@@ -61,8 +61,19 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const a = await createHousehold(db, MASTER_KEY, { slug: "casa-a", name: "A" });
-  const b = await createHousehold(db, MASTER_KEY, { slug: "casa-b", name: "B" });
+  // ADR-081: fare cucciolate è un mestiere autorizzato. Queste due case sono
+  // allevamenti, e va detto qui — una casa qualunque riceverebbe 403, che è
+  // esattamente ciò che deve succedere
+  const a = await createHousehold(db, MASTER_KEY, {
+    slug: "casa-a",
+    name: "A",
+    breeder: true,
+  });
+  const b = await createHousehold(db, MASTER_KEY, {
+    slug: "casa-b",
+    name: "B",
+    breeder: true,
+  });
   houseA = a.householdId;
   tokenA = a.ownerToken;
   tokenB = b.ownerToken;

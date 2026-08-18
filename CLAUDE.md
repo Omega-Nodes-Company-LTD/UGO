@@ -75,6 +75,12 @@ Dopo ogni modifica: `tsc --noEmit`, `eslint . --max-warnings=0`, build. Se rosso
     Un gosino è com'è per due sole strade, entrambe fuori dalle mani di chi lo possiede: **si
     eredita** (genoma, ADR-068) e **si sposta vivendo** (baseline adattive di ADR-012 × la
     plasticità di ADR-071). Se non ti somiglia, la risposta è un'altra nascita.
+14. **Non si crea, si nasce** (ADR-081): far esistere una creatura non è un'operazione che una
+    casa può fare. **Coniare** capostipiti è dell'allevamento fondatore (uno per
+    installazione), **allevare** cucciolate è degli allevamenti autorizzati, una famiglia
+    **adotta**. Le due autorizzazioni vivono su `households` e si danno dalla riga di comando,
+    mai dal pannello. `gosini.origin` dice da dove viene ognuno: **si cedono solo i `nato`** —
+    un capostipite è l'inizio di una stirpe, e si vendono i figli.
 
 ## FLUSSO DI LAVORO PER OGNI TASK
 1. Leggi `docs/PROGETTO.md` (sezioni pertinenti) + `docs/STATE.md` + skill di area.

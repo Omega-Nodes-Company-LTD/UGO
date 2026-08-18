@@ -47,6 +47,18 @@ export type DesireStatus = (typeof DESIRE_STATUSES)[number];
  * qui ha un percorso di codice suo — quindi enum vero e non testo libero,
  * al contrario di specie e liste (ADR-014).
  */
+/**
+ * ADR-081 — da dove viene un esemplare, e quindi se può essere ceduto.
+ *
+ * `capostipite`: coniato da un allevamento fondatore. **Non si vende**: è il
+ * punto zero di una linea, non un prodotto. `nato`: viene da una cucciolata, ha
+ * genitori che ne hanno firmato la nascita (ADR-070) — è l'unica cosa che si
+ * può cedere. `dote`: nato dal sapere di un altro (ADR-074), quindi capostipite
+ * in casa sua e non cedibile come un nato.
+ */
+export const GOSINO_ORIGINS = ["capostipite", "nato", "dote"] as const;
+export type GosinoOrigin = (typeof GOSINO_ORIGINS)[number];
+
 export const DESIRE_KINDS = ["desiderio", "promemoria", "timer", "sveglia"] as const;
 export type DesireKind = (typeof DESIRE_KINDS)[number];
 

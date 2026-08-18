@@ -36,6 +36,7 @@ const USAGE = `uso:
 
   ugo casa nuova --slug <slug> --nome "<nome>" [--tz <fuso>] [--locale <it-IT>]
                  [--gosino <nome>] [--archetipo <nome>] [--tipo casa|azienda]
+                 [--fonderia] [--allevamento]
                                fa nascere un'organizzazione: chiave dati, primo
                                gosino, genoma e token del proprietario
 
@@ -75,6 +76,9 @@ async function main(): Promise<number> {
       gosino: { type: "string" },
       archetipo: { type: "string" },
       tipo: { type: "string" },
+      // ADR-081: chi conia capostipiti, e chi può allevare
+      fonderia: { type: "boolean", default: false },
+      allevamento: { type: "boolean", default: false },
       yes: { type: "boolean", default: false },
     },
   });
@@ -161,6 +165,10 @@ async function main(): Promise<number> {
         ...(values.tipo !== undefined && {
           kind: values.tipo === "azienda" ? ("business" as const) : ("home" as const),
         }),
+        // ADR-081: le due autorizzazioni si danno da qui, cioè da chi possiede
+        // l'installazione — mai dal pannello di una casa
+        ...(values.fonderia && { foundry: true }),
+        ...(values.allevamento && { breeder: true }),
       });
       const audit = createAuditLog(db);
       await audit.record({

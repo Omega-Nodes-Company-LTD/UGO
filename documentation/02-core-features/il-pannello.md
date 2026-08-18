@@ -129,26 +129,26 @@ interessante proprio perché ognuno reagisce a modo suo. Quando invece parli, ti
 uno solo: farli rispondere tutti costerebbe una chiamata a testa per ogni frase. Per sentirli
 tutti c'è [il consiglio](#il-consiglio), che usa i modelli locali e non tocca il budget.
 
-## Fai nascere un gosino
+## Un altro gosino
 
-Da **+ Fanne nascere uno**. Servono un nome e, se vuoi, la stanza — scelta da un elenco,
-quindi falla prima in **Le stanze** se non c'è ancora. Puoi anche lasciarlo senza e dargliela dopo.
+Da **+ Fanne nascere uno** — e quello che ci trovi dipende da **cosa è la tua casa**.
 
-Il carattere si sceglie con un archetipo (curiosone, pigrone, affettuoso,
-brontolone, timidone) oppure con le manopole. **Le manopole che non tocchi
-restano dell'archetipo**, quindi puoi partire da «pigrone» e alzargli solo la
-curiosità.
+Se la tua casa non è un allevamento (il caso normale), la pagina non ha nessun pulsante per
+creare: dice che **un gosino non si crea, si sceglie fra quelli nati**. È la regola, non un
+limite del pannello.
 
-Il carattere è la **versione 1** del suo genoma e non si modifica: cambiarlo
-vuol dire farne una versione nuova, non spostare un cursore. Sceglilo con
-un minimo di calma.
+Se la tua casa è un **allevamento autorizzato**, trovi **una cucciolata**: due gosini che hai
+già, e il carattere non lo scegli tu — lo scelgono i genitori. Come funziona, perché a volte
+rifiuta e cosa vuol dire il pedigree sta tutto in [Il branco](./il-branco.md).
 
-Appena nato ha già il suo apparato: puoi entrare nella sua pagina subito.
+Se la tua casa è l'**allevamento fondatore**, trovi anche il modo di **coniare un
+capostipite**: nome, stanza, e il carattere con archetipo e manopole. È l'unico posto in cui
+una creatura può cominciare a esistere senza genitori, ed è un atto d'allevamento — non
+un'opzione del proprietario.
 
-Nella stessa pagina, più sotto, c'è l'altro modo: **una cucciolata** da due gosini
-che hai già, dove il carattere non lo scegli tu — lo scelgono i genitori. Come
-funziona, perché a volte rifiuta e cosa vuol dire il pedigree sta tutto in
-[Il branco](./il-branco.md).
+In tutti i casi il carattere è la **versione 1** del suo genoma e **non si modifica**: non
+c'è nessun modo di regolarlo dopo, né qui né altrove. Appena nato ha già il suo apparato:
+puoi entrare nella sua pagina subito.
 
 ## Come sta adesso
 
