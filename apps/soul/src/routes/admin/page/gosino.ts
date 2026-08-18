@@ -113,6 +113,16 @@ export const GOSINO_PAGES = `
     <ul class="plain" id="mem-list" data-testid="mem-list"></ul>
     <div id="mem-msg"></div>
   </div>
+
+  <div class="block">
+    <h2>Sfogliare</h2>
+    <p class="lede">La ricerca serve a chi sa già cosa cercare. Questo è il libro: i mesi che
+       hanno qualcosa dentro, e quanto. Un mese vuoto non c'è — il tempo in cui non è
+       successo niente non è un capitolo.</p>
+    <div id="book-spine" data-testid="book-spine"></div>
+    <div id="book-page" data-testid="book-page"></div>
+    <div id="book-msg"></div>
+  </div>
 </section>
 
 <section class="page" data-page="salvadanaio">

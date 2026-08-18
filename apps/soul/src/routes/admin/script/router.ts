@@ -146,6 +146,11 @@ async function openPage(page) {
     await section(loadEfficacy, "efficacy-msg");
     // ADR-085: e cosa si è impegnato a chiederti, e quando
     await section(loadCheckins, "checkin-msg");
+  } else if (page === "memoria") {
+    // ADR-086: la costa del libro. La ricerca resta a richiesta — è lei che
+    // costa un giro di embedding, e aprirla da sola a ogni visita sarebbe
+    // pagare un ripescaggio che nessuno ha chiesto
+    await section(loadBook, "book-msg");
   } else if (page === "pedigree") {
     // ADR-070: da chi discende, e se le firme dei genitori reggono
     await section(loadPedigree, "pedigree-msg");

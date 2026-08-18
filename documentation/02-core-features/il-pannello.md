@@ -1,7 +1,7 @@
 ---
 title: "Il pannello"
 description: "Come sta, cosa ha deciso da solo, e come chiedere a tutti quanti insieme. Tutto da /admin, senza toccare un terminale."
-version: "0.37.0"
+version: "0.38.0"
 last_updated: "2026-08-18"
 author: "ThinkPink Studio"
 ---
@@ -205,6 +205,22 @@ una persona. Sono nove gesti già scritti, e quello è solo quanto li preferisce
 140%. Non può inventarne di nuovi, non può diventare più invadente per quanto lo lodi, e non può
 saltare le pause che si prende fra un'iniziativa e l'altra. Ogni notte tutto torna un po' verso il
 centro.
+
+## Cosa ricorda
+
+Due modi di guardare la sua memoria, e servono a due domande diverse.
+
+**Cerca** risponde a «cosa ripescherebbe se glielo chiedessi»: è la stessa ricerca che usa
+quando parla, quindi quello che vedi è quello che userebbe davvero. Serve però sapere già la
+parola giusta.
+
+**Sfogliare** è il libro: i mesi che hanno qualcosa dentro, ognuno col numero di ricordi, e
+cliccandone uno si apre quel mese per intero, in ordine di come è successo. I mesi vuoti non
+compaiono — il tempo in cui non è successo niente non è un capitolo.
+
+I ricordi che hai smentito restano, segnati come **non è più vero**: spiegano cosa credeva
+allora, ed è il motivo per cui non si cancellano. A voce invece non te li rilegge, perché
+detti come se fossero validi sarebbero una bugia.
 
 ## Il consiglio
 

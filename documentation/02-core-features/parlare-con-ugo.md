@@ -228,6 +228,24 @@ in casa, senza chiedere a nessuno — quindi non consumano il budget della giorn
 dal tuo server. Vale anche per i promemoria («ricordami di…»), i timer, le sveglie, il diario, la rassegna e le
 domande che gli fai tornare.
 
+## «Cosa ti ricordi di marzo?»
+
+Il diario racconta **una giornata**; questo apre **un periodo**:
+
+- **«cosa ti ricordi di marzo?»** — i ricordi di quel mese, con le sue parole.
+- **«che ricordi hai di dicembre 2025?»** — se l'anno lo dici, è quello.
+- **«cosa ti ricordi dell'anno scorso?»** — un anno intero.
+
+Se l'anno non lo dici, prende **il mese più recente che c'è stato**: ad agosto «dicembre» è il
+dicembre passato, non quello che deve venire.
+
+A voce te ne dice **cinque**: più di così non si ascolta. Il mese intero, per intero, sta nel
+pannello alla voce **Sfogliare**.
+
+Una cosa che non fa apposta: se dici «**mi** ricordo che a marzo pioveva» non ti risponde con
+un elenco. Quella non è una domanda — è una cosa che gli stai raccontando, e interromperti
+sarebbe maleducazione.
+
 ## Le domande che gli fai tornare
 
 Fin qui è sempre stato lui a rispondere. Questa è la frase che gli fa **cominciare a
