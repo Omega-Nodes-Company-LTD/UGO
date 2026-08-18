@@ -117,6 +117,8 @@ async function openPage(page) {
     await section(loadLists, "list-msg");
   } else if (page === "feed") {
     await section(loadFeeds, "feed-msg");
+    // ADR-080: e cosa è arrivato davvero, non solo quanti
+    await section(loadFeedItems, "feed-msg");
   } else if (page === "clienti") {
     await section(loadCustomers, "cust-msg");
   } else if (page === "arredi") {

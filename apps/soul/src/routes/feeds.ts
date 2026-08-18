@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { AuditLogger } from "../services/auditLog.js";
 import type { PreHandler } from "./guard.js";
+import { NewsService } from "../services/newsService.js";
 import { householdScope } from "./scope.js";
 
 /**
@@ -69,6 +70,21 @@ export function registerFeedRoutes(app: FastifyInstance, deps: FeedRoutesDeps): 
         advised: Number(row.advised),
         lastFetchedAt: row.lastFetchedAt?.toISOString() ?? null,
       })),
+    };
+  });
+
+  /**
+   * ADR-080: **cosa è arrivato davvero**. Il pannello mostrava due contatori
+   * («412 item, 3 consigliati») e nessun titolo: chi si iscrive a un feed
+   * vuole vedere se arriva roba, non quanta.
+   */
+  app.get("/v1/feeds/items", admin, async (request, reply) => {
+    const householdId = await scope(request, reply);
+    if (householdId === undefined) return reply;
+    const asked = Number((request.query as { limit?: string }).limit);
+    const news = new NewsService(db);
+    return {
+      items: await news.latest(householdId, Number.isFinite(asked) && asked > 0 ? asked : 20),
     };
   });
 

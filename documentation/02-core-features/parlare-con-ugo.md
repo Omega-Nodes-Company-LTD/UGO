@@ -53,6 +53,7 @@ il modello:
 - **`metti un timer di …`** e **`svegliami alle …`** — timer e sveglia, che suonano in orario
   (sotto c'è la sezione tutta loro).
 - **`cos'hai fatto ieri?`** — ti legge la pagina di diario di quel giorno, con le sue parole.
+- **`che notizie ci sono?`** — i titoli arrivati dai feed che hai iscritto.
 - **`cerca: …`** — apre la finestra sul mondo: la ricerca passa dal motore di casa e la risposta
   arriva in due frasi. La domanda esce verso i motori di ricerca, ma senza nome né casa attaccati.
 - **`leggi`** (anche `leggi lo schermo`) — UGO guarda con la camera del corpo e ti dice **cosa c'è
@@ -138,6 +139,29 @@ bolletta.
 Il conto lo tiene lui: chi gestisce il server può vederlo, insieme al risparmio ottenuto riusando le
 parti fisse del suo carattere, sulla pagina di stato.
 
+## La rassegna: «che notizie ci sono?»
+
+Se hai iscritto dei feed (dal pannello, in **I feed**), UGO te ne legge i titoli quando glielo
+chiedi:
+
+- **«che notizie ci sono?»**, **«leggimi le notizie»**, **«fammi la rassegna»** — i primi tre
+  titoli, con la fonte.
+- **«leggimi cinque notizie»** — quanti ne vuoi, fino a otto. È una rassegna, non un giornale
+  letto per intero.
+
+**I titoli te li legge come sono stati scritti**, non li riassume: riassumerli vorrebbe dire
+farli riscrivere a un modello, che costa e può farti sentire un titolo diverso da quello
+pubblicato.
+
+Tre risposte diverse, che vogliono dire tre cose diverse: *«non sei iscritto a nessun feed»*
+(c'è qualcosa da fare), *«non è arrivato niente di nuovo»* (giornata tranquilla), oppure i
+titoli. Un feed che hai **spento** non lo senti, anche se ha appena pubblicato.
+
+Nel pannello, sotto **I feed**, adesso c'è anche **Cos'è arrivato**: gli ultimi articoli coi
+link. Serve per accorgersi che un feed pubblica solo pubblicità *prima* che UGO te ne consigli
+uno — la spunta accanto a un titolo vuol dire che te l'ha già consigliato lui, e una cosa
+consigliata non si riconsiglia.
+
 ## Il libro della sua vita
 
 Ogni notte UGO scrive **una pagina di diario**: quello che ha vissuto quel giorno, distillato
@@ -201,7 +225,7 @@ spuntare e cancellare a mano.
 
 Una cosa che vale la pena sapere: **queste frasi non costano niente.** UGO le capisce da solo,
 in casa, senza chiedere a nessuno — quindi non consumano il budget della giornata e non escono
-dal tuo server. Vale anche per i promemoria («ricordami di…»), i timer, le sveglie e il diario.
+dal tuo server. Vale anche per i promemoria («ricordami di…»), i timer, le sveglie, il diario e la rassegna.
 
 ## Prossimi Passi
 

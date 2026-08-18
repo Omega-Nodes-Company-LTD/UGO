@@ -23,8 +23,10 @@ import { buildPackPrompt, selfLine } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
 import { readGestureOf, replyForReading, type ReadOutcome } from "./sceneReader.js";
 import { DiaryService } from "./diaryService.js";
+import { NewsService } from "./newsService.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
 import { dateFor, parseDiaryAsk, tellDiary } from "./volition/diaryAsk.js";
+import { parseNewsAsk, tellNews } from "./volition/news.js";
 import {
   answerTimer,
   confirmCancel,
@@ -527,16 +529,33 @@ export class ChatService {
     }
 
     /**
+     * ADR-080: «che notizie ci sono?». I titoli li ha già scaricati il sogno e
+     * sono già le parole di chi li ha scritti: farli riscrivere a un modello
+     * costerebbe un token per peggiorarli.
+     */
+    const newsAsk = parseNewsAsk(request.text);
+    if (newsAsk !== undefined) {
+      const news = new NewsService(db);
+      const [items, subscribed] = await Promise.all([
+        news.latest(this.deps.householdId, newsAsk.limit),
+        news.subscribed(this.deps.householdId),
+      ]);
+      return this.answered(tellNews(items, subscribed), request, at);
+    }
+
+    /**
      * ADR-076: «aggiungi il latte alla spesa» è un gesto, non una
      * conversazione. Risposto qui, prima del provider: istantaneo, gratuito e
      * privato — e lo scambio finisce comunque nella biografia cifrato come
      * ogni altro, perché una scorciatoia sul costo non è una scorciatoia
      * sulla memoria.
      *
-     * **Dopo il diario**, e l'ordine l'ha deciso un test rosso: «leggimi il
-     * diario» finiva qui, veniva letto come «leggimi la lista *diario*» e
-     * rispondeva «la lista diario è vuota». Il diario è suo, una lista è tua:
-     * quella parola la tiene lui.
+     * **Ultimo fra i gesti che nominano una cosa**, e l'ordine l'hanno deciso
+     * due test rossi: «leggimi il diario» finiva qui come «leggimi la lista
+     * *diario*», e «leggimi una notizia» come la lista *una notizia*. Le liste
+     * sono a testo libero per scelta (ADR-014), quindi possono chiamarsi come
+     * qualunque cosa: **le parole che sono di UGO le tiene lui**, e la lista
+     * che si chiamasse così si legge nominandone il contenuto.
      */
     const listCommand = parseListCommand(request.text);
     if (listCommand !== undefined) {

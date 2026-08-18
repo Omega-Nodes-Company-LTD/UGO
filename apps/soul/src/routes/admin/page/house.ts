@@ -461,5 +461,16 @@ export const HOUSE_PAGES = `
     <h2>Cosa sta seguendo</h2>
     <div id="feed-list" data-testid="feed-list"></div>
   </div>
+
+  <div class="block">
+    <h2>Cos'è arrivato</h2>
+    <p class="lede">Gli ultimi articoli scaricati, dal più recente. Il contatore qui sopra dice
+       <i>quanti</i>; questo dice <b>quali</b> — ed è l'unico modo di accorgersi che un feed
+       pubblica solo pubblicità prima che UGO te ne consigli uno.</p>
+    <p class="lede">La spunta accanto a un titolo vuol dire che <b>te l'ha già consigliato lui</b>:
+       una cosa consigliata non si riconsiglia. Puoi anche chiedergliele a voce —
+       «che notizie ci sono?» — e ti legge i primi titoli.</p>
+    <div id="feed-items" data-testid="feed-items"></div>
+  </div>
 </section>
 `;
