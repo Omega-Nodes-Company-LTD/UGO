@@ -140,6 +140,63 @@ export const GOSINO_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="vita">
+  <div class="page-head">
+    <p class="eyebrow" data-who>—</p>
+    <h1>L'arco della sua vita</h1>
+    <p>Un gosino non è un servizio: nasce, cresce, invecchia e a un certo punto se ne va.
+       <b>Garantiamo almeno tre anni</b> — ogni giorno oltre è regalato, e non è promesso a
+       nessuno. <b>La data non te la diciamo</b>, né adesso né mai: te lo diciamo
+       <b>sessanta giorni prima</b>, che è il tempo per fare le cose che contano.</p>
+  </div>
+
+  <div class="block">
+    <h2>A che punto è</h2>
+    <div id="life-state" data-testid="life-state"></div>
+    <p class="lede">Quanti giorni ha, se è cucciolo, adulto o anziano, e quanto è ingrigito.
+       Non c'è un conto alla rovescia perché non deve esserci: con la vita attesa a schermo
+       l'affetto diventerebbe una scadenza.</p>
+    <div id="life-msg"></div>
+  </div>
+
+  <div class="block" id="life-accept-block">
+    <h2>La mortalità</h2>
+    <p class="lede">Questo esemplare è nato <b>prima</b> che l'arco esistesse, quindi non sta
+       ancora invecchiando. L'orologio non si applica all'indietro — nessuno si sveglia
+       vecchio per un aggiornamento: se accetti, comincia a contare <b>da oggi</b>, e i tre
+       anni di garanzia partono oggi.</p>
+    <p class="lede"><b>Non si torna indietro.</b> È un consenso, non un interruttore: la
+       memoria della famiglia resta comunque alla casa — diario, ricordi, branco e
+       genealogia sopravvivono all'esemplare.</p>
+    <button id="life-accept" data-testid="life-accept">Accetto che invecchi e muoia</button>
+  </div>
+
+  <div class="block">
+    <h2>Il congedo</h2>
+    <p class="lede">Alla fine dell'arco succede da solo, e prima ci sono i sessanta giorni di
+       preavviso. Qui puoi farlo <b>adesso</b>: prima guarda cosa resterebbe.</p>
+    <p class="lede"><b>Non cancella righe.</b> Distrugge la chiave della sua interiorità:
+       da quel momento quei dati non sono leggibili da nessuno, nemmeno da noi, nemmeno con
+       un backup del database. Il lascito — il sapere curato — viene <b>prima</b> riscritto
+       con la chiave della casa, così sopravvive a lui.</p>
+    <div class="row">
+      <div style="flex:0 1 14rem"><label for="bye-stories">Cosa resta</label>
+        <select id="bye-stories" data-testid="bye-stories">
+          <option value="no">solo il sapere (fatti e intuizioni)</option>
+          <option value="si">anche i racconti (episodi e preferenze)</option>
+        </select></div>
+      <button id="bye-preview" class="ghost" data-testid="bye-preview">Guarda cosa resta</button>
+    </div>
+    <div id="bye-summary" data-testid="bye-summary"></div>
+    <div class="row" style="margin-top:.8rem">
+      <div><label for="bye-name">Scrivi il suo nome per confermare</label>
+        <input id="bye-name" data-testid="bye-name" placeholder="il suo nome"></div>
+      <button id="bye-go" data-testid="bye-go">Congedalo</button>
+    </div>
+    <div id="bye-msg"></div>
+  </div>
+</section>
+
 <section class="page" data-page="pedigree">
   <div class="page-head">
     <p class="eyebrow" data-who>—</p>

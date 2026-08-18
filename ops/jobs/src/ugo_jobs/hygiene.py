@@ -40,17 +40,23 @@ UMORE_HIGH_DAY = 0.65
 #: Duplicato di `life.ts` in `packages/psyche`, come già `EFFICACY_DECAY`: i due
 #: linguaggi non condividono costanti, e ciò che avviene di notte deve stare
 #: dove gira la notte. Il test confronta i valori con quelli in TypeScript.
-LIFESPAN_MIN_DAYS = 912
-LIFESPAN_MAX_DAYS = 1826
+#: ADR-077 — la vita è garanzia + dono del gene + dado dell'esemplare. Il dado
+#: sta sulla riga (`gosini.life_jitter_days`) e non nel genoma, perché la data
+#: della morte non deve essere calcolabile da chi legge il gene.
+GUARANTEED_DAYS = 1095
+GIFT_MAX_DAYS = 1100
+GIFT_CURVE = 3
+JITTER_MAX_DAYS = 90
 PLASTICITY_YOUNG = 2.2
 PLASTICITY_OLD = 0.15
 PLASTICITY_HALFWAY = 0.22
 LONGEVITY_DEFAULT = 0.5
 
 
-def lifespan_days_for(longevity: float) -> int:
+def lifespan_days_for(longevity: float, jitter_days: float = 0.0) -> int:
     t = min(1.0, max(0.0, longevity))
-    return round(LIFESPAN_MIN_DAYS + (LIFESPAN_MAX_DAYS - LIFESPAN_MIN_DAYS) * t)
+    jitter = min(float(JITTER_MAX_DAYS), max(0.0, round(jitter_days)))
+    return round(GUARANTEED_DAYS + GIFT_MAX_DAYS * t**GIFT_CURVE + jitter)
 
 
 def plasticity_at(fraction: float) -> float:
@@ -62,13 +68,16 @@ def plasticity_at(fraction: float) -> float:
 def _plasticity_of(conn: psycopg.Connection, gosino_id: str, now: datetime) -> float:
     """Quanto la vita può ancora riscrivere questo carattere.
 
-    L'età non si conserva: si calcola da `born_at` e dal gene della longevità
-    (ADR-071). Senza riga o senza genoma si ricade sulla media, che è ciò che
-    valeva per tutti prima di questo ADR.
+    L'età non si conserva: si calcola (ADR-071). Ma si conta da `mortal_from`
+    e non da `born_at` (ADR-077): chi non ha ancora accettato la mortalità —
+    i capostipiti nati prima dell'arco — **non sta percorrendo nessun arco**,
+    e quindi ha la plasticità di chi ha appena cominciato. Senza riga o senza
+    genoma si ricade sulla media, che è ciò che valeva per tutti prima.
     """
     row = conn.execute(
         """
-        select g.born_at,
+        select g.mortal_from,
+               g.life_jitter_days,
                (select t.traits from trait_sets t
                  where t.gosino_id = g.id order by t.version desc limit 1)
           from gosini g where g.id = %s
@@ -78,7 +87,8 @@ def _plasticity_of(conn: psycopg.Connection, gosino_id: str, now: datetime) -> f
     if row is None or row[0] is None:
         return plasticity_at(0.0)
 
-    born_at, traits = row
+    mortal_from, jitter_days, traits = row
+    jitter = float(jitter_days) if isinstance(jitter_days, (int, float)) else 0.0
     longevity = LONGEVITY_DEFAULT
     if isinstance(traits, str):
         try:
@@ -90,10 +100,10 @@ def _plasticity_of(conn: psycopg.Connection, gosino_id: str, now: datetime) -> f
         if isinstance(value, (int, float)):
             longevity = float(value)
 
-    if born_at.tzinfo is None:
-        born_at = born_at.replace(tzinfo=timezone.utc)
-    age_days = max(0.0, (now - born_at).total_seconds() / 86_400)
-    return plasticity_at(age_days / lifespan_days_for(longevity))
+    if mortal_from.tzinfo is None:
+        mortal_from = mortal_from.replace(tzinfo=timezone.utc)
+    age_days = max(0.0, (now - mortal_from).total_seconds() / 86_400)
+    return plasticity_at(age_days / lifespan_days_for(longevity, jitter))
 
 
 @dataclass

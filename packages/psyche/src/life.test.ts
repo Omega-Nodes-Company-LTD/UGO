@@ -3,8 +3,9 @@ import { founderGenome } from "./genes.js";
 import {
   CUB_UNTIL,
   ELDER_FROM,
-  LIFESPAN_MAX_DAYS,
-  LIFESPAN_MIN_DAYS,
+  GIFT_MAX_DAYS,
+  GUARANTEED_DAYS,
+  JITTER_MAX_DAYS,
   lifeAt,
   lifeOf,
   lifespanDaysFor,
@@ -19,22 +20,68 @@ import {
 const BORN = new Date("2026-01-01T00:00:00.000Z");
 const after = (days: number): Date => new Date(BORN.getTime() + days * 86_400_000);
 
-describe("il gene della longevità", () => {
-  it("mappa sulla scala del criceto e non oltre", () => {
-    expect(lifespanDaysFor(0)).toBe(LIFESPAN_MIN_DAYS);
-    expect(lifespanDaysFor(1)).toBe(LIFESPAN_MAX_DAYS);
-    expect(lifespanDaysFor(0.5)).toBeGreaterThan(LIFESPAN_MIN_DAYS);
-    expect(lifespanDaysFor(0.5)).toBeLessThan(LIFESPAN_MAX_DAYS);
+describe("il gene della longevità (nascosto, ADR-077)", () => {
+  it("la garanzia è un pavimento: NESSUN genoma vive meno di tre anni", () => {
+    expect(lifespanDaysFor(0)).toBe(GUARANTEED_DAYS);
+    for (const gene of [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1]) {
+      expect(lifespanDaysFor(gene)).toBeGreaterThanOrEqual(GUARANTEED_DAYS);
+    }
+  });
+
+  it("il gene medio regala pochi mesi: la vita tipica cade nel quarto anno", () => {
+    const tipica = lifespanDaysFor(0.5);
+    expect(tipica).toBeGreaterThan(GUARANTEED_DAYS);
+    expect(tipica).toBeLessThan(GUARANTEED_DAYS + 365);
+  });
+
+  it("la coda alta esiste ed è lontana: è lì che va la selezione", () => {
+    expect(lifespanDaysFor(1)).toBe(GUARANTEED_DAYS + GIFT_MAX_DAYS);
+    // il confronto è sul DONO, non sul totale: col pavimento di tre anni i
+    // totali si somigliano sempre, ed è appunto la garanzia che li avvicina
+    const dono = (gene: number): number => lifespanDaysFor(gene) - GUARANTEED_DAYS;
+    // metà gene non dà metà dono: la coda si conquista, non si incontra
+    expect(dono(0.5)).toBeLessThan(dono(1) * 0.2);
+    expect(dono(0.9)).toBeLessThan(dono(1) * 0.75);
   });
 
   it("regge valori fuori scala senza inventarsi vite eterne", () => {
-    expect(lifespanDaysFor(-3)).toBe(LIFESPAN_MIN_DAYS);
-    expect(lifespanDaysFor(9)).toBe(LIFESPAN_MAX_DAYS);
+    expect(lifespanDaysFor(-3)).toBe(GUARANTEED_DAYS);
+    expect(lifespanDaysFor(9)).toBe(GUARANTEED_DAYS + GIFT_MAX_DAYS);
   });
 
   it("un fondatore qualunque vive nella media: nessuna migrazione, nessuna sorpresa", () => {
     const life = lifeOf(founderGenome({}), BORN, after(10));
     expect(life.lifespanDays).toBe(lifespanDaysFor(0.5));
+  });
+});
+
+describe("il dado dell'esemplare (ADR-077): la data non è una funzione del genoma", () => {
+  it("due fratelli con lo stesso gene NON hanno la stessa vita attesa", () => {
+    // è il punto intero: col solo gene, la data della morte si calcolava
+    expect(lifespanDaysFor(0.5, 7)).not.toBe(lifespanDaysFor(0.5, 61));
+  });
+
+  it("il dado somma giorni, uno per uno, e non fa altro", () => {
+    for (const jitter of [0, 1, 30, 89, JITTER_MAX_DAYS]) {
+      expect(lifespanDaysFor(0.5, jitter)).toBe(lifespanDaysFor(0.5) + jitter);
+    }
+  });
+
+  it("nessun dado buca il pavimento: la garanzia vale anche con una colonna sbagliata", () => {
+    expect(lifespanDaysFor(0, -400)).toBe(GUARANTEED_DAYS);
+    expect(lifespanDaysFor(0, Number.NaN)).toBe(GUARANTEED_DAYS);
+  });
+
+  it("nessun dado sposta la selezione: il rumore è mesi, il gene è anni", () => {
+    // il dado più fortunato su un gene mediocre non raggiunge un gene selezionato
+    expect(lifespanDaysFor(0.5, JITTER_MAX_DAYS)).toBeLessThan(lifespanDaysFor(0.9));
+  });
+
+  it("l'arco intero lo sente: col dado si ingrigisce un po' più tardi", () => {
+    const day = after(1200);
+    expect(lifeAt(BORN, day, 0.5, JITTER_MAX_DAYS).greying).toBeLessThan(
+      lifeAt(BORN, day, 0.5).greying,
+    );
   });
 });
 
@@ -61,7 +108,9 @@ describe("la plasticità che si consuma", () => {
     for (let f = 0; f <= 1.2; f += oneDay) {
       worst = Math.max(worst, plasticityAt(f) - plasticityAt(f + oneDay));
     }
-    expect(worst).toBeLessThan(0.005);
+    // «non salta» vuol dire: meno dell'1% dell'intera escursione (2,2 → 0,15)
+    // in un giorno. La soglia è relativa al senso, non alla vita di un genoma.
+    expect(worst).toBeLessThan((PLASTICITY_YOUNG - PLASTICITY_OLD) * 0.01);
   });
 
   it("non scende mai sotto il pavimento: un vecchio impara poco, non zero", () => {

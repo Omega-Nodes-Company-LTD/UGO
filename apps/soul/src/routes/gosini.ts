@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ARCHETYPES, characterFrom, traitsSchema } from "../services/council/character.js";
+import { drawLifeJitter } from "../services/lifeDice.js";
 import { RoomCatalogue } from "../services/roomCatalogue.js";
 import type { PreHandler } from "./guard.js";
 import { householdScope } from "./scope.js";
@@ -27,6 +28,12 @@ const newGosinoSchema = z.object({
   /** explicit dials, which win over the archetype */
   traits: traitsSchema.partial().optional(),
 });
+
+/** ADR-077: il pelo in tre gradini, che è come lo si guarda. */
+function coatOf(greying: number): "scuro" | "brizzolato" | "grigio" {
+  if (greying <= 0) return "scuro";
+  return greying < 0.5 ? "brizzolato" : "grigio";
+}
 
 /** ADR-036: moving one between rooms. An empty label takes him out of every room. */
 const moveSchema = z.object({ locationLabel: z.string().max(40) });
@@ -121,6 +128,11 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
       .values({
         householdId,
         name,
+        // ADR-077: nascere a mano è comunque nascere da qui in avanti. La
+        // porta di servizio della nascita non è la porta dell'immortalità:
+        // `mortal_from = null` resta soltanto per chi c'era già
+        mortalFrom: new Date(),
+        lifeJitterDays: drawLifeJitter(),
         ...(where !== undefined && { locationLabel: where }),
       })
       .returning({ id: gosini.id });
@@ -156,6 +168,9 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
         name: gosini.name,
         where: gosini.locationLabel,
         bornAt: gosini.bornAt,
+        mortalFrom: gosini.mortalFrom,
+        jitter: gosini.lifeJitterDays,
+        noticedAt: gosini.deathNoticeAt,
       })
       .from(gosini)
       .where(eq(gosini.householdId, householdId));
@@ -169,19 +184,48 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
         .limit(1);
       const character = characterFrom(traits[0]?.traits);
       // ADR-071: l'età non si conserva, si calcola da `born_at` e dal genoma
-      const life = lifeAt(row.bornAt, now, character.traits.longevity);
+      /**
+       * ADR-077: **la data della morte non si dice.** `fraction` e
+       * `plasticity` erano qui da poche ore (ADR-071) e da una qualunque
+       * delle due si ricavava la vita attesa con una divisione — quindi il
+       * giorno. Restano i giorni vissuti e lo stadio, che sono ciò che si
+       * vede guardando un animale.
+       *
+       * L'arco corre da `mortal_from`, non dalla nascita: un capostipite che
+       * non ha ancora accettato la mortalità non ha età da mostrare.
+       *
+       * Il dado (`life_jitter_days`) entra nel calcolo e **non esce**: serve a
+       * far sì che la vita non sia una funzione del genoma, non a essere letto.
+       */
+      const mortalFrom = row.mortalFrom;
+      const life =
+        mortalFrom === null
+          ? undefined
+          : lifeAt(mortalFrom, now, character.traits.longevity, row.jitter ?? 0);
       out.push({
         id: row.id,
         name: row.name,
         where: row.where,
         persona: character.persona,
-        age: {
-          days: Math.floor(life.ageDays),
-          stage: life.stage,
-          fraction: Number(life.fraction.toFixed(3)),
-          plasticity: Number(life.plasticity.toFixed(2)),
-          greying: Number(life.greying.toFixed(2)),
-        },
+        mortal: mortalFrom !== null,
+        /** ADR-077: che il preavviso sia stato dato, non quando finisce */
+        farewellNotice: row.noticedAt !== null,
+        age:
+          life === undefined
+            ? undefined
+            : {
+                days: Math.floor(life.ageDays),
+                stage: life.stage,
+                /**
+                 * Il pelo a parole e non a numero. `greying` era un numero
+                 * fra 0 e 1 proporzionale alla frazione di vita: da lui e dai
+                 * giorni si ricavava la vita attesa con una divisione,
+                 * esattamente come da `fraction`. Tre gradini sono ciò che si
+                 * vede guardando l'animale — e guardare l'animale è la stima
+                 * che ADR-077 concede apertamente.
+                 */
+                coat: coatOf(life.greying),
+              },
       });
     }
     return reply.send({ gosini: out });
