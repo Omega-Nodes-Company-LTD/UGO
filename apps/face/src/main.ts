@@ -157,7 +157,7 @@ mountMyData(
   { soulHttp, kioskToken: params.get("token") ?? undefined },
 );
 
-// ADR-093: il chiosco nascondibile. La veste la fa il CSS su `data-chrome`;
+// ADR-096: il chiosco nascondibile. La veste la fa il CSS su `data-chrome`;
 // qui solo i due gesti e la memoria per dispositivo. Uno storage rotto (Safari
 // privato, quota piena) non deve rompere il muso: si degrada a "solo per
 // questa visita".

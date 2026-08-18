@@ -2406,12 +2406,12 @@ la qualità della dettatura whisper in stanza (latenza e resa del cancello degli
 riga «giro `?stt=locale` su dispositivo» di §7, che questo cambiamento rende finalmente
 raggiungibile senza query string.
 
-## 6-quaterquadragies. Il chiosco nascondibile: il muso si riveste (ADR-093)
+## 6-quaterquadragies. Il chiosco nascondibile: il muso si riveste (ADR-096)
 
 Redesign dell'HUD del muso, scelto dal proprietario su tre proposte a mockup («Aria» /
 «Casa» / «Chiosco», canvas condiviso in sessione): la strada **Chiosco** — si legge
 dall'altra parte della cucina — in variante **nascondibile**: nascosto, diventa la strada
-Aria, solo la creatura e un dock di vetro. Dettagli e ragioni in `docs/ADR/093`.
+Aria, solo la creatura e un dock di vetro. Dettagli e ragioni in `docs/ADR/096`.
 
 Com'è fatto, in breve: **due stati per lo stesso markup**, commutati da `data-chrome` su
 `#app`. Esteso: barra in alto (`UGO · umore` | `connesso · versione · Nascondi`) e comandi

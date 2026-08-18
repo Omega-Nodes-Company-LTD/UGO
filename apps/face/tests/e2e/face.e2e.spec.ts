@@ -25,7 +25,7 @@ test("a tap wakes attention: alert state, mood refresh and Glyph pattern", async
   await openFace(page);
   // NON al centro: da ADR-058 un click sul muso è una mela (`reward`, che non
   // cambia stato), e col vagabondaggio acceso il maiale ogni tanto sta proprio
-  // lì. E non nell'angolo (30,30) di prima: da ADR-093 lassù ci sono barra e
+  // lì. E non nell'angolo (30,30) di prima: da ADR-096 lassù ci sono barra e
   // colonna comandi, che intercetterebbero il click.
   await page.getByTestId("face-canvas").click({ position: { x: 300, y: 100 } });
   await expect(page.getByTestId("app")).toHaveAttribute("data-state", "alert");
@@ -106,7 +106,7 @@ test("what was said stays in the scroll, and survives a reload", async ({ page }
 });
 
 /**
- * ADR-093: il chiosco nascondibile. Due stati per lo stesso markup: qui si
+ * ADR-096: il chiosco nascondibile. Due stati per lo stesso markup: qui si
  * prova che il nascondere non porta via i gesti primari, e che la scelta è
  * del dispositivo — un reload non riporta il chiosco che avevi mandato via.
  */

@@ -1,5 +1,5 @@
 /**
- * Il chiosco nascondibile (ADR-093).
+ * Il chiosco nascondibile (ADR-096).
  *
  * Due stati per lo stesso muso: ESTESO — barra in alto e colonna/foglio dei
  * comandi, etichette esplicite — e NASCOSTO — resta il dock di vetro con i

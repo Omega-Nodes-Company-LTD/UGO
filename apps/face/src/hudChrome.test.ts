@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseChrome, toggleChrome } from "./hudChrome.js";
 
 /**
- * Il chiosco nascondibile (ADR-093) — la parte pura.
+ * Il chiosco nascondibile (ADR-096) — la parte pura.
  *
  * Due stati e una memoria: quello che si prova qui è che una stringa
  * qualunque uscita da localStorage non possa mai lasciare il muso in uno

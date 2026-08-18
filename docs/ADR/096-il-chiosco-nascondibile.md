@@ -1,4 +1,4 @@
-# ADR-093 — Il chiosco nascondibile
+# ADR-096 — Il chiosco nascondibile
 
 **Stato: ACCETTATA** (2026-08-18). Redesign dell'HUD del muso, scelto dal proprietario su tre
 proposte confrontate a mockup (canvas «Il muso di UGO — tre strade»): la strada C («Chiosco»)

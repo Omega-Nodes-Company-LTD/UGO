@@ -12,7 +12,7 @@
     <title>UGO</title>
     <style>
       /* Solo il critico sta qui: il resto della veste vive in `src/hud.css`
-         (ADR-093) e arriva col bundle. `hidden` ha da vincere sempre: ogni
+         (ADR-096) e arriva col bundle. `hidden` ha da vincere sempre: ogni
          pannello imposta il proprio display su un selettore id, che batte il
          `[hidden] { display: none }` del browser e lascerebbe un pannello
          «chiuso» piantato sullo schermo. */
@@ -126,7 +126,7 @@
         </div>
         <p id="mydata-msg" data-testid="mydata-msg" class="lede"></p>
       </aside>
-      <!-- ADR-093: il chiosco nascondibile. Barra + comandi quando è esteso,
+      <!-- ADR-096: il chiosco nascondibile. Barra + comandi quando è esteso,
            dock di vetro quando `data-chrome="nascosto"`; è sempre lo stesso
            markup, cambia solo la veste (src/hud.css). -->
       <div id="hud">

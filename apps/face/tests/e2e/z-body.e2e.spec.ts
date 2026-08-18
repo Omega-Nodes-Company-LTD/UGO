@@ -73,7 +73,7 @@ test("a tap is answered by the body itself, with no round trip to soul", async (
   await open(page, "&wander=off");
   // fuori dal centro: lì c'è il muso (con wander=off, SEMPRE), e da ADR-058
   // quel click è una mela — `wiggle`, non la carezza `happyGrunt`. E fuori
-  // dal cromo del chiosco (ADR-093): l'angolo in alto a sinistra ora è barra
+  // dal cromo del chiosco (ADR-096): l'angolo in alto a sinistra ora è barra
   // e colonna comandi, che intercetterebbero il click.
   await page.getByTestId("face-canvas").click({ position: { x: 300, y: 100 } });
   await expect
