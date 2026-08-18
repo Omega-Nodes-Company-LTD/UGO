@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { diaryEntries, gosini, memories, type DbClient } from "@ugo/db";
-import { encryptText, unwrapDataKey, wrapDataKey } from "@ugo/shared";
+import { decryptText, unwrapDataKey, wrapDataKey } from "@ugo/shared";
 import { characterFrom } from "./council/character.js";
 import { desires, traitSets } from "@ugo/db";
 import { lifeAt, lifespanDaysFor } from "@ugo/psyche";
@@ -49,6 +49,23 @@ export interface FarewellResult {
 }
 
 export class FarewellService {
+
+  /**
+   * Il testo com'è leggibile oggi (ADR-091).
+   *
+   * Tollera i due mondi finché il pregresso non è convertito: le righe scritte
+   * prima portano il prefisso di versione e si aprono con la chiave di casa,
+   * quelle nuove sono già in chiaro. Una riga che non si apre si porta avanti
+   * com'è: meglio un testo strano che una riga persa.
+   */
+  private readable(value: string): string {
+    if (!value.startsWith("v1:")) return value;
+    try {
+      return decryptText(value, this.dataKey);
+    } catch {
+      return value;
+    }
+  }
   private readonly dowries: DowryService;
 
   public constructor(
@@ -268,8 +285,20 @@ export class FarewellService {
       await this.db.insert(memories).values({
         gosinoId,
         kind: row.kind,
-        // riscritto con la chiave della CASA: sopravvive alla creatura
-        text: encryptText(row.text, this.dataKey),
+        /**
+         * In CHIARO, come ogni altro ricordo (ADR-022, riaperto e confermato
+         * da ADR-091). Quello che il congedo deve fare è **farlo
+         * sopravvivere alla creatura**, e per questo basta riscriverlo su una
+         * riga nuova: la chiave dell'interiorità muore comunque.
+         *
+         * Cifrarlo faceva quattro danni: la riga non si ripescava più (il
+         * braccio lessicale gira sul ciphertext), la redazione dell'oblio non
+         * la toccava — il nome di una persona cancellata ci restava dentro,
+         * riapribile con la chiave di casa — e se quel lascito finiva a sua
+         * volta in un altro lascito veniva cifrato due volte, diventando
+         * illeggibile per sempre.
+         */
+        text: this.readable(row.text),
         importance: row.importance,
         sourceRefs: { legacy: true },
       });

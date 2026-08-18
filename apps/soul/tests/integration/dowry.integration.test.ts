@@ -245,7 +245,14 @@ describe("adottare una dote", () => {
       .from(memories)
       .where(eq(memories.gosinoId, gosinoId));
     expect(learnedRows).toHaveLength(2);
-    expect(learnedRows.map((row) => decryptText(row.text, DATA_KEY)).join(" ")).toContain("pull-up");
+    /**
+     * ADR-091: in CHIARO, e l'asserzione è più forte di prima, non più debole.
+     * Finché erano cifrate, queste righe non si ripescavano e l'oblio non le
+     * rediggeva: il test che chiedeva `decryptText` stava confermando il
+     * difetto invece di cercarlo.
+     */
+    expect(learnedRows.map((row) => row.text).join(" ")).toContain("pull-up");
+    expect(learnedRows.some((row) => row.text.startsWith("v1:"))).toBe(false);
 
     const [genome] = await db.select().from(traitSets).where(eq(traitSets.gosinoId, gosinoId));
     expect(genome?.mutationNote).toContain("dote adottata");

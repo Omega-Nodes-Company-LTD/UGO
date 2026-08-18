@@ -66,6 +66,10 @@ export const AUDIT_VERBS = [
   "feed_added",
   /** ADR-060: un feed disdetto — il cascade porta via anche gli item */
   "feed_removed",
+  // ADR-091: rimettere in chiaro i ricordi cifrati tocca il testo di ogni
+  // riga di una casa. Se una cosa del genere non lascia traccia, non è mai
+  // successa per chi legge il giornale dopo
+  "memories_plaintext",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

@@ -61,17 +61,23 @@ beforeAll(async () => {
   who = house.gosinoId;
   farewells = new FarewellService(db, DATA_KEY);
 
+  /**
+   * In chiaro, **come li scrive il sogno** (ADR-022). Questa fixture li
+   * seminava cifrati, e con quella premessa il test non poteva accorgersi che
+   * il lascito di una creatura vera usciva vuoto: `legacyOf` provava a
+   * decifrare, falliva sul chiaro, e saltava la riga (ADR-091).
+   */
   await db.insert(memories).values([
     {
       gosinoId: who,
       kind: "fact",
-      text: encryptText("Il compressore va spurgato ogni lunedì", DATA_KEY),
+      text: "Il compressore va spurgato ogni lunedì",
       importance: 0.9,
     },
     {
       gosinoId: who,
       kind: "insight",
-      text: encryptText("Le viti M3 con inserto a caldo tengono meglio", DATA_KEY),
+      text: "Le viti M3 con inserto a caldo tengono meglio",
       importance: 0.8,
     },
   ]);
@@ -183,14 +189,16 @@ describe("il congedo", () => {
     // nemmeno chiedendo di nuovo la chiave: un morto non ne riceve una nuova
     expect(await farewells.soulKeyFor(who)).toBeUndefined();
 
-    // il lascito invece è leggibile: è stato riscritto con la chiave di casa
+    // il lascito invece è leggibile: è stato riscritto su una riga nuova, in
+    // chiaro come ogni altro ricordo — così si ripesca e l'oblio ci arriva
     const kept = await db
       .select({ text: memories.text, refs: memories.sourceRefs })
       .from(memories)
       .where(eq(memories.gosinoId, who));
     const legacy = kept.filter((row) => (row.refs as { legacy?: boolean }).legacy === true);
     expect(legacy).toHaveLength(2);
-    expect(legacy.map((row) => decryptText(row.text, DATA_KEY)).join(" ")).toContain("compressore");
+    expect(legacy.map((row) => row.text).join(" ")).toContain("compressore");
+    expect(legacy.some((row) => row.text.startsWith("v1:"))).toBe(false);
 
     // e il libro della vita resta: la morte non è l'oblio
     const diary = await db
