@@ -55,6 +55,24 @@ export interface ExportBundle {
   customerMailAccounts: unknown[];
   customerChunks: unknown[];
   customerAnswerCache: unknown[];
+  /** ADR-089: la casa stessa, e tutto ciò che nessuno aveva mai portato fuori */
+  household: unknown[];
+  rooms: unknown[];
+  placedProps: unknown[];
+  propStock: unknown[];
+  listItems: unknown[];
+  checkins: unknown[];
+  traitSets: unknown[];
+  psycheBaselines: unknown[];
+  actEfficacy: unknown[];
+  births: unknown[];
+  feedings: unknown[];
+  adoptions: unknown[];
+  /** senza il vettore: il fatto che qualcuno è passato, non il suo volto */
+  perceptionEvents: unknown[];
+  unknownPrints: unknown[];
+  memoryBeings: unknown[];
+  auditLog: unknown[];
 }
 
 const UNREADABLE = "[non decifrabile con la chiave corrente]";
@@ -77,7 +95,13 @@ export class ExportService {
         try {
           out[column] = decryptText(value, this.dataKey);
         } catch {
-          out[column] = UNREADABLE;
+          /**
+           * Chiaro o cifrato, si esporta il testo che c'è. `memories` è
+           * l'esempio: il sogno lo scrive in chiaro, il lascito cifrato — e
+           * marcare «non decifrabile» una riga in chiaro sarebbe cancellarla
+           * dall'export di chi la sta portando via.
+           */
+          out[column] = value.startsWith("v1:") ? UNREADABLE : value;
         }
       }
       return out;
@@ -203,12 +227,92 @@ export class ExportService {
                  where household_id = ${householdId} order by created_at`),
       ]);
 
+    /**
+     * Il secondo giro (ADR-089).
+     *
+     * Queste tabelle esistevano e **non uscivano**: la casa stessa, le sue
+     * stanze e come sono arredate, la spesa, le domande che UGO ha imparato a
+     * fare, il genoma delle creature, chi è stato visto e quando. Il commento
+     * in cima a questo file prometteva «ogni byte», e la promessa era vera nel
+     * giorno in cui è stata scritta — poi sono arrivate diciassette tabelle e
+     * nessuna di loro ha bussato qui. Da ADR-089 c'è un test che bussa al
+     * posto loro.
+     */
+    const [
+      household,
+      rooms,
+      placedProps,
+      propStock,
+      listItems,
+      checkins,
+      traitSets,
+      psycheBaselines,
+      actEfficacy,
+      births,
+      feedings,
+      adoptions,
+      perceptionEvents,
+      unknownPrints,
+      memoryBeings,
+      auditLog,
+    ] = await Promise.all([
+      rows(sql`select id, slug, name, kind, timezone, locale, daily_budget_usd, metabolism,
+                      created_at
+               from households where id = ${householdId}`),
+      rows(sql`select id, name, slug, created_at from rooms
+               where household_id = ${householdId} order by created_at`),
+      rows(sql`select id, room_slug, kind, x, z, rot, created_at from placed_props
+               where household_id = ${householdId} order by created_at`),
+      rows(sql`select id, kind, remaining, refill_per_week, refilled_at from prop_stock
+               where household_id = ${householdId} order by kind`),
+      rows(sql`select id, list, text, done, being_id, at, done_at from list_items
+               where household_id = ${householdId} order by at`),
+      rows(sql`select id, gosino_id, question, hour, minute, weekday, enabled, last_asked_on,
+                      created_at
+               from checkins where gosino_id in (${exemplars}) order by created_at`),
+      rows(sql`select id, gosino_id, version, traits, parent_trait_set_id, mutation_note,
+                      created_at
+               from trait_sets where household_id = ${householdId} order by created_at`),
+      rows(sql`select gosino_id, variable, baseline, updated_at from psyche_baselines
+               where gosino_id in (${exemplars}) order by gosino_id, variable`),
+      rows(sql`select gosino_id, act, weight, updated_at from act_efficacy
+               where gosino_id in (${exemplars}) order by gosino_id, act`),
+      rows(sql`select id, child_gosino_id, parent_gosino_id, weight, born_at from births
+               where household_id = ${householdId} order by born_at`),
+      rows(sql`select id, gosino_id, kind, amount_usd, note, at from feedings
+               where household_id = ${householdId} order by at`),
+      rows(sql`select id, gosino_id, kennel_household_id, buyer_household_id, status,
+                      price_cents, currency, chain_seq, reserved_at, paid_at, delivered_at,
+                      cancelled_at
+               from adoptions
+               where kennel_household_id = ${householdId}
+                  or buyer_household_id = ${householdId}
+               order by reserved_at`),
+      /**
+       * Chi è stato visto o sentito, e quando. Senza il vettore: un embedding
+       * biometrico è la cosa che ADR-016 tiene cifrata in `bytea`, e
+       * riversarlo in un JSON in chiaro sarebbe esportare il volto di una
+       * persona invece del fatto che è passata. Stessa regola dei
+       * `recognition_profiles`, che già escono senza centroidi.
+       */
+      rows(sql`select id, gosino_id, modality, being_id, candidate_being_id, confidence,
+                      observed, occurred_at
+               from perception_events where gosino_id in (${exemplars}) order by occurred_at`),
+      rows(sql`select id, modality, model, dimensions, seen_count, first_seen_at, last_seen_at,
+                      asked_at
+               from unknown_prints where household_id = ${householdId} order by first_seen_at`),
+      rows(sql`select memory_id, being_id from memory_beings
+               where household_id = ${householdId} order by memory_id`),
+      rows(sql`select id, at, role, verb, resource_type, resource_id, outcome from audit_log
+               where household_id = ${householdId} order by at`),
+    ]);
+
     return {
       exportedAt: at.toISOString(),
       beings,
       messages: this.decryptColumn(messages),
-      memories,
-      diaryEntries: diary,
+      memories: this.decryptColumn(memories),
+      diaryEntries: this.decryptColumn(diary),
       desires,
       meetings,
       transcriptSegments: this.decryptColumn(segments),
@@ -235,6 +339,22 @@ export class ExportService {
         "question_text",
         "answer_text",
       ]),
+      household,
+      rooms,
+      placedProps,
+      propStock,
+      listItems: this.decryptColumn(listItems),
+      checkins,
+      traitSets,
+      psycheBaselines,
+      actEfficacy,
+      births,
+      feedings,
+      adoptions,
+      perceptionEvents,
+      unknownPrints,
+      memoryBeings,
+      auditLog,
     };
   }
 }

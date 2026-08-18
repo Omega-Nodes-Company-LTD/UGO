@@ -94,4 +94,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [086](./086-il-libro-dei-ricordi.md) | Il libro dei ricordi: scorrere, non solo cercare | Accettata |
 | [087](./087-l-umore-del-branco.md) | L'umore del branco nel tempo: una linea per creatura | Accettata |
 | [088](./088-la-storia-della-buonanotte.md) | La storia della buonanotte: l'unico gesto che deve inventare | Accettata |
-| 089 | *(prossimo numero disponibile)* | — |
+| [089](./089-l-export-che-manteneva-meta-promessa.md) | L'export che manteneva metà promessa | Accettata |
+| 090 | *(prossimo numero disponibile)* | — |
