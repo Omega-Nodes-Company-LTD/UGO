@@ -2,6 +2,8 @@ import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   accounts,
   auditLog,
+  gosini,
+  memories,
   budgetLedger,
   checkins,
   createDbClient,
@@ -19,6 +21,8 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuditLog } from "../../src/services/auditLog.js";
 import { InitiativeSwitch } from "../../src/services/volition/initiativeSwitch.js";
+import { createAccount } from "../../src/services/accountService.js";
+import { randomBytes } from "node:crypto";
 import { issueToken } from "../../src/services/tenantAuth.js";
 import { buildServer } from "../../src/server.js";
 import { addBeing, createHouse, type TestHouse } from "./helpers/tenancy.js";
@@ -85,6 +89,13 @@ beforeAll(async () => {
   // il server INTERO gira come `ugo_app`: rotte, guard, audit
   app = buildServer({
     db: appDb,
+    // ADR-097: prenotare fa nascere la casa — sulla transazione del mercato
+    createHouse: (tx, input) =>
+      createAccount(tx, randomBytes(32), {
+        slug: input.slug,
+        name: input.name,
+        ...(input.timezone !== undefined && { timezone: input.timezone }),
+      }),
     mqtt: { url: "mqtt://127.0.0.1:1" },
     ollamaUrl: "http://127.0.0.1:1",
     logger: false,
@@ -524,5 +535,111 @@ describe("lotto 4: i clienti come ugo_app", () => {
       headers: { authorization: `Bearer ${myToken}` },
     });
     expect(sources.statusCode).toBe(404);
+  });
+});
+
+/**
+ * ADR-097: il mercato come ugo_app — la vetrina è pubblica, l'adozione nasce,
+ * la cessione passa, e la connessione nuda resta cieca.
+ */
+describe("il mercato sotto RLS (ADR-097)", () => {
+  /** un nato in vetrina, in casa del vicino: è quello che il pubblico guarda */
+  async function listACub(): Promise<string> {
+    const [cub] = await owner
+      .insert(gosini)
+      .values({
+        accountId: theirs.id,
+        name: `nato-vetrina-${String(Date.now())}`,
+        origin: "nato",
+        generation: 1,
+        listedAt: new Date(),
+        priceCents: 12_000,
+      })
+      .returning({ id: gosini.id });
+    if (cub === undefined) throw new Error("cucciolo non piantato");
+    return cub.id;
+  }
+
+  it("la vetrina si sfoglia SENZA casa e mostra il nato del vicino", async () => {
+    const cubId = await listACub();
+    const view = await app.inject({ method: "GET", url: "/v1/vetrina" });
+    expect(view.statusCode).toBe(200);
+    const cubs = view
+      .json<{ allevamenti: { cubs: { gosinoId: string }[] }[] }>()
+      .allevamenti.flatMap((k) => k.cubs)
+      .map((c) => c.gosinoId);
+    expect(cubs).toContain(cubId);
+  });
+
+  it("il pedigree è pubblico per chi è in vetrina, e 404 per chi non lo è", async () => {
+    const cubId = await listACub();
+    const listed = await app.inject({ method: "GET", url: `/v1/vetrina/${cubId}/pedigree` });
+    expect(listed.statusCode).toBe(200);
+
+    const hidden = await app.inject({
+      method: "GET",
+      url: `/v1/vetrina/${mine.gosinoId}/pedigree`,
+    });
+    expect(hidden.statusCode).toBe(404);
+  });
+
+  it("prenotare fa nascere la casa e spegne la vetrina, tutto da ugo_app", async () => {
+    const cubId = await listACub();
+    const slug = `casa-rls-adozione-${String(Date.now())}`;
+    const booked = await app.inject({
+      method: "POST",
+      url: `/v1/vetrina/${cubId}/prenota`,
+      payload: { casa: { slug, nome: "Casa Nuova RLS" } },
+    });
+    expect(booked.statusCode).toBe(201);
+    expect(booked.json<{ token: string }>().token).toBeTruthy();
+
+    // il cucciolo è uscito dalla vetrina nell'atto stesso
+    const [row] = await owner
+      .select({ listedAt: gosini.listedAt })
+      .from(gosini)
+      .where(sql`${gosini.id} = ${cubId}`);
+    expect(row?.listedAt).toBeNull();
+  });
+
+  it("la cessione completa passa: la vita resta, il resto cambia casa", async () => {
+    // un nato in casa MIA, con una memoria che deve restare qui
+    await owner.update(accounts).set({ canBreed: true }).where(sql`${accounts.id} = ${mine.id}`);
+    const [born] = await owner
+      .insert(gosini)
+      .values({ accountId: mine.id, name: "ceduto-rls", origin: "nato", generation: 1 })
+      .returning({ id: gosini.id });
+    if (born === undefined) throw new Error("nato non piantato");
+    await owner.insert(memories).values({
+      gosinoId: born.id,
+      kind: "episode",
+      text: "una vita fatta in allevamento",
+      importance: 3,
+    });
+
+    const done = await app.inject({
+      method: "POST",
+      url: `/v1/gosini/${born.id}/cede`,
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { toAccount: theirs.slug, confirmName: "ceduto-rls" },
+    });
+    expect(done.statusCode).toBe(200);
+    expect(done.json<{ leftBehind: number }>().leftBehind).toBeGreaterThanOrEqual(1);
+
+    const [moved] = await owner
+      .select({ accountId: gosini.accountId })
+      .from(gosini)
+      .where(sql`${gosini.id} = ${born.id}`);
+    expect(moved?.accountId).toBe(theirs.id);
+    // la vita è rimasta in allevamento, cioè non esiste più
+    const life = await owner.select({ id: memories.id }).from(memories)
+      .where(sql`${memories.gosinoId} = ${born.id}`);
+    expect(life).toHaveLength(0);
+  });
+
+  it("il morso: la connessione nuda non vede la vetrina che il mercato vede", async () => {
+    await listACub();
+    const naked = await appDb.select({ id: gosini.id }).from(gosini);
+    expect(naked).toHaveLength(0);
   });
 });

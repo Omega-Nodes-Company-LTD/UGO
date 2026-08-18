@@ -157,8 +157,8 @@ beforeAll(async () => {
     mqtt: { url: "mqtt://127.0.0.1:1" },
     ollamaUrl: "http://127.0.0.1:1",
     logger: false,
-    createHouse: async (input) =>
-      createAccount(db, MASTER_KEY, {
+    createHouse: async (tx, input) =>
+      createAccount(tx, MASTER_KEY, {
         slug: input.slug,
         name: input.name,
         ...(input.timezone !== undefined && { timezone: input.timezone }),

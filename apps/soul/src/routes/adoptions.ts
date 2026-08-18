@@ -1,4 +1,4 @@
-import { gosini, traitSets, type DbClient } from "@ugo/db";
+import { gosini, traitSets, withMarket, type DbClient } from "@ugo/db";
 import { genomeHash, holderHash } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -44,18 +44,20 @@ export interface AdoptionRoutesDeps {
    * pannello e della riga di comando — iniettata perché serve la chiave madre,
    * che il server non possiede.
    */
-  createHouse?: (input: {
-    slug: string;
-    name: string;
-    timezone?: string | undefined;
-  }) => Promise<{ accountId: string; ownerToken: string }>;
+  /** ADR-097: gira sulla transazione del mercato, non sulla connessione nuda */
+  createHouse?: (
+    db: DbClient,
+    input: {
+      slug: string;
+      name: string;
+      timezone?: string | undefined;
+    },
+  ) => Promise<{ accountId: string; ownerToken: string }>;
   registry?: { reload: () => Promise<void> };
   chain?: RegistryClient;
 }
 
 export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoutesDeps): void {
-  const adoptions = new AdoptionService(deps.db);
-  const transfers = new TransferService(deps.db);
 
   /**
    * Prenotare: nasce la casa, si apre la pratica, e il cucciolo **esce dalla
@@ -70,38 +72,50 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
       return reply.status(501).send({ error: "le case non si creano su questo server" });
     }
     const { id } = request.params as { id: string };
+    const createHouse = deps.createHouse;
 
-    // le prenotazioni scadute tornano in vetrina proprio adesso: è il momento
-    // in cui qualcuno sta guardando, ed è l'unico in cui la cosa importa
-    await adoptions.releaseExpired();
+    // ADR-097: prenotare attraversa le case per disegno — nasce la casa di
+    // chi compra mentre il cucciolo è di chi vende. Tutto nel ruolo del
+    // mercato, in UNA transazione: o nasce tutto o non nasce niente
+    const done = await withMarket(deps.db, async (db) => {
+      const adoptions = new AdoptionService(db);
+      // le prenotazioni scadute tornano in vetrina proprio adesso: è il momento
+      // in cui qualcuno sta guardando, ed è l'unico in cui la cosa importa
+      await adoptions.releaseExpired();
 
-    const [cub] = await deps.db
-      .select({ listed: gosini.listedAt, name: gosini.name })
-      .from(gosini)
-      .where(eq(gosini.id, id));
-    if (cub?.listed == null) {
+      const [cub] = await db
+        .select({ listed: gosini.listedAt, name: gosini.name })
+        .from(gosini)
+        .where(eq(gosini.id, id));
+      if (cub?.listed == null) return "not-listed" as const;
+
+      let house;
+      try {
+        house = await createHouse(db, {
+          slug: parsed.data.casa.slug,
+          name: parsed.data.casa.nome,
+          ...(parsed.data.casa.timezone !== undefined && { timezone: parsed.data.casa.timezone }),
+        });
+      } catch {
+        // lo slug è l'unica cosa che può collidere, ed è una cosa che chi
+        // prenota può correggere da solo
+        return "slug-taken" as const;
+      }
+
+      const booked = await adoptions.reserve(id, house.accountId);
+      if (booked === undefined) return "gone" as const;
+      return { cub, house, booked };
+    });
+    if (done === "not-listed") {
       return reply.status(404).send({ error: "non è in vetrina", detail: "non è più disponibile" });
     }
-
-    let house;
-    try {
-      house = await deps.createHouse({
-        slug: parsed.data.casa.slug,
-        name: parsed.data.casa.nome,
-        ...(parsed.data.casa.timezone !== undefined && { timezone: parsed.data.casa.timezone }),
-      });
-    } catch {
-      // lo slug è l'unica cosa che può collidere, ed è una cosa che chi
-      // prenota può correggere da solo
+    if (done === "slug-taken") {
       return reply
         .status(409)
         .send({ error: "nome già preso", detail: "quel nome di casa esiste già, scegline un altro" });
     }
-
-    const booked = await adoptions.reserve(id, house.accountId);
-    if (booked === undefined) {
-      return reply.status(409).send({ error: "non è più disponibile" });
-    }
+    if (done === "gone") return reply.status(409).send({ error: "non è più disponibile" });
+    const { cub, house, booked } = done;
 
     return reply.status(201).send({
       adozione: booked.id,
@@ -117,7 +131,10 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
   app.get("/v1/adozioni", { preHandler: deps.guard }, async (request, reply) => {
     const accountId = await accountScope(deps.db, request, reply);
     if (accountId === undefined) return reply;
-    return reply.send({ adozioni: await adoptions.of(accountId) });
+    // ADR-097: una pratica ha due case (chi cede, chi riceve) — la lettura
+    // passa dal mercato, il filtro per casa resta nel servizio
+    const adozioni = await withMarket(deps.db, (db) => new AdoptionService(db).of(accountId));
+    return reply.send({ adozioni });
   });
 
   /**
@@ -135,11 +152,15 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
     if (accountId === undefined) return reply;
     if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
 
-    const pratica = await adoptions.ofKennel(accountId, id);
-    if (pratica === undefined) return reply.status(404).send({ error: "non esiste" });
-    if (!(await adoptions.markPaid(id, parsed.data.riferimento))) {
-      return reply.status(409).send({ error: `non è prenotata: è ${pratica.status}` });
-    }
+    const done = await withMarket(deps.db, async (db) => {
+      const adoptions = new AdoptionService(db);
+      const pratica = await adoptions.ofKennel(accountId, id);
+      if (pratica === undefined) return "missing" as const;
+      if (!(await adoptions.markPaid(id, parsed.data.riferimento))) return { was: pratica.status };
+      return "paid" as const;
+    });
+    if (done === "missing") return reply.status(404).send({ error: "non esiste" });
+    if (done !== "paid") return reply.status(409).send({ error: `non è prenotata: è ${done.was}` });
     return reply.send({ status: "pagata" });
   });
 
@@ -156,26 +177,38 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
     if (accountId === undefined) return reply;
     if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
 
-    const pratica = await adoptions.ofKennel(accountId, id);
-    if (pratica === undefined) return reply.status(404).send({ error: "non esiste" });
-    if (pratica.status !== "pagata") {
+    const delivered = await withMarket(deps.db, async (db) => {
+      const adoptions = new AdoptionService(db);
+      const pratica = await adoptions.ofKennel(accountId, id);
+      if (pratica === undefined) return "missing" as const;
+      if (pratica.status !== "pagata") return "unpaid" as const;
+
+      // l'impronta si legge PRIMA: dopo, quel genoma è di un'altra casa
+      const [genome] = await db
+        .select({ traits: traitSets.traits })
+        .from(traitSets)
+        .where(eq(traitSets.gosinoId, pratica.gosinoId))
+        .orderBy(traitSets.version)
+        .limit(1);
+
+      const done = await new TransferService(db).cede(
+        accountId,
+        pratica.gosinoId,
+        pratica.buyerAccountId,
+      );
+      if (typeof done === "string") return { refused: done };
+      return { pratica, genome, done };
+    });
+    if (delivered === "missing") return reply.status(404).send({ error: "non esiste" });
+    if (delivered === "unpaid") {
       return reply
         .status(409)
         .send({ error: "non pagata", detail: "si consegna quello che è stato pagato" });
     }
-
-    // l'impronta si legge PRIMA: dopo, quel genoma è di un'altra casa
-    const [genome] = await deps.db
-      .select({ traits: traitSets.traits })
-      .from(traitSets)
-      .where(eq(traitSets.gosinoId, pratica.gosinoId))
-      .orderBy(traitSets.version)
-      .limit(1);
-
-    const done = await transfers.cede(accountId, pratica.gosinoId, pratica.buyerAccountId);
-    if (typeof done === "string") {
-      return reply.status(409).send({ error: done });
+    if ("refused" in delivered) {
+      return reply.status(409).send({ error: delivered.refused });
     }
+    const { pratica, genome, done } = delivered;
 
     /**
      * L'atto in catena. Se il registro è giù **la consegna è avvenuta lo
@@ -197,7 +230,7 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
       else request.log.warn({ adozione: id, reason: outcome.reason }, "transfer not published");
     }
 
-    await adoptions.markDelivered(id, chainSeq);
+    await withMarket(deps.db, (db) => new AdoptionService(db).markDelivered(id, chainSeq));
     await deps.registry?.reload();
     return reply.send({ ...done, chainSeq: chainSeq ?? null });
   });
@@ -208,11 +241,15 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
     const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
     if (accountId === undefined) return reply;
     if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
-    const pratica = await adoptions.ofKennel(accountId, id);
-    if (pratica === undefined) return reply.status(404).send({ error: "non esiste" });
-    if (!(await adoptions.cancel(id))) {
-      return reply.status(409).send({ error: `non si annulla: è ${pratica.status}` });
-    }
+    const done = await withMarket(deps.db, async (db) => {
+      const adoptions = new AdoptionService(db);
+      const pratica = await adoptions.ofKennel(accountId, id);
+      if (pratica === undefined) return "missing" as const;
+      if (!(await adoptions.cancel(id))) return { was: pratica.status };
+      return "cancelled" as const;
+    });
+    if (done === "missing") return reply.status(404).send({ error: "non esiste" });
+    if (done !== "cancelled") return reply.status(409).send({ error: `non si annulla: è ${done.was}` });
     return reply.send({ status: "annullata" });
   });
 }

@@ -440,8 +440,9 @@ const app = buildServer({
   // ADR-061: la stessa nascita di `ugo casa nuova`, ma dal pannello — perché
   // «una persona può avere più case e più negozi» finché crearne una vuol dire
   // entrare nel container è una promessa scritta e non una funzione
-  createHouse: (input) =>
-    createAccount(db, parseDataKey(env.UGO_DATA_KEY), {
+  // ADR-097: `tx` è la transazione del mercato (withMarket), non il db nudo
+  createHouse: (tx, input) =>
+    createAccount(tx, parseDataKey(env.UGO_DATA_KEY), {
       slug: input.slug,
       name: input.name,
       ...(input.timezone !== undefined && { timezone: input.timezone }),

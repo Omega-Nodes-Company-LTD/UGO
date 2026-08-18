@@ -45,3 +45,24 @@ export async function withAccount<T>(
     return work(tx as unknown as DbClient);
   });
 }
+
+/**
+ * ADR-097: la transazione del mercato.
+ *
+ * `SET LOCAL ROLE ugo_market` — e al commit il ruolo torna quello di prima,
+ * con la stessa garanzia di `withAccount`: il pool riusa le connessioni, e un
+ * `SET ROLE` senza LOCAL sopravviverebbe alla richiesta. Questo è l'UNICO
+ * punto del codice che assume il ruolo; le rotte del mercato (vetrina,
+ * adozione, cessione, fondazione — ADR-081/082/083/084) entrano da qui e
+ * tutto il resto di soul non sa nemmeno che esiste.
+ *
+ * Il ruolo non è un bypass: può toccare solo le tabelle e i comandi che le
+ * politiche `TO ugo_market` della migrazione 0049 elencano — l'inventario
+ * leggibile di cosa il mercato è.
+ */
+export async function withMarket<T>(db: DbClient, work: (tx: DbClient) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`set local role ugo_market`);
+    return work(tx as unknown as DbClient);
+  });
+}

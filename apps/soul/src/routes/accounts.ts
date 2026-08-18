@@ -1,4 +1,4 @@
-import { accounts, type DbClient } from "@ugo/db";
+import { accounts, withMarket, type DbClient } from "@ugo/db";
 import { asc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -102,12 +102,15 @@ export function registerAccountRoutes(
     guard: PreHandler;
     findPlace?: (query: string) => Promise<FoundPlace[]>;
     /** ADR-061: far nascere una casa dal pannello; assente = solo da CLI */
-    createHouse?: (input: {
-      slug: string;
-      name: string;
-      kind?: "famiglia" | "azienda" | undefined;
-      timezone?: string | undefined;
-    }) => Promise<{ accountId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
+    createHouse?: (
+      db: DbClient,
+      input: {
+        slug: string;
+        name: string;
+        kind?: "famiglia" | "azienda" | undefined;
+        timezone?: string | undefined;
+      },
+    ) => Promise<{ accountId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
     audit?: AuditLogger;
   },
 ): void {
@@ -175,7 +178,10 @@ export function registerAccountRoutes(
         .send({ type: "about:blank", title: "Account creation not configured", status: 501 });
     }
     try {
-      const born = await deps.createHouse(parsed.data);
+      // ADR-097: fondare scrive una casa che un momento prima non esisteva —
+      // l'atto passa dal ruolo del mercato
+      const createHouse = deps.createHouse;
+      const born = await withMarket(deps.db, (db) => createHouse(db, parsed.data));
       await deps.audit?.record({
         verb: "account_created",
         outcome: "ok",
