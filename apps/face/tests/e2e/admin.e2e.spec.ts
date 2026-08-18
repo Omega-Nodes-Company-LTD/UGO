@@ -160,7 +160,7 @@ test("a correction reaches UGO and the panel says so", async ({ page }) => {
 
 test("the panel shows the money and the cache without any SQL", async ({ page }) => {
   await openPanel(page);
-  await goHouse(page, "casa");
+  await goHouse(page, "sommario");
   await expect(page.getByTestId("stats")).toContainText("speso oggi");
   await expect(page.getByTestId("stats")).toContainText("risparmio cache");
   await expect(page.getByTestId("stats")).toContainText("ricordi");
@@ -239,7 +239,7 @@ test("the whole soul can be downloaded, and a being erased for good", async ({ p
 
 test("the panel shows whether the machinery underneath is alive", async ({ page }) => {
   await openPanel(page);
-  await goHouse(page, "casa");
+  await goHouse(page, "sommario");
   await expect(page.getByTestId("health")).toContainText("db");
   await expect(page.getByTestId("health")).toContainText("ollama");
 });
@@ -335,7 +335,7 @@ test("spending is shown against its limit, with the numbers reachable", async ({
 
 test("each service says what it is doing in words, not only in colour", async ({ page }) => {
   await openPanel(page);
-  await goHouse(page, "casa");
+  await goHouse(page, "sommario");
   const pills = page.getByTestId("health").locator(".pill");
   await expect(pills).toHaveCount(3);
   await expect(pills.filter({ hasText: "db" })).toContainText("risponde");
