@@ -1,8 +1,8 @@
 ---
 title: "Primo avvio"
 description: "Accendere UGO, metterlo nel dock e fare la prima conversazione."
-version: "0.9.0"
-last_updated: "2026-08-10"
+version: "0.37.0"
+last_updated: "2026-08-18"
 author: "ThinkPink Studio"
 ---
 
@@ -19,7 +19,8 @@ Serve che il server sia già stato installato (se non lo è, chi lo gestisce tro
    `https://ugo.tua-rete.ts.net` — **deve cominciare per `https://`**: su un indirizzo `http://` il
    telefono si rifiuta di dare il microfono, e UGO resta muto per colpa del browser, non sua.
    Compare il muso del porcetto su sfondo scuro.
-3. In basso a destra leggi **connesso**. Se leggi _disconnesso_, controlla il punto 1.
+3. Nella barra in alto leggi **connesso**, con un pallino verde accanto. Se leggi _disconnesso_,
+   controlla il punto 1.
 
 ## Installarlo come app
 
@@ -38,7 +39,8 @@ col telefono in tasca e lo schermo spento. Per il dock questo basta.
 
 ## Dargli i sensi
 
-1. Tocca il pulsante **🎤 attiva sensi** in fondo allo schermo.
+1. Tocca **Attiva sensi** nel foglio dei comandi in fondo allo schermo (su un computer i comandi
+   sono la colonna a sinistra, sotto la voce «Sensi»).
 2. Il telefono chiede il permesso per microfono e fotocamera: concedili entrambi. Senza microfono
    UGO non ti sente; senza fotocamera non ti segue con lo sguardo.
 3. Il pulsante sparisce: da adesso le pupille ti seguono e UGO sobbalza ai rumori forti.
@@ -50,7 +52,7 @@ col telefono in tasca e lo schermo spento. Per il dock questo basta.
 
 > **Una cosa da sapere sull'ascolto continuo.** Il riconoscimento vocale è quello del browser, e
 > quello di Chrome **non è locale**: mentre le orecchie sono accese, ciò che dici passa dai server di
-> Google per essere trascritto. Il pulsante **👂** è il modo di chiudere il rubinetto in qualsiasi
+> Google per essere trascritto. Il pulsante **ti ascolto** è il modo di chiudere il rubinetto in qualsiasi
 > momento; la soluzione definitiva è la dettatura locale sul server di casa. Chi vuole provarla
 > già adesso apre il muso con `?stt=locale` nell'indirizzo: le frasi vengono trascritte in casa e
 > Google esce dal percorso; se il server non ce l'ha accesa, il muso torna da solo al
@@ -72,17 +74,24 @@ col telefono in tasca e lo schermo spento. Per il dock questo basta.
 
 ## La prima conversazione
 
-Da agosto 2026 **non devi toccare niente**: appena accendi i sensi, UGO resta in ascolto. In basso
-c'è **👂 ti ascolto**; premilo per spegnere le orecchie quando vuoi parlare senza che senta, e
+Da agosto 2026 **non devi toccare niente**: appena accendi i sensi, UGO resta in ascolto. Nei
+comandi c'è **ti ascolto**; premilo per spegnere le orecchie quando vuoi parlare senza che senta, e
 ripremilo per riaccenderle.
 
 1. Parla, e basta. UGO passa in ascolto (il grugno si muove).
 2. Di' qualcosa che valga la pena ricordare, per esempio: `Ciao UGO, il corriere DHL si chiama Ivan`.
    Un mugugno o una parola sola non lo disturbano: sotto le due parole non ascolta, e quando parla
    lui chiude le orecchie — altrimenti si risponderebbe da solo, a spese tue.
-3. UGO risponde a voce e sullo schermo compare la frase. Sotto, a sinistra, leggi il suo umore
-   corrente (per esempio `sereno`).
+3. UGO risponde a voce e sullo schermo compare la frase, come un sottotitolo. In alto, accanto al
+   suo nome, leggi il suo umore corrente (per esempio `sereno`).
 4. Domani chiedigli `come si chiama il corriere?`: se te lo dice, la memoria funziona.
+
+## Fargli spazio: nascondere i comandi
+
+Quando UGO sta nel dock e nessuno deve toccare niente, i comandi si possono mandare via: tocca
+**Nascondi** nella barra in alto (sul telefono: la linguetta sopra il foglio dei comandi). Restano
+solo la creatura, il suo umore in alto e una fila di icone in basso per i gesti di ogni giorno.
+Il tasto **⌃** in fondo alla fila riporta tutto. UGO si ricorda la scelta: ogni schermo la sua.
 
 ## Prossimi Passi
 
