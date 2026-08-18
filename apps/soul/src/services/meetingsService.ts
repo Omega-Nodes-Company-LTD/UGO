@@ -1,5 +1,5 @@
 import { events, meetings, memories, messages, transcriptSegments, type DbClient } from "@ugo/db";
-import { searchMemories, type EmbeddingsClient, type LlmClient } from "@ugo/memory";
+import { searchMemories, type EmbeddingsClient, type ChatLlm } from "@ugo/memory";
 import { decryptText, encryptText } from "@ugo/shared";
 import { asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -80,7 +80,7 @@ export interface MeetingsDeps {
   /** ADR-048: `transcript_segments` carries the house on the row now */
   accountId: string;
   embedder: EmbeddingsClient;
-  llm: LlmClient;
+  llm: ChatLlm;
   dataKey: Buffer;
   vexa: VexaConfig;
   speakPort?: SpeakPort;

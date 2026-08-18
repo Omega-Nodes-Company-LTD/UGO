@@ -250,7 +250,13 @@ dire *di quanto* invece di litigare a impressioni.
    `S3_REGION=<S3_REGION>` (Hetzner la pretende, es. `fsn1`) ·
    `VEXA_API_URL=<VEXA_API_URL>` · `VEXA_API_KEY=<VEXA_API_KEY>` · `UGO_OWNER_NAME=<OWNER_NAME>` ·
    `TZ=Europe/Rome`. Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
-   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
+   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. Facoltative
+   (ADR-094 — la voce di casa parla per prima): `UGO_CHAT_LOCAL_FIRST` (`on` di default: la
+   chat prova PRIMA il modello locale su Ollama e usa Anthropic come soccorso; `off` per
+   tornare al solo provider) e `OLLAMA_CHAT_MODEL` (il modello locale della chat; assente,
+   scala su `OLLAMA_TEXT_MODEL` e poi su `OLLAMA_BATCH_MODEL`). Quando risponde casa non si
+   spende nulla e sul ledger non compare niente: è voluto, lo zero si vede dai log
+   (`chat answered by the house model`). (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
    nella pagina di ogni risorsa.)
    **Se farai il libro genealogico (§2.6-bis)**, aggiungi qui anche:
    `UGO_REGISTRY_URL=http://<HOST_REGISTRY>:3100` · `UGO_REGISTRY_TOKEN=<UGO_REGISTRY_TOKEN>`

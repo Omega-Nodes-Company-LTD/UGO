@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { createDbClient, gosini, accounts, runMigrations, traitSets } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
-import { LlmClient, OllamaEmbeddingsClient,
+import { LlmClient, LocalFirstLlm, type ChatLlm, OllamaEmbeddingsClient,
   OllamaTextClient,
   OllamaVisionClient,
   OpenAiTtsClient,
@@ -106,12 +106,21 @@ if (bootstrapExemplar === undefined) throw new Error("no exemplar: run the migra
 const psyche = await PsycheService.restore(db, new Date(), bootstrapExemplar.id);
 // ADR-050: l'orologio e la lingua arrivano dalla CASA. `env.TZ` resta il
 // ripiego per l'apparato di avvio, che nasce prima che una casa sia risolta.
+/**
+ * ADR-094: la voce di casa parla per prima, il provider è il soccorso.
+ *
+ * Il guard del budget resta dove si spende — dentro `LlmClient` — e una
+ * risposta locale non lo sfiora: il metabolismo riguarda il mangiare, e qui
+ * non si mangia. Il modello: `OLLAMA_CHAT_MODEL`, o quello del testo
+ * dell'iniziativa, o quello del sogno — la casa ne ha sempre almeno uno.
+ */
+const localChatModel = env.OLLAMA_CHAT_MODEL ?? env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL;
 const llmFor = (
   accountId: string,
   gosinoId: string,
   clock: HouseClock = { timezone: env.TZ, locale: DEFAULT_LOCALE },
-): LlmClient =>
-  new LlmClient({
+): ChatLlm => {
+  const remote = new LlmClient({
     db,
     apiKey: env.ANTHROPIC_API_KEY,
     model: env.UGO_CHAT_MODEL,
@@ -122,6 +131,14 @@ const llmFor = (
     timezone: clock.timezone,
     locale: clock.locale,
   });
+  if (env.UGO_CHAT_LOCAL_FIRST !== "on") return remote;
+  return new LocalFirstLlm(remote, {
+    baseUrl: env.OLLAMA_URL,
+    model: localChatModel,
+    locale: clock.locale,
+    logger: app.log,
+  });
+};
 const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
 
 // ADR-063: la finestra sul mondo — solo se SearXNG è configurato. Un'istanza

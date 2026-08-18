@@ -1,5 +1,6 @@
 export { OllamaEmbeddingsClient, type EmbeddingsClient } from "./embeddings.js";
 export { OllamaTextClient, type LocalTextClient } from "./localText.js";
+export { LocalFirstLlm, type LocalFirstOptions } from "./localFirst.js";
 export { OllamaVisionClient, type LocalVisionClient } from "./localVision.js";
 export { OpenAiTtsClient, type LocalTtsClient, type TtsSpender } from "./ttsClient.js";
 export {
@@ -19,6 +20,7 @@ export {
   HUNGRY_REPLY,
   type LlmClientOptions,
   type LlmChatRequest,
+  type ChatLlm,
   type LlmChatResult,
   type LlmHistoryTurn,
 } from "./llmClient.js";

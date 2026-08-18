@@ -57,7 +57,7 @@ beforeAll(async () => {
     embedder: { embed: () => Promise.reject(new Error("mai")) },
     llm: {
       chat: () => Promise.reject(new Error("il provider non deve essere chiamato")),
-    } as never,
+    },
     psyche: await PsycheService.restore(db, new Date(), who),
     dataKey: DATA_KEY,
     timezone: "Europe/Rome",

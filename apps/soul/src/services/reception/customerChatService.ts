@@ -10,7 +10,7 @@ import {
 import {
   searchCustomerChunks,
   type EmbeddingsClient,
-  type LlmClient,
+  type ChatLlm,
   type LlmHistoryTurn,
 } from "@ugo/memory";
 import { decryptText, encryptText } from "@ugo/shared";
@@ -93,7 +93,7 @@ export interface CustomerChatDeps {
   db: DbClient;
   dataKey: Buffer;
   quota: CustomerQuota;
-  llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
+  llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => ChatLlm;
   audit?: AuditLogger;
   /** ADR-054: without it the gosino answers from tickets and history alone */
   embedder?: EmbeddingsClient;
