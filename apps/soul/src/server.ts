@@ -21,6 +21,7 @@ import { registerLitterRoutes } from "./routes/litters.js";
 import { registerPiggyBankRoutes } from "./routes/piggybank.js";
 import { registerDowryRoutes } from "./routes/dowry.js";
 import { registerFarewellRoutes } from "./routes/farewell.js";
+import { registerCheckinRoutes } from "./routes/checkins.js";
 import { registerDiaryRoutes } from "./routes/diary.js";
 import { registerTransferRoutes } from "./routes/transfer.js";
 import { registerVetrinaRoutes } from "./routes/vetrina.js";
@@ -407,6 +408,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           dataKey: gosini.dataKey,
           ...(registry !== undefined && { registry }),
         });
+        // ADR-085: le domande che tornano, viste e fermabili dal pannello
+        registerCheckinRoutes(app, { db: options.db, guard });
         // ADR-084: l'adozione — prenotare è pubblico, il resto è dell'allevamento
         registerAdoptionRoutes(app, {
           db: options.db,

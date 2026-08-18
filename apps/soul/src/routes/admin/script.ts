@@ -1,6 +1,7 @@
 import { ARCHIVE_JS } from "./script/archive.js";
 import { BIRTH_JS } from "./script/birth.js";
 import { CHARTS_JS } from "./script/charts.js";
+import { CHECKINS_JS } from "./script/checkins.js";
 import { CORE_JS } from "./script/core.js";
 import { COUNCIL_JS } from "./script/council.js";
 import { CUSTOMERS_JS } from "./script/customers.js";
@@ -58,6 +59,7 @@ export const ADMIN_SCRIPT = [
   HOUSES_JS,
   EXEMPLARS_JS,
   VOLITION_JS,
+  CHECKINS_JS,
   EFFICACY_JS,
   COUNCIL_JS,
   BIRTH_JS,

@@ -1,8 +1,8 @@
 ---
 title: "Parlare con UGO"
 description: "Come funziona una conversazione: la voce, la memoria che resta, l'umore che cambia e il budget giornaliero."
-version: "0.9.0"
-last_updated: "2026-08-09"
+version: "0.10.0"
+last_updated: "2026-08-18"
 author: "ThinkPink Studio"
 ---
 
@@ -225,7 +225,36 @@ spuntare e cancellare a mano.
 
 Una cosa che vale la pena sapere: **queste frasi non costano niente.** UGO le capisce da solo,
 in casa, senza chiedere a nessuno — quindi non consumano il budget della giornata e non escono
-dal tuo server. Vale anche per i promemoria («ricordami di…»), i timer, le sveglie, il diario e la rassegna.
+dal tuo server. Vale anche per i promemoria («ricordami di…»), i timer, le sveglie, il diario, la rassegna e le
+domande che gli fai tornare.
+
+## Le domande che gli fai tornare
+
+Fin qui è sempre stato lui a rispondere. Questa è la frase che gli fa **cominciare a
+chiedere**, e a rifarlo tutti i giorni:
+
+- **«ogni sera alle nove chiedimi com'è andata la giornata»**
+- **«ogni giorno alle 8 chiedimi se ho preso le medicine»**
+- **«ogni lunedì alle 9 chiedimi cosa devo fare questa settimana»**
+
+Da lì in poi se ne ricorda lui. Puoi anche chiedergli **«cosa mi chiedi?»** per farti dire
+quali si è segnato, e **«non chiedermelo più»** per spegnerle tutte in una volta.
+
+Tre cose da sapere, perché cambiano cosa ti aspetti:
+
+- **non è una sveglia.** Quando arriva l'ora gli *viene voglia* di chiedertelo, e lo dice
+  quando ha senso: se in casa non c'è nessuno, o se è notte fonda, aspetta. Se hai spento
+  l'iniziativa, **tace** — farsi vivo è esattamente quello che quell'interruttore spegne. La
+  sveglia invece suona lo stesso, perché quella gliel'hai ordinata tu.
+- **te lo chiede una volta al giorno.** Non due, e non ogni volta che ci pensa.
+- **serve un'ora.** «Ogni mattina chiedimi come sto» non basta: mattina sono cinque ore, e
+  preferiamo non indovinare piuttosto che farsi vivo nell'ora sbagliata.
+
+Le trovi anche nel pannello, nella pagina **Cosa ha deciso lui** dell'esemplare: lì si vedono
+tutte, con la loro ora, e si tolgono una per una. Ne tiene otto al massimo — oltre non è più
+qualcuno che si ricorda di chiedere, è una sveglia ogni ora.
+
+Anche queste **non costano niente**: le capisce in casa, come le liste e i timer.
 
 ## Prossimi Passi
 

@@ -23,7 +23,15 @@ import { buildPackPrompt, selfLine } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
 import { readGestureOf, replyForReading, type ReadOutcome } from "./sceneReader.js";
 import { DiaryService } from "./diaryService.js";
+import { houseClock } from "./houseClock.js";
 import { NewsService } from "./newsService.js";
+import {
+  confirmCheckin,
+  parseCheckin,
+  tellCheckins,
+  type CheckinCommand,
+} from "./volition/checkins.js";
+import { addCheckin, MAX_CHECKINS, silenceCheckins, standingCheckins } from "./checkinService.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
 import { dateFor, parseDiaryAsk, tellDiary } from "./volition/diaryAsk.js";
 import { parseNewsAsk, tellNews } from "./volition/news.js";
@@ -191,18 +199,7 @@ export class ChatService {
    * gets dark.
    */
   private wallClock(at: Date): { hour: number; minute: number; text: string } {
-    const tz = this.deps.timezone ?? "Europe/Rome";
-    try {
-      return this.formatClock(at, tz);
-    } catch {
-      // a bad timezone, or an ICU build without the Italian locale, must not
-      // be able to swallow a reply: he loses the date, not his voice
-      return {
-        hour: at.getHours(),
-        minute: at.getMinutes(),
-        text: at.toISOString().slice(11, 16),
-      };
-    }
+    return houseClock(at, this.deps.timezone, this.deps.locale);
   }
 
   /**
@@ -211,36 +208,7 @@ export class ChatService {
    * domani, e la pagina di ieri sarebbe stata quella dell'altro ieri.
    */
   private localDate(at: Date): string {
-    try {
-      return new Intl.DateTimeFormat("en-CA", {
-        timeZone: this.deps.timezone ?? "Europe/Rome",
-      }).format(at);
-    } catch {
-      return at.toISOString().slice(0, 10);
-    }
-  }
-
-  private formatClock(at: Date, tz: string): { hour: number; minute: number; text: string } {
-    const parts = new Intl.DateTimeFormat(this.deps.locale ?? "it-IT", {
-      timeZone: tz,
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).formatToParts(at);
-    const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? "";
-    const hour = Number(get("hour"));
-    const minute = Number(get("minute"));
-    if (!Number.isFinite(hour) || !Number.isFinite(minute)) throw new Error("unusable clock");
-    return {
-      // some ICU builds render midnight as "24": the rest of the system
-      // expects 0..23, and an out-of-range hour silently breaks quiet hours
-      hour: hour % 24,
-      minute,
-      text: `${get("weekday")} ${get("day")} ${get("month")}, ore ${get("hour")}:${get("minute")}`,
-    };
+    return houseClock(at, this.deps.timezone, this.deps.locale).date;
   }
 
   /**
@@ -405,6 +373,37 @@ export class ChatService {
   }
 
   /**
+   * ADR-085: mettere, spegnere, elencare le domande che tornano.
+   *
+   * Non tocca `desires`: qui si scrive la **regola**, e il desiderio lo
+   * scriverà la sentinella quando sarà l'ora. Metterlo subito vorrebbe dire
+   * che «ogni sera alle nove» comincia adesso, alle tre del pomeriggio.
+   */
+  private async applyCheckin(command: CheckinCommand): Promise<string> {
+    const { db, gosinoId } = this.deps;
+    if (command.action === "cancel") {
+      const off = await silenceCheckins(db, gosinoId);
+      return off === 0
+        ? "Non ti stavo chiedendo niente, comunque."
+        : `Va bene, non te lo chiedo più. (${String(off)} ${off === 1 ? "domanda spenta" : "domande spente"})`;
+    }
+    if (command.action === "list") {
+      return tellCheckins(await standingCheckins(db, gosinoId));
+    }
+    const added = await addCheckin(db, gosinoId, {
+      question: command.question,
+      hour: command.hour,
+      minute: command.minute,
+      weekday: command.weekday,
+    });
+    // il rifiuto dice il numero: «troppe» senza un numero è un muro senza
+    // porta, e chi ascolta non sa cosa togliere
+    return added === "troppe"
+      ? `Ne ho già ${String(MAX_CHECKINS)} di cose da chiederti: se ne aggiungo altre divento una sveglia. Dimmi «non chiedermelo più» e ricominciamo.`
+      : confirmCheckin(command);
+  }
+
+  /**
    * ADR-078: mettere, spegnere, chiedere. Un timer È un desiderio con un'ora
    * sopra — la tabella c'era già (ADR-028) — e quello che cambia è chi lo
    * legge: la sentinella del timer, che suona in orario, invece
@@ -560,6 +559,22 @@ export class ChatService {
     const listCommand = parseListCommand(request.text);
     if (listCommand !== undefined) {
       return this.applyList(listCommand, request, at);
+    }
+
+    /**
+     * ADR-085: «ogni sera alle nove chiedimi com'è andata». Prima del timer e
+     * del promemoria apposta, perché la ricorrenza è la cosa più specifica
+     * che una frase possa dire: chi la sente per primo la riconosce, chi la
+     * sente dopo ne fa un appuntamento solo — «ogni giorno alle 8» diventato
+     * un promemoria per domani mattina è una promessa mantenuta una volta e
+     * poi dimenticata, che è peggio di un rifiuto.
+     *
+     * Il parser si tira indietro da solo se la frase porta una cosa da
+     * ricordare o una sveglia: quelle sono di ADR-028 e ADR-078.
+     */
+    const checkin = parseCheckin(request.text);
+    if (checkin !== undefined) {
+      return this.answered(await this.applyCheckin(checkin), request, at);
     }
 
     /**

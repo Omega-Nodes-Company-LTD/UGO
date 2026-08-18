@@ -79,6 +79,20 @@ describe("la sveglia", () => {
     expect(at8pm("sveglia alle 8 meno un quarto")).toMatchObject({ label: "7:45" });
   });
 
+  it("«alle sette» — l'ora si dice anche a lettere, e prima cadeva", () => {
+    // arriva dall'orologio condiviso con il check-in (ADR-085): finché ogni
+    // parser aveva il suo, questa frase perfettamente italiana finiva dal
+    // provider, che rispondeva con simpatia e non metteva nessuna sveglia
+    expect(at8pm("svegliami alle sette")).toMatchObject({ inSeconds: 11 * 3600, label: "7:00" });
+  });
+
+  it("«alle nove di sera» sono le 21, non le 9", () => {
+    expect(parseTimerCommand("svegliami alle nove di sera", 8, 0)).toMatchObject({
+      label: "21:00",
+      inSeconds: 13 * 3600,
+    });
+  });
+
   it("un'ora già passata vuol dire domani, che è quello che intende una persona", () => {
     // sono le 20, «alle 7» non può essere fra undici ore fa
     const alarm = at8pm("svegliami alle 7");

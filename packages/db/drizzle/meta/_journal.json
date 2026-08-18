@@ -323,6 +323,20 @@
       "when": 1787049835058,
       "tag": "0045_l-adozione-rls",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1787053118472,
+      "tag": "0046_lively_loki",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1787053119472,
+      "tag": "0047_il-check-in-rls",
+      "breakpoints": true
     }
   ]
 }

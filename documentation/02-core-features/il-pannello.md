@@ -1,8 +1,8 @@
 ---
 title: "Il pannello"
 description: "Come sta, cosa ha deciso da solo, e come chiedere a tutti quanti insieme. Tutto da /admin, senza toccare un terminale."
-version: "0.36.0"
-last_updated: "2026-08-17"
+version: "0.37.0"
+last_updated: "2026-08-18"
 author: "ThinkPink Studio"
 ---
 
@@ -181,6 +181,15 @@ spinta che l'ha mosso, con le sue parole — «è da un po' che non ci parliamo�
 
 Sotto ci sono i **desideri in sospeso**: quello che si è ripromesso di dirti, e i
 promemoria che gli hai chiesto, con l'ora se ce l'hanno.
+
+Prima di quelli, **le domande che ti fa tornare**: quelle che gli hai chiesto a
+voce di rifarti sempre («*ogni sera alle nove chiedimi com'è andata*»). Ognuna
+con la sua ora e il suo giorno, e un bottone per toglierla. Si mettono solo
+parlando — qui si guardano e si fermano.
+
+Attenzione a cosa sono: **non sono sveglie**. Quando arriva l'ora gli viene
+voglia di chiedertelo, e lo dice quando ha senso — se lo hai fermato col
+bottone qui sopra, tace.
 
 Il bottone in cima lo ferma. **Fermalo** e smette di cominciare: risponde
 soltanto, come farebbe un programma normale. Il pannello ti dice anche che la

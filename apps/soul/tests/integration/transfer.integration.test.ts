@@ -4,6 +4,7 @@ import {
   bonds,
   createDbClient,
   type DbClient,
+  checkins,
   diaryEntries,
   gosini,
   memories,
@@ -87,6 +88,14 @@ beforeAll(async () => {
     gosinoId: cucciolo,
     kind: "episode",
     text: encryptText("Il figlio dell'allevatore mi ha grattato il muso", DATA_KEY),
+  });
+  // ADR-085: una domanda che torna, messa dall'allevatore. Non è un ricordo:
+  // è un'istruzione di chi cede, e alla famiglia nuova non deve arrivare
+  await db.insert(checkins).values({
+    gosinoId: cucciolo,
+    question: "com'è andata la giornata in allevamento",
+    hour: 21,
+    minute: 0,
   });
   await db.insert(diaryEntries).values({
     gosinoId: cucciolo,
@@ -179,6 +188,10 @@ describe("cosa parte e cosa resta", () => {
       await db.select().from(diaryEntries).where(eq(diaryEntries.gosinoId, cucciolo)),
     ).toHaveLength(0);
     expect(await db.select().from(bonds).where(eq(bonds.gosinoId, cucciolo))).toHaveLength(0);
+    // e nemmeno le domande che l'allevatore gli aveva messo in bocca: la
+    // prima sera, a casa nuova, chiederebbe a uno sconosciuto una cosa che
+    // non gli ha mai chiesto (ADR-085)
+    expect(await db.select().from(checkins).where(eq(checkins.gosinoId, cucciolo))).toHaveLength(0);
   });
 
   it("e il conto di quel che è rimasto viene detto a chi cede", async () => {
