@@ -50,7 +50,7 @@ import { CustomerChatService, type HouseClock } from "./services/reception/custo
 import type { CustomerQuota } from "./services/reception/customerQuota.js";
 import { CustomerRewardService } from "./services/reception/customerReward.js";
 import type { GithubLiveService } from "./services/reception/githubLiveService.js";
-import type { EmbeddingsClient, LlmClient } from "@ugo/memory";
+import type { ChatLlm, EmbeddingsClient } from "@ugo/memory";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
 import { PropService } from "./services/propService.js";
 import { SceneHub } from "./services/sceneHub.js";
@@ -140,7 +140,7 @@ export interface ServerOptions extends HealthDeps {
       token: string;
       dataKey: Buffer;
       quota: CustomerQuota;
-      llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
+      llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => ChatLlm;
       /** ADR-054: retrieval over the knowledge index */
       embedder?: EmbeddingsClient;
       /** ADR-054: live PRs/commits on live-state questions */
@@ -479,6 +479,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         guard,
         dataKey: customers.dataKey,
         audit,
+        // ADR-093: l'oblio cancella anche i documenti dal bucket
+        ...(customers.docsStorage !== undefined && { docsStorage: customers.docsStorage }),
       });
       registerCustomerSourcesRoutes(app, {
         db: options.db,

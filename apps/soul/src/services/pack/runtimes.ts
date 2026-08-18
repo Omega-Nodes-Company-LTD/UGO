@@ -2,7 +2,7 @@ import { gosini, accounts, psycheBaselines, traitSets, type DbClient } from "@ug
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { lifeAt } from "@ugo/psyche";
 import type { SpeciesMap } from "@ugo/shared";
-import type { EmbeddingsClient, LlmClient, LocalTextClient } from "@ugo/memory";
+import type { ChatLlm, EmbeddingsClient, LocalTextClient } from "@ugo/memory";
 import { desc, eq, isNull } from "drizzle-orm";
 import type { AudioStorageConfig } from "../../routes/audio.js";
 import { ChatService } from "../chatService.js";
@@ -84,7 +84,7 @@ export interface RuntimeDeps {
    * process wrote every row against the seeded house — so a second family's
    * conversation drained the first one's day and its ceiling was never read.
    */
-  llm: (accountId: string, gosinoId: string, clock: HouseClock) => LlmClient;
+  llm: (accountId: string, gosinoId: string, clock: HouseClock) => ChatLlm;
   local: LocalTextClient;
   dataKey: Buffer;
   /**

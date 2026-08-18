@@ -27,6 +27,19 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().min(1).optional(),
   ),
+  /**
+   * ADR-094: la voce di casa parla per prima, e il provider è il soccorso.
+   * Acceso per default su direttiva del proprietario — «local-first» senza
+   * l'asterisco. `off` esiste per il giorno in cui serve confrontare le due
+   * voci, non come scelta consigliata.
+   */
+  UGO_CHAT_LOCAL_FIRST: z
+    .preprocess((value) => (value === "" ? undefined : value), z.enum(["on", "off"]).default("on")),
+  /** il modello di casa per la CHAT; vuoto = quello del testo, poi del sogno */
+  OLLAMA_CHAT_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
   // Initiative off by default is the wrong default for a companion, but it is
   // the right one for a machine that just learned to speak first.
   UGO_INITIATIVE: z
