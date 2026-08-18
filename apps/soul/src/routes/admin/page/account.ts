@@ -1,15 +1,15 @@
 /**
- * The pages that belong to the HOUSE, not to any one creature (ADR-035).
+ * The pages that belong to the ACCOUNT, not to any one creature (ADR-035).
  *
  * The split is not cosmetic. The pack, the budget, the data and the clock
- * belong to the household (ADR-019): two gosini under one roof must agree
+ * belong to the account (ADR-019): two gosini under one roof must agree
  * about who lives here and share one purse. Everything on these pages would be
  * a lie if it were shown per exemplar.
  */
-export const HOUSE_PAGES = `
-<section class="page" data-page="casa">
+export const ACCOUNT_PAGES = `
+<section class="page" data-page="sommario">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>Sommario</h1>
     <p>Chi ci vive, quanto è costata la giornata, e se la macchina sotto sta rispondendo.</p>
   </div>
@@ -40,10 +40,11 @@ export const HOUSE_PAGES = `
   </div>
 
   <div class="block">
-    <h2>Dove sta questa casa</h2>
+    <h2>Dove sta</h2>
     <p class="lede">Serve al cielo del recinto: il tempo che fa lo prende da qui. Scrivi il
        paese o la citt&agrave; e scegli dalla lista &mdash; le coordinate le trova lui, e restano
-       di <em>questa</em> casa: due famiglie sullo stesso server hanno due cieli.</p>
+       di <b data-account>&mdash;</b>, l'account aperto adesso: due account sullo stesso server
+       hanno due cieli.</p>
     <div class="row">
       <input id="place-q" type="text" placeholder="Torino" data-testid="place-q" />
       <button id="place-find" class="ghost" data-testid="place-find">Cerca</button>
@@ -74,36 +75,39 @@ export const HOUSE_PAGES = `
   </div>
 </section>
 
-<section class="page" data-page="case">
+<section class="page" data-page="account">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
-    <h1>Le case</h1>
-    <p>Una persona pu&ograve; avere pi&ugrave; case e pi&ugrave; negozi (ADR-061), e ognuno &egrave; un mondo
-       separato: il suo branco, i suoi ricordi, il suo salvadanaio, la sua chiave. Le stanze sono
-       della casa &mdash; uno <em>Studio</em> in Casa Citt&agrave; e uno <em>Studio</em> in Casa Mare sono
-       due stanze diverse, e il database lo sa gi&agrave;.</p>
+    <p class="eyebrow">Gli account</p>
+    <h1>Gli account</h1>
+    <p>Un <b>account</b> &egrave; chi possiede: tiene la chiave dei dati, il budget, i token, il branco
+       e le stanze. Pu&ograve; essere una famiglia, uno studio, un negozio o un allevamento &mdash; ed
+       &egrave; per questo che non si chiama pi&ugrave; &laquo;casa&raquo;: una casa &egrave; un posto dove si abita, e
+       qui dentro ci stanno anche le botteghe.</p>
+    <p>Ognuno &egrave; un mondo separato: il suo branco, i suoi ricordi, il suo salvadanaio, la sua
+       chiave. Le stanze sono dell'account &mdash; uno <em>Studio</em> in un account e uno
+       <em>Studio</em> in un altro sono due stanze diverse, e il database lo sa gi&agrave;.</p>
   </div>
 
   <div class="block">
     <h2>Quelle che ci sono</h2>
-    <div id="houses-list" data-testid="houses-list"></div>
+    <div id="accounts-list" data-testid="accounts-list"></div>
   </div>
 
   <div class="block">
     <h2>Come si chiama, e che ore sono l&igrave;</h2>
-    <p class="lede">Di questa casa &mdash; quella scelta in alto. Il fuso decide quando finisce la
+    <p class="lede">Di questo account &mdash; quello nominato qui sopra. Il fuso decide quando finisce la
        sua giornata, e quindi quando si azzera il salvadanaio.</p>
     <div class="row">
-      <input id="house-name" type="text" placeholder="Casa Mare" data-testid="house-name" />
-      <select id="house-kind" data-testid="house-kind">
-        <option value="home">casa</option>
+      <input id="account-name" type="text" placeholder="Casa Mare" data-testid="account-name" />
+      <select id="account-kind" data-testid="account-kind">
+        <option value="home">famiglia</option>
         <option value="business">azienda</option>
       </select>
-      <input id="house-tz" type="text" placeholder="Europe/Rome" data-testid="house-tz" />
-      <input id="house-budget" type="number" step="0.01" min="0" placeholder="0.50" data-testid="house-budget" />
-      <button id="house-save" class="ghost" data-testid="house-save">Salva</button>
+      <input id="account-tz" type="text" placeholder="Europe/Rome" data-testid="account-tz" />
+      <input id="account-budget" type="number" step="0.01" min="0" placeholder="0.50" data-testid="account-budget" />
+      <button id="account-save" class="ghost" data-testid="account-save">Salva</button>
     </div>
-    <div id="house-msg"></div>
+    <div id="account-msg"></div>
   </div>
 
   <div class="block">
@@ -112,22 +116,22 @@ export const HOUSE_PAGES = `
        proprietario si vede <strong>una volta sola</strong>: in archivio esiste solo come impronta,
        e se si perde si riemette &mdash; non si recupera.</p>
     <div class="row">
-      <input id="new-house-slug" type="text" placeholder="casa-mare" data-testid="new-house-slug" />
-      <input id="new-house-name" type="text" placeholder="Casa Mare" data-testid="new-house-name" />
-      <select id="new-house-kind" data-testid="new-house-kind">
-        <option value="casa">casa</option>
+      <input id="new-account-slug" type="text" placeholder="casa-mare" data-testid="new-account-slug" />
+      <input id="new-account-name" type="text" placeholder="Casa Mare" data-testid="new-account-name" />
+      <select id="new-account-kind" data-testid="new-account-kind">
+        <option value="famiglia">famiglia</option>
         <option value="azienda">azienda</option>
       </select>
-      <input id="new-house-tz" type="text" placeholder="Europe/Rome" data-testid="new-house-tz" />
+      <input id="new-account-tz" type="text" placeholder="Europe/Rome" data-testid="new-account-tz" />
       <button id="new-house" class="ghost" data-testid="new-house">Falla nascere</button>
     </div>
-    <div id="new-house-msg"></div>
+    <div id="new-account-msg"></div>
   </div>
 </section>
 
 <section class="page" data-page="stanze">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>Le stanze</h1>
     <p>Un dispositivo mostra <b>una stanza</b>, non una creatura: chi ci vive compare lì,
        da solo o insieme agli altri. Spostarli è come cambia chi vedi su quale schermo.</p>
@@ -168,7 +172,7 @@ export const HOUSE_PAGES = `
 
 <section class="page" data-page="arredi">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>Gli arredi</h1>
     <p>Una stanza vuota è un posto in cui non c'è niente da fare. Mettici un cuscino, un
        ciuffo d'erba, un truogolo: quando si <b>annoia</b> ci va da solo, e ci fa quello che
@@ -211,7 +215,7 @@ export const HOUSE_PAGES = `
 
 <section class="page" data-page="volti">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>Chi ha imparato a riconoscere</h1>
     <p>Quando vede una faccia che non conosce, e la rivede, <b>te lo chiede lui</b>: non c'è
        un modulo da compilare qui. Intanto conserva l'impronta — cifrata — in attesa di un
@@ -223,7 +227,7 @@ export const HOUSE_PAGES = `
     <p class="lede">Sono <b>dati biometrici di persone che non hanno detto di sì</b>.
        Si cancellano da sole dopo <span id="print-retention">30</span> giorni, e qui puoi
        toglierne una subito. Quel che vedi è quante volte e quando: l'impronta non esce
-       mai da questa casa, nemmeno verso questo pannello.</p>
+       mai da questo account, nemmeno verso questo pannello.</p>
     <div id="prints-list" data-testid="prints-list"></div>
     <div class="row">
       <div><label for="print-who">Chi è</label><select id="print-who" data-testid="print-who"></select></div>
@@ -244,7 +248,7 @@ export const HOUSE_PAGES = `
 
 <section class="page" data-page="branco">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>Il branco</h1>
     <p>Chi vive qui. Il legame parte da zero e se lo guadagna col tempo.</p>
   </div>
@@ -325,7 +329,7 @@ export const HOUSE_PAGES = `
 
 <section class="page" data-page="consiglio">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>Il consiglio</h1>
     <p>Una domanda a tutti quanti. Il primo giro è cieco — nessuno sente gli altri prima di
        parlare — poi si ascoltano e possono cambiare idea. Solo modelli locali: un consiglio
@@ -344,7 +348,7 @@ export const HOUSE_PAGES = `
 
 <section class="page" data-page="riunioni">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>Riunioni e legami</h1>
     <p>Mandarlo in una call, e vedere cosa ha collegato a cosa.</p>
   </div>
@@ -376,7 +380,7 @@ export const HOUSE_PAGES = `
 
 <section class="page" data-page="conti">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>I conti</h1>
     <p>Ogni giorno ha una cifra da spendere. Quando finisce lo dice, invece di rispondere
        peggio in silenzio. Il budget è della casa: i gosini lo condividono.</p>
@@ -405,7 +409,7 @@ export const HOUSE_PAGES = `
 
 <section class="page" data-page="liste">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>Le liste</h1>
     <p>La spesa, le cose da fare, quello che serve in ferramenta. Si riempiono <b>parlando</b>
        — «aggiungi il latte alla spesa», «ho preso il pane», «cosa c'è nella spesa?» — e
@@ -427,7 +431,7 @@ export const HOUSE_PAGES = `
 
 <section class="page" data-page="dati">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>I dati</h1>
     <p>Sono tuoi. Puoi portarli via tutti, o far sparire qualcuno per sempre.</p>
   </div>
@@ -455,7 +459,7 @@ export const HOUSE_PAGES = `
 
 <section class="page" data-page="feed">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>I feed</h1>
     <p>Le fonti che UGO legge da solo (ADR-060): le scarica coi job, le impara <b>sognando</b>,
        e quando una novità somiglia davvero a quello su cui lavora un cliente, la mattina te
@@ -494,7 +498,7 @@ export const HOUSE_PAGES = `
 
 <section class="page" data-page="adozioni">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>Le adozioni</h1>
     <p>Le pratiche aperte: chi ha scelto un cucciolo dalla vetrina, chi ha pagato, chi è già
        stato consegnato. Vale in tutti e due i versi — <b>quelle che cedi e quelle che

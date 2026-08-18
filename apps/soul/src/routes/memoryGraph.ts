@@ -2,7 +2,7 @@ import { beings, memories, memoryBeings, relations, type DbClient } from "@ugo/d
 import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
-import { exemplarsOf, householdScope } from "./scope.js";
+import { exemplarsOf, accountScope } from "./scope.js";
 
 /**
  * How the memories hang together, for the panel to draw (backlog gruppo 1).
@@ -51,9 +51,9 @@ function shorten(text: string): string {
 
 export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGraphDeps): void {
   app.get("/v1/memories/graph", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const mine = exemplarsOf(deps.db, householdId);
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
+    const mine = exemplarsOf(deps.db, accountId);
 
     const memoryRows = await deps.db
       .select({
@@ -71,7 +71,7 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
     const beingRows = await deps.db
       .select({ id: beings.id, name: beings.displayName, species: beings.species })
       .from(beings)
-      .where(eq(beings.householdId, householdId));
+      .where(eq(beings.accountId, accountId));
 
     const nodes: GraphNode[] = [
       ...memoryRows.map((row) => ({
@@ -109,7 +109,7 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
         source: relations.source,
       })
       .from(relations)
-      .where(eq(relations.householdId, householdId));
+      .where(eq(relations.accountId, accountId));
 
     const edges: GraphEdge[] = [
       ...aboutRows.map((row) => ({
@@ -144,9 +144,9 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
 
   /** How many edges exist at all — the panel decides whether to offer the tab. */
   app.get("/v1/memories/graph/size", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const mine = exemplarsOf(deps.db, householdId);
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
+    const mine = exemplarsOf(deps.db, accountId);
 
     // memory_beings has no tenant column of its own: it reaches the house
     // through its memory (ADR-048 gives it one directly)
@@ -166,7 +166,7 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
     const [inferred] = await deps.db
       .select({ total: sql<number>`count(*)::int` })
       .from(relations)
-      .where(and(eq(relations.source, "dream"), eq(relations.householdId, householdId)));
+      .where(and(eq(relations.source, "dream"), eq(relations.accountId, accountId)));
     return reply.send({
       about: links?.total ?? 0,
       superseded: supersessions?.total ?? 0,

@@ -70,7 +70,7 @@ $("meta-toggle").addEventListener("click", async () => {
   const on = $("meta-toggle").dataset.on !== "true";
   $("meta-toggle").disabled = true;
   try {
-    await call("/v1/households/metabolism", { method: "PUT", body: JSON.stringify({ on }) });
+    await call("/v1/accounts/metabolism", { method: "PUT", body: JSON.stringify({ on }) });
     await loadMetabolism();
     say("meta-msg", on
       ? "Acceso. Controlla i salvadanai: chi è a zero smetterà di parlare finché non mangia."

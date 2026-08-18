@@ -2,9 +2,9 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import {
   createDbClient,
   gosini,
-  households,
+  accounts,
   meetings,
-  PRIME_HOUSEHOLD_ID,
+  PRIME_ACCOUNT_ID,
   runMigrations,
   transcriptSegments,
   type DbClient,
@@ -30,18 +30,18 @@ let ollama: OllamaHandle;
 let db: DbClient;
 let embedder: OllamaEmbeddingsClient;
 
-const OTHER_HOUSEHOLD = "00000000-0000-4000-8000-0000000000ff";
+const OTHER_ACCOUNT = "00000000-0000-4000-8000-0000000000ff";
 
 /** Una casa con un esemplare, una riunione e un segmento trascritto. */
 async function houseWithRecording(
-  householdId: string,
+  accountId: string,
   slug: string,
   text: string,
 ): Promise<void> {
-  await db.insert(households).values({ id: householdId, slug, name: slug }).onConflictDoNothing();
+  await db.insert(accounts).values({ id: accountId, slug, name: slug }).onConflictDoNothing();
   const [creature] = await db
     .insert(gosini)
-    .values({ householdId, name: `ugo-${slug}` })
+    .values({ accountId, name: `ugo-${slug}` })
     .returning({ id: gosini.id });
   const [meeting] = await db
     .insert(meetings)
@@ -50,7 +50,7 @@ async function houseWithRecording(
   const [embedding] = await embedder.embed([text]);
   await db.insert(transcriptSegments).values({
     meetingId: meeting?.id ?? "",
-    householdId,
+    accountId,
     t0: 0,
     t1: 3,
     // il testo a riposo è ciphertext in produzione; qui conta solo che la riga
@@ -72,12 +72,12 @@ beforeAll(async () => {
   // due case che hanno registrato la STESSA cosa: senza scope la ricerca di
   // una pescava il segmento dell'altra, ed erano indistinguibili
   await houseWithRecording(
-    PRIME_HOUSEHOLD_ID,
+    PRIME_ACCOUNT_ID,
     "casa-prime",
     "Ivan ha detto che il preventivo del tetto sale a dodicimila euro.",
   );
   await houseWithRecording(
-    OTHER_HOUSEHOLD,
+    OTHER_ACCOUNT,
     "casa-vicina",
     "Ivan ha detto che il preventivo del tetto sale a dodicimila euro.",
   );
@@ -95,7 +95,7 @@ describe("searchTranscripts si ferma al tetto della casa", () => {
       embedder,
       "cosa aveva detto Ivan sul preventivo?",
       5,
-      PRIME_HOUSEHOLD_ID,
+      PRIME_ACCOUNT_ID,
     );
     expect(found.length).toBeGreaterThan(0);
     expect(found.every((row) => row.text.includes("preventivo"))).toBe(true);
@@ -109,7 +109,7 @@ describe("searchTranscripts si ferma al tetto della casa", () => {
       embedder,
       "cosa aveva detto Ivan sul preventivo?",
       10,
-      PRIME_HOUSEHOLD_ID,
+      PRIME_ACCOUNT_ID,
     );
     const ids = new Set(mine.map((row) => row.id));
 
@@ -118,7 +118,7 @@ describe("searchTranscripts si ferma al tetto della casa", () => {
       embedder,
       "cosa aveva detto Ivan sul preventivo?",
       10,
-      OTHER_HOUSEHOLD,
+      OTHER_ACCOUNT,
     );
 
     expect(mine).toHaveLength(1);

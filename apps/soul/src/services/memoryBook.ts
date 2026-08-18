@@ -65,9 +65,9 @@ export class MemoryBook {
     }
   }
 
-  private who(householdId: string, gosinoId: string | undefined): SQL | undefined {
+  private who(accountId: string, gosinoId: string | undefined): SQL | undefined {
     return gosinoId === undefined
-      ? inArray(memories.gosinoId, exemplarsOf(this.db, householdId))
+      ? inArray(memories.gosinoId, exemplarsOf(this.db, accountId))
       : eq(memories.gosinoId, gosinoId);
   }
 
@@ -79,14 +79,14 @@ export class MemoryBook {
    * niente non è un capitolo.
    */
   public async spine(
-    householdId: string,
+    accountId: string,
     gosinoId: string | undefined,
   ): Promise<BookMonth[]> {
     const month = sql<string>`to_char(${memories.createdAt}, 'YYYY-MM')`;
     const rows = await this.db
       .select({ month, count: sql<number>`count(*)::int` })
       .from(memories)
-      .where(this.who(householdId, gosinoId))
+      .where(this.who(accountId, gosinoId))
       .groupBy(month)
       .orderBy(desc(month));
     return rows.map((row) => ({ month: row.month, count: row.count }));
@@ -101,7 +101,7 @@ export class MemoryBook {
    * incoerente con l'altro.
    */
   public async page(
-    householdId: string,
+    accountId: string,
     gosinoId: string | undefined,
     period: string,
     options: { limit?: number; onlyValid?: boolean } = {},
@@ -127,7 +127,7 @@ export class MemoryBook {
       .from(memories)
       .where(
         and(
-          this.who(householdId, gosinoId),
+          this.who(accountId, gosinoId),
           sql`${stamp} = ${period}`,
           options.onlyValid === true ? isNull(memories.invalidatedAt) : undefined,
         ),

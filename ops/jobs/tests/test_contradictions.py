@@ -365,11 +365,11 @@ def test_it_refuses_the_paid_fallback_once_the_day_is_spent(pg_url, cfg, batch_s
         conn.execute(
             """
             insert into budget_ledger
-                (household_id, gosino_id, date, provider, model,
+                (account_id, gosino_id, date, provider, model,
                  tokens_in, tokens_out, cost_usd)
             values (%s, %s, current_date, 'anthropic', 'claude-haiku-4-5', 1, 1, 99.0)
             """,
-            (cfg.household_id, cfg.gosino_id),
+            (cfg.account_id, cfg.gosino_id),
         )
         conn.commit()
 

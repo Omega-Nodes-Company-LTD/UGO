@@ -33,7 +33,7 @@ export class PackService {
     private readonly db: DbClient,
     private readonly speciesMap: SpeciesMap,
     private readonly gosinoId: string,
-    private readonly householdId: string,
+    private readonly accountId: string,
   ) {}
 
   /** "Chi sono io": which exemplar is speaking, and with which genome. */
@@ -68,7 +68,7 @@ export class PackService {
       })
       .from(beings)
       .leftJoin(bonds, and(eq(bonds.beingId, beings.id), eq(bonds.gosinoId, this.gosinoId)))
-      .where(and(inArray(beings.id, [...beingIds]), eq(beings.householdId, this.householdId)));
+      .where(and(inArray(beings.id, [...beingIds]), eq(beings.accountId, this.accountId)));
     return rows.map((row) => ({
       ...row,
       familiarity: row.familiarity ?? 0,
@@ -87,7 +87,7 @@ export class PackService {
       .from(relations)
       .where(
         and(
-          eq(relations.householdId, this.householdId),
+          eq(relations.accountId, this.accountId),
           or(inArray(relations.beingA, ids), inArray(relations.beingB, ids)),
         ),
       );

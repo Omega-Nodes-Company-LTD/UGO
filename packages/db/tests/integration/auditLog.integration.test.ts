@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDbClient, type DbClient } from "../../src/client.js";
 import { runMigrations } from "../../src/migrate.js";
-import { auditLog, gosini, households } from "../../src/schema/index.js";
+import { auditLog, gosini, accounts } from "../../src/schema/index.js";
 
 /**
  * ADR-049: il giornale che nessuno può riscrivere.
@@ -64,12 +64,12 @@ beforeAll(async () => {
   app = createDbClient(appUrl.toString());
 
   const [row] = await owner
-    .insert(households)
+    .insert(accounts)
     .values({ slug: "casa-audit", name: "casa-audit" })
-    .returning({ id: households.id });
-  if (row === undefined) throw new Error("no household");
+    .returning({ id: accounts.id });
+  if (row === undefined) throw new Error("no account");
   casa = row.id;
-  await owner.insert(gosini).values({ householdId: casa, name: "ugo-audit" });
+  await owner.insert(gosini).values({ accountId: casa, name: "ugo-audit" });
 }, 180_000);
 
 afterAll(async () => {
@@ -81,11 +81,11 @@ afterAll(async () => {
 describe("audit_log", () => {
   it("takes a row that says who did what, with no name in it", async () => {
     await owner.insert(auditLog).values({
-      householdId: casa,
+      accountId: casa,
       tokenId: "00000000-0000-4000-8000-00000000dead",
       role: "owner",
       verb: "export",
-      resourceType: "household",
+      resourceType: "account",
       resourceId: casa,
       outcome: "ok",
     });
@@ -96,8 +96,10 @@ describe("audit_log", () => {
     // le colonne che ci sono sono tutte id, verbi ed esiti: non esiste un posto
     // dove infilare un nome, ed e' il punto (regola 6)
     expect(Object.keys(row ?? {}).sort()).toEqual([
+      // in ordine alfabetico, perché sopra c'è un .sort(): ADR-092 ha
+      // rinominato householdId in accountId e l'ordine è cambiato con lui
+      "accountId",
       "at",
-      "householdId",
       "id",
       "outcome",
       "resourceId",
@@ -121,7 +123,7 @@ describe("audit_log", () => {
       resourceId: "/v1/privacy/export",
     });
     const [row] = await owner.select().from(auditLog).where(eq(auditLog.verb, "denied"));
-    expect(row?.householdId).toBeNull();
+    expect(row?.accountId).toBeNull();
     expect(row?.tokenId).toBeNull();
   });
 
@@ -148,7 +150,7 @@ describe("audit_log", () => {
    */
   it("still lets the owner expire a row older than the retention", async () => {
     await owner.insert(auditLog).values({
-      householdId: casa,
+      accountId: casa,
       verb: "forget",
       outcome: "ok",
       at: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000),

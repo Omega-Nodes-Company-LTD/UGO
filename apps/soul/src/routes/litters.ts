@@ -12,7 +12,7 @@ import type { RegistryClient } from "../services/registryClient.js";
 import { RoomCatalogue } from "../services/roomCatalogue.js";
 import { guardBreeding } from "./breeding.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * The litter (ADR-069): looked at with one gesture, adopted with another.
@@ -68,10 +68,10 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
   app.get("/v1/gosini/:id/pedigree", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const asked = Number((request.query as { generations?: string }).generations);
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
     const tree = await pedigrees.of(
-      householdId,
+      accountId,
       id,
       Number.isFinite(asked) && asked > 0 ? asked : undefined,
     );
@@ -85,12 +85,12 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
   app.post("/v1/gosini/litters", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = litterSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     // ADR-081: guardare una cucciolata è già allevare — è da lì che si sceglie
-    if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
+    if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
 
-    const parents = await loadParents(deps.db, householdId, parsed.data.parentIds);
+    const parents = await loadParents(deps.db, accountId, parsed.data.parentIds);
     if (parents === undefined)
       return reply.status(404).send({ error: "genitore sconosciuto", detail: "genitore sconosciuto" });
 
@@ -111,19 +111,19 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
   app.post("/v1/gosini/births", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = birthSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
     const { parentIds, seed, cubIndex, name, locationLabel } = parsed.data;
 
-    const parents = await loadParents(deps.db, householdId, parentIds);
+    const parents = await loadParents(deps.db, accountId, parentIds);
     if (parents === undefined)
       return reply.status(404).send({ error: "genitore sconosciuto", detail: "genitore sconosciuto" });
 
     // ADR-039: a room he is born into has to exist, like in the manual birth
     let where: string | undefined;
     if (locationLabel !== undefined) {
-      where = await catalogue.named(householdId, locationLabel);
+      where = await catalogue.named(accountId, locationLabel);
       if (where === undefined) return reply.status(400).send({ error: "stanza sconosciuta" });
     }
 
@@ -153,7 +153,7 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
     const created = await deps.db
       .insert(gosini)
       .values({
-        householdId,
+        accountId,
         name,
         generation,
         // the single column keeps the first parent for today's readers;
@@ -175,7 +175,7 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
     const id = child.id;
 
     await deps.db.insert(traitSets).values({
-      householdId,
+      accountId,
       gosinoId: id,
       version: 1,
       traits,
@@ -199,7 +199,7 @@ export function registerLitterRoutes(app: FastifyInstance, deps: LitterRoutesDep
     for (const parent of parents) {
       const keys = await deps.peers?.keysFor(parent.id);
       lineage.push({
-        householdId,
+        accountId,
         childGosinoId: id,
         parentGosinoId: parent.id,
         ...(keys !== undefined && {

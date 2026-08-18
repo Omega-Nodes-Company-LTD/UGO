@@ -8,7 +8,7 @@ import type { RegistryClient } from "../services/registryClient.js";
 import { TransferService } from "../services/transferService.js";
 import { guardBreeding } from "./breeding.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * L'adozione (ADR-084): il gesto che lega la vetrina alla consegna.
@@ -40,7 +40,7 @@ export interface AdoptionRoutesDeps {
   db: DbClient;
   guard: PreHandler;
   /**
-   * Far nascere la casa di chi compra. È la stessa `createHousehold` del
+   * Far nascere la casa di chi compra. È la stessa `createAccount` del
    * pannello e della riga di comando — iniettata perché serve la chiave madre,
    * che il server non possiede.
    */
@@ -48,7 +48,7 @@ export interface AdoptionRoutesDeps {
     slug: string;
     name: string;
     timezone?: string | undefined;
-  }) => Promise<{ householdId: string; ownerToken: string }>;
+  }) => Promise<{ accountId: string; ownerToken: string }>;
   registry?: { reload: () => Promise<void> };
   chain?: RegistryClient;
 }
@@ -98,7 +98,7 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
         .send({ error: "nome già preso", detail: "quel nome di casa esiste già, scegline un altro" });
     }
 
-    const booked = await adoptions.reserve(id, house.householdId);
+    const booked = await adoptions.reserve(id, house.accountId);
     if (booked === undefined) {
       return reply.status(409).send({ error: "non è più disponibile" });
     }
@@ -109,15 +109,15 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
       prezzo: booked.priceCents === null ? null : { centesimi: booked.priceCents, valuta: "EUR" },
       /** in chiaro **una volta sola**, come ogni token di proprietario */
       token: house.ownerToken,
-      casa: house.householdId,
+      casa: house.accountId,
     });
   });
 
   /** Le pratiche di questa casa: quelle che cede e quelle che riceve. */
   app.get("/v1/adozioni", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    return reply.send({ adozioni: await adoptions.of(householdId) });
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
+    return reply.send({ adozioni: await adoptions.of(accountId) });
   });
 
   /**
@@ -131,11 +131,11 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
     const parsed = paymentSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
 
-    const pratica = await adoptions.ofKennel(householdId, id);
+    const pratica = await adoptions.ofKennel(accountId, id);
     if (pratica === undefined) return reply.status(404).send({ error: "non esiste" });
     if (!(await adoptions.markPaid(id, parsed.data.riferimento))) {
       return reply.status(409).send({ error: `non è prenotata: è ${pratica.status}` });
@@ -152,11 +152,11 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
    */
   app.post("/v1/adozioni/:id/consegna", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
 
-    const pratica = await adoptions.ofKennel(householdId, id);
+    const pratica = await adoptions.ofKennel(accountId, id);
     if (pratica === undefined) return reply.status(404).send({ error: "non esiste" });
     if (pratica.status !== "pagata") {
       return reply
@@ -172,7 +172,7 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
       .orderBy(traitSets.version)
       .limit(1);
 
-    const done = await transfers.cede(householdId, pratica.gosinoId, pratica.buyerHouseholdId);
+    const done = await transfers.cede(accountId, pratica.gosinoId, pratica.buyerAccountId);
     if (typeof done === "string") {
       return reply.status(409).send({ error: done });
     }
@@ -190,8 +190,8 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
         gosinoId: pratica.gosinoId,
         genomeHash: genomeHash(genome?.traits ?? {}),
         at: new Date().toISOString(),
-        fromHash: holderHash(householdId),
-        toHash: holderHash(pratica.buyerHouseholdId),
+        fromHash: holderHash(accountId),
+        toHash: holderHash(pratica.buyerAccountId),
       });
       if (outcome.published) chainSeq = outcome.seq;
       else request.log.warn({ adozione: id, reason: outcome.reason }, "transfer not published");
@@ -205,10 +205,10 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
   /** Annullare: la pratica si chiude e il cucciolo torna in vetrina. */
   app.post("/v1/adozioni/:id/annulla", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
-    const pratica = await adoptions.ofKennel(householdId, id);
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
+    const pratica = await adoptions.ofKennel(accountId, id);
     if (pratica === undefined) return reply.status(404).send({ error: "non esiste" });
     if (!(await adoptions.cancel(id))) {
       return reply.status(409).send({ error: `non si annulla: è ${pratica.status}` });

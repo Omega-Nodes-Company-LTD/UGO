@@ -5,7 +5,7 @@ import type { FastifyInstance } from "fastify";
 import type { FaceGateway } from "../services/faceGateway.js";
 import type { SceneHub } from "../services/sceneHub.js";
 import { whoAnswers, type Candidate } from "../services/whoAnswers.js";
-import { resolveHousehold } from "./scope.js";
+import { resolveAccount } from "./scope.js";
 
 /**
  * WS `/v1/face` (PROGETTO §5.7): bidirectional channel with the home body.
@@ -18,7 +18,7 @@ import { resolveHousehold } from "./scope.js";
  * The senses fan out to everyone present, because **the room is what heard the
  * bang** — and watching two creatures react differently to the same noise is
  * the whole reason for putting them in one place. Speech does not: it goes to
- * one, or every sentence would cost the household N calls to the provider
+ * one, or every sentence would cost the account N calls to the provider
  * (CLAUDE.md rule 3). Making them all answer is what the council is for, and
  * that runs on local models.
  */
@@ -78,13 +78,13 @@ export async function registerFaceWs(
   fallback: FaceGateway,
   db: DbClient,
   registry?: {
-    resolve: (query: string | undefined, householdId: string) => RegistryEntry | undefined;
-    inRoom: (room: string, householdId: string) => RegistryEntry[];
+    resolve: (query: string | undefined, accountId: string) => RegistryEntry | undefined;
+    inRoom: (room: string, accountId: string) => RegistryEntry[];
   },
   /** ADR-056: gli arredi della stanza, e le loro modifiche a scena aperta */
   scene?: {
     hub: SceneHub;
-    props: (householdId: string, roomSlug: string) => Promise<SceneProp[]>;
+    props: (accountId: string, roomSlug: string) => Promise<SceneProp[]>;
   },
 ): Promise<void> {
   await app.register(websocket);
@@ -122,12 +122,12 @@ export async function registerFaceWs(
     void (async () => {
       // no token means no house, and the single fallback creature answers —
       // exactly the behaviour of every version before ADR-019
-      const scope = await resolveHousehold(db, request);
+      const scope = await resolveAccount(db, request);
       const members = pickMembers(
         registry,
         fallback,
         query,
-        scope.ok ? scope.householdId : undefined,
+        scope.ok ? scope.accountId : undefined,
       );
 
       const raw = (message: ServerToFaceMessage): void => {
@@ -165,7 +165,7 @@ export async function registerFaceWs(
       const room = roomForSocket(query, members);
       const stopWatching =
         scene !== undefined && room !== undefined && scope.ok
-          ? scene.hub.watch(scope.householdId, room, raw)
+          ? scene.hub.watch(scope.accountId, room, raw)
           : undefined;
 
       const release = (): void => {
@@ -194,7 +194,7 @@ export async function registerFaceWs(
       // metterci dentro qualcuno che ci deve camminare
       if (scene !== undefined && room !== undefined && scope.ok) {
         try {
-          raw({ type: "scene", props: await scene.props(scope.householdId, room) });
+          raw({ type: "scene", props: await scene.props(scope.accountId, room) });
         } catch {
           // una stanza senza arredi non è un errore, e un errore qui non deve
           // impedire alla creatura di comparire: il corpo funziona spoglio
@@ -237,7 +237,7 @@ export async function registerFaceWs(
         // un silenzio contato è un guasto; un silenzio non contato è un
         // mistero, ed è il modo in cui il muso ha smesso di rispondere una
         // volta senza un solo test rosso (ADR-045)
-        app.log.warn({ dropped }, "face frames dropped while resolving the household");
+        app.log.warn({ dropped }, "face frames dropped while resolving the account");
       }
       for (const held of waiting.splice(0)) deliver(held);
     })();
@@ -249,20 +249,20 @@ function pickMembers(
   registry: Parameters<typeof registerFaceWs>[3],
   fallback: FaceGateway,
   query: { gosino?: string; stanza?: string } | undefined,
-  householdId: string | undefined,
+  accountId: string | undefined,
 ): RoomMember[] {
   if (
     registry !== undefined &&
-    householdId !== undefined &&
+    accountId !== undefined &&
     query?.stanza !== undefined &&
     query.stanza !== ""
   ) {
     // an empty room stays empty: showing the wrong creature is worse than
     // showing nobody, which at least tells the truth about what is there
-    return registry.inRoom(query.stanza, householdId).map(asMember);
+    return registry.inRoom(query.stanza, accountId).map(asMember);
   }
   const chosen =
-    householdId === undefined ? undefined : registry?.resolve(query?.gosino, householdId);
+    accountId === undefined ? undefined : registry?.resolve(query?.gosino, accountId);
   if (chosen !== undefined) return [asMember(chosen)];
   return [{ id: "", name: "UGO", gateway: fallback }];
 }

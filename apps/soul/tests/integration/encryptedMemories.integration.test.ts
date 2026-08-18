@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DowryService } from "../../src/services/dowryService.js";
 import { FarewellService } from "../../src/services/farewellService.js";
-import { createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { ForgetService } from "../../src/services/privacy/forgetService.js";
 import { plainTextMemories } from "../../src/services/privacy/plainTextMemories.js";
 
@@ -52,12 +52,12 @@ afterAll(async () => {
 
 /** Una casa nuova per ogni prova: qui si cancella e si muore. */
 const freshHouse = async (slug: string): Promise<void> => {
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug,
     name: slug,
     gosinoName: "Vecchio",
   });
-  houseId = house.householdId;
+  houseId = house.accountId;
   who = house.gosinoId;
 };
 
@@ -97,7 +97,7 @@ describe("l'oblio arriva dentro le righe cifrate", () => {
     await freshHouse("casa-oblio");
     const [being] = await db
       .insert(beings)
-      .values({ householdId: houseId, displayName: "Monika", species: "human", kind: "resident" })
+      .values({ accountId: houseId, displayName: "Monika", species: "human", kind: "resident" })
       .returning({ id: beings.id });
     if (being === undefined) throw new Error("nessun essere");
 

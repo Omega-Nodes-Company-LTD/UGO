@@ -3,7 +3,7 @@ import {
   customerMessages,
   customers,
   gosini,
-  households,
+  accounts,
   tickets,
   type DbClient,
 } from "@ugo/db";
@@ -93,7 +93,7 @@ export interface CustomerChatDeps {
   db: DbClient;
   dataKey: Buffer;
   quota: CustomerQuota;
-  llmFor: (householdId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
+  llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
   audit?: AuditLogger;
   /** ADR-054: without it the gosino answers from tickets and history alone */
   embedder?: EmbeddingsClient;
@@ -183,7 +183,7 @@ export class CustomerChatService {
     // wall 3 (ADR-055): never for live-state questions — those are true only
     // in the moment they are asked
     const live = isLiveStateQuestion(request.text);
-    const cacheKey = { householdId: context.householdId, customerId: context.customerId, gosinoId };
+    const cacheKey = { accountId: context.accountId, customerId: context.customerId, gosinoId };
     if (!live) {
       const remembered = await this.deps.cache?.lookup(cacheKey, request.text, at);
       if (remembered !== undefined) {
@@ -193,13 +193,13 @@ export class CustomerChatService {
     }
 
     const [house] = await db
-      .select({ timezone: households.timezone, locale: households.locale })
-      .from(households)
-      .where(eq(households.id, context.householdId));
+      .select({ timezone: accounts.timezone, locale: accounts.locale })
+      .from(accounts)
+      .where(eq(accounts.id, context.accountId));
     const clock: HouseClock | undefined =
       house === undefined ? undefined : { timezone: house.timezone, locale: house.locale };
 
-    const llm = this.deps.llmFor(context.householdId, gosinoId, clock);
+    const llm = this.deps.llmFor(context.accountId, gosinoId, clock);
     const dynamicSystem = await this.buildDynamicSystem(request, at);
     const result = await llm.chat(
       {
@@ -246,7 +246,7 @@ export class CustomerChatService {
     const [row] = await db
       .insert(tickets)
       .values({
-        householdId: request.context.householdId,
+        accountId: request.context.accountId,
         customerId: request.context.customerId,
         gosinoId: request.gosinoId,
         title: encryptText(title, dataKey),
@@ -259,7 +259,7 @@ export class CustomerChatService {
     await audit?.record({
       verb: "ticket_created",
       outcome: "ok",
-      householdId: request.context.householdId,
+      accountId: request.context.accountId,
       resourceType: "ticket",
       resourceId: row.id,
     });
@@ -283,7 +283,7 @@ export class CustomerChatService {
         request.text,
         CHUNKS_K,
         request.context.customerId,
-        request.context.householdId,
+        request.context.accountId,
       );
       for (const chunk of chunks) {
         try {
@@ -389,7 +389,7 @@ export class CustomerChatService {
   ): Promise<void> {
     const { db, dataKey } = this.deps;
     const base = {
-      householdId: request.context.householdId,
+      accountId: request.context.accountId,
       customerId: request.context.customerId,
       gosinoId: request.gosinoId,
       ...(extra.ticketId !== undefined && { ticketId: extra.ticketId }),

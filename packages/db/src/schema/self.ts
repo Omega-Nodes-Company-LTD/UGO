@@ -14,13 +14,13 @@ export const PRIME_GOSINO_ID = "00000000-0000-4000-8000-000000000001";
 /**
  * The `gosino_id` column every state table carries (ADR-015).
  *
- * Two functions, for the reason spelled out on `householdId()`: annotating the
+ * Two functions, for the reason spelled out on `accountId()`: annotating the
  * return as `PgColumnBuilderBase` made every `gosino_id` in the schema type
  * `unknown`, and an `unknown` column compares equal to anything, so the
  * compiler could not see a missing scope.
  */
 function buildGosinoId() {
-  // ADR-048 tempo 2: il default e' caduto. Vedi `householdId()`.
+  // ADR-048 tempo 2: il default e' caduto. Vedi `accountId()`.
   return uuid("gosino_id")
     .notNull()
     .references(() => gosini.id);

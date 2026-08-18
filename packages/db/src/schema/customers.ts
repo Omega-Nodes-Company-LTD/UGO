@@ -11,7 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { gosini } from "./gosini.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 
 /**
  * The customer (ADR-052): a tenant-adjacent entity of the house — not a fourth
@@ -25,12 +25,12 @@ export const customers = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     /** panel label, plaintext like `beings.display_name` */
     name: text("name").notNull(),
     /** stable, human-typeable handle — used in URLs and the panel */
     slug: text("slug").notNull(),
-    /** AES-256-GCM ciphertext under the household DEK (rule 6) */
+    /** AES-256-GCM ciphertext under the account DEK (rule 6) */
     notes: text("notes"),
     /** null falls back to UGO_CUSTOMER_DAILY_BUDGET_USD (ADR-055) */
     dailyBudgetUsd: numeric("daily_budget_usd", { precision: 10, scale: 4 }),
@@ -62,10 +62,10 @@ export const customers = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (table) => [
-    index("customers_household_idx").on(table.householdId),
-    unique("customers_household_slug_uq").on(table.householdId, table.slug),
+    index("customers_account_idx").on(table.accountId),
+    unique("customers_account_slug_uq").on(table.accountId, table.slug),
     // the target of the composite keys that pin a ticket to one house
-    unique("customers_household_id_uq").on(table.householdId, table.id),
+    unique("customers_account_id_uq").on(table.accountId, table.id),
   ],
 );
 
@@ -92,7 +92,7 @@ export const customerRewards = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     customerId: uuid("customer_id").notNull(),
     gosinoId: uuid("gosino_id").notNull(),
     messageId: uuid("message_id"),
@@ -105,14 +105,14 @@ export const customerRewards = pgTable(
     // gosino is structurally impossible, and the customer's oblivion (the
     // cascade) takes his apples with him
     foreignKey({
-      columns: [table.householdId, table.customerId],
-      foreignColumns: [customers.householdId, customers.id],
-      name: "customer_rewards_household_customer_fk",
+      columns: [table.accountId, table.customerId],
+      foreignColumns: [customers.accountId, customers.id],
+      name: "customer_rewards_account_customer_fk",
     }).onDelete("cascade"),
     foreignKey({
-      columns: [table.householdId, table.gosinoId],
-      foreignColumns: [gosini.householdId, gosini.id],
-      name: "customer_rewards_household_gosino_fk",
+      columns: [table.accountId, table.gosinoId],
+      foreignColumns: [gosini.accountId, gosini.id],
+      name: "customer_rewards_account_gosino_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -123,7 +123,7 @@ export const customerGosini = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     customerId: uuid("customer_id").notNull(),
     gosinoId: uuid("gosino_id").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -133,14 +133,14 @@ export const customerGosini = pgTable(
     // both composite keys: assigning a neighbour's gosino — or a neighbour's
     // customer — is structurally impossible, not merely forbidden (ADR-019)
     foreignKey({
-      columns: [table.householdId, table.customerId],
-      foreignColumns: [customers.householdId, customers.id],
-      name: "customer_gosini_household_customer_fk",
+      columns: [table.accountId, table.customerId],
+      foreignColumns: [customers.accountId, customers.id],
+      name: "customer_gosini_account_customer_fk",
     }).onDelete("cascade"),
     foreignKey({
-      columns: [table.householdId, table.gosinoId],
-      foreignColumns: [gosini.householdId, gosini.id],
-      name: "customer_gosini_household_gosino_fk",
+      columns: [table.accountId, table.gosinoId],
+      foreignColumns: [gosini.accountId, gosini.id],
+      name: "customer_gosini_account_gosino_fk",
     }).onDelete("cascade"),
   ],
 );

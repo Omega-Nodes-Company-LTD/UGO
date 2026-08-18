@@ -63,9 +63,9 @@ def spent_today_usd(conn: psycopg.Connection, cfg: JobsConfig) -> float:
     row = conn.execute(
         """
         select coalesce(sum(cost_usd), 0)::float from budget_ledger
-        where household_id = %s and date = %s
+        where account_id = %s and date = %s
         """,
-        (cfg.household_id, _today(cfg)),
+        (cfg.account_id, _today(cfg)),
     ).fetchone()
     return float(row[0]) if row else 0.0
 
@@ -73,8 +73,8 @@ def spent_today_usd(conn: psycopg.Connection, cfg: JobsConfig) -> float:
 def daily_budget_usd(conn: psycopg.Connection, cfg: JobsConfig) -> float:
     """The house's own ceiling when it has one, the process default otherwise."""
     row = conn.execute(
-        "select daily_budget_usd from households where id = %s",
-        (cfg.household_id,),
+        "select daily_budget_usd from accounts where id = %s",
+        (cfg.account_id,),
     ).fetchone()
     if row is not None and row[0] is not None:
         return float(row[0])
@@ -151,7 +151,7 @@ def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None
     conn.execute(
         """
         insert into budget_ledger
-          (date, provider, model, tokens_in, tokens_out, cost_usd, household_id, gosino_id)
+          (date, provider, model, tokens_in, tokens_out, cost_usd, account_id, gosino_id)
         values (%s, 'anthropic', %s, %s, %s, %s, %s, %s)
         """,
         (
@@ -160,7 +160,7 @@ def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None
             tokens_in,
             tokens_out,
             round(cost, 6),
-            cfg.household_id,
+            cfg.account_id,
             cfg.gosino_id,
         ),
     )

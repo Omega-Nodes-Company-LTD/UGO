@@ -37,12 +37,12 @@ export const VOICE_WANTED_KIND = "voice_wanted";
 
 export async function storeVoiceSample(
   deps: { db: DbClient; storage: AudioStorageConfig },
-  input: { householdId: string; beingId: string; audio: Buffer },
+  input: { accountId: string; beingId: string; audio: Buffer },
 ): Promise<VoiceSampleResult> {
   const [being] = await deps.db
     .select({ isMinor: beings.isMinor, noAudio: beings.noAudio })
     .from(beings)
-    .where(and(eq(beings.id, input.beingId), eq(beings.householdId, input.householdId)));
+    .where(and(eq(beings.id, input.beingId), eq(beings.accountId, input.accountId)));
   if (being === undefined) return { outcome: "not_found" };
   // refuse BEFORE storing (ADR-016): gli interruttori si applicano a monte
   if (being.isMinor || being.noAudio) {
@@ -63,7 +63,7 @@ export async function storeVoiceSample(
   const objectKey = `inbox/enroll_${input.beingId.slice(0, 8)}_${stamp}_${nonce}.webm`;
   await putAudioObject(deps.storage, objectKey, input.audio, "audio/webm");
   await deps.db.insert(perceptionEvents).values({
-    gosinoId: await eldestExemplarOf(deps.db, input.householdId),
+    gosinoId: await eldestExemplarOf(deps.db, input.accountId),
     modality: "audio_speech",
     beingId: input.beingId,
     observed: { kind: "enrollment_requested", object_key: objectKey, channel: "home" },
@@ -86,12 +86,12 @@ export async function storeVoiceSample(
  */
 export async function openVoiceAsk(
   db: DbClient,
-  input: { householdId: string; beingId: string },
+  input: { accountId: string; beingId: string },
 ): Promise<{ name: string } | undefined> {
   const [being] = await db
     .select({ name: beings.displayName, isMinor: beings.isMinor, noAudio: beings.noAudio })
     .from(beings)
-    .where(and(eq(beings.id, input.beingId), eq(beings.householdId, input.householdId)));
+    .where(and(eq(beings.id, input.beingId), eq(beings.accountId, input.accountId)));
   if (being === undefined || being.isMinor || being.noAudio) return undefined;
   const [profiled] = await db
     .select({ beingId: recognitionProfiles.beingId })
@@ -105,7 +105,7 @@ export async function openVoiceAsk(
     .limit(1);
   if (profiled !== undefined) return undefined;
 
-  const gosinoId = await eldestExemplarOf(db, input.householdId);
+  const gosinoId = await eldestExemplarOf(db, input.accountId);
   // le sue parole, non quelle del modello: la domanda costa zero token, e
   // passa da `desires` perché l'iniziativa sa già QUANDO è il momento di dirla
   await db.insert(desires).values({

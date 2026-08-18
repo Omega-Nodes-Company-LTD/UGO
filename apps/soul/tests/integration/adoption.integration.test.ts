@@ -18,9 +18,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildRegistry } from "registry/server";
 import { ChainStore } from "registry/store";
 import {
-  createHousehold,
-  createHouseholdWithFounder,
-} from "../../src/services/householdService.js";
+  createAccount,
+  createAccountWithFounder,
+} from "../../src/services/accountService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -87,14 +87,14 @@ beforeAll(async () => {
   await registry.listen({ port: 0, host: "127.0.0.1" });
   const address = registry.server.address() as AddressInfo;
 
-  const kennel = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const kennel = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "allevamento",
     name: "Allevamento",
     gosinoName: "Zero",
     breeder: true,
   });
   allevamento = kennel.ownerToken;
-  allevamentoId = kennel.householdId;
+  allevamentoId = kennel.accountId;
 
   // Due genitori che possono DAVVERO avere cuccioli, e sempre.
   //
@@ -106,11 +106,11 @@ beforeAll(async () => {
   const seedParent = async (name: string, traits: Record<string, number>): Promise<string> => {
     const [row] = await db
       .insert(gosini)
-      .values({ householdId: allevamentoId, name, origin: "capostipite" })
+      .values({ accountId: allevamentoId, name, origin: "capostipite" })
       .returning({ id: gosini.id });
     if (row === undefined) throw new Error("no parent");
     await db.insert(traitSets).values({
-      householdId: allevamentoId,
+      accountId: allevamentoId,
       gosinoId: row.id,
       version: 1,
       traits,
@@ -135,7 +135,7 @@ beforeAll(async () => {
   const [born] = await db
     .insert(gosini)
     .values({
-      householdId: allevamentoId,
+      accountId: allevamentoId,
       name: "Nino",
       origin: "nato",
       generation: 1,
@@ -146,7 +146,7 @@ beforeAll(async () => {
   if (born === undefined) throw new Error("no cub");
   cucciolo = born.id;
   await db.insert(traitSets).values({
-    householdId: allevamentoId,
+    accountId: allevamentoId,
     gosinoId: cucciolo,
     version: 1,
     traits: { calm: 0.5, spots: 0.9 },
@@ -158,12 +158,12 @@ beforeAll(async () => {
     ollamaUrl: "http://127.0.0.1:1",
     logger: false,
     createHouse: async (input) =>
-      createHousehold(db, MASTER_KEY, {
+      createAccount(db, MASTER_KEY, {
         slug: input.slug,
         name: input.name,
         ...(input.timezone !== undefined && { timezone: input.timezone }),
       }).then((house) => ({
-        householdId: house.householdId,
+        accountId: house.accountId,
         slug: house.slug,
         persona: house.persona,
         ownerToken: house.ownerToken,
@@ -304,7 +304,7 @@ describe("dalla vetrina alla casa, col registro acceso", () => {
     expect(row?.chainSeq).toBe(done.chainSeq);
 
     const [moved] = await db
-      .select({ house: gosini.householdId })
+      .select({ house: gosini.accountId })
       .from(gosini)
       .where(eq(gosini.id, cucciolo));
     expect(moved?.house).toBe(casaCompratore);

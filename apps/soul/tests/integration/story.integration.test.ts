@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
 import { characterFrom } from "../../src/services/council/character.js";
-import { createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 
 /**
@@ -47,7 +47,7 @@ const build = (withLocal: boolean): ChatService =>
     timezone: "Europe/Rome",
     locale: "it-IT",
     gosinoId: who,
-    householdId: houseId,
+    accountId: houseId,
     character: characterFrom({}),
     ...(withLocal && {
       storyteller: {
@@ -65,13 +65,13 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-storie",
     name: "Storie",
     gosinoName: "Ugo",
   });
   who = house.gosinoId;
-  houseId = house.householdId;
+  houseId = house.accountId;
 
   psyche = await PsycheService.restore(db, new Date(), who);
 

@@ -37,7 +37,7 @@ export const AUDIT_VERBS = [
   /** un sogno chiesto fuori dall'orario in cui sarebbe partito da solo */
   "dream_requested",
   /** una famiglia nuova sotto lo stesso server (`ugo casa nuova`) */
-  "household_created",
+  "account_created",
   /** un token emesso: nel giornale il suo id, mai il segreto */
   "token_issued",
   /** un cliente nuovo della casa (ADR-057) */
@@ -77,7 +77,7 @@ export interface AuditEntry {
   verb: AuditVerb;
   outcome: AuditOutcome;
   /** assente su un rifiuto: non si sa ancora di che casa si parli */
-  householdId?: string | undefined;
+  accountId?: string | undefined;
   /** chi ha chiesto, se il token diceva qualcosa */
   actor?: TenantContext | null | undefined;
   resourceType?: string | undefined;
@@ -94,7 +94,7 @@ export interface AuditEntry {
 
 export interface AuditLogger {
   /**
-   * ADR-062: `on` è la transazione di `inHousehold`, quando c'è. Il giornale
+   * ADR-062: `on` è la transazione di `inAccount`, quando c'è. Il giornale
    * resta UN punto di scrittura — cambia solo su quale connessione scrive:
    * sotto `ugo_app` una riga attribuita a una casa passa il `WITH CHECK`
    * soltanto dentro la transazione che ha dichiarato quella casa.
@@ -112,7 +112,7 @@ export function createAuditLog(
         await (on ?? db).insert(auditLog).values({
           verb: entry.verb,
           outcome: entry.outcome,
-          householdId: entry.householdId ?? entry.actor?.householdId ?? null,
+          accountId: entry.accountId ?? entry.actor?.accountId ?? null,
           tokenId: entry.actor?.tokenId ?? null,
           role: entry.actor?.role ?? null,
           resourceType: entry.resourceType ?? null,

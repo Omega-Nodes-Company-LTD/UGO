@@ -3,9 +3,9 @@ import { startPostgres } from "@ugo/factories";
 import { PROP_KINDS } from "@ugo/shared";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDbClient, withHousehold, type DbClient } from "../../src/client.js";
+import { createDbClient, withAccount, type DbClient } from "../../src/client.js";
 import { runMigrations } from "../../src/migrate.js";
-import { households, placedProps, PROP_KINDS_IN_DB, propStock, rooms } from "../../src/schema/index.js";
+import { accounts, placedProps, PROP_KINDS_IN_DB, propStock, rooms } from "../../src/schema/index.js";
 
 /**
  * ADR-056: gli arredi nascono **dentro** il muro fra le case.
@@ -43,23 +43,23 @@ beforeAll(async () => {
   app = createDbClient(appUrl.toString());
 
   const born = await owner
-    .insert(households)
+    .insert(accounts)
     .values([
       { slug: "casa-mia", name: "mia" },
       { slug: "casa-loro", name: "loro" },
     ])
-    .returning({ id: households.id, slug: households.slug });
+    .returning({ id: accounts.id, slug: accounts.slug });
   mine = born.find((h) => h.slug === "casa-mia")?.id ?? "";
   theirs = born.find((h) => h.slug === "casa-loro")?.id ?? "";
 
-  for (const [householdId, slug] of [
+  for (const [accountId, slug] of [
     [mine, "cucina"],
     [theirs, "cucina"],
   ] as const) {
-    await owner.insert(rooms).values({ householdId, name: "Cucina", slug });
+    await owner.insert(rooms).values({ accountId, name: "Cucina", slug });
     await owner
       .insert(placedProps)
-      .values({ householdId, roomSlug: slug, kind: "cushion", x: 0.2, z: -0.3 });
+      .values({ accountId, roomSlug: slug, kind: "cushion", x: 0.2, z: -0.3 });
   }
 }, 180_000);
 
@@ -76,8 +76,8 @@ describe("placed_props", () => {
    * mancante si vede per primo.
    */
   it("shows a house its own furniture and nobody else's", async () => {
-    const seen = await withHousehold(app, mine, async (tx) =>
-      tx.select({ id: placedProps.id, house: placedProps.householdId }).from(placedProps),
+    const seen = await withAccount(app, mine, async (tx) =>
+      tx.select({ id: placedProps.id, house: placedProps.accountId }).from(placedProps),
     );
     expect(seen).toHaveLength(1);
     expect(seen[0]?.house).toBe(mine);
@@ -85,20 +85,20 @@ describe("placed_props", () => {
 
   it("refuses to place furniture in somebody else's house", async () => {
     await expect(
-      withHousehold(app, mine, async (tx) =>
+      withAccount(app, mine, async (tx) =>
         tx
           .insert(placedProps)
-          .values({ householdId: theirs, roomSlug: "cucina", kind: "ball", x: 0, z: 0 }),
+          .values({ accountId: theirs, roomSlug: "cucina", kind: "ball", x: 0, z: 0 }),
       ),
     ).rejects.toBeDefined();
   });
 
   it("refuses to move a neighbour's cushion, and does not say it does not exist", async () => {
-    const moved = await withHousehold(app, mine, async (tx) =>
+    const moved = await withAccount(app, mine, async (tx) =>
       tx
         .update(placedProps)
         .set({ x: 0.9 })
-        .where(eq(placedProps.householdId, theirs))
+        .where(eq(placedProps.accountId, theirs))
         .returning({ id: placedProps.id }),
     );
     // zero righe e non un errore: la politica rende la riga *invisibile*, che è
@@ -121,7 +121,7 @@ describe("placed_props", () => {
     await expect(
       owner
         .insert(placedProps)
-        .values({ householdId: mine, roomSlug: "cucina", kind: "divano", x: 0, z: 0 }),
+        .values({ accountId: mine, roomSlug: "cucina", kind: "divano", x: 0, z: 0 }),
     ).rejects.toBeDefined();
   });
 
@@ -129,7 +129,7 @@ describe("placed_props", () => {
     await expect(
       owner
         .insert(placedProps)
-        .values({ householdId: mine, roomSlug: "cucina", kind: "ball", x: 4, z: 0 }),
+        .values({ accountId: mine, roomSlug: "cucina", kind: "ball", x: 4, z: 0 }),
     ).rejects.toBeDefined();
   });
 });
@@ -139,10 +139,10 @@ describe("prop_stock", () => {
     await owner
       .insert(propStock)
       .values([
-        { householdId: mine, kind: "ball", remaining: 2, refillPerWeek: 2 },
-        { householdId: theirs, kind: "ball", remaining: 9 },
+        { accountId: mine, kind: "ball", remaining: 2, refillPerWeek: 2 },
+        { accountId: theirs, kind: "ball", remaining: 9 },
       ]);
-    const seen = await withHousehold(app, mine, async (tx) =>
+    const seen = await withAccount(app, mine, async (tx) =>
       tx.select({ remaining: propStock.remaining }).from(propStock),
     );
     expect(seen).toEqual([{ remaining: 2 }]);
@@ -150,7 +150,7 @@ describe("prop_stock", () => {
 
   it("refuses to go below zero: a scorta is not a debt", async () => {
     await expect(
-      owner.execute(sql`update prop_stock set remaining = -1 where household_id = ${mine}`),
+      owner.execute(sql`update prop_stock set remaining = -1 where account_id = ${mine}`),
     ).rejects.toBeDefined();
   });
 });

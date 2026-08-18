@@ -25,7 +25,7 @@ export function questionHash(text: string): string {
 }
 
 export interface CacheKey {
-  householdId: string;
+  accountId: string;
   customerId: string;
   gosinoId: string;
 }
@@ -94,7 +94,7 @@ export class AnswerCache {
     await this.db
       .insert(customerAnswerCache)
       .values({
-        householdId: key.householdId,
+        accountId: key.accountId,
         customerId: key.customerId,
         gosinoId: key.gosinoId,
         questionHash: questionHash(question),

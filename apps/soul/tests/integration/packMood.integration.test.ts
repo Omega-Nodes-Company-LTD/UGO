@@ -5,7 +5,7 @@ import { startPostgres } from "@ugo/factories";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createHousehold, createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccount, createAccountWithFounder } from "../../src/services/accountService.js";
 import { PackMood } from "../../src/services/packMood.js";
 import { buildServer } from "../../src/server.js";
 
@@ -48,18 +48,18 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-branco",
     name: "Branco",
     gosinoName: "Sereno",
   });
   token = house.ownerToken;
-  houseId = house.householdId;
+  houseId = house.accountId;
   sereno = house.gosinoId;
 
   const [second] = await db
     .insert(gosini)
-    .values({ householdId: houseId, name: "Teso" })
+    .values({ accountId: houseId, name: "Teso" })
     .returning({ id: gosini.id });
   if (second === undefined) throw new Error("no second exemplar");
   teso = second.id;
@@ -133,7 +133,7 @@ describe("le creature non si mescolano", () => {
 
 describe("dalla rotta", () => {
   it("risponde con le creature della CASA, non del server", async () => {
-    const other = await createHousehold(db, MASTER_KEY, { slug: "vicina-branco", name: "Vicina" });
+    const other = await createAccount(db, MASTER_KEY, { slug: "vicina-branco", name: "Vicina" });
     const response = await app.inject({
       method: "GET",
       url: "/v1/psyche/branco?giorni=14",

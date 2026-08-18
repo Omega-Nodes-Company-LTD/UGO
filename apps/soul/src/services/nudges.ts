@@ -94,7 +94,7 @@ export class NudgeService {
   ): Promise<string> {
     // la stanza si risolve dal CATALOGO, come nel pannello (ADR-039): una
     // spinta vocale non deve poter creare stanze per refuso
-    const room = await this.rooms.named(me.householdId, asked);
+    const room = await this.rooms.named(me.accountId, asked);
     if (room === undefined) {
       return this.noted(me, { verb: "go", room: asked }, "unknown_room",
         `Non conosco una stanza che si chiama «${asked}». Grunf.`);
@@ -107,7 +107,7 @@ export class NudgeService {
     await this.deps.db
       .update(gosini)
       .set({ locationLabel: room })
-      .where(and(eq(gosini.id, me.id), eq(gosini.householdId, me.householdId)));
+      .where(and(eq(gosini.id, me.id), eq(gosini.accountId, me.accountId)));
     await registry.reload();
     // il corpo che lascio saluta: l'atto dev'essere visibile a occhio
     me.gateway.broadcastGesture("wiggle");
@@ -125,7 +125,7 @@ export class NudgeService {
   private async call(registry: GosinoRegistry, me: GosinoRuntime, name: string): Promise<string> {
     const wanted = name.trim().toLowerCase();
     const other = registry
-      .all(me.householdId)
+      .all(me.accountId)
       .find((runtime) => runtime.id !== me.id && runtime.name.toLowerCase() === wanted);
     if (other === undefined) {
       return this.noted(me, { verb: "call", name }, "unknown_peer",

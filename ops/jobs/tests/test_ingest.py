@@ -115,7 +115,7 @@ def test_a_known_voice_gets_a_name_and_a_stranger_does_not(audio_env, tmp_path) 
         vicini = make_house(conn, "casa-vicini")
         gosino = str(
             conn.execute(
-                "insert into gosini (household_id, name) values (%s, %s) returning id",
+                "insert into gosini (account_id, name) values (%s, %s) returning id",
                 (nostra, "ugo-attribuzione"),
             ).fetchone()[0]
         )
@@ -136,7 +136,7 @@ def test_a_known_voice_gets_a_name_and_a_stranger_does_not(audio_env, tmp_path) 
         )
         conn.commit()
 
-    scoped = replace(cfg, household_id=nostra, gosino_id=gosino)
+    scoped = replace(cfg, account_id=nostra, gosino_id=gosino)
     new_key = "inbox/2026-08-07_0930_attribuzione.wav"
     client.upload_file(str(wav), cfg.s3_bucket_audio, new_key)
 

@@ -16,7 +16,7 @@ import { z } from "zod";
 import type { AuditLogger } from "../services/auditLog.js";
 import type { AudioStorageConfig } from "./audio.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * The customer's knowledge sources (ADR-054), from the panel: repos to clone
@@ -96,30 +96,30 @@ export function registerCustomerSourcesRoutes(
   const scoped = async (
     request: FastifyRequest,
     reply: FastifyReply,
-  ): Promise<{ householdId: string; customerId: string } | undefined> => {
-    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return undefined;
+  ): Promise<{ accountId: string; customerId: string } | undefined> => {
+    const accountId = await accountScope(db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return undefined;
     const { id } = request.params as { id: string };
     const [customer] = await db
       .select({ id: customers.id })
       .from(customers)
-      .where(and(eq(customers.id, id), eq(customers.householdId, householdId)));
+      .where(and(eq(customers.id, id), eq(customers.accountId, accountId)));
     if (customer === undefined) {
       await problem(reply, 404, "Not Found");
       return undefined;
     }
-    return { householdId, customerId: customer.id };
+    return { accountId, customerId: customer.id };
   };
 
   const audited = async (
-    householdId: string,
+    accountId: string,
     request: FastifyRequest,
     resourceId: string,
   ): Promise<void> => {
     await audit?.record({
       verb: "customer_source_added",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
       resourceType: "customer_source",
       resourceId,
@@ -200,7 +200,7 @@ export function registerCustomerSourcesRoutes(
     const [row] = await db
       .insert(customerRepos)
       .values({
-        householdId: scope.householdId,
+        accountId: scope.accountId,
         customerId: scope.customerId,
         remoteUrl: parsed.data.remoteUrl,
         defaultBranch: parsed.data.defaultBranch,
@@ -208,7 +208,7 @@ export function registerCustomerSourcesRoutes(
       })
       .returning({ id: customerRepos.id });
     if (row === undefined) return problem(reply, 500, "Internal Server Error");
-    await audited(scope.householdId, request, row.id);
+    await audited(scope.accountId, request, row.id);
     return reply.code(201).send({ id: row.id });
   });
 
@@ -234,7 +234,7 @@ export function registerCustomerSourcesRoutes(
     const [row] = await db
       .insert(customerMailAccounts)
       .values({
-        householdId: scope.householdId,
+        accountId: scope.accountId,
         customerId: scope.customerId,
         imapHost: parsed.data.imapHost,
         imapPort: parsed.data.imapPort,
@@ -246,7 +246,7 @@ export function registerCustomerSourcesRoutes(
       })
       .returning({ id: customerMailAccounts.id });
     if (row === undefined) return problem(reply, 500, "Internal Server Error");
-    await audited(scope.householdId, request, row.id);
+    await audited(scope.accountId, request, row.id);
     return reply.code(201).send({ id: row.id });
   });
 
@@ -305,7 +305,7 @@ export function registerCustomerSourcesRoutes(
     const [row] = await db
       .insert(customerDocuments)
       .values({
-        householdId: scope.householdId,
+        accountId: scope.accountId,
         customerId: scope.customerId,
         s3Key: parsed.data.s3Key,
         filename: encryptText(parsed.data.filename, dataKey),
@@ -314,7 +314,7 @@ export function registerCustomerSourcesRoutes(
       })
       .returning({ id: customerDocuments.id });
     if (row === undefined) return problem(reply, 500, "Internal Server Error");
-    await audited(scope.householdId, request, row.id);
+    await audited(scope.accountId, request, row.id);
     return reply.code(201).send({ id: row.id });
   });
 

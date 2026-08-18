@@ -36,7 +36,7 @@ export interface Recognised {
 export interface RecognitionDeps {
   baseUrl: string;
   token: string;
-  householdId: string;
+  accountId: string;
   /** iniettabile per i test: nessuna rete in un test di routing */
   fetchImpl?: typeof fetch;
   /** oltre questo non si aspetta: una risposta in ritardo non è una risposta */
@@ -72,7 +72,7 @@ export class RecognitionClient {
   public async byVoice(audioBase64: string): Promise<Recognised | undefined> {
     return this.ask("/v1/identify/voice", {
       audio: audioBase64,
-      household_id: this.deps.householdId,
+      account_id: this.deps.accountId,
     });
   }
 
@@ -159,7 +159,7 @@ export class RecognitionClient {
   public async byFace(imageBase64: string): Promise<Recognised | undefined> {
     return this.ask("/v1/identify/face", {
       image: imageBase64,
-      household_id: this.deps.householdId,
+      account_id: this.deps.accountId,
     });
   }
 
@@ -175,7 +175,7 @@ export class RecognitionClient {
   ): Promise<{ printId: string; seenCount: number } | undefined> {
     const answer = await this.post("/v1/prints/unknown", {
       image: imageBase64,
-      household_id: this.deps.householdId,
+      account_id: this.deps.accountId,
     });
     const parsed = rememberedSchema.safeParse(answer);
     if (!parsed.success) return undefined;
@@ -213,7 +213,7 @@ export class RecognitionClient {
           print_id: input.printId,
           being_id: input.beingId,
           gosino_id: input.gosinoId,
-          household_id: this.deps.householdId,
+          account_id: this.deps.accountId,
         }),
         signal: abort.signal,
       });

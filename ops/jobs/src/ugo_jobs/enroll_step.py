@@ -66,7 +66,7 @@ def _remote_enroll(
                 "audio": audio,
                 "being_id": being_id,
                 "gosino_id": gosino_id,
-                "household_id": cfg.household_id,
+                "account_id": cfg.account_id,
             },
             headers={"authorization": f"Bearer {cfg.internal_token}"},
             timeout=60,
@@ -80,7 +80,7 @@ def _remote_enroll(
     return "deferred"
 
 
-def _pending(conn: psycopg.Connection, household_id: str) -> list[tuple[str, str, str, str]]:
+def _pending(conn: psycopg.Connection, account_id: str) -> list[tuple[str, str, str, str]]:
     """Requests with no outcome recorded yet — idempotent by construction.
 
     Scoped alla casa che sta sognando (ADR-019/062): senza il filtro, con due
@@ -94,7 +94,7 @@ def _pending(conn: psycopg.Connection, household_id: str) -> list[tuple[str, str
         from perception_events r
         where r.observed->>'kind' = %s
           and r.being_id is not null
-          and r.gosino_id in (select id from gosini where household_id = %s)
+          and r.gosino_id in (select id from gosini where account_id = %s)
           and not exists (
             select 1 from perception_events d
             where d.observed->>'kind' = 'enrollment'
@@ -102,7 +102,7 @@ def _pending(conn: psycopg.Connection, household_id: str) -> list[tuple[str, str
           )
         order by r.occurred_at
         """,
-        (REQUEST_KIND, household_id),
+        (REQUEST_KIND, account_id),
     ).fetchall()
     return [(str(a), str(b), str(c), d) for a, b, c, d in rows]
 
@@ -131,21 +131,21 @@ def _expire_unknown_prints(conn: psycopg.Connection, cfg: JobsConfig) -> int:
     gone = conn.execute(
         """
         delete from unknown_prints
-        where household_id = %s
+        where account_id = %s
           and last_seen_at < now() - make_interval(days => %s)
         returning id
         """,
-        (cfg.household_id, UNKNOWN_PRINT_RETENTION_DAYS),
+        (cfg.account_id, UNKNOWN_PRINT_RETENTION_DAYS),
     ).fetchall()
     if gone:
         # lo stesso verbo della rotta, così il giornale non distingue CHI ha
         # mantenuto la promessa — conta che sia mantenuta (id e verbi, mai dati)
         conn.execute(
             """
-            insert into audit_log (household_id, verb, outcome, resource_type, resource_id)
+            insert into audit_log (account_id, verb, outcome, resource_type, resource_id)
             values (%s, 'prints_expired', 'ok', 'print', %s)
             """,
-            (cfg.household_id, str(len(gone))),
+            (cfg.account_id, str(len(gone))),
         )
     return len(gone)
 
@@ -175,7 +175,7 @@ def run_enroll(conn: psycopg.Connection, cfg: JobsConfig) -> EnrollStepResult:
     # minimizzazione — un'impronta scaduta non deve sopravvivere nemmeno al
     # giro che la sta per superare
     expired = _expire_unknown_prints(conn, cfg)
-    requests = _pending(conn, cfg.household_id)
+    requests = _pending(conn, cfg.account_id)
     if not requests:
         return EnrollStepResult(enrolled=0, refused=0, missing=0, expired=expired)
 

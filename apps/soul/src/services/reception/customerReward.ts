@@ -53,12 +53,12 @@ export interface CustomerRewardDeps {
    * ricordata comunque, e se l'umore del momento la perde è accettato — un
    * premio è un gesto del momento, non una partita contabile da riconciliare.
    *
-   * Chiede casa E gosino, così il cablaggio usa `registry.all(householdId)` —
+   * Chiede casa E gosino, così il cablaggio usa `registry.all(accountId)` —
    * la vista di una casa — e mai `everywhere()`, che ha un solo chiamante
    * legittimo e non è questo.
    */
   psycheFor?: (
-    householdId: string,
+    accountId: string,
     gosinoId: string,
   ) => { applyEventType: (type: string, at: Date) => Promise<unknown> } | undefined;
 }
@@ -105,7 +105,7 @@ export class CustomerRewardService {
    * contrario (una mela sentita ma non contata sarebbe un buco nel muro).
    */
   public async give(
-    context: { householdId: string; customerId: string },
+    context: { accountId: string; customerId: string },
     gosinoId: string,
     at: Date = new Date(),
   ): Promise<ReceptionRewardAllowance> {
@@ -138,7 +138,7 @@ export class CustomerRewardService {
       .limit(1);
 
     await this.deps.db.insert(customerRewards).values({
-      householdId: context.householdId,
+      accountId: context.accountId,
       customerId: context.customerId,
       gosinoId,
       messageId: lastReply?.id ?? null,
@@ -153,7 +153,7 @@ export class CustomerRewardService {
       type: "reward",
       payload: { customer: context.customerId, message: lastReply?.id ?? null },
     });
-    await this.deps.psycheFor?.(context.householdId, gosinoId)?.applyEventType("reward", at);
+    await this.deps.psycheFor?.(context.accountId, gosinoId)?.applyEventType("reward", at);
 
     return this.allowance(context.customerId, at);
   }

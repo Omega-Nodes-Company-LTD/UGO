@@ -3,7 +3,7 @@ import {
   createDbClient,
   events,
   gosini,
-  households,
+  accounts,
   psycheSnapshots,
   rooms,
   runMigrations,
@@ -36,7 +36,7 @@ let pg: StartedPostgreSqlContainer;
 let db: DbClient;
 let registry: GosinoRegistry;
 let nudges: NudgeService;
-let householdId = "";
+let accountId = "";
 let ugo = "";
 let silvio = "";
 let pauroso = "";
@@ -46,18 +46,18 @@ beforeAll(async () => {
   const url = pg.getConnectionUri();
   await runMigrations(url);
   db = createDbClient(url);
-  const [house] = await db.select({ id: households.id }).from(households).limit(1);
-  householdId = house?.id ?? "";
+  const [house] = await db.select({ id: accounts.id }).from(accounts).limit(1);
+  accountId = house?.id ?? "";
   await db.insert(rooms).values([
-    { householdId, name: "cucina", slug: "cucina" },
-    { householdId, name: "studio", slug: "studio" },
+    { accountId, name: "cucina", slug: "cucina" },
+    { accountId, name: "studio", slug: "studio" },
   ]);
   const born = await db
     .insert(gosini)
     .values([
-      { householdId, name: "Ugo", locationLabel: "cucina" },
-      { householdId, name: "Silvio", locationLabel: "studio" },
-      { householdId, name: "Pauroso", locationLabel: "studio" },
+      { accountId, name: "Ugo", locationLabel: "cucina" },
+      { accountId, name: "Silvio", locationLabel: "studio" },
+      { accountId, name: "Pauroso", locationLabel: "studio" },
     ])
     .returning({ id: gosini.id });
   ugo = born[0]?.id ?? "";

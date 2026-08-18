@@ -5,7 +5,7 @@ import {
   createDbClient,
   type DbClient,
   gosini,
-  households,
+  accounts,
   runMigrations,
 } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
@@ -19,7 +19,7 @@ import { buildServer } from "../../src/server.js";
 /**
  * Una correzione è **per una creatura** (ADR-058).
  *
- * `POST /v1/corrections` scriveva sempre su `eldestExemplarOf(householdId)`, e
+ * `POST /v1/corrections` scriveva sempre su `eldestExemplarOf(accountId)`, e
  * non era un ripiego innocuo: `corrections` è per esemplare e finisce nel
  * prompt di quella creatura — «ti hanno detto che parli troppo forte». Con due
  * gosini in casa, dire a Silvio che urla correggeva Ugo: Silvio continuava a
@@ -47,22 +47,22 @@ beforeAll(async () => {
   db = createDbClient(pg.url);
 
   const [born] = await db
-    .insert(households)
+    .insert(accounts)
     .values({ slug: "casa-due", name: "Due" })
-    .returning({ id: households.id });
+    .returning({ id: accounts.id });
   house = born?.id ?? "";
   const family = await db
     .insert(gosini)
     .values([
-      { householdId: house, name: "ugo", bornAt: new Date("2026-01-01") },
-      { householdId: house, name: "silvio", bornAt: new Date("2026-06-01") },
+      { accountId: house, name: "ugo", bornAt: new Date("2026-01-01") },
+      { accountId: house, name: "silvio", bornAt: new Date("2026-06-01") },
     ])
     .returning({ id: gosini.id, name: gosini.name });
   ugo = family.find((g) => g.name === "ugo")?.id ?? "";
   silvio = family.find((g) => g.name === "silvio")?.id ?? "";
   const [person] = await db
     .insert(beings)
-    .values({ householdId: house, displayName: "Marco" })
+    .values({ accountId: house, displayName: "Marco" })
     .returning({ id: beings.id });
   marco = person?.id ?? "";
 
@@ -84,7 +84,7 @@ beforeAll(async () => {
     },
   });
   await app.ready();
-  token = (await issueToken(db, { householdId: house, role: "owner", label: "prova" })).token;
+  token = (await issueToken(db, { accountId: house, role: "owner", label: "prova" })).token;
 }, 180_000);
 
 afterAll(async () => {
@@ -138,15 +138,15 @@ describe("una casa con un esemplare solo", () => {
    */
   it("does not ask a question that has only one answer", async () => {
     const [alone] = await db
-      .insert(households)
+      .insert(accounts)
       .values({ slug: "casa-sola", name: "Sola" })
-      .returning({ id: households.id });
+      .returning({ id: accounts.id });
     const only = await db
       .insert(gosini)
-      .values({ householdId: alone?.id ?? "", name: "solo" })
+      .values({ accountId: alone?.id ?? "", name: "solo" })
       .returning({ id: gosini.id });
     const soloToken = (
-      await issueToken(db, { householdId: alone?.id ?? "", role: "owner", label: "sola" })
+      await issueToken(db, { accountId: alone?.id ?? "", role: "owner", label: "sola" })
     ).token;
 
     const response = await app.inject({

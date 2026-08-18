@@ -16,9 +16,9 @@ import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  createHousehold,
-  createHouseholdWithFounder,
-} from "../../src/services/householdService.js";
+  createAccount,
+  createAccountWithFounder,
+} from "../../src/services/accountService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -56,25 +56,25 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const giver = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const giver = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "studio-donatore",
     name: "Donatore",
     gosinoName: "Maestro",
   });
-  giverHouse = giver.householdId;
+  giverHouse = giver.accountId;
   giverToken = giver.ownerToken;
   who = giver.gosinoId;
 
-  const school = await createHousehold(db, MASTER_KEY, { slug: "scuola", name: "Scuola" });
+  const school = await createAccount(db, MASTER_KEY, { slug: "scuola", name: "Scuola" });
   schoolToken = school.ownerToken;
 
   const [owner] = await db
     .insert(beings)
-    .values({ householdId: giverHouse, displayName: "Il proprietario", species: "human" })
+    .values({ accountId: giverHouse, displayName: "Il proprietario", species: "human" })
     .returning({ id: beings.id });
   const [ivan] = await db
     .insert(beings)
-    .values({ householdId: giverHouse, displayName: "Ivan", species: "human", aliases: ["Ivanov"] })
+    .values({ accountId: giverHouse, displayName: "Ivan", species: "human", aliases: ["Ivanov"] })
     .returning({ id: beings.id });
   ownerBeingId = owner?.id ?? "";
   ivanBeingId = ivan?.id ?? "";
@@ -91,7 +91,7 @@ beforeAll(async () => {
     if (row !== undefined && about !== undefined) {
       await db
         .insert(memoryBeings)
-        .values({ householdId: giverHouse, memoryId: row.id, beingId: about });
+        .values({ accountId: giverHouse, memoryId: row.id, beingId: about });
     }
   };
 

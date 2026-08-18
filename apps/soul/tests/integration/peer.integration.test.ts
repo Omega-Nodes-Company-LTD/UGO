@@ -32,8 +32,8 @@ let peerRossi: PeerService;
 let peerBianchi: PeerService;
 
 /** what PeerService asks for: the house it acts on behalf of, and which exemplar */
-const scope = (house: TestHouse): { householdId: string; gosinoId: string } => ({
-  householdId: house.id,
+const scope = (house: TestHouse): { accountId: string; gosinoId: string } => ({
+  accountId: house.id,
   gosinoId: house.gosinoId,
 });
 
@@ -97,13 +97,13 @@ describe("after the owners introduce them", () => {
     expect(met.eventType).toBe("peer_met");
 
     const [visitor] = await db
-      .select({ species: beings.species, kind: beings.kind, householdId: beings.householdId })
+      .select({ species: beings.species, kind: beings.kind, accountId: beings.accountId })
       .from(beings)
       .where(eq(beings.id, met.beingId));
     expect(visitor?.species).toBe("gosino");
     expect(visitor?.kind).toBe("visitor");
     // it lives in OUR house: it is our perception of them, not their data
-    expect(visitor?.householdId).toBe(rossi.id);
+    expect(visitor?.accountId).toBe(rossi.id);
   });
 
   it("recognizes them the next time, and the bond grows", async () => {
@@ -142,7 +142,7 @@ describe("after the owners introduce them", () => {
       .select({ payload: recognitionProfiles.payload, model: recognitionProfiles.model })
       .from(recognitionProfiles)
       .innerJoin(beings, eq(beings.id, recognitionProfiles.beingId))
-      .where(and(eq(beings.householdId, rossi.id), eq(beings.species, "gosino")));
+      .where(and(eq(beings.accountId, rossi.id), eq(beings.species, "gosino")));
     const theirs = await peerBianchi.keysFor(bianchi.gosinoId);
     expect(profile?.model).toBe("peer-rotation-v1");
     expect(profile?.payload.equals(theirs.rotationSecret)).toBe(false);
@@ -174,7 +174,7 @@ describe("forgetting", () => {
     const [visitor] = await db
       .select({ id: beings.id })
       .from(beings)
-      .where(and(eq(beings.householdId, rossi.id), eq(beings.species, "gosino")));
+      .where(and(eq(beings.accountId, rossi.id), eq(beings.species, "gosino")));
     if (visitor === undefined) throw new Error("there should be a visitor to forget");
 
     expect(await peerRossi.forget(visitor.id)).toBe(true);
@@ -188,7 +188,7 @@ describe("forgetting", () => {
 });
 
 describe("the neighbours cannot read what we wrote about them", () => {
-  it("refuses our stored secret to the other household's key", async () => {
+  it("refuses our stored secret to the other account's key", async () => {
     const card = await peerBianchi.introductionCard(bianchi.gosinoId, "curioso");
     const met = await peerRossi.accept({ ...scope(rossi), card });
     if (met === undefined) throw new Error("should be accepted");
@@ -197,7 +197,7 @@ describe("the neighbours cannot read what we wrote about them", () => {
     const impostor = new PeerService(db, bianchiKey);
     await expect(
       impostor.sighting({
-        householdId: rossi.id,
+        accountId: rossi.id,
         gosinoId: rossi.gosinoId,
         seen: advertise((await peerBianchi.keysFor(bianchi.gosinoId)).rotationSecret, Date.now()),
       }),

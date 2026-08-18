@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { beings } from "./beings.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 
 /**
  * Le liste (ADR-076): la spesa, le cose da fare, la ferramenta.
@@ -23,7 +23,7 @@ export const listItems = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     list: text("list").notNull(),
     /** cifrato a riposo come i ricordi: «cosa compra» è un fatto di famiglia */
     text: text("text").notNull(),
@@ -32,5 +32,5 @@ export const listItems = pgTable(
     at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
     doneAt: timestamp("done_at", { withTimezone: true }),
   },
-  (table) => [index("list_items_household_list_idx").on(table.householdId, table.list)],
+  (table) => [index("list_items_account_list_idx").on(table.accountId, table.list)],
 );

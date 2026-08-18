@@ -1,4 +1,4 @@
-import { gosini, households, psycheBaselines, traitSets, type DbClient } from "@ugo/db";
+import { gosini, accounts, psycheBaselines, traitSets, type DbClient } from "@ugo/db";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { lifeAt } from "@ugo/psyche";
 import type { SpeciesMap } from "@ugo/shared";
@@ -28,7 +28,7 @@ import { VolitionService } from "../volition/volitionService.js";
  * Now each one gets his own, and the registry is what a socket asks when it
  * says which of them it wants to be.
  *
- * What is deliberately NOT per exemplar: the household. The pack, the data
+ * What is deliberately NOT per exemplar: the account. The pack, the data
  * key, the budget and the clock belong to the house (ADR-019), and two
  * creatures under one roof must agree about who lives there.
  *
@@ -43,7 +43,7 @@ import { VolitionService } from "../volition/volitionService.js";
 export interface GosinoRuntime {
   readonly id: string;
   /** the house this creature lives in (ADR-019): never crossed, only filtered */
-  readonly householdId: string;
+  readonly accountId: string;
   /** mutable: a rename or a move must not cost him his living psyche (ADR-036) */
   name: string;
   /** "cucina", "studio" — the room whose device shows him (ADR-036) */
@@ -84,7 +84,7 @@ export interface RuntimeDeps {
    * process wrote every row against the seeded house — so a second family's
    * conversation drained the first one's day and its ceiling was never read.
    */
-  llm: (householdId: string, gosinoId: string, clock: HouseClock) => LlmClient;
+  llm: (accountId: string, gosinoId: string, clock: HouseClock) => LlmClient;
   local: LocalTextClient;
   dataKey: Buffer;
   /**
@@ -109,7 +109,7 @@ export interface RuntimeDeps {
    * i profili biometrici sono per casa, e un riconoscitore costruito una volta
    * confronterebbe la voce di una famiglia coi centroidi di un'altra.
    */
-  recognition?: (householdId: string) => {
+  recognition?: (accountId: string) => {
     byVoice: (audioBase64: string) => Promise<{ beingId?: string | undefined } | undefined>;
     /** ADR-065: la lettura su gesto — tesseract sullo stesso servizio */
     ocr: (imageBase64: string) => Promise<string | undefined>;
@@ -154,7 +154,7 @@ async function buildRuntime(
   deps: RuntimeDeps,
   row: {
     id: string;
-    householdId: string;
+    accountId: string;
     name: string;
     where: string | null;
     mortalFrom?: Date | null;
@@ -162,9 +162,9 @@ async function buildRuntime(
   },
 ): Promise<GosinoRuntime> {
   const [house] = await deps.db
-    .select({ timezone: households.timezone, locale: households.locale })
-    .from(households)
-    .where(eq(households.id, row.householdId));
+    .select({ timezone: accounts.timezone, locale: accounts.locale })
+    .from(accounts)
+    .where(eq(accounts.id, row.accountId));
   const timezone = house?.timezone ?? deps.timezone;
   const locale = house?.locale ?? DEFAULT_LOCALE;
 
@@ -199,7 +199,7 @@ async function buildRuntime(
   // prima di `restore()`, o la prima vita partirebbe comunque neutra.
   await seedBaselines(deps.db, row.id, character.baselines);
   const psyche = await PsycheService.restore(deps.db, new Date(), row.id);
-  const recognition = deps.recognition?.(row.householdId);
+  const recognition = deps.recognition?.(row.accountId);
   const nudges = deps.nudges;
   // ADR-065: il lettore ha bisogno del gateway, che nasce DOPO la chat (il
   // gateway ha bisogno della chat). La scatola scioglie il cerchio: la chat
@@ -208,16 +208,16 @@ async function buildRuntime(
   const chat = new ChatService({
     db: deps.db,
     embedder: deps.embedder,
-    llm: deps.llm(row.householdId, row.id, { timezone, locale }),
+    llm: deps.llm(row.accountId, row.id, { timezone, locale }),
     psyche,
     dataKey: deps.dataKey,
     timezone,
     locale,
     gosinoId: row.id,
-    householdId: row.householdId,
+    accountId: row.accountId,
     character,
     ...(deps.speciesMap !== undefined && {
-      pack: new PackService(deps.db, deps.speciesMap, row.id, row.householdId),
+      pack: new PackService(deps.db, deps.speciesMap, row.id, row.accountId),
     }),
     ...(deps.web !== undefined && { web: deps.web }),
     // ADR-088: la storia della buonanotte la scrive il modello di casa, lo
@@ -241,7 +241,7 @@ async function buildRuntime(
   const reward = new RewardService({
     db: deps.db,
     gosinoId: row.id,
-    householdId: row.householdId,
+    accountId: row.accountId,
     efficacy,
   });
   const gateway = new FaceGateway({
@@ -255,7 +255,7 @@ async function buildRuntime(
     // controlli a monte dentro — minore e opt-out si rifiutano PRIMA del bucket
     ...(audio !== undefined && {
       voiceSample: (input: { beingId: string; audio: Buffer }) =>
-        storeVoiceSample({ db: deps.db, storage: audio }, { householdId: row.householdId, ...input }),
+        storeVoiceSample({ db: deps.db, storage: audio }, { accountId: row.accountId, ...input }),
     }),
   });
   body.gateway = gateway;
@@ -280,7 +280,7 @@ async function buildRuntime(
 
   return {
     id: row.id,
-    householdId: row.householdId,
+    accountId: row.accountId,
     name: row.name,
     where: row.where ?? undefined,
     character,
@@ -309,7 +309,7 @@ export class GosinoRegistry {
     const rows = await this.deps.db
       .select({
         id: gosini.id,
-        householdId: gosini.householdId,
+        accountId: gosini.accountId,
         name: gosini.name,
         where: gosini.locationLabel,
         mortalFrom: gosini.mortalFrom,
@@ -344,8 +344,8 @@ export class GosinoRegistry {
   }
 
   /** The creatures of one house — what every route and every socket wants. */
-  public all(householdId: string): GosinoRuntime[] {
-    return this.everywhere().filter((runtime) => runtime.householdId === householdId);
+  public all(accountId: string): GosinoRuntime[] {
+    return this.everywhere().filter((runtime) => runtime.accountId === accountId);
   }
 
   /**
@@ -360,17 +360,17 @@ export class GosinoRegistry {
    * showing the wrong creature is worse than showing an empty room, which at
    * least tells the truth about what is there.
    */
-  public inRoom(room: string, householdId: string): GosinoRuntime[] {
+  public inRoom(room: string, accountId: string): GosinoRuntime[] {
     const wanted = room.trim().toLowerCase();
-    return this.all(householdId).filter(
+    return this.all(accountId).filter(
       (runtime) => runtime.where?.trim().toLowerCase() === wanted,
     );
   }
 
   /** The rooms that have somebody in them, in the order they were settled. */
-  public rooms(householdId: string): { room: string; gosini: GosinoRuntime[] }[] {
+  public rooms(accountId: string): { room: string; gosini: GosinoRuntime[] }[] {
     const byRoom = new Map<string, GosinoRuntime[]>();
-    for (const runtime of this.all(householdId)) {
+    for (const runtime of this.all(accountId)) {
       const room = runtime.where?.trim();
       if (room === undefined || room === "") continue;
       const key = room.toLowerCase();
@@ -388,8 +388,8 @@ export class GosinoRegistry {
    * to the default rather than refusing to show anything: a mistyped query
    * string must not leave a dock with a blank screen.
    */
-  public resolve(query: string | undefined, householdId: string): GosinoRuntime | undefined {
-    const here = this.all(householdId);
+  public resolve(query: string | undefined, accountId: string): GosinoRuntime | undefined {
+    const here = this.all(accountId);
     if (query !== undefined && query !== "") {
       const wanted = query.trim().toLowerCase();
       const found = here.find(

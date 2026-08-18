@@ -77,7 +77,7 @@ export function recognize(rotationSecret: Buffer, seen: Pseudonym, atMs: number)
 
 /** Everything a gosino tells another. Nothing here belongs to the family. */
 export interface GreetingCard {
-  /** the creature's name, not the household's: "ugo-studio" */
+  /** the creature's name, not the account's: "ugo-studio" */
   name: string;
   generation: number;
   /** one word, not the six numbers of the psyche */

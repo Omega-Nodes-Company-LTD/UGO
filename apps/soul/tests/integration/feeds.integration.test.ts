@@ -4,7 +4,7 @@ import {
   createDbClient,
   type DbClient,
   feedItems,
-  households,
+  accounts,
   rssFeeds,
   runMigrations,
 } from "@ugo/db";
@@ -31,9 +31,9 @@ let tokenB = "";
 
 async function born(slug: string): Promise<string> {
   const [row] = await db
-    .insert(households)
+    .insert(accounts)
     .values({ slug, name: slug })
-    .returning({ id: households.id });
+    .returning({ id: accounts.id });
   return row?.id ?? "";
 }
 
@@ -51,8 +51,8 @@ beforeAll(async () => {
     logger: false,
     features: { chat: undefined as never, psyche: undefined as never },
   });
-  tokenA = (await issueToken(db, { householdId: houseA, role: "owner", label: "prova" })).token;
-  tokenB = (await issueToken(db, { householdId: houseB, role: "owner", label: "prova" })).token;
+  tokenA = (await issueToken(db, { accountId: houseA, role: "owner", label: "prova" })).token;
+  tokenB = (await issueToken(db, { accountId: houseB, role: "owner", label: "prova" })).token;
 }, 180_000);
 
 afterAll(async () => {
@@ -104,7 +104,7 @@ describe("i feed della casa", () => {
     const [mine] = await db
       .select({ id: rssFeeds.id })
       .from(rssFeeds)
-      .where(eq(rssFeeds.householdId, houseA));
+      .where(eq(rssFeeds.accountId, houseA));
     if (mine === undefined) throw new Error("no feed");
 
     const listed = await app.inject({ method: "GET", url: "/v1/feeds", headers: asOwner(tokenB) });
@@ -130,10 +130,10 @@ describe("i feed della casa", () => {
     const [mine] = await db
       .select({ id: rssFeeds.id })
       .from(rssFeeds)
-      .where(eq(rssFeeds.householdId, houseA));
+      .where(eq(rssFeeds.accountId, houseA));
     if (mine === undefined) throw new Error("no feed");
     await db.insert(feedItems).values({
-      householdId: houseA,
+      accountId: houseA,
       feedId: mine.id,
       guid: "x-1",
       title: "Una novità",

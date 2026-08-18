@@ -5,7 +5,7 @@ import {
   type DbClient,
   events,
   gosini,
-  households,
+  accounts,
   placedProps,
   propStock,
   rooms,
@@ -94,20 +94,20 @@ beforeAll(async () => {
   db = createDbClient(pg.url);
 
   const [born] = await db
-    .insert(households)
+    .insert(accounts)
     .values({ slug: "casa-arredi", name: "Arredi" })
-    .returning({ id: households.id });
+    .returning({ id: accounts.id });
   house = born?.id ?? "";
   const [creature] = await db
     .insert(gosini)
-    .values({ householdId: house, name: "ugo", locationLabel: "cucina" })
+    .values({ accountId: house, name: "ugo", locationLabel: "cucina" })
     .returning({ id: gosini.id });
-  await db.insert(rooms).values({ householdId: house, name: "Cucina", slug: "cucina" });
+  await db.insert(rooms).values({ accountId: house, name: "Cucina", slug: "cucina" });
 
   const psyche = await PsycheService.restore(db, new Date(), creature?.id ?? "");
   const chat = new ChatService({
     gosinoId: creature?.id ?? "",
-    householdId: house,
+    accountId: house,
     character: characterFrom({}),
     db,
     // le rotte sotto test non li sfiorano; se un giorno lo faranno, questo
@@ -129,7 +129,7 @@ beforeAll(async () => {
   const address = app.server.address();
   if (address === null || typeof address === "string") throw new Error("no address");
   url = `ws://127.0.0.1:${String(address.port)}/v1/face`;
-  token = (await issueToken(db, { householdId: house, role: "owner", label: "prova" })).token;
+  token = (await issueToken(db, { accountId: house, role: "owner", label: "prova" })).token;
 }, 180_000);
 
 afterAll(async () => {
@@ -167,14 +167,14 @@ describe("gli arredi sul filo", () => {
 
 describe("le scorte", () => {
   it("counts down, and refuses when the house has run out", async () => {
-    await db.insert(propStock).values({ householdId: house, kind: "ball", remaining: 1 });
+    await db.insert(propStock).values({ accountId: house, kind: "ball", remaining: 1 });
 
     const first = await post("/v1/props?stanza=cucina", { kind: "ball", x: 0, z: 0 });
     expect(first.statusCode).toBe(201);
     const [after] = await db
       .select({ remaining: propStock.remaining })
       .from(propStock)
-      .where(and(eq(propStock.householdId, house), eq(propStock.kind, "ball")));
+      .where(and(eq(propStock.accountId, house), eq(propStock.kind, "ball")));
     expect(after?.remaining).toBe(0);
 
     const second = await post("/v1/props?stanza=cucina", { kind: "ball", x: 0.1, z: 0.1 });
@@ -183,7 +183,7 @@ describe("le scorte", () => {
     const balls = await db
       .select({ id: placedProps.id })
       .from(placedProps)
-      .where(and(eq(placedProps.householdId, house), eq(placedProps.kind, "ball")));
+      .where(and(eq(placedProps.accountId, house), eq(placedProps.kind, "ball")));
     expect(balls).toHaveLength(1);
   });
 
@@ -196,7 +196,7 @@ describe("le scorte", () => {
     const [ball] = await db
       .select({ id: placedProps.id })
       .from(placedProps)
-      .where(and(eq(placedProps.householdId, house), eq(placedProps.kind, "ball")));
+      .where(and(eq(placedProps.accountId, house), eq(placedProps.kind, "ball")));
     const gone = await app.inject({
       method: "DELETE",
       url: `/v1/props/${ball?.id ?? ""}?stanza=cucina`,
@@ -206,7 +206,7 @@ describe("le scorte", () => {
     const [back] = await db
       .select({ remaining: propStock.remaining })
       .from(propStock)
-      .where(and(eq(propStock.householdId, house), eq(propStock.kind, "ball")));
+      .where(and(eq(propStock.accountId, house), eq(propStock.kind, "ball")));
     expect(back?.remaining).toBe(1);
   });
 

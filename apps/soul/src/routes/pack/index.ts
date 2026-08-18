@@ -16,8 +16,8 @@ export type { PackRouteDeps } from "./shared.js";
  * `PRIME_GOSINO_ID` for everybody, so every house wrote into the first one.
  */
 export function registerPackRoutes(app: FastifyInstance, deps: PackRouteDeps): void {
-  const serviceFor = (householdId: string): BeingsService =>
-    new BeingsService(deps.db, householdId);
+  const serviceFor = (accountId: string): BeingsService =>
+    new BeingsService(deps.db, accountId);
   registerBeingRoutes(app, deps, serviceFor);
   registerSocialRoutes(app, deps, serviceFor);
 }

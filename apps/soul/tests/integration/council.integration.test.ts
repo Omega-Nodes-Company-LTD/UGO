@@ -3,8 +3,8 @@ import {
   createDbClient,
   type DbClient,
   gosini,
-  households,
-  PRIME_HOUSEHOLD_ID,
+  accounts,
+  PRIME_ACCOUNT_ID,
   psycheSnapshots,
   runMigrations,
   traitSets,
@@ -26,7 +26,7 @@ import { CouncilService } from "../../src/services/council/councilService.js";
 
 let pg: StartedPostgreSqlContainer;
 let db: DbClient;
-let householdId: string;
+let accountId: string;
 
 /** Remembers every prompt it was asked, and answers with a canned line. */
 function recorder(answers: Record<string, string | undefined>): {
@@ -50,12 +50,12 @@ function recorder(answers: Record<string, string | undefined>): {
 async function born(name: string, archetype: keyof typeof ARCHETYPES, where: string): Promise<string> {
   const rows = await db
     .insert(gosini)
-    .values({ householdId, name, locationLabel: where })
+    .values({ accountId, name, locationLabel: where })
     .returning({ id: gosini.id });
   const id = rows[0]?.id;
   if (id === undefined) throw new Error("not created");
   await db.insert(traitSets).values({
-   householdId: PRIME_HOUSEHOLD_ID,
+   accountId: PRIME_ACCOUNT_ID,
     gosinoId: id,
     version: 1,
     traits: characterFrom(ARCHETYPES[archetype]).traits,
@@ -68,10 +68,10 @@ beforeAll(async () => {
   const url = pg.getConnectionUri();
   await runMigrations(url);
   db = createDbClient(url);
-  const houses = await db.select({ id: households.id }).from(households).limit(1);
+  const houses = await db.select({ id: accounts.id }).from(accounts).limit(1);
   const first = houses[0]?.id;
-  if (first === undefined) throw new Error("the migrations seed one household");
-  householdId = first;
+  if (first === undefined) throw new Error("the migrations seed one account");
+  accountId = first;
   await db.execute(sql`delete from trait_sets`);
 }, 240_000);
 
@@ -94,7 +94,7 @@ describe("the council", () => {
       Ugo: "Andiamo subito, dai!",
       Nino: "Mah. Si sta bene anche qui.",
     });
-    const result = await new CouncilService({ db, local: client }).deliberate("Usciamo?", householdId);
+    const result = await new CouncilService({ db, local: client }).deliberate("Usciamo?", accountId);
 
     expect(result.voices.map((v) => v.name).sort()).toEqual(["Nino", "Ugo"]);
     expect(result.voices.find((v) => v.name === "Ugo")?.where).toBe("cucina");
@@ -115,7 +115,7 @@ describe("the council", () => {
 
   it("holds the first round blind: nobody sees another answer before speaking", async () => {
     const { client, prompts } = recorder({ Ugo: "Sì", Nino: "No" });
-    await new CouncilService({ db, local: client }).deliberate("Piove?", householdId);
+    await new CouncilService({ db, local: client }).deliberate("Piove?", accountId);
     for (const prompt of prompts.slice(0, 2)) {
       expect(prompt).not.toContain("Gli altri hanno detto");
     }
@@ -126,7 +126,7 @@ describe("the council", () => {
       Ugo: "Il fango è la cosa migliore del mondo.",
       Nino: "Il fango è sopravvalutato.",
     });
-    const result = await new CouncilService({ db, local: client }).deliberate("Meglio il fango?", householdId);
+    const result = await new CouncilService({ db, local: client }).deliberate("Meglio il fango?", accountId);
 
     const second = prompts.filter((p) => p.includes("Gli altri hanno detto"));
     expect(second).toHaveLength(2);
@@ -140,7 +140,7 @@ describe("the council", () => {
 
   it("leaves out whoever had nothing usable to say, instead of inventing for him", async () => {
     const { client } = recorder({ Ugo: "Direi di sì.", Nino: undefined });
-    const result = await new CouncilService({ db, local: client }).deliberate("Tutto bene?", householdId);
+    const result = await new CouncilService({ db, local: client }).deliberate("Tutto bene?", accountId);
     expect(result.voices.map((v) => v.name)).toEqual(["Ugo"]);
     // and with a single voice there is nothing to deliberate about
     expect(result.changedMind).toBe(false);

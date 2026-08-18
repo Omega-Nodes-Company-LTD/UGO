@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { createDbClient, gosini, households, runMigrations, traitSets } from "@ugo/db";
+import { createDbClient, gosini, accounts, runMigrations, traitSets } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { LlmClient, OllamaEmbeddingsClient,
@@ -38,7 +38,7 @@ import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
 import { buildServer } from "./server.js";
-import { createHousehold } from "./services/householdService.js";
+import { createAccount } from "./services/accountService.js";
 import type { Capability } from "./routes/capabilities.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -90,16 +90,16 @@ const db = createDbClient(env.DATABASE_URL);
  * `order by`, so with two families which one you got depended on the plan.
  */
 const [bootstrapHouse] = await db
-  .select({ id: households.id })
-  .from(households)
-  .orderBy(asc(households.createdAt))
+  .select({ id: accounts.id })
+  .from(accounts)
+  .orderBy(asc(accounts.createdAt))
   .limit(1);
-if (bootstrapHouse === undefined) throw new Error("no household: run the migrations");
-const bootstrapHouseholdId = bootstrapHouse.id;
+if (bootstrapHouse === undefined) throw new Error("no account: run the migrations");
+const bootstrapAccountId = bootstrapHouse.id;
 const [bootstrapExemplar] = await db
   .select({ id: gosini.id })
   .from(gosini)
-  .where(eq(gosini.householdId, bootstrapHouseholdId))
+  .where(eq(gosini.accountId, bootstrapAccountId))
   .orderBy(asc(gosini.bornAt))
   .limit(1);
 if (bootstrapExemplar === undefined) throw new Error("no exemplar: run the migrations");
@@ -107,7 +107,7 @@ const psyche = await PsycheService.restore(db, new Date(), bootstrapExemplar.id)
 // ADR-050: l'orologio e la lingua arrivano dalla CASA. `env.TZ` resta il
 // ripiego per l'apparato di avvio, che nasce prima che una casa sia risolta.
 const llmFor = (
-  householdId: string,
+  accountId: string,
   gosinoId: string,
   clock: HouseClock = { timezone: env.TZ, locale: DEFAULT_LOCALE },
 ): LlmClient =>
@@ -116,7 +116,7 @@ const llmFor = (
     apiKey: env.ANTHROPIC_API_KEY,
     model: env.UGO_CHAT_MODEL,
     dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
-    householdId,
+    accountId,
     gosinoId,
     ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
     timezone: clock.timezone,
@@ -136,7 +136,7 @@ const web =
       });
 
 
-const pack = new PackService(db, speciesMap, bootstrapExemplar.id, bootstrapHouseholdId);
+const pack = new PackService(db, speciesMap, bootstrapExemplar.id, bootstrapAccountId);
 // ADR-031: anche l'apparato di ripiego ha un carattere. Senza genoma in
 // `trait_sets` `characterFrom({})` risponde «un UGO senza spigoli», che e' la
 // verita' su una casa che non ha ancora scelto niente — non un valore neutro
@@ -148,7 +148,7 @@ const [bootstrapTraits] = await db
   .orderBy(desc(traitSets.version))
   .limit(1);
 const bootstrapCharacter = characterFrom(bootstrapTraits?.traits);
-const llm = llmFor(bootstrapHouseholdId, bootstrapExemplar.id);
+const llm = llmFor(bootstrapAccountId, bootstrapExemplar.id);
 // ADR-065: la lettura su gesto anche per l'apparato di avvio — la rotta
 // /v1/chat parla con QUESTA istanza, e «leggi» dalla PWA deve funzionare
 // come dal chiosco. `() => face` perché il gateway nasce più sotto.
@@ -158,7 +158,7 @@ const bootstrapPercezione =
     : new RecognitionClient({
         baseUrl: env.UGO_RECOGNITION_URL,
         token: env.UGO_INTERNAL_TOKEN,
-        householdId: bootstrapHouseholdId,
+        accountId: bootstrapAccountId,
       });
 // gruppo 12: gli occhi che raccontano — il modello vision locale, se c'è
 const localVision =
@@ -181,7 +181,7 @@ const chat: ChatService = new ChatService({
   dataKey: parseDataKey(env.UGO_DATA_KEY),
   pack,
   gosinoId: bootstrapExemplar.id,
-  householdId: bootstrapHouseholdId,
+  accountId: bootstrapAccountId,
   character: bootstrapCharacter,
   ...(web !== undefined && { web }),
   ...(bootstrapPercezione !== undefined && {
@@ -213,7 +213,7 @@ const face: FaceGateway = new FaceGateway({
   // finestra la controlla il gateway, il deposito è lo stesso del pannello
   ...(audio !== undefined && {
     voiceSample: (input: { beingId: string; audio: Buffer }) =>
-      storeVoiceSample({ db, storage: audio }, { householdId: bootstrapHouseholdId, ...input }),
+      storeVoiceSample({ db, storage: audio }, { accountId: bootstrapAccountId, ...input }),
   }),
 });
 const dataKey = parseDataKey(env.UGO_DATA_KEY);
@@ -227,7 +227,7 @@ const meetings =
     ? new MeetingsService({
         db,
         gosinoId: bootstrapExemplar.id,
-        householdId: bootstrapHouseholdId,
+        accountId: bootstrapAccountId,
         embedder,
         llm,
         dataKey,
@@ -292,11 +292,11 @@ const recognitionToken = env.UGO_INTERNAL_TOKEN;
 const recognition =
   recognitionUrl === undefined || recognitionToken === undefined
     ? undefined
-    : (householdId: string): RecognitionClient =>
+    : (accountId: string): RecognitionClient =>
         new RecognitionClient({
           baseUrl: recognitionUrl,
           token: recognitionToken,
-          householdId,
+          accountId,
         });
 
 const registry = await GosinoRegistry.load({
@@ -400,7 +400,7 @@ const app = buildServer({
   // «una persona può avere più case e più negozi» finché crearne una vuol dire
   // entrare nel container è una promessa scritta e non una funzione
   createHouse: (input) =>
-    createHousehold(db, parseDataKey(env.UGO_DATA_KEY), {
+    createAccount(db, parseDataKey(env.UGO_DATA_KEY), {
       slug: input.slug,
       name: input.name,
       ...(input.timezone !== undefined && { timezone: input.timezone }),
@@ -589,7 +589,7 @@ const volitionTimer = setInterval(() => {
         rumination
           .maybe(
             runtime,
-            registry.all(runtime.householdId).filter((mate) => mate.id !== runtime.id),
+            registry.all(runtime.accountId).filter((mate) => mate.id !== runtime.id),
           )
           .then((report) => {
             // IDs only, never the words he thought (rule 6)

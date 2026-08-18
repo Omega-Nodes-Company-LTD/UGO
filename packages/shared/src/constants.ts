@@ -82,7 +82,7 @@ export type BeingKind = (typeof BEING_KINDS)[number];
 
 /**
  * Who a token speaks for (ADR-019). Three, deliberately: `owner` runs their
- * own household, `member` lives in it, `operator` runs the server and spans
+ * own account, `member` lives in it, `operator` runs the server and spans
  * the neighbourhood. A fourth role would be a permission, not a role.
  */
 export const ACCESS_ROLES = ["owner", "member", "operator"] as const;

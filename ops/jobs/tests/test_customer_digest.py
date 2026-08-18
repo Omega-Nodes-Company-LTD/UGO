@@ -27,29 +27,29 @@ def conn(pg_url: str):  # noqa: ANN201
 KEY = parse_data_key(TEST_DATA_KEY)
 
 
-def make_customer(conn: psycopg.Connection, household_id: str, slug: str) -> str:
+def make_customer(conn: psycopg.Connection, account_id: str, slug: str) -> str:
     return str(
         conn.execute(
-            "insert into customers (household_id, name, slug) values (%s, %s, %s) returning id",
-            (household_id, slug, slug),
+            "insert into customers (account_id, name, slug) values (%s, %s, %s) returning id",
+            (account_id, slug, slug),
         ).fetchone()[0]
     )
 
 
 def make_ticket(
-    conn: psycopg.Connection, household_id: str, customer_id: str, title: str, status: str = "open"
+    conn: psycopg.Connection, account_id: str, customer_id: str, title: str, status: str = "open"
 ) -> None:
     gosino = conn.execute(
-        "insert into gosini (household_id, name) values (%s, %s) returning id",
-        (household_id, f"g-{uuid4().hex[:6]}"),
+        "insert into gosini (account_id, name) values (%s, %s) returning id",
+        (account_id, f"g-{uuid4().hex[:6]}"),
     ).fetchone()[0]
     conn.execute(
         """
-        insert into tickets (household_id, customer_id, gosino_id, title, body, status)
+        insert into tickets (account_id, customer_id, gosino_id, title, body, status)
         values (%s, %s, %s, %s, %s, %s)
         """,
         (
-            household_id,
+            account_id,
             customer_id,
             gosino,
             encrypt_text(title, KEY),
@@ -75,14 +75,14 @@ def test_la_fotografia_nasce_cifrata_e_racconta_il_cliente(
     make_ticket(conn, house, customer, "Ticket già chiuso", "closed")
     conn.execute(
         """
-        insert into customer_repos (household_id, customer_id, remote_url, last_commit_sha, status)
+        insert into customer_repos (account_id, customer_id, remote_url, last_commit_sha, status)
         values (%s, %s, 'https://github.com/studio/negozio.git', 'abc1234def', 'ok')
         """,
         (house, customer),
     )
     conn.commit()
 
-    report = run_digest(conn, db_only_config(pg_url, household_id=house))
+    report = run_digest(conn, db_only_config(pg_url, account_id=house))
     assert report == {"customers": 1}
 
     sealed, digest_at = digest_of(conn, customer)
@@ -107,7 +107,7 @@ def test_il_vicino_non_si_tocca_e_l_archiviato_nemmeno(
     conn.execute("update customers set archived_at = now() where id = %s", (gone,))
     conn.commit()
 
-    run_digest(conn, db_only_config(pg_url, household_id=mine))
+    run_digest(conn, db_only_config(pg_url, account_id=mine))
 
     assert digest_of(conn, customer)[0] is not None
     assert digest_of(conn, neighbour) == (None, None)
@@ -121,7 +121,7 @@ def test_un_cliente_senza_niente_ha_un_digest_onesto(
     customer = make_customer(conn, house, "nuovo")
     conn.commit()
 
-    run_digest(conn, db_only_config(pg_url, household_id=house))
+    run_digest(conn, db_only_config(pg_url, account_id=house))
     sealed, _ = digest_of(conn, customer)
     assert sealed is not None
     assert decrypt_text(sealed, KEY) == "Nessun ticket aperto."

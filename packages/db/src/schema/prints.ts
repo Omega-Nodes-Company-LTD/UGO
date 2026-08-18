@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 import { bytea } from "./types.js";
 
 /**
@@ -29,7 +29,7 @@ export const unknownPrints = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     /** `face` oggi; la colonna esiste perché la voce ignota è lo stesso caso */
     modality: text("modality").notNull(),
     /** quale encoder l'ha prodotta: due modelli non sono confrontabili */
@@ -49,7 +49,7 @@ export const unknownPrints = pgTable(
     askedAt: timestamp("asked_at", { withTimezone: true }),
   },
   (table) => [
-    index("unknown_prints_household_idx").on(table.householdId, table.lastSeenAt),
+    index("unknown_prints_account_idx").on(table.accountId, table.lastSeenAt),
   ],
 );
 

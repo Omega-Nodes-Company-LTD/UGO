@@ -1,4 +1,4 @@
-import { gosini, households, memories, type DbClient } from "@ugo/db";
+import { gosini, accounts, memories, type DbClient } from "@ugo/db";
 import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { DowryService } from "./dowryService.js";
 import { FarewellService } from "./farewellService.js";
@@ -58,9 +58,9 @@ export class MortalityWatch {
   public async tick(at: Date = new Date()): Promise<MortalityTickReport> {
     const report: MortalityTickReport = { noticed: 0, taught: 0, farewelled: 0 };
     const houses = await this.deps.db
-      .select({ id: households.id })
-      .from(households)
-      .where(isNull(households.closedAt));
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(isNull(accounts.closedAt));
 
     for (const house of houses) {
       for (const notice of await this.farewells.dueForNotice(house.id, at)) {
@@ -88,13 +88,13 @@ export class MortalityWatch {
    * lessicale della ricerca ibrida (ADR-022) finché il sogno non lo indicizza,
    * esattamente come il sapere di una dote adottata.
    */
-  private async teach(householdId: string): Promise<number> {
+  private async teach(accountId: string): Promise<number> {
     const dying = await this.deps.db
       .select({ id: gosini.id })
       .from(gosini)
       .where(
         and(
-          eq(gosini.householdId, householdId),
+          eq(gosini.accountId, accountId),
           isNotNull(gosini.deathNoticeAt),
           isNull(gosini.retiredAt),
         ),
@@ -108,7 +108,7 @@ export class MortalityWatch {
       .from(gosini)
       .where(
         and(
-          eq(gosini.householdId, householdId),
+          eq(gosini.accountId, accountId),
           isNull(gosini.deathNoticeAt),
           isNull(gosini.retiredAt),
         ),
@@ -121,7 +121,7 @@ export class MortalityWatch {
 
     let taught = 0;
     for (const elder of dying) {
-      const { rows } = await this.dowries.legacyOf(elder.id, householdId, {});
+      const { rows } = await this.dowries.legacyOf(elder.id, accountId, {});
       if (rows.length === 0) continue;
       // quanti gliene ha già raccontati: è il segnaposto, e rende il giro
       // ripetibile senza duplicare niente
@@ -166,8 +166,8 @@ export class MortalityWatch {
    * (ADR-075): stesso servizio, stesso ordine (prima il lascito, poi la
    * chiave), stessi test. L'unica differenza è chi preme.
    */
-  private async farewell(householdId: string, gosinoId: string, at: Date): Promise<boolean> {
-    const result = await this.farewells.farewell(householdId, gosinoId, {});
+  private async farewell(accountId: string, gosinoId: string, at: Date): Promise<boolean> {
+    const result = await this.farewells.farewell(accountId, gosinoId, {});
     if (result === undefined) return false;
     try {
       await this.deps.chain?.publish({

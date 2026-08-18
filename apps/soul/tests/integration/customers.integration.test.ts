@@ -39,8 +39,8 @@ beforeAll(async () => {
   db = createDbClient(postgres.url);
   houseA = await createHouse(db, "casa-admin-a");
   houseB = await createHouse(db, "casa-admin-b");
-  ownerA = (await issueToken(db, { householdId: houseA.id, role: "owner", label: "test" })).token;
-  ownerB = (await issueToken(db, { householdId: houseB.id, role: "owner", label: "test" })).token;
+  ownerA = (await issueToken(db, { accountId: houseA.id, role: "owner", label: "test" })).token;
+  ownerB = (await issueToken(db, { accountId: houseB.id, role: "owner", label: "test" })).token;
   app = buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
@@ -109,7 +109,7 @@ describe("the customers registry", () => {
     const anonymous = await app.inject({ method: "GET", url: "/v1/customers" });
     expect(anonymous.statusCode).toBe(401);
     const member = await issueToken(db, {
-      householdId: houseA.id,
+      accountId: houseA.id,
       role: "member",
       label: "membro",
     });
@@ -188,7 +188,7 @@ describe("the customers registry", () => {
     const [ticket] = await db
       .insert(tickets)
       .values({
-        householdId: houseA.id,
+        accountId: houseA.id,
         customerId,
         gosinoId: houseA.gosinoId,
         title: "v1:not-really-encrypted",

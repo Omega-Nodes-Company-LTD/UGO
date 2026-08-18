@@ -40,14 +40,14 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
     <div class="brand">UGO <span>pannello</span></div>
 
     <nav class="rail-group" hidden>
-      <small>Le case</small>
-      <div id="rail-case" data-testid="rail-case"></div>
+      <small>Gli account</small>
+      <div id="rail-accounts" data-testid="rail-accounts"></div>
     </nav>
 
     <nav class="rail-group">
-      <small>La casa</small>
-      <a href="#/casa" data-nav="casa">Sommario</a>
-      <a href="#/case" data-nav="case">Le case</a>
+      <small>L'account</small>
+      <a href="#/sommario" data-nav="sommario">Sommario</a>
+      <a href="#/account" data-nav="account">Gli account</a>
       <a href="#/stanze" data-nav="stanze">Le stanze</a>
       <a href="#/arredi" data-nav="arredi">Gli arredi</a>
       <a href="#/branco" data-nav="branco">Il branco</a>

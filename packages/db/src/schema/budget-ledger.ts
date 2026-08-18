@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { date, index, integer, numeric, pgTable, text, uuid } from "drizzle-orm/pg-core";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 import { gosinoId } from "./self.js";
 
 // The piggy bank (PROGETTO §6): every LLM call is recorded here by
@@ -16,7 +16,7 @@ export const budgetLedger = pgTable(
     // with two families it would have let one house's conversation drain the
     // other's daily budget. The piggy bank is the house's; `gosino_id` says
     // which exemplar spent it, so a house with two can see where the money went.
-    householdId: householdId(),
+    accountId: accountId(),
     gosinoId: gosinoId(),
     date: date("date").notNull(),
     provider: text("provider").notNull(),
@@ -30,5 +30,5 @@ export const budgetLedger = pgTable(
     tokensOut: integer("tokens_out").notNull().default(0),
     costUsd: numeric("cost_usd", { precision: 10, scale: 6 }).notNull().default("0"),
   },
-  (table) => [index("budget_ledger_household_date_idx").on(table.householdId, table.date)],
+  (table) => [index("budget_ledger_account_date_idx").on(table.accountId, table.date)],
 );

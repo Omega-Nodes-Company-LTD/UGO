@@ -6,7 +6,7 @@ import type { ExportService } from "../services/privacy/exportService.js";
 import { BeingNotFoundError, type ForgetService } from "../services/privacy/forgetService.js";
 import type { AuditLogger } from "../services/auditLog.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * Data-subject rights over HTTP (PROGETTO §7). Always behind the guard, and
@@ -52,9 +52,9 @@ export function registerDataSummaryRoute(
    * chiedere a qualcun altro. I due atti che seguono restano dove sono.
    */
   app.get("/v1/privacy/summary", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    return reply.send(await dataSummary(deps.db, householdId));
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
+    return reply.send(await dataSummary(deps.db, accountId));
   });
 }
 
@@ -69,20 +69,20 @@ export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDe
         detail: z.prettifyError(parsed.error),
       });
     }
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     // registrato **prima** dell'esito e poi corretto: una cancellazione che
     // va a meta' e solleva e' precisamente il caso che si vuole poter
     // ricostruire, e un audit scritto solo in caso di successo non lo copre
     const trail = {
       verb: "forget",
-      householdId,
+      accountId,
       actor: request.tenant,
       resourceType: "being",
       resourceId: parsed.data.beingId,
     } as const;
     try {
-      const report = await deps.forget.forgetBeing(parsed.data.beingId, householdId);
+      const report = await deps.forget.forgetBeing(parsed.data.beingId, accountId);
       await deps.audit?.record({ ...trail, outcome: "ok" });
       return await reply.send(report);
     } catch (error) {
@@ -99,18 +99,18 @@ export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDe
   });
 
   app.get("/v1/privacy/export", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    const bundle = await deps.exporter.exportAll(householdId);
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    const bundle = await deps.exporter.exportAll(accountId);
     // l'intera casa in chiaro esce dal server: se una riga sola merita di
     // durare dodici mesi, e' questa
     await deps.audit?.record({
       verb: "export",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
-      resourceType: "household",
-      resourceId: householdId,
+      resourceType: "account",
+      resourceId: accountId,
     });
     return reply
       .header("content-disposition", 'attachment; filename="ugo-export.json"')

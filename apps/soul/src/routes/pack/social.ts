@@ -3,18 +3,18 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { BeingsService } from "../../services/beingsService.js";
 import { correctionSchema, problem, relationSchema, uuidParam, type PackRouteDeps } from "./shared.js";
-import { exemplarsOf, householdScope } from "../scope.js";
+import { exemplarsOf, accountScope } from "../scope.js";
 
 /** The graph between the others, and how the pack corrects UGO (ADR-014/016). */
 export function registerSocialRoutes(
   app: FastifyInstance,
   deps: PackRouteDeps,
-  serviceFor: (householdId: string) => BeingsService,
+  serviceFor: (accountId: string) => BeingsService,
 ): void {
   app.get("/v1/relations", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    return reply.send({ relations: await serviceFor(householdId).listRelations() });
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
+    return reply.send({ relations: await serviceFor(accountId).listRelations() });
   });
 
   app.post("/v1/relations", { preHandler: deps.guard }, async (request, reply) => {
@@ -25,8 +25,8 @@ export function registerSocialRoutes(
         .type("application/problem+json")
         .send(problem("Invalid relation", 400, z.prettifyError(parsed.error)));
     }
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     const { beingA, beingB, type, strength } = parsed.data;
     if (beingA === beingB) {
       return reply
@@ -36,7 +36,7 @@ export function registerSocialRoutes(
     }
     // symmetric pairs are normalized in the service, so the caller never has
     // to know that partner_of(B,A) and partner_of(A,B) are the same fact
-    await serviceFor(householdId).link(beingA, beingB, type, strength);
+    await serviceFor(accountId).link(beingA, beingB, type, strength);
     return reply.code(201).send({ status: "linked" });
   });
 
@@ -45,9 +45,9 @@ export function registerSocialRoutes(
     if (id === undefined) {
       return reply.code(400).type("application/problem+json").send(problem("Invalid relation id", 400));
     }
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    await serviceFor(householdId).unlink(id);
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    await serviceFor(accountId).unlink(id);
     return reply.send({ status: "unlinked" });
   });
 
@@ -59,8 +59,8 @@ export function registerSocialRoutes(
         .type("application/problem+json")
         .send(problem("Invalid correction", 400, z.prettifyError(parsed.error)));
     }
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
 
     // ADR-058: **a chi** l'hai detto.
     //
@@ -71,8 +71,8 @@ export function registerSocialRoutes(
     // urlare mentre Ugo si scusava per una cosa che non aveva fatto. Nessun
     // errore, nessun log, la creatura sbagliata che cambia comportamento.
     const asked = (request.query as { gosino?: string }).gosino;
-    const who = deps.registry?.resolve(asked, householdId);
-    const family = await exemplarsOf(deps.db, householdId);
+    const who = deps.registry?.resolve(asked, accountId);
+    const family = await exemplarsOf(deps.db, accountId);
     let gosinoId: string;
     if (who !== undefined && asked !== undefined && asked !== "") {
       gosinoId = who.id;

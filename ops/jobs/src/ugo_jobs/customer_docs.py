@@ -53,7 +53,7 @@ def sync_document(conn: psycopg.Connection, cfg: JobsConfig, document: dict) -> 
         written = replace_chunks(
             conn,
             cfg,
-            household_id=str(document["household_id"]),
+            account_id=str(document["account_id"]),
             customer_id=str(document["customer_id"]),
             source_type="document",
             source_id=str(document["id"]),
@@ -73,18 +73,18 @@ def sync_document(conn: psycopg.Connection, cfg: JobsConfig, document: dict) -> 
         return {"document": str(document["id"]), "error": type(error).__name__}
 
 
-def run_docs(conn: psycopg.Connection, cfg: JobsConfig, household_id: str) -> list[dict]:
+def run_docs(conn: psycopg.Connection, cfg: JobsConfig, account_id: str) -> list[dict]:
     rows = conn.execute(
         """
-        select d.id, d.household_id, d.customer_id, d.s3_key, d.filename, d.mime
+        select d.id, d.account_id, d.customer_id, d.s3_key, d.filename, d.mime
         from customer_documents d
         join customers c on c.id = d.customer_id
-        where d.household_id = %s and c.archived_at is null and d.indexed_at is null
+        where d.account_id = %s and c.archived_at is null and d.indexed_at is null
         order by d.uploaded_at
         """,
-        (household_id,),
+        (account_id,),
     ).fetchall()
-    columns = ["id", "household_id", "customer_id", "s3_key", "filename", "mime"]
+    columns = ["id", "account_id", "customer_id", "s3_key", "filename", "mime"]
     reports = []
     for row in rows:
         document = dict(zip(columns, row, strict=True))

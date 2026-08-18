@@ -25,16 +25,16 @@ export class RoomCatalogue {
   public constructor(private readonly db: DbClient) {}
 
   /** Every room, with whoever lives in it — including the ones nobody does. */
-  public async list(householdId: string): Promise<{ id: string; room: string; gosini: Resident[] }[]> {
+  public async list(accountId: string): Promise<{ id: string; room: string; gosini: Resident[] }[]> {
     const known = await this.db
       .select({ id: rooms.id, name: rooms.name, slug: rooms.slug })
       .from(rooms)
-      .where(eq(rooms.householdId, householdId))
+      .where(eq(rooms.accountId, accountId))
       .orderBy(rooms.slug);
     const residents = await this.db
       .select({ id: gosini.id, name: gosini.name, where: gosini.locationLabel })
       .from(gosini)
-      .where(and(isNull(gosini.retiredAt), eq(gosini.householdId, householdId)));
+      .where(and(isNull(gosini.retiredAt), eq(gosini.accountId, accountId)));
 
     const byRoom = new Map<string, Resident[]>();
     for (const row of residents) {
@@ -56,13 +56,13 @@ export class RoomCatalogue {
    * "Cucina" has to store whatever the room is actually called, or the label
    * and the room drift apart by capital letter.
    */
-  public async named(householdId: string, label: string): Promise<string | undefined> {
+  public async named(accountId: string, label: string): Promise<string | undefined> {
     const slug = slugOfRoom(label);
     if (slug === "") return undefined;
     const found = await this.db
       .select({ name: rooms.name })
       .from(rooms)
-      .where(and(eq(rooms.householdId, householdId), eq(rooms.slug, slug)))
+      .where(and(eq(rooms.accountId, accountId), eq(rooms.slug, slug)))
       .limit(1);
     return found[0]?.name;
   }
@@ -75,7 +75,7 @@ export class RoomCatalogue {
    * that exists and getting it is what the owner meant.
    */
   public async create(
-    householdId: string,
+    accountId: string,
     name: string,
   ): Promise<{ id: string; room: string; created: boolean } | undefined> {
     const trimmed = name.trim();
@@ -85,14 +85,14 @@ export class RoomCatalogue {
     const existing = await this.db
       .select({ id: rooms.id, name: rooms.name })
       .from(rooms)
-      .where(and(eq(rooms.householdId, householdId), eq(rooms.slug, slug)))
+      .where(and(eq(rooms.accountId, accountId), eq(rooms.slug, slug)))
       .limit(1);
     const already = existing[0];
     if (already !== undefined) return { id: already.id, room: already.name, created: false };
 
     const created = await this.db
       .insert(rooms)
-      .values({ householdId, name: trimmed, slug })
+      .values({ accountId, name: trimmed, slug })
       .returning({ id: rooms.id, name: rooms.name });
     const row = created[0];
     return row === undefined ? undefined : { id: row.id, room: row.name, created: true };
@@ -107,13 +107,13 @@ export class RoomCatalogue {
    * other order leaves them pointing at nothing.
    */
   public async remove(
-    householdId: string,
+    accountId: string,
     id: string,
   ): Promise<{ room: string; evicted: number } | undefined> {
     const found = await this.db
       .select({ name: rooms.name, slug: rooms.slug })
       .from(rooms)
-      .where(and(eq(rooms.householdId, householdId), eq(rooms.id, id)))
+      .where(and(eq(rooms.accountId, accountId), eq(rooms.id, id)))
       .limit(1);
     const room = found[0];
     if (room === undefined) return undefined;
@@ -123,7 +123,7 @@ export class RoomCatalogue {
       .set({ locationLabel: null })
       .where(
         and(
-          eq(gosini.householdId, householdId),
+          eq(gosini.accountId, accountId),
           sql`lower(btrim(${gosini.locationLabel})) = ${room.slug}`,
         ),
       )

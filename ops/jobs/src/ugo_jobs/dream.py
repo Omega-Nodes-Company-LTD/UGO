@@ -83,7 +83,7 @@ def today(cfg: JobsConfig) -> str:
     return datetime.now(ZoneInfo(cfg.timezone)).date().isoformat()
 
 
-def exemplars_of(conn: psycopg.Connection, household_id: str) -> list[str]:
+def exemplars_of(conn: psycopg.Connection, account_id: str) -> list[str]:
     """Le creature vive di una casa, dalla piu' anziana.
 
     L'equivalente TypeScript e' `GosinoRegistry.reload`; qui non esisteva
@@ -91,8 +91,8 @@ def exemplars_of(conn: psycopg.Connection, household_id: str) -> list[str]:
     esemplari potessero essere piu' di uno.
     """
     rows = conn.execute(
-        "select id from gosini where household_id = %s and retired_at is null order by born_at",
-        (household_id,),
+        "select id from gosini where account_id = %s and retired_at is null order by born_at",
+        (account_id,),
     ).fetchall()
     return [str(row[0]) for row in rows]
 
@@ -112,9 +112,9 @@ def run_dream(cfg: JobsConfig, dream_date: str, mode: str = FULL) -> dict[str, o
         # applicativa. A livello di sessione e non di transazione, perché la
         # connessione è dedicata al sogno di QUESTA casa per l'intera durata.
         conn.execute(
-            "select set_config('app.household_id', %s, false)", (cfg.household_id,)
+            "select set_config('app.account_id', %s, false)", (cfg.account_id,)
         )
-        exemplars = exemplars_of(conn, cfg.household_id)
+        exemplars = exemplars_of(conn, cfg.account_id)
         if not exemplars:
             report["error"] = "nessun esemplare in questa casa"
             return report

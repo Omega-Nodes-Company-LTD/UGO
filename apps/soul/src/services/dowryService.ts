@@ -88,7 +88,7 @@ export class DowryService {
    */
   public async legacyOf(
     gosinoId: string,
-    householdId: string,
+    accountId: string,
     options: DowryOptions,
   ): Promise<{ rows: { kind: TravellingKind; text: string; importance: number }[]; withheld: number }> {
     const kinds: TravellingKind[] = [
@@ -120,7 +120,7 @@ export class DowryService {
       .from(memoryBeings)
       .where(
         and(
-          eq(memoryBeings.householdId, householdId),
+          eq(memoryBeings.accountId, accountId),
           inArray(
             memoryBeings.memoryId,
             mine.map((row) => row.id),
@@ -147,9 +147,9 @@ export class DowryService {
       .from(beings)
       .where(
         options.giverBeingId === undefined
-          ? eq(beings.householdId, householdId)
+          ? eq(beings.accountId, accountId)
           : and(
-              eq(beings.householdId, householdId),
+              eq(beings.accountId, accountId),
               notInArray(beings.id, [options.giverBeingId]),
             ),
       );
@@ -201,21 +201,21 @@ export class DowryService {
   }
 
   public async preview(
-    householdId: string,
+    accountId: string,
     gosinoId: string,
     options: DowryOptions = {},
   ): Promise<DowryPreview | undefined> {
     const [creature] = await this.db
       .select({ name: gosini.name })
       .from(gosini)
-      .where(and(eq(gosini.id, gosinoId), eq(gosini.householdId, householdId)));
+      .where(and(eq(gosini.id, gosinoId), eq(gosini.accountId, accountId)));
     if (creature === undefined) return undefined;
 
-    const knowledge = await this.legacyOf(gosinoId, householdId, {
+    const knowledge = await this.legacyOf(gosinoId, accountId, {
       ...options,
       includeStories: false,
     });
-    const withStories = await this.legacyOf(gosinoId, householdId, {
+    const withStories = await this.legacyOf(gosinoId, accountId, {
       ...options,
       includeStories: true,
     });
@@ -239,11 +239,11 @@ export class DowryService {
    * leggere tutto il resto.
    */
   public async create(
-    householdId: string,
+    accountId: string,
     gosinoId: string,
     options: DowryOptions = {},
   ): Promise<{ key: string; sealed: string; content: DowryPreview } | undefined> {
-    const preview = await this.preview(householdId, gosinoId, options);
+    const preview = await this.preview(accountId, gosinoId, options);
     if (preview === undefined) return undefined;
 
     const [genome] = await this.db
@@ -252,7 +252,7 @@ export class DowryService {
       .where(eq(traitSets.gosinoId, gosinoId))
       .orderBy(traitSets.version)
       .limit(1);
-    const { rows } = await this.legacyOf(gosinoId, householdId, options);
+    const { rows } = await this.legacyOf(gosinoId, accountId, options);
 
     const content: DowryContent = {
       version: 1,
@@ -275,7 +275,7 @@ export class DowryService {
    * capostipite, e la provenienza resta scritta.
    */
   public async adopt(
-    householdId: string,
+    accountId: string,
     sealed: string,
     key: string,
     name: string,
@@ -303,7 +303,7 @@ export class DowryService {
       // ADR-077: chi nasce da una dote nasce adesso, quindi nasce mortale —
       // la dote porta il sapere, non l'esenzione dall'arco
       .values({
-        householdId,
+        accountId,
         name,
         mortalFrom: new Date(),
         lifeJitterDays: drawLifeJitter(),
@@ -315,7 +315,7 @@ export class DowryService {
     if (born === undefined) return undefined;
 
     await this.db.insert(traitSets).values({
-      householdId,
+      accountId,
       gosinoId: born.id,
       version: 1,
       traits: content.genome,

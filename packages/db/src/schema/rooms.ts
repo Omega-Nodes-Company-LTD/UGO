@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 
 /**
  * The rooms of the house (ADR-039).
@@ -26,7 +26,7 @@ export const rooms = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     /** as typed, for reading: "Cucina" */
     name: text("name").notNull(),
     /**
@@ -39,8 +39,8 @@ export const rooms = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("rooms_household_idx").on(table.householdId),
-    unique("rooms_household_slug_uq").on(table.householdId, table.slug),
+    index("rooms_account_idx").on(table.accountId),
+    unique("rooms_account_slug_uq").on(table.accountId, table.slug),
   ],
 );
 

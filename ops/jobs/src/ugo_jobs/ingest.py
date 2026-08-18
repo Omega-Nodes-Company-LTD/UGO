@@ -114,7 +114,7 @@ def _attribute(
         conn,
         samples=piece,
         data_key=parse_data_key(cfg.data_key_b64),
-        household_id=cfg.household_id,
+        account_id=cfg.account_id,
         # ADR-043: iniettabile perché il modello vero pesa 2 GB, e ciò che va
         # provato qui è l'attribuzione — chi viene nominato e chi no — non la
         # qualità dell'encoder, che ha il suo banco
@@ -157,9 +157,9 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, enc
         conn.execute(
             """
             insert into transcript_segments
-                (meeting_id, household_id, speaker, being_id, t0, t1, text, embedding)
+                (meeting_id, account_id, speaker, being_id, t0, t1, text, embedding)
             values (%s,
-                    (select g.household_id from meetings m
+                    (select g.account_id from meetings m
                        join gosini g on g.id = m.gosino_id
                       where m.id = %s),
                     %s, %s, %s, %s, %s, %s)

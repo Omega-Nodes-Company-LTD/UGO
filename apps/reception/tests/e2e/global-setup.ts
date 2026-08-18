@@ -9,7 +9,7 @@ import {
   customerRepos,
   customers,
   gosini,
-  households,
+  accounts,
   runMigrations,
 } from "@ugo/db";
 import { startLlmStub, startOllama, type LlmStub, type OllamaHandle } from "@ugo/factories";
@@ -56,25 +56,25 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   // same rows the panel would write, seeded straight so the E2E stays fast
   const db = createDbClient(pg.getConnectionUri());
   const [house] = await db
-    .insert(households)
+    .insert(accounts)
     .values({ slug: "casa-e2e", name: "casa-e2e" })
-    .returning({ id: households.id });
+    .returning({ id: accounts.id });
   if (house === undefined) throw new Error("house not seeded");
   const [exemplar] = await db
     .insert(gosini)
-    .values({ householdId: house.id, name: "Ugo", locationLabel: "officina" })
+    .values({ accountId: house.id, name: "Ugo", locationLabel: "officina" })
     .returning({ id: gosini.id });
   if (exemplar === undefined) throw new Error("gosino not seeded");
   const [customer] = await db
     .insert(customers)
-    .values({ householdId: house.id, name: "Rossi SRL", slug: "rossi-srl" })
+    .values({ accountId: house.id, name: "Rossi SRL", slug: "rossi-srl" })
     .returning({ id: customers.id });
   if (customer === undefined) throw new Error("customer not seeded");
   await db
     .insert(customerGosini)
-    .values({ householdId: house.id, customerId: customer.id, gosinoId: exemplar.id });
+    .values({ accountId: house.id, customerId: customer.id, gosinoId: exemplar.id });
   await db.insert(customerRepos).values({
-    householdId: house.id,
+    accountId: house.id,
     customerId: customer.id,
     remoteUrl: "https://github.com/studio/progetto",
     lastCommitSha: "abc1234def5678",
@@ -82,7 +82,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   });
   const customerToken = randomBytes(32).toString("base64url");
   await db.insert(customerAccessTokens).values({
-    householdId: house.id,
+    accountId: house.id,
     customerId: customer.id,
     tokenHash: createHash("sha256").update(customerToken, "utf8").digest("hex"),
     label: "e2e",

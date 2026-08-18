@@ -40,7 +40,7 @@ const RECENT_ACT_MIN = 10;
 export interface RewardDeps {
   db: DbClient;
   gosinoId: string;
-  householdId: string;
+  accountId: string;
   efficacy: EfficacyService;
   /**
    * Chi c'è nella stanza adesso, se lo si sa. **Nessuna persona identificata,

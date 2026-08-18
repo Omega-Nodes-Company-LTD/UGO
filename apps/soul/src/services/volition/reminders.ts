@@ -85,7 +85,7 @@ function cleanTask(text: string, ...cuts: string[]): string {
 }
 
 /**
- * @param nowHour   0..23 in the household's timezone
+ * @param nowHour   0..23 in the account's timezone
  * @param nowMinute 0..59
  */
 export function parseReminder(

@@ -7,7 +7,7 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
 import { characterFrom } from "../../src/services/council/character.js";
-import { createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { MemoryBook } from "../../src/services/memoryBook.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
@@ -47,14 +47,14 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-libro",
     name: "Libro",
     gosinoName: "Ugo",
   });
   token = house.ownerToken;
   who = house.gosinoId;
-  houseId = house.householdId;
+  houseId = house.accountId;
   book = new MemoryBook(db, DATA_KEY);
 
   await db.insert(memories).values([
@@ -95,7 +95,7 @@ beforeAll(async () => {
     timezone: "Europe/Rome",
     locale: "it-IT",
     gosinoId: who,
-    householdId: houseId,
+    accountId: houseId,
     character: characterFrom({}),
   });
 

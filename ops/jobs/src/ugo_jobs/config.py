@@ -40,7 +40,7 @@ class JobsConfig:
     whisper_download_root: str = ""
     # ADR-019: whose house this run belongs to. Defaults keep a single-family
     # install working untouched; a second family passes its own.
-    household_id: str = "00000000-0000-4000-8000-000000000002"
+    account_id: str = "00000000-0000-4000-8000-000000000002"
     gosino_id: str = "00000000-0000-4000-8000-000000000001"
     # the dream's own hour (HH:MM in `timezone`); the image schedules itself
     dream_at: str = "02:30"
@@ -54,7 +54,7 @@ class JobsConfig:
     internal_token: str = ""
     # ADR-023: the ceiling the paid fallback respects. Same variable the chat
     # path reads, so one number governs the whole day whoever is spending it;
-    # a house with its own `households.daily_budget_usd` overrides it.
+    # a house with its own `accounts.daily_budget_usd` overrides it.
     daily_budget_usd: float = 0.50
 
     @staticmethod
@@ -87,7 +87,7 @@ class JobsConfig:
             # variabile d'ambiente li valorizzava, quindi il job era cablato su
             # casa-prime e non c'era modo di dirgli altro se non dal codice.
             **(
-                {"household_id": os.environ["UGO_HOUSEHOLD_ID"]}
+                {"account_id": os.environ["UGO_HOUSEHOLD_ID"]}
                 if os.environ.get("UGO_HOUSEHOLD_ID")
                 else {}
             ),

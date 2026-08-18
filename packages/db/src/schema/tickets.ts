@@ -13,7 +13,7 @@ import {
 import { customers } from "./customers.js";
 import { ticketStatus } from "./enums.js";
 import { gosini } from "./gosini.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 
 /**
  * A collected request (ADR-052). The gosino never executes work: it writes
@@ -27,14 +27,14 @@ export const tickets = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     customerId: uuid("customer_id").notNull(),
     /** the exemplar that collected the request */
     gosinoId: uuid("gosino_id").notNull(),
     status: ticketStatus("status").notNull().default("open"),
-    /** AES-256-GCM ciphertext under the household DEK (rule 6) */
+    /** AES-256-GCM ciphertext under the account DEK (rule 6) */
     title: text("title").notNull(),
-    /** AES-256-GCM ciphertext under the household DEK (rule 6) */
+    /** AES-256-GCM ciphertext under the account DEK (rule 6) */
     body: text("body").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -44,14 +44,14 @@ export const tickets = pgTable(
     index("tickets_customer_idx").on(table.customerId),
     index("tickets_status_idx").on(table.status),
     foreignKey({
-      columns: [table.householdId, table.customerId],
-      foreignColumns: [customers.householdId, customers.id],
-      name: "tickets_household_customer_fk",
+      columns: [table.accountId, table.customerId],
+      foreignColumns: [customers.accountId, customers.id],
+      name: "tickets_account_customer_fk",
     }).onDelete("cascade"),
     foreignKey({
-      columns: [table.householdId, table.gosinoId],
-      foreignColumns: [gosini.householdId, gosini.id],
-      name: "tickets_household_gosino_fk",
+      columns: [table.accountId, table.gosinoId],
+      foreignColumns: [gosini.accountId, gosini.id],
+      name: "tickets_account_gosino_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -71,7 +71,7 @@ export const customerMessages = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     customerId: uuid("customer_id").notNull(),
     /** the exemplar the customer chose to talk to */
     gosinoId: uuid("gosino_id").notNull(),
@@ -79,7 +79,7 @@ export const customerMessages = pgTable(
     ticketId: uuid("ticket_id").references(() => tickets.id, { onDelete: "set null" }),
     ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
     role: text("role").notNull(),
-    /** AES-256-GCM ciphertext under the household DEK (rule 6) */
+    /** AES-256-GCM ciphertext under the account DEK (rule 6) */
     text: text("text").notNull(),
     tokensIn: integer("tokens_in").notNull().default(0),
     tokensOut: integer("tokens_out").notNull().default(0),
@@ -90,14 +90,14 @@ export const customerMessages = pgTable(
   (table) => [
     index("customer_messages_customer_ts_idx").on(table.customerId, table.ts),
     foreignKey({
-      columns: [table.householdId, table.customerId],
-      foreignColumns: [customers.householdId, customers.id],
-      name: "customer_messages_household_customer_fk",
+      columns: [table.accountId, table.customerId],
+      foreignColumns: [customers.accountId, customers.id],
+      name: "customer_messages_account_customer_fk",
     }).onDelete("cascade"),
     foreignKey({
-      columns: [table.householdId, table.gosinoId],
-      foreignColumns: [gosini.householdId, gosini.id],
-      name: "customer_messages_household_gosino_fk",
+      columns: [table.accountId, table.gosinoId],
+      foreignColumns: [gosini.accountId, gosini.id],
+      name: "customer_messages_account_gosino_fk",
     }).onDelete("cascade"),
   ],
 );

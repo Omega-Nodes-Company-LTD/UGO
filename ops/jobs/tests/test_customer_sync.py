@@ -26,11 +26,11 @@ from ugo_jobs.customer_repos import run_repos
 KEY = parse_data_key(TEST_DATA_KEY)
 
 
-def make_customer(conn: psycopg.Connection, household_id: str, slug: str) -> str:
+def make_customer(conn: psycopg.Connection, account_id: str, slug: str) -> str:
     return str(
         conn.execute(
-            "insert into customers (household_id, name, slug) values (%s, %s, %s) returning id",
-            (household_id, slug, slug),
+            "insert into customers (account_id, name, slug) values (%s, %s, %s) returning id",
+            (account_id, slug, slug),
         ).fetchone()[0]
     )
 
@@ -83,7 +83,7 @@ def test_repo_clone_index_and_skip(pg_url, ollama_url, fixture_repo, tmp_path, m
         make_gosino(conn, house, "ugo-sync")
         customer = make_customer(conn, house, "rossi-sync")
         conn.execute(
-            "insert into customer_repos (household_id, customer_id, remote_url, default_branch)"
+            "insert into customer_repos (account_id, customer_id, remote_url, default_branch)"
             " values (%s, %s, %s, 'main')",
             (house, customer, f"file://{fixture_repo}"),
         )
@@ -157,7 +157,7 @@ def test_mail_readonly_ingestion(pg_url, ollama_url):  # noqa: ANN001
             customer = make_customer(conn, house, "bianchi-sync")
             conn.execute(
                 "insert into customer_mail_accounts"
-                " (household_id, customer_id, imap_host, imap_port, username, password, folder)"
+                " (account_id, customer_id, imap_host, imap_port, username, password, folder)"
                 " values (%s, %s, %s, %s, %s, %s, 'INBOX')",
                 (house, customer, host, imap_port, "cliente", encrypt_text("segreta", KEY)),
             )
@@ -206,7 +206,7 @@ def test_docs_from_bucket(pg_url, ollama_url, minio):  # noqa: ANN001
         customer = make_customer(conn, house, "verdi-sync")
         conn.execute(
             "insert into customer_documents"
-            " (household_id, customer_id, s3_key, filename, mime)"
+            " (account_id, customer_id, s3_key, filename, mime)"
             " values (%s, %s, %s, %s, 'text/plain')",
             (house, customer, "docs/x/capitolato", encrypt_text("capitolato.txt", KEY)),
         )

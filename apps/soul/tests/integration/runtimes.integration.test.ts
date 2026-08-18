@@ -5,7 +5,7 @@ import {
   desires,
   events,
   gosini,
-  households,
+  accounts,
   PRIME_GOSINO_ID,
   psycheSnapshots,
   runMigrations,
@@ -43,14 +43,14 @@ beforeAll(async () => {
   const url = pg.getConnectionUri();
   await runMigrations(url);
   db = createDbClient(url);
-  const houses = await db.select({ id: households.id }).from(households).limit(1);
-  const householdId = houses[0]?.id;
-  if (householdId === undefined) throw new Error("the migrations seed one household");
+  const houses = await db.select({ id: accounts.id }).from(accounts).limit(1);
+  const accountId = houses[0]?.id;
+  if (accountId === undefined) throw new Error("the migrations seed one account");
   const born = await db
     .insert(gosini)
     .values([
-      { householdId, name: "Ugo", locationLabel: "cucina" },
-      { householdId, name: "Nino", locationLabel: "studio" },
+      { accountId, name: "Ugo", locationLabel: "cucina" },
+      { accountId, name: "Nino", locationLabel: "studio" },
     ])
     .returning({ id: gosini.id });
   ugo = born[0]?.id ?? "";

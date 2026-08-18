@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { MAX_DAYS, PackMood } from "../services/packMood.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * L'umore del branco nel tempo (ADR-087).
@@ -28,13 +28,13 @@ export function registerPackMoodRoutes(app: FastifyInstance, deps: PackMoodDeps)
   app.get("/v1/psyche/branco", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = querySchema.safeParse(request.query);
     if (!parsed.success) return reply.status(400).send({ error: "giorni non valido" });
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
 
     const days = parsed.data.giorni;
     return reply.send({
       days: days ?? undefined,
-      creatures: await mood.series(householdId, days),
+      creatures: await mood.series(accountId, days),
     });
   });
 }

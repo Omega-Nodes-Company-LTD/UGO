@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { GosinoRegistry } from "../services/pack/runtimes.js";
 import type { InitiativeSwitch } from "../services/volition/initiativeSwitch.js";
 import type { PreHandler } from "./guard.js";
-import { exemplarsOf, householdScope } from "./scope.js";
+import { exemplarsOf, accountScope } from "./scope.js";
 
 /**
  * What he decided, and why (ADR-034).
@@ -52,22 +52,22 @@ function mine(
   db: DbClient,
   column: PgColumn,
   id: string | undefined,
-  householdId: string,
+  accountId: string,
 ): SQL | undefined {
-  return id === undefined ? inArray(column, exemplarsOf(db, householdId)) : eq(column, id);
+  return id === undefined ? inArray(column, exemplarsOf(db, accountId)) : eq(column, id);
 }
 
 export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoutesDeps): void {
   app.get("/v1/volition", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
     const asked = (request.query as { gosino?: string }).gosino;
-    const who = deps.registry?.resolve(asked, householdId);
+    const who = deps.registry?.resolve(asked, accountId);
 
     const journal = await deps.db
       .select({ ts: events.ts, type: events.type, payload: events.payload })
       .from(events)
-      .where(and(inArray(events.type, [...INITIATIVE_TYPES]), mine(deps.db, events.gosinoId, who?.id, householdId)))
+      .where(and(inArray(events.type, [...INITIATIVE_TYPES]), mine(deps.db, events.gosinoId, who?.id, accountId)))
       .orderBy(desc(events.ts))
       .limit(20);
 
@@ -83,7 +83,7 @@ export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoute
         createdAt: desires.createdAt,
       })
       .from(desires)
-      .where(and(eq(desires.status, "pending"), mine(deps.db, desires.gosinoId, who?.id, householdId)))
+      .where(and(eq(desires.status, "pending"), mine(deps.db, desires.gosinoId, who?.id, accountId)))
       .orderBy(desc(desires.createdAt))
       .limit(20);
 
@@ -104,14 +104,14 @@ export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoute
    * l'unica cosa che potrà dire è «mi sembra che ultimamente…».
    */
   app.get("/v1/volition/efficacy", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
     const asked = (request.query as { gosino?: string }).gosino;
-    const who = deps.registry?.resolve(asked, householdId);
+    const who = deps.registry?.resolve(asked, accountId);
     const rows = await deps.db
       .select({ act: actEfficacy.act, weight: actEfficacy.weight })
       .from(actEfficacy)
-      .where(mine(deps.db, actEfficacy.gosinoId, who?.id, householdId));
+      .where(mine(deps.db, actEfficacy.gosinoId, who?.id, accountId));
     return reply.send({ efficacy: rows });
   });
 

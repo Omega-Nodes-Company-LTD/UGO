@@ -4,7 +4,7 @@ import {
   desires,
   events,
   gosini,
-  households,
+  accounts,
   memories,
   messages,
   runMigrations,
@@ -25,7 +25,7 @@ import { RuminationService, type Ruminator } from "../../src/services/rumination
 
 let pg: StartedPostgreSqlContainer;
 let db: DbClient;
-let householdId: string;
+let accountId: string;
 
 /** Mezzogiorno: dentro la finestra di veglia, lontano dalla quiete. */
 const NOON = new Date("2026-08-17T12:00:00Z");
@@ -66,7 +66,7 @@ function service(
 async function bornWithMemories(name: string, texts: string[]): Promise<Ruminator> {
   const rows = await db
     .insert(gosini)
-    .values({ householdId, name })
+    .values({ accountId, name })
     .returning({ id: gosini.id });
   const id = rows[0]?.id;
   if (id === undefined) throw new Error("not created");
@@ -81,10 +81,10 @@ beforeAll(async () => {
   const url = pg.getConnectionUri();
   await runMigrations(url);
   db = createDbClient(url);
-  const houses = await db.select({ id: households.id }).from(households).limit(1);
+  const houses = await db.select({ id: accounts.id }).from(accounts).limit(1);
   const first = houses[0]?.id;
-  if (first === undefined) throw new Error("the migrations seed one household");
-  householdId = first;
+  if (first === undefined) throw new Error("the migrations seed one account");
+  accountId = first;
 }, 240_000);
 
 afterAll(async () => {

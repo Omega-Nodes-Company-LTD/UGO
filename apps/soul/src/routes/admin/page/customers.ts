@@ -7,7 +7,7 @@
 export const CUSTOMER_PAGES = `
 <section class="page" data-page="clienti">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>I clienti</h1>
     <p>Chi bussa alla reception: a quali gosini può rivolgersi, con che token entra,
        cosa ha chiesto. Il gosino <b>raccoglie</b> le richieste — il lavoro resta tuo.</p>

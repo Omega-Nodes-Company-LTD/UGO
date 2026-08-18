@@ -115,7 +115,7 @@ export interface ChatServiceDeps {
    * gesto non esiste e la frase va al modello come una qualunque.
    */
   storyteller?: { generate: (prompt: string, maxTokens?: number) => Promise<string | undefined> };
-  /** the household's clock (ADR-019); defaults to the project timezone */
+  /** the account's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
    * La lingua della casa (ADR-050). Governa come si scrive la data e l'ora che
@@ -140,7 +140,7 @@ export interface ChatServiceDeps {
    * girato senza scope, e senza scope quella query attraversava il confine fra
    * famiglie invece di fermarsi al tetto.
    */
-  householdId: string;
+  accountId: string;
   /**
    * Chi è questo, dal genoma (ADR-015/031).
    *
@@ -215,7 +215,7 @@ export class ChatService {
   }
 
   /**
-   * The wall clock in the household's timezone (ADR-028).
+   * The wall clock in the account's timezone (ADR-028).
    *
    * Until now UGO did not know what time it was — not a small gap for someone
    * who is asked "ricordami fra dieci minuti" and who goes to sleep when it
@@ -339,7 +339,7 @@ export class ChatService {
     at: Date,
   ): Promise<ChatResponse> {
     const { db, dataKey } = this.deps;
-    const householdId = this.deps.householdId;
+    const accountId = this.deps.accountId;
     let reply: string;
 
     if (command.action === "read") {
@@ -348,7 +348,7 @@ export class ChatService {
         .from(listItems)
         .where(
           and(
-            eq(listItems.householdId, householdId),
+            eq(listItems.accountId, accountId),
             eq(listItems.list, command.list),
             eq(listItems.done, false),
           ),
@@ -360,7 +360,7 @@ export class ChatService {
       );
     } else if (command.action === "add") {
       await db.insert(listItems).values({
-        householdId,
+        accountId,
         list: command.list,
         text: encryptText(command.item ?? "", dataKey),
         ...(request.beingId !== undefined && { beingId: request.beingId }),
@@ -374,7 +374,7 @@ export class ChatService {
         .from(listItems)
         .where(
           and(
-            eq(listItems.householdId, householdId),
+            eq(listItems.accountId, accountId),
             eq(listItems.list, command.list),
             eq(listItems.done, false),
           ),
@@ -543,9 +543,9 @@ export class ChatService {
       const diary = new DiaryService(db, dataKey);
       const today = this.localDate(at);
       const pages = diaryAsk.book
-        ? await diary.pages(this.deps.householdId, this.deps.gosinoId, { limit: 5 })
+        ? await diary.pages(this.deps.accountId, this.deps.gosinoId, { limit: 5 })
         : await diary
-            .page(this.deps.householdId, this.deps.gosinoId, dateFor(today, diaryAsk.daysAgo))
+            .page(this.deps.accountId, this.deps.gosinoId, dateFor(today, diaryAsk.daysAgo))
             .then((page) => (page === undefined ? [] : [page]));
       return this.answered(tellDiary(pages, diaryAsk), request, at);
     }
@@ -565,7 +565,7 @@ export class ChatService {
     if (memoryAsk !== undefined) {
       const period = monthOf(memoryAsk, this.localDate(at));
       const book = new MemoryBook(db, this.deps.dataKey);
-      const lines = await book.page(this.deps.householdId, this.deps.gosinoId, period, {
+      const lines = await book.page(this.deps.accountId, this.deps.gosinoId, period, {
         limit: RECALL_ALOUD,
         // a voce non si rileggono i ricordi smentiti: nel pannello si vedono
         // perché spiegano cosa credeva, detti a voce sarebbero una bugia
@@ -585,7 +585,7 @@ export class ChatService {
       const storyAsk = parseStoryAsk(request.text);
       if (storyAsk !== undefined) {
         const [page] = await new DiaryService(db, this.deps.dataKey).pages(
-          this.deps.householdId,
+          this.deps.accountId,
           this.deps.gosinoId,
           { limit: 1 },
         );
@@ -604,8 +604,8 @@ export class ChatService {
     if (newsAsk !== undefined) {
       const news = new NewsService(db);
       const [items, subscribed] = await Promise.all([
-        news.latest(this.deps.householdId, newsAsk.limit),
-        news.subscribed(this.deps.householdId),
+        news.latest(this.deps.accountId, newsAsk.limit),
+        news.subscribed(this.deps.accountId),
       ]);
       return this.answered(tellNews(items, subscribed), request, at);
     }
@@ -741,7 +741,7 @@ export class ChatService {
       embedder,
       request.text,
       TRANSCRIPT_K,
-      this.deps.householdId,
+      this.deps.accountId,
     );
     const recordings: string[] = [];
     for (const segment of transcripts) {

@@ -34,9 +34,9 @@ export interface PlainTextReport {
 export async function plainTextMemories(
   db: DbClient,
   dataKey: Buffer,
-  householdId: string,
+  accountId: string,
 ): Promise<PlainTextReport> {
-  const mine = db.select({ id: gosini.id }).from(gosini).where(eq(gosini.householdId, householdId));
+  const mine = db.select({ id: gosini.id }).from(gosini).where(eq(gosini.accountId, accountId));
 
   const rows = await db
     .select({ id: memories.id, text: memories.text })

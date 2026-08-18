@@ -8,7 +8,7 @@ import { drawLifeJitter } from "../services/lifeDice.js";
 import { guardBreeding } from "./breeding.js";
 import { RoomCatalogue } from "../services/roomCatalogue.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * The population: who exists, who is born, and which room they live in
@@ -44,7 +44,7 @@ const newRoomSchema = z.object({ name: z.string().min(1).max(40) });
 
 export interface GosiniRoutesDeps {
   db: DbClient;
-  /** the household every new exemplar is born into (ADR-019) */
+  /** the account every new exemplar is born into (ADR-019) */
   guard: PreHandler;
   /**
    * ADR-035/036: a newborn with no runtime, or a mover whose room the registry
@@ -65,24 +65,24 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
    *
    * What it exposes is room labels and creature names — the same class of thing
    * `whoami` has always sent down an unguarded socket on this tailnet. It says
-   * nothing about the household: no people, no memories, no spend.
+   * nothing about the account: no people, no memories, no spend.
    *
    * ADR-039: the catalogue is the source, not the residents. A room the owner
    * made and has not filled yet is still a room you can point a screen at.
    */
   app.get("/v1/rooms", async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    return reply.send({ rooms: await catalogue.list(householdId) });
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
+    return reply.send({ rooms: await catalogue.list(accountId) });
   });
 
   /** Making a room (ADR-039). Guarded: `GET` is for the body, this is not. */
   app.post("/v1/rooms", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = newRoomSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    const made = await catalogue.create(householdId, parsed.data.name);
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    const made = await catalogue.create(accountId, parsed.data.name);
     if (made === undefined) return reply.status(400).send({ error: "invalid body" });
     return reply.status(made.created ? 201 : 200).send(made);
   });
@@ -93,9 +93,9 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
    */
   app.delete("/v1/rooms/:id", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    const gone = await catalogue.remove(householdId, id);
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    const gone = await catalogue.remove(accountId, id);
     if (gone === undefined) return reply.status(404).send({ error: "non esiste" });
     // the registry holds `where`: a creature evicted here must stop being
     // handed to the dock that used to show him
@@ -106,15 +106,15 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
   app.post("/v1/gosini", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = newGosinoSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     /**
      * ADR-081: **un gosino non si crea, si riceve**. Questa porta resta, ma è
      * la porta dell'allevamento fondatore — l'unico posto in cui una creatura
      * può cominciare a esistere senza genitori. Per tutti gli altri il modo di
      * avere un gosino è adottarne uno nato, e sceglierlo fra quelli che ci sono.
      */
-    if (!(await guardBreeding(deps.db, householdId, "conia", reply))) return reply;
+    if (!(await guardBreeding(deps.db, accountId, "conia", reply))) return reply;
     const { name, locationLabel, archetype, traits } = parsed.data;
 
     // ADR-039: a room he is born into has to be one that exists. Silently
@@ -123,7 +123,7 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
     // used to vouch for a label here.
     let where: string | undefined;
     if (locationLabel !== undefined) {
-      where = await catalogue.named(householdId, locationLabel);
+      where = await catalogue.named(accountId, locationLabel);
       if (where === undefined) return reply.status(400).send({ error: "stanza sconosciuta" });
     }
 
@@ -134,7 +134,7 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
     const created = await deps.db
       .insert(gosini)
       .values({
-        householdId,
+        accountId,
         name,
         // ADR-077: nascere a mano è comunque nascere da qui in avanti. La
         // porta di servizio della nascita non è la porta dell'immortalità:
@@ -151,7 +151,7 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
 
     // version 1 of the genome, immutable from here: a change is a new version
     await deps.db.insert(traitSets).values({
-      householdId,
+      accountId,
       gosinoId: id,
       version: 1,
       traits: character.traits,
@@ -170,8 +170,8 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
   });
 
   app.get("/v1/gosini", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
     const rows = await deps.db
       .select({
         id: gosini.id,
@@ -187,7 +187,7 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
         noticedAt: gosini.deathNoticeAt,
       })
       .from(gosini)
-      .where(eq(gosini.householdId, householdId));
+      .where(eq(gosini.accountId, accountId));
     const now = new Date();
     const out = [];
     for (const row of rows) {
@@ -258,15 +258,15 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
     const parsed = moveSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     const asked = parsed.data.locationLabel.trim();
 
     // ADR-039: empty still means "out of every room"; anything else has to name
     // a room that exists, and is stored the way the catalogue spells it
     let room: string | null = null;
     if (asked !== "") {
-      const known = await catalogue.named(householdId, asked);
+      const known = await catalogue.named(accountId, asked);
       if (known === undefined) return reply.status(400).send({ error: "stanza sconosciuta" });
       room = known;
     }
@@ -274,7 +274,7 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
     const moved = await deps.db
       .update(gosini)
       .set({ locationLabel: room })
-      .where(and(eq(gosini.id, id), eq(gosini.householdId, householdId)))
+      .where(and(eq(gosini.id, id), eq(gosini.accountId, accountId)))
       .returning({ id: gosini.id, name: gosini.name, where: gosini.locationLabel });
     const row = moved[0];
     if (row === undefined) return reply.status(404).send({ error: "non esiste" });

@@ -18,12 +18,14 @@ richiede il token ogni volta che apri una scheda: resti dentro finché non premi
 token vale come una chiave di casa, e chiunque possa far girare qualcosa su
 quel browser lo può leggere.
 
-## Due livelli: la casa, e ogni gosino
+## Due livelli: l'account, e ogni gosino
 
 La colonna a sinistra è divisa in due, e non è un dettaglio grafico.
 
-**La casa** è quello che i gosini si dividono: il branco, il budget, l'orologio,
-i dati. Se hai due gosini non hanno due branchi né due portafogli — ne hanno uno.
+**L'account** è chi possiede: il branco, il budget, l'orologio, la chiave dei dati, i token.
+Può essere una famiglia, uno studio o un negozio — per questo non lo chiamiamo più «casa»:
+una casa è un posto dove si abita, e qui dentro ci stanno anche le botteghe. Se hai due
+gosini non hanno due branchi né due portafogli — ne hanno uno.
 
 **Ogni gosino** ha le sue pagine: come sta, cosa ha deciso lui, cosa ricorda, **il
 libro della sua vita** (le pagine di diario che scrive ogni notte), il suo
@@ -47,7 +49,7 @@ Le linee restano **separate una per creatura**, mai una media di casa: se in cas
 tre, una media direbbe che va tutto bene proprio mentre uno dei tre sta male. E chi se n'è
 andato non compare: non ha più un umore, ha una biografia — che è nel suo libro della vita.
 
-## Se le case sono più d'una
+## Se gli account sono più d'uno
 
 Quasi sempre la casa è una sola, e allora il pannello non te lo chiede nemmeno: non c'è niente da
 scegliere.

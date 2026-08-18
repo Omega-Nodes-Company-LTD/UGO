@@ -102,7 +102,7 @@ def test_enroll_goes_through_percezione(pg_url, minio, percezione_stub) -> None:
             # proposito, e nel bucket condiviso quel residuo diventava un file
             # in piu' per test_ingest (visto in CI: files == 2)
             s3_bucket_audio="ugo-audio-enroll-remoto",
-            household_id=house,
+            account_id=house,
             recognition_url=percezione_stub.base_url,
             internal_token="token-interno",
         )
@@ -117,7 +117,7 @@ def test_enroll_goes_through_percezione(pg_url, minio, percezione_stub) -> None:
         [ask] = percezione_stub.asked
         assert ask["path"] == "/v1/enroll/voice"
         assert ask["body"]["being_id"] == person
-        assert ask["body"]["household_id"] == house
+        assert ask["body"]["account_id"] == house
         assert len(base64.b64decode(ask["body"]["audio"])) > 16_000  # >0,5 s di int16
 
         # il clip non sopravvive alla notte, e l'esito è scritto
@@ -148,7 +148,7 @@ def test_percezione_down_defers_instead_of_burning_the_request(pg_url, minio) ->
             s3_access_key=minio["access_key"],
             s3_secret_key=minio["secret_key"],
             s3_bucket_audio="ugo-audio-enroll-remoto",
-            household_id=house,
+            account_id=house,
             recognition_url="http://127.0.0.1:1",
             internal_token="token-interno",
         )

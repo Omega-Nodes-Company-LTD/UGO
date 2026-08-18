@@ -35,7 +35,7 @@ beforeAll(async () => {
   await runMigrations(pg.url);
   db = createDbClient(pg.url);
   house = await createHouse(db, "casa-voce-interim");
-  token = (await issueToken(db, { householdId: house.id, role: "owner", label: "voce" })).token;
+  token = (await issueToken(db, { accountId: house.id, role: "owner", label: "voce" })).token;
 
   stub = createServer((request, response) => {
     let body = "";
@@ -94,7 +94,7 @@ describe("POST /v1/tts", () => {
     const rows = await db
       .select({ provider: budgetLedger.provider, cost: budgetLedger.costUsd })
       .from(budgetLedger)
-      .where(eq(budgetLedger.householdId, house.id));
+      .where(eq(budgetLedger.accountId, house.id));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.provider).toBe("openai");
     expect(Number(rows[0]?.cost)).toBeGreaterThan(0);
@@ -114,7 +114,7 @@ describe("POST /v1/tts", () => {
 
   it("a salvadanaio vuoto degrada con 204 SENZA chiamare il fornitore", async () => {
     await db.execute(
-      sql`update households set daily_budget_usd = 0.000001 where id = ${house.id}`,
+      sql`update accounts set daily_budget_usd = 0.000001 where id = ${house.id}`,
     );
     const before = asked.length;
     const response = await app.inject({
@@ -125,7 +125,7 @@ describe("POST /v1/tts", () => {
     });
     expect(response.statusCode).toBe(204);
     expect(asked.length).toBe(before);
-    await db.execute(sql`update households set daily_budget_usd = null where id = ${house.id}`);
+    await db.execute(sql`update accounts set daily_budget_usd = null where id = ${house.id}`);
   });
 
   it("il tetto sui caratteri: oltre 300 è un 400, non una fattura", async () => {
@@ -177,11 +177,11 @@ describe("POST /v1/tts — la catena con la voce di casa", () => {
           baseUrl: "http://127.0.0.1:1",
           timezone: "Europe/Rome",
         }),
-        ttsLocal: (householdId: string) =>
+        ttsLocal: (accountId: string) =>
           new RecognitionClient({
             baseUrl: `http://127.0.0.1:${String(address.port)}`,
             token: "interno-di-test",
-            householdId,
+            accountId,
           }),
       },
     });
@@ -208,11 +208,11 @@ describe("POST /v1/tts — la catena con la voce di casa", () => {
       features: {
         chat: undefined as never,
         psyche: undefined as never,
-        ttsLocal: (householdId: string) =>
+        ttsLocal: (accountId: string) =>
           new RecognitionClient({
             baseUrl: "http://127.0.0.1:1",
             token: "interno-di-test",
-            householdId,
+            accountId,
           }),
       },
     });

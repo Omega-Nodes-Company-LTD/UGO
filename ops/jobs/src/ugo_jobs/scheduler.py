@@ -55,7 +55,7 @@ def next_run_at(now: datetime, at: clock) -> datetime:
 
 @dataclass(frozen=True)
 class _House:
-    household_id: str
+    account_id: str
     timezone: str
 
 
@@ -69,12 +69,12 @@ def _houses(cfg: JobsConfig) -> list[_House]:
     with psycopg.connect(cfg.database_url) as conn:
         if os.environ.get("UGO_HOUSEHOLD_ID"):
             rows = conn.execute(
-                "select id, timezone from households where id = %s and closed_at is null",
-                (cfg.household_id,),
+                "select id, timezone from accounts where id = %s and closed_at is null",
+                (cfg.account_id,),
             ).fetchall()
         else:
             rows = conn.execute(
-                "select id, timezone from households where closed_at is null order by created_at"
+                "select id, timezone from accounts where closed_at is null order by created_at"
             ).fetchall()
     return [_House(str(row[0]), str(row[1])) for row in rows]
 
@@ -113,13 +113,13 @@ def run_forever(
         for house in _houses(cfg):
             try:
                 # ADR-019 fase 3: «le 02:30» non e' piu' un'ora sola. Ogni casa
-                # ha il suo fuso (`households.timezone`), quindi ogni casa ha
+                # ha il suo fuso (`accounts.timezone`), quindi ogni casa ha
                 # il suo ieri — e sveglia il sogno con il proprio, non con
                 # quello del processo.
-                run_cfg = replace(cfg, household_id=house.household_id, timezone=house.timezone)
+                run_cfg = replace(cfg, account_id=house.account_id, timezone=house.timezone)
                 report = run_dream(run_cfg, yesterday(run_cfg))
                 print(
-                    json.dumps({"dream_report": report, "household": house.household_id}),
+                    json.dumps({"dream_report": report, "account": house.account_id}),
                     flush=True,
                 )
             except Exception as error:  # noqa: BLE001 - one bad night is not the end
@@ -128,7 +128,7 @@ def run_forever(
                 failed += 1
                 print(
                     json.dumps(
-                        {"dream_failed": str(error), "household": house.household_id}
+                        {"dream_failed": str(error), "account": house.account_id}
                     ),
                     file=sys.stderr,
                     flush=True,

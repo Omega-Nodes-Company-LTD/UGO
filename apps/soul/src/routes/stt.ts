@@ -1,7 +1,7 @@
 import type { DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { resolveHousehold } from "./scope.js";
+import { resolveAccount } from "./scope.js";
 
 /**
  * La dettatura locale (gruppo 13): il ponte fra il chiosco e whisper.
@@ -25,7 +25,7 @@ const sttBodySchema = z.object({ audio: z.string().min(1).max(MAX_STT_B64_CHARS)
 export interface SttRouteDeps {
   db: DbClient;
   /** per casa, come il riconoscimento: assente = 501 */
-  transcriber?: (householdId: string) => { transcribe: (audio: string) => Promise<string | undefined> };
+  transcriber?: (accountId: string) => { transcribe: (audio: string) => Promise<string | undefined> };
 }
 
 export function registerSttRoute(app: FastifyInstance, deps: SttRouteDeps): void {
@@ -38,9 +38,9 @@ export function registerSttRoute(app: FastifyInstance, deps: SttRouteDeps): void
         .send({ type: "about:blank", title: "Invalid stt request", status: 400 });
     }
     if (deps.transcriber === undefined) return reply.code(501).send();
-    const scope = await resolveHousehold(deps.db, request);
+    const scope = await resolveAccount(deps.db, request);
     if (!scope.ok) return reply.code(501).send();
-    const text = await deps.transcriber(scope.householdId).transcribe(parsed.data.audio);
+    const text = await deps.transcriber(scope.accountId).transcribe(parsed.data.audio);
     // whisper giù o in ritardo: 503, e il muso decide lui se riprovare o
     // ripiegare — un 501 direbbe «non esiste», che sarebbe una bugia
     if (text === undefined) return reply.code(503).send();

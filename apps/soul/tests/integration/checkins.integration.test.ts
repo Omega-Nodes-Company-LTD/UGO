@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { CheckinWatch } from "../../src/services/checkinService.js";
 import { ChatService } from "../../src/services/chatService.js";
 import { characterFrom } from "../../src/services/council/character.js";
-import { createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
 
@@ -51,14 +51,14 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-domande",
     name: "Domande",
     gosinoName: "Ugo",
   });
   token = house.ownerToken;
   who = house.gosinoId;
-  houseId = house.householdId;
+  houseId = house.accountId;
   watch = new CheckinWatch({ db, gosinoId: who, timezone: "Europe/Rome" });
   voice = new ChatService({
     db,
@@ -71,7 +71,7 @@ beforeAll(async () => {
     timezone: "Europe/Rome",
     locale: "it-IT",
     gosinoId: who,
-    householdId: houseId,
+    accountId: houseId,
     character: characterFrom({}),
   });
 
@@ -183,7 +183,7 @@ describe("dal pannello", () => {
     const first = list.json<{ checkins: { id: string }[] }>().checkins[0];
     if (first === undefined) throw new Error("nessun check-in");
 
-    const other = await createHouseholdWithFounder(db, MASTER_KEY, {
+    const other = await createAccountWithFounder(db, MASTER_KEY, {
       slug: "vicina-domande",
       name: "Vicina",
       gosinoName: "Altra",

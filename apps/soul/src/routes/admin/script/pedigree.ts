@@ -75,7 +75,7 @@ export const PEDIGREE_STYLES = `
   .ped-edge.err { color: var(--err, #b3261e); font-weight: 600; }
 
 /**
- * La cessione (ADR-082). Il riquadro compare solo se questa casa alleva **e**
+ * La cessione (ADR-082). Il riquadro compare solo se questo account alleva **e**
  * la creatura è nata: offrire di cedere un capostipite vorrebbe dire promettere
  * una cosa che il registro rifiuta comunque, e scoprirlo dopo il click.
  */
@@ -87,9 +87,9 @@ function drawCede() {
 }
 
 $("cede-go").addEventListener("click", async () => {
-  const toHousehold = $("cede-to").value.trim();
+  const toAccount = $("cede-to").value.trim();
   const confirmName = $("cede-name").value.trim();
-  if (toHousehold === "" || confirmName === "") {
+  if (toAccount === "" || confirmName === "") {
     say("cede-msg", "Servono la casa che riceve e il suo nome.", "info");
     return;
   }
@@ -98,12 +98,12 @@ $("cede-go").addEventListener("click", async () => {
   try {
     const done = await call("/v1/gosini/" + encodeURIComponent(WHO) + "/cede", {
       method: "POST",
-      body: JSON.stringify({ toHousehold, confirmName }),
+      body: JSON.stringify({ toAccount, confirmName }),
     });
     say("cede-msg", done.name + " è stato ceduto. " + done.leftBehind +
       " righe di vita sono rimaste qui, e non sono partite con lui.", "ok");
     await loadGosini();
-    location.hash = at("#/casa");
+    location.hash = at("#/sommario");
   } catch (error) {
     say("cede-msg", error.message, "err");
   } finally { $("cede-go").disabled = false; }

@@ -2,7 +2,7 @@ import { events, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { AuditLogger } from "../services/auditLog.js";
 import type { PreHandler } from "./guard.js";
-import { eldestExemplarOf, householdScope } from "./scope.js";
+import { eldestExemplarOf, accountScope } from "./scope.js";
 
 /**
  * `POST /v1/jobs/dream` (PROGETTO §5.7): manual trigger for the night job.
@@ -26,12 +26,12 @@ export interface JobsRouteDeps {
 
 export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): void {
   app.post("/v1/jobs/dream", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     const body = (request.body ?? {}) as { date?: unknown };
     const date = typeof body.date === "string" ? body.date : undefined;
     await deps.db.insert(events).values({
-      gosinoId: await eldestExemplarOf(deps.db, householdId),
+      gosinoId: await eldestExemplarOf(deps.db, accountId),
       source: "system",
       type: "dream_requested",
       // l'evento resta il giornale della creatura: le e' stato chiesto di
@@ -42,10 +42,10 @@ export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): v
     await deps.audit?.record({
       verb: "dream_requested",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
-      resourceType: "household",
-      resourceId: householdId,
+      resourceType: "account",
+      resourceId: accountId,
     });
 
     if (deps.dreamTriggerUrl === undefined) {

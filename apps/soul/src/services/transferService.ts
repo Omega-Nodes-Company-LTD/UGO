@@ -51,18 +51,18 @@ export class TransferService {
   public constructor(private readonly db: DbClient) {}
 
   /**
-   * Cede `gosinoId` da `fromHouseholdId` a `toHouseholdId`.
+   * Cede `gosinoId` da `fromAccountId` a `toAccountId`.
    *
    * Oggi vale **dentro la stessa installazione**: dal nostro allevamento a una
    * famiglia che ospitiamo noi. Verso un'altra installazione servirà un
    * archivio sigillato come quello della dote, e non è questo servizio.
    */
   public async cede(
-    fromHouseholdId: string,
+    fromAccountId: string,
     gosinoId: string,
-    toHouseholdId: string,
+    toAccountId: string,
   ): Promise<TransferResult | TransferRefusal> {
-    if (fromHouseholdId === toHouseholdId) return "stessa-casa";
+    if (fromAccountId === toAccountId) return "stessa-casa";
 
     const [creature] = await this.db
       .select({
@@ -72,7 +72,7 @@ export class TransferService {
         gone: gosini.retiredAt,
       })
       .from(gosini)
-      .where(and(eq(gosini.id, gosinoId), eq(gosini.householdId, fromHouseholdId)));
+      .where(and(eq(gosini.id, gosinoId), eq(gosini.accountId, fromAccountId)));
     if (creature === undefined) return "non-esiste";
     if (creature.gone !== null) return "se-n-e-andato";
     // ADR-081: si cedono solo i nati. Un capostipite è l'inizio di una stirpe,
@@ -129,17 +129,17 @@ export class TransferService {
       // la sua
       await tx
         .update(gosini)
-        .set({ householdId: toHouseholdId, locationLabel: null, deviceId: null })
+        .set({ accountId: toAccountId, locationLabel: null, deviceId: null })
         .where(eq(gosini.id, gosinoId));
       await tx
         .update(traitSets)
-        .set({ householdId: toHouseholdId })
+        .set({ accountId: toAccountId })
         .where(eq(traitSets.gosinoId, gosinoId));
       // le righe di nascita di LUI: senza, chi compra non vedrebbe da chi
       // discende quello che ha comprato
       await tx
         .update(births)
-        .set({ householdId: toHouseholdId })
+        .set({ accountId: toAccountId })
         .where(eq(births.childGosinoId, gosinoId));
       /**
        * I pasti sono **i suoi**: quello che ha mangiato se lo porta in pancia.
@@ -149,7 +149,7 @@ export class TransferService {
        */
       await tx
         .update(feedings)
-        .set({ householdId: toHouseholdId })
+        .set({ accountId: toAccountId })
         .where(eq(feedings.gosinoId, gosinoId));
 
       return { gosinoId, name: creature.name, leftBehind };

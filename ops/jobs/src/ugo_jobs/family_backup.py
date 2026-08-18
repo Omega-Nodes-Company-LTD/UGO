@@ -5,11 +5,11 @@ due famiglie a bordo il ripristino di una sola casa era impossibile — o tutto
 o niente. Questo passo esporta OGNI notte, per la casa che sta sognando, le
 sue sole righe: un tar di NDJSON (una riga = un `row_to_json`), cifrato
 AES-256-GCM come tutto ciò che tocca il bucket, sotto
-``families/<household_id>/<data>.tar.enc``.
+``families/<account_id>/<data>.tar.enc``.
 
 Le tabelle non sono un elenco scritto a mano: si scoprono dallo schema — chi
-ha `household_id` si filtra su quello, chi ha solo `gosino_id` passa dalle
-creature della casa, `households` è la riga della casa stessa, e chi non ha
+ha `account_id` si filtra su quello, chi ha solo `gosino_id` passa dalle
+creature della casa, `accounts` è la riga della casa stessa, e chi non ha
 né l'uno né l'altro (le migrazioni di drizzle, il ledger globale se mai ce ne
 fosse uno) resta fuori. Un elenco a mano sarebbe la copia che diverge alla
 prima tabella nuova: è esattamente il difetto che il muro RLS è andato a
@@ -47,11 +47,11 @@ class FamilyBackupResult:
 
 
 def _scoped_tables(conn: psycopg.Connection) -> list[tuple[str, str]]:
-    """(tabella, modo) per ogni tabella esportabile: household | gosino | self."""
+    """(tabella, modo) per ogni tabella esportabile: account | gosino | self."""
     rows = conn.execute(
         """
         select table_name,
-               bool_or(column_name = 'household_id') as has_house,
+               bool_or(column_name = 'account_id') as has_house,
                bool_or(column_name = 'gosino_id') as has_gosino
         from information_schema.columns
         where table_schema = 'public'
@@ -62,33 +62,33 @@ def _scoped_tables(conn: psycopg.Connection) -> list[tuple[str, str]]:
     scoped: list[tuple[str, str]] = []
     for name, has_house, has_gosino in rows:
         table = str(name)
-        if table == "households":
+        if table == "accounts":
             scoped.append((table, "self"))
         elif has_house:
-            scoped.append((table, "household"))
+            scoped.append((table, "account"))
         elif has_gosino:
             scoped.append((table, "gosino"))
         # né l'uno né l'altro: fuori (migrazioni drizzle e simili)
     return scoped
 
 
-def _rows_of(conn: psycopg.Connection, table: str, mode: str, household_id: str) -> list[str]:
+def _rows_of(conn: psycopg.Connection, table: str, mode: str, account_id: str) -> list[str]:
     """Le righe della casa, una stringa JSON per riga (NDJSON pronte)."""
     where = {
         "self": sql.SQL("t.id = %s"),
-        "household": sql.SQL("t.household_id = %s"),
-        "gosino": sql.SQL("t.gosino_id in (select id from gosini where household_id = %s)"),
+        "account": sql.SQL("t.account_id = %s"),
+        "gosino": sql.SQL("t.gosino_id in (select id from gosini where account_id = %s)"),
     }[mode]
     query = sql.SQL("select row_to_json(t)::text from {} t where ").format(
         sql.Identifier(table)
     ) + where
-    return [str(row[0]) for row in conn.execute(query, (household_id,)).fetchall()]
+    return [str(row[0]) for row in conn.execute(query, (account_id,)).fetchall()]
 
 
-def _prune_family(client, bucket: str, household_id: str, retention_days: int) -> int:  # noqa: ANN001
+def _prune_family(client, bucket: str, account_id: str, retention_days: int) -> int:  # noqa: ANN001
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
     pruned = 0
-    response = client.list_objects_v2(Bucket=bucket, Prefix=f"{FAMILY_PREFIX}{household_id}/")
+    response = client.list_objects_v2(Bucket=bucket, Prefix=f"{FAMILY_PREFIX}{account_id}/")
     for item in response.get("Contents", []):
         if item["LastModified"] < cutoff:
             client.delete_object(Bucket=bucket, Key=item["Key"])
@@ -103,7 +103,7 @@ def run_family_backup(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str
     exported_tables = 0
     with tarfile.open(fileobj=archive, mode="w") as tar:
         for table, mode in scoped:
-            lines = _rows_of(conn, table, mode, cfg.household_id)
+            lines = _rows_of(conn, table, mode, cfg.account_id)
             if not lines:
                 continue  # una tabella vuota non merita un membro vuoto
             exported_tables += 1
@@ -119,9 +119,9 @@ def run_family_backup(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str
         client.head_bucket(Bucket=cfg.s3_bucket_backup)
     except Exception:  # noqa: BLE001 - assente o non nostro: si crea, come in backup.py
         client.create_bucket(Bucket=cfg.s3_bucket_backup)
-    key = f"{FAMILY_PREFIX}{cfg.household_id}/{dream_date}.tar.enc"
+    key = f"{FAMILY_PREFIX}{cfg.account_id}/{dream_date}.tar.enc"
     client.put_object(Bucket=cfg.s3_bucket_backup, Key=key, Body=sealed)
-    pruned = _prune_family(client, cfg.s3_bucket_backup, cfg.household_id, cfg.backup_retention_days)
+    pruned = _prune_family(client, cfg.s3_bucket_backup, cfg.account_id, cfg.backup_retention_days)
     return FamilyBackupResult(
         object_key=key,
         tables=exported_tables,

@@ -5,7 +5,7 @@ import { startPostgres } from "@ugo/factories";
 import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createHousehold } from "../../src/services/householdService.js";
+import { createAccount } from "../../src/services/accountService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -47,13 +47,13 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHousehold(db, MASTER_KEY, { slug: "casa-eta", name: "Età" });
+  const house = await createAccount(db, MASTER_KEY, { slug: "casa-eta", name: "Età" });
   token = house.ownerToken;
 
   const born = async (name: string, daysAgo: number, traits: object): Promise<void> => {
     const [row] = await db
       .insert(gosini)
-      .values({ householdId: house.householdId, name, lifeJitterDays: 0 })
+      .values({ accountId: house.accountId, name, lifeJitterDays: 0 })
       .returning({ id: gosini.id });
     if (row === undefined) throw new Error("no exemplar");
     // ADR-077: l'arco corre da `mortal_from`, e questi sono nati mortali
@@ -62,7 +62,7 @@ beforeAll(async () => {
           mortal_from = now() - make_interval(days => ${daysAgo}) where id = ${row.id}`,
     );
     await db.insert(traitSets).values({
-      householdId: house.householdId,
+      accountId: house.accountId,
       gosinoId: row.id,
       version: 1,
       traits,
@@ -77,11 +77,11 @@ beforeAll(async () => {
   // ADR-077: e uno nato prima che l'arco esistesse, che non l'ha ancora accettato
   const [immortal] = await db
     .insert(gosini)
-    .values({ householdId: house.householdId, name: "Capostipite" })
+    .values({ accountId: house.accountId, name: "Capostipite" })
     .returning({ id: gosini.id });
   if (immortal === undefined) throw new Error("no exemplar");
   await db.insert(traitSets).values({
-    householdId: house.householdId,
+    accountId: house.accountId,
     gosinoId: immortal.id,
     version: 1,
     traits: { calm: 0.5, longevity: 0.5 },

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { decryptText, MEMORY_KINDS } from "@ugo/shared";
 import type { ChatService } from "../services/chatService.js";
 import type { PreHandler } from "./guard.js";
-import { exemplarsOf, householdScope } from "./scope.js";
+import { exemplarsOf, accountScope } from "./scope.js";
 
 /**
  * Windows onto what UGO has accumulated, and the two corrections a person
@@ -64,7 +64,7 @@ export interface ArchiveDeps {
   registry?: {
     resolve: (
       query: string | undefined,
-      householdId: string,
+      accountId: string,
     ) => { chat: ChatService; id: string } | undefined;
   };
 }
@@ -90,9 +90,9 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         detail: z.prettifyError(parsed.error),
       });
     }
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const mine = exemplarsOf(deps.db, householdId);
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
+    const mine = exemplarsOf(deps.db, accountId);
     const { kind, q, limit } = parsed.data;
     // absent means the whole house (ADR-032); `resolve` would otherwise fall
     // back to the eldest and quietly answer as him
@@ -100,7 +100,7 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
     const who =
       asked === undefined || asked === ""
         ? undefined
-        : deps.registry?.resolve(asked, householdId);
+        : deps.registry?.resolve(asked, accountId);
     const chat = who?.chat ?? deps.chat;
 
     // with a query it is a semantic search — the same re-ranking the chat
@@ -162,8 +162,8 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         .type("application/problem+json")
         .send({ type: "about:blank", title: "Invalid correction", status: 400 });
     }
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
     const [updated] = await deps.db
       .update(memories)
       .set(
@@ -178,7 +178,7 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
             },
       )
       // a memory of another house answers 404, like one that does not exist
-      .where(and(eq(memories.id, id), inArray(memories.gosinoId, exemplarsOf(deps.db, householdId))))
+      .where(and(eq(memories.id, id), inArray(memories.gosinoId, exemplarsOf(deps.db, accountId))))
       .returning({ id: memories.id, invalidatedAt: memories.invalidatedAt });
     if (updated === undefined) {
       return reply
@@ -199,19 +199,19 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         .type("application/problem+json")
         .send({ type: "about:blank", title: "Invalid memory id", status: 400 });
     }
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
     const gone = await deps.db
       .delete(memories)
-      .where(and(eq(memories.id, id), inArray(memories.gosinoId, exemplarsOf(deps.db, householdId))))
+      .where(and(eq(memories.id, id), inArray(memories.gosinoId, exemplarsOf(deps.db, accountId))))
       .returning({ id: memories.id });
     request.log.info({ memoryId: id, existed: gone.length > 0 }, "memory destroyed");
     return reply.send({ destroyed: gone.length > 0 });
   });
 
   app.get("/v1/meetings", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
     const rows = await deps.db
       .select({
         id: meetings.id,
@@ -225,7 +225,7 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
       })
       .from(meetings)
       .leftJoin(gosini, eq(meetings.gosinoId, gosini.id))
-      .where(inArray(meetings.gosinoId, exemplarsOf(deps.db, householdId)))
+      .where(inArray(meetings.gosinoId, exemplarsOf(deps.db, accountId)))
       .orderBy(desc(meetings.startedAt))
       .limit(RECENT_LIMIT);
     return reply.send({ meetings: rows });
