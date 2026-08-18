@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.62.0"
+version: "0.63.0"
 last_updated: "2026-08-18"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
