@@ -182,6 +182,8 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
         jitter: gosini.lifeJitterDays,
         // ADR-081/082: da dove viene — e quindi se può essere ceduto
         origin: gosini.origin,
+        // ADR-083: e se è in vetrina, che è una cosa che si spegne e si accende
+        listedAt: gosini.listedAt,
         noticedAt: gosini.deathNoticeAt,
       })
       .from(gosini)
@@ -221,6 +223,7 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
         persona: character.persona,
         mortal: mortalFrom !== null,
         origin: row.origin,
+        listed: row.listedAt !== null,
         /** ADR-077: che il preavviso sia stato dato, non quando finisce */
         farewellNotice: row.noticedAt !== null,
         age:

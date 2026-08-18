@@ -1,7 +1,7 @@
 ---
 title: "Runbook — Deploy di UGO su Coolify"
 description: "Procedura completa per portare l'anima di UGO in produzione sul server Coolify: prerequisiti, risorse una per una, bucket S3, smoke test, troubleshooting e aggiornamenti."
-version: "0.42.0"
+version: "0.43.0"
 last_updated: "2026-08-17"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -696,6 +696,45 @@ Non c'è niente da configurare né alcun container nuovo: la sentinella gira **d
 `soul-api`** ogni sei ore (preavviso, passaggio del sapere ai più giovani, congedo alla fine).
 Vale anche a sogno spento, di proposito: il preavviso è una promessa fatta a te, e una
 promessa che dipende da un container facoltativo non è una promessa.
+
+### 5.11 Allevamenti, cessioni e vetrina (ADR-081/082/083)
+
+Da qui in avanti **un gosino non si crea: si nasce**, e le due autorizzazioni si danno solo
+dalla riga di comando — mai dal pannello, che è il punto.
+
+```bash
+# l'allevamento fondatore di questa installazione (uno solo: conia capostipiti)
+docker compose exec soul node dist/cli.js casa nuova \
+  --slug allevamento --nome "Allevamento" --gosino Zero --fonderia
+
+# un allevamento autorizzato: alleva cucciolate, NON conia
+docker compose exec soul node dist/cli.js casa nuova \
+  --slug bottega --nome "Bottega" --allevamento
+
+# una famiglia: nasce VUOTA, e riceverà un nato
+docker compose exec soul node dist/cli.js casa nuova --slug rossi --nome "Rossi"
+```
+
+La migrazione promuove automaticamente a fonderia **la casa più vecchia** dell'installazione:
+è quella che c'era prima che questa regola esistesse, ed è la tua.
+
+**Il giro completo di una consegna**, quando ci arriverai:
+
+1. l'allevamento fa una cucciolata e adotta un cucciolo (pannello → *Un altro gosino*);
+2. lo mette **in vetrina** dalla sua pagina *Da chi discende*;
+3. chi cerca guarda `GET /v1/vetrina` — **senza token**: è una vetrina — e il pedigree del
+   cucciolo che gli piace su `/v1/vetrina/<id>/pedigree`;
+4. l'allevamento lo **cede** alla casa che l'ha scelto, scrivendone lo slug e ripetendo il
+   nome del cucciolo.
+
+Due cose da sapere prima di provarlo in produzione:
+
+- **parte lui, non la vita fatta in allevamento**: ricordi, conversazioni, diario e legami
+  restano lì, e la risposta della cessione ti dice quante righe sono rimaste. Se vuoi passare
+  anche il sapere, prima crea una **dote**;
+- **la doppia vendita viene rifiutata dal registro** (409). Se vedi quell'errore, quel
+  cucciolo è già stato consegnato a qualcun altro: non è un guasto, è il libro genealogico che
+  fa il suo mestiere.
 
 ## 6. Troubleshooting
 

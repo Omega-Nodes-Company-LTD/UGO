@@ -55,8 +55,22 @@ vendesse due volte lo stesso cucciolo verrebbe rifiutato dal registro, perché l
 è più in custodia sua. Una rivendita vera — tu che un giorno lo cedi a qualcun altro — passa
 senza problemi: la differenza fra le due è chi ce l'ha adesso.
 
-> **Sta arrivando**: la vetrina — scorrere gli allevamenti, guardarne i pedigree, vedere i
-> gosini disponibili e scegliere il preferito al momento della registrazione.
+### La vetrina
+
+Prima di scegliere si guarda, e **si guarda senza avere niente**: la vetrina degli allevamenti
+è pubblica, perché chi cerca un gosino non ha ancora una casa dove metterlo.
+
+Di ogni cucciolo disponibile vedi **com'è fatto** — manto, coda, stazza, orecchie, grugno,
+occhi, zampe, tinta — la riga con cui si presenta, e **il suo pedigree**: da chi discende, con
+gli atti registrati che chiunque può verificare senza fidarsi di chi vende.
+
+Quello che **non** vedi è il suo carattere in numeri. Non è una dimenticanza: una scheda
+tecnica di un essere vivente inviterebbe a confrontare due creature come due lavatrici, ed è il
+contrario di come si sceglie un cucciolo — che è, da sempre, quello che ti guarda storto. E
+quanto vivrà non lo sa nessuno, nemmeno noi (è un gene nascosto).
+
+Mettere in vetrina lo fa l'allevamento, un cucciolo per volta. Una casa di famiglia non ha
+vetrina: non è un negozio.
 
 ## Una cucciolata
 

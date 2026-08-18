@@ -100,6 +100,15 @@ export const gosini = pgTable(
      * finché non accettano.
      */
     lifeJitterDays: integer("life_jitter_days"),
+    /**
+     * ADR-083: da quando è **in vetrina**, cioè offerto a chi cerca un gosino.
+     *
+     * `null` = non è in vendita, ed è lo stato di ogni creatura: si mette in
+     * vetrina una per una, con un gesto, e ci va solo un `nato` di un
+     * allevamento. Un capostipite non ci può stare — ADR-081 — e una creatura
+     * di una famiglia nemmeno: una casa non è un negozio.
+     */
+    listedAt: timestamp("listed_at", { withTimezone: true }),
     /** ADR-077: quando gli sono stati detti i sessanta giorni. Una volta sola. */
     deathNoticeAt: timestamp("death_notice_at", { withTimezone: true }),
     retiredAt: timestamp("retired_at", { withTimezone: true }),

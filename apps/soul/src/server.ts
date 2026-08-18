@@ -23,6 +23,7 @@ import { registerDowryRoutes } from "./routes/dowry.js";
 import { registerFarewellRoutes } from "./routes/farewell.js";
 import { registerDiaryRoutes } from "./routes/diary.js";
 import { registerTransferRoutes } from "./routes/transfer.js";
+import { registerVetrinaRoutes } from "./routes/vetrina.js";
 import { registerListRoutes } from "./routes/lists.js";
 import { PeerService } from "./services/peerService.js";
 import { RegistryClient } from "./services/registryClient.js";
@@ -404,6 +405,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           guard,
           dataKey: gosini.dataKey,
           ...(registry !== undefined && { registry }),
+        });
+        // ADR-083: la vetrina — guardare è pubblico, mettere in vetrina no
+        registerVetrinaRoutes(app, {
+          db: options.db,
+          guard,
+          ...(gosini.chain !== undefined && { chain: new RegistryClient(gosini.chain) }),
         });
         // ADR-082: la cessione di un nato, e l'atto in catena
         registerTransferRoutes(app, {

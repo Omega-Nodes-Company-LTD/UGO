@@ -247,6 +247,18 @@ export const GOSINO_PAGES = `
     <div id="pedigree-msg"></div>
   </div>
 
+  <div class="block" id="vetrina-block" hidden>
+    <h2>In vetrina</h2>
+    <p class="lede">Chi cerca un gosino guarda gli allevamenti, i cuccioli disponibili e i loro
+       pedigree — <b>prima</b> di sceglierne uno. In vetrina si vede com'è fatto e da chi
+       discende: niente delle case, nessuna persona, nessun ricordo.</p>
+    <div class="row" style="align-items:center">
+      <button id="vetrina-toggle" class="ghost" data-testid="vetrina-toggle">—</button>
+      <span id="vetrina-state" data-testid="vetrina-state" class="lede" style="margin:0;flex:1 1 14rem"></span>
+    </div>
+    <div id="vetrina-msg"></div>
+  </div>
+
   <div class="block" id="cede-block" hidden>
     <h2>Cederlo</h2>
     <p class="lede">Consegnare questo gosino a un'altra casa. <b>Si cedono solo i nati</b>: un
