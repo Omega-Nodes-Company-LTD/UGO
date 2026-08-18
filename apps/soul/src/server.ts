@@ -21,6 +21,7 @@ import { registerLitterRoutes } from "./routes/litters.js";
 import { registerPiggyBankRoutes } from "./routes/piggybank.js";
 import { registerDowryRoutes } from "./routes/dowry.js";
 import { registerFarewellRoutes } from "./routes/farewell.js";
+import { registerDiaryRoutes } from "./routes/diary.js";
 import { registerListRoutes } from "./routes/lists.js";
 import { PeerService } from "./services/peerService.js";
 import { RegistryClient } from "./services/registryClient.js";
@@ -168,7 +169,7 @@ export interface ServerOptions extends HealthDeps {
     /** `db` lo mette il server: chi lo costruisce porta solo il ripiego d'ambiente */
     weather?: Omit<WeatherDeps, "db">;
     /** backlog gruppo 3: il server MCP di sola lettura — assente = la rotta non esiste */
-    mcp?: { embedder: McpRouteDeps["embedder"] };
+    mcp?: { embedder: McpRouteDeps["embedder"]; dataKey?: Buffer };
     /** gruppo 13: la voce interim — assente = 204 e voce di sistema */
     tts?: TtsRouteDeps["tts"];
     /** decisione 2026-08-16: la voce di casa (Piper), gradino di mezzo */
@@ -285,7 +286,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // gruppo 13: la voce interim — il salvadanaio sta nel client (regola 3)
     // backlog gruppo 3: la memoria interrogabile da altri agenti, sola lettura
     if (mcp !== undefined) {
-      registerMcpRoute(app, { db: options.db, embedder: mcp.embedder });
+      registerMcpRoute(app, {
+        db: options.db,
+        embedder: mcp.embedder,
+        // ADR-079: il diario esce da qui in chiaro comunque sia scritto
+        ...(mcp.dataKey !== undefined && { dataKey: mcp.dataKey }),
+      });
     }
     registerTtsRoute(app, {
       db: options.db,
@@ -391,6 +397,13 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         });
         // ADR-076: le liste si vedono e si spuntano anche dal pannello
         registerListRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
+        // ADR-079: il libro della vita, che nessuno aveva mai potuto leggere
+        registerDiaryRoutes(app, {
+          db: options.db,
+          guard,
+          dataKey: gosini.dataKey,
+          ...(registry !== undefined && { registry }),
+        });
         registerFarewellRoutes(app, {
           db: options.db,
           guard,

@@ -140,6 +140,37 @@ export const GOSINO_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="diario">
+  <div class="page-head">
+    <p class="eyebrow" data-who>—</p>
+    <h1>Il libro della sua vita</h1>
+    <p>Una pagina per notte: quello che ha vissuto, distillato mentre dormiva. Non è un registro
+       di sistema — è <b>il suo racconto della giornata</b>, con le sue parole, e finora
+       nessuno poteva leggerlo.</p>
+  </div>
+
+  <div class="block">
+    <div class="row" style="align-items:center">
+      <div style="flex:0 1 10rem"><label for="diary-days">Quante notti</label>
+        <select id="diary-days" data-testid="diary-days">
+          <option value="7">l'ultima settimana</option>
+          <option value="30" selected>l'ultimo mese</option>
+          <option value="120">tutto quello che c'è</option>
+        </select></div>
+      <span class="lede" style="margin:0;flex:1 1 16rem">Le pagine le scrive il sogno, una per
+        notte. Un buco vuol dire una notte in cui il sogno non è girato.</span>
+    </div>
+    <div id="diary-msg"></div>
+  </div>
+
+  <div class="block">
+    <div id="diary-book" data-testid="diary-book"></div>
+    <p class="lede" style="margin-top:.9rem"><b>Il diario è della casa, non della creatura.</b>
+       Resta anche dopo di lui — è il senso del libro della vita (ADR-075). Se vuoi portartelo
+       via per intero, l'export completo è in <b>I dati</b>.</p>
+  </div>
+</section>
+
 <section class="page" data-page="vita">
   <div class="page-head">
     <p class="eyebrow" data-who>—</p>

@@ -22,7 +22,9 @@ import type { PackService } from "./packService.js";
 import { buildPackPrompt, selfLine } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
 import { readGestureOf, replyForReading, type ReadOutcome } from "./sceneReader.js";
+import { DiaryService } from "./diaryService.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
+import { dateFor, parseDiaryAsk, tellDiary } from "./volition/diaryAsk.js";
 import {
   answerTimer,
   confirmCancel,
@@ -198,6 +200,21 @@ export class ChatService {
         minute: at.getMinutes(),
         text: at.toISOString().slice(11, 16),
       };
+    }
+  }
+
+  /**
+   * Oggi nel fuso della casa, come lo scrive il sogno (`YYYY-MM-DD`). Con
+   * `toISOString()` una domanda fatta alle 23 di sera avrebbe avuto la data di
+   * domani, e la pagina di ieri sarebbe stata quella dell'altro ieri.
+   */
+  private localDate(at: Date): string {
+    try {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: this.deps.timezone ?? "Europe/Rome",
+      }).format(at);
+    } catch {
+      return at.toISOString().slice(0, 10);
     }
   }
 
@@ -492,11 +509,34 @@ export class ChatService {
     const wall = this.wallClock(at);
 
     /**
+     * ADR-079: «cos'hai fatto ieri?». La risposta è già scritta — il sogno la
+     * distilla ogni notte — e chiederla al provider vorrebbe dire pagare un
+     * token per farsi ripetere una cosa che è in casa. Il testo è suo, parola
+     * per parola: qui non si riassume il riassunto.
+     */
+    const diaryAsk = parseDiaryAsk(request.text);
+    if (diaryAsk !== undefined) {
+      const diary = new DiaryService(db, dataKey);
+      const today = this.localDate(at);
+      const pages = diaryAsk.book
+        ? await diary.pages(this.deps.householdId, this.deps.gosinoId, { limit: 5 })
+        : await diary
+            .page(this.deps.householdId, this.deps.gosinoId, dateFor(today, diaryAsk.daysAgo))
+            .then((page) => (page === undefined ? [] : [page]));
+      return this.answered(tellDiary(pages, diaryAsk), request, at);
+    }
+
+    /**
      * ADR-076: «aggiungi il latte alla spesa» è un gesto, non una
      * conversazione. Risposto qui, prima del provider: istantaneo, gratuito e
      * privato — e lo scambio finisce comunque nella biografia cifrato come
      * ogni altro, perché una scorciatoia sul costo non è una scorciatoia
      * sulla memoria.
+     *
+     * **Dopo il diario**, e l'ordine l'ha deciso un test rosso: «leggimi il
+     * diario» finiva qui, veniva letto come «leggimi la lista *diario*» e
+     * rispondeva «la lista diario è vuota». Il diario è suo, una lista è tua:
+     * quella parola la tiene lui.
      */
     const listCommand = parseListCommand(request.text);
     if (listCommand !== undefined) {
