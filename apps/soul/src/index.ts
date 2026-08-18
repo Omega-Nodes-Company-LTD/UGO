@@ -136,7 +136,17 @@ const llmFor = (
     baseUrl: env.OLLAMA_URL,
     model: localChatModel,
     locale: clock.locale,
-    logger: app.log,
+    // pigro, e non e' un vezzo: llmFor gira al bootstrap, PRIMA che `app`
+    // esista — toccare app.log qui era una TDZ che uccideva il boot vero
+    // (l'ha detto l'e2e, non i test d'integrazione, che montano buildServer)
+    logger: {
+      info: (o, m) => {
+        app.log.info(o, m);
+      },
+      warn: (o, m) => {
+        app.log.warn(o, m);
+      },
+    },
   });
 };
 const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
