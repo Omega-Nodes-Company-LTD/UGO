@@ -383,6 +383,9 @@ importers:
       '@ugo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
       testcontainers:
         specifier: ^12.1.0
         version: 12.1.0

@@ -1,6 +1,6 @@
 import { readdirSync } from "node:fs";
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { MemoryFactory, embeddingFromSeed } from "@ugo/factories";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { MemoryFactory, embeddingFromSeed, startPostgres } from "@ugo/factories";
 import { cosineDistance, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createDbClient, type DbClient } from "../../src/client.js";
@@ -45,13 +45,16 @@ const EXPECTED_TABLES = [
 ] as const;
 
 let container: StartedPostgreSqlContainer;
+let dbUrl: string;
 let db: DbClient;
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  await runMigrations(container.getConnectionUri());
-  db = createDbClient(container.getConnectionUri());
-});
+  const pg = await startPostgres();
+  container = pg.container;
+  dbUrl = pg.url;
+  await runMigrations(pg.url);
+  db = createDbClient(pg.url);
+}, 180_000);
 
 afterAll(async () => {
   await db.$client.end();
@@ -284,9 +287,9 @@ describe("migration concurrency (zero-downtime redeploys)", () => {
   it("serializes concurrent runs instead of corrupting the schema", async () => {
     // both containers boot at the same instant and both try to migrate
     const results = await Promise.allSettled([
-      runMigrations(container.getConnectionUri()),
-      runMigrations(container.getConnectionUri()),
-      runMigrations(container.getConnectionUri()),
+      runMigrations(dbUrl),
+      runMigrations(dbUrl),
+      runMigrations(dbUrl),
     ]);
     expect(results.every((result) => result.status === "fulfilled")).toBe(true);
 
