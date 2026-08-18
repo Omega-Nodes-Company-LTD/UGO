@@ -17,7 +17,13 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.base.json ./
 # every workspace package soul depends on, transitively:
 # soul → db, memory, psyche, shared · memory → db, prompts, shared · db → shared
+# e il registro: soul lo tiene fra le dipendenze di sviluppo perché il test
+# d'integrazione dell'adozione (ADR-084) avvia un libro genealogico vero
+# accanto all'anima. Qui serve solo il suo manifesto — pnpm deve poter
+# risolvere il link di workspace prima di potarlo con `--prod`; nel runtime
+# non entra, né lui né i suoi sorgenti.
 COPY apps/soul/package.json apps/soul/
+COPY apps/registry/package.json apps/registry/
 COPY apps/face/package.json apps/face/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
@@ -27,6 +33,7 @@ COPY packages/prompts/package.json packages/prompts/
 COPY tests/factories/package.json tests/factories/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY apps/soul apps/soul
+COPY apps/registry apps/registry
 COPY apps/face apps/face
 COPY packages/shared packages/shared
 COPY packages/db packages/db

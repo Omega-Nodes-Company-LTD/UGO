@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { PedigreeService } from "../services/pedigreeService.js";
 import type { RegistryClient } from "../services/registryClient.js";
+import { AdoptionService } from "../services/adoptionService.js";
 import { VetrinaService } from "../services/vetrinaService.js";
 import { guardBreeding } from "./breeding.js";
 import type { PreHandler } from "./guard.js";
@@ -16,7 +17,11 @@ import { householdScope } from "./scope.js";
  * **mettere in vetrina è dell'allevamento**, guardato come tutto il resto.
  */
 
-const showSchema = z.object({ listed: z.boolean() });
+const showSchema = z.object({
+  listed: z.boolean(),
+  /** in centesimi, perché i soldi non si scrivono in virgola mobile */
+  priceCents: z.number().int().min(0).max(100_000_00).optional(),
+});
 
 export interface VetrinaRoutesDeps {
   db: DbClient;
@@ -27,6 +32,7 @@ export interface VetrinaRoutesDeps {
 
 export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesDeps): void {
   const vetrina = new VetrinaService(deps.db);
+  const adoptions = new AdoptionService(deps.db);
   const pedigrees = new PedigreeService(deps.db);
 
   /**
@@ -35,6 +41,9 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
    * niente delle case: nessuna persona, nessun ricordo, nessun conto.
    */
   app.get("/v1/vetrina", async (_request, reply) => {
+    // ADR-084: le prenotazioni scadute tornano in vetrina proprio adesso, che
+    // è il momento in cui qualcuno sta guardando — l'unico in cui la cosa conta
+    await adoptions.releaseExpired();
     return reply.send({ allevamenti: await vetrina.browse() });
   });
 
@@ -66,7 +75,12 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
     if (householdId === undefined) return reply;
     if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
 
-    const done = await vetrina.show(householdId, id, parsed.data.listed);
+    const done = await vetrina.show(
+      householdId,
+      id,
+      parsed.data.listed,
+      parsed.data.priceCents,
+    );
     if (done === undefined) {
       return reply.status(422).send({
         error: "non si può mettere in vetrina",

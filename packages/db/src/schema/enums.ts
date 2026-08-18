@@ -6,6 +6,7 @@ import {
   DESIRE_STATUSES,
   DESIRE_KINDS,
   GOSINO_ORIGINS,
+  ADOPTION_STATUSES,
   EVENT_SOURCES,
   MEMORY_KINDS,
   MESSAGE_CHANNELS,
@@ -28,6 +29,7 @@ export const memoryKind = pgEnum("memory_kind", MEMORY_KINDS);
 export const desireStatus = pgEnum("desire_status", DESIRE_STATUSES);
 export const desireKind = pgEnum("desire_kind", DESIRE_KINDS);
 export const gosinoOrigin = pgEnum("gosino_origin", GOSINO_ORIGINS);
+export const adoptionStatus = pgEnum("adoption_status", ADOPTION_STATUSES);
 export const beingKind = pgEnum("being_kind", BEING_KINDS);
 export const relationType = pgEnum("relation_type", RELATION_TYPES);
 export const relationSource = pgEnum("relation_source", RELATION_SOURCES);

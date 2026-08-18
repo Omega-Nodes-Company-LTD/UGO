@@ -115,6 +115,9 @@ async function openPage(page) {
   } else if (page === "liste") {
     // ADR-076: la spesa e le cose da fare, riempite parlando
     await section(loadLists, "list-msg");
+  } else if (page === "adozioni") {
+    // ADR-084: le pratiche, dai due lati
+    await section(loadAdoptions, "adozioni-msg");
   } else if (page === "feed") {
     await section(loadFeeds, "feed-msg");
     // ADR-080: e cosa è arrivato davvero, non solo quanti

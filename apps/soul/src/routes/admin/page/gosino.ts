@@ -253,6 +253,9 @@ export const GOSINO_PAGES = `
        pedigree — <b>prima</b> di sceglierne uno. In vetrina si vede com'è fatto e da chi
        discende: niente delle case, nessuna persona, nessun ricordo.</p>
     <div class="row" style="align-items:center">
+      <div style="flex:0 1 10rem"><label for="vetrina-price">Prezzo (€)</label>
+        <input id="vetrina-price" data-testid="vetrina-price" type="number" step="10" min="0"
+               placeholder="da concordare"></div>
       <button id="vetrina-toggle" class="ghost" data-testid="vetrina-toggle">—</button>
       <span id="vetrina-state" data-testid="vetrina-state" class="lede" style="margin:0;flex:1 1 14rem"></span>
     </div>

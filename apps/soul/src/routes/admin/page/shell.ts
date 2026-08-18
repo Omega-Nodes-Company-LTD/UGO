@@ -56,6 +56,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <a href="#/riunioni" data-nav="riunioni">Riunioni e legami</a>
       <a href="#/liste" data-nav="liste">Le liste</a>
       <a href="#/feed" data-nav="feed">I feed</a>
+      <a href="#/adozioni" data-nav="adozioni">Le adozioni</a>
       <a href="#/clienti" data-nav="clienti">I clienti</a>
       <a href="#/conti" data-nav="conti">I conti</a>
       <a href="#/dati" data-nav="dati">I dati</a>
