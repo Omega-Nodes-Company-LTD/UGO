@@ -35,6 +35,7 @@ import { addCheckin, MAX_CHECKINS, silenceCheckins, standingCheckins } from "./c
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
 import { dateFor, parseDiaryAsk, tellDiary } from "./volition/diaryAsk.js";
 import { monthOf, parseMemoryAsk, tellMemories } from "./volition/memoryAsk.js";
+import { parseStoryAsk, storyPrompt, tellNoStory } from "./volition/story.js";
 import { MemoryBook } from "./memoryBook.js";
 import { parseNewsAsk, tellNews } from "./volition/news.js";
 import {
@@ -65,6 +66,12 @@ const DIARY_EXCERPT_CHARS = 300;
  * risposta parlata, non un export.
  */
 const RECALL_ALOUD = 5;
+/**
+ * Il tetto della storia (ADR-088). Una storia della buonanotte che non finisce
+ * è un difetto proprio all'ora in cui viene chiesta — e un modello locale, se
+ * non gli si mette un limite, continua.
+ */
+const STORY_TOKENS = 320;
 
 export class BeingNotFoundError extends Error {}
 
@@ -100,6 +107,14 @@ export interface ChatServiceDeps {
    * Assente = una foto arriva comunque, ma UGO dice che non riesce a vederla.
    */
   vision?: { describe: (jpegBase64: string) => Promise<string | undefined> };
+  /**
+   * ADR-088: il modello di CASA, per l'unico gesto che non può essere a costo
+   * zero — una storia va inventata, e inventare è la sola cosa che un parser
+   * non sa fare. Non passa dal provider a pagamento: una favola chiesta ogni
+   * sera si mangerebbe il budget di una famiglia in un mese. Assente = il
+   * gesto non esiste e la frase va al modello come una qualunque.
+   */
+  storyteller?: { generate: (prompt: string, maxTokens?: number) => Promise<string | undefined> };
   /** the household's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
@@ -557,6 +572,32 @@ export class ChatService {
         onlyValid: true,
       });
       return this.answered(tellMemories(lines, period), request, at);
+    }
+
+    /**
+     * ADR-088: «raccontami una storia». Dopo il diario e i ricordi apposta —
+     * quelli chiedono di **ricordare**, questo di **inventare**, e inventare
+     * quando ti hanno chiesto di ricordare è la bugia peggiore che una
+     * creatura con la memoria possa dire. Il parser si tira indietro da solo
+     * se la frase nomina un giorno o un fatto.
+     */
+    if (this.deps.storyteller !== undefined) {
+      const storyAsk = parseStoryAsk(request.text);
+      if (storyAsk !== undefined) {
+        const [page] = await new DiaryService(db, this.deps.dataKey).pages(
+          this.deps.householdId,
+          this.deps.gosinoId,
+          { limit: 1 },
+        );
+        const told = await this.deps.storyteller.generate(
+          storyPrompt(storyAsk, {
+            persona: this.deps.character.persona,
+            ...(page !== undefined && { diary: page.text }),
+          }),
+          STORY_TOKENS,
+        );
+        return this.answered(told ?? tellNoStory(), request, at);
+      }
     }
 
     const newsAsk = parseNewsAsk(request.text);

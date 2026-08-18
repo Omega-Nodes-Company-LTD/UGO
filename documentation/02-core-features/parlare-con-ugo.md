@@ -1,7 +1,7 @@
 ---
 title: "Parlare con UGO"
 description: "Come funziona una conversazione: la voce, la memoria che resta, l'umore che cambia e il budget giornaliero."
-version: "0.10.0"
+version: "0.11.0"
 last_updated: "2026-08-18"
 author: "ThinkPink Studio"
 ---
@@ -227,6 +227,24 @@ Una cosa che vale la pena sapere: **queste frasi non costano niente.** UGO le ca
 in casa, senza chiedere a nessuno — quindi non consumano il budget della giornata e non escono
 dal tuo server. Vale anche per i promemoria («ricordami di…»), i timer, le sveglie, il diario, la rassegna e le
 domande che gli fai tornare.
+
+## La storia della buonanotte
+
+- **«raccontami una storia»** — anche «una favola», «una storia della buonanotte».
+- **«raccontami una storia sul mare»** — se il tema lo dici, parla di quello.
+
+È l'unica cosa che UGO **inventa** invece di ricordare, e per questo è l'unica che ha bisogno
+di un modello. La scrive quello **che gira in casa tua**, non quello a pagamento: una favola
+ogni sera si mangerebbe il budget della giornata in una settimana, e non deve essere il gesto
+per addormentarsi a lasciarlo senza parole.
+
+La racconta **lui**, col suo carattere, e spesso comincia da com'è andata la giornata — se ha
+piovuto, nella storia può piovere. La senti a voce come ogni altra cosa che dice.
+
+Due cose oneste. Se il modello di casa non è acceso o non risponde, **te lo dice**: non ha una
+favola di riserva, perché una storia precotta ripetuta ogni sera si riconosce alla seconda. E
+se gli chiedi «raccontami cos'hai fatto ieri» ti risponde il **diario**, non una storia
+inventata: quella è una domanda su una cosa vera, e inventare lì sarebbe mentire.
 
 ## «Cosa ti ricordi di marzo?»
 

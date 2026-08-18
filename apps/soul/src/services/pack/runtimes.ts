@@ -220,6 +220,9 @@ async function buildRuntime(
       pack: new PackService(deps.db, deps.speciesMap, row.id, row.householdId),
     }),
     ...(deps.web !== undefined && { web: deps.web }),
+    // ADR-088: la storia della buonanotte la scrive il modello di casa, lo
+    // stesso che l'iniziativa usa per le sue domande. Mai il provider.
+    storyteller: deps.local,
     ...(recognition !== undefined && {
       reader: new SceneReader({
         gateway: () => body.gateway,
