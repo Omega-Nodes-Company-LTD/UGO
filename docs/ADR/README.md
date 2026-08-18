@@ -73,4 +73,9 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [065](./065-la-lettura-su-gesto.md) | La lettura su gesto: «leggi», e UGO guarda cosa c'è scritto | Accettata |
 | [066](./066-la-memoria-interrogabile.md) | La memoria interrogabile: il server MCP di sola lettura | Accettata |
 | [067](./067-il-filo-della-stanza.md) | Il filo della stanza: la chat di gruppo | Accettata |
-| 068 | *(prossimo numero disponibile)* | — |
+| [068](./068-la-cucciolata.md) | La cucciolata: il motore genetico | Accettata |
+| [069](./069-la-nascita.md) | La nascita: dalla cucciolata all'esemplare | Accettata |
+| [070](./070-il-pedigree.md) | Il pedigree: l'atto di nascita firmato dai genitori | Accettata |
+| [071](./071-l-arco-della-vita.md) | L'arco della vita: l'età, e la plasticità che si consuma | Accettata |
+| [072](./072-il-salvadanaio-del-gosino.md) | Il salvadanaio del gosino: il metabolismo | Accettata |
+| 073 | *(prossimo numero disponibile)* | — |

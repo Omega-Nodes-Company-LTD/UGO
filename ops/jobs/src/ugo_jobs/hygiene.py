@@ -1,11 +1,17 @@
 """Dream step 3 — memory hygiene (PROGETTO §5.6.3): unread memories fade,
 near-duplicates (cosine similarity > 0.95) are merged, and the umore
 baseline drifts gently with the lived days (ADR-012, accepted).
+
+Da ADR-071 quella deriva è scalata sull'**età**: la stessa settimana pesante
+sposta il carattere di un cucciolo molto più di quello di un anziano.
 """
 
 from __future__ import annotations
 
+import json
+import math
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import psycopg
 
@@ -25,6 +31,69 @@ UMORE_HIGH_DAY = 0.65
 # ADR-019 fase 3: l'argomento che il chiamante «avrebbe dovuto passare» adesso
 # lo passa. Il gosino cablato qui era la ragione per cui la deriva della
 # baseline valeva sempre e solo per l'esemplare seminato.
+
+#: ADR-071 — l'arco della vita. Il passo notturno delle baseline è moltiplicato
+#: per la PLASTICITÀ dell'esemplare: un cucciolo prende la giornata di petto, un
+#: anziano quasi non si muove. Non è stanchezza (rifiutata dal proprietario): è
+#: che ha finito di diventare sé stesso.
+#:
+#: Duplicato di `life.ts` in `packages/psyche`, come già `EFFICACY_DECAY`: i due
+#: linguaggi non condividono costanti, e ciò che avviene di notte deve stare
+#: dove gira la notte. Il test confronta i valori con quelli in TypeScript.
+LIFESPAN_MIN_DAYS = 912
+LIFESPAN_MAX_DAYS = 1826
+PLASTICITY_YOUNG = 2.2
+PLASTICITY_OLD = 0.15
+PLASTICITY_HALFWAY = 0.22
+LONGEVITY_DEFAULT = 0.5
+
+
+def lifespan_days_for(longevity: float) -> int:
+    t = min(1.0, max(0.0, longevity))
+    return round(LIFESPAN_MIN_DAYS + (LIFESPAN_MAX_DAYS - LIFESPAN_MIN_DAYS) * t)
+
+
+def plasticity_at(fraction: float) -> float:
+    t = max(0.0, fraction)
+    decay = math.exp((-t * math.log(2)) / PLASTICITY_HALFWAY)
+    return PLASTICITY_OLD + (PLASTICITY_YOUNG - PLASTICITY_OLD) * decay
+
+
+def _plasticity_of(conn: psycopg.Connection, gosino_id: str, now: datetime) -> float:
+    """Quanto la vita può ancora riscrivere questo carattere.
+
+    L'età non si conserva: si calcola da `born_at` e dal gene della longevità
+    (ADR-071). Senza riga o senza genoma si ricade sulla media, che è ciò che
+    valeva per tutti prima di questo ADR.
+    """
+    row = conn.execute(
+        """
+        select g.born_at,
+               (select t.traits from trait_sets t
+                 where t.gosino_id = g.id order by t.version desc limit 1)
+          from gosini g where g.id = %s
+        """,
+        (gosino_id,),
+    ).fetchone()
+    if row is None or row[0] is None:
+        return plasticity_at(0.0)
+
+    born_at, traits = row
+    longevity = LONGEVITY_DEFAULT
+    if isinstance(traits, str):
+        try:
+            traits = json.loads(traits)
+        except ValueError:
+            traits = None
+    if isinstance(traits, dict):
+        value = traits.get("longevity")
+        if isinstance(value, (int, float)):
+            longevity = float(value)
+
+    if born_at.tzinfo is None:
+        born_at = born_at.replace(tzinfo=timezone.utc)
+    age_days = max(0.0, (now - born_at).total_seconds() / 86_400)
+    return plasticity_at(age_days / lifespan_days_for(longevity))
 
 
 @dataclass
@@ -111,10 +180,12 @@ def _adjust_umore_baseline(conn: psycopg.Connection, dream_date: str, gosino_id:
         (gosino_id,),
     ).fetchone()
     current = float(current_row[0]) if current_row is not None else UMORE_DEFAULT
+    # ADR-071: il passo è quello di ADR-012 scalato sulla plasticità dell'età
+    step = BASELINE_STEP * _plasticity_of(conn, gosino_id, datetime.now(timezone.utc))
     if float(day_avg) <= UMORE_LOW_DAY:
-        target = current - BASELINE_STEP
+        target = current - step
     elif float(day_avg) >= UMORE_HIGH_DAY:
-        target = current + BASELINE_STEP
+        target = current + step
     else:
         return False
     low, high = UMORE_CLAMP

@@ -416,7 +416,8 @@ const app = buildServer({
     council: { council: new CouncilService({ db, local: localText }) },
     // ADR-036: the population is its own surface — a house can hold several
     // creatures and never convene a council
-    gosini: {},
+    // ADR-070: la chiave della casa serve a firmare gli atti di nascita
+    gosini: { dataKey },
     psyche,
     face,
     privacy,

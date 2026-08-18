@@ -16,6 +16,7 @@ export { computeCostUsd, pricingFor, type ModelPricing, type TokenUsage } from "
 export {
   LlmClient,
   DEGRADED_REPLY,
+  HUNGRY_REPLY,
   type LlmClientOptions,
   type LlmChatRequest,
   type LlmChatResult,

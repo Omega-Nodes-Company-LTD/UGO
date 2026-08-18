@@ -1,6 +1,10 @@
-"""ADR-012 (accepted): a heavy day nudges the umore baseline down by 0.02,
-clamped in [0.35, 0.7]; an average day changes nothing. Real Postgres,
-same drizzle migrations as production.
+"""ADR-012 (accepted): a heavy day nudges the umore baseline down, clamped in
+[0.35, 0.7]; an average day changes nothing. Real Postgres, same drizzle
+migrations as production.
+
+Da ADR-071 il passo NON è più fisso: è scalato sulla plasticità dell'età, e
+questi test lo provano dove conta — la stessa giornata pesante sposta un
+cucciolo molto più di un anziano.
 """
 
 from __future__ import annotations
@@ -8,7 +12,7 @@ from __future__ import annotations
 import psycopg
 
 from conftest import PRIME_GOSINO_ID, db_only_config
-from ugo_jobs.hygiene import run_hygiene
+from ugo_jobs.hygiene import BASELINE_STEP, plasticity_at, run_hygiene
 
 HEAVY_DATE = "2026-08-01"
 CALM_DATE = "2026-08-02"
@@ -23,24 +27,40 @@ def _seed_day(conn: psycopg.Connection, date: str, umore: float) -> None:
     conn.commit()
 
 
+def _age_days(conn: psycopg.Connection, days: int) -> None:
+    """Quanti giorni ha vissuto: l'età non si conserva, si calcola da `born_at`."""
+    conn.execute(
+        "update gosini set born_at = now() - make_interval(days => %s) where id = %s",
+        (days, PRIME_GOSINO_ID),
+    )
+    conn.execute(
+        "delete from psyche_baselines where gosino_id = %s and variable = 'umore'",
+        (PRIME_GOSINO_ID,),
+    )
+    conn.commit()
+
+
+def _umore(conn: psycopg.Connection) -> float:
+    row = conn.execute(
+        "select baseline from psyche_baselines where variable = 'umore'"
+    ).fetchone()
+    assert row is not None
+    return float(row[0])
+
+
 def test_heavy_day_lowers_umore_baseline_with_clamp(pg_url: str) -> None:
     with psycopg.connect(pg_url) as conn:
+        _age_days(conn, 0)  # appena nato: la plasticità è al massimo
         _seed_day(conn, HEAVY_DATE, 0.30)
         result = run_hygiene(conn, db_only_config(pg_url), HEAVY_DATE)
         assert result.baseline_adjusted is True
-        row = conn.execute(
-            "select baseline from psyche_baselines where variable = 'umore'"
-        ).fetchone()
-        assert row is not None
-        assert row[0] == 0.53  # 0.55 default - 0.02
+        expected = 0.55 - BASELINE_STEP * plasticity_at(0.0)
+        assert abs(_umore(conn) - expected) < 1e-6
 
         # many heavy days can never push below the clamp floor
-        for _ in range(20):
+        for _ in range(40):
             run_hygiene(conn, db_only_config(pg_url), HEAVY_DATE)
-        row = conn.execute(
-            "select baseline from psyche_baselines where variable = 'umore'"
-        ).fetchone()
-        assert row is not None and row[0] >= 0.35
+        assert _umore(conn) >= 0.35
 
 
 def test_average_day_leaves_the_baseline_alone(pg_url: str) -> None:
@@ -55,3 +75,40 @@ def test_average_day_leaves_the_baseline_alone(pg_url: str) -> None:
             "select baseline from psyche_baselines where variable = 'umore'"
         ).fetchone()
         assert before == after
+
+
+def test_the_same_bad_day_moves_a_cub_more_than_an_elder(pg_url: str) -> None:
+    """ADR-071, la prova che conta: invecchia la PLASTICITÀ, non l'energia.
+
+    Stessa giornata, stesso database, due età: quanto il carattere si sposta è
+    l'unica differenza — ed è quella che rende un anziano «uno che ha finito di
+    diventare sé stesso» invece di uno stanco.
+    """
+    with psycopg.connect(pg_url) as conn:
+        _seed_day(conn, HEAVY_DATE, 0.30)
+
+        _age_days(conn, 1)
+        run_hygiene(conn, db_only_config(pg_url), HEAVY_DATE)
+        cub_move = 0.55 - _umore(conn)
+
+        _age_days(conn, 1300)  # oltre la vita attesa media: convergente
+        run_hygiene(conn, db_only_config(pg_url), HEAVY_DATE)
+        elder_move = 0.55 - _umore(conn)
+
+        assert cub_move > 0
+        assert elder_move > 0  # non zero: un vecchio impara poco, non niente
+        assert cub_move > elder_move * 5
+
+
+def test_a_genome_without_longevity_still_ages(pg_url: str) -> None:
+    """Un genoma di prima di ADR-071 non ha il gene: vale la media, non un crash."""
+    with psycopg.connect(pg_url) as conn:
+        conn.execute(
+            "update trait_sets set traits = '{\"calm\": 0.5}'::jsonb where gosino_id = %s",
+            (PRIME_GOSINO_ID,),
+        )
+        _age_days(conn, 10)
+        _seed_day(conn, HEAVY_DATE, 0.30)
+        result = run_hygiene(conn, db_only_config(pg_url), HEAVY_DATE)
+        assert result.baseline_adjusted is True
+        assert _umore(conn) < 0.55

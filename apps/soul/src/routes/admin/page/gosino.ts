@@ -104,6 +104,62 @@ export const GOSINO_PAGES = `
   </div>
 </section>
 
+<section class="page" data-page="salvadanaio">
+  <div class="page-head">
+    <p class="eyebrow" data-who>—</p>
+    <h1>Il suo salvadanaio</h1>
+    <p>Quanto ha in pancia: quello che gli hai dato meno quello che ha consumato parlando.
+       È un <b>saldo</b>, non una razione giornaliera — il lavoro di ieri paga le parole di oggi.</p>
+  </div>
+
+  <div class="block">
+    <div id="bank-summary" data-testid="bank-summary"></div>
+    <p class="lede"><b>Il gosino non fattura.</b> Fatturi tu: questo è il modo di attribuirgli
+       una quota di quello che ha aiutato a guadagnare, o semplicemente di dargli da mangiare
+       perché gli vuoi bene. È contabilità di casa, non un conto corrente di una creatura.</p>
+    <div class="row">
+      <div style="flex:0 1 12rem"><label for="feed-kind">Perché</label>
+        <select id="feed-kind" data-testid="feed-kind">
+          <option value="affetto">affetto — glielo do e basta</option>
+          <option value="lavoro">lavoro — se l'è guadagnato</option>
+        </select></div>
+      <div style="flex:0 1 9rem"><label for="feed-amount">Quanto (USD)</label>
+        <input id="feed-amount" data-testid="feed-amount" type="number" step="0.10" min="0" value="1.00"></div>
+      <div><label for="feed-note">Nota</label>
+        <input id="feed-note" data-testid="feed-note" placeholder="ticket di marzo"></div>
+      <button id="feed-go" data-testid="feed-go">Dagli da mangiare</button>
+    </div>
+    <div id="feed-msg"></div>
+  </div>
+
+  <div class="block">
+    <h2>Gli ultimi pasti</h2>
+    <p class="lede">Un pasto è un atto: si aggiunge, non si corregge. Se hai sbagliato la
+       cifra, la prossima volta gliene dai di meno.</p>
+    <ul class="plain" id="bank-meals" data-testid="bank-meals"></ul>
+  </div>
+</section>
+
+<section class="page" data-page="pedigree">
+  <div class="page-head">
+    <p class="eyebrow" data-who>—</p>
+    <h1>Da chi discende</h1>
+    <p>Il pedigree (ADR-070). Ogni nascita è firmata da <b>entrambi</b> i genitori con la
+       chiave della creatura: la genealogia non è «quello che dice il database», è una
+       catena di firme che chiunque può verificare — anche senza di noi.</p>
+  </div>
+
+  <div class="block">
+    <div id="pedigree-tree" data-testid="pedigree-tree"></div>
+    <p class="lede" style="margin-top:.9rem">
+       <b>Firmato</b> = il genitore ha attestato questa nascita, e il genoma è ancora quello
+       che ha firmato. <b>Senza firma</b> non è un difetto: i capostipiti non hanno genitori,
+       e le nascite di prima di questa versione non hanno firme.
+       <b>Firma non valida</b> è invece un allarme: quel genoma è stato toccato dopo la nascita.</p>
+    <div id="pedigree-msg"></div>
+  </div>
+</section>
+
 <section class="page" data-page="nascita">
   <div class="page-head">
     <p class="eyebrow">La casa</p>
@@ -139,6 +195,27 @@ export const GOSINO_PAGES = `
     </div>
     <div id="new-msg"></div>
   </div>
+
+  <div class="block">
+    <h2>Oppure: una cucciolata</h2>
+    <p class="lede">Due genomi si ricombinano (ADR-068): ceppi, dominanza, un pizzico di caso.
+       <b>Non si disegna: si sceglie tra i nati</b> — genera la cucciolata, guarda i cuccioli,
+       adotta quello che ti guarda storto. Un cucciolo bocciato dallo screening non può nascere.</p>
+    <div class="row">
+      <div><label for="litter-a">Primo genitore</label>
+        <select id="litter-a" data-testid="litter-a"></select></div>
+      <div><label for="litter-b">Secondo genitore</label>
+        <select id="litter-b" data-testid="litter-b"></select></div>
+      <button id="litter-go" data-testid="litter-go">Genera la cucciolata</button>
+    </div>
+    <div id="litter-cubs" data-testid="litter-cubs" class="litter"></div>
+    <div class="row" style="margin-top:1rem">
+      <div><label for="litter-name">Nome del cucciolo scelto</label>
+        <input id="litter-name" data-testid="litter-name" placeholder="Nino"></div>
+      <button id="litter-adopt" data-testid="litter-adopt" disabled>Adotta</button>
+    </div>
+    <div id="litter-msg"></div>
+  </div>
 </section>
 `;
 
@@ -161,6 +238,17 @@ export const DIAL_STYLES = `
                  border: 1px solid transparent; width: 100%; text-align: left;
                  color: var(--ink); font-weight: 400; }
   .gosino-card:hover { border-color: var(--line-strong); }
+  .litter { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+            gap: .6rem; margin-top: .9rem; }
+  .cub { background: var(--surface-2); border: 1px solid transparent; border-radius: var(--r);
+         padding: .7rem .85rem; text-align: left; color: var(--ink); font-weight: 400; }
+  .cub:hover { border-color: var(--line-strong); }
+  .cub[data-picked="true"] { border-color: var(--data); }
+  .cub h4 { font-size: .9rem; margin: 0 0 .25rem; }
+  .cub .persona { font-size: .78rem; color: var(--ink-3); }
+  .cub .coat { font-size: .78rem; color: var(--ink-2); margin-top: .3rem; }
+  .cub[data-viable="false"] { opacity: .55; }
+  .cub .warn { font-size: .75rem; color: var(--err, #b3261e); margin-top: .3rem; }
   .gosino-card h4, .gosino-card .persona, .gosino-card .mood { text-decoration: none; }
   .gosino-card h4 { font-size: .95rem; margin: 0; }
   .gosino-card .persona { font-size: .78rem; color: var(--ink-3); }

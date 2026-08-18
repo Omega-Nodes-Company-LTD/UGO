@@ -22,12 +22,17 @@ export const traitsSchema = z.object({
   eye: z.number().min(0).max(1).default(0.5),
   leg: z.number().min(0).max(1).default(0.45),
   hue: z.number().min(0).max(1).default(0.95),
+  // the coat and the tail (ADR-068): spots are recessive, hence rare
+  spots: z.number().min(0).max(1).default(0.1),
+  tail: z.number().min(0).max(1).default(0.5),
   // the character
   curiosity: z.number().min(0).max(1).default(0.5),
   boldness: z.number().min(0).max(1).default(0.5),
   affection: z.number().min(0).max(1).default(0.5),
   calm: z.number().min(0).max(1).default(0.5),
   talkativeness: z.number().min(0).max(1).default(0.5),
+  // how long the arc lasts (ADR-071): a founder is average, no migration
+  longevity: z.number().min(0).max(1).default(0.5),
 });
 
 export type Traits = z.infer<typeof traitsSchema>;

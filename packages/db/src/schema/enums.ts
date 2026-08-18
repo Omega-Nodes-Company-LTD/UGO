@@ -13,6 +13,7 @@ import {
   TICKET_STATUSES,
   CUSTOMER_SOURCE_TYPES,
   CUSTOMER_SOURCE_STATUSES,
+  FEEDING_KINDS,
 } from "@ugo/shared";
 
 // Closed domains as real Postgres enums: invalid values are rejected by the
@@ -32,3 +33,4 @@ export const accessRole = pgEnum("access_role", ACCESS_ROLES);
 export const ticketStatus = pgEnum("ticket_status", TICKET_STATUSES);
 export const customerSourceType = pgEnum("customer_source_type", CUSTOMER_SOURCE_TYPES);
 export const customerSourceStatus = pgEnum("customer_source_status", CUSTOMER_SOURCE_STATUSES);
+export const feedingKind = pgEnum("feeding_kind", FEEDING_KINDS);

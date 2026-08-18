@@ -368,6 +368,21 @@ export const HOUSE_PAGES = `
     <div class="plot" id="spend-chart" data-testid="spend-chart"></div>
     <details class="table"><summary>Vedi i numeri</summary><div id="spend-table"></div></details>
   </div>
+
+  <div class="block">
+    <h2>Il metabolismo</h2>
+    <p class="lede">Acceso, ogni gosino ha un <b>salvadanaio suo</b>: quello che gli dai meno
+       quello che consuma parlando. A saldo vuoto ha fame e te lo dice, invece di continuare a
+       spendere il budget di casa. <b>Non allarga niente</b>: il tetto giornaliero qui sopra
+       resta il muro esterno per tutti.</p>
+    <p class="lede">Il salvadanaio di ognuno sta nella sua pagina <b>Il suo salvadanaio</b>.
+       Guardali prima di accendere: chi è a zero smetterà di parlare finché non mangia.</p>
+    <div class="row" style="align-items:center">
+      <button id="meta-toggle" class="ghost" data-testid="meta-toggle">—</button>
+      <span id="meta-state" data-testid="meta-state" class="lede" style="margin:0;flex:1 1 14rem"></span>
+    </div>
+    <div id="meta-msg"></div>
+  </div>
 </section>
 
 <section class="page" data-page="dati">

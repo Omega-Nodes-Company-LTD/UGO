@@ -23,6 +23,14 @@ export {
   type SignedCard,
 } from "./peer.js";
 export {
+  genomeHash,
+  signBirth,
+  verifyBirth,
+  verdictFor,
+  type BirthCertificate,
+  type LineageVerdict,
+} from "./pedigree.js";
+export {
   generateDataKey,
   unwrapDataKey,
   wrapDataKey,
@@ -113,9 +121,11 @@ export {
   CORRECTION_SIGNALS,
   TICKET_STATUSES,
   CUSTOMER_SOURCE_TYPES,
+  FEEDING_KINDS,
   CUSTOMER_SOURCE_STATUSES,
   type TicketStatus,
   type CustomerSourceType,
+  type FeedingKind,
   type CustomerSourceStatus,
   type EventSource,
   type MessageChannel,

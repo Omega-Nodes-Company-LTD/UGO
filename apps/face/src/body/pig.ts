@@ -20,6 +20,20 @@ export interface Traits {
   eye: number;
   leg: number;
   hue: number;
+  /**
+   * The coat (ADR-068). `spots` is a RECESSIVE gene: the expressed value
+   * crosses the visible threshold only when both alleles are high, so a
+   * spotted coat is genuinely rare and never a purchase. `tail` scales the
+   * curl. Defaults match the gene catalog: founders look exactly as before.
+   */
+  spots: number;
+  tail: number;
+  /**
+   * L'età che si vede (ADR-071): 0 fino a metà vita, poi le setole
+   * sbiadiscono. Riflette la CONVERGENZA — ha finito di diventare sé stesso —
+   * non una decrepitezza finta: niente posture curve, niente passo lento.
+   */
+  greying: number;
 }
 
 export const DEFAULT_TRAITS: Traits = {
@@ -29,7 +43,31 @@ export const DEFAULT_TRAITS: Traits = {
   eye: 0.5,
   leg: 0.45,
   hue: 0.95,
+  spots: 0.1,
+  tail: 0.5,
+  greying: 0,
 };
+
+/** Below this the coat is plain: carriers (one high allele) show nothing. */
+const SPOTS_VISIBLE_FROM = 0.45;
+
+/**
+ * Fixed patch catalog, fractions of the body box. Deterministic on purpose:
+ * same genome, same coat — the pattern is the creature's, not the frame's.
+ */
+const SPOT_SITES: readonly {
+  axis: "x" | "z";
+  side: number;
+  y: number;
+  along: number;
+  size: number;
+}[] = [
+  { axis: "x", side: -1, y: 0.16, along: -0.12, size: 0.66 },
+  { axis: "x", side: 1, y: -0.02, along: 0.2, size: 0.5 },
+  { axis: "z", side: -1, y: 0.12, along: 0.22, size: 0.55 },
+  { axis: "x", side: 1, y: 0.22, along: -0.3, size: 0.42 },
+  { axis: "x", side: -1, y: -0.14, along: 0.34, size: 0.38 },
+];
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
@@ -90,18 +128,21 @@ export class Pig {
   private readonly depth: number;
 
   public constructor(traits: Traits = DEFAULT_TRAITS) {
-    const skin = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setHSL(traits.hue, 0.6, 0.77),
-      roughness: 0.88,
-    });
-    const limb = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setHSL(traits.hue, 0.55, 0.71),
-      roughness: 0.88,
-    });
-    const snoutMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setHSL(traits.hue, 0.52, 0.67),
-      roughness: 0.82,
-    });
+    /**
+     * Greying desaturates and lightens: the pigment goes, the hue stays. A
+     * grey pig is still a pink pig that has lived, not a different animal.
+     */
+    const grey = Math.min(1, Math.max(0, traits.greying));
+    const aged = (saturation: number, lightness: number): THREE.Color =>
+      new THREE.Color().setHSL(
+        traits.hue,
+        saturation * (1 - grey * 0.72),
+        lightness + (1 - lightness) * grey * 0.35,
+      );
+
+    const skin = new THREE.MeshStandardMaterial({ color: aged(0.6, 0.77), roughness: 0.88 });
+    const limb = new THREE.MeshStandardMaterial({ color: aged(0.55, 0.71), roughness: 0.88 });
+    const snoutMat = new THREE.MeshStandardMaterial({ color: aged(0.52, 0.67), roughness: 0.82 });
     const dark = new THREE.MeshStandardMaterial({
       color: new THREE.Color().setHSL(traits.hue, 0.45, 0.22),
       roughness: 0.55,
@@ -123,6 +164,31 @@ export class Pig {
     this.depth = bd;
     this.body = box(bw, bh, bd, 0.55, skin);
     this.bodyPivot.add(this.body);
+
+    // coat spots (ADR-068): thin panels just proud of the flank, the cheek's
+    // trick. Children of the body mesh so they breathe with it.
+    const spotting = Math.max(0, (traits.spots - SPOTS_VISIBLE_FROM) / (1 - SPOTS_VISIBLE_FROM));
+    const shown = Math.round(spotting * SPOT_SITES.length);
+    if (shown > 0) {
+      const spotMat = new THREE.MeshStandardMaterial({
+        color: aged(0.5, lerp(0.6, 0.42, spotting)),
+        roughness: 0.9,
+      });
+      for (const site of SPOT_SITES.slice(0, shown)) {
+        const s = site.size * lerp(0.55, 0.9, spotting);
+        const patch =
+          site.axis === "x"
+            ? box(0.1, s, s * 0.82, s * 0.3, spotMat)
+            : box(s, s * 0.82, 0.1, s * 0.3, spotMat);
+        if (site.axis === "x") {
+          patch.position.set(site.side * (bw / 2 - 0.02), site.y * bh, site.along * bd);
+        } else {
+          patch.position.set(site.along * bw, site.y * bh, site.side * (bd / 2 - 0.02));
+        }
+        patch.name = "spot";
+        this.body.add(patch);
+      }
+    }
 
     // head: a smaller cube sunk into the body — no neck, like the reference
     const hw = bw * 0.86;
@@ -219,6 +285,8 @@ export class Pig {
       this.tailLinks.push(link);
       parent = link;
     }
+    // the tail gene scales the whole curl: a long tail is born, not bought
+    this.tailRoot.scale.setScalar(lerp(0.72, 1.45, traits.tail));
     this.bodyPivot.add(this.tailRoot);
 
     const legH = lerp(0.42, 0.8, traits.leg);

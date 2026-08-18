@@ -1,5 +1,6 @@
 import {
   budgetLedger,
+  feedings,
   households,
   PRIME_GOSINO_ID,
   PRIME_HOUSEHOLD_ID,
@@ -23,6 +24,14 @@ import { computeCostUsd, type TokenUsage } from "./pricing.js";
 
 export const DEGRADED_REPLY =
   "Grunf... per oggi ho finito le parole, il salvadanaio dice basta. Torno domani.";
+
+/**
+ * La fame (ADR-072). Parole diverse dal tetto di casa apposta: sono due cose
+ * diverse — quello è il limite della famiglia, questa è la SUA pancia vuota —
+ * e dirle uguali sarebbe una bugia. Non è un guasto: gli si dà da mangiare.
+ */
+export const HUNGRY_REPLY =
+  "Grunf... ho fame. Il mio salvadanaio è vuoto: dammi qualcosa e torno a parlare.";
 
 // `ticket` (ADR-052): technical answers with repo context need more room
 const MAX_TOKENS_BY_CHANNEL = { home: 200, meeting: 300, api: 200, ticket: 400 } as const;
@@ -141,6 +150,32 @@ export class LlmClient {
     return Number(rows[0]?.total ?? 0);
   }
 
+  /**
+   * Il saldo del salvadanaio DI QUESTO esemplare (ADR-072): quanto gli è stato
+   * dato meno quanto ha consumato, da sempre. Un saldo e non una razione: il
+   * lavoro di ieri paga le parole di oggi.
+   *
+   * `undefined` quando la casa non ha il metabolismo acceso — e allora vale
+   * solo il tetto di famiglia, esattamente come prima di questo ADR.
+   */
+  public async piggyBankUsd(): Promise<number | undefined> {
+    const [house] = await this.options.db
+      .select({ on: households.metabolism })
+      .from(households)
+      .where(eq(households.id, this.householdId));
+    if (house?.on !== true) return undefined;
+
+    const [fed] = await this.options.db
+      .select({ total: sql<string>`coalesce(sum(${feedings.amountUsd}), 0)` })
+      .from(feedings)
+      .where(eq(feedings.gosinoId, this.gosinoId));
+    const [eaten] = await this.options.db
+      .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
+      .from(budgetLedger)
+      .where(eq(budgetLedger.gosinoId, this.gosinoId));
+    return Number(fed?.total ?? 0) - Number(eaten?.total ?? 0);
+  }
+
   /** The house's own ceiling when it has one, the process default otherwise. */
   public async dailyBudgetUsd(): Promise<number> {
     const [row] = await this.options.db
@@ -173,6 +208,20 @@ export class LlmClient {
         "daily LLM budget exceeded: declared degradation",
       );
       return { text: DEGRADED_REPLY, degraded: true };
+    }
+
+    /**
+     * ADR-072: il muro di famiglia è passato, resta la sua pancia. Il controllo
+     * sta DENTRO la stessa coda del tetto, o due turni concorrenti mangerebbero
+     * lo stesso pasto — la lezione già pagata sul TOCTOU del budget guard.
+     */
+    const piggyBank = await this.piggyBankUsd();
+    if (piggyBank !== undefined && piggyBank <= 0) {
+      this.options.logger?.warn(
+        { piggyBankUsd: piggyBank, householdId: this.householdId, gosinoId: this.gosinoId },
+        "empty piggy bank: the exemplar is hungry",
+      );
+      return { text: HUNGRY_REPLY, degraded: true };
     }
 
     // ADR-052: at the reception the second cached block is the reception's

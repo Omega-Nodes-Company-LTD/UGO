@@ -1,6 +1,9 @@
 ---
 title: "Il pannello"
 description: "Come sta, cosa ha deciso da solo, e come chiedere a tutti quanti insieme. Tutto da /admin, senza toccare un terminale."
+version: "0.36.0"
+last_updated: "2026-08-17"
+author: "ThinkPink Studio"
 ---
 
 # Il pannello
@@ -139,6 +142,11 @@ vuol dire farne una versione nuova, non spostare un cursore. Sceglilo con
 un minimo di calma.
 
 Appena nato ha già il suo apparato: puoi entrare nella sua pagina subito.
+
+Nella stessa pagina, più sotto, c'è l'altro modo: **una cucciolata** da due gosini
+che hai già, dove il carattere non lo scegli tu — lo scelgono i genitori. Come
+funziona, perché a volte rifiuta e cosa vuol dire il pedigree sta tutto in
+[Il branco](./il-branco.md).
 
 ## Come sta adesso
 
