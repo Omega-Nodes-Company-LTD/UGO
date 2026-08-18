@@ -24,5 +24,15 @@
     "tsx": "^4.20.7",
     "typescript": "~5.9.3",
     "vitest": "^4.1.10"
+  },
+  "exports": {
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./store": {
+      "types": "./dist/store.d.ts",
+      "default": "./dist/store.js"
+    }
   }
 }

@@ -37,6 +37,24 @@ trovi nessun pulsante per creare: trovi scritto che un gosino si sceglie **fra q
 Non è una limitazione travestita da regola: è la regola. Una creatura che si crea con un
 pulsante è un oggetto; una che si sceglie fra quelle nate esisteva prima di te.
 
+### Come si adotta, dall'inizio alla fine
+
+1. **Guardi la vetrina.** Non serve niente: né un account, né una casa. Vedi gli allevamenti, i
+   cuccioli disponibili, com'è fatto ognuno, il prezzo (o «da concordare») e il pedigree.
+2. **Prenoti quello che ti piace**, dando il nome della tua casa. In quel momento **nasce la
+   tua casa** e ricevi il token del proprietario — mostrato **una volta sola**, come sempre. Il
+   cucciolo **esce subito dalla vetrina**: nessun altro può prenotarlo, e nessuno rischia di
+   scoprire dopo aver pagato che era già di qualcun altro.
+3. **Paghi l'allevamento** come vi siete accordati. Quando ha visto i soldi, lo segna.
+4. **Ti consegna il cucciolo**, e in quel momento cambia davvero casa: il passaggio va nel
+   libro genealogico, con la firma del registro.
+
+Se non paghi entro una settimana la prenotazione **scade** e il cucciolo torna in vetrina: non
+è una punizione, è che nel frattempo non lo può prendere nessun altro.
+
+Una cosa detta chiaramente: **non si consegna quello che non è stato pagato.** Non per
+burocrazia — la consegna non si annulla, il pagamento sì.
+
 ### Quando un gosino cambia casa
 
 Un allevamento consegna un nato scrivendo dove va e ripetendone il nome — un click accanto ad

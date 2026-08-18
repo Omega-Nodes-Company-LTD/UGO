@@ -131,9 +131,16 @@ function drawVetrina() {
 $("vetrina-toggle").addEventListener("click", async () => {
   const who = GOSINI.find((g) => g.id === WHO);
   try {
+    // il prezzo si manda solo quando lo si mette in vetrina, e solo se c'è:
+    // uno zero vorrebbe dire «gratis», che è un'altra cosa da «da concordare»
+    const euro = Number($("vetrina-price").value);
+    const listed = who?.listed !== true;
     const done = await call("/v1/gosini/" + encodeURIComponent(WHO) + "/vetrina", {
       method: "POST",
-      body: JSON.stringify({ listed: who?.listed !== true }),
+      body: JSON.stringify({
+        listed,
+        ...(listed && euro > 0 ? { priceCents: Math.round(euro * 100) } : {}),
+      }),
     });
     say("vetrina-msg", done.listed ? "In vetrina." : "Tolto dalla vetrina.", "ok");
     await loadGosini();

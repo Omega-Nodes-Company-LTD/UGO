@@ -27,6 +27,8 @@ export interface ShowcaseCub {
   look: Record<string, number>;
   ageDays: number;
   stage: string;
+  /** quanto lo chiede l'allevamento. `null` = da concordare, che non è «gratis» */
+  priceCents: number | null;
 }
 
 export interface ShowcaseKennel {
@@ -59,6 +61,7 @@ export class VetrinaService {
         generation: gosini.generation,
         mortalFrom: gosini.mortalFrom,
         jitter: gosini.lifeJitterDays,
+        price: gosini.priceCents,
         traits: traitSets.traits,
       })
       .from(gosini)
@@ -97,6 +100,7 @@ export class VetrinaService {
         look,
         ageDays: life === undefined ? 0 : Math.floor(life.ageDays),
         stage: life?.stage ?? "cucciolo",
+        priceCents: row.price,
       });
       byKennel.set(row.slug, kennel);
     }
@@ -111,10 +115,14 @@ export class VetrinaService {
     householdId: string,
     gosinoId: string,
     listed: boolean,
+    priceCents?: number,
   ): Promise<{ listed: boolean } | undefined> {
     const done = await this.db
       .update(gosini)
-      .set({ listedAt: listed ? new Date() : null })
+      .set({
+        listedAt: listed ? new Date() : null,
+        ...(priceCents !== undefined && { priceCents }),
+      })
       .where(
         and(
           eq(gosini.id, gosinoId),

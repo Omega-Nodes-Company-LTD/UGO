@@ -472,4 +472,23 @@ export const HOUSE_PAGES = `
     <div id="feed-items" data-testid="feed-items"></div>
   </div>
 </section>
+
+<section class="page" data-page="adozioni">
+  <div class="page-head">
+    <p class="eyebrow">La casa</p>
+    <h1>Le adozioni</h1>
+    <p>Le pratiche aperte: chi ha scelto un cucciolo dalla vetrina, chi ha pagato, chi è già
+       stato consegnato. Vale in tutti e due i versi — <b>quelle che cedi e quelle che
+       ricevi</b>: una compravendita ha due parti, e le vedono tutte e due.</p>
+  </div>
+
+  <div class="block">
+    <p class="lede">Non si consegna quello che non è stato pagato, e non per burocrazia: la
+       consegna è irreversibile e il pagamento no. Quando consegni, la creatura cambia casa e
+       <b>l'atto va nel libro genealogico</b> — se manca il numero della voce, la consegna è
+       avvenuta ma il registro non lo sa ancora, e va guardato.</p>
+    <div id="adozioni-list" data-testid="adozioni-list"></div>
+    <div id="adozioni-msg"></div>
+  </div>
+</section>
 `;

@@ -56,6 +56,17 @@ export type DesireStatus = (typeof DESIRE_STATUSES)[number];
  * può cedere. `dote`: nato dal sapere di un altro (ADR-074), quindi capostipite
  * in casa sua e non cedibile come un nato.
  */
+/**
+ * ADR-084 — a che punto è un'adozione.
+ *
+ * `prenotata` è una promessa con una scadenza; `pagata` è il momento in cui
+ * l'allevamento può consegnare; `consegnata` è quando la creatura ha cambiato
+ * casa e la catena lo sa; `annullata` è quando non se n'è fatto niente, e il
+ * cucciolo torna in vetrina.
+ */
+export const ADOPTION_STATUSES = ["prenotata", "pagata", "consegnata", "annullata"] as const;
+export type AdoptionStatus = (typeof ADOPTION_STATUSES)[number];
+
 export const GOSINO_ORIGINS = ["capostipite", "nato", "dote"] as const;
 export type GosinoOrigin = (typeof GOSINO_ORIGINS)[number];
 

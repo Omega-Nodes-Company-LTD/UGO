@@ -718,14 +718,19 @@ docker compose exec soul node dist/cli.js casa nuova --slug rossi --nome "Rossi"
 La migrazione promuove automaticamente a fonderia **la casa più vecchia** dell'installazione:
 è quella che c'era prima che questa regola esistesse, ed è la tua.
 
-**Il giro completo di una consegna**, quando ci arriverai:
+**Il giro completo di una consegna** (ADR-084):
 
 1. l'allevamento fa una cucciolata e adotta un cucciolo (pannello → *Un altro gosino*);
-2. lo mette **in vetrina** dalla sua pagina *Da chi discende*;
+2. lo mette **in vetrina** dalla sua pagina *Da chi discende*, col prezzo;
 3. chi cerca guarda `GET /v1/vetrina` — **senza token**: è una vetrina — e il pedigree del
    cucciolo che gli piace su `/v1/vetrina/<id>/pedigree`;
-4. l'allevamento lo **cede** alla casa che l'ha scelto, scrivendone lo slug e ripetendo il
-   nome del cucciolo.
+4. **prenota** con `POST /v1/vetrina/<id>/prenota` (anche questa senza token): nasce la sua
+   casa, riceve il token del proprietario **una volta sola**, e il cucciolo esce dalla vetrina;
+5. l'allevamento segna il pagamento e **consegna**, dalla pagina *Le adozioni*.
+
+Verifica che la catena abbia registrato: la riga della pratica mostra **il numero della voce**.
+Se al posto suo c'è scritto «non registrato in catena», la consegna è avvenuta e il libro
+genealogico non lo sa — guarda i log di `soul-api` e il `/health` del registro.
 
 Due cose da sapere prima di provarlo in produzione:
 

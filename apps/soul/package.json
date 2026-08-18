@@ -37,6 +37,8 @@
     "@types/pdfkit": "^0.17.6",
     "@types/ws": "^8.18.1",
     "@ugo/factories": "workspace:*",
+    "postgres": "^3.4.9",
+    "registry": "workspace:*",
     "testcontainers": "^12.1.0",
     "tsx": "^4.23.11",
     "typescript": "~5.9.3",

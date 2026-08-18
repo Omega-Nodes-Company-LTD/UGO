@@ -239,6 +239,12 @@ importers:
       '@ugo/factories':
         specifier: workspace:*
         version: link:../../tests/factories
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
+      registry:
+        specifier: workspace:*
+        version: link:../registry
       testcontainers:
         specifier: ^12.1.0
         version: 12.1.0

@@ -5,6 +5,7 @@ import { CORE_JS } from "./script/core.js";
 import { COUNCIL_JS } from "./script/council.js";
 import { CUSTOMERS_JS } from "./script/customers.js";
 import { DATA_JS } from "./script/data.js";
+import { ADOPTIONS_JS } from "./script/adoptions.js";
 import { DIARY_JS } from "./script/diary.js";
 import { EFFICACY_JS } from "./script/efficacy.js";
 import { FEEDS_JS } from "./script/feeds.js";
@@ -64,5 +65,6 @@ export const ADMIN_SCRIPT = [
   PIGGYBANK_JS,
   LIFE_JS,
   DIARY_JS,
+  ADOPTIONS_JS,
   LISTS_JS,
 ].join("\n");

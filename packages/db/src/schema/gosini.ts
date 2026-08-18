@@ -109,6 +109,12 @@ export const gosini = pgTable(
      * di una famiglia nemmeno: una casa non è un negozio.
      */
     listedAt: timestamp("listed_at", { withTimezone: true }),
+    /**
+     * ADR-084: quanto lo chiede l'allevamento, in centesimi. `null` = non l'ha
+     * detto, e allora la vetrina dice «da concordare» invece di inventare uno
+     * zero — che sarebbe «gratis», cioè un'altra cosa.
+     */
+    priceCents: integer("price_cents"),
     /** ADR-077: quando gli sono stati detti i sessanta giorni. Una volta sola. */
     deathNoticeAt: timestamp("death_notice_at", { withTimezone: true }),
     retiredAt: timestamp("retired_at", { withTimezone: true }),
