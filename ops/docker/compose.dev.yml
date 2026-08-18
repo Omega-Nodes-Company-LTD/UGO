@@ -106,6 +106,8 @@ services:
     networks: [backend]
     environment:
       DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
+      # ADR-062 tempo 2b: vuota = owner (muro inerte); impostata = ugo_app (RLS attiva)
+      DATABASE_URL_APP: ${DATABASE_URL_APP:-}
       OLLAMA_URL: ${OLLAMA_URL:?missing OLLAMA_URL}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
       # ADR-073: il libro genealogico. Senza, i gosini nascono lo stesso
@@ -156,6 +158,8 @@ services:
     networks: [backend]
     environment:
       DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
+      # ADR-062 tempo 2b: vuota = owner (muro inerte); impostata = ugo_app (RLS attiva)
+      DATABASE_URL_APP: ${DATABASE_URL_APP:-}
       UGO_DATA_KEY: ${UGO_DATA_KEY:?missing UGO_DATA_KEY}
       UGO_INTERNAL_TOKEN: ${UGO_INTERNAL_TOKEN:?missing UGO_INTERNAL_TOKEN}
       # ADR-047: il container se li scarica all'avvio, PRIMA di aprire la
@@ -195,6 +199,8 @@ services:
       - /tmp
     environment:
       DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
+      # ADR-062 tempo 2b: vuota = owner (muro inerte); impostata = ugo_app (RLS attiva)
+      DATABASE_URL_APP: ${DATABASE_URL_APP:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -272,6 +278,8 @@ services:
       - /tmp
     environment:
       DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
+      # ADR-062 tempo 2b: vuota = owner (muro inerte); impostata = ugo_app (RLS attiva)
+      DATABASE_URL_APP: ${DATABASE_URL_APP:-}
       MQTT_URL: ${MQTT_URL:?missing MQTT_URL}
       MQTT_USER: ${MQTT_USER:?missing MQTT_USER}
       MQTT_PASS: ${MQTT_PASS:?missing MQTT_PASS}

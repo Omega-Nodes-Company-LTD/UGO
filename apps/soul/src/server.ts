@@ -146,6 +146,8 @@ export interface ServerOptions extends HealthDeps {
     reception?: {
       token: string;
       dataKey: Buffer;
+      /** ADR-098: la connessione della casa del cliente, per i servizi della reception */
+      dbFor?: (accountId: string) => DbClient;
       quota: CustomerQuota;
       llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => ChatLlm;
       /** ADR-054: retrieval over the knowledge index */
@@ -514,6 +516,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         // scalda l'esemplare che sta girando, non una copia
         reward: new CustomerRewardService({
           db: options.db,
+          ...(reception.dbFor !== undefined && { dbFor: reception.dbFor }),
           weeklyDefault: reception.weeklyRewards,
           ...(registry !== undefined && {
             psycheFor: (accountId: string, gosinoId: string) =>
@@ -522,6 +525,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         }),
         chat: new CustomerChatService({
           db: options.db,
+          ...(reception.dbFor !== undefined && { dbFor: reception.dbFor }),
           dataKey: reception.dataKey,
           quota: reception.quota,
           llmFor: reception.llmFor,
@@ -529,7 +533,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           ...(reception.embedder !== undefined && { embedder: reception.embedder }),
           ...(reception.github !== undefined && { github: reception.github }),
           // ADR-055 wall 3, built here so it shares db and key with the rest
-          cache: new AnswerCache(options.db, reception.dataKey, reception.embedder),
+          cache: new AnswerCache(options.db, reception.dataKey, reception.embedder, reception.dbFor),
         }),
         dataKey: reception.dataKey,
         audit,

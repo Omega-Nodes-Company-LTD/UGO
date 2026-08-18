@@ -91,6 +91,8 @@ export interface HouseClock {
 
 export interface CustomerChatDeps {
   db: DbClient;
+  /** ADR-098: la connessione della casa del cliente; assente = `db` */
+  dbFor?: (accountId: string) => DbClient;
   dataKey: Buffer;
   quota: CustomerQuota;
   llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => ChatLlm;
@@ -124,11 +126,16 @@ export interface CustomerChatRequest {
 export class CustomerChatService {
   public constructor(private readonly deps: CustomerChatDeps) {}
 
+  /** ADR-098/tempo 2b: la connessione della casa del cliente; assente = `db` */
+  private dbOf(accountId: string): DbClient {
+    return this.deps.dbFor?.(accountId) ?? this.deps.db;
+  }
+
   /** The gosini this customer may talk to — the picker's list. */
   public async assignedGosini(
     context: CustomerContext,
   ): Promise<{ id: string; name: string; locationLabel: string | null }[]> {
-    return this.deps.db
+    return this.dbOf(context.accountId)
       .select({ id: gosini.id, name: gosini.name, locationLabel: gosini.locationLabel })
       .from(customerGosini)
       .innerJoin(gosini, eq(gosini.id, customerGosini.gosinoId))
@@ -140,8 +147,9 @@ export class CustomerChatService {
     request: CustomerChatRequest,
     at: Date = new Date(),
   ): Promise<CustomerChatResult> {
-    const { db, quota } = this.deps;
+    const { quota } = this.deps;
     const { context, gosinoId } = request;
+    const db = this.dbOf(context.accountId);
 
     // 404 for a gosino that is not assigned — including one of another house
     const [assignment] = await db
@@ -155,7 +163,7 @@ export class CustomerChatService {
       );
     if (assignment === undefined) throw new GosinoNotAssignedError(gosinoId);
 
-    const verdict = await quota.check(context.customerId, at);
+    const verdict = await quota.check(context.customerId, at, context.accountId);
     if (!verdict.allowed && verdict.wall === "hourly") {
       // nothing is persisted: a refused knock must not tighten the quota
       return { kind: "rate_limited", retryAfterSeconds: verdict.retryAfterSeconds };
@@ -240,7 +248,8 @@ export class CustomerChatService {
     text: string,
     at: Date,
   ): Promise<string> {
-    const { db, dataKey, audit } = this.deps;
+    const { dataKey, audit } = this.deps;
+    const db = this.dbOf(request.context.accountId);
     const [firstLine = ""] = text.split("\n", 1);
     const title = firstLine.slice(0, 200) || "Richiesta dalla reception";
     const [row] = await db
@@ -268,7 +277,8 @@ export class CustomerChatService {
 
   /** blocks 3+ of the prompt: the customer's world, never cached (rule 2) */
   private async buildDynamicSystem(request: CustomerChatRequest, at: Date): Promise<string> {
-    const { db, dataKey, embedder, github } = this.deps;
+    const { dataKey, embedder, github } = this.deps;
+    const db = this.dbOf(request.context.accountId);
     const [customer] = await db
       .select({ name: customers.name, digest: customers.digest, digestAt: customers.digestAt })
       .from(customers)
@@ -296,7 +306,7 @@ export class CustomerChatService {
     // the live state only when the question is about the live state
     const live =
       github !== undefined && isLiveStateQuestion(request.text)
-        ? await github.liveBlock(request.context.customerId, at)
+        ? await github.liveBlock(request.context.customerId, at, request.context.accountId)
         : undefined;
     const openTickets = await db
       .select({ id: tickets.id, title: tickets.title, status: tickets.status })
@@ -348,7 +358,8 @@ export class CustomerChatService {
     request: CustomerChatRequest,
     at: Date,
   ): Promise<LlmHistoryTurn[]> {
-    const { db, dataKey } = this.deps;
+    const { dataKey } = this.deps;
+    const db = this.dbOf(request.context.accountId);
     const windowStart = new Date(at.getTime() - HISTORY_WINDOW_HOURS * 3_600_000);
     const rows = await db
       .select({ role: customerMessages.role, text: customerMessages.text })
@@ -387,7 +398,8 @@ export class CustomerChatService {
       costUsd?: number;
     } = {},
   ): Promise<void> {
-    const { db, dataKey } = this.deps;
+    const { dataKey } = this.deps;
+    const db = this.dbOf(request.context.accountId);
     const base = {
       accountId: request.context.accountId,
       customerId: request.context.customerId,

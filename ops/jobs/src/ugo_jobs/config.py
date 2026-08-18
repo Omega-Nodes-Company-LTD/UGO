@@ -61,7 +61,9 @@ class JobsConfig:
     def from_env() -> "JobsConfig":
         ollama_url = _require("OLLAMA_URL")
         return JobsConfig(
-            database_url=_require("DATABASE_URL"),
+            # ADR-062 tempo 2b: i job passano all'utenza applicativa quando
+            # DATABASE_URL_APP e' impostata; le migrazioni non girano da qui
+            database_url=os.environ.get("DATABASE_URL_APP") or _require("DATABASE_URL"),
             ollama_url=ollama_url,
             ollama_embed_model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
             # the batch model may live behind a different endpoint (API batch fallback, ADR-001)
