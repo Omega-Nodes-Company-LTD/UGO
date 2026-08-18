@@ -2,7 +2,7 @@ import { checkins, gosini, type DbClient } from "@ugo/db";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * Le domande che tornano, dal pannello (ADR-085).
@@ -29,13 +29,13 @@ export interface CheckinRoutesDeps {
  */
 async function which(
   db: DbClient,
-  householdId: string,
+  accountId: string,
   query: string | undefined,
 ): Promise<{ id: string; name: string } | undefined> {
   const here = await db
     .select({ id: gosini.id, name: gosini.name })
     .from(gosini)
-    .where(and(eq(gosini.householdId, householdId), isNull(gosini.retiredAt)))
+    .where(and(eq(gosini.accountId, accountId), isNull(gosini.retiredAt)))
     .orderBy(asc(gosini.bornAt));
   if (query !== undefined && query !== "") {
     const wanted = query.trim().toLowerCase();
@@ -48,10 +48,10 @@ async function which(
 
 export function registerCheckinRoutes(app: FastifyInstance, deps: CheckinRoutesDeps): void {
   app.get("/v1/checkins", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
     const query = request.query as { gosino?: string };
-    const who = await which(deps.db, householdId, query.gosino);
+    const who = await which(deps.db, accountId, query.gosino);
     if (who === undefined) return reply.send({ checkins: [] });
 
     const rows = await deps.db
@@ -72,8 +72,8 @@ export function registerCheckinRoutes(app: FastifyInstance, deps: CheckinRoutesD
   });
 
   app.delete("/v1/checkins/:id", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
 
     /**
@@ -85,7 +85,7 @@ export function registerCheckinRoutes(app: FastifyInstance, deps: CheckinRoutesD
       .select({ id: checkins.id })
       .from(checkins)
       .innerJoin(gosini, eq(gosini.id, checkins.gosinoId))
-      .where(and(eq(checkins.id, id), eq(gosini.householdId, householdId)));
+      .where(and(eq(checkins.id, id), eq(gosini.accountId, accountId)));
     if (owned === undefined) return reply.status(404).send({ error: "non esiste" });
 
     await deps.db.delete(checkins).where(eq(checkins.id, id));

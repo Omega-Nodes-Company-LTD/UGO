@@ -5,7 +5,7 @@ import {
   createDbClient,
   type DbClient,
   gosini,
-  households,
+  accounts,
   runMigrations,
   traitSets,
 } from "@ugo/db";
@@ -15,9 +15,9 @@ import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  createHousehold,
-  createHouseholdWithFounder,
-} from "../../src/services/householdService.js";
+  createAccount,
+  createAccountWithFounder,
+} from "../../src/services/accountService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -54,7 +54,7 @@ const clientFor = (gosinoId: string): LlmClient =>
     apiKey: "mai-usata",
     model: "claude-haiku-4-5",
     dailyBudgetUsd: 1,
-    householdId: houseId,
+    accountId: houseId,
     gosinoId,
     baseUrl: NEVER_CALLED,
   });
@@ -77,7 +77,7 @@ const piggyBank = (gosinoId: string) =>
 const metabolism = (on: boolean) =>
   app.inject({
     method: "PUT",
-    url: "/v1/households/metabolism",
+    url: "/v1/accounts/metabolism",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     payload: JSON.stringify({ on }),
   });
@@ -88,12 +88,12 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-fame",
     name: "Fame",
     gosinoName: "Ghiotto",
   });
-  houseId = house.householdId;
+  houseId = house.accountId;
   token = house.ownerToken;
   who = house.gosinoId;
 
@@ -156,7 +156,7 @@ describe("il salvadanaio", () => {
 
   it("quello che consuma si mangia il saldo", async () => {
     await db.insert(budgetLedger).values({
-      householdId: houseId,
+      accountId: houseId,
       gosinoId: who,
       date: "2026-08-17",
       provider: "anthropic",
@@ -168,7 +168,7 @@ describe("il salvadanaio", () => {
     expect(bank.hungry).toBe(false);
 
     await db.insert(budgetLedger).values({
-      householdId: houseId,
+      accountId: houseId,
       gosinoId: who,
       date: "2026-08-17",
       provider: "anthropic",
@@ -187,10 +187,10 @@ describe("il salvadanaio", () => {
     expect(bank.hungry).toBe(false);
 
     // …ma la casa ha già speso il suo tetto per oggi
-    await db.update(households).set({ dailyBudgetUsd: "0.0001" }).where(eq(households.id, houseId));
+    await db.update(accounts).set({ dailyBudgetUsd: "0.0001" }).where(eq(accounts.id, houseId));
     const today = new Date().toISOString().slice(0, 10);
     await db.insert(budgetLedger).values({
-      householdId: houseId,
+      accountId: houseId,
       gosinoId: who,
       date: today,
       provider: "anthropic",
@@ -205,7 +205,7 @@ describe("il salvadanaio", () => {
   });
 
   it("il vicino non dà da mangiare alle creature altrui", async () => {
-    const other = await createHousehold(db, MASTER_KEY, { slug: "casa-vicina", name: "Vicina" });
+    const other = await createAccount(db, MASTER_KEY, { slug: "casa-vicina", name: "Vicina" });
     const response = await app.inject({
       method: "POST",
       url: `/v1/gosini/${who}/feed`,

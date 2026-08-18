@@ -156,9 +156,9 @@ def enroll_voice(
 
     conn.execute(
         """insert into recognition_profiles
-             (being_id, household_id, modality, model, dimensions, payload,
+             (being_id, account_id, modality, model, dimensions, payload,
               sample_count, updated_at)
-           values (%s, (select household_id from beings where id = %s),
+           values (%s, (select account_id from beings where id = %s),
                    %s, %s, %s, %s, %s, now())
            on conflict (being_id, modality) do update
              set model = excluded.model, dimensions = excluded.dimensions,
@@ -178,7 +178,7 @@ def identify_voice(
     *,
     samples: np.ndarray,
     data_key: bytes,
-    household_id: str,
+    account_id: str,
     encoder: VoiceEncoder | None = None,
     threshold: float | None = None,
 ) -> Identification:
@@ -200,8 +200,8 @@ def identify_voice(
         """select p.being_id, p.payload
              from recognition_profiles p
              join beings b on b.id = p.being_id
-            where p.modality = %s and p.model = %s and b.household_id = %s""",
-        (MODALITY, coder.model, household_id),
+            where p.modality = %s and p.model = %s and b.account_id = %s""",
+        (MODALITY, coder.model, account_id),
     ).fetchall()
 
     best_id, best_score = None, -1.0

@@ -70,7 +70,7 @@ describe("the assembled panel script", () => {
 
     const source = /const scoped = \(path\) => \{[\s\S]*?\n\};/.exec(ADMIN_SCRIPT)?.[0];
     expect(source, "scoped() moved or was renamed").toBeDefined();
-    const context = createContext({ HOUSE: "11111111-2222-4333-8444-555555555555" });
+    const context = createContext({ ACCOUNT: "11111111-2222-4333-8444-555555555555" });
     const scoped = new Script(`${source ?? ""}; scoped`).runInContext(context) as (
       path: string,
     ) => string;
@@ -84,7 +84,7 @@ describe("the assembled panel script", () => {
     expect(scoped("/v1/stats?casa=altra")).toBe("/v1/stats?casa=altra");
     // outside /v1 nothing changes, and with a single house nothing ever does
     expect(scoped("/health")).toBe("/health");
-    context.HOUSE = "";
+    context.ACCOUNT = "";
     expect(scoped("/v1/rooms")).toBe("/v1/rooms");
   });
 
@@ -92,7 +92,7 @@ describe("the assembled panel script", () => {
     // '/v1/stats' as the gate probe answers 400 «Which house?» with two
     // houses, which the gate reads as a bad token: nobody can log in
     const gate = /save-token[\s\S]*?\n\}\);/.exec(ADMIN_SCRIPT)?.[0] ?? "";
-    expect(gate).toContain('call("/v1/households"');
+    expect(gate).toContain('call("/v1/accounts"');
     expect(gate).not.toContain('call("/v1/stats"');
   });
 });

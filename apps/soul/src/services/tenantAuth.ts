@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { accessTokens, households, type DbClient } from "@ugo/db";
+import { accessTokens, accounts, type DbClient } from "@ugo/db";
 import type { AccessRole } from "@ugo/shared";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 
@@ -14,7 +14,7 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
 
 export interface TenantContext {
   /** null only for `operator`, whose authority spans the neighbourhood */
-  householdId: string | null;
+  accountId: string | null;
   role: AccessRole;
   tokenId: string;
 }
@@ -35,16 +35,16 @@ export interface IssuedToken {
 
 export async function issueToken(
   db: DbClient,
-  input: { householdId: string | null; role: AccessRole; label: string; expiresAt?: Date },
+  input: { accountId: string | null; role: AccessRole; label: string; expiresAt?: Date },
 ): Promise<IssuedToken> {
-  if (input.role !== "operator" && input.householdId === null) {
-    throw new Error("only an operator token may exist without a household");
+  if (input.role !== "operator" && input.accountId === null) {
+    throw new Error("only an operator token may exist without a account");
   }
   const token = randomBytes(TOKEN_BYTES).toString("base64url");
   const [row] = await db
     .insert(accessTokens)
     .values({
-      householdId: input.householdId,
+      accountId: input.accountId,
       tokenHash: hashToken(token),
       role: input.role,
       label: input.label,
@@ -82,7 +82,7 @@ export interface TenantResolverOptions {
    */
   legacyToken?: string | undefined;
   /** the house a legacy token speaks for when a single-house install asks */
-  legacyHouseholdId?: string | undefined;
+  legacyAccountId?: string | undefined;
 }
 
 export class TenantResolver {
@@ -97,7 +97,7 @@ export class TenantResolver {
     const legacy = this.options.legacyToken;
     if (legacy !== undefined && legacy !== "" && equals(token, legacy)) {
       return {
-        householdId: this.options.legacyHouseholdId ?? null,
+        accountId: this.options.legacyAccountId ?? null,
         role: "operator",
         tokenId: "legacy",
       };
@@ -106,7 +106,7 @@ export class TenantResolver {
     const [row] = await this.options.db
       .select({
         id: accessTokens.id,
-        householdId: accessTokens.householdId,
+        accountId: accessTokens.accountId,
         role: accessTokens.role,
         lastUsedAt: accessTokens.lastUsedAt,
       })
@@ -121,7 +121,7 @@ export class TenantResolver {
     if (row === undefined) return undefined;
 
     await this.touch(row.id, row.lastUsedAt, now);
-    return { householdId: row.householdId, role: row.role, tokenId: row.id };
+    return { accountId: row.accountId, role: row.role, tokenId: row.id };
   }
 
   private async touch(id: string, lastUsedAt: Date | null, now: Date): Promise<void> {
@@ -136,8 +136,8 @@ export class TenantResolver {
 }
 
 /** Does this context speak for that house? An operator speaks for all of them. */
-export function actsFor(context: TenantContext, householdId: string): boolean {
-  return context.role === "operator" || context.householdId === householdId;
+export function actsFor(context: TenantContext, accountId: string): boolean {
+  return context.role === "operator" || context.accountId === accountId;
 }
 
 /** Roles allowed to destroy, export, or change who belongs to the house. */
@@ -155,26 +155,26 @@ export function canAdminister(context: TenantContext): boolean {
  * stops applying the moment a second family exists — from then on an operator
  * must say which house it means, and gets a 400 until it does.
  */
-export async function soleHousehold(db: DbClient): Promise<string | undefined> {
+export async function soleAccount(db: DbClient): Promise<string | undefined> {
   const rows = await db
-    .select({ id: households.id })
-    .from(households)
-    .where(isNull(households.closedAt))
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(isNull(accounts.closedAt))
     .limit(2);
   return rows.length === 1 ? rows[0]?.id : undefined;
 }
 
 /** The house a request works on, or undefined when an operator has not said. */
-export async function householdOf(
+export async function accountOf(
   db: DbClient,
   context: TenantContext,
   requested?: string,
 ): Promise<string | undefined> {
-  if (requested === undefined) return context.householdId ?? undefined;
+  if (requested === undefined) return context.accountId ?? undefined;
   if (!actsFor(context, requested)) return undefined;
   const [row] = await db
-    .select({ id: households.id })
-    .from(households)
-    .where(and(eq(households.id, requested), isNull(households.closedAt)));
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(and(eq(accounts.id, requested), isNull(accounts.closedAt)));
   return row?.id;
 }

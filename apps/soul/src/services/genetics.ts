@@ -83,7 +83,7 @@ export interface Parent {
  */
 export async function loadParents(
   db: DbClient,
-  householdId: string,
+  accountId: string,
   parentIds: readonly string[],
 ): Promise<Parent[] | undefined> {
   const rows = await db
@@ -91,7 +91,7 @@ export async function loadParents(
     .from(gosini)
     .where(
       and(
-        eq(gosini.householdId, householdId),
+        eq(gosini.accountId, accountId),
         inArray(gosini.id, [...parentIds]),
         isNull(gosini.retiredAt),
       ),

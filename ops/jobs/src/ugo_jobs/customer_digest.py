@@ -92,8 +92,8 @@ def run_digest(conn: psycopg.Connection, cfg: JobsConfig) -> dict[str, object]:
     """Il passo del sogno: una fotografia per ogni cliente della casa."""
     key = parse_data_key(cfg.data_key_b64)
     rows = conn.execute(
-        "select id from customers where household_id = %s and archived_at is null",
-        (cfg.household_id,),
+        "select id from customers where account_id = %s and archived_at is null",
+        (cfg.account_id,),
     ).fetchall()
     written = 0
     for (customer_id,) in rows:

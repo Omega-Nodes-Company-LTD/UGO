@@ -29,7 +29,7 @@ export { gosini, traitSets } from "./gosini.js";
 export { births } from "./births.js";
 export { feedings } from "./feedings.js";
 export { listItems } from "./lists.js";
-export { households, PRIME_HOUSEHOLD_ID } from "./households.js";
+export { accounts, PRIME_ACCOUNT_ID } from "./accounts.js";
 export { rooms, slugOfRoom } from "./rooms.js";
 export { placedProps, propStock, PROP_KINDS_IN_DB } from "./props.js";
 export { unknownPrints, UNKNOWN_PRINT_RETENTION_DAYS } from "./prints.js";

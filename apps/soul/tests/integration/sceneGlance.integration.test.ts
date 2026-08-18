@@ -47,7 +47,7 @@ beforeAll(async () => {
   const psyche = await PsycheService.restore(db, new Date(), house.gosinoId);
   const chat = new ChatService({
     gosinoId: house.gosinoId,
-    householdId: house.id,
+    accountId: house.id,
     character: characterFrom({}),
     db,
     embedder: undefined as never,

@@ -133,7 +133,7 @@ const { remember } = mountLogPanel(
  * ADR-090: i due diritti, dove vive chi li ha.
  *
  * Il token del chiosco basta per **contare** — quanto tiene, non cosa — e non
- * basta per i due atti: quelli chiedono il token di casa lì per lì, e non lo
+ * basta per i due atti: quelli chiedono il token dell'account lì per lì, e non lo
  * tengono. Su uno schermo che vedono tutti è la differenza fra una porta e un
  * buco nel muro.
  */

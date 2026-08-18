@@ -175,8 +175,8 @@ $("litter-adopt").addEventListener("click", async () => {
  * **un gosino non si crea, si adotta fra quelli nati**.
  */
 function myHouse() {
-  if (CASE.length === 1) return CASE[0];
-  return CASE.find((c) => c.id === HOUSE);
+  if (ACCOUNTS.length === 1) return ACCOUNTS[0];
+  return ACCOUNTS.find((c) => c.id === ACCOUNT);
 }
 
 function drawBirthDoors() {

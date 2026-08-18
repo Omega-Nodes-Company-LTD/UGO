@@ -42,7 +42,7 @@ export interface TenantAuthOptions {
    */
   legacyToken?: string | undefined;
   /** the house a legacy token speaks for on a single-family install */
-  legacyHouseholdId?: string | undefined;
+  legacyAccountId?: string | undefined;
 }
 
 function bearerOf(request: FastifyRequest): string {
@@ -58,14 +58,14 @@ export function registerTenantResolution(app: FastifyInstance, options: TenantAu
   const resolver = new TenantResolver({
     db: options.db,
     legacyToken: options.legacyToken,
-    legacyHouseholdId: options.legacyHouseholdId,
+    legacyAccountId: options.legacyAccountId,
   });
   // no configured secret means development, where the server has always been
   // open; it stays open, but it now hands routes a context to scope by rather
   // than nothing at all
   const openForDevelopment = options.legacyToken === undefined;
   const developmentContext: TenantContext = {
-    householdId: options.legacyHouseholdId ?? null,
+    accountId: options.legacyAccountId ?? null,
     role: "operator",
     tokenId: "dev",
   };

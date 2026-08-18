@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { AuditLogger } from "../services/auditLog.js";
 import type { PreHandler } from "./guard.js";
 import { NewsService } from "../services/newsService.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * I feed della casa (ADR-060): iscriversi, spegnere, disdire.
@@ -44,11 +44,11 @@ export function registerFeedRoutes(app: FastifyInstance, deps: FeedRoutesDeps): 
   const scope = (
     request: Parameters<PreHandler>[0],
     reply: FastifyReply,
-  ): Promise<string | undefined> => householdScope(db, request, reply, { requireAdmin: true });
+  ): Promise<string | undefined> => accountScope(db, request, reply, { requireAdmin: true });
 
   app.get("/v1/feeds", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const rows = await db
       .select({
         id: rssFeeds.id,
@@ -61,7 +61,7 @@ export function registerFeedRoutes(app: FastifyInstance, deps: FeedRoutesDeps): 
         advised: sql<string>`(select count(*) from ${feedItems} where ${feedItems.feedId} = ${rssFeeds.id} and ${feedItems.advisedAt} is not null)`,
       })
       .from(rssFeeds)
-      .where(eq(rssFeeds.householdId, householdId))
+      .where(eq(rssFeeds.accountId, accountId))
       .orderBy(desc(rssFeeds.createdAt));
     return {
       feeds: rows.map((row) => ({
@@ -79,23 +79,23 @@ export function registerFeedRoutes(app: FastifyInstance, deps: FeedRoutesDeps): 
    * vuole vedere se arriva roba, non quanta.
    */
   app.get("/v1/feeds/items", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const asked = Number((request.query as { limit?: string }).limit);
     const news = new NewsService(db);
     return {
-      items: await news.latest(householdId, Number.isFinite(asked) && asked > 0 ? asked : 20),
+      items: await news.latest(accountId, Number.isFinite(asked) && asked > 0 ? asked : 20),
     };
   });
 
   app.post("/v1/feeds", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const parsed = addSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
     const [row] = await db
       .insert(rssFeeds)
-      .values({ householdId, url: parsed.data.url, label: parsed.data.label })
+      .values({ accountId, url: parsed.data.url, label: parsed.data.label })
       .onConflictDoNothing()
       .returning({ id: rssFeeds.id });
     // lo stesso URL due volte non è un errore da 500: è già iscritto
@@ -103,7 +103,7 @@ export function registerFeedRoutes(app: FastifyInstance, deps: FeedRoutesDeps): 
     await audit?.record({
       verb: "feed_added",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
       resourceType: "feed",
       resourceId: row.id,
@@ -112,34 +112,34 @@ export function registerFeedRoutes(app: FastifyInstance, deps: FeedRoutesDeps): 
   });
 
   app.patch("/v1/feeds/:id", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
     const parsed = toggleSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
     const updated = await db
       .update(rssFeeds)
       .set({ enabled: parsed.data.enabled })
-      .where(and(eq(rssFeeds.id, id), eq(rssFeeds.householdId, householdId)))
+      .where(and(eq(rssFeeds.id, id), eq(rssFeeds.accountId, accountId)))
       .returning({ id: rssFeeds.id });
     if (updated.length === 0) return problem(reply, 404, "Not Found");
     return reply.code(204).send();
   });
 
   app.delete("/v1/feeds/:id", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
     // il cascade porta via anche gli item: disdire un feed è disdirlo tutto
     const gone = await db
       .delete(rssFeeds)
-      .where(and(eq(rssFeeds.id, id), eq(rssFeeds.householdId, householdId)))
+      .where(and(eq(rssFeeds.id, id), eq(rssFeeds.accountId, accountId)))
       .returning({ id: rssFeeds.id });
     if (gone.length === 0) return problem(reply, 404, "Not Found");
     await audit?.record({
       verb: "feed_removed",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
       resourceType: "feed",
       resourceId: id,

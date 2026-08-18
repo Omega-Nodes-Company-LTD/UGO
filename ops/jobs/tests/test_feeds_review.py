@@ -18,17 +18,17 @@ def conn(pg_url: str):  # noqa: ANN201
         connection.rollback()
 
 
-def plant_item(conn: psycopg.Connection, household_id: str, title: str, age_hours: int) -> None:
+def plant_item(conn: psycopg.Connection, account_id: str, title: str, age_hours: int) -> None:
     feed = conn.execute(
-        "insert into rss_feeds (household_id, url, label) values (%s, %s, %s) returning id",
-        (household_id, f"https://example.org/{uuid4().hex[:8]}.xml", "esempio"),
+        "insert into rss_feeds (account_id, url, label) values (%s, %s, %s) returning id",
+        (account_id, f"https://example.org/{uuid4().hex[:8]}.xml", "esempio"),
     ).fetchone()[0]
     conn.execute(
         """
-        insert into feed_items (household_id, feed_id, guid, title, published_at)
+        insert into feed_items (account_id, feed_id, guid, title, published_at)
         values (%s, %s, %s, %s, now() - make_interval(hours => %s))
         """,
-        (household_id, feed, uuid4().hex, title, age_hours),
+        (account_id, feed, uuid4().hex, title, age_hours),
     )
 
 
@@ -40,7 +40,7 @@ def test_le_novita_di_ieri_diventano_una_rassegna(conn: psycopg.Connection, pg_u
     plant_item(conn, house, "Roba vecchia di ieri l'altro", 30)
     conn.commit()
 
-    report = run_review(conn, db_only_config(pg_url, household_id=house))
+    report = run_review(conn, db_only_config(pg_url, account_id=house))
     assert report == {"written": 1}
     rows = conn.execute("select text from desires where gosino_id = %s", (gosino,)).fetchall()
     assert len(rows) == 1
@@ -58,4 +58,4 @@ def test_senza_novita_niente_segnaposto_e_il_vicino_tace(
     plant_item(conn, theirs, "Novità del vicino", 2)
     conn.commit()
 
-    assert run_review(conn, db_only_config(pg_url, household_id=mine)) == {"written": 0}
+    assert run_review(conn, db_only_config(pg_url, account_id=mine)) == {"written": 0}

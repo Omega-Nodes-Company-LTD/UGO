@@ -24,17 +24,17 @@ def conn(pg_url: str):  # noqa: ANN201
         connection.rollback()
 
 
-def plant_print(conn: psycopg.Connection, household_id: str, days_old: int) -> str:
+def plant_print(conn: psycopg.Connection, account_id: str, days_old: int) -> str:
     return str(
         conn.execute(
             """
             insert into unknown_prints
-              (household_id, modality, model, dimensions, payload, last_seen_at)
+              (account_id, modality, model, dimensions, payload, last_seen_at)
             values (%s, 'face', 'arcface-r50', 512, %s,
                     now() - make_interval(days => %s))
             returning id
             """,
-            (household_id, b"ciphertext-finto", days_old),
+            (account_id, b"ciphertext-finto", days_old),
         ).fetchone()[0]
     )
 
@@ -47,7 +47,7 @@ def test_il_sogno_porta_via_le_scadute_e_solo_le_mie(conn: psycopg.Connection, p
     neighbour = plant_print(conn, theirs, UNKNOWN_PRINT_RETENTION_DAYS + 90)
     conn.commit()
 
-    cfg = db_only_config(pg_url, household_id=mine)
+    cfg = db_only_config(pg_url, account_id=mine)
     expired = _expire_unknown_prints(conn, cfg)
     assert expired == 1
 
@@ -62,7 +62,7 @@ def test_il_sogno_porta_via_le_scadute_e_solo_le_mie(conn: psycopg.Connection, p
 
     # il giornale lo dice, con lo stesso verbo della rotta: id e conteggi, mai dati
     rows = conn.execute(
-        "select outcome, resource_id from audit_log where household_id = %s and verb = 'prints_expired'",
+        "select outcome, resource_id from audit_log where account_id = %s and verb = 'prints_expired'",
         (mine,),
     ).fetchall()
     assert rows == [("ok", "1")]
@@ -73,9 +73,9 @@ def test_senza_scadute_niente_riga_di_giornale(conn: psycopg.Connection, pg_url:
     plant_print(conn, home, 3)
     conn.commit()
 
-    cfg = db_only_config(pg_url, household_id=home)
+    cfg = db_only_config(pg_url, account_id=home)
     assert _expire_unknown_prints(conn, cfg) == 0
     rows = conn.execute(
-        "select 1 from audit_log where household_id = %s and verb = 'prints_expired'", (home,)
+        "select 1 from audit_log where account_id = %s and verb = 'prints_expired'", (home,)
     ).fetchall()
     assert rows == []

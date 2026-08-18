@@ -4,7 +4,7 @@ import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js"
 import { createAuditLog } from "./services/auditLog.js";
 import { createAuthGuard, registerTenantResolution } from "./routes/guard.js";
 import { registerCapabilitiesRoute, type Capability } from "./routes/capabilities.js";
-import { registerHouseholdRoutes } from "./routes/households.js";
+import { registerAccountRoutes } from "./routes/accounts.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerArchiveRoutes } from "./routes/archive.js";
@@ -77,16 +77,16 @@ export interface ServerOptions extends HealthDeps {
    * ADR-061: far nascere una casa dal pannello.
    *
    * Iniettata perché serve la chiave madre, che il server non possiede: è la
-   * stessa `createHousehold` che usa `ugo casa nuova`, e senza di lei la
+   * stessa `createAccount` che usa `ugo casa nuova`, e senza di lei la
    * rotta risponde 501 invece di fingere.
    */
   createHouse?: (input: {
     slug: string;
     name: string;
-    kind?: "casa" | "azienda" | undefined;
+    kind?: "famiglia" | "azienda" | undefined;
     timezone?: string | undefined;
     gosinoName?: string | undefined;
-  }) => Promise<{ householdId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
+  }) => Promise<{ accountId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
   /**
    * v1 feature surface; omitted only by infra-focused tests.
    *
@@ -106,7 +106,7 @@ export interface ServerOptions extends HealthDeps {
     /**
      * ADR-036: the population — born, listed, moved between rooms. Independent
      * of the council: a house can have several creatures and never convene one.
-     * ADR-019 phase 2 removed its `householdId` dependency: which house a birth
+     * ADR-019 phase 2 removed its `accountId` dependency: which house a birth
      * belongs to is a property of the request, not of the process.
      */
     gosini?: {
@@ -140,7 +140,7 @@ export interface ServerOptions extends HealthDeps {
       token: string;
       dataKey: Buffer;
       quota: CustomerQuota;
-      llmFor: (householdId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
+      llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
       /** ADR-054: retrieval over the knowledge index */
       embedder?: EmbeddingsClient;
       /** ADR-054: live PRs/commits on live-state questions */
@@ -164,7 +164,7 @@ export interface ServerOptions extends HealthDeps {
      * riconoscitore costruito una volta confronterebbe il volto di una famiglia
      * coi centroidi di un'altra.
      */
-    prints?: (householdId: string) => {
+    prints?: (accountId: string) => {
       claimPrint: (input: {
         printId: string;
         beingId: string;
@@ -275,7 +275,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerDebugChatRoute(app, guard);
     // il selettore del pannello: aperta al solo token, che e' gia' abbastanza
     // — dice quali case *quel* token puo' vedere, e per quasi tutti e' una
-    registerHouseholdRoutes(app, {
+    registerAccountRoutes(app, {
       db: options.db,
       guard,
       audit,
@@ -352,9 +352,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       // sentire la voce» sui corpi della casa — tutti, perché la persona sta
       // davanti a uno di loro e soul non sa quale
       ...(registry !== undefined && {
-        faces: (householdId: string) => ({
+        faces: (accountId: string) => ({
           askVoice: (beingId: string, name: string): void => {
-            for (const runtime of registry.all(householdId)) {
+            for (const runtime of registry.all(accountId)) {
               runtime.gateway.broadcastAskVoice(beingId, name);
             }
           },
@@ -434,7 +434,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
             createHouse: async (input) => {
               const born = await options.createHouse?.({ slug: input.slug, name: input.name, ...(input.timezone !== undefined && { timezone: input.timezone }) });
               if (born === undefined) throw new Error("le case non si creano qui");
-              return { householdId: born.householdId, ownerToken: born.ownerToken };
+              return { accountId: born.accountId, ownerToken: born.ownerToken };
             },
           }),
           ...(registry !== undefined && { registry }),
@@ -501,8 +501,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           db: options.db,
           weeklyDefault: reception.weeklyRewards,
           ...(registry !== undefined && {
-            psycheFor: (householdId: string, gosinoId: string) =>
-              registry.all(householdId).find((runtime) => runtime.id === gosinoId)?.psyche,
+            psycheFor: (accountId: string, gosinoId: string) =>
+              registry.all(accountId).find((runtime) => runtime.id === gosinoId)?.psyche,
           }),
         }),
         chat: new CustomerChatService({
@@ -525,7 +525,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       app.register(async (instance) => {
         await registerFaceWs(instance, face, options.db, registry, {
           hub: scenes,
-          props: (householdId, room) => props.inRoom(householdId, room),
+          props: (accountId, room) => props.inRoom(accountId, room),
         });
       });
     }

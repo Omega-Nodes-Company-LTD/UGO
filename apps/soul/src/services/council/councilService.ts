@@ -122,7 +122,7 @@ export class CouncilService {
   public constructor(private readonly deps: CouncilDeps) {}
 
   /** Everyone still alive in the house, with their character and their mood. */
-  public async participants(householdId: string): Promise<Participant[]> {
+  public async participants(accountId: string): Promise<Participant[]> {
     const rows = await this.deps.db
       .select({
         id: gosini.id,
@@ -132,7 +132,7 @@ export class CouncilService {
       .from(gosini)
       // ADR-019 phase 2: a council is a house's council. Unscoped, it seated
       // the neighbours' creatures at the table and paid for their tokens.
-      .where(and(isNull(gosini.retiredAt), eq(gosini.householdId, householdId)))
+      .where(and(isNull(gosini.retiredAt), eq(gosini.accountId, accountId)))
       .limit(MAX_PARTICIPANTS);
 
     const out: Participant[] = [];
@@ -166,8 +166,8 @@ export class CouncilService {
    * Returns whatever came back — a participant whose model said nothing usable
    * is simply left out rather than filled in with an invention.
    */
-  public async deliberate(question: string, householdId: string): Promise<CouncilResult> {
-    const who = await this.participants(householdId);
+  public async deliberate(question: string, accountId: string): Promise<CouncilResult> {
+    const who = await this.participants(accountId);
     const voices: Voice[] = [];
 
     // round one: blind, and in parallel — they must not see each other yet

@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { MemoryBook } from "../services/memoryBook.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * Il libro dei ricordi dal pannello (ADR-086).
@@ -31,7 +31,7 @@ export interface MemoryBookDeps {
   registry?: {
     resolve: (
       query: string | undefined,
-      householdId: string,
+      accountId: string,
     ) => { id: string; name: string } | undefined;
   };
 }
@@ -42,8 +42,8 @@ export function registerMemoryBookRoutes(app: FastifyInstance, deps: MemoryBookD
   app.get("/v1/memories/book", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = querySchema.safeParse(request.query);
     if (!parsed.success) return reply.status(400).send({ error: "periodo non valido" });
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
 
     /**
      * Assente vuol dire **la casa intera**, non «il primo che capita»: i
@@ -53,19 +53,19 @@ export function registerMemoryBookRoutes(app: FastifyInstance, deps: MemoryBookD
      */
     const asked = parsed.data.gosino;
     const who =
-      asked === undefined || asked === "" ? undefined : deps.registry?.resolve(asked, householdId);
+      asked === undefined || asked === "" ? undefined : deps.registry?.resolve(asked, accountId);
     const scope = asked === undefined || asked === "" ? undefined : (who?.id ?? asked);
 
     if (parsed.data.periodo === undefined) {
       return reply.send({
         ...(who !== undefined && { gosino: { id: who.id, name: who.name } }),
-        months: await book.spine(householdId, scope),
+        months: await book.spine(accountId, scope),
       });
     }
     return reply.send({
       ...(who !== undefined && { gosino: { id: who.id, name: who.name } }),
       period: parsed.data.periodo,
-      memories: await book.page(householdId, scope, parsed.data.periodo),
+      memories: await book.page(accountId, scope, parsed.data.periodo),
     });
   });
 }

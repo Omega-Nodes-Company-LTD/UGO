@@ -88,7 +88,7 @@ def conn(pg_url: str):  # noqa: ANN201
 
 
 def _being(conn: psycopg.Connection, name: str, **flags: object) -> str:
-    columns = ", ".join(["household_id", "display_name", *flags.keys()])
+    columns = ", ".join(["account_id", "display_name", *flags.keys()])
     placeholders = ", ".join(["%s"] * (2 + len(flags)))
     row = conn.execute(
         f"insert into beings ({columns}) values ({placeholders}) returning id",
@@ -120,14 +120,14 @@ def test_two_voices_enrolled_are_told_apart(conn: psycopg.Connection) -> None:
     )
 
     heard = identify_voice(
-        conn, samples=_said(1), data_key=key, household_id=PRIME_HOUSE, encoder=coder
+        conn, samples=_said(1), data_key=key, account_id=PRIME_HOUSE, encoder=coder
     )
     assert heard.being_id == ivan
     assert heard.candidate_being_id is None
 
     assert (
         identify_voice(
-            conn, samples=_said(2), data_key=key, household_id=PRIME_HOUSE, encoder=coder
+            conn, samples=_said(2), data_key=key, account_id=PRIME_HOUSE, encoder=coder
         ).being_id
         == paola
     )
@@ -149,7 +149,7 @@ def test_a_stranger_is_nobody_not_even_a_candidate(conn: psycopg.Connection) -> 
 
     # ortogonale a tutto ciò che conosce: coseno 0
     heard = identify_voice(
-        conn, samples=_said(3), data_key=key, household_id=PRIME_HOUSE, encoder=coder
+        conn, samples=_said(3), data_key=key, account_id=PRIME_HOUSE, encoder=coder
     )
 
     assert heard.being_id is None
@@ -167,7 +167,7 @@ def test_a_near_miss_becomes_a_question_and_not_a_name(conn: psycopg.Connection)
     )
 
     heard = identify_voice(
-        conn, samples=_said(9), data_key=key, household_id=PRIME_HOUSE, encoder=near
+        conn, samples=_said(9), data_key=key, account_id=PRIME_HOUSE, encoder=near
     )
 
     assert heard.being_id is None
@@ -187,7 +187,7 @@ def test_a_profile_from_a_retired_model_is_never_matched(conn: psycopg.Connectio
 
     # la stessa identica voce, con lo stesso encoder di prima
     heard = identify_voice(
-        conn, samples=_voice(IVAN, 1), data_key=key, household_id=PRIME_HOUSE
+        conn, samples=_voice(IVAN, 1), data_key=key, account_id=PRIME_HOUSE
     )
 
     # nemmeno come candidato: non è un "quasi", è un modello da cui non si
@@ -201,7 +201,7 @@ def test_an_unknown_voice_is_not_guessed(conn: psycopg.Connection) -> None:
     ivan = _being(conn, "Ivan U.")
     enroll_voice(conn, gosino_id=PRIME, being_id=ivan, samples=_voice(IVAN, 4), data_key=key)
 
-    stranger = identify_voice(conn, samples=_voice((330, 900, 2400, 4100), 5), data_key=key, household_id=PRIME_HOUSE)
+    stranger = identify_voice(conn, samples=_voice((330, 900, 2400, 4100), 5), data_key=key, account_id=PRIME_HOUSE)
     assert stranger.being_id is None
     # the near miss survives so a human can be asked, not told
     record_observation(conn, gosino_id=PRIME, identification=stranger)

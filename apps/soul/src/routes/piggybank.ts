@@ -1,10 +1,10 @@
-import { budgetLedger, feedings, gosini, households, type DbClient } from "@ugo/db";
+import { budgetLedger, feedings, gosini, accounts, type DbClient } from "@ugo/db";
 import { FEEDING_KINDS } from "@ugo/shared";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * Il salvadanaio (ADR-072): quanto ha in pancia, e il gesto di dargli da
@@ -28,24 +28,24 @@ export interface PiggyBankRoutesDeps {
 }
 
 export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRoutesDeps): void {
-  const mine = async (householdId: string, gosinoId: string): Promise<boolean> => {
+  const mine = async (accountId: string, gosinoId: string): Promise<boolean> => {
     const [row] = await deps.db
       .select({ id: gosini.id })
       .from(gosini)
-      .where(and(eq(gosini.id, gosinoId), eq(gosini.householdId, householdId)));
+      .where(and(eq(gosini.id, gosinoId), eq(gosini.accountId, accountId)));
     return row !== undefined;
   };
 
   app.get("/v1/gosini/:id/piggybank", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    if (!(await mine(householdId, id))) return reply.status(404).send({ error: "non esiste" });
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
+    if (!(await mine(accountId, id))) return reply.status(404).send({ error: "non esiste" });
 
     const [house] = await deps.db
-      .select({ on: households.metabolism })
-      .from(households)
-      .where(eq(households.id, householdId));
+      .select({ on: accounts.metabolism })
+      .from(accounts)
+      .where(eq(accounts.id, accountId));
     const [fed] = await deps.db
       .select({ total: sql<string>`coalesce(sum(${feedings.amountUsd}), 0)` })
       .from(feedings)
@@ -55,11 +55,11 @@ export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRou
        * si teletrasporta: la famiglia che compra il cucciolo si troverebbe in
        * pancia i pasti pagati dall'allevamento.
        */
-      .where(and(eq(feedings.gosinoId, id), eq(feedings.householdId, householdId)));
+      .where(and(eq(feedings.gosinoId, id), eq(feedings.accountId, accountId)));
     const [eaten] = await deps.db
       .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
       .from(budgetLedger)
-      .where(and(eq(budgetLedger.gosinoId, id), eq(budgetLedger.householdId, householdId)));
+      .where(and(eq(budgetLedger.gosinoId, id), eq(budgetLedger.accountId, accountId)));
     const meals = await deps.db
       .select({
         kind: feedings.kind,
@@ -68,7 +68,7 @@ export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRou
         at: feedings.at,
       })
       .from(feedings)
-      .where(and(eq(feedings.gosinoId, id), eq(feedings.householdId, householdId)))
+      .where(and(eq(feedings.gosinoId, id), eq(feedings.accountId, accountId)))
       .orderBy(desc(feedings.at))
       .limit(20);
 
@@ -90,12 +90,12 @@ export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRou
     const parsed = feedSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    if (!(await mine(householdId, id))) return reply.status(404).send({ error: "non esiste" });
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    if (!(await mine(accountId, id))) return reply.status(404).send({ error: "non esiste" });
 
     await deps.db.insert(feedings).values({
-      householdId,
+      accountId,
       gosinoId: id,
       kind: parsed.data.kind,
       amountUsd: parsed.data.amountUsd.toFixed(6),
@@ -116,15 +116,15 @@ export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRou
   });
 
   /** L'interruttore del metabolismo, per la casa: acceso solo da chi sa cosa fa. */
-  app.put("/v1/households/metabolism", { preHandler: deps.guard }, async (request, reply) => {
+  app.put("/v1/accounts/metabolism", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = z.object({ on: z.boolean() }).safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     await deps.db
-      .update(households)
+      .update(accounts)
       .set({ metabolism: parsed.data.on })
-      .where(eq(households.id, householdId));
+      .where(eq(accounts.id, accountId));
     return reply.send({ metabolism: parsed.data.on });
   });
 }

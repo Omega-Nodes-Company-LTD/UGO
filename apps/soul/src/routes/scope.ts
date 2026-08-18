@@ -1,14 +1,14 @@
-import { gosini, withHousehold, type DbClient } from "@ugo/db";
+import { gosini, withAccount, type DbClient } from "@ugo/db";
 import { asc, eq } from "drizzle-orm";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { canAdminister, householdOf, soleHousehold } from "../services/tenantAuth.js";
+import { canAdminister, accountOf, soleAccount } from "../services/tenantAuth.js";
 import { z } from "zod";
 
 /**
  * Which house is this request about (ADR-019 phase 2).
  *
  * Every guarded route asks the same question, so it is asked in one place.
- * Before this, the answer was `select … from households limit 1` — twice, in
+ * Before this, the answer was `select … from accounts limit 1` — twice, in
  * `index.ts`, without an `order by`: with two families, which house you got
  * depended on the query plan. This is the same family of defect ADR-035 §3
  * named out loud, where a query without a scope returns data that is plausible
@@ -16,16 +16,16 @@ import { z } from "zod";
  *
  * The rules, in order:
  *
- *  1. a token that belongs to a house speaks for that house, and `?casa=`
+ *  1. a token that belongs to a house speaks for that house, and `?account=`
  *     pointing anywhere else answers **404** — the same answer a house that
  *     does not exist gets, so probing teaches nothing (BOLA);
- *  2. an `operator` may say `?casa=`, and must, unless
+ *  2. an `operator` may say `?account=`, and must, unless
  *  3. there is exactly one house, in which case it is that one. That is the
  *     promise of ADR-019 §107 to the deployments that exist today, and it
  *     expires by itself the moment a second family arrives.
  */
 
-const scopeQuerySchema = z.object({ casa: z.uuid().optional() });
+const scopeQuerySchema = z.object({ account: z.uuid().optional() });
 
 export interface ScopeOptions {
   /** for what only an owner or an operator may do: erase, export, provision */
@@ -33,11 +33,11 @@ export interface ScopeOptions {
 }
 
 export type ScopeResult =
-  | { ok: true; householdId: string }
+  | { ok: true; accountId: string }
   | { ok: false; status: number; title: string; detail?: string };
 
 /** The rules above, with no opinion about how a failure is reported. */
-export async function resolveHousehold(
+export async function resolveAccount(
   db: DbClient,
   request: FastifyRequest,
   options: ScopeOptions = {},
@@ -56,16 +56,16 @@ export async function resolveHousehold(
   }
 
   const query = scopeQuerySchema.safeParse(request.query);
-  const requested = query.success ? query.data.casa : undefined;
+  const requested = query.success ? query.data.account : undefined;
   if (tenant !== null) {
-    const householdId = await householdOf(db, tenant, requested);
-    if (householdId !== undefined) return { ok: true, householdId };
+    const accountId = await accountOf(db, tenant, requested);
+    if (accountId !== undefined) return { ok: true, accountId };
     if (requested !== undefined) return { ok: false, status: 404, title: "House not found" };
   }
 
   if (tenant === null || tenant.role === "operator") {
-    const sole = await soleHousehold(db);
-    if (sole !== undefined) return { ok: true, householdId: sole };
+    const sole = await soleAccount(db);
+    if (sole !== undefined) return { ok: true, accountId: sole };
   }
   return tenant === null
     ? { ok: false, status: 401, title: "Unauthorized" }
@@ -73,7 +73,7 @@ export async function resolveHousehold(
         ok: false,
         status: 400,
         title: "Which house?",
-        detail: "questo token vale per più case: indica ?casa=<uuid>",
+        detail: "questo token vale per più account: indica ?account=<uuid>",
       };
 }
 
@@ -81,14 +81,14 @@ export async function resolveHousehold(
  * The house, or `undefined` after having already sent the problem response —
  * callers return `reply` unchanged when they get `undefined`.
  */
-export async function householdScope(
+export async function accountScope(
   db: DbClient,
   request: FastifyRequest,
   reply: FastifyReply,
   options: ScopeOptions = {},
 ): Promise<string | undefined> {
-  const scope = await resolveHousehold(db, request, options);
-  if (scope.ok) return scope.householdId;
+  const scope = await resolveAccount(db, request, options);
+  if (scope.ok) return scope.accountId;
   await problem(reply, scope.status, scope.title, scope.detail);
   return undefined;
 }
@@ -96,8 +96,8 @@ export async function householdScope(
 /**
  * ADR-062: risolve la casa E la dichiara al database, in un colpo solo.
  *
- * `work` gira dentro `withHousehold` — una transazione con
- * `SET LOCAL app.household_id`, che è l'unica cosa che le politiche RLS
+ * `work` gira dentro `withAccount` — una transazione con
+ * `SET LOCAL app.account_id`, che è l'unica cosa che le politiche RLS
  * leggono. Da quando `DATABASE_URL_APP` entrerà in servizio (tempo 2b), una
  * query eseguita FUORI da qui non vedrà zero righe per sbaglio: le vedrà per
  * costruzione, e il test se ne accorge.
@@ -106,20 +106,20 @@ export async function householdScope(
  * chiamate al modello — sta fuori, perché una transazione tenuta aperta
  * attraverso una chiamata LLM è una connessione `idle in transaction` per la
  * durata del pensiero. Un handler che alterna query e modello chiama
- * `inHousehold` più volte.
+ * `inAccount` più volte.
  *
- * `undefined` = la risposta problem è già partita, come `householdScope`.
+ * `undefined` = la risposta problem è già partita, come `accountScope`.
  */
-export async function inHousehold<T>(
+export async function inAccount<T>(
   db: DbClient,
   request: FastifyRequest,
   reply: FastifyReply,
   options: ScopeOptions,
-  work: (tx: DbClient, householdId: string) => Promise<T>,
+  work: (tx: DbClient, accountId: string) => Promise<T>,
 ): Promise<T | undefined> {
-  const householdId = await householdScope(db, request, reply, options);
-  if (householdId === undefined) return undefined;
-  return withHousehold(db, householdId, (tx) => work(tx, householdId));
+  const accountId = await accountScope(db, request, reply, options);
+  if (accountId === undefined) return undefined;
+  return withAccount(db, accountId, (tx) => work(tx, accountId));
 }
 
 async function problem(
@@ -139,15 +139,15 @@ async function problem(
  * `gosino_id`, because ADR-019 puts memories, messages and mood in the
  * creature and the pack, the money and the clock in the house.
  */
-function buildExemplarsOf(db: DbClient, householdId: string) {
-  return db.select({ id: gosini.id }).from(gosini).where(eq(gosini.householdId, householdId));
+function buildExemplarsOf(db: DbClient, accountId: string) {
+  return db.select({ id: gosini.id }).from(gosini).where(eq(gosini.accountId, accountId));
 }
 
 export function exemplarsOf(
   db: DbClient,
-  householdId: string,
+  accountId: string,
 ): ReturnType<typeof buildExemplarsOf> {
-  return buildExemplarsOf(db, householdId);
+  return buildExemplarsOf(db, accountId);
 }
 
 /**
@@ -159,13 +159,13 @@ export function exemplarsOf(
  * another family. The eldest is a deterministic choice inside the right house;
  * attributing them to the exemplar actually spoken to is ADR-019 phase 3.
  */
-export async function eldestExemplarOf(db: DbClient, householdId: string): Promise<string> {
+export async function eldestExemplarOf(db: DbClient, accountId: string): Promise<string> {
   const [eldest] = await db
     .select({ id: gosini.id })
     .from(gosini)
-    .where(eq(gosini.householdId, householdId))
+    .where(eq(gosini.accountId, accountId))
     .orderBy(asc(gosini.bornAt))
     .limit(1);
-  if (eldest === undefined) throw new Error(`household ${householdId} has no exemplar`);
+  if (eldest === undefined) throw new Error(`account ${accountId} has no exemplar`);
   return eldest.id;
 }

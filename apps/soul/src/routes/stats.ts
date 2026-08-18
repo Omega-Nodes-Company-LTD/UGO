@@ -1,7 +1,7 @@
 import { budgetLedger, events, memories, messages, psycheSnapshots, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
-import { exemplarsOf, householdScope } from "./scope.js";
+import { exemplarsOf, accountScope } from "./scope.js";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 /**
@@ -13,8 +13,8 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
  * is actually paying: cached input tokens over total input tokens.
  *
  * ADR-019 phase 2: every number here is one house's. The money was the loudest
- * of the misses — `budget_ledger` has carried `household_id` and the index
- * `budget_ledger_household_date_idx` since phase 1, and this route filtered on
+ * of the misses — `budget_ledger` has carried `account_id` and the index
+ * `budget_ledger_account_date_idx` since phase 1, and this route filtered on
  * the date alone, so the panel showed the neighbourhood's spending and called
  * it yours.
  */
@@ -26,18 +26,18 @@ export interface StatsDeps {
   guard: PreHandler;
   /**
    * ADR-034: the mood series belongs to one creature. Spend, counts and dreams
-   * do not — they are the household's (ADR-019) — so only the series narrows.
+   * do not — they are the account's (ADR-019) — so only the series narrows.
    */
-  registry?: { resolve: (query: string | undefined, householdId: string) => { id: string } | undefined };
+  registry?: { resolve: (query: string | undefined, accountId: string) => { id: string } | undefined };
 }
 
 export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void {
   // guarded: spend, counts and dream activity together describe when the
   // house is awake and how much it talks — operational, but nobody else's
   app.get("/v1/stats", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const mine = exemplarsOf(deps.db, householdId);
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
+    const mine = exemplarsOf(deps.db, accountId);
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: deps.timezone }).format(new Date());
 
     const [spend] = await deps.db
@@ -50,7 +50,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
         cacheWrite: sql<string>`coalesce(sum(${budgetLedger.tokensCacheWrite}), 0)`,
       })
       .from(budgetLedger)
-      .where(and(eq(budgetLedger.householdId, householdId), eq(budgetLedger.date, today)));
+      .where(and(eq(budgetLedger.accountId, accountId), eq(budgetLedger.date, today)));
 
     const [lifetime] = await deps.db
       .select({
@@ -58,10 +58,10 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
         tokensIn: sql<string>`coalesce(sum(${budgetLedger.tokensIn}), 0)`,
       })
       .from(budgetLedger)
-      .where(eq(budgetLedger.householdId, householdId));
+      .where(eq(budgetLedger.accountId, accountId));
 
     // one round trip, as before, with the scope inside each subquery
-    const ours = sql`(select id from gosini where household_id = ${householdId})`;
+    const ours = sql`(select id from gosini where account_id = ${accountId})`;
     const [counts] = await deps.db
       .select({
         memories: sql<string>`(select count(*) from ${memories} where ${memories.gosinoId} in ${ours})`,
@@ -81,7 +81,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
       .from(budgetLedger)
       .where(
         and(
-          eq(budgetLedger.householdId, householdId),
+          eq(budgetLedger.accountId, accountId),
           sql`${budgetLedger.date} >= current_date - interval '13 days'`,
         ),
       )
@@ -101,7 +101,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
     const who =
       asked === undefined || asked === ""
         ? undefined
-        : deps.registry?.resolve(asked, householdId);
+        : deps.registry?.resolve(asked, accountId);
     const mood = await deps.db
       .select({ ts: psycheSnapshots.ts, vars: psycheSnapshots.vars, label: psycheSnapshots.label })
       .from(psycheSnapshots)

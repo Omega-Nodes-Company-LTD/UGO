@@ -15,9 +15,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
 import { characterFrom } from "../../src/services/council/character.js";
 import {
-  createHousehold,
-  createHouseholdWithFounder,
-} from "../../src/services/householdService.js";
+  createAccount,
+  createAccountWithFounder,
+} from "../../src/services/accountService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
 
@@ -50,22 +50,22 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-feed",
     name: "Feed",
     gosinoName: "Ugo",
   });
   token = house.ownerToken;
-  houseId = house.householdId;
+  houseId = house.accountId;
 
   const [ilPost] = await db
     .insert(rssFeeds)
-    .values({ householdId: houseId, url: "https://ilpost.it/feed", label: "Il Post" })
+    .values({ accountId: houseId, url: "https://ilpost.it/feed", label: "Il Post" })
     .returning({ id: rssFeeds.id });
   const [spento] = await db
     .insert(rssFeeds)
     .values({
-      householdId: houseId,
+      accountId: houseId,
       url: "https://spam.example/feed",
       label: "Volantini",
       enabled: false,
@@ -76,14 +76,14 @@ beforeAll(async () => {
 
   await db.insert(feedItems).values([
     {
-      householdId: houseId,
+      accountId: houseId,
       feedId: ilPost.id,
       guid: "vecchio",
       title: "Una cosa di tre giorni fa",
       publishedAt: new Date("2026-08-15T08:00:00.000Z"),
     },
     {
-      householdId: houseId,
+      accountId: houseId,
       feedId: ilPost.id,
       guid: "fresco",
       title: "Il telescopio ha visto una cosa nuova",
@@ -91,7 +91,7 @@ beforeAll(async () => {
       publishedAt: new Date("2026-08-18T07:00:00.000Z"),
     },
     {
-      householdId: houseId,
+      accountId: houseId,
       feedId: spento.id,
       guid: "spam",
       title: "SCONTI IMPERDIBILI",
@@ -110,7 +110,7 @@ beforeAll(async () => {
     timezone: "UTC",
     locale: "it-IT",
     gosinoId: house.gosinoId,
-    householdId: houseId,
+    accountId: houseId,
     character: characterFrom({}),
   });
 
@@ -170,7 +170,7 @@ describe("GET /v1/feeds/items — i titoli escono", () => {
   });
 
   it("il vicino non legge i nostri feed", async () => {
-    const other = await createHousehold(db, MASTER_KEY, { slug: "vicina", name: "Vicina" });
+    const other = await createAccount(db, MASTER_KEY, { slug: "vicina", name: "Vicina" });
     const response = await app.inject({
       method: "GET",
       url: "/v1/feeds/items",
@@ -195,11 +195,11 @@ describe("«che notizie ci sono?» — e risponde lui, gratis", () => {
   });
 
   it("senza feed accesi lo dice, e non è la stessa cosa di «niente di nuovo»", async () => {
-    await db.update(rssFeeds).set({ enabled: false }).where(eq(rssFeeds.householdId, houseId));
+    await db.update(rssFeeds).set({ enabled: false }).where(eq(rssFeeds.accountId, houseId));
     expect((await say("che notizie ci sono?")).reply).toContain("Non sei iscritto");
     // e con un feed acceso ma vuoto, l'altra risposta
     await db.update(rssFeeds).set({ enabled: true }).where(eq(rssFeeds.id, spentoId));
-    await db.delete(feedItems).where(eq(feedItems.householdId, houseId));
+    await db.delete(feedItems).where(eq(feedItems.accountId, houseId));
     expect((await say("che notizie ci sono?")).reply).toContain("niente di nuovo");
   });
 });

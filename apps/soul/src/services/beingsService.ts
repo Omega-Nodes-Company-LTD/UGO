@@ -49,23 +49,23 @@ export class BeingsService {
    */
   public constructor(
     private readonly db: DbClient,
-    private readonly householdId: string,
+    private readonly accountId: string,
   ) {}
 
   private async eldestExemplar(): Promise<string> {
     const [eldest] = await this.db
       .select({ id: gosini.id })
       .from(gosini)
-      .where(eq(gosini.householdId, this.householdId))
+      .where(eq(gosini.accountId, this.accountId))
       .orderBy(asc(gosini.bornAt))
       .limit(1);
-    if (eldest === undefined) throw new Error(`household ${this.householdId} has no exemplar`);
+    if (eldest === undefined) throw new Error(`account ${this.accountId} has no exemplar`);
     return eldest.id;
   }
 
   /** A being of this house, or nothing — never one of the neighbours' by id. */
   private mine(beingId: string) {
-    return and(eq(beings.id, beingId), eq(beings.householdId, this.householdId));
+    return and(eq(beings.id, beingId), eq(beings.accountId, this.accountId));
   }
 
   public async update(beingId: string, patch: BeingPatch, at = new Date()): Promise<UpdateReport> {
@@ -120,7 +120,7 @@ export class BeingsService {
             this.db
               .select({ id: beings.id })
               .from(beings)
-              .where(eq(beings.householdId, this.householdId)),
+              .where(eq(beings.accountId, this.accountId)),
           ),
         ),
       )
@@ -145,7 +145,7 @@ export class BeingsService {
     const b = swap ? beingA : beingB;
     await this.db
       .insert(relations)
-      .values({ householdId: this.householdId, beingA: a, beingB: b, type, strength })
+      .values({ accountId: this.accountId, beingA: a, beingB: b, type, strength })
       .onConflictDoUpdate({
         target: [relations.beingA, relations.beingB, relations.type],
         set: { strength },
@@ -155,7 +155,7 @@ export class BeingsService {
   public async unlink(relationId: string): Promise<void> {
     await this.db
       .delete(relations)
-      .where(and(eq(relations.id, relationId), eq(relations.householdId, this.householdId)));
+      .where(and(eq(relations.id, relationId), eq(relations.accountId, this.accountId)));
   }
 
   public async listRelations(): Promise<
@@ -170,7 +170,7 @@ export class BeingsService {
         strength: relations.strength,
       })
       .from(relations)
-      .where(eq(relations.householdId, this.householdId));
+      .where(eq(relations.accountId, this.accountId));
   }
 
   public async recentCorrections(limit = 10): Promise<
@@ -190,7 +190,7 @@ export class BeingsService {
           this.db
             .select({ id: gosini.id })
             .from(gosini)
-            .where(eq(gosini.householdId, this.householdId)),
+            .where(eq(gosini.accountId, this.accountId)),
         ),
       )
       .limit(limit);

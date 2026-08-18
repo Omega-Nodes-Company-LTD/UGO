@@ -5,12 +5,12 @@ export interface BeingFactoryInput {
   /**
    * ADR-019: a being belongs to a house, never to the server.
    *
-   * This was optional while the `DEFAULT` on `beings.household_id` was still
+   * This was optional while the `DEFAULT` on `beings.account_id` was still
    * there as a backwards-compatibility net, with a comment saying that the day
    * it dropped, leaving it out would stop compiling. That day is ADR-048 tempo
    * 2, and it did.
    */
-  householdId: string;
+  accountId: string;
   displayName: string;
   species: string;
   kind: "resident" | "visitor" | "unknown";
@@ -29,7 +29,7 @@ export interface BeingFactoryInput {
  */
 export const BeingFactory = {
   create(
-    overrides: Partial<BeingFactoryInput> & Pick<BeingFactoryInput, "householdId">,
+    overrides: Partial<BeingFactoryInput> & Pick<BeingFactoryInput, "accountId">,
   ): BeingFactoryInput {
     return {
       displayName: faker.person.fullName(),

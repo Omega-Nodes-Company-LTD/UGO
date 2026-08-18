@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { MeetingsService } from "../services/meetingsService.js";
 import type { PreHandler } from "./guard.js";
-import { eldestExemplarOf, householdScope } from "./scope.js";
+import { eldestExemplarOf, accountScope } from "./scope.js";
 
 const joinRequestSchema = z.object({
   url: z.url(),
@@ -40,13 +40,13 @@ export function registerMeetingsRoutes(app: FastifyInstance, deps: MeetingsRoute
       problem(reply, 400, "Invalid meeting request", z.prettifyError(parsed.error));
       return;
     }
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
 
     let gosinoId: string;
     if (parsed.data.gosino === undefined) {
       try {
-        gosinoId = await eldestExemplarOf(deps.db, householdId);
+        gosinoId = await eldestExemplarOf(deps.db, accountId);
       } catch {
         problem(reply, 409, "Nobody to send", "questa casa non ha ancora nessun esemplare");
         return;
@@ -56,7 +56,7 @@ export function registerMeetingsRoutes(app: FastifyInstance, deps: MeetingsRoute
       const [mine] = await deps.db
         .select({ id: gosini.id })
         .from(gosini)
-        .where(and(eq(gosini.householdId, householdId), eq(gosini.id, parsed.data.gosino)))
+        .where(and(eq(gosini.accountId, accountId), eq(gosini.id, parsed.data.gosino)))
         .limit(1);
       if (mine === undefined) {
         problem(reply, 404, "Not Found");
@@ -68,7 +68,7 @@ export function registerMeetingsRoutes(app: FastifyInstance, deps: MeetingsRoute
     try {
       const ref = await deps.service.join(parsed.data.url, parsed.data.title, {
         gosinoId,
-        householdId,
+        accountId,
       });
       return await reply.code(201).send(ref);
     } catch (error) {

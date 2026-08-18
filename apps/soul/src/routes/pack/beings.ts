@@ -13,7 +13,7 @@ import {
   uuidParam,
   type PackRouteDeps,
 } from "./shared.js";
-import { eldestExemplarOf, householdScope } from "../scope.js";
+import { eldestExemplarOf, accountScope } from "../scope.js";
 import { storeVoiceSample } from "../../services/voiceEnrolment.js";
 
 /** Ten seconds of speech at Opus bitrates is well under this. */
@@ -23,14 +23,14 @@ const MAX_ENROLLMENT_BYTES = 4 * 1024 * 1024;
 export function registerBeingRoutes(
   app: FastifyInstance,
   deps: PackRouteDeps,
-  serviceFor: (householdId: string) => BeingsService,
+  serviceFor: (accountId: string) => BeingsService,
 ): void {
   const db: DbClient = deps.db;
 
   app.get("/v1/pack", async (request, reply) => {
-    const householdId = await householdScope(db, request, reply);
-    if (householdId === undefined) return reply;
-    const gosinoId = await eldestExemplarOf(db, householdId);
+    const accountId = await accountScope(db, request, reply);
+    if (accountId === undefined) return reply;
+    const gosinoId = await eldestExemplarOf(db, accountId);
     // ADR-057: anche il volto, per la pagina «I volti» — che chiamava una
     // rotta /v1/beings mai esistita e moriva con un 404 (visto in produzione)
     const faceProfiles = alias(recognitionProfiles, "face_profiles");
@@ -89,7 +89,7 @@ export function registerBeingRoutes(
         faceProfiles,
         and(eq(faceProfiles.beingId, beings.id), eq(faceProfiles.modality, "face")),
       )
-      .where(eq(beings.householdId, householdId))
+      .where(eq(beings.accountId, accountId))
       .orderBy(desc(beings.createdAt));
     return reply.send({
       gosinoId,
@@ -114,13 +114,13 @@ export function registerBeingRoutes(
         .type("application/problem+json")
         .send(problem("Invalid being", 400, z.prettifyError(parsed.error)));
     }
-    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     const { arrivalAt, notes, ...rest } = parsed.data;
     const [created] = await db
       .insert(beings)
       .values({
-        householdId,
+        accountId,
         ...rest,
         ...(arrivalAt !== undefined && { arrivalAt }),
         ...(notes !== undefined && { notes }),
@@ -129,8 +129,8 @@ export function registerBeingRoutes(
     // the bond starts at zero: UGO is the newcomer, he has to earn it
     if (created !== undefined) {
       await db.insert(bonds).values({
-        householdId,
-        gosinoId: await eldestExemplarOf(db, householdId),
+        accountId,
+        gosinoId: await eldestExemplarOf(db, accountId),
         beingId: created.id,
       });
     }
@@ -153,10 +153,10 @@ export function registerBeingRoutes(
           problem("Invalid being patch", 400, parsed.success ? undefined : z.prettifyError(parsed.error)),
         );
     }
-    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     try {
-      return await reply.send(await serviceFor(householdId).update(id, parsed.data));
+      return await reply.send(await serviceFor(accountId).update(id, parsed.data));
     } catch (error) {
       if (error instanceof BeingNotFoundError) {
         return reply.code(404).type("application/problem+json").send(problem("Being not found", 404));
@@ -171,9 +171,9 @@ export function registerBeingRoutes(
     if (id === undefined) {
       return reply.code(400).type("application/problem+json").send(problem("Invalid being id", 400));
     }
-    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    return reply.send({ destroyed: await serviceFor(householdId).destroyVoice(id) });
+    const accountId = await accountScope(db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    return reply.send({ destroyed: await serviceFor(accountId).destroyVoice(id) });
   });
 
   /**
@@ -188,10 +188,10 @@ export function registerBeingRoutes(
     if (id === undefined) {
       return reply.code(400).type("application/problem+json").send(problem("Invalid being id", 400));
     }
-    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     return reply.send({
-      destroyed: await serviceFor(householdId).destroyRecognition(id, "face"),
+      destroyed: await serviceFor(accountId).destroyRecognition(id, "face"),
     });
   });
 
@@ -204,12 +204,12 @@ export function registerBeingRoutes(
         .type("application/problem+json")
         .send(problem("Invalid enrollment request", 400));
     }
-    const householdId = await householdScope(db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     const [being] = await db
       .select({ isMinor: beings.isMinor, noAudio: beings.noAudio })
       .from(beings)
-      .where(and(eq(beings.id, id), eq(beings.householdId, householdId)));
+      .where(and(eq(beings.id, id), eq(beings.accountId, accountId)));
     if (being === undefined) {
       return reply.code(404).type("application/problem+json").send(problem("Being not found", 404));
     }
@@ -228,7 +228,7 @@ export function registerBeingRoutes(
         );
     }
     await db.insert(perceptionEvents).values({
-      gosinoId: await eldestExemplarOf(db, householdId),
+      gosinoId: await eldestExemplarOf(db, accountId),
       modality: "audio_speech",
       beingId: id,
       observed: { kind: "enrollment_requested", object_key: parsed.data.objectKey, channel: "home" },
@@ -259,13 +259,13 @@ export function registerBeingRoutes(
             .type("application/problem+json")
             .send(problem("Invalid enrollment audio", 400));
         }
-        const householdId = await householdScope(db, request, reply, { requireAdmin: true });
-        if (householdId === undefined) return reply;
+        const accountId = await accountScope(db, request, reply, { requireAdmin: true });
+        if (accountId === undefined) return reply;
         // il servizio rifiuta PRIMA di scrivere nel bucket (ADR-016), e da
         // quando il chiosco è un secondo chiamante i controlli vivono lì
         const stored = await storeVoiceSample(
           { db, storage },
-          { householdId, beingId: id, audio: body },
+          { accountId, beingId: id, audio: body },
         );
         if (stored.outcome === "not_found") {
           return reply

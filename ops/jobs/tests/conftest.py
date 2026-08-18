@@ -95,26 +95,26 @@ def make_house(conn: psycopg.Connection, slug: str) -> str:
     """
     return str(
         conn.execute(
-            "insert into households (slug, name) values (%s, %s) returning id", (slug, slug)
+            "insert into accounts (slug, name) values (%s, %s) returning id", (slug, slug)
         ).fetchone()[0]
     )
 
 
-def make_gosino(conn: psycopg.Connection, household_id: str, name: str) -> str:
+def make_gosino(conn: psycopg.Connection, account_id: str, name: str) -> str:
     """A second exemplar under the same roof is the normal case, not an edge one."""
     return str(
         conn.execute(
-            "insert into gosini (household_id, name) values (%s, %s) returning id",
-            (household_id, name),
+            "insert into gosini (account_id, name) values (%s, %s) returning id",
+            (account_id, name),
         ).fetchone()[0]
     )
 
 
-def make_being(conn: psycopg.Connection, household_id: str, name: str) -> str:
+def make_being(conn: psycopg.Connection, account_id: str, name: str) -> str:
     return str(
         conn.execute(
-            "insert into beings (household_id, display_name) values (%s, %s) returning id",
-            (household_id, name),
+            "insert into beings (account_id, display_name) values (%s, %s) returning id",
+            (account_id, name),
         ).fetchone()[0]
     )
 

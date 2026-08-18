@@ -7,7 +7,7 @@ import { confirmReminder, parseReminder, voiceReminder } from "./reminders.js";
  * sentence carry on as an ordinary conversation.
  */
 
-// eleven thirty in the morning, in the household's own clock
+// eleven thirty in the morning, in the account's own clock
 const H = 11;
 const M = 30;
 

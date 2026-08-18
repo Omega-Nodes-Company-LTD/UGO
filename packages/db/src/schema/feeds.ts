@@ -11,7 +11,7 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 import { EMBEDDING_DIMENSIONS } from "@ugo/shared";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 
 /**
  * I feed, e il consiglio del mattino (ADR-060, gruppo 10).
@@ -34,7 +34,7 @@ export const rssFeeds = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     url: text("url").notNull(),
     /** come lo chiama il pannello: «blog di Postgres», «changelog di React» */
     label: text("label").notNull(),
@@ -46,7 +46,7 @@ export const rssFeeds = pgTable(
   },
   (table) => [
     // lo stesso feed due volte è due download e zero informazione in più
-    unique("rss_feeds_household_url_uq").on(table.householdId, table.url),
+    unique("rss_feeds_account_url_uq").on(table.accountId, table.url),
   ],
 );
 
@@ -56,7 +56,7 @@ export const feedItems = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     feedId: uuid("feed_id").notNull(),
     /** l'identità dell'articolo secondo il feed; il dedup è (feed, guid) */
     guid: text("guid").notNull(),
@@ -77,7 +77,7 @@ export const feedItems = pgTable(
   },
   (table) => [
     unique("feed_items_feed_guid_uq").on(table.feedId, table.guid),
-    index("feed_items_household_created_idx").on(table.householdId, table.createdAt),
+    index("feed_items_account_created_idx").on(table.accountId, table.createdAt),
     foreignKey({
       columns: [table.feedId],
       foreignColumns: [rssFeeds.id],

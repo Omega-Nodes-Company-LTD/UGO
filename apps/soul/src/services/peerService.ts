@@ -134,7 +134,7 @@ export class PeerService {
    * visitor of this pack, and we keep the secret that lets us know it again.
    */
   public async accept(
-    input: { householdId: string; gosinoId: string; card: SignedCard },
+    input: { accountId: string; gosinoId: string; card: SignedCard },
     at: Date = new Date(),
   ): Promise<PeerEncounter | undefined> {
     const card = openCard(input.card, at.getTime());
@@ -143,7 +143,7 @@ export class PeerService {
     const [being] = await this.db
       .insert(beings)
       .values({
-        householdId: input.householdId,
+        accountId: input.accountId,
         displayName: card.name,
         species: PEER_SPECIES,
         kind: "visitor",
@@ -152,7 +152,7 @@ export class PeerService {
     if (being === undefined) throw new Error("visitor was not created");
 
     await this.db.insert(recognitionProfiles).values({
-      householdId: input.householdId,
+      accountId: input.accountId,
       beingId: being.id,
       modality: "tag",
       model: PEER_MODEL,
@@ -161,7 +161,7 @@ export class PeerService {
       sampleCount: 1,
     });
     await this.db.insert(bonds).values({
-      householdId: input.householdId,
+      accountId: input.accountId,
       gosinoId: input.gosinoId,
       beingId: being.id,
       familiarity: 0.1,
@@ -175,7 +175,7 @@ export class PeerService {
    * a handful, by design — and greet only if one of them matches.
    */
   public async sighting(
-    input: { householdId: string; gosinoId: string; seen: Pseudonym },
+    input: { accountId: string; gosinoId: string; seen: Pseudonym },
     at: Date = new Date(),
   ): Promise<PeerEncounter | undefined> {
     if (!(await this.enabled(input.gosinoId))) return undefined;
@@ -190,7 +190,7 @@ export class PeerService {
       .innerJoin(beings, eq(beings.id, recognitionProfiles.beingId))
       .where(
         and(
-          eq(beings.householdId, input.householdId),
+          eq(beings.accountId, input.accountId),
           eq(beings.species, PEER_SPECIES),
           eq(recognitionProfiles.modality, "tag"),
           eq(recognitionProfiles.model, PEER_MODEL),

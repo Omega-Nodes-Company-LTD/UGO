@@ -7,7 +7,7 @@ import { AdoptionService } from "../services/adoptionService.js";
 import { VetrinaService } from "../services/vetrinaService.js";
 import { guardBreeding } from "./breeding.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * La vetrina (ADR-083).
@@ -71,12 +71,12 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
     const parsed = showSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
+    if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
 
     const done = await vetrina.show(
-      householdId,
+      accountId,
       id,
       parsed.data.listed,
       parsed.data.priceCents,

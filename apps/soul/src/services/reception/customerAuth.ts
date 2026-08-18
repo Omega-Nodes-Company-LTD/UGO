@@ -12,7 +12,7 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
  */
 
 export interface CustomerContext {
-  householdId: string;
+  accountId: string;
   customerId: string;
   tokenId: string;
 }
@@ -32,13 +32,13 @@ export interface IssuedCustomerToken {
 
 export async function issueCustomerToken(
   db: DbClient,
-  input: { householdId: string; customerId: string; label: string; expiresAt?: Date },
+  input: { accountId: string; customerId: string; label: string; expiresAt?: Date },
 ): Promise<IssuedCustomerToken> {
   const token = randomBytes(TOKEN_BYTES).toString("base64url");
   const [row] = await db
     .insert(customerAccessTokens)
     .values({
-      householdId: input.householdId,
+      accountId: input.accountId,
       customerId: input.customerId,
       tokenHash: hashCustomerToken(token),
       label: input.label,
@@ -76,7 +76,7 @@ export class CustomerResolver {
     const [row] = await this.db
       .select({
         id: customerAccessTokens.id,
-        householdId: customerAccessTokens.householdId,
+        accountId: customerAccessTokens.accountId,
         customerId: customerAccessTokens.customerId,
         lastUsedAt: customerAccessTokens.lastUsedAt,
       })
@@ -95,7 +95,7 @@ export class CustomerResolver {
       );
     if (row === undefined) return undefined;
     await this.touch(row.id, row.lastUsedAt, now);
-    return { householdId: row.householdId, customerId: row.customerId, tokenId: row.id };
+    return { accountId: row.accountId, customerId: row.customerId, tokenId: row.id };
   }
 
   private async touch(id: string, lastUsedAt: Date | null, now: Date): Promise<void> {

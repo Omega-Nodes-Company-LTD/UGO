@@ -31,14 +31,14 @@ def run_customer_sync(cfg: JobsConfig, conn: psycopg.Connection | None = None) -
     connection = conn or psycopg.connect(cfg.database_url)
     try:
         houses = connection.execute(
-            "select id from households where closed_at is null order by created_at"
+            "select id from accounts where closed_at is null order by created_at"
         ).fetchall()
         report: dict = {}
-        for (household_id,) in houses:
-            report[str(household_id)] = {
-                "repos": run_repos(connection, cfg, str(household_id)),
-                "mail": run_mail(connection, cfg, str(household_id)),
-                "docs": run_docs(connection, cfg, str(household_id)),
+        for (account_id,) in houses:
+            report[str(account_id)] = {
+                "repos": run_repos(connection, cfg, str(account_id)),
+                "mail": run_mail(connection, cfg, str(account_id)),
+                "docs": run_docs(connection, cfg, str(account_id)),
             }
         connection.commit()
         return report

@@ -89,7 +89,7 @@ Tre strade, e portano allo stesso file:
 - **dal pannello**: `/admin` → **I dati**;
 - **dalla riga di comando**, se preferisci: `pnpm --filter soul ugo export > anima.json`.
 
-Dal muso e dal pannello serve il **token di casa**, e dal muso te lo chiede lì per lì anche se
+Dal muso e dal pannello serve il **token dell'account**, e dal muso te lo chiede lì per lì anche se
 il chiosco ne ha già uno suo: quello schermo lo vedono tutti, e far uscire l'intera casa in
 chiaro non può dipendere da chi ci passa davanti. Appena chiudi la scheda, quello che hai
 scritto sparisce.
@@ -107,11 +107,11 @@ esterni: la ricerca usa i modelli di casa.
 ## Far dimenticare una persona
 
 Si può fare anche **dal muso**: 🔒 i tuoi dati → scegli chi, **scrivi il suo nome** per
-confermare, e serve il token di casa. Il nome va scritto per intero apposta: da lì non si torna
+confermare, e serve il token dell'account. Il nome va scritto per intero apposta: da lì non si torna
 indietro, e un click solo non è un consenso a una cosa irreversibile.
 
 Una cosa detta com'è: il token dice *quale casa* e *con che autorità*, non *chi sei*. Quindi
-chi ha le chiavi di casa può cancellare chiunque, e il sistema non ha modo di sapere chi sta
+chi ha le chiavi dell'account può cancellare chiunque, e il sistema non ha modo di sapere chi sta
 digitando. Perché ognuno possa esercitare i propri diritti da solo servirebbe legare un accesso
 a una persona — non c'è ancora, e preferiamo dirlo che lasciarlo intendere.
 

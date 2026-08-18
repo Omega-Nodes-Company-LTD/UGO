@@ -8,7 +8,7 @@ import {
   type DbClient,
   events,
   PRIME_GOSINO_ID,
-  PRIME_HOUSEHOLD_ID,
+  PRIME_ACCOUNT_ID,
   runMigrations,
 } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
@@ -101,7 +101,7 @@ describe("internal token guard", () => {
     expect(rows).toHaveLength(1);
     const row = rows[0];
     expect(row?.outcome).toBe("denied");
-    expect(row?.householdId).toBeNull();
+    expect(row?.accountId).toBeNull();
     expect(row?.tokenId).toBeNull();
     expect(row?.resourceType).toBe("route");
     expect(row?.resourceId).toBe("/v1/privacy/export");
@@ -164,7 +164,7 @@ describe("the tokens of a house, over HTTP", () => {
 
   it("lets a house's own owner token through", async () => {
     const issued = await issueToken(db, {
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       role: "owner",
       label: "telefono di casa",
     });
@@ -176,7 +176,7 @@ describe("the tokens of a house, over HTTP", () => {
   // — a member reads and talks, but does not export)
   it("recognises a member token and still refuses it the export", async () => {
     const issued = await issueToken(db, {
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       role: "member",
       label: "tablet della cucina",
     });
@@ -185,7 +185,7 @@ describe("the tokens of a house, over HTTP", () => {
 
   it("stops recognising a token the moment it is revoked", async () => {
     const issued = await issueToken(db, {
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       role: "owner",
       label: "telefono smarrito",
     });
@@ -197,7 +197,7 @@ describe("the tokens of a house, over HTTP", () => {
 
   it("refuses a token that has already expired", async () => {
     const issued = await issueToken(db, {
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       role: "owner",
       label: "ospite di ieri",
       expiresAt: new Date(Date.now() - 60_000),
@@ -214,7 +214,7 @@ describe("the tokens of a house, over HTTP", () => {
   // otherwise every dev request would look like an anonymous operator
   it("prefers a real token over the development fallback", async () => {
     const issued = await issueToken(db, {
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       role: "owner",
       label: "sviluppo",
     });
@@ -277,7 +277,7 @@ describe("erasure over HTTP", () => {
   it("requires explicit confirmation and reports a real result", async () => {
     const [person] = await db
       .insert(beings)
-      .values({ householdId: PRIME_HOUSEHOLD_ID, displayName: "Test Persona", aliases: [] })
+      .values({ accountId: PRIME_ACCOUNT_ID, displayName: "Test Persona", aliases: [] })
       .returning({ id: beings.id });
     if (person === undefined) throw new Error("insert failed");
 
@@ -316,7 +316,7 @@ describe("GET /v1/stats", () => {
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date());
     await db.insert(budgetLedger).values([
       {
-        householdId: PRIME_HOUSEHOLD_ID,
+        accountId: PRIME_ACCOUNT_ID,
         gosinoId: PRIME_GOSINO_ID,
         date: today,
         provider: "anthropic",
@@ -328,7 +328,7 @@ describe("GET /v1/stats", () => {
         costUsd: "0.100000",
       },
       {
-        householdId: PRIME_HOUSEHOLD_ID,
+        accountId: PRIME_ACCOUNT_ID,
         gosinoId: PRIME_GOSINO_ID,
         date: today,
         provider: "anthropic",
@@ -367,7 +367,7 @@ describe("GET /v1/stats", () => {
   it("flags the degraded state once the budget is gone", async () => {
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date());
     await db.insert(budgetLedger).values({
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       gosinoId: PRIME_GOSINO_ID,
       date: today,
       provider: "anthropic",
@@ -395,26 +395,26 @@ describe("un token non attraversa il confine", () => {
   beforeAll(async () => {
     vicini = await createHouse(db, "casa-vicini-auth", { name: "i vicini" });
     loroToken = (
-      await issueToken(db, { householdId: vicini.id, role: "owner", label: "telefono dei vicini" })
+      await issueToken(db, { accountId: vicini.id, role: "owner", label: "telefono dei vicini" })
     ).token;
   });
 
   const exportOf = async (token: string, casa?: string) =>
     guarded.inject({
       method: "GET",
-      url: casa === undefined ? "/v1/privacy/export" : `/v1/privacy/export?casa=${casa}`,
+      url: casa === undefined ? "/v1/privacy/export" : `/v1/privacy/export?account=${casa}`,
       headers: { authorization: `Bearer ${token}` },
     });
 
   it("exports the neighbours' house when the neighbours ask", async () => {
     const response = await exportOf(loroToken);
     expect(response.statusCode).toBe(200);
-    expect(response.body).not.toContain(PRIME_HOUSEHOLD_ID);
+    expect(response.body).not.toContain(PRIME_ACCOUNT_ID);
   });
 
   it("answers 404 — not 403 — when they ask for someone else's house", async () => {
     // 403 would confirm that the house exists; a probe must learn nothing
-    expect((await exportOf(loroToken, PRIME_HOUSEHOLD_ID)).statusCode).toBe(404);
+    expect((await exportOf(loroToken, PRIME_ACCOUNT_ID)).statusCode).toBe(404);
     expect((await exportOf(loroToken, crypto.randomUUID())).statusCode).toBe(404);
   });
 
@@ -422,23 +422,23 @@ describe("un token non attraversa il confine", () => {
     // the same request answered 200 while a single family lived here
     const response = await exportOf(TOKEN);
     expect(response.statusCode).toBe(400);
-    expect(response.json<{ detail: string }>().detail).toContain("casa");
+    expect(response.json<{ detail: string }>().detail).toContain("account");
 
     // saying which house is all it takes
-    expect((await exportOf(TOKEN, PRIME_HOUSEHOLD_ID)).statusCode).toBe(200);
+    expect((await exportOf(TOKEN, PRIME_ACCOUNT_ID)).statusCode).toBe(200);
     expect((await exportOf(TOKEN, vicini.id)).statusCode).toBe(200);
   });
 
   it("refuses to erase across the fence, and says only 'not found'", async () => {
     const [loro] = await db
       .insert(beings)
-      .values({ householdId: vicini.id, displayName: "Chi Sta Di La", aliases: [] })
+      .values({ accountId: vicini.id, displayName: "Chi Sta Di La", aliases: [] })
       .returning({ id: beings.id });
     if (loro === undefined) throw new Error("being was not created");
 
     const response = await guarded.inject({
       method: "POST",
-      url: `/v1/privacy/forget?casa=${PRIME_HOUSEHOLD_ID}`,
+      url: `/v1/privacy/forget?account=${PRIME_ACCOUNT_ID}`,
       headers: { authorization: `Bearer ${TOKEN}` },
       payload: { beingId: loro.id, confirm: true },
     });

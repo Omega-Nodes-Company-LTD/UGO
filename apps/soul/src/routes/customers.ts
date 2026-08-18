@@ -18,12 +18,12 @@ import {
   revokeCustomerToken,
 } from "../services/reception/customerAuth.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * The house side of the reception (ADR-052): who the customers are, which
  * gosini they may talk to, their tokens and their tickets. Owner/operator
- * only — `householdScope({ requireAdmin: true })` — and everything of another
+ * only — `accountScope({ requireAdmin: true })` — and everything of another
  * house answers 404, never 403 (BOLA).
  */
 
@@ -88,24 +88,24 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
   const { db, guard, dataKey, audit } = deps;
   const admin = { preHandler: guard };
   const scope = (request: Parameters<PreHandler>[0], reply: FastifyReply): Promise<string | undefined> =>
-    householdScope(db, request, reply, { requireAdmin: true });
+    accountScope(db, request, reply, { requireAdmin: true });
 
   /** one customer of THIS house, or undefined (the caller answers 404) */
-  const mine = async (householdId: string, customerId: string) => {
+  const mine = async (accountId: string, customerId: string) => {
     const [row] = await db
       .select()
       .from(customers)
-      .where(and(eq(customers.id, customerId), eq(customers.householdId, householdId)));
+      .where(and(eq(customers.id, customerId), eq(customers.accountId, accountId)));
     return row;
   };
 
   app.get("/v1/customers", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const rows = await db
       .select()
       .from(customers)
-      .where(eq(customers.householdId, householdId))
+      .where(eq(customers.accountId, accountId))
       .orderBy(asc(customers.createdAt));
     const counts = await db
       .select({
@@ -114,7 +114,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
         count: sql<string>`count(*)`,
       })
       .from(tickets)
-      .where(eq(tickets.householdId, householdId))
+      .where(eq(tickets.accountId, accountId))
       .groupBy(tickets.customerId, tickets.status);
     return {
       customers: rows.map((row) => ({
@@ -134,8 +134,8 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
   });
 
   app.post("/v1/customers", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const parsed = createSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
     const base = slugOf(parsed.data.name);
@@ -143,14 +143,14 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
     const taken = await db
       .select({ slug: customers.slug })
       .from(customers)
-      .where(eq(customers.householdId, householdId));
+      .where(eq(customers.accountId, accountId));
     const slugs = new Set(taken.map((row) => row.slug));
     let slug = base;
     for (let n = 2; slugs.has(slug); n += 1) slug = `${base}-${String(n)}`;
     const [row] = await db
       .insert(customers)
       .values({
-        householdId,
+        accountId,
         name: parsed.data.name,
         slug,
         ...(parsed.data.notes !== undefined && {
@@ -162,7 +162,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
     await audit?.record({
       verb: "customer_created",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
       resourceType: "customer",
       resourceId: row.id,
@@ -171,10 +171,10 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
   });
 
   app.get("/v1/customers/:id", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(householdId, id);
+    const customer = await mine(accountId, id);
     if (customer === undefined) return problem(reply, 404, "Not Found");
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60_000);
     const [assigned, tokens, [givenThisWeek]] = await Promise.all([
@@ -228,10 +228,10 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
   });
 
   app.patch("/v1/customers/:id", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(householdId, id);
+    const customer = await mine(accountId, id);
     if (customer === undefined) return problem(reply, 404, "Not Found");
     const parsed = updateSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
@@ -261,7 +261,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
       await audit?.record({
         verb: "customer_archived",
         outcome: "ok",
-        householdId,
+        accountId,
         actor: request.tenant,
         resourceType: "customer",
         resourceId: id,
@@ -272,10 +272,10 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
 
   /** the whole assignment in one act: what you see is what there is */
   app.put("/v1/customers/:id/gosini", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(householdId, id);
+    const customer = await mine(accountId, id);
     if (customer === undefined) return problem(reply, 404, "Not Found");
     const parsed = assignSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
@@ -285,7 +285,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
         .select({ id: gosini.id })
         .from(gosini)
         .where(
-          and(eq(gosini.householdId, householdId), inArray(gosini.id, parsed.data.gosinoIds)),
+          and(eq(gosini.accountId, accountId), inArray(gosini.id, parsed.data.gosinoIds)),
         );
       if (owned.length !== parsed.data.gosinoIds.length) {
         return problem(reply, 404, "Not Found");
@@ -295,7 +295,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
     if (parsed.data.gosinoIds.length > 0) {
       await db.insert(customerGosini).values(
         parsed.data.gosinoIds.map((gosinoId) => ({
-          householdId,
+          accountId,
           customerId: id,
           gosinoId,
         })),
@@ -305,15 +305,15 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
   });
 
   app.post("/v1/customers/:id/tokens", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(householdId, id);
+    const customer = await mine(accountId, id);
     if (customer === undefined) return problem(reply, 404, "Not Found");
     const parsed = tokenSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
     const issued = await issueCustomerToken(db, {
-      householdId,
+      accountId,
       customerId: id,
       label: parsed.data.label,
       ...(parsed.data.expiresAt !== undefined && { expiresAt: parsed.data.expiresAt }),
@@ -321,7 +321,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
     await audit?.record({
       verb: "customer_token_issued",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
       resourceType: "customer_token",
       resourceId: issued.id,
@@ -331,10 +331,10 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
   });
 
   app.delete("/v1/customers/:id/tokens/:tokenId", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const { id, tokenId } = request.params as { id: string; tokenId: string };
-    const customer = await mine(householdId, id);
+    const customer = await mine(accountId, id);
     if (customer === undefined) return problem(reply, 404, "Not Found");
     const [token] = await db
       .select({ id: customerAccessTokens.id })
@@ -350,7 +350,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
     await audit?.record({
       verb: "customer_token_revoked",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
       resourceType: "customer_token",
       resourceId: tokenId,
@@ -359,10 +359,10 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
   });
 
   app.get("/v1/customers/:id/tickets", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(householdId, id);
+    const customer = await mine(accountId, id);
     if (customer === undefined) return problem(reply, 404, "Not Found");
     const rows = await db
       .select()
@@ -385,15 +385,15 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
 
   /** triage: the owner moves the state, and the journal remembers who did */
   app.patch("/v1/tickets/:id", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
     const parsed = statusSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
     const [ticket] = await db
       .select({ id: tickets.id })
       .from(tickets)
-      .where(and(eq(tickets.id, id), eq(tickets.householdId, householdId)));
+      .where(and(eq(tickets.id, id), eq(tickets.accountId, accountId)));
     if (ticket === undefined) return problem(reply, 404, "Not Found");
     const at = new Date();
     await db
@@ -407,7 +407,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
     await audit?.record({
       verb: "ticket_status_changed",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
       resourceType: "ticket",
       resourceId: id,
@@ -417,10 +417,10 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
 
   /** the numbers of the relationship: volume, spend, and who they talk to */
   app.get("/v1/customers/:id/stats", admin, async (request, reply) => {
-    const householdId = await scope(request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(householdId, id);
+    const customer = await mine(accountId, id);
     if (customer === undefined) return problem(reply, 404, "Not Found");
     const perGosino = await db
       .select({
@@ -444,7 +444,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
     const names = await db
       .select({ id: gosini.id, name: gosini.name })
       .from(gosini)
-      .where(eq(gosini.householdId, householdId));
+      .where(eq(gosini.accountId, accountId));
     const nameOf = new Map(names.map((row) => [row.id, row.name]));
     return {
       perGosino: perGosino.map((row) => ({

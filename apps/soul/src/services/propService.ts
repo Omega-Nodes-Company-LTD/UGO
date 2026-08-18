@@ -33,7 +33,7 @@ export class PropService {
   public constructor(private readonly db: DbClient) {}
 
   /** Gli arredi di una stanza, come il muso li vuole. */
-  public async inRoom(householdId: string, roomSlug: string): Promise<SceneProp[]> {
+  public async inRoom(accountId: string, roomSlug: string): Promise<SceneProp[]> {
     const rows = await this.db
       .select({
         id: placedProps.id,
@@ -45,7 +45,7 @@ export class PropService {
       .from(placedProps)
       .where(
         and(
-          eq(placedProps.householdId, householdId),
+          eq(placedProps.accountId, accountId),
           eq(placedProps.roomSlug, slugOfRoom(roomSlug)),
         ),
       )
@@ -63,7 +63,7 @@ export class PropService {
    * nono cuscino ciascuna.
    */
   public async place(
-    householdId: string,
+    accountId: string,
     roomSlug: string,
     prop: PlacedProp,
   ): Promise<SceneProp> {
@@ -72,7 +72,7 @@ export class PropService {
       const [room] = await tx
         .select({ id: rooms.id })
         .from(rooms)
-        .where(and(eq(rooms.householdId, householdId), eq(rooms.slug, slug)));
+        .where(and(eq(rooms.accountId, accountId), eq(rooms.slug, slug)));
       // ADR-039: niente etichette inventate. Creare la stanza qui in silenzio
       // farebbe crescere il catalogo per refuso, che è precisamente ciò che
       // quella decisione ha chiuso.
@@ -81,7 +81,7 @@ export class PropService {
       const [count] = await tx
         .select({ n: sql<number>`count(*)::int` })
         .from(placedProps)
-        .where(and(eq(placedProps.householdId, householdId), eq(placedProps.roomSlug, slug)));
+        .where(and(eq(placedProps.accountId, accountId), eq(placedProps.roomSlug, slug)));
       if ((count?.n ?? 0) >= MAX_PROPS_PER_ROOM) throw new PropLimitError(slug);
 
       // la scorta si scala **prima** dell'inserimento, e con un `where` che
@@ -93,7 +93,7 @@ export class PropService {
         .set({ remaining: sql`${propStock.remaining} - 1` })
         .where(
           and(
-            eq(propStock.householdId, householdId),
+            eq(propStock.accountId, accountId),
             eq(propStock.kind, prop.kind),
             sql`${propStock.remaining} > 0`,
           ),
@@ -105,13 +105,13 @@ export class PropService {
         const [limit] = await tx
           .select({ remaining: propStock.remaining })
           .from(propStock)
-          .where(and(eq(propStock.householdId, householdId), eq(propStock.kind, prop.kind)));
+          .where(and(eq(propStock.accountId, accountId), eq(propStock.kind, prop.kind)));
         if (limit !== undefined) throw new PropStockError(prop.kind);
       }
 
       const [made] = await tx
         .insert(placedProps)
-        .values({ householdId, roomSlug: slug, ...prop })
+        .values({ accountId, roomSlug: slug, ...prop })
         .returning({
           id: placedProps.id,
           kind: placedProps.kind,
@@ -126,7 +126,7 @@ export class PropService {
 
   /** Sposta un arredo già posato. Non tocca le scorte: è lo stesso oggetto. */
   public async move(
-    householdId: string,
+    accountId: string,
     id: string,
     at: { x: number; z: number; rot: number },
     // `roomSlug` era già nella riga restituita e il tipo lo nascondeva: la
@@ -135,7 +135,7 @@ export class PropService {
     const [moved] = await this.db
       .update(placedProps)
       .set(at)
-      .where(and(eq(placedProps.householdId, householdId), eq(placedProps.id, id)))
+      .where(and(eq(placedProps.accountId, accountId), eq(placedProps.id, id)))
       .returning({
         id: placedProps.id,
         kind: placedProps.kind,
@@ -155,7 +155,7 @@ export class PropService {
    * è il modo in cui uno strumento diventa qualcosa che si ha paura di toccare.
    */
   public async remove(
-    householdId: string,
+    accountId: string,
     id: string,
     // `roomSlug` esce insieme al tipo: è la stanza in cui l'arredo STAVA, ed è
     // l'unica che debba ridisegnarsi. La rotta prendeva invece la stanza da
@@ -167,13 +167,13 @@ export class PropService {
     return this.db.transaction(async (tx) => {
       const [gone] = await tx
         .delete(placedProps)
-        .where(and(eq(placedProps.householdId, householdId), eq(placedProps.id, id)))
+        .where(and(eq(placedProps.accountId, accountId), eq(placedProps.id, id)))
         .returning({ kind: placedProps.kind, roomSlug: placedProps.roomSlug });
       if (gone === undefined) return undefined;
       await tx
         .update(propStock)
         .set({ remaining: sql`${propStock.remaining} + 1` })
-        .where(and(eq(propStock.householdId, householdId), eq(propStock.kind, gone.kind)));
+        .where(and(eq(propStock.accountId, accountId), eq(propStock.kind, gone.kind)));
       return { kind: gone.kind as PropKind, roomSlug: gone.roomSlug };
     });
   }
@@ -185,7 +185,7 @@ export class PropService {
    * zero. La casa del proprietario non ha righe e non ne vuole; quella di un
    * cliente ne ha una per tipo, con il rifornimento settimanale.
    */
-  public async stock(householdId: string): Promise<PropStockView[]> {
+  public async stock(accountId: string): Promise<PropStockView[]> {
     const rows = await this.db
       .select({
         kind: propStock.kind,
@@ -193,7 +193,7 @@ export class PropService {
         refillPerWeek: propStock.refillPerWeek,
       })
       .from(propStock)
-      .where(eq(propStock.householdId, householdId));
+      .where(eq(propStock.accountId, accountId));
     const byKind = new Map(rows.map((row) => [row.kind, row]));
     return PROP_KINDS.map((kind) => {
       const row = byKind.get(kind);
@@ -207,7 +207,7 @@ export class PropService {
 
   /** Mette (o toglie) un limite a un tipo. `null` = questa casa non ne ha. */
   public async setStock(
-    householdId: string,
+    accountId: string,
     kind: PropKind,
     remaining: number | null,
     refillPerWeek = 0,
@@ -215,14 +215,14 @@ export class PropService {
     if (remaining === null) {
       await this.db
         .delete(propStock)
-        .where(and(eq(propStock.householdId, householdId), eq(propStock.kind, kind)));
+        .where(and(eq(propStock.accountId, accountId), eq(propStock.kind, kind)));
       return;
     }
     await this.db
       .insert(propStock)
-      .values({ householdId, kind, remaining, refillPerWeek })
+      .values({ accountId, kind, remaining, refillPerWeek })
       .onConflictDoUpdate({
-        target: [propStock.householdId, propStock.kind],
+        target: [propStock.accountId, propStock.kind],
         set: { remaining, refillPerWeek },
       });
   }

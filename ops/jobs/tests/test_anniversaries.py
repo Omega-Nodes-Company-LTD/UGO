@@ -24,10 +24,10 @@ def conn(pg_url: str):  # noqa: ANN201
         connection.rollback()
 
 
-def plant_being(conn: psycopg.Connection, household_id: str, name: str, arrival: str) -> None:
+def plant_being(conn: psycopg.Connection, account_id: str, name: str, arrival: str) -> None:
     conn.execute(
-        "insert into beings (household_id, display_name, arrival_at) values (%s, %s, %s)",
-        (household_id, name, arrival),
+        "insert into beings (account_id, display_name, arrival_at) values (%s, %s, %s)",
+        (account_id, name, arrival),
     )
 
 
@@ -53,7 +53,7 @@ def test_l_anniversario_di_oggi_diventa_auguri_con_gli_anni_giusti(
     plant_being(conn, house, "Novella", "2026-08-16")
     conn.commit()
 
-    cfg = db_only_config(pg_url, household_id=house)
+    cfg = db_only_config(pg_url, account_id=house)
     report = run_anniversaries(conn, cfg, today=date(2026, 8, 16))
     assert report == {"written": 2}
 
@@ -73,7 +73,7 @@ def test_il_compleanno_del_gosino_e_suo_non_dell_anziano(
     conn.execute("update gosini set born_at = '2024-08-16T10:00:00Z' where id = %s", (young,))
     conn.commit()
 
-    cfg = db_only_config(pg_url, household_id=house)
+    cfg = db_only_config(pg_url, account_id=house)
     report = run_anniversaries(conn, cfg, today=date(2026, 8, 16))
     assert report == {"written": 1}
 
@@ -85,7 +85,7 @@ def test_il_compleanno_del_gosino_e_suo_non_dell_anziano(
     fresh_house = make_house(conn, f"casa-anni-{uuid4().hex[:8]}")
     newborn = make_gosino(conn, fresh_house, "bruno")
     conn.commit()
-    cfg2 = db_only_config(pg_url, household_id=fresh_house)
+    cfg2 = db_only_config(pg_url, account_id=fresh_house)
     assert run_anniversaries(conn, cfg2, today=datetime.now(tz=timezone.utc).date()) == {
         "written": 0
     }
@@ -100,6 +100,6 @@ def test_il_vicino_non_riceve_auguri_altrui(conn: psycopg.Connection, pg_url: st
     plant_being(conn, theirs, "Persona Loro", "2020-08-16")
     conn.commit()
 
-    cfg = db_only_config(pg_url, household_id=mine)
+    cfg = db_only_config(pg_url, account_id=mine)
     assert run_anniversaries(conn, cfg, today=date(2026, 8, 16)) == {"written": 0}
     assert desires_of(conn, neighbour_gosino) == []

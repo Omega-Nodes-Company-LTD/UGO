@@ -67,9 +67,9 @@ def enroll_face(
 
     conn.execute(
         """insert into recognition_profiles
-             (being_id, household_id, modality, model, dimensions, payload,
+             (being_id, account_id, modality, model, dimensions, payload,
               sample_count, updated_at)
-           values (%s, (select household_id from beings where id = %s),
+           values (%s, (select account_id from beings where id = %s),
                    %s, %s, %s, %s, %s, now())
            on conflict (being_id, modality) do update
              set model = excluded.model, dimensions = excluded.dimensions,
@@ -98,7 +98,7 @@ def identify_face(
     *,
     image: np.ndarray,
     data_key: bytes,
-    household_id: str,
+    account_id: str,
     encoder: object,
 ) -> Identification:
     """Chi è, chi potrebbe essere, o nessuno — con le soglie del suo modello."""
@@ -108,8 +108,8 @@ def identify_face(
         """select p.being_id, p.payload
              from recognition_profiles p
              join beings b on b.id = p.being_id
-            where p.modality = %s and p.model = %s and b.household_id = %s""",
-        (MODALITY, coder.model, household_id),  # type: ignore[attr-defined]
+            where p.modality = %s and p.model = %s and b.account_id = %s""",
+        (MODALITY, coder.model, account_id),  # type: ignore[attr-defined]
     ).fetchall()
 
     best_id, best_score = None, -1.0
@@ -232,7 +232,7 @@ SAME_STRANGER = 0.72
 def remember_unknown(
     conn: psycopg.Connection,
     *,
-    household_id: str,
+    account_id: str,
     image: np.ndarray,
     data_key: bytes,
     encoder: object,
@@ -251,8 +251,8 @@ def remember_unknown(
     fresh = coder.encode(image)  # type: ignore[attr-defined]
     rows = conn.execute(
         """select id, payload, seen_count from unknown_prints
-            where household_id = %s and modality = %s and model = %s""",
-        (household_id, MODALITY, coder.model),  # type: ignore[attr-defined]
+            where account_id = %s and modality = %s and model = %s""",
+        (account_id, MODALITY, coder.model),  # type: ignore[attr-defined]
     ).fetchall()
 
     best_id, best_score, best_payload, best_seen = None, -1.0, None, 0
@@ -275,11 +275,11 @@ def remember_unknown(
 
     row = conn.execute(
         """insert into unknown_prints
-             (household_id, modality, model, dimensions, payload)
+             (account_id, modality, model, dimensions, payload)
            values (%s, %s, %s, %s, %s)
            returning id""",
         (
-            household_id,
+            account_id,
             MODALITY,
             coder.model,  # type: ignore[attr-defined]
             coder.dimensions,  # type: ignore[attr-defined]
@@ -297,7 +297,7 @@ def claim_unknown(
     print_id: str,
     being_id: str,
     gosino_id: str,
-    household_id: str,
+    account_id: str,
     data_key: bytes,
     channel: str = "home",
 ) -> int:
@@ -315,8 +315,8 @@ def claim_unknown(
 
     row = conn.execute(
         """select payload, seen_count, model, dimensions from unknown_prints
-            where id = %s and household_id = %s""",
-        (print_id, household_id),
+            where id = %s and account_id = %s""",
+        (print_id, account_id),
     ).fetchone()
     if row is None:
         raise EnrollmentRefused("unknown_print")
@@ -347,9 +347,9 @@ def claim_unknown(
 
     conn.execute(
         """insert into recognition_profiles
-             (being_id, household_id, modality, model, dimensions, payload,
+             (being_id, account_id, modality, model, dimensions, payload,
               sample_count, updated_at)
-           values (%s, (select household_id from beings where id = %s),
+           values (%s, (select account_id from beings where id = %s),
                    %s, %s, %s, %s, %s, now())
            on conflict (being_id, modality) do update
              set model = excluded.model, dimensions = excluded.dimensions,
@@ -376,7 +376,7 @@ def claim_unknown(
 def forget_unknown(
     conn: psycopg.Connection,
     *,
-    household_id: str | None = None,
+    account_id: str | None = None,
     print_id: str | None = None,
     older_than_days: int | None = None,
 ) -> int:
@@ -389,9 +389,9 @@ def forget_unknown(
     prende una colonna.
     """
     clauses, params = [], []
-    if household_id is not None:
-        clauses.append("household_id = %s")
-        params.append(household_id)
+    if account_id is not None:
+        clauses.append("account_id = %s")
+        params.append(account_id)
     if print_id is not None:
         clauses.append("id = %s")
         params.append(print_id)

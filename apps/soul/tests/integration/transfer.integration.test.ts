@@ -17,9 +17,9 @@ import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  createHousehold,
-  createHouseholdWithFounder,
-} from "../../src/services/householdService.js";
+  createAccount,
+  createAccountWithFounder,
+} from "../../src/services/accountService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -57,28 +57,28 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const kennel = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const kennel = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "allevamento",
     name: "Allevamento",
     gosinoName: "Zero",
     breeder: true,
   });
   allevamento = kennel.ownerToken;
-  allevamentoId = kennel.householdId;
+  allevamentoId = kennel.accountId;
   capostipite = kennel.gosinoId;
 
-  const home = await createHousehold(db, MASTER_KEY, { slug: "famiglia", name: "Famiglia" });
-  famigliaId = home.householdId;
+  const home = await createAccount(db, MASTER_KEY, { slug: "famiglia", name: "Famiglia" });
+  famigliaId = home.accountId;
 
   // un nato, come uscirebbe da una cucciolata
   const [born] = await db
     .insert(gosini)
-    .values({ householdId: allevamentoId, name: "Nino", origin: "nato", generation: 1 })
+    .values({ accountId: allevamentoId, name: "Nino", origin: "nato", generation: 1 })
     .returning({ id: gosini.id });
   if (born === undefined) throw new Error("no cub");
   cucciolo = born.id;
   await db.insert(traitSets).values({
-    householdId: allevamentoId,
+    accountId: allevamentoId,
     gosinoId: cucciolo,
     version: 1,
     traits: { calm: 0.5 },
@@ -127,14 +127,14 @@ afterAll(async () => {
 describe("chi si può cedere", () => {
   it("un capostipite no, e la ragione è scritta", async () => {
     const response = await cede(allevamento, capostipite, {
-      toHousehold: "famiglia",
+      toAccount: "famiglia",
       confirmName: "Zero",
     });
     expect(response.statusCode).toBe(422);
     expect(response.json<{ detail: string }>().detail).toContain("si vendono i figli");
     // ed è ancora dov'era
     const [row] = await db
-      .select({ house: gosini.householdId })
+      .select({ house: gosini.accountId })
       .from(gosini)
       .where(eq(gosini.id, capostipite));
     expect(row?.house).toBe(allevamentoId);
@@ -142,7 +142,7 @@ describe("chi si può cedere", () => {
 
   it("il nome deve combaciare: un click solo non consegna una creatura", async () => {
     const response = await cede(allevamento, cucciolo, {
-      toHousehold: "famiglia",
+      toAccount: "famiglia",
       confirmName: "Sbagliato",
     });
     expect(response.statusCode).toBe(400);
@@ -150,7 +150,7 @@ describe("chi si può cedere", () => {
 
   it("una casa che non esiste non riceve niente", async () => {
     const response = await cede(allevamento, cucciolo, {
-      toHousehold: "casa-che-non-c-e",
+      toAccount: "casa-che-non-c-e",
       confirmName: "Nino",
     });
     expect(response.statusCode).toBe(404);
@@ -160,13 +160,13 @@ describe("chi si può cedere", () => {
 describe("cosa parte e cosa resta", () => {
   it("il nato cambia casa, e si porta genoma e genealogia", async () => {
     const response = await cede(allevamento, cucciolo, {
-      toHousehold: "famiglia",
+      toAccount: "famiglia",
       confirmName: "Nino",
     });
     expect(response.statusCode).toBe(200);
 
     const [moved] = await db
-      .select({ house: gosini.householdId, where: gosini.locationLabel })
+      .select({ house: gosini.accountId, where: gosini.locationLabel })
       .from(gosini)
       .where(eq(gosini.id, cucciolo));
     expect(moved?.house).toBe(famigliaId);
@@ -174,7 +174,7 @@ describe("cosa parte e cosa resta", () => {
     expect(moved?.where).toBeNull();
 
     const [genome] = await db
-      .select({ house: traitSets.householdId })
+      .select({ house: traitSets.accountId })
       .from(traitSets)
       .where(eq(traitSets.gosinoId, cucciolo));
     expect(genome?.house).toBe(famigliaId);
@@ -197,7 +197,7 @@ describe("cosa parte e cosa resta", () => {
   it("e il conto di quel che è rimasto viene detto a chi cede", async () => {
     // due righe: il ricordo e la pagina di diario
     const [row] = await db
-      .select({ house: gosini.householdId })
+      .select({ house: gosini.accountId })
       .from(gosini)
       .where(eq(gosini.id, cucciolo));
     expect(row?.house).toBe(famigliaId);
@@ -205,7 +205,7 @@ describe("cosa parte e cosa resta", () => {
 
   it("non si cede due volte: dopo non è più roba di chi l'ha ceduto", async () => {
     const response = await cede(allevamento, cucciolo, {
-      toHousehold: "famiglia",
+      toAccount: "famiglia",
       confirmName: "Nino",
     });
     expect(response.statusCode).toBe(404);

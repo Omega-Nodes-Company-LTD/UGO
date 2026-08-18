@@ -24,7 +24,7 @@ function buildClient(databaseUrl: string) {
 
 /**
  * Runs `work` inside a transaction that has declared which house it is about
- * (ADR-048). This is the only place `app.household_id` is ever set, and the
+ * (ADR-048). This is the only place `app.account_id` is ever set, and the
  * only thing the Row Level Security policies read.
  *
  * **`SET LOCAL`, not `SET`.** The pool reuses connections: a plain `SET` would
@@ -35,13 +35,13 @@ function buildClient(databaseUrl: string) {
  * The value is passed as a bound parameter rather than interpolated: it
  * arrives from a request, and `set_config` takes it as data instead of as SQL.
  */
-export async function withHousehold<T>(
+export async function withAccount<T>(
   db: DbClient,
-  householdId: string,
+  accountId: string,
   work: (tx: DbClient) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select set_config('app.household_id', ${householdId}, true)`);
+    await tx.execute(sql`select set_config('app.account_id', ${accountId}, true)`);
     return work(tx as unknown as DbClient);
   });
 }

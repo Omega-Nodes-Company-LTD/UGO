@@ -3,7 +3,7 @@ import {
   budgetLedger,
   createDbClient,
   PRIME_GOSINO_ID,
-  PRIME_HOUSEHOLD_ID,
+  PRIME_ACCOUNT_ID,
   runMigrations,
   type DbClient,
 } from "@ugo/db";
@@ -135,7 +135,7 @@ describe("the piggy bank (budget_ledger)", () => {
 
   it("degrades with the declared reply once the daily budget is spent", async () => {
     await db.insert(budgetLedger).values({
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       gosinoId: PRIME_GOSINO_ID,
       date: today(),
       provider: "anthropic",
@@ -158,7 +158,7 @@ describe("the piggy bank (budget_ledger)", () => {
 
   it("counts only today's spend toward the budget", async () => {
     await db.insert(budgetLedger).values({
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       gosinoId: PRIME_GOSINO_ID,
       date: "2020-01-01",
       provider: "anthropic",

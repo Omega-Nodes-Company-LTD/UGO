@@ -34,7 +34,7 @@ export interface MeetingRef {
    * i default di boot — che sono il comportamento di prima, non uno nuovo.
    */
   gosinoId?: string;
-  householdId?: string;
+  accountId?: string;
 }
 
 const transcriptsResponseSchema = z.object({
@@ -78,7 +78,7 @@ export interface MeetingsDeps {
    */
   gosinoId: string;
   /** ADR-048: `transcript_segments` carries the house on the row now */
-  householdId: string;
+  accountId: string;
   embedder: EmbeddingsClient;
   llm: LlmClient;
   dataKey: Buffer;
@@ -105,10 +105,10 @@ export class MeetingsService {
   }
 
   /** the ref's own who, or the boot defaults for a ref that does not say */
-  private whoOf(ref: MeetingRef): { gosinoId: string; householdId: string } {
+  private whoOf(ref: MeetingRef): { gosinoId: string; accountId: string } {
     return {
       gosinoId: ref.gosinoId ?? this.deps.gosinoId,
-      householdId: ref.householdId ?? this.deps.householdId,
+      accountId: ref.accountId ?? this.deps.accountId,
     };
   }
 
@@ -132,7 +132,7 @@ export class MeetingsService {
   public async join(
     rawUrl: string,
     title?: string,
-    who?: { gosinoId: string; householdId: string },
+    who?: { gosinoId: string; accountId: string },
   ): Promise<MeetingRef> {
     const { platform, nativeId } = parseMeetingUrl(rawUrl);
     const response = await this.vexaFetch("/bots", {
@@ -161,7 +161,7 @@ export class MeetingsService {
       platform,
       nativeId,
       gosinoId: who?.gosinoId ?? this.deps.gosinoId,
-      householdId: who?.householdId ?? this.deps.householdId,
+      accountId: who?.accountId ?? this.deps.accountId,
     };
     this.activeRefs.set(ref.meetingId, ref);
     return ref;
@@ -266,7 +266,7 @@ export class MeetingsService {
       await this.deps.db.insert(transcriptSegments).values(
         fresh.map((segment, index) => ({
           meetingId: ref.meetingId,
-          householdId: this.whoOf(ref).householdId,
+          accountId: this.whoOf(ref).accountId,
           speaker: segment.speaker ?? null,
           t0: segment.start ?? 0,
           t1: segment.end ?? segment.start ?? 0,

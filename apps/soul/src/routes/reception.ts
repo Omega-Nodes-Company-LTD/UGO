@@ -141,7 +141,7 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
       await deps.audit?.record({
         verb: "customer_reward_given",
         outcome: "ok",
-        householdId: context.householdId,
+        accountId: context.accountId,
         resourceType: "gosino",
         resourceId: parsed.data.gosinoId,
       });
@@ -393,7 +393,7 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
     if (ticket === undefined) return problem(reply, 404, "Not Found");
     const at = new Date();
     await deps.db.insert(customerMessages).values({
-      householdId: context.householdId,
+      accountId: context.accountId,
       customerId: context.customerId,
       gosinoId: ticket.gosinoId,
       ticketId: ticket.id,

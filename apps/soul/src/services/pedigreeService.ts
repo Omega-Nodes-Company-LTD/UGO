@@ -37,7 +37,7 @@ export class PedigreeService {
    */
   public async ofListed(gosinoId: string, generations = 4): Promise<PedigreeNode[] | undefined> {
     const [row] = await this.db
-      .select({ house: gosini.householdId })
+      .select({ house: gosini.accountId })
       .from(gosini)
       .where(and(eq(gosini.id, gosinoId), isNotNull(gosini.listedAt)));
     return row === undefined ? undefined : this.of(row.house, gosinoId, generations);
@@ -48,7 +48,7 @@ export class PedigreeService {
    * yours does not exist, rather than being forbidden.
    */
   public async of(
-    householdId: string,
+    accountId: string,
     gosinoId: string,
     generations = 4,
   ): Promise<PedigreeNode[] | undefined> {
@@ -56,7 +56,7 @@ export class PedigreeService {
     const [root] = await this.db
       .select({ id: gosini.id })
       .from(gosini)
-      .where(and(eq(gosini.id, gosinoId), eq(gosini.householdId, householdId)));
+      .where(and(eq(gosini.id, gosinoId), eq(gosini.accountId, accountId)));
     if (root === undefined) return undefined;
 
     const nodes: PedigreeNode[] = [];
@@ -76,11 +76,11 @@ export class PedigreeService {
           bornAt: gosini.bornAt,
         })
         .from(gosini)
-        .where(and(eq(gosini.householdId, householdId), inArray(gosini.id, fresh)));
+        .where(and(eq(gosini.accountId, accountId), inArray(gosini.id, fresh)));
 
       const next: string[] = [];
       for (const row of rows) {
-        const node = await this.nodeFor(householdId, row);
+        const node = await this.nodeFor(accountId, row);
         nodes.push(node);
         next.push(...node.parents.map((parent) => parent.id));
       }
@@ -90,7 +90,7 @@ export class PedigreeService {
   }
 
   private async nodeFor(
-    householdId: string,
+    accountId: string,
     row: { id: string; name: string; generation: number; bornAt: Date },
   ): Promise<PedigreeNode> {
     const [genome] = await this.db
@@ -109,7 +109,7 @@ export class PedigreeService {
       })
       .from(births)
       .innerJoin(gosini, eq(gosini.id, births.parentGosinoId))
-      .where(and(eq(births.childGosinoId, row.id), eq(births.householdId, householdId)))
+      .where(and(eq(births.childGosinoId, row.id), eq(births.accountId, accountId)))
       .orderBy(asc(births.parentGosinoId));
 
     const hash = genome === undefined ? undefined : genomeHash(genome.traits);

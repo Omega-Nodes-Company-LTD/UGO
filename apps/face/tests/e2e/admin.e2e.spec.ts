@@ -1,10 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createDbClient, PRIME_HOUSEHOLD_ID, recognitionProfiles } from "@ugo/db";
+import { createDbClient, PRIME_ACCOUNT_ID, recognitionProfiles } from "@ugo/db";
 
 /**
  * The operator panel end to end: a real browser against the real soul started
  * by global-setup. What matters here is not that the HTML renders — it is that
- * somebody who has never opened a terminal can register their household and
+ * somebody who has never opened a terminal can register their account and
  * that the protections are visible while they do it.
  */
 
@@ -27,7 +27,7 @@ const seedVoiceProfile = async (beingId: string): Promise<void> => {
   const db = createDbClient(url);
   try {
     await db.insert(recognitionProfiles).values({
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       beingId,
       modality: "voice",
       model: "mfcc-stats-v1",
@@ -92,7 +92,7 @@ test("a wrong token does not let anybody in", async ({ page }) => {
   await expect(page.getByTestId("pack-rows")).toBeHidden();
 });
 
-test("the household can be registered without touching a terminal", async ({ page }) => {
+test("the account can be registered without touching a terminal", async ({ page }) => {
   await openPanel(page);
 
   await addBeing(page, "Ivan Bianchi");

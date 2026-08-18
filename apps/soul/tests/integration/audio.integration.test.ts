@@ -6,7 +6,7 @@ import {
   type DbClient,
   meetings,
   PRIME_GOSINO_ID,
-  PRIME_HOUSEHOLD_ID,
+  PRIME_ACCOUNT_ID,
   runMigrations,
   transcriptSegments,
 } from "@ugo/db";
@@ -68,7 +68,7 @@ beforeAll(async () => {
   const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const chat = new ChatService({
     gosinoId: PRIME_GOSINO_ID,
-    householdId: PRIME_HOUSEHOLD_ID,
+    accountId: PRIME_ACCOUNT_ID,
     character: characterFrom({}),
     db,
     embedder,
@@ -156,7 +156,7 @@ describe("recordings interrogable through /chat (§4.2)", () => {
     const spoken = "Ivan ha detto che la consegna dei gusci slitta a giovedì prossimo.";
     const [embedding] = await embedder.embed([spoken]);
     await db.insert(transcriptSegments).values({
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       meetingId: meeting.id,
       t0: 12.5,
       t1: 16.0,

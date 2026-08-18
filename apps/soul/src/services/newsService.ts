@@ -27,11 +27,11 @@ export class NewsService {
   public constructor(private readonly db: DbClient) {}
 
   /** A quanti feed **accesi** è iscritta la casa: zero è una risposta diversa da «niente di nuovo». */
-  public async subscribed(householdId: string): Promise<number> {
+  public async subscribed(accountId: string): Promise<number> {
     const rows = await this.db
       .select({ id: rssFeeds.id })
       .from(rssFeeds)
-      .where(and(eq(rssFeeds.householdId, householdId), eq(rssFeeds.enabled, true)));
+      .where(and(eq(rssFeeds.accountId, accountId), eq(rssFeeds.enabled, true)));
     return rows.length;
   }
 
@@ -40,7 +40,7 @@ export class NewsService {
    * pubblicazione quando c'è: un feed che ripubblica vecchi articoli non deve
    * scavalcare la cronaca di stamattina solo perché l'abbiamo scaricato dopo.
    */
-  public async latest(householdId: string, limit = 10): Promise<NewsRow[]> {
+  public async latest(accountId: string, limit = 10): Promise<NewsRow[]> {
     const rows = await this.db
       .select({
         title: feedItems.title,
@@ -52,7 +52,7 @@ export class NewsService {
       })
       .from(feedItems)
       .innerJoin(rssFeeds, eq(feedItems.feedId, rssFeeds.id))
-      .where(and(eq(feedItems.householdId, householdId), eq(rssFeeds.enabled, true)))
+      .where(and(eq(feedItems.accountId, accountId), eq(rssFeeds.enabled, true)))
       .orderBy(desc(feedItems.publishedAt), desc(feedItems.createdAt))
       .limit(Math.min(MAX_ITEMS, Math.max(1, limit)));
 

@@ -1010,7 +1010,7 @@ lo dice. Vale la pena eseguirlo lo stesso: costa un attimo e la risposta è un n
 
 ```bash
 docker compose exec soul pnpm --filter soul ugo ricordi in-chiaro          # una casa sola
-docker compose exec soul pnpm --filter soul ugo ricordi in-chiaro --casa <slug>
+docker compose exec soul pnpm --filter soul ugo ricordi in-chiaro --account <slug>
 ```
 
 Risposta attesa: `{"ricordi_in_chiaro":{"found":N,"converted":N,"unreadable":0}}`. È idempotente

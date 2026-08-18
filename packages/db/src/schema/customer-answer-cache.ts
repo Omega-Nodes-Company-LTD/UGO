@@ -13,7 +13,7 @@ import {
 import { EMBEDDING_DIMENSIONS } from "@ugo/shared";
 import { customers } from "./customers.js";
 import { gosini } from "./gosini.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 
 /**
  * The third cost wall (ADR-055): a repeated question deserves an answer, not
@@ -28,7 +28,7 @@ export const customerAnswerCache = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     customerId: uuid("customer_id").notNull(),
     gosinoId: uuid("gosino_id").notNull(),
     /** hex SHA-256 of the normalized question */
@@ -56,14 +56,14 @@ export const customerAnswerCache = pgTable(
       table.questionEmbedding.op("vector_cosine_ops"),
     ),
     foreignKey({
-      columns: [table.householdId, table.customerId],
-      foreignColumns: [customers.householdId, customers.id],
-      name: "customer_answer_cache_household_customer_fk",
+      columns: [table.accountId, table.customerId],
+      foreignColumns: [customers.accountId, customers.id],
+      name: "customer_answer_cache_account_customer_fk",
     }).onDelete("cascade"),
     foreignKey({
-      columns: [table.householdId, table.gosinoId],
-      foreignColumns: [gosini.householdId, gosini.id],
-      name: "customer_answer_cache_household_gosino_fk",
+      columns: [table.accountId, table.gosinoId],
+      foreignColumns: [gosini.accountId, gosini.id],
+      name: "customer_answer_cache_account_gosino_fk",
     }).onDelete("cascade"),
   ],
 );

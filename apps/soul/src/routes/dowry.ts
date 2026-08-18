@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { DowryService, type DowryOptions } from "../services/dowryService.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * La dote (ADR-074): guardarla, farla, adottarla.
@@ -45,10 +45,10 @@ export function registerDowryRoutes(app: FastifyInstance, deps: DowryRoutesDeps)
     const parsed = optionsSchema.safeParse(request.body ?? {});
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
 
-    const preview = await dowries.preview(householdId, id, cleaned(parsed.data));
+    const preview = await dowries.preview(accountId, id, cleaned(parsed.data));
     if (preview === undefined) return reply.status(404).send({ error: "non esiste" });
     return reply.send(preview);
   });
@@ -57,10 +57,10 @@ export function registerDowryRoutes(app: FastifyInstance, deps: DowryRoutesDeps)
     const parsed = optionsSchema.safeParse(request.body ?? {});
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
 
-    const made = await dowries.create(householdId, id, cleaned(parsed.data));
+    const made = await dowries.create(accountId, id, cleaned(parsed.data));
     if (made === undefined) return reply.status(404).send({ error: "non esiste" });
     // la chiave si vede UNA VOLTA SOLA: non è conservata da nessuna parte
     return reply.status(201).send(made);
@@ -69,11 +69,11 @@ export function registerDowryRoutes(app: FastifyInstance, deps: DowryRoutesDeps)
   app.post("/v1/dowries/adopt", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = adoptSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
 
     const adopted = await dowries.adopt(
-      householdId,
+      accountId,
       parsed.data.sealed,
       parsed.data.key,
       parsed.data.name,

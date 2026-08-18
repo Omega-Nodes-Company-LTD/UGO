@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, gosini, households, rooms, runMigrations, type DbClient } from "@ugo/db";
+import { createDbClient, gosini, accounts, rooms, runMigrations, type DbClient } from "@ugo/db";
 import type { EmbeddingsClient, LocalTextClient } from "@ugo/memory";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -29,7 +29,7 @@ let db: DbClient;
 let app: FastifyInstance;
 let registry: GosinoRegistry;
 let ugo: string;
-let householdId: string;
+let accountId: string;
 
 const idleEmbedder: EmbeddingsClient = {
   embed: (texts) => Promise.resolve(texts.map(() => Array.from({ length: 768 }, () => 0))),
@@ -58,18 +58,18 @@ beforeAll(async () => {
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
 
-  const houses = await db.select({ id: households.id }).from(households).limit(1);
+  const houses = await db.select({ id: accounts.id }).from(accounts).limit(1);
   const found = houses[0]?.id;
-  if (found === undefined) throw new Error("the migrations seed one household");
-  householdId = found;
+  if (found === undefined) throw new Error("the migrations seed one account");
+  accountId = found;
 
   const born = await db
     .insert(gosini)
-    .values([{ householdId: found, name: "Ugo", locationLabel: "cucina" }])
+    .values([{ accountId: found, name: "Ugo", locationLabel: "cucina" }])
     .returning({ id: gosini.id });
   ugo = born[0]?.id ?? "";
   // the room he was seeded into has to exist, the way the backfill makes it
-  await db.insert(rooms).values({ householdId: found, name: "cucina", slug: "cucina" });
+  await db.insert(rooms).values({ accountId: found, name: "cucina", slug: "cucina" });
 
   registry = await GosinoRegistry.load({
     db,
@@ -94,7 +94,7 @@ beforeAll(async () => {
     logger: false,
     features: {
       chat: undefined as never,
-      psyche: registry.resolve(undefined, householdId)?.psyche as never,
+      psyche: registry.resolve(undefined, accountId)?.psyche as never,
       registry,
       initiative: new InitiativeSwitch(() => true),
       stats: { dailyBudgetUsd: 0.5, timezone: "Europe/Rome" },

@@ -14,7 +14,7 @@ async function showPlace() {
   try {
     // forWho() porta la casa scelta, come ogni altra chiamata del pannello:
     // senza, con due famiglie si mostrerebbe il posto di quella sbagliata
-    const where = (await call(forWho("/v1/household/place"), {})).place;
+    const where = (await call(forWho("/v1/account/place"), {})).place;
     $("place-now").textContent = where
       ? "Adesso: " + where
       : "Non l'hai ancora detto: il cielo resta sereno per finta finché non lo scegli.";
@@ -37,7 +37,7 @@ $("place-find").addEventListener("click", async () => {
       button.addEventListener("click", async () => {
         const chosen = found[Number(button.dataset.i)];
         try {
-          await call(forWho("/v1/household/place"), {
+          await call(forWho("/v1/account/place"), {
             method: "PUT",
             body: JSON.stringify({ place: chosen.label, lat: chosen.lat, lon: chosen.lon }),
           });

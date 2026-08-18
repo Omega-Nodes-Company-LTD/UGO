@@ -21,7 +21,7 @@ import { createHouse, type TestHouse } from "./helpers/tenancy.js";
  * Fin qui i test RLS provavano che il muro tiene (`packages/db`); questo prova
  * che **le rotte ci passano**. Il server è costruito sopra una connessione
  * `ugo_app` — il ruolo a cui le politiche si applicano davvero — e le rotte
- * convertite a `inHousehold` rispondono i dati giusti. Se una query scappasse
+ * convertite a `inAccount` rispondono i dati giusti. Se una query scappasse
  * dalla transazione che dichiara la casa, qui vedrebbe zero righe e il test
  * lo direbbe: è il censimento automatico delle query orfane che ADR-062 §3
  * promette.
@@ -44,7 +44,7 @@ async function plantPrint(house: string, daysOld: number): Promise<string> {
   const [row] = await owner
     .insert(unknownPrints)
     .values({
-      householdId: house,
+      accountId: house,
       modality: "face",
       model: "arcface-r50",
       dimensions: 4,
@@ -69,9 +69,9 @@ beforeAll(async () => {
 
   mine = await createHouse(owner, "casa-rls-rotte");
   theirs = await createHouse(owner, "casa-rls-vicini");
-  myToken = (await issueToken(owner, { householdId: mine.id, role: "owner", label: "mia" })).token;
+  myToken = (await issueToken(owner, { accountId: mine.id, role: "owner", label: "mia" })).token;
   theirToken = (
-    await issueToken(owner, { householdId: theirs.id, role: "owner", label: "loro" })
+    await issueToken(owner, { accountId: theirs.id, role: "owner", label: "loro" })
   ).token;
 
   // il server INTERO gira come `ugo_app`: rotte, guard, audit
@@ -134,7 +134,7 @@ describe("le rotte delle impronte come ugo_app (ADR-062)", () => {
     const rows = await owner
       .select({ resourceId: auditLog.resourceId })
       .from(auditLog)
-      .where(sql`${auditLog.householdId} = ${mine.id} and ${auditLog.verb} = 'print_destroyed'`);
+      .where(sql`${auditLog.accountId} = ${mine.id} and ${auditLog.verb} = 'print_destroyed'`);
     expect(rows.map((r) => r.resourceId)).toContain(printId);
   });
 
@@ -157,7 +157,7 @@ describe("le rotte delle impronte come ugo_app (ADR-062)", () => {
     expect(left.map((r) => r.id)).toEqual([neighbourStale]);
   });
 
-  it("una query fuori da inHousehold vede zero righe: il censimento funziona", async () => {
+  it("una query fuori da inAccount vede zero righe: il censimento funziona", async () => {
     await plantPrint(mine.id, 1);
     // la stessa select della rotta, ma sulla connessione nuda: nessuna casa
     // dichiarata, quindi il muro risponde zero — non i dati del più fortunato
@@ -174,7 +174,7 @@ describe("le rotte delle impronte come ugo_app (ADR-062)", () => {
     const rows = await owner
       .select({ verb: auditLog.verb })
       .from(auditLog)
-      .where(sql`${auditLog.verb} = 'denied' and ${auditLog.householdId} is null`);
+      .where(sql`${auditLog.verb} = 'denied' and ${auditLog.accountId} is null`);
     expect(rows.length).toBeGreaterThanOrEqual(1);
   });
 });

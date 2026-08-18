@@ -19,7 +19,7 @@ const MIN_SIMILARITY = 0.5;
  * Semantic retrieval over recorded speech (PROGETTO §4.2: "cosa aveva detto
  * Ivan su…?" — recordings become interrogable through /chat).
  *
- * `householdId` is required, and deliberately not optional the way
+ * `accountId` is required, and deliberately not optional the way
  * `searchMemories`'s `gosinoId` is. There the omitted scope means "every
  * exemplar under this roof", which a single-exemplar house can legitimately
  * ask for; here the omitted scope meant *every house on the server*, and the
@@ -32,7 +32,7 @@ export async function searchTranscripts(
   embedder: EmbeddingsClient,
   query: string,
   k: number,
-  householdId: string,
+  accountId: string,
 ): Promise<RetrievedTranscript[]> {
   const [queryEmbedding] = await embedder.embed([query]);
   if (queryEmbedding === undefined) throw new Error("query embedding returned nothing");
@@ -47,12 +47,12 @@ export async function searchTranscripts(
       similarity: sql<number>`1 - (${distance})`,
     })
     .from(transcriptSegments)
-    // ADR-048 put `household_id` on the row itself precisely so this filter
+    // ADR-048 put `account_id` on the row itself precisely so this filter
     // would be one column and not a two-level subquery through `meetings`
     .where(
       and(
         isNotNull(transcriptSegments.embedding),
-        eq(transcriptSegments.householdId, householdId),
+        eq(transcriptSegments.accountId, accountId),
       ),
     )
     .orderBy(distance)

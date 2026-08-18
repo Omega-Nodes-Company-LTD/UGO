@@ -48,7 +48,7 @@ def replace_chunks(
     conn: psycopg.Connection,
     cfg: JobsConfig,
     *,
-    household_id: str,
+    account_id: str,
     customer_id: str,
     source_type: str,
     source_id: str,
@@ -80,11 +80,11 @@ def replace_chunks(
             conn.execute(
                 """
                 insert into customer_chunks
-                    (household_id, customer_id, source_type, source_id, ref, text, embedding)
+                    (account_id, customer_id, source_type, source_id, ref, text, embedding)
                 values (%s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
-                    household_id,
+                    account_id,
                     customer_id,
                     source_type,
                     source_id,

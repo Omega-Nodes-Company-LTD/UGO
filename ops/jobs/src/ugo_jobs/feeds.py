@@ -157,9 +157,9 @@ def run_feeds(
     report: dict = {}
     try:
         feeds = connection.execute(
-            "select id, household_id, url from rss_feeds where enabled order by created_at"
+            "select id, account_id, url from rss_feeds where enabled order by created_at"
         ).fetchall()
-        for feed_id, household_id, url in feeds:
+        for feed_id, account_id, url in feeds:
             outcome: dict[str, object] = {"new": 0}
             try:
                 entries = parse_feed(download(url))
@@ -167,13 +167,13 @@ def run_feeds(
                     inserted = connection.execute(
                         """
                         insert into feed_items
-                          (household_id, feed_id, guid, title, link, summary, published_at)
+                          (account_id, feed_id, guid, title, link, summary, published_at)
                         values (%s, %s, %s, %s, %s, %s, %s)
                         on conflict (feed_id, guid) do nothing
                         returning id
                         """,
                         (
-                            household_id,
+                            account_id,
                             feed_id,
                             entry.guid,
                             entry.title,
@@ -233,10 +233,10 @@ def run_advise(conn: psycopg.Connection, cfg: JobsConfig) -> dict:
     (already,) = conn.execute(
         """
         select count(*) from feed_items
-        where household_id = %s
+        where account_id = %s
           and (advised_at at time zone %s)::date = %s::date
         """,
-        (cfg.household_id, cfg.timezone, today),
+        (cfg.account_id, cfg.timezone, today),
     ).fetchone()
     if int(already) >= ADVICE_PER_DAY:
         return {"advised": 0, "reason": "daily cap"}
@@ -245,11 +245,11 @@ def run_advise(conn: psycopg.Connection, cfg: JobsConfig) -> dict:
     candidates = conn.execute(
         """
         select id, title, link, embedding from feed_items
-        where household_id = %s and embedding is not null
+        where account_id = %s and embedding is not null
           and advised_at is null and created_at >= %s
         order by created_at desc limit 20
         """,
-        (cfg.household_id, since),
+        (cfg.account_id, since),
     ).fetchall()
 
     best: tuple[str, str, str | None, str, str, float] | None = None
@@ -259,11 +259,11 @@ def run_advise(conn: psycopg.Connection, cfg: JobsConfig) -> dict:
             select c.customer_id, cu.name, (c.embedding <=> %s::vector) as distance
             from customer_chunks c
             join customers cu on cu.id = c.customer_id
-            where c.household_id = %s and cu.archived_at is null
+            where c.account_id = %s and cu.archived_at is null
             order by c.embedding <=> %s::vector asc
             limit 1
             """,
-            (embedding, cfg.household_id, embedding),
+            (embedding, cfg.account_id, embedding),
         ).fetchone()
         if row is None:
             continue
@@ -345,19 +345,19 @@ def run_review(conn: psycopg.Connection, cfg: JobsConfig) -> dict:
     rows = conn.execute(
         """
         select i.title from feed_items i
-        where i.household_id = %s
+        where i.account_id = %s
           and coalesce(i.published_at, i.created_at) > now() - interval '24 hours'
         order by coalesce(i.published_at, i.created_at) desc
         limit %s
         """,
-        (cfg.household_id, REVIEW_MAX_TITLES),
+        (cfg.account_id, REVIEW_MAX_TITLES),
     ).fetchall()
     if not rows:
         return {"written": 0}
     eldest = conn.execute(
-        "select id from gosini where household_id = %s and retired_at is null "
+        "select id from gosini where account_id = %s and retired_at is null "
         "order by born_at limit 1",
-        (cfg.household_id,),
+        (cfg.account_id,),
     ).fetchone()
     if eldest is None:
         return {"written": 0}
