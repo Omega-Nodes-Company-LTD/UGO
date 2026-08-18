@@ -140,7 +140,7 @@ export function mountVoiceInvite(deps: VoiceInviteMountDeps): {
         `la voce non è partita: ${error instanceof Error ? error.message : "microfono non disponibile"}`,
       );
       pressed.disabled = false;
-      pressed.textContent = `🎙 la voce di ${name}`;
+      pressed.textContent = `La voce di ${name}`;
     }
   };
 
@@ -152,7 +152,7 @@ export function mountVoiceInvite(deps: VoiceInviteMountDeps): {
       created.type = "button";
       created.id = "btn-voice-invite";
       created.dataset.testid = "btn-voice-invite";
-      created.textContent = `🎙 la voce di ${name}`;
+      created.textContent = `La voce di ${name}`;
       created.addEventListener("click", () => {
         void capture(name, created);
       });

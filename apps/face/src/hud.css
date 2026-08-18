@@ -1,0 +1,654 @@
+/**
+ * Il chiosco (ADR-096): la veste dell'HUD, nei suoi due stati.
+ *
+ * ESTESO — barra in alto e comandi in colonna (desktop) o a foglio (telefono),
+ * etichette sempre esplicite, Atkinson Hyperlegible (nato per l'accessibilità,
+ * impacchettato nel bundle: la casa non ha una strada verso un CDN, ADR-044).
+ * NASCOSTO (`data-chrome="nascosto"` su #app) — resta il dock di vetro coi
+ * gesti primari e il sussurro d'umore; il tasto ⌃ riapre tutto.
+ *
+ * Il markup non si muove tra gli stati: è sempre lo stesso, e questo file lo
+ * riveste. Gli id restano quelli di sempre perché gli E2E parlano per testid.
+ */
+
+[hidden] {
+  display: none !important;
+}
+
+:root {
+  --hud-font: "Atkinson Hyperlegible", Verdana, system-ui, sans-serif;
+  --chrome-bg: rgba(12, 15, 22, 0.92);
+  --rail-bg: rgba(12, 15, 22, 0.88);
+  --chrome-border: #2c3242;
+  --control-bg: #1a1f2b;
+  --control-border: #303748;
+  --ink: #f2f4f8;
+  --ink-dim: #aab2c5;
+  --ink-faint: #8b93a7;
+  --on-bg: #13351f;
+  --on-border: #2c6b43;
+  --on-ink: #7fe0a2;
+  --danger-bg: #3b1a1a;
+  --danger-border: #7f2c2c;
+  --danger-ink: #f2a0a0;
+  --glass-bg: rgba(14, 16, 24, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.12);
+}
+
+body {
+  font-family: var(--hud-font);
+}
+
+/* ── controlli: una sola ricetta per bottoni e selettori ─────────────── */
+#controls button,
+#controls select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 13px;
+  border-radius: 10px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15.5px;
+  text-align: left;
+  cursor: pointer;
+}
+#controls svg {
+  flex-shrink: 0;
+}
+#controls .section {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 8px 2px 0;
+}
+
+/* le orecchie accese sono l'ON verde del chiosco, in tutti e due gli stati */
+#app[data-ears="on"] #btn-ears {
+  background: var(--on-bg);
+  border-color: var(--on-border);
+  color: var(--on-ink);
+}
+#btn-rec {
+  color: var(--ink);
+}
+
+/* ── barra in alto ───────────────────────────────────────────────────── */
+#topbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 46px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-border);
+  color: var(--ink);
+}
+#topbar-ident {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+#topbar-ident b {
+  font-size: 17px;
+  letter-spacing: 0.02em;
+}
+#mood-label {
+  font-size: 15px;
+  color: #c4cadb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#mood-label:not(:empty)::before {
+  content: "· ";
+}
+#topbar-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--ink-dim);
+}
+#conn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#conn::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+#app[data-connected="true"] #conn::before {
+  background: #34d399;
+}
+#version {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  color: #6b7385;
+}
+#btn-hide {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--control-border);
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ── colonna dei comandi (desktop) ───────────────────────────────────── */
+#controls {
+  position: absolute;
+  left: 0;
+  top: 46px;
+  bottom: 0;
+  width: 244px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px calc(14px + env(safe-area-inset-bottom));
+  background: var(--rail-bg);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid var(--chrome-border);
+  overflow-y: auto;
+}
+#controls #sheet-grip,
+#controls #btn-expand {
+  display: none;
+}
+
+/* la nuvoletta: un sottotitolo, centrato nello spazio libero dai comandi */
+#speak-text {
+  position: absolute;
+  left: calc(50% + 122px);
+  bottom: 34px;
+  transform: translateX(-50%);
+  max-width: min(640px, calc(100% - 280px));
+  background: rgba(0, 0, 0, 0.62);
+  color: #ffffff;
+  font-size: 21px;
+  line-height: 1.35;
+  border-radius: 8px;
+  padding: 10px 20px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+#speak-text.visible {
+  opacity: 1;
+}
+#app[data-log="on"] #speak-text {
+  opacity: 0;
+}
+
+/* l'invito della voce (ADR-057): un colore suo, perché non è un comando */
+#btn-voice-invite {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  min-height: 44px;
+  padding: 9px 17px;
+  border-radius: 999px;
+  background: rgba(94, 52, 140, 0.55);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(208, 160, 255, 0.4);
+  color: #ecd9ff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ── NASCOSTO: il chiosco sparisce, resta il dock (la strada A) ──────── */
+#app[data-chrome="nascosto"] #topbar {
+  background: transparent;
+  border-bottom: 0;
+  justify-content: center;
+  top: env(safe-area-inset-top, 0);
+  pointer-events: none;
+}
+#app[data-chrome="nascosto"] #topbar-ident b {
+  display: none;
+}
+#app[data-chrome="nascosto"] #mood-label {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.77);
+}
+#app[data-chrome="nascosto"] #mood-label:not(:empty)::before {
+  content: "";
+}
+#app[data-chrome="nascosto"] #topbar-status {
+  position: fixed;
+  right: 14px;
+  bottom: 12px;
+  gap: 8px;
+}
+#app[data-chrome="nascosto"] #conn {
+  font-size: 0;
+  gap: 0;
+}
+#app[data-chrome="nascosto"] #version {
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 10px;
+}
+#app[data-chrome="nascosto"] #btn-hide,
+#app[data-chrome="nascosto"] #controls .section,
+#app[data-chrome="nascosto"] #ear-pick,
+#app[data-chrome="nascosto"] #room-pick,
+#app[data-chrome="nascosto"] #btn-card {
+  display: none;
+}
+#app[data-chrome="nascosto"] #controls {
+  top: auto;
+  left: 50%;
+  right: auto;
+  bottom: calc(26px + env(safe-area-inset-bottom));
+  width: auto;
+  transform: translateX(-50%);
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border-radius: 999px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  overflow: visible;
+}
+#app[data-chrome="nascosto"] #controls button {
+  min-height: 46px;
+  background: transparent;
+  border: 0;
+  color: #e9ebf4;
+}
+#app[data-chrome="nascosto"] #controls button .lbl {
+  display: none;
+}
+#app[data-chrome="nascosto"] #controls button:not(#btn-ears):not(#btn-rec) {
+  width: 46px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  gap: 0;
+}
+#app[data-chrome="nascosto"] #btn-ears,
+#app[data-chrome="nascosto"] #btn-rec {
+  border-radius: 999px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+#app[data-chrome="nascosto"][data-ears="on"] #btn-ears {
+  border: 1.5px solid var(--on-ink);
+  background: rgba(127, 224, 162, 0.1);
+  color: var(--on-ink);
+}
+#app[data-chrome="nascosto"] #controls #btn-expand {
+  display: flex;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+#app[data-chrome="nascosto"] #speak-text {
+  left: 50%;
+  bottom: 150px;
+  max-width: min(560px, calc(100% - 48px));
+  background: rgba(8, 10, 16, 0.45);
+  backdrop-filter: blur(12px);
+  border-radius: 18px;
+  font-size: 15px;
+}
+#app[data-chrome="nascosto"] #btn-voice-invite {
+  bottom: 136px;
+}
+
+/* ── pannelli gemelli (ADR-090): stessa scatola, veste del chiosco ───── */
+#log,
+#mydata {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  width: min(400px, calc(100% - 2rem));
+  display: flex;
+  flex-direction: column;
+  background: rgba(12, 15, 22, 0.96);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--chrome-border);
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: 14px;
+  overflow: hidden;
+}
+#log {
+  max-height: min(60vh, 30rem);
+}
+#mydata {
+  max-height: min(72vh, 36rem);
+  overflow-y: auto;
+  gap: 0.5rem;
+  padding: 0 0 0.9rem;
+}
+#log header,
+#mydata header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--chrome-border);
+}
+#mydata header {
+  position: sticky;
+  top: 0;
+  background: rgba(12, 15, 22, 0.98);
+}
+#log header b,
+#mydata header b {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+}
+#log header button,
+#mydata header button,
+#mydata .mydata-act button {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--control-border);
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+#log ol {
+  margin: 0;
+  padding: 8px 14px 12px;
+  list-style: none;
+  overflow-y: auto;
+}
+#log li {
+  padding: 8px 0;
+  border-bottom: 1px solid #232937;
+  line-height: 1.45;
+  color: #dfe3ec;
+}
+#log li:last-child {
+  border-bottom: 0;
+}
+#log .when {
+  color: var(--ink-faint);
+  font-size: 11px;
+  margin-right: 6px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
+}
+#log .who {
+  font-weight: 700;
+  color: var(--on-ink);
+}
+#log li.mine .who {
+  color: #9db4e8;
+}
+#log .empty {
+  color: var(--ink-faint);
+  padding: 8px 0;
+}
+
+#mydata .lede {
+  flex-shrink: 0;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  margin: 0.2rem 0.9rem;
+  line-height: 1.5;
+}
+#mydata ul {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 0.9rem;
+  list-style: none;
+}
+#mydata li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #232937;
+  font-size: 14.5px;
+  color: #dfe3ec;
+}
+#mydata li b {
+  min-width: 3rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* le righe che parlano di corpi si guardano diversamente dalle altre */
+#mydata li[data-body="yes"] {
+  color: #ffd9a8;
+}
+#mydata .mydata-act {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0.9rem 0;
+  border-top: 1px solid #232937;
+}
+#mydata .mydata-act label {
+  font-size: 12.5px;
+  color: var(--ink-dim);
+  width: 100%;
+}
+#mydata .mydata-act input,
+#mydata .mydata-act select {
+  flex: 1 1 8rem;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+#mydata .mydata-act .lede {
+  width: 100%;
+  margin: 0.2rem 0 0;
+}
+/* «Dimentica» è l'unico bottone rosso del muso */
+#mydata #mydata-forget {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-ink);
+  font-weight: 700;
+}
+#mydata #mydata-export {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  color: var(--ink);
+}
+
+/* ── overlay ─────────────────────────────────────────────────────────── */
+.overlay {
+  background: rgba(5, 5, 10, 0.9);
+  font-size: 17px;
+  color: #c4cadb;
+}
+.overlay b {
+  font-size: 26px;
+  color: var(--ink);
+}
+.overlay p {
+  margin: 0;
+  max-width: 520px;
+  text-align: center;
+  line-height: 1.5;
+  padding: 0 24px;
+}
+/* il risveglio è l'unico gesto in bianco pieno */
+#btn-privacy-off {
+  height: 56px;
+  padding: 0 26px;
+  border-radius: 10px;
+  background: #e8ecf5;
+  border: 0;
+  color: #10131a;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#btn-qr-close {
+  height: 52px;
+  padding: 0 26px;
+  border-radius: 10px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+/* card bianca: il QR si legge anche di sera */
+.qr-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+}
+
+/* in tasca (§4.2) i comandi del chiosco di casa non ci sono */
+[data-mode="portable"] #hud button.home-only {
+  display: none;
+}
+
+/* ── telefono: il foglio inferiore ───────────────────────────────────── */
+@media (max-width: 700px) {
+  #topbar {
+    height: 44px;
+    padding: 0 16px;
+  }
+  #topbar-ident b {
+    font-size: 15px;
+  }
+  #mood-label {
+    font-size: 13.5px;
+  }
+  #topbar-status {
+    gap: 10px;
+    font-size: 12.5px;
+  }
+  #btn-hide .lbl {
+    display: none;
+  }
+
+  #app:not([data-chrome="nascosto"]) #controls {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    padding: 6px 14px calc(22px + env(safe-area-inset-bottom));
+    background: rgba(12, 15, 22, 0.94);
+    border-right: 0;
+    border-top: 1px solid var(--chrome-border);
+    border-radius: 18px 18px 0 0;
+    overflow: visible;
+  }
+  #app:not([data-chrome="nascosto"]) #controls .section {
+    grid-column: 1 / -1;
+    margin: 2px 2px 0;
+  }
+  #app:not([data-chrome="nascosto"]) #sheet-grip {
+    display: flex;
+    grid-column: 1 / -1;
+    justify-self: center;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    width: 64px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+  #sheet-grip::before {
+    content: "";
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: #3a4154;
+  }
+  #controls button,
+  #controls select {
+    font-size: 14px;
+    gap: 8px;
+  }
+
+  #speak-text {
+    left: 50%;
+    bottom: 310px;
+    max-width: calc(100% - 48px);
+    font-size: 16px;
+    padding: 9px 16px;
+  }
+  #btn-voice-invite {
+    bottom: 366px;
+  }
+  #app[data-chrome="nascosto"] #speak-text {
+    bottom: 190px;
+  }
+  #app[data-chrome="nascosto"] #btn-voice-invite {
+    bottom: 136px;
+  }
+
+  /* i pannelli diventano fogli, come i comandi */
+  #log,
+  #mydata {
+    right: 0;
+    left: 0;
+    bottom: 0;
+    width: auto;
+    border-radius: 18px 18px 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+  }
+  #log {
+    max-height: 72vh;
+  }
+  #mydata {
+    max-height: 80vh;
+  }
+}

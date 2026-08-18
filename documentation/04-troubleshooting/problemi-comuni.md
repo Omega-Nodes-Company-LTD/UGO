@@ -1,21 +1,22 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.36.0"
-last_updated: "2026-08-17"
+version: "0.37.0"
+last_updated: "2026-08-18"
 author: "ThinkPink Studio"
 ---
 
 # Problemi comuni
 
-Prima di tutto, la domanda che risolve metà dei casi: **in basso a destra c'è scritto `connesso`?**
+Prima di tutto, la domanda che risolve metà dei casi: **nella barra in alto c'è scritto `connesso`?**
+(Se hai nascosto i comandi la barra non c'è: guarda il pallino accanto all'umore — verde è connesso.)
 Se c'è scritto `disconnesso`, il problema non è UGO, è il telefono che non lo raggiunge — vai
 direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
 
 ## UGO non risponde quando parlo
 
-1. Controlla che in basso a destra ci sia scritto **connesso**.
-2. Guarda se il pulsante **🎤 attiva sensi** è ancora visibile. Se c'è, il microfono non è mai stato
+1. Controlla che nella barra in alto ci sia scritto **connesso**.
+2. Guarda se il pulsante **Attiva sensi** è ancora visibile nei comandi. Se c'è, il microfono non è mai stato
    autorizzato: toccalo e concedi i permessi.
    - Se lo tocchi e **non succede niente**, guarda l'indirizzo: se comincia per `http://` invece che
      `https://`, è il telefono a negare il microfono, non UGO. Usa l'indirizzo `https://…ts.net`
@@ -30,7 +31,7 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
    dal microfono già aperto, senza più bip, e la voce viene trascritta dal server di casa invece
    che dal telefono. Se lo vedi nel registro (`passo alla dettatura in casa`), è tutto normale —
    e se lo ricorda: dalla prossima accensione parte direttamente così, senza rifare i bip.
-6. Se il bottone è passato da solo a **🔇 orecchie spente**, nemmeno la dettatura di casa era
+6. Se il bottone è passato da solo a **orecchie spente**, nemmeno la dettatura di casa era
    disponibile (il server non la offre, o non risponde). Un tocco sul bottone riprova; tutto il
    resto (rumori, luce, camera) continua a funzionare.
 
@@ -46,8 +47,8 @@ ci sono popup aperti»). Adesso succedono due cose, in ordine:
    microfono già aperto — quindi niente più bip — e il telefono se lo ricorda per le accensioni
    successive.
 
-Se il bip a ripetizione ti succede ancora: aggiorna la pagina e controlla che la versione in basso
-a destra sia cambiata — se non cambia, il muso servito è ancora quello vecchio e serve chi
+Se il bip a ripetizione ti succede ancora: aggiorna la pagina e controlla che la versione scritta
+in piccolo nella barra in alto sia cambiata — se non cambia, il muso servito è ancora quello vecchio e serve chi
 gestisce il server. Se invece vuoi forzare di nuovo il riconoscitore del telefono (per esempio
 dopo un aggiornamento di Android), apri UGO una volta con `?stt=browser` in fondo all'indirizzo:
 cancella il ricordo e riprova da lì.
@@ -90,7 +91,7 @@ Probabilmente sta dormendo: succede quando la stanza è buia dopo le 22.
 ## La fascia REC resta accesa
 
 1. Tocca **● REC** per fermare la registrazione: la fascia deve sparire.
-2. Se resta, tocca **😴 privacy**: ferma la registrazione e rilascia il microfono in ogni caso.
+2. Se resta, tocca **Metti in privacy**: ferma la registrazione e rilascia il microfono in ogni caso.
 3. Se anche così non sparisce, ricarica la pagina. Le registrazioni già fatte non si perdono, sono
    in coda.
 

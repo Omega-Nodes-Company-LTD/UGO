@@ -2407,6 +2407,53 @@ la qualità della dettatura whisper in stanza (latenza e resa del cancello degli
 riga «giro `?stt=locale` su dispositivo» di §7, che questo cambiamento rende finalmente
 raggiungibile senza query string.
 
+## 6-quaterquadragies. Il chiosco nascondibile: il muso si riveste (ADR-096)
+
+Redesign dell'HUD del muso, scelto dal proprietario su tre proposte a mockup («Aria» /
+«Casa» / «Chiosco», canvas condiviso in sessione): la strada **Chiosco** — si legge
+dall'altra parte della cucina — in variante **nascondibile**: nascosto, diventa la strada
+Aria, solo la creatura e un dock di vetro. Dettagli e ragioni in `docs/ADR/096`.
+
+Com'è fatto, in breve: **due stati per lo stesso markup**, commutati da `data-chrome` su
+`#app`. Esteso: barra in alto (`UGO · umore` | `connesso · versione · Nascondi`) e comandi
+in colonna a sinistra su desktop / a foglio inferiore su telefono, sezioni **Sensi** e
+**Casa**, icone SVG inline al posto delle emoji, font Atkinson Hyperlegible **impacchettato
+nel bundle** (`@fontsource`, stessa ragione di ADR-044: niente CDN). Nascosto: dock di vetro
+coi gesti primari, umore a sussurro, ⌃ per riaprire — una sola porta, niente tre puntini.
+La scelta è per dispositivo (`localStorage`, `ugo.hud.chrome`) e qualunque valore strano
+degrada a esteso: mai comandi spariti per uno storage rotto. La logica sta in
+`hudChrome.ts` (parte pura + cablaggio iniettato); la veste in `src/hud.css`; `index.html`
+tiene solo il critico. Nessun controllo ha cambiato id, testid o listener; i pannelli
+«detto» e «i tuoi dati» restano gemelli (ADR-090) nella veste nuova; «Dimentica» è l'unico
+bottone rosso del muso.
+
+Due agguati evitati e uno preso: (1) `#controls button` batteva in specificità il
+`display: none` di grip e ⌃ — i selettori base dei due stati vanno tenuti a due id; (2) i
+`textContent` che `main.ts` scrive su `btn-ears`/`btn-rec` cancellerebbero un'icona SVG
+dentro il bottone — quei due restano bottoni di testo, di proposito; (3) gli E2E cliccavano
+il canvas a (30,30), che ora è sotto la barra: spostati a (300,100), col perché nel commento.
+
+### Il giro completo (regola 12)
+
+- **BO** — nessuna modifica, e non serviva: nessuna rotta, nessun contratto, nessuno schema
+  toccati; il redesign è interamente dentro `apps/face`;
+- **`/admin`** — nessuna modifica, e non serviva: nessun dato ha cambiato forma, scope o
+  nome; lo stato del chiosco è locale del dispositivo, il pannello non lo mostra né deve;
+- **FE** — `index.html` (markup nuovo, solo critico inline), `src/hud.css` (nuovo),
+  `src/hudChrome.ts` + test (nuovi), `main.ts` (cablaggio + etichette senza emoji),
+  `voiceInvite.ts` (etichetta), E2E aggiornati (posizioni click) e due nuovi (nascondi/
+  riapri con reload; foglio e presa su viewport telefono), `documentation/01` e `04`
+  aggiornate ai posti nuovi dei comandi. **Il bundle del muso va ricostruito**: finché la
+  versione — ora nella barra in alto — non cambia, i dispositivi vestono ancora il muso
+  vecchio. `faceContracts.ts` non toccato.
+
+Verificato qui: face typecheck + eslint `--max-warnings=0` + **199 unit** (3 nuovi su
+`hudChrome`) + build Vite (font woff2 nel bundle) + **33/33 E2E** su infrastruttura reale
+(Postgres/pgvector, MinIO, Ollama, soul da `dist/`, browser vero) — inclusi i due nuovi:
+nascondi→dock→reload→resta nascosto→⌃ riapre, e foglio+presa su viewport 390×844. Build+lint
+dell'intero monorepo verdi (21/21 task turbo); `pnpm audit` pulito sopra il MODERATE noto di
+§7 (esbuild via drizzle-kit).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
