@@ -2,7 +2,7 @@ import { checkins, gosini, type DbClient } from "@ugo/db";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
-import { accountScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 
 /**
  * Le domande che tornano, dal pannello (ADR-085).
@@ -48,13 +48,13 @@ async function which(
 
 export function registerCheckinRoutes(app: FastifyInstance, deps: CheckinRoutesDeps): void {
   app.get("/v1/checkins", { preHandler: deps.guard }, async (request, reply) => {
-    const accountId = await accountScope(deps.db, request, reply);
-    if (accountId === undefined) return reply;
     const query = request.query as { gosino?: string };
-    const who = await which(deps.db, accountId, query.gosino);
-    if (who === undefined) return reply.send({ checkins: [] });
+    // ADR-062: risoluzione dell'esemplare e lettura nella stessa transazione
+    const body = await inAccount(deps.db, request, reply, {}, async (db, accountId) => {
+    const who = await which(db, accountId, query.gosino);
+    if (who === undefined) return { checkins: [] };
 
-    const rows = await deps.db
+    const rows = await db
       .select({
         id: checkins.id,
         question: checkins.question,
@@ -68,12 +68,13 @@ export function registerCheckinRoutes(app: FastifyInstance, deps: CheckinRoutesD
       .where(eq(checkins.gosinoId, who.id))
       .orderBy(asc(checkins.hour), asc(checkins.minute));
 
-    return reply.send({ gosino: { id: who.id, name: who.name }, checkins: rows });
+    return { gosino: { id: who.id, name: who.name }, checkins: rows };
+    });
+    if (body === undefined) return reply;
+    return reply.send(body);
   });
 
   app.delete("/v1/checkins/:id", { preHandler: deps.guard }, async (request, reply) => {
-    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
 
     /**
@@ -81,14 +82,24 @@ export function registerCheckinRoutes(app: FastifyInstance, deps: CheckinRoutesD
      * si controlla che quell'esemplare sia di questa casa. Cancellare per id
      * senza questo giro vorrebbe dire spegnere le domande del vicino.
      */
-    const [owned] = await deps.db
-      .select({ id: checkins.id })
-      .from(checkins)
-      .innerJoin(gosini, eq(gosini.id, checkins.gosinoId))
-      .where(and(eq(checkins.id, id), eq(gosini.accountId, accountId)));
-    if (owned === undefined) return reply.status(404).send({ error: "non esiste" });
-
-    await deps.db.delete(checkins).where(eq(checkins.id, id));
+    const removed = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) => {
+        const [owned] = await db
+          .select({ id: checkins.id })
+          .from(checkins)
+          .innerJoin(gosini, eq(gosini.id, checkins.gosinoId))
+          .where(and(eq(checkins.id, id), eq(gosini.accountId, accountId)));
+        if (owned === undefined) return false;
+        await db.delete(checkins).where(eq(checkins.id, id));
+        return true;
+      },
+    );
+    if (removed === undefined) return reply;
+    if (!removed) return reply.status(404).send({ error: "non esiste" });
     return reply.send({ removed: true });
   });
 }

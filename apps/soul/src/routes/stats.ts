@@ -1,7 +1,7 @@
 import { budgetLedger, events, memories, messages, psycheSnapshots, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
-import { exemplarsOf, accountScope } from "./scope.js";
+import { exemplarsOf, inAccount } from "./scope.js";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 /**
@@ -35,12 +35,12 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
   // guarded: spend, counts and dream activity together describe when the
   // house is awake and how much it talks — operational, but nobody else's
   app.get("/v1/stats", { preHandler: deps.guard }, async (request, reply) => {
-    const accountId = await accountScope(deps.db, request, reply);
-    if (accountId === undefined) return reply;
-    const mine = exemplarsOf(deps.db, accountId);
+    // ADR-062: tutto il giro di letture in UNA transazione che dichiara la casa
+    const body = await inAccount(deps.db, request, reply, {}, async (db, accountId) => {
+    const mine = exemplarsOf(db, accountId);
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: deps.timezone }).format(new Date());
 
-    const [spend] = await deps.db
+    const [spend] = await db
       .select({
         costUsd: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)`,
         calls: sql<string>`count(*)`,
@@ -52,7 +52,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
       .from(budgetLedger)
       .where(and(eq(budgetLedger.accountId, accountId), eq(budgetLedger.date, today)));
 
-    const [lifetime] = await deps.db
+    const [lifetime] = await db
       .select({
         cacheRead: sql<string>`coalesce(sum(${budgetLedger.tokensCacheRead}), 0)`,
         tokensIn: sql<string>`coalesce(sum(${budgetLedger.tokensIn}), 0)`,
@@ -62,7 +62,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
 
     // one round trip, as before, with the scope inside each subquery
     const ours = sql`(select id from gosini where account_id = ${accountId})`;
-    const [counts] = await deps.db
+    const [counts] = await db
       .select({
         memories: sql<string>`(select count(*) from ${memories} where ${memories.gosinoId} in ${ours})`,
         messages: sql<string>`(select count(*) from ${messages} where ${messages.gosinoId} in ${ours})`,
@@ -72,7 +72,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
 
     // Two weeks of spend, so the panel can show a trend instead of a number
     // that means nothing without yesterday next to it.
-    const history = await deps.db
+    const history = await db
       .select({
         date: budgetLedger.date,
         costUsd: sql<string>`sum(${budgetLedger.costUsd})`,
@@ -102,7 +102,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
       asked === undefined || asked === ""
         ? undefined
         : deps.registry?.resolve(asked, accountId);
-    const mood = await deps.db
+    const mood = await db
       .select({ ts: psycheSnapshots.ts, vars: psycheSnapshots.vars, label: psycheSnapshots.label })
       .from(psycheSnapshots)
       .where(
@@ -115,7 +115,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
       )
       .orderBy(psycheSnapshots.ts);
 
-    const [lastDream] = await deps.db
+    const [lastDream] = await db
       .select({ ts: events.ts, payload: events.payload })
       .from(events)
       .where(and(eq(events.type, "dream_step_completed"), inArray(events.gosinoId, mine)))
@@ -126,7 +126,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
     const totalIn = Number(lifetime?.tokensIn ?? 0);
     const cacheRatio = totalIn === 0 ? null : Number(lifetime?.cacheRead ?? 0) / totalIn;
 
-    return reply.send({
+    return {
       date: today,
       budget: {
         spentUsd: Number(spentToday.toFixed(6)),
@@ -162,6 +162,9 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
         lastDream === undefined
           ? null
           : { at: lastDream.ts.toISOString(), step: lastDream.payload },
+    };
     });
+    if (body === undefined) return reply;
+    return reply.send(body);
   });
 }

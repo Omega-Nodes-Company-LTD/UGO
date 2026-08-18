@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { AuditLogger } from "../services/auditLog.js";
 import type { PreHandler } from "./guard.js";
 import { NewsService } from "../services/newsService.js";
-import { accountScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 
 /**
  * I feed della casa (ADR-060): iscriversi, spegnere, disdire.
@@ -41,15 +41,16 @@ function problem(reply: FastifyReply, status: number, title: string): FastifyRep
 export function registerFeedRoutes(app: FastifyInstance, deps: FeedRoutesDeps): void {
   const { db, guard, audit } = deps;
   const admin = { preHandler: guard };
-  const scope = (
+  // ADR-062: ogni lavoro di database gira nella transazione che dichiara la casa
+  const inAdmin = <T>(
     request: Parameters<PreHandler>[0],
     reply: FastifyReply,
-  ): Promise<string | undefined> => accountScope(db, request, reply, { requireAdmin: true });
+    work: (tx: DbClient, accountId: string) => Promise<T>,
+  ): Promise<T | undefined> => inAccount(db, request, reply, { requireAdmin: true }, work);
 
   app.get("/v1/feeds", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
-    const rows = await db
+    const body = await inAdmin(request, reply, async (tx, accountId) => {
+    const rows = await tx
       .select({
         id: rssFeeds.id,
         url: rssFeeds.url,
@@ -71,6 +72,9 @@ export function registerFeedRoutes(app: FastifyInstance, deps: FeedRoutesDeps): 
         lastFetchedAt: row.lastFetchedAt?.toISOString() ?? null,
       })),
     };
+    });
+    if (body === undefined) return reply;
+    return body;
   });
 
   /**
@@ -79,67 +83,74 @@ export function registerFeedRoutes(app: FastifyInstance, deps: FeedRoutesDeps): 
    * vuole vedere se arriva roba, non quanta.
    */
   app.get("/v1/feeds/items", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const asked = Number((request.query as { limit?: string }).limit);
-    const news = new NewsService(db);
-    return {
-      items: await news.latest(accountId, Number.isFinite(asked) && asked > 0 ? asked : 20),
-    };
+    const body = await inAdmin(request, reply, async (tx, accountId) => ({
+      items: await new NewsService(tx).latest(
+        accountId,
+        Number.isFinite(asked) && asked > 0 ? asked : 20,
+      ),
+    }));
+    if (body === undefined) return reply;
+    return body;
   });
 
   app.post("/v1/feeds", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const parsed = addSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
-    const [row] = await db
-      .insert(rssFeeds)
-      .values({ accountId, url: parsed.data.url, label: parsed.data.label })
-      .onConflictDoNothing()
-      .returning({ id: rssFeeds.id });
+    const outcome = await inAdmin(request, reply, async (tx, accountId) => {
+      const [row] = await tx
+        .insert(rssFeeds)
+        .values({ accountId, url: parsed.data.url, label: parsed.data.label })
+        .onConflictDoNothing()
+        .returning({ id: rssFeeds.id });
+      return { accountId, row };
+    });
+    if (outcome === undefined) return reply;
     // lo stesso URL due volte non è un errore da 500: è già iscritto
-    if (row === undefined) return problem(reply, 409, "Conflict");
+    if (outcome.row === undefined) return problem(reply, 409, "Conflict");
     await audit?.record({
       verb: "feed_added",
       outcome: "ok",
-      accountId,
+      accountId: outcome.accountId,
       actor: request.tenant,
       resourceType: "feed",
-      resourceId: row.id,
+      resourceId: outcome.row.id,
     });
-    return reply.code(201).send({ id: row.id });
+    return reply.code(201).send({ id: outcome.row.id });
   });
 
   app.patch("/v1/feeds/:id", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
     const parsed = toggleSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
-    const updated = await db
-      .update(rssFeeds)
-      .set({ enabled: parsed.data.enabled })
-      .where(and(eq(rssFeeds.id, id), eq(rssFeeds.accountId, accountId)))
-      .returning({ id: rssFeeds.id });
+    const updated = await inAdmin(request, reply, (tx, accountId) =>
+      tx
+        .update(rssFeeds)
+        .set({ enabled: parsed.data.enabled })
+        .where(and(eq(rssFeeds.id, id), eq(rssFeeds.accountId, accountId)))
+        .returning({ id: rssFeeds.id }),
+    );
+    if (updated === undefined) return reply;
     if (updated.length === 0) return problem(reply, 404, "Not Found");
     return reply.code(204).send();
   });
 
   app.delete("/v1/feeds/:id", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
     // il cascade porta via anche gli item: disdire un feed è disdirlo tutto
-    const gone = await db
-      .delete(rssFeeds)
-      .where(and(eq(rssFeeds.id, id), eq(rssFeeds.accountId, accountId)))
-      .returning({ id: rssFeeds.id });
-    if (gone.length === 0) return problem(reply, 404, "Not Found");
+    const gone = await inAdmin(request, reply, async (tx, accountId) => ({
+      accountId,
+      rows: await tx
+        .delete(rssFeeds)
+        .where(and(eq(rssFeeds.id, id), eq(rssFeeds.accountId, accountId)))
+        .returning({ id: rssFeeds.id }),
+    }));
+    if (gone === undefined) return reply;
+    if (gone.rows.length === 0) return problem(reply, 404, "Not Found");
     await audit?.record({
       verb: "feed_removed",
       outcome: "ok",
-      accountId,
+      accountId: gone.accountId,
       actor: request.tenant,
       resourceType: "feed",
       resourceId: id,

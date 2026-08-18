@@ -4,7 +4,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { PreHandler } from "./guard.js";
-import { accountScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 
 /**
  * Il salvadanaio (ADR-072): quanto ha in pancia, e il gesto di dargli da
@@ -28,8 +28,8 @@ export interface PiggyBankRoutesDeps {
 }
 
 export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRoutesDeps): void {
-  const mine = async (accountId: string, gosinoId: string): Promise<boolean> => {
-    const [row] = await deps.db
+  const mine = async (db: DbClient, accountId: string, gosinoId: string): Promise<boolean> => {
+    const [row] = await db
       .select({ id: gosini.id })
       .from(gosini)
       .where(and(eq(gosini.id, gosinoId), eq(gosini.accountId, accountId)));
@@ -38,15 +38,14 @@ export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRou
 
   app.get("/v1/gosini/:id/piggybank", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const accountId = await accountScope(deps.db, request, reply);
-    if (accountId === undefined) return reply;
-    if (!(await mine(accountId, id))) return reply.status(404).send({ error: "non esiste" });
+    const body = await inAccount(deps.db, request, reply, {}, async (db, accountId) => {
+    if (!(await mine(db, accountId, id))) return "missing" as const;
 
-    const [house] = await deps.db
+    const [house] = await db
       .select({ on: accounts.metabolism })
       .from(accounts)
       .where(eq(accounts.id, accountId));
-    const [fed] = await deps.db
+    const [fed] = await db
       .select({ total: sql<string>`coalesce(sum(${feedings.amountUsd}), 0)` })
       .from(feedings)
       /**
@@ -56,11 +55,11 @@ export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRou
        * pancia i pasti pagati dall'allevamento.
        */
       .where(and(eq(feedings.gosinoId, id), eq(feedings.accountId, accountId)));
-    const [eaten] = await deps.db
+    const [eaten] = await db
       .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
       .from(budgetLedger)
       .where(and(eq(budgetLedger.gosinoId, id), eq(budgetLedger.accountId, accountId)));
-    const meals = await deps.db
+    const meals = await db
       .select({
         kind: feedings.kind,
         amountUsd: feedings.amountUsd,
@@ -74,7 +73,7 @@ export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRou
 
     const fedUsd = Number(fed?.total ?? 0);
     const eatenUsd = Number(eaten?.total ?? 0);
-    return reply.send({
+    return {
       metabolism: house?.on ?? false,
       fedUsd,
       eatenUsd,
@@ -83,48 +82,62 @@ export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRou
       // di accendere, invece di scoprire una creatura affamata dopo
       hungry: (house?.on ?? false) && fedUsd - eatenUsd <= 0,
       meals: meals.map((meal) => ({ ...meal, amountUsd: Number(meal.amountUsd) })),
+    };
     });
+    if (body === undefined) return reply;
+    if (body === "missing") return reply.status(404).send({ error: "non esiste" });
+    return reply.send(body);
   });
 
   app.post("/v1/gosini/:id/feed", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = feedSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
-    if (accountId === undefined) return reply;
-    if (!(await mine(accountId, id))) return reply.status(404).send({ error: "non esiste" });
+    const body = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) => {
+        if (!(await mine(db, accountId, id))) return "missing" as const;
 
-    await deps.db.insert(feedings).values({
-      accountId,
-      gosinoId: id,
-      kind: parsed.data.kind,
-      amountUsd: parsed.data.amountUsd.toFixed(6),
-      ...(parsed.data.note !== undefined && { note: parsed.data.note }),
-    });
+        await db.insert(feedings).values({
+          accountId,
+          gosinoId: id,
+          kind: parsed.data.kind,
+          amountUsd: parsed.data.amountUsd.toFixed(6),
+          ...(parsed.data.note !== undefined && { note: parsed.data.note }),
+        });
 
-    const [fed] = await deps.db
-      .select({ total: sql<string>`coalesce(sum(${feedings.amountUsd}), 0)` })
-      .from(feedings)
-      .where(eq(feedings.gosinoId, id));
-    const [eaten] = await deps.db
-      .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
-      .from(budgetLedger)
-      .where(eq(budgetLedger.gosinoId, id));
-    return reply
-      .status(201)
-      .send({ balanceUsd: Number(fed?.total ?? 0) - Number(eaten?.total ?? 0) });
+        const [fed] = await db
+          .select({ total: sql<string>`coalesce(sum(${feedings.amountUsd}), 0)` })
+          .from(feedings)
+          .where(eq(feedings.gosinoId, id));
+        const [eaten] = await db
+          .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
+          .from(budgetLedger)
+          .where(eq(budgetLedger.gosinoId, id));
+        return { balanceUsd: Number(fed?.total ?? 0) - Number(eaten?.total ?? 0) };
+      },
+    );
+    if (body === undefined) return reply;
+    if (body === "missing") return reply.status(404).send({ error: "non esiste" });
+    return reply.status(201).send(body);
   });
 
   /** L'interruttore del metabolismo, per la casa: acceso solo da chi sa cosa fa. */
   app.put("/v1/accounts/metabolism", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = z.object({ on: z.boolean() }).safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
-    if (accountId === undefined) return reply;
-    await deps.db
-      .update(accounts)
-      .set({ metabolism: parsed.data.on })
-      .where(eq(accounts.id, accountId));
+    const done = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      (db, accountId) =>
+        db.update(accounts).set({ metabolism: parsed.data.on }).where(eq(accounts.id, accountId)),
+    );
+    if (done === undefined) return reply;
     return reply.send({ metabolism: parsed.data.on });
   });
 }
