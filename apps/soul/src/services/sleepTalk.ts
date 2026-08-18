@@ -31,13 +31,15 @@ const FRAGMENT_WORDS_MIN = 3;
 const FRAGMENT_WORDS_MAX = 6;
 
 export interface SleepTalkDeps {
-  db: DbClient;
+  /** ADR-098: la connessione della casa del runtime che borbotta */
+  dbFor: (accountId: string) => DbClient;
   hourOf: (at: Date) => number;
   gapMin?: number;
 }
 
 export interface SleepTalkRuntime {
   id: string;
+  accountId: string;
   gateway: Pick<FaceGateway, "hasBody" | "broadcastMurmur">;
 }
 
@@ -70,11 +72,12 @@ export class SleepTalk {
     if (hour < SLEEP_FROM_HOUR && hour >= SLEEP_TO_HOUR) return "nothing";
     if (!runtime.gateway.hasBody()) return "nothing";
     if (roll >= MURMUR_CHANCE) return "nothing";
+    const db = this.deps.dbFor(runtime.accountId);
 
     // il distanziatore conta i borbottii riusciti: uno ogni tre quarti d'ora
     // al massimo, o il teatro diventa un ticchettio
     const since = new Date(at.getTime() - (this.deps.gapMin ?? MURMUR_GAP_MIN) * 60_000);
-    const [recent] = await this.deps.db
+    const [recent] = await db
       .select({ id: events.id })
       .from(events)
       .where(
@@ -83,7 +86,7 @@ export class SleepTalk {
       .limit(1);
     if (recent !== undefined) return "nothing";
 
-    const [entry] = await this.deps.db
+    const [entry] = await db
       .select({ text: diaryEntries.text })
       .from(diaryEntries)
       .where(eq(diaryEntries.gosinoId, runtime.id))
@@ -95,7 +98,7 @@ export class SleepTalk {
     runtime.gateway.broadcastMurmur(fragment);
     // id e tipo, mai il testo (regola 6): cosa ha borbottato sta nel diario.
     // `system`: non è un senso del corpo, è il teatro notturno dell'anima
-    await this.deps.db.insert(events).values({
+    await db.insert(events).values({
       source: "system",
       type: "sleep_talk",
       payload: {},

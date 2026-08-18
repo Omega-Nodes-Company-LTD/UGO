@@ -53,7 +53,7 @@ function service(
 ): RuminationService {
   let index = 0;
   return new RuminationService({
-    db,
+    dbFor: () => db,
     local: client,
     localUp: () => overrides.up ?? true,
     hourOf,
@@ -73,7 +73,7 @@ async function bornWithMemories(name: string, texts: string[]): Promise<Ruminato
   for (const text of texts) {
     await db.insert(memories).values({ gosinoId: id, kind: "episode", text, importance: 0.6 });
   }
-  return { id, name, psyche: await PsycheService.restore(db, NOON, id) };
+  return { id, accountId, name, psyche: await PsycheService.restore(db, NOON, id) };
 }
 
 beforeAll(async () => {

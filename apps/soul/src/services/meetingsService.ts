@@ -79,6 +79,8 @@ export interface MeetingsDeps {
   gosinoId: string;
   /** ADR-048: `transcript_segments` carries the house on the row now */
   accountId: string;
+  /** ADR-098: la connessione della casa di ogni riunione; assente = `db` */
+  dbFor?: (accountId: string) => DbClient;
   embedder: EmbeddingsClient;
   llm: ChatLlm;
   dataKey: Buffer;
@@ -98,6 +100,16 @@ export class MeetingsService {
   private activeRefs = new Map<string, MeetingRef>();
 
   public constructor(private readonly deps: MeetingsDeps) {}
+
+  /**
+   * ADR-098: ogni riunione appartiene a UNA casa (il ref porta la sua), e il
+   * suo lavoro di database gira sulla connessione di QUELLA casa. Senza
+   * `dbFor` — nei test, o finché il chiamante non la porta — si resta sulla
+   * connessione data, che è il comportamento di prima.
+   */
+  private dbOf(accountId: string): DbClient {
+    return this.deps.dbFor?.(accountId) ?? this.deps.db;
+  }
 
   /** live meetings currently polled by the loop in index.ts */
   public active(): MeetingRef[] {
@@ -144,7 +156,7 @@ export class MeetingsService {
       }),
     });
     if (!response.ok) throw new Error(`vexa join failed (status ${String(response.status)})`);
-    const inserted = await this.deps.db
+    const inserted = await this.dbOf(who?.accountId ?? this.deps.accountId)
       .insert(meetings)
       .values({
         gosinoId: who?.gosinoId ?? this.deps.gosinoId,
@@ -172,14 +184,15 @@ export class MeetingsService {
       method: "DELETE",
     });
     this.activeRefs.delete(ref.meetingId);
-    await this.deps.db
+    const db = this.dbOf(this.whoOf(ref).accountId);
+    await db
       .update(meetings)
       .set({ status: "ended", endedAt: at })
       .where(eq(meetings.id, ref.meetingId));
 
     // a finished meeting is an experience, not just a closed row (§4.3):
     // it feeds curiosity and leaves a digest behind before the night job runs
-    await this.deps.db.insert(events).values({
+    await db.insert(events).values({
       gosinoId: this.whoOf(ref).gosinoId,
       ts: at,
       source: "meet",
@@ -196,7 +209,8 @@ export class MeetingsService {
    * go?". A digest written at hangup is available immediately.
    */
   private async writeDigest(ref: MeetingRef, at: Date): Promise<void> {
-    const rows = await this.deps.db
+    const db = this.dbOf(this.whoOf(ref).accountId);
+    const rows = await db
       .select({ speaker: transcriptSegments.speaker, text: transcriptSegments.text })
       .from(transcriptSegments)
       .where(eq(transcriptSegments.meetingId, ref.meetingId))
@@ -214,7 +228,7 @@ export class MeetingsService {
     }
     if (lines.length === 0) return;
 
-    const [meeting] = await this.deps.db
+    const [meeting] = await db
       .select({ title: meetings.title })
       .from(meetings)
       .where(eq(meetings.id, ref.meetingId));
@@ -234,7 +248,7 @@ export class MeetingsService {
     const title = meeting?.title ?? ref.nativeId;
     const digest = `Riunione "${title}" del ${at.toISOString().slice(0, 10)}: ${result.text}`;
     const [embedding] = await this.deps.embedder.embed([digest]);
-    await this.deps.db.insert(memories).values({
+    await db.insert(memories).values({
       gosinoId: this.whoOf(ref).gosinoId,
       kind: "insight",
       text: digest,
@@ -252,9 +266,10 @@ export class MeetingsService {
     if (!response.ok) return 0;
     const { segments } = transcriptsResponseSchema.parse(await response.json());
 
+    const db = this.dbOf(this.whoOf(ref).accountId);
     let ingested = this.ingestedCounts.get(ref.meetingId);
     if (ingested === undefined) {
-      const [row] = await this.deps.db
+      const [row] = await db
         .select({ n: count() })
         .from(transcriptSegments)
         .where(eq(transcriptSegments.meetingId, ref.meetingId));
@@ -263,7 +278,7 @@ export class MeetingsService {
     const fresh = segments.slice(ingested).filter((segment) => segment.text.trim() !== "");
     if (fresh.length > 0) {
       const vectors = await this.deps.embedder.embed(fresh.map((segment) => segment.text));
-      await this.deps.db.insert(transcriptSegments).values(
+      await db.insert(transcriptSegments).values(
         fresh.map((segment, index) => ({
           meetingId: ref.meetingId,
           accountId: this.whoOf(ref).accountId,
@@ -291,7 +306,8 @@ export class MeetingsService {
     if (at.getTime() - last < SPEAK_RATE_LIMIT_MS) return;
     this.lastSpokeAt.set(ref.meetingId, at.getTime());
 
-    const retrieved = await searchMemories(this.deps.db, this.deps.embedder, text, 10, at);
+    const db = this.dbOf(this.whoOf(ref).accountId);
+    const retrieved = await searchMemories(db, this.deps.embedder, text, 10, at);
     const result = await this.deps.llm.chat(
       {
         channel: "meeting",
@@ -303,7 +319,7 @@ export class MeetingsService {
       },
       at,
     );
-    await this.deps.db.insert(messages).values({
+    await db.insert(messages).values({
       gosinoId: this.whoOf(ref).gosinoId,
       ts: at,
       channel: "meeting",

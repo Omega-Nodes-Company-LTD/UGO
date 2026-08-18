@@ -31,7 +31,8 @@ const GLANCE_GAP_MIN = 60;
 const GLIMPSE_MAX_AGE_MS = 10 * 60_000;
 
 export interface SceneGlanceDeps {
-  db: DbClient;
+  /** ADR-098: la connessione della casa del runtime che guarda */
+  dbFor: (accountId: string) => DbClient;
   vision: LocalVisionClient;
   visionUp: () => boolean;
   hourOf: (at: Date) => number;
@@ -40,6 +41,7 @@ export interface SceneGlanceDeps {
 
 export interface SceneGlanceRuntime {
   id: string;
+  accountId: string;
   gateway: Pick<FaceGateway, "hasBody" | "askGlimpse" | "takeGlimpse">;
 }
 
@@ -64,7 +66,7 @@ export class SceneGlance {
       if (thought === undefined) return "nothing";
       // il pensiero entra dal canale della ruminazione: il sogno lo vaglia,
       // non diventa memoria da solo (ADR-059) — e i pixel sono già svaniti
-      await this.deps.db.insert(events).values({
+      await this.deps.dbFor(runtime.accountId).insert(events).values({
         source: "system",
         type: "rumination",
         payload: { about: "vista", thought },
@@ -75,7 +77,7 @@ export class SceneGlance {
 
     if (roll >= GLANCE_CHANCE) return "nothing";
     const since = new Date(at.getTime() - (this.deps.gapMin ?? GLANCE_GAP_MIN) * 60_000);
-    const [recent] = await this.deps.db
+    const [recent] = await this.deps.dbFor(runtime.accountId)
       .select({ id: events.id })
       .from(events)
       .where(

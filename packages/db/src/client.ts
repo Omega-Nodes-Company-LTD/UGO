@@ -14,12 +14,32 @@ export function createDbClient(databaseUrl: string): ReturnType<typeof buildClie
   return buildClient(databaseUrl);
 }
 
-function buildClient(databaseUrl: string) {
+function buildClient(databaseUrl: string, accountId?: string) {
   const pool = postgres(databaseUrl, {
     // fail fast on an unreachable database instead of queueing forever
     connect_timeout: 10,
+    ...(accountId !== undefined && {
+      // ADR-098: la casa nel PACCHETTO DI STARTUP — il server la applica a
+      // ogni sessione del pool, riconnessioni comprese. Non c'è finestra in
+      // cui una connessione esista senza la sua casa
+      connection: { "app.account_id": accountId },
+    }),
   });
   return drizzle(pool, { schema, casing: "snake_case" });
+}
+
+/**
+ * ADR-098: la connessione della casa — per i runtime legati a UN account
+ * (ADR-032). `app.account_id` è dichiarato alla stretta di mano della
+ * connessione: ogni query di questo client è già dentro il muro, senza
+ * transazioni per unità di lavoro. Per le rotte, che servono più case dalla
+ * stessa connessione, resta `withAccount`.
+ */
+export function createScopedDbClient(
+  databaseUrl: string,
+  accountId: string,
+): ReturnType<typeof buildClient> {
+  return buildClient(databaseUrl, accountId);
 }
 
 /**

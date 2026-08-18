@@ -45,16 +45,15 @@ export const TOO_SCARED_STRESS = 0.7;
 export const RELUCTANT_ENERGY = 0.35;
 
 export interface NudgeDeps {
-  db: DbClient;
+  /** ADR-098: la connessione della casa del runtime spinto */
+  dbFor: (accountId: string) => DbClient;
   /** il registro nasce DOPO questo servizio: si legge al momento del gesto */
   registry: () => GosinoRegistry | undefined;
 }
 
 export class NudgeService {
-  private readonly rooms: RoomCatalogue;
 
   public constructor(private readonly deps: NudgeDeps) {
-    this.rooms = new RoomCatalogue(deps.db);
   }
 
   /**
@@ -94,7 +93,7 @@ export class NudgeService {
   ): Promise<string> {
     // la stanza si risolve dal CATALOGO, come nel pannello (ADR-039): una
     // spinta vocale non deve poter creare stanze per refuso
-    const room = await this.rooms.named(me.accountId, asked);
+    const room = await new RoomCatalogue(this.deps.dbFor(me.accountId)).named(me.accountId, asked);
     if (room === undefined) {
       return this.noted(me, { verb: "go", room: asked }, "unknown_room",
         `Non conosco una stanza che si chiama «${asked}». Grunf.`);
@@ -104,7 +103,7 @@ export class NudgeService {
         `Ma sono già qui, in ${room}! Grunf.`);
     }
 
-    await this.deps.db
+    await this.deps.dbFor(me.accountId)
       .update(gosini)
       .set({ locationLabel: room })
       .where(and(eq(gosini.id, me.id), eq(gosini.accountId, me.accountId)));
@@ -144,7 +143,7 @@ export class NudgeService {
 
   /** ogni spinta lascia una riga nel registro: verbi ed esiti, mai contenuti */
   private async noted(me: GosinoRuntime, nudge: Nudge, outcome: string, reply: string): Promise<string> {
-    await this.deps.db.insert(events).values({
+    await this.deps.dbFor(me.accountId).insert(events).values({
       source: "system",
       type: "nudge",
       payload: { verb: nudge.verb, outcome },

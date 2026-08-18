@@ -57,9 +57,9 @@ afterAll(async () => {
 
 describe("il borbottio notturno", () => {
   it("di notte, col dado buono, borbotta un frammento del diario — senza voce", async () => {
-    const talk = new SleepTalk({ db, hourOf: () => 2 });
+    const talk = new SleepTalk({ dbFor: () => db, hourOf: () => 2 });
     const { gateway, murmurs } = body();
-    const did = await talk.maybe({ id: house.gosinoId, gateway }, NIGHT, 0.01);
+    const did = await talk.maybe({ id: house.gosinoId, accountId: house.id, gateway }, NIGHT, 0.01);
     expect(did).toBe("murmured");
     expect(murmurs).toHaveLength(1);
     expect(murmurs[0]).toContain("...grunf...");
@@ -78,9 +78,9 @@ describe("il borbottio notturno", () => {
   });
 
   it("il distanziatore: il secondo borbottio ravvicinato non parte", async () => {
-    const talk = new SleepTalk({ db, hourOf: () => 2 });
+    const talk = new SleepTalk({ dbFor: () => db, hourOf: () => 2 });
     const { gateway, murmurs } = body();
-    await talk.maybe({ id: house.gosinoId, gateway }, NIGHT, 0.01);
+    await talk.maybe({ id: house.gosinoId, accountId: house.id, gateway }, NIGHT, 0.01);
     expect(murmurs).toHaveLength(0);
   });
 
@@ -92,22 +92,22 @@ describe("il borbottio notturno", () => {
       text: "Una giornata qualunque di grugniti.",
     });
     const { gateway, murmurs } = body();
-    const daytime = new SleepTalk({ db, hourOf: () => 15 });
-    expect(await daytime.maybe({ id: fresh.gosinoId, gateway }, NIGHT, 0.01)).toBe("nothing");
-    const night = new SleepTalk({ db, hourOf: () => 2 });
+    const daytime = new SleepTalk({ dbFor: () => db, hourOf: () => 15 });
+    expect(await daytime.maybe({ id: fresh.gosinoId, accountId: house.id, gateway }, NIGHT, 0.01)).toBe("nothing");
+    const night = new SleepTalk({ dbFor: () => db, hourOf: () => 2 });
     const empty = body(false);
-    expect(await night.maybe({ id: fresh.gosinoId, gateway: empty.gateway }, NIGHT, 0.01)).toBe(
+    expect(await night.maybe({ id: fresh.gosinoId, accountId: house.id, gateway: empty.gateway }, NIGHT, 0.01)).toBe(
       "nothing",
     );
-    expect(await night.maybe({ id: fresh.gosinoId, gateway }, NIGHT, 0.9)).toBe("nothing");
+    expect(await night.maybe({ id: fresh.gosinoId, accountId: house.id, gateway }, NIGHT, 0.9)).toBe("nothing");
     expect(murmurs).toHaveLength(0);
   });
 
   it("senza diario non c'è niente da borbottare", async () => {
     const mute = await createHouse(db, "casa-sonno-muta");
     const { gateway } = body();
-    const talk = new SleepTalk({ db, hourOf: () => 2 });
-    expect(await talk.maybe({ id: mute.gosinoId, gateway }, NIGHT, 0.01)).toBe("nothing");
+    const talk = new SleepTalk({ dbFor: () => db, hourOf: () => 2 });
+    expect(await talk.maybe({ id: mute.gosinoId, accountId: house.id, gateway }, NIGHT, 0.01)).toBe("nothing");
   });
 });
 

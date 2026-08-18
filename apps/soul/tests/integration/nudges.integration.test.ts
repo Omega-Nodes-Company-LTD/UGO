@@ -73,9 +73,12 @@ beforeAll(async () => {
 
   // lo stesso ordine di index.ts: il servizio nasce prima del registro e lo
   // legge al momento del gesto — così anche la chat dei runtime ce l'ha
-  nudges = new NudgeService({ db, registry: () => registry });
+  nudges = new NudgeService({ dbFor: () => db, registry: () => registry });
   registry = await GosinoRegistry.load({
     db,
+    // ADR-098: nei test la connessione di processo e' l'owner, quindi la
+    // "connessione della casa" puo' essere la stessa — il muro qui non morde
+    dbFor: () => db,
     embedder: idleEmbedder,
     llm: () => undefined as never,
     local: idleLocal,
