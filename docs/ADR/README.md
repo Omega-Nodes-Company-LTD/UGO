@@ -93,4 +93,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [085](./085-il-check-in.md) | Il check-in: quello che si fa vivo lui, e ogni volta | Accettata |
 | [086](./086-il-libro-dei-ricordi.md) | Il libro dei ricordi: scorrere, non solo cercare | Accettata |
 | [087](./087-l-umore-del-branco.md) | L'umore del branco nel tempo: una linea per creatura | Accettata |
-| 088 | *(prossimo numero disponibile)* | — |
+| [088](./088-la-storia-della-buonanotte.md) | La storia della buonanotte: l'unico gesto che deve inventare | Accettata |
+| 089 | *(prossimo numero disponibile)* | — |
