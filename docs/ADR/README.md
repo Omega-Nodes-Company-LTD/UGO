@@ -102,4 +102,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [094](./094-la-voce-di-casa-parla-per-prima.md) | La voce di casa parla per prima: il provider è il soccorso | Accettata |
 | [095](./095-la-catena-a-piu-anelli.md) | La catena a più anelli: chi risponde paga, anche casa | Accettata |
 | [096](./096-il-chiosco-nascondibile.md) | Il chiosco nascondibile: redesign dell'HUD del muso | Accettata |
-| 097 | *(prossimo numero disponibile)* | — |
+| [097](./097-il-mercato-sotto-rls.md) | Il mercato sotto RLS: un ruolo per l'atto, non un buco nel muro | Accettata |
+| 098 | *(prossimo numero disponibile)* | — |

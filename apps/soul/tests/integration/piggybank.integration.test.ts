@@ -188,7 +188,10 @@ describe("il salvadanaio", () => {
 
     // …ma la casa ha già speso il suo tetto per oggi
     await db.update(accounts).set({ dailyBudgetUsd: "0.0001" }).where(eq(accounts.id, houseId));
-    const today = new Date().toISOString().slice(0, 10);
+    // il giorno della CASA (Europe/Rome, il default di LlmClient), non il
+    // giorno UTC: fra le 22 e le 24 UTC Roma è già domani, la riga finiva su
+    // ieri e il muro non la vedeva — rosso solo a cavallo della mezzanotte
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date());
     await db.insert(budgetLedger).values({
       accountId: houseId,
       gosinoId: who,

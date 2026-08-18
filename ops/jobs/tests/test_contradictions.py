@@ -362,14 +362,20 @@ def test_it_refuses_the_paid_fallback_once_the_day_is_spent(pg_url, cfg, batch_s
             valid_from="2026-05-01",
             dream_date=DREAM_DATE,
         )
+        # il giorno della CASA, non `current_date` di Postgres (che vive in
+        # UTC): fra le 22 e le 24 UTC Roma e' gia' domani, la riga finiva su
+        # ieri e il muro non la vedeva — test rosso solo a cavallo della
+        # mezzanotte, che e' il modo peggiore di essere rosso
+        from ugo_jobs.batch import _today
+
         conn.execute(
             """
             insert into budget_ledger
                 (account_id, gosino_id, date, provider, model,
                  tokens_in, tokens_out, cost_usd)
-            values (%s, %s, current_date, 'anthropic', 'claude-haiku-4-5', 1, 1, 99.0)
+            values (%s, %s, %s, 'anthropic', 'claude-haiku-4-5', 1, 1, 99.0)
             """,
-            (cfg.account_id, cfg.gosino_id),
+            (cfg.account_id, cfg.gosino_id, _today(cfg)),
         )
         conn.commit()
 
