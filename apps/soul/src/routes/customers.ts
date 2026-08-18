@@ -19,6 +19,8 @@ import {
 } from "../services/reception/customerAuth.js";
 import type { PreHandler } from "./guard.js";
 import { accountScope } from "./scope.js";
+import { forgetCustomer } from "../services/privacy/forgetCustomer.js";
+import type { AudioStorageConfig } from "./audio.js";
 
 /**
  * The house side of the reception (ADR-052): who the customers are, which
@@ -82,6 +84,8 @@ export interface CustomersDeps {
   guard: PreHandler;
   dataKey: Buffer;
   audit?: AuditLogger;
+  /** ADR-093: senza, l'oblio di un cliente con documenti si rifiuta */
+  docsStorage?: AudioStorageConfig;
 }
 
 export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDeps): void {
@@ -302,6 +306,47 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
       );
     }
     return reply.code(204).send();
+  });
+
+  /**
+   * L'oblio di un cliente (ADR-093) — l'atto che ADR-052 prometteva e che non
+   * aveva né rotta né bottone: una richiesta GDPR si evadeva a mano su psql.
+   *
+   * Chiede il **nome scritto**, come il congedo (ADR-075) e come «dimentica
+   * qualcuno» sul muso: un click solo non è un consenso a una cosa
+   * irreversibile — e questa cancella anche i documenti dal bucket.
+   */
+  app.delete("/v1/customers/:id", admin, async (request, reply) => {
+    const accountId = await scope(request, reply);
+    if (accountId === undefined) return reply;
+    const { id } = request.params as { id: string };
+    const body = z.object({ confirmName: z.string().min(1) }).safeParse(request.body);
+    if (!body.success) return problem(reply, 400, "Serve confirmName: scrivi il nome del cliente");
+
+    const row = await mine(accountId, id);
+    if (row === undefined) return problem(reply, 404, "Cliente non trovato");
+    const clean = (value: string): string => value.trim().toLowerCase().replace(/\s+/gu, " ");
+    if (clean(body.data.confirmName) !== clean(row.name)) {
+      return problem(reply, 400, `Scrivi «${row.name}» per confermare: da qui non si torna indietro`);
+    }
+
+    const trail = {
+      verb: "customer_forgotten",
+      accountId,
+      actor: request.tenant,
+      resourceType: "customer",
+      resourceId: id,
+    } as const;
+    try {
+      const report = await forgetCustomer(db, id, accountId, deps.docsStorage);
+      await audit?.record({ ...trail, outcome: "ok" });
+      return await reply.send(report);
+    } catch (error) {
+      await audit?.record({ ...trail, outcome: "error" });
+      // la ragione arriva a chi deve rimediare: di solito è il bucket non
+      // configurato con documenti ancora dentro
+      return problem(reply, 409, error instanceof Error ? error.message : "oblio fallito");
+    }
   });
 
   app.post("/v1/customers/:id/tokens", admin, async (request, reply) => {

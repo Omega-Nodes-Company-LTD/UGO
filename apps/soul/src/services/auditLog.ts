@@ -44,6 +44,10 @@ export const AUDIT_VERBS = [
   "customer_created",
   /** un cliente archiviato: la reception gli si chiude */
   "customer_archived",
+  // ADR-093: la cancellazione GDPR di un cliente — cascade + bucket. La riga
+  // di audit è metà del senso dell'operazione: senza, «abbiamo cancellato X
+  // il giorno Y» non si può più dire
+  "customer_forgotten",
   /** un token cliente emesso: nel giornale il suo id, mai il segreto */
   "customer_token_issued",
   /** un token cliente revocato */

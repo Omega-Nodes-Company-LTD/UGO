@@ -182,6 +182,21 @@ $("cust-token-go").addEventListener("click", async () => {
   } catch (error) { say("cust-detail-msg", error.message, "err"); }
 });
 
+$("cust-forget").addEventListener("click", () => {
+  void section(async () => {
+    const typed = $("cust-forget-confirm").value;
+    const report = await call("/v1/customers/" + CUSTOMER, {
+      method: "DELETE",
+      body: JSON.stringify({ confirmName: typed }),
+    });
+    $("cust-forget-confirm").value = "";
+    say("cust-detail-msg",
+      "Dimenticato: " + String(report.documentsFound) + " documenti tolti anche dal bucket.", "ok");
+    $("cust-detail").hidden = true;
+    await loadCustomers();
+  }, "cust-detail-msg");
+});
+
 $("cust-archive").addEventListener("click", async () => {
   const closing = !CUSTOMER_ARCHIVED;
   if (closing && !confirm("Archiviare questo cliente? I suoi token smettono di valere subito.")) return;

@@ -1,7 +1,7 @@
 ---
 title: "La reception: UGO coi tuoi clienti"
 description: "Come dare a un cliente il suo accesso, cosa può chiedere al gosino, e come restano sotto controllo costi e richieste."
-version: "0.30.0"
+version: "0.31.0"
 last_updated: "2026-08-17"
 author: "System"
 ---
@@ -113,7 +113,8 @@ vocale. Se il browser non sa ascoltare, la tastiera fa lo stesso lavoro.
   dati restano per i tuoi archivi finché non decidi altrimenti.
 - L'export della casa include anche clienti, ticket e conversazioni: se un cliente ti chiede i
   suoi dati, li trovi lì senza lavoro a mano.
-- **Cancellare del tutto un cliente non si fa ancora dal pannello.** Archiviarlo chiude
-  l'accesso nello stesso istante, ma i dati restano; l'eliminazione definitiva — che porta via
-  ticket, messaggi, token, fonti e indice insieme — oggi si esegue sul database. Se ti serve,
-  archivia subito e chiedila come intervento tecnico.
+- **Dimentica il cliente** cancella tutto e per sempre: ticket, messaggi, token, fonti,
+  indice e anche i documenti caricati. Chiede di scrivere il nome del cliente per intero,
+  perché da lì non si torna indietro — archiviare conserva, dimenticare no. Ogni
+  cancellazione resta annotata nel registro delle attività (con il codice, mai il nome):
+  è ciò che ti permette di rispondere «cancellato il giorno X» a chi te l'ha chiesto.

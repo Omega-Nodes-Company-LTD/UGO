@@ -98,4 +98,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [090](./090-i-diritti-dal-chiosco.md) | I diritti dove vive chi li ha | Accettata |
 | [091](./091-i-ricordi-si-scrivono-in-chiaro.md) | I ricordi si scrivono in chiaro, e cinque difetti erano uno solo | Accettata |
 | [092](./092-da-casa-ad-account.md) | «Casa» diventa «account»: una parola per lavoro | Accettata |
-| 093 | *(prossimo numero disponibile)* | — |
+| [093](./093-l-oblio-del-cliente.md) | L'oblio di un cliente: la rotta che ADR-052 prometteva | Accettata |
+| 094 | *(prossimo numero disponibile)* | — |

@@ -105,6 +105,15 @@ export const CUSTOMER_PAGES = `
     <div class="row" style="margin-top:.9rem">
       <button id="cust-archive" class="ghost" data-testid="cust-archive"></button>
     </div>
+
+    <div class="row" style="margin-top:.9rem">
+      <input id="cust-forget-confirm" data-testid="cust-forget-confirm" type="text"
+             autocomplete="off" placeholder="scrivi il nome del cliente per confermare">
+      <button id="cust-forget" class="ghost" data-testid="cust-forget">Dimentica il cliente</button>
+    </div>
+    <p class="lede">L'oblio (GDPR): cancella <b>tutto</b> — conversazioni, ticket, documenti nel
+       bucket compresi — e non si torna indietro. Archiviare invece conserva. Il nome scritto
+       per intero è la conferma: un click solo non basta per una cosa irreversibile.</p>
     <div id="cust-detail-msg"></div>
   </div>
 </section>

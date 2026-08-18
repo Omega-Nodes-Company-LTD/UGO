@@ -479,6 +479,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         guard,
         dataKey: customers.dataKey,
         audit,
+        // ADR-093: l'oblio cancella anche i documenti dal bucket
+        ...(customers.docsStorage !== undefined && { docsStorage: customers.docsStorage }),
       });
       registerCustomerSourcesRoutes(app, {
         db: options.db,
