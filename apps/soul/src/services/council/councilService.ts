@@ -121,9 +121,16 @@ export function tidyAnswer(raw: string | undefined): string | undefined {
 export class CouncilService {
   public constructor(private readonly deps: CouncilDeps) {}
 
-  /** Everyone still alive in the house, with their character and their mood. */
-  public async participants(accountId: string): Promise<Participant[]> {
-    const rows = await this.deps.db
+  /**
+   * Everyone still alive in the house, with their character and their mood.
+   *
+   * ADR-062: accetta la transazione che ha dichiarato la casa, perché la
+   * lettura del roster deve stare DENTRO il muro mentre il dibattito (le
+   * chiamate al modello) resta fuori — una transazione aperta attraverso sei
+   * generazioni locali sarebbe `idle in transaction` per minuti.
+   */
+  public async participants(accountId: string, db: DbClient = this.deps.db): Promise<Participant[]> {
+    const rows = await db
       .select({
         id: gosini.id,
         name: gosini.name,
@@ -137,13 +144,13 @@ export class CouncilService {
 
     const out: Participant[] = [];
     for (const row of rows) {
-      const traits = await this.deps.db
+      const traits = await db
         .select({ traits: traitSets.traits })
         .from(traitSets)
         .where(eq(traitSets.gosinoId, row.id))
         .orderBy(desc(traitSets.version))
         .limit(1);
-      const snapshot = await this.deps.db
+      const snapshot = await db
         .select({ vars: psycheSnapshots.vars, label: psycheSnapshots.label })
         .from(psycheSnapshots)
         .where(eq(psycheSnapshots.gosinoId, row.id))
@@ -166,8 +173,12 @@ export class CouncilService {
    * Returns whatever came back — a participant whose model said nothing usable
    * is simply left out rather than filled in with an invention.
    */
-  public async deliberate(question: string, accountId: string): Promise<CouncilResult> {
-    const who = await this.participants(accountId);
+  public async deliberate(
+    question: string,
+    accountId: string,
+    roster?: Participant[],
+  ): Promise<CouncilResult> {
+    const who = roster ?? (await this.participants(accountId));
     const voices: Voice[] = [];
 
     // round one: blind, and in parallel — they must not see each other yet

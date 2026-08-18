@@ -61,6 +61,7 @@ import type { MeetingsService } from "./services/meetingsService.js";
 import type { ExportService } from "./services/privacy/exportService.js";
 import type { ForgetService } from "./services/privacy/forgetService.js";
 import type { SpeciesMap } from "@ugo/shared";
+import type { DbClient } from "@ugo/db";
 
 export interface ServerOptions extends HealthDeps {
   logger?: boolean;
@@ -381,13 +382,15 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         ...(registry !== undefined && { registry }),
       });
       // ADR-069: the litter lives and dies with the population routes
+      // (const per il narrowing: dentro la closure TS non vede più l'if)
+      const peerKey = gosini.dataKey;
       registerLitterRoutes(app, {
         db: options.db,
         guard,
         ...(registry !== undefined && { registry }),
         // ADR-070: whoever holds the data key can mint the parents' signatures
-        ...(gosini.dataKey !== undefined && {
-          peers: new PeerService(options.db, gosini.dataKey),
+        ...(peerKey !== undefined && {
+          peers: (db: DbClient) => new PeerService(db, peerKey),
         }),
         // ADR-073: gli atti vanno nel libro genealogico, se ce n'è uno
         ...(gosini.chain !== undefined && {
