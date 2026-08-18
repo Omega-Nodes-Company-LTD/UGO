@@ -371,13 +371,13 @@ class ArchDiagram(Flowable):
         self._box(2, H - 74 * mm, W * 0.23, bh, "MEETING BOT", ["Meet / Teams", "visible participant"], NAVY)
 
         # server column 1: soul
-        self._box(col1, H - 30 * mm, bw, bh, "soul-api", ["Fastify · REST + WS", "93 routes, Zod at edges"], NAVY)
+        self._box(col1, H - 30 * mm, bw, bh, "soul-api", ["Fastify · REST + WS", "99 routes, Zod at edges"], NAVY)
         self._box(col1, H - 52 * mm, bw, bh, "jobs", ["the dream, nightly", "own scheduler"], NAVY)
         self._box(col1, H - 74 * mm, bw, bh, "reception", ["client suite", "isolated network"], NAVY)
 
         # server column 2: datastores
         self._box(col2, H - 30 * mm, bw, bh, "postgres + pgvector",
-                  ["38 tables · 30 migrations", "the soul lives here"], HexColor("#2c3a5e"))
+                  ["40 tables · 35 migrations", "the soul lives here"], HexColor("#2c3a5e"))
         self._box(col2, H - 52 * mm, bw, bh, "ollama (CPU)",
                   ["embeddings · batch", "no GPU anywhere"], HexColor("#2c3a5e"))
         self._box(col2, H - 74 * mm, bw, bh, "percezione (CPU)",

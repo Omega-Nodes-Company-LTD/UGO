@@ -2485,14 +2485,14 @@ telefono, il guscio, lo stack Vexa.
 ## Materiale partner (2026-08-17)
 
 `docs/partner/` contiene il **partner brief in inglese a nome OmegaNodes.ai**
-(`UGO-Partner-Brief-OmegaNodes.pdf`, 23 pagine): cosa è UGO, architettura, i motori (psiche,
-sogno, memoria misurata, riconoscimento), il pannello, i costi, la sicurezza, il confronto coi
+(`UGO-Partner-Brief-OmegaNodes.pdf`, 25 pagine): cosa è UGO, architettura, i motori (psiche,
+sogno, memoria misurata, riconoscimento, il motore genetico di ADR-068…072), il pannello, i costi, la sicurezza, il confronto coi
 competitor **coi buchi dichiarati**, la strategia economica (i sei flussi di `VISIONE.md` §0) e i
 sei orizzonti.
 
 **La regola del documento è la stessa del progetto: si cita la fonte.** Ogni pagina porta in
 fondo il file che la prova, e gli estratti di codice sono verbatim. I numeri sono contati sul
-working tree — 38 tabelle, 30 migrazioni, 93 rotte, 762 test TS + 108 pytest, 67 decisioni
+working tree — 40 tabelle, 35 migrazioni, 99 rotte, 841 test TS + 113 pytest, 72 decisioni
 registrate: se cambiano, il brief invecchia e va rigenerato (`python3 build_brief.py`).
 
 Gli screenshot sono catture reali: il chiosco e il bench di `apps/face` con Chromium headless, e

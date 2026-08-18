@@ -1,8 +1,8 @@
 # Materiale di presentazione partner
 
-`UGO-Partner-Brief-OmegaNodes.pdf` — brief di 23 pagine in inglese a nome **OmegaNodes.ai**
+`UGO-Partner-Brief-OmegaNodes.pdf` — brief di 25 pagine in inglese a nome **OmegaNodes.ai**
 per potenziali partner, e bussola interna per il team: cosa è UGO, com'è costruito, i motori
-(psiche, sogno, memoria, riconoscimento), il pannello, i costi, la postura di sicurezza, il
+(psiche, sogno, memoria, riconoscimento, **il motore genetico**), il pannello, i costi, la postura di sicurezza, il
 confronto coi competitor **con i buchi dichiarati**, la strategia economica e i sei orizzonti.
 
 **La regola del documento**: ogni numero viene dal repository e ogni pagina cita il file che lo
@@ -29,6 +29,7 @@ Sono catture reali, mai mockup:
 |---|---|
 | `shot-kiosk.png` | il chiosco (`apps/face`, rotta `/`) servito da Vite, Chromium headless |
 | `shot-talking.png`, `shot-sleeping.png`, `body-*.png` | il bench `/bench.html`, che guida **gli stessi moduli** del chiosco: stati, umori e due genomi diversi |
+| `admin-litter.png` | la **cucciolata vera** generata dal motore genetico (ADR-068) dal pannello |
 | `admin-*.png` | il pannello vero servito da un processo `soul` reale contro un Postgres+pgvector reale (testcontainers), **seminato con dati sintetici** per il brief — mai dati di una persona vera |
 
 Il PDF dichiara nella didascalia che il pannello è un'istanza dimostrativa seminata: è una
