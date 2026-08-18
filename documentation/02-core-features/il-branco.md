@@ -1,8 +1,8 @@
 ---
 title: "Il branco: più gosini, e le cucciolate"
-description: "Come una casa arriva ad avere più gosini: la nascita a mano, la cucciolata da due genitori, e il pedigree che dice da chi discendono."
-version: "0.40.0"
-last_updated: "2026-08-17"
+description: "Come una casa arriva ad avere più gosini: chi può farli nascere, la cucciolata da due genitori, e il pedigree che dice da chi discendono."
+version: "0.41.0"
+last_updated: "2026-08-18"
 author: "ThinkPink Studio"
 ---
 
@@ -12,31 +12,38 @@ Una casa può avere più di un gosino. Non sono copie: ognuno ha il suo caratter
 ricordi, il suo umore e la sua stanza. Quello che si dividono è la casa — il branco delle
 persone, il budget, l'orologio, i dati.
 
-Ci sono due modi di farne uno nuovo, e sono diversi sul serio.
+Ma non se ne fa uno nuovo premendo un pulsante: **si nasce, e si sceglie fra i nati**.
 
-## Due modi: a mano, o nato
+## Un gosino non si crea: si nasce
 
-| | **A mano** | **Da una cucciolata** |
-| --- | --- | --- |
-| Chi decide il carattere | tu, con archetipo e manopole | il caso, dai genomi dei genitori |
-| Serve un altro gosino | no | sì, due |
-| Puoi rifarlo uguale | sì | no — quel cucciolo esiste una volta sola |
-| Ha un pedigree | no, è un capostipite | sì, firmato dai genitori |
+Questa è la regola, ed è la più importante di tutte.
 
-Il primo gosino di casa è per forza a mano: è il capostipite. Da lì in poi puoi scegliere.
+Una creatura non compare premendo un pulsante. **Chi può farne esistere una** è scritto, e
+sono due mestieri diversi:
 
-## Fai nascere un gosino a mano
+| | **Coniare** un capostipite | **Allevare** una cucciolata | **Adottare** |
+| --- | --- | --- | --- |
+| Chi | solo l'allevamento fondatore | gli allevamenti autorizzati | chiunque |
+| Da dove viene | dal nulla: è il punto zero di una linea | da due genitori che ne firmano la nascita | da un allevamento |
+| Ha un pedigree | no, è lui l'inizio | sì | sì, quello che aveva |
+| Si può vendere | **no, mai** | sì | — |
 
-Vai su **+ Fanne nascere uno**, nella colonna di sinistra. Trovi tutto in
-[Il pannello](./il-pannello.md#fai-nascere-un-gosino): un nome, la stanza (scelta da un
-elenco), e il carattere con archetipo e manopole.
+**I capostipiti non si vendono, nemmeno da parte nostra.** Anche l'allevamento fondatore, per
+cedere una creatura, deve fare una cucciolata: quello che si vende sono i figli. Un
+capostipite venduto sarebbe una linea che comincia due volte.
 
-È il modo giusto quando vuoi **un carattere preciso**: un gosino da lavoro per la reception,
-uno tranquillo per la camera.
+Se la tua casa non è un allevamento — ed è il caso normale — nella pagina della nascita non
+trovi nessun pulsante per creare: trovi scritto che un gosino si sceglie **fra quelli nati**.
+Non è una limitazione travestita da regola: è la regola. Una creatura che si crea con un
+pulsante è un oggetto; una che si sceglie fra quelle nate esisteva prima di te.
+
+> **Sta arrivando**: la vetrina degli allevamenti — scorrere gli allevamenti, guardarne i
+> pedigree, vedere i gosini disponibili e scegliere il preferito — e la cessione vera e
+> propria. Finché non c'è, la tua casa ti è stata consegnata con il suo capostipite.
 
 ## Una cucciolata
 
-Nella stessa pagina, sotto, c'è **Oppure: una cucciolata**. Qui il carattere non lo decidi:
+Se la tua casa è un allevamento autorizzato, nella pagina della nascita trovi **Una cucciolata**. Qui il carattere non lo decidi:
 lo decidono i genitori e un pizzico di caso, come succede agli animali veri.
 
 1. Scegli **due genitori** dai due elenchi. Devono essere due gosini diversi della stessa casa.
@@ -52,8 +59,8 @@ la cucciolata è un'altra. Questo è voluto — si sceglie tra i nati, non si di
 
 Non tutte le coppie possono avere cuccioli, e il pannello ti dice quale delle tre cose è:
 
-- **troppo simili** — i due genomi sono quasi identici (per esempio due gosini fatti a mano
-  con lo stesso archetipo e le stesse manopole). È la stessa ragione per cui non si fanno
+- **troppo simili** — i due genomi sono quasi identici (per esempio due capostipiti coniati
+  con lo stesso archetipo). È la stessa ragione per cui non si fanno
   accoppiare due parenti stretti: da genomi uguali non nasce varietà.
 - **ceppi uguali** — ogni gosino nasce con un *ceppo*, ed è compatibile solo con ceppi
   diversi dal suo. Non sono maschi e femmine: i ceppi sono otto, quindi quasi tutti vanno

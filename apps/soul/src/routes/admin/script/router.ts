@@ -128,6 +128,8 @@ async function openPage(page) {
   } else if (page === "volti") {
     await section(loadPrints, "prints-msg");
   } else if (page === "nascita") {
+    // ADR-081: prima si guarda cosa questa casa può fare, poi si disegna
+    drawBirthDoors();
     drawDials();
     await section(drawBirthRooms, "new-msg");
     // ADR-069: the litter needs to know who the possible parents are

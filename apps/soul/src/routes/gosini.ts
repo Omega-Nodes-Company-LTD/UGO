@@ -5,6 +5,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ARCHETYPES, characterFrom, traitsSchema } from "../services/council/character.js";
 import { drawLifeJitter } from "../services/lifeDice.js";
+import { guardBreeding } from "./breeding.js";
 import { RoomCatalogue } from "../services/roomCatalogue.js";
 import type { PreHandler } from "./guard.js";
 import { householdScope } from "./scope.js";
@@ -107,6 +108,13 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
     if (householdId === undefined) return reply;
+    /**
+     * ADR-081: **un gosino non si crea, si riceve**. Questa porta resta, ma è
+     * la porta dell'allevamento fondatore — l'unico posto in cui una creatura
+     * può cominciare a esistere senza genitori. Per tutti gli altri il modo di
+     * avere un gosino è adottarne uno nato, e sceglierlo fra quelli che ci sono.
+     */
+    if (!(await guardBreeding(deps.db, householdId, "conia", reply))) return reply;
     const { name, locationLabel, archetype, traits } = parsed.data;
 
     // ADR-039: a room he is born into has to be one that exists. Silently
@@ -133,6 +141,8 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
         // `mortal_from = null` resta soltanto per chi c'era già
         mortalFrom: new Date(),
         lifeJitterDays: drawLifeJitter(),
+        // coniato, non nato: è il punto zero di una linea, e non si vende
+        origin: "capostipite",
         ...(where !== undefined && { locationLabel: where }),
       })
       .returning({ id: gosini.id });

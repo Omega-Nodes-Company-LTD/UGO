@@ -166,4 +166,26 @@ $("litter-adopt").addEventListener("click", async () => {
     $("litter-adopt").disabled = false;
   }
 });
+
+/**
+ * ADR-081: chi non conia e chi non alleva non deve vedere le due porte.
+ *
+ * Un pannello che offre un pulsante che risponde sempre 403 insegna al
+ * proprietario che il sistema è rotto; qui invece dice l'unica cosa vera —
+ * **un gosino non si crea, si adotta fra quelli nati**.
+ */
+function myHouse() {
+  if (CASE.length === 1) return CASE[0];
+  return CASE.find((c) => c.id === HOUSE);
+}
+
+function drawBirthDoors() {
+  const house = myHouse();
+  // casa sconosciuta: non si nasconde niente, e il server dirà la sua
+  const conia = house === undefined || house.isFoundry === true;
+  const alleva = house === undefined || house.canBreed === true || house.isFoundry === true;
+  $("birth-mint").hidden = !conia;
+  $("birth-litter").hidden = !alleva;
+  $("birth-none").hidden = conia || alleva;
+}
 `;

@@ -12,6 +12,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { gosinoOrigin } from "./enums.js";
 import { householdId } from "./households.js";
 import { bytea } from "./types.js";
 
@@ -34,6 +35,17 @@ export const gosini = pgTable(
     deviceId: text("device_id").unique(),
     parentGosinoId: uuid("parent_gosino_id").references((): AnyPgColumn => gosini.id),
     generation: integer("generation").notNull().default(0),
+    /**
+     * ADR-081: da dove viene, e quindi se può essere ceduto.
+     *
+     * `capostipite` è il default perché è ciò che erano tutti prima che
+     * esistessero le cucciolate — e la migrazione ricuce all'indietro chi ha
+     * una riga in `births`, che è la definizione di «nato».
+     *
+     * Non è una decorazione: **si vendono solo i nati**. Un capostipite è il
+     * punto zero di una linea, e una linea non si vende — si vendono i figli.
+     */
+    origin: gosinoOrigin("origin").notNull().default("capostipite"),
     /**
      * The creature's cryptographic identity (ADR-020). The public key is what
      * another gosino verifies; the private key and the rotation secret are

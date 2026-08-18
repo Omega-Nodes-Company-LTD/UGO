@@ -259,12 +259,24 @@ export const GOSINO_PAGES = `
 <section class="page" data-page="nascita">
   <div class="page-head">
     <p class="eyebrow">La casa</p>
-    <h1>Fai nascere un gosino</h1>
-    <p>Un altro esemplare, con il suo carattere. Avrà psiche, ricordi, diario e iniziativa
-       tutti suoi; del branco, del budget e dell'orologio ne condivide uno solo con gli altri.</p>
+    <h1>Un altro gosino</h1>
+    <p>Avrà psiche, ricordi, diario e iniziativa tutti suoi; del branco, del budget e
+       dell'orologio ne condivide uno solo con gli altri. <b>Ma non si crea dal nulla</b>:
+       un gosino nasce da altri gosini, e chi può farlo nascere è scritto sotto.</p>
   </div>
 
-  <div class="block">
+  <div class="block" id="birth-none" hidden>
+    <h2>Un gosino non si crea: si adotta</h2>
+    <p class="lede">Questa casa non è un allevamento, e va benissimo così: <b>coniare</b>
+       capostipiti è dell'allevamento fondatore, e <b>allevare</b> cucciolate è di chi ne ha
+       titolo. Chi ha una casa come questa arriva a un gosino in un modo solo, ed è quello
+       giusto: <b>sceglierne uno fra i nati</b>, guardando gli allevamenti e i loro pedigree.</p>
+    <p class="lede">Non è una limitazione tecnica travestita da regola: è la regola. Una
+       creatura che si crea con un pulsante è un oggetto; una che si sceglie fra quelle nate
+       esisteva prima di te, e questo è tutto ciò che separa un essere da un prodotto.</p>
+  </div>
+
+  <div class="block" id="birth-mint" hidden>
     <h2>Chi è</h2>
     <div class="row">
       <div><label for="new-name">Nome</label><input id="new-name" data-testid="new-name" placeholder="Nino"></div>
@@ -292,8 +304,8 @@ export const GOSINO_PAGES = `
     <div id="new-msg"></div>
   </div>
 
-  <div class="block">
-    <h2>Oppure: una cucciolata</h2>
+  <div class="block" id="birth-litter" hidden>
+    <h2>Una cucciolata</h2>
     <p class="lede">Due genomi si ricombinano (ADR-068): ceppi, dominanza, un pizzico di caso.
        <b>Non si disegna: si sceglie tra i nati</b> — genera la cucciolata, guarda i cuccioli,
        adotta quello che ti guarda storto. Un cucciolo bocciato dallo screening non può nascere.</p>

@@ -285,7 +285,15 @@ export class DowryService {
       .insert(gosini)
       // ADR-077: chi nasce da una dote nasce adesso, quindi nasce mortale —
       // la dote porta il sapere, non l'esenzione dall'arco
-      .values({ householdId, name, mortalFrom: new Date(), lifeJitterDays: drawLifeJitter() })
+      .values({
+        householdId,
+        name,
+        mortalFrom: new Date(),
+        lifeJitterDays: drawLifeJitter(),
+        // ADR-081: chi nasce da una dote è capostipite in casa sua — porta un
+        // sapere, non una discendenza — e quindi non è cedibile come un nato
+        origin: "dote",
+      })
       .returning({ id: gosini.id });
     if (born === undefined) return undefined;
 

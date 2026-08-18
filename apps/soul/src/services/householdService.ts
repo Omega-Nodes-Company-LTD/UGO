@@ -39,6 +39,14 @@ export interface NewHouseholdInput {
    * di una casa per un refuso in un campo facoltativo sarebbe sproporzionato.
    */
   archetype?: string;
+  /**
+   * ADR-081 — le due autorizzazioni, e si danno **qui**, cioè sulla riga di
+   * comando di chi possiede l'installazione. Non dal pannello: chi può coniare
+   * capostipiti e chi può allevare è una decisione dell'allevamento, non una
+   * casella che una casa può spuntarsi da sé.
+   */
+  foundry?: boolean;
+  breeder?: boolean;
 }
 
 export interface NewHousehold {
@@ -89,6 +97,8 @@ export async function createHousehold(
         ...(input.timezone !== undefined && { timezone: input.timezone }),
         ...(input.locale !== undefined && { locale: input.locale }),
         ...(input.kind !== undefined && { kind: input.kind }),
+        ...(input.foundry === true && { isFoundry: true }),
+        ...(input.breeder === true && { canBreed: true }),
       })
       .returning({ id: households.id });
     if (house === undefined) throw new Error("la casa non è stata creata");
@@ -103,6 +113,15 @@ export async function createHousehold(
         // nascita che non lo scriva è una porta sull'immortalità
         mortalFrom: new Date(),
         lifeJitterDays: drawLifeJitter(),
+        /**
+         * ADR-081: il primo di una casa è **coniato**, quindi capostipite —
+         * e i capostipiti non si vendono. Resta qui, per ora, perché una
+         * famiglia che ricevesse una casa vuota non avrebbe oggi nessun modo
+         * di riempirla: la cessione di un nato è il passo successivo, e
+         * finché non c'è, togliere questa riga vorrebbe dire consegnare case
+         * senza nessuno dentro.
+         */
+        origin: "capostipite",
       })
       .returning({ id: gosini.id });
     if (born === undefined) throw new Error("l'esemplare non è stato creato");
