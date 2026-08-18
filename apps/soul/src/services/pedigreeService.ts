@@ -1,6 +1,6 @@
 import { births, gosini, traitSets, type DbClient } from "@ugo/db";
 import { genomeHash, verdictFor, type BirthCertificate, type LineageVerdict } from "@ugo/shared";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 
 /**
  * Reading a pedigree (ADR-070): walk up the lineage and say, for every edge,
@@ -26,6 +26,22 @@ const MAX_GENERATIONS = 8;
 
 export class PedigreeService {
   public constructor(private readonly db: DbClient) {}
+
+  /**
+   * ADR-083: il pedigree di un cucciolo **in vetrina**, letto senza casa.
+   *
+   * Chi guarda non ne ha ancora una, e deve poter vedere da chi discende
+   * *prima* di comprare — è l'unica ragione per cui un pedigree esiste. Passa
+   * dalla casa dell'esemplare, che qui si risolve invece di essere chiesta: la
+   * vetrina ha già stabilito che quella creatura si può guardare.
+   */
+  public async ofListed(gosinoId: string, generations = 4): Promise<PedigreeNode[] | undefined> {
+    const [row] = await this.db
+      .select({ house: gosini.householdId })
+      .from(gosini)
+      .where(and(eq(gosini.id, gosinoId), isNotNull(gosini.listedAt)));
+    return row === undefined ? undefined : this.of(row.house, gosinoId, generations);
+  }
 
   /**
    * `undefined` when the exemplar is not this house's: a pedigree that is not

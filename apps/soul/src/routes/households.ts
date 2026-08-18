@@ -56,7 +56,12 @@ const newHouseSchema = z.object({
   // ADR-061: in italiano dove lo leggono le persone, home/business nel database
   kind: z.enum(["casa", "azienda"]).optional(),
   timezone: z.string().min(1).max(60).optional(),
-  gosinoName: z.string().min(1).max(60).optional(),
+  /**
+   * ADR-082: **niente più `gosinoName` da qui.** Coniare un capostipite è un
+   * atto d'allevamento, e il pannello crea case di famiglia: nascono vuote e
+   * ricevono un nato. Chi conia lo fa dalla riga di comando, che è dove stanno
+   * le decisioni dell'allevamento.
+   */
 });
 
 const houseSettingsSchema = z
@@ -102,7 +107,6 @@ export function registerHouseholdRoutes(
       name: string;
       kind?: "casa" | "azienda" | undefined;
       timezone?: string | undefined;
-      gosinoName?: string | undefined;
     }) => Promise<{ householdId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
     audit?: AuditLogger;
   },

@@ -14,7 +14,10 @@ import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FarewellService } from "../../src/services/farewellService.js";
-import { createHousehold } from "../../src/services/householdService.js";
+import {
+  createHousehold,
+  createHouseholdWithFounder,
+} from "../../src/services/householdService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -49,7 +52,7 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHousehold(db, MASTER_KEY, {
+  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
     slug: "casa-congedo",
     name: "Congedo",
     gosinoName: "Vecchio",

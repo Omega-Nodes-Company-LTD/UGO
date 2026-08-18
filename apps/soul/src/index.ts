@@ -403,7 +403,6 @@ const app = buildServer({
       slug: input.slug,
       name: input.name,
       ...(input.timezone !== undefined && { timezone: input.timezone }),
-      ...(input.gosinoName !== undefined && { gosinoName: input.gosinoName }),
       ...(input.kind !== undefined && {
         kind: input.kind === "azienda" ? ("business" as const) : ("home" as const),
       }),

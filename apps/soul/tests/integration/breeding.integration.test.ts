@@ -5,7 +5,10 @@ import { startPostgres } from "@ugo/factories";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createHousehold } from "../../src/services/householdService.js";
+import {
+  createHousehold,
+  createHouseholdWithFounder,
+} from "../../src/services/householdService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -50,7 +53,7 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const foundry = await createHousehold(db, MASTER_KEY, {
+  const foundry = await createHouseholdWithFounder(db, MASTER_KEY, {
     slug: "fonderia",
     name: "Allevamento fondatore",
     gosinoName: "Zero",
@@ -58,7 +61,7 @@ beforeAll(async () => {
   });
   fonderia = foundry.ownerToken;
 
-  const kennel = await createHousehold(db, MASTER_KEY, {
+  const kennel = await createHouseholdWithFounder(db, MASTER_KEY, {
     slug: "allevamento",
     name: "Allevamento autorizzato",
     gosinoName: "Prima",

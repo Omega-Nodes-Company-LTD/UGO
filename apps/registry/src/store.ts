@@ -39,6 +39,11 @@ function actPayload(act: Act): ActPayload {
     genomeHash: act.genomeHash,
     at: act.at,
     ...(act.generation !== undefined && { generation: act.generation }),
+    // ADR-082: la custodia. Lasciarli fuori dallo schema chiuso non li avrebbe
+    // «protetti»: li avrebbe fatti sparire fra ciò che si firma e ciò che si
+    // rilegge, e la catena si sarebbe dichiarata alterata da sola
+    ...(act.fromHash !== undefined && { fromHash: act.fromHash }),
+    ...(act.toHash !== undefined && { toHash: act.toHash }),
     ...(act.parents !== undefined && {
       parents: act.parents.map((parent) => ({
         gosinoId: parent.gosinoId,
@@ -73,11 +78,22 @@ export class ChainStore {
         registrar_signature text not null,
         appended_at timestamptz not null default now()
       )`;
-    // un atto per esemplare e tipo: la seconda nascita dello stesso gosino è
-    // esattamente la doppia vendita che il registro esiste per rendere visibile
+    /**
+     * Un atto per esemplare e tipo — ma **solo per nascita e morte**: si nasce
+     * una volta e si muore una volta, e una seconda nascita dello stesso
+     * gosino è esattamente ciò che il registro esiste per rendere visibile.
+     *
+     * ADR-082: i **trasferimenti no**. Una creatura può cambiare mano più
+     * volte nella vita, e l'indice unico di prima le avrebbe permesso una sola
+     * rivendita — cioè avrebbe reso il mercato secondario impossibile per un
+     * dettaglio d'implementazione. La doppia vendita si vede in un altro modo,
+     * e migliore: la catena della custodia (v. `holderOf`).
+     */
+    await this.sql`drop index if exists chain_entries_act_uq`;
     await this.sql`
-      create unique index if not exists chain_entries_act_uq
-        on chain_entries ((act->>'gosinoId'), (act->>'kind'))`;
+      create unique index if not exists chain_entries_once_uq
+        on chain_entries ((act->>'gosinoId'), (act->>'kind'))
+       where act->>'kind' in ('birth', 'death')`;
     await this.sql`
       create table if not exists witnessed_heads (
         registrar text not null,
@@ -106,9 +122,16 @@ export class ChainStore {
       // ottenere lo stesso `seq` e spezzare la catena
       await tx`select pg_advisory_xact_lock(hashtext('ugo-chain'))`;
 
-      const existing = await tx<{ seq: string }[]>`
-        select seq from chain_entries
-         where act->>'gosinoId' = ${act.gosinoId} and act->>'kind' = ${act.kind}`;
+      // ADR-082: solo nascita e morte sono irripetibili. Un trasferimento si
+      // ripete per definizione — una creatura può cambiare mano più volte —
+      // e la sua unicità è quella dell'atto intero, non della coppia
+      const existing =
+        act.kind === "transfer"
+          ? await tx<{ seq: string }[]>`
+              select seq from chain_entries where act_hash = ${actHash(act)}`
+          : await tx<{ seq: string }[]>`
+              select seq from chain_entries
+               where act->>'gosinoId' = ${act.gosinoId} and act->>'kind' = ${act.kind}`;
       if (existing.length > 0) return undefined;
 
       const last = await tx<{ seq: string; hash: string }[]>`
@@ -161,6 +184,30 @@ export class ChainStore {
       if (one !== undefined) entries.push(one);
     }
     return entries;
+  }
+
+  /**
+   * Chi ha in custodia questa creatura, secondo la catena (ADR-082).
+   *
+   * `undefined` = non è mai stata ceduta. Non è la stessa cosa di «non ha un
+   * proprietario»: la prima cessione parte da un allevamento che il registro
+   * non ha mai visto dichiarare, e va bene — quello che il registro sa fare è
+   * **seguire la catena da lì in poi**, e accorgersi se qualcuno la spezza.
+   */
+  public async holderOf(gosinoId: string): Promise<string | undefined> {
+    const rows = await this.sql<{ to: string | null }[]>`
+      select act->>'toHash' as to from chain_entries
+       where act->>'gosinoId' = ${gosinoId} and act->>'kind' = 'transfer'
+       order by seq desc limit 1`;
+    return rows[0]?.to ?? undefined;
+  }
+
+  /** Se questa creatura è **nata**: senza atto di nascita non si cede (ADR-081). */
+  public async wasBorn(gosinoId: string): Promise<boolean> {
+    const rows = await this.sql<{ seq: string }[]>`
+      select seq from chain_entries
+       where act->>'gosinoId' = ${gosinoId} and act->>'kind' = 'birth' limit 1`;
+    return rows.length > 0;
   }
 
   /**

@@ -73,4 +73,73 @@ export const PEDIGREE_STYLES = `
   .ped-edge.ok { color: var(--data); }
   .ped-edge.muted { color: var(--ink-3); }
   .ped-edge.err { color: var(--err, #b3261e); font-weight: 600; }
+
+/**
+ * La cessione (ADR-082). Il riquadro compare solo se questa casa alleva **e**
+ * la creatura è nata: offrire di cedere un capostipite vorrebbe dire promettere
+ * una cosa che il registro rifiuta comunque, e scoprirlo dopo il click.
+ */
+function drawCede() {
+  const house = myHouse();
+  const who = GOSINI.find((g) => g.id === WHO);
+  const canBreed = house === undefined || house.canBreed === true || house.isFoundry === true;
+  $("cede-block").hidden = !(canBreed && who?.origin === "nato");
+}
+
+$("cede-go").addEventListener("click", async () => {
+  const toHousehold = $("cede-to").value.trim();
+  const confirmName = $("cede-name").value.trim();
+  if (toHousehold === "" || confirmName === "") {
+    say("cede-msg", "Servono la casa che riceve e il suo nome.", "info");
+    return;
+  }
+  if (!confirm("Cedere " + confirmName + " non si annulla: la vita fatta qui resta qui.")) return;
+  $("cede-go").disabled = true;
+  try {
+    const done = await call("/v1/gosini/" + encodeURIComponent(WHO) + "/cede", {
+      method: "POST",
+      body: JSON.stringify({ toHousehold, confirmName }),
+    });
+    say("cede-msg", done.name + " è stato ceduto. " + done.leftBehind +
+      " righe di vita sono rimaste qui, e non sono partite con lui.", "ok");
+    await loadGosini();
+    location.hash = at("#/casa");
+  } catch (error) {
+    say("cede-msg", error.message, "err");
+  } finally { $("cede-go").disabled = false; }
+});
+
+/**
+ * La vetrina (ADR-083), dal lato di chi alleva. Stesso criterio della
+ * cessione: il riquadro esiste solo per un nato di un allevamento, perché
+ * un capostipite in vendita sarebbe una linea che comincia due volte.
+ */
+function drawVetrina() {
+  const house = myHouse();
+  const who = GOSINI.find((g) => g.id === WHO);
+  const canBreed = house === undefined || house.canBreed === true || house.isFoundry === true;
+  const eligible = canBreed && who?.origin === "nato";
+  $("vetrina-block").hidden = !eligible;
+  if (!eligible) return;
+  const listed = who?.listed === true;
+  $("vetrina-toggle").textContent = listed ? "Toglilo dalla vetrina" : "Mettilo in vetrina";
+  $("vetrina-state").textContent = listed
+    ? "È in vetrina: chi cerca un gosino lo vede, e ne vede il pedigree."
+    : "Non è in vetrina: lo vedi solo tu.";
+}
+
+$("vetrina-toggle").addEventListener("click", async () => {
+  const who = GOSINI.find((g) => g.id === WHO);
+  try {
+    const done = await call("/v1/gosini/" + encodeURIComponent(WHO) + "/vetrina", {
+      method: "POST",
+      body: JSON.stringify({ listed: who?.listed !== true }),
+    });
+    say("vetrina-msg", done.listed ? "In vetrina." : "Tolto dalla vetrina.", "ok");
+    await loadGosini();
+    drawVetrina();
+  } catch (error) {
+    say("vetrina-msg", error.message, "err");
+  }
+});
 `;

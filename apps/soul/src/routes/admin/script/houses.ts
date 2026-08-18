@@ -58,8 +58,6 @@ $("new-house").addEventListener("click", async () => {
   const body = { slug, name, kind: $("new-house-kind").value };
   const tz = $("new-house-tz").value.trim();
   if (tz) body.timezone = tz;
-  const gosino = $("new-house-gosino").value.trim();
-  if (gosino) body.gosinoName = gosino;
   try {
     const born = await call("/v1/households", { method: "POST", body: JSON.stringify(body) });
     // UNA volta sola, e lo si dice: in archivio c'è solo l'impronta

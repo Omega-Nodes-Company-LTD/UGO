@@ -29,6 +29,29 @@ export interface Act {
   /** ISO-8601, dichiarato da chi presenta l'atto */
   at: string;
   generation?: number;
+  /**
+   * ADR-082 — la custodia, in forma **opaca**: chi cedeva e chi riceve, come
+   * SHA-256 dell'id della casa. Non è un nome, non è una persona, non è un
+   * indirizzo: è una maniglia che chi conosce l'id può verificare e chi non lo
+   * conosce non può risolvere. Sulla catena continua a non esserci nessuno da
+   * dimenticare.
+   *
+   * Servono a due cose che valgono solo insieme: dire che una creatura ha
+   * cambiato mano, e **rendere visibile la doppia vendita** — un venditore che
+   * cede due volte lo stesso esemplare presenta un secondo atto la cui
+   * provenienza non è più la custodia corrente, e il registro lo rifiuta.
+   */
+  fromHash?: string;
+  toHash?: string;
+}
+
+/**
+ * La maniglia di una casa sulla catena. Deterministica apposta: chi conosce
+ * l'id può verificare che quell'atto parla di lui, chiunque altro vede
+ * sessantaquattro caratteri esadecimali.
+ */
+export function holderHash(householdId: string): string {
+  return createHash("sha256").update(`ugo-holder:${householdId}`, "utf8").digest("hex");
 }
 
 export interface ChainEntry {

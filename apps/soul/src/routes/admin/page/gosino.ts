@@ -247,6 +247,37 @@ export const GOSINO_PAGES = `
     <div id="pedigree-msg"></div>
   </div>
 
+  <div class="block" id="vetrina-block" hidden>
+    <h2>In vetrina</h2>
+    <p class="lede">Chi cerca un gosino guarda gli allevamenti, i cuccioli disponibili e i loro
+       pedigree — <b>prima</b> di sceglierne uno. In vetrina si vede com'è fatto e da chi
+       discende: niente delle case, nessuna persona, nessun ricordo.</p>
+    <div class="row" style="align-items:center">
+      <button id="vetrina-toggle" class="ghost" data-testid="vetrina-toggle">—</button>
+      <span id="vetrina-state" data-testid="vetrina-state" class="lede" style="margin:0;flex:1 1 14rem"></span>
+    </div>
+    <div id="vetrina-msg"></div>
+  </div>
+
+  <div class="block" id="cede-block" hidden>
+    <h2>Cederlo</h2>
+    <p class="lede">Consegnare questo gosino a un'altra casa. <b>Si cedono solo i nati</b>: un
+       capostipite è l'inizio di una stirpe, e quello che si vende sono i figli.</p>
+    <p class="lede"><b>Parte lui, non la vita che ha fatto qui.</b> Se ne va con il genoma,
+       l'identità, l'arco della vita e la genealogia; restano in allevamento i ricordi, le
+       conversazioni, il diario, i desideri e i legami — sono parole di persone che stanno a
+       casa tua, e non si vendono con l'animale. Se vuoi passare anche il sapere, si fa con la
+       <b>dote</b>, che è curata apposta.</p>
+    <div class="row">
+      <div><label for="cede-to">A quale casa</label>
+        <input id="cede-to" data-testid="cede-to" placeholder="slug della casa, o il suo id"></div>
+      <div><label for="cede-name">Scrivi il suo nome per confermare</label>
+        <input id="cede-name" data-testid="cede-name" placeholder="il suo nome"></div>
+      <button id="cede-go" data-testid="cede-go">Cedilo</button>
+    </div>
+    <div id="cede-msg"></div>
+  </div>
+
   <div class="block">
     <h2>Nel libro genealogico</h2>
     <p class="lede">Gli atti di questa creatura registrati sulla catena (ADR-073): un

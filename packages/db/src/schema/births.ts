@@ -50,10 +50,21 @@ export const births = pgTable(
       foreignColumns: [gosini.householdId, gosini.id],
       name: "births_household_child_fk",
     }).onDelete("cascade"),
+    /**
+     * ADR-082: il **genitore no**.
+     *
+     * La coppia composita c'era per la stessa ragione di quella sul figlio —
+     * ogni riga vive nella casa dei suoi capi (ADR-048) — ma diceva anche una
+     * cosa che non è vera: che un genitore debba abitare dove è nato suo
+     * figlio. È il contrario di ciò che accade quando si compra un cucciolo da
+     * un allevamento, e impediva a un riproduttore di essere ceduto finché
+     * aveva figli in casa. Resta il vincolo semplice: il genitore deve
+     * esistere.
+     */
     foreignKey({
-      columns: [table.householdId, table.parentGosinoId],
-      foreignColumns: [gosini.householdId, gosini.id],
-      name: "births_household_parent_fk",
+      columns: [table.parentGosinoId],
+      foreignColumns: [gosini.id],
+      name: "births_parent_fk",
     }),
   ],
 );

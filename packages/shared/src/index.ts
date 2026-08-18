@@ -27,6 +27,7 @@ export {
   actHash,
   entryHash,
   genesisPrevHash,
+  holderHash,
   signEntry,
   verifyEntrySignature,
   verifyChain,
