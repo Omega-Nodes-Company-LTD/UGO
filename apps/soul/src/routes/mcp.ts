@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { beings, gosini, type DbClient } from "@ugo/db";
+import { beings, gosini, withAccount, type DbClient } from "@ugo/db";
 import { searchMemories, type EmbeddingsClient } from "@ugo/memory";
 import { and, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -58,15 +58,14 @@ function buildMcpServer(deps: McpRouteDeps, accountId: string): McpServer {
       },
     },
     async ({ domanda, quanti }) => {
-      const gosinoId = await eldestExemplarOf(deps.db, accountId);
-      const found = await searchMemories(
-        deps.db,
-        deps.embedder,
-        domanda,
-        quanti ?? 6,
-        new Date(),
-        gosinoId,
-      );
+      // ADR-062: ogni strumento apre il SUO tratto in casa — il giro MCP vive
+      // sul socket per minuti, e una transazione lunga quanto la sessione
+      // sarebbe il contrario di §1. L'embedding dentro è una chiamata locale
+      // con timeout, lo stesso compromesso dichiarato dell'adozione della dote
+      const found = await withAccount(deps.db, accountId, async (db) => {
+        const gosinoId = await eldestExemplarOf(db, accountId);
+        return searchMemories(db, deps.embedder, domanda, quanti ?? 6, new Date(), gosinoId);
+      });
       const text =
         found.length === 0
           ? "Nessun ricordo pertinente."
@@ -88,12 +87,12 @@ function buildMcpServer(deps: McpRouteDeps, accountId: string): McpServer {
       },
     },
     async ({ giorni }) => {
-      const gosinoId = await eldestExemplarOf(deps.db, accountId);
-      const pages = await new DiaryService(deps.db, deps.dataKey ?? Buffer.alloc(32)).pages(
-        accountId,
-        gosinoId,
-        { limit: giorni ?? 7 },
-      );
+      const pages = await withAccount(deps.db, accountId, async (db) => {
+        const gosinoId = await eldestExemplarOf(db, accountId);
+        return new DiaryService(db, deps.dataKey ?? Buffer.alloc(32)).pages(accountId, gosinoId, {
+          limit: giorni ?? 7,
+        });
+      });
       const text =
         pages.length === 0
           ? "Il diario è ancora vuoto."
@@ -111,14 +110,16 @@ function buildMcpServer(deps: McpRouteDeps, accountId: string): McpServer {
       inputSchema: {},
     },
     async () => {
-      const alive = await deps.db
-        .select({ name: gosini.name, where: gosini.locationLabel })
-        .from(gosini)
-        .where(and(eq(gosini.accountId, accountId), isNull(gosini.retiredAt)));
-      const people = await deps.db
-        .select({ name: beings.displayName, species: beings.species, kind: beings.kind })
-        .from(beings)
-        .where(eq(beings.accountId, accountId));
+      const { alive, people } = await withAccount(deps.db, accountId, async (db) => ({
+        alive: await db
+          .select({ name: gosini.name, where: gosini.locationLabel })
+          .from(gosini)
+          .where(and(eq(gosini.accountId, accountId), isNull(gosini.retiredAt))),
+        people: await db
+          .select({ name: beings.displayName, species: beings.species, kind: beings.kind })
+          .from(beings)
+          .where(eq(beings.accountId, accountId)),
+      }));
       const text = [
         "Gosini:",
         ...alive.map((c) => `- ${c.name}${c.where ? ` (${c.where})` : ""}`),

@@ -98,7 +98,10 @@ export interface ServerOptions extends HealthDeps {
     face?: FaceGateway;
     audio?: AudioStorageConfig;
     meetings?: MeetingsService;
-    privacy?: { forget: ForgetService; exporter: ExportService };
+    privacy?: {
+      forget: (db: DbClient) => ForgetService;
+      exporter: (db: DbClient) => ExportService;
+    };
     stats?: { dailyBudgetUsd: number; timezone: string };
     /** the pack surface (ADR-014); the Umwelt map comes from configuration */
     speciesMap?: SpeciesMap;

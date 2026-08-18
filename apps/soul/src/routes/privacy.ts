@@ -1,4 +1,4 @@
-import type { DbClient } from "@ugo/db";
+import { withAccount, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { dataSummary } from "../services/privacy/dataSummary.js";
@@ -6,7 +6,7 @@ import type { ExportService } from "../services/privacy/exportService.js";
 import { BeingNotFoundError, type ForgetService } from "../services/privacy/forgetService.js";
 import type { AuditLogger } from "../services/auditLog.js";
 import type { PreHandler } from "./guard.js";
-import { accountScope } from "./scope.js";
+import { accountScope, inAccount } from "./scope.js";
 
 /**
  * Data-subject rights over HTTP (PROGETTO §7). Always behind the guard, and
@@ -22,8 +22,13 @@ const forgetRequestSchema = z.object({
 
 export interface PrivacyRouteDeps {
   db: DbClient;
-  forget: ForgetService;
-  exporter: ExportService;
+  /**
+   * ADR-062: fabbriche sulla transazione, non istanze sul db nudo — l'oblio
+   * e l'export sono ESATTAMENTE i due posti dove una query fuori scope
+   * sarebbe una casa intera sbagliata.
+   */
+  forget: (db: DbClient) => ForgetService;
+  exporter: (db: DbClient) => ExportService;
   guard: PreHandler;
   /** ADR-049: i due atti che un audit log esiste per registrare */
   audit?: AuditLogger;
@@ -52,9 +57,11 @@ export function registerDataSummaryRoute(
    * chiedere a qualcun altro. I due atti che seguono restano dove sono.
    */
   app.get("/v1/privacy/summary", { preHandler: deps.guard }, async (request, reply) => {
-    const accountId = await accountScope(deps.db, request, reply);
-    if (accountId === undefined) return reply;
-    return reply.send(await dataSummary(deps.db, accountId));
+    const summary = await inAccount(deps.db, request, reply, {}, (db, accountId) =>
+      dataSummary(db, accountId),
+    );
+    if (summary === undefined) return reply;
+    return reply.send(summary);
   });
 }
 
@@ -82,7 +89,12 @@ export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDe
       resourceId: parsed.data.beingId,
     } as const;
     try {
-      const report = await deps.forget.forgetBeing(parsed.data.beingId, accountId);
+      // ADR-062: l'intero oblio in UNA transazione che dichiara la casa — se
+      // un passo muore a metà, il rollback lascia la biografia intera invece
+      // di mezza redazione
+      const report = await withAccount(deps.db, accountId, (db) =>
+        deps.forget(db).forgetBeing(parsed.data.beingId, accountId),
+      );
       await deps.audit?.record({ ...trail, outcome: "ok" });
       return await reply.send(report);
     } catch (error) {
@@ -101,7 +113,9 @@ export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDe
   app.get("/v1/privacy/export", { preHandler: deps.guard }, async (request, reply) => {
     const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
     if (accountId === undefined) return reply;
-    const bundle = await deps.exporter.exportAll(accountId);
+    const bundle = await withAccount(deps.db, accountId, (db) =>
+      deps.exporter(db).exportAll(accountId),
+    );
     // l'intera casa in chiaro esce dal server: se una riga sola merita di
     // durare dodici mesi, e' questa
     await deps.audit?.record({

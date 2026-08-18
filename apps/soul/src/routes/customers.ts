@@ -18,7 +18,7 @@ import {
   revokeCustomerToken,
 } from "../services/reception/customerAuth.js";
 import type { PreHandler } from "./guard.js";
-import { accountScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 import { forgetCustomer } from "../services/privacy/forgetCustomer.js";
 import type { AudioStorageConfig } from "./audio.js";
 
@@ -91,12 +91,16 @@ export interface CustomersDeps {
 export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDeps): void {
   const { db, guard, dataKey, audit } = deps;
   const admin = { preHandler: guard };
-  const scope = (request: Parameters<PreHandler>[0], reply: FastifyReply): Promise<string | undefined> =>
-    accountScope(db, request, reply, { requireAdmin: true });
+  // ADR-062: ogni lavoro di database gira nella transazione che dichiara la casa
+  const inAdmin = <T>(
+    request: Parameters<PreHandler>[0],
+    reply: FastifyReply,
+    work: (tx: DbClient, accountId: string) => Promise<T>,
+  ): Promise<T | undefined> => inAccount(db, request, reply, { requireAdmin: true }, work);
 
   /** one customer of THIS house, or undefined (the caller answers 404) */
-  const mine = async (accountId: string, customerId: string) => {
-    const [row] = await db
+  const mine = async (tx: DbClient, accountId: string, customerId: string) => {
+    const [row] = await tx
       .select()
       .from(customers)
       .where(and(eq(customers.id, customerId), eq(customers.accountId, accountId)));
@@ -104,14 +108,13 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
   };
 
   app.get("/v1/customers", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
-    const rows = await db
+    const body = await inAdmin(request, reply, async (tx, accountId) => {
+    const rows = await tx
       .select()
       .from(customers)
       .where(eq(customers.accountId, accountId))
       .orderBy(asc(customers.createdAt));
-    const counts = await db
+    const counts = await tx
       .select({
         customerId: tickets.customerId,
         status: tickets.status,
@@ -135,60 +138,64 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
           .reduce((total, count) => total + Number(count.count), 0),
       })),
     };
+    });
+    if (body === undefined) return reply;
+    return body;
   });
 
   app.post("/v1/customers", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const parsed = createSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
     const base = slugOf(parsed.data.name);
-    // a duplicate name is human; a failed insert is not the way to say it
-    const taken = await db
-      .select({ slug: customers.slug })
-      .from(customers)
-      .where(eq(customers.accountId, accountId));
-    const slugs = new Set(taken.map((row) => row.slug));
-    let slug = base;
-    for (let n = 2; slugs.has(slug); n += 1) slug = `${base}-${String(n)}`;
-    const [row] = await db
-      .insert(customers)
-      .values({
-        accountId,
-        name: parsed.data.name,
-        slug,
-        ...(parsed.data.notes !== undefined && {
-          notes: encryptText(parsed.data.notes, dataKey),
-        }),
-      })
-      .returning({ id: customers.id });
-    if (row === undefined) return problem(reply, 500, "Internal Server Error");
+    const made = await inAdmin(request, reply, async (tx, accountId) => {
+      // a duplicate name is human; a failed insert is not the way to say it
+      const taken = await tx
+        .select({ slug: customers.slug })
+        .from(customers)
+        .where(eq(customers.accountId, accountId));
+      const slugs = new Set(taken.map((row) => row.slug));
+      let slug = base;
+      for (let n = 2; slugs.has(slug); n += 1) slug = `${base}-${String(n)}`;
+      const [row] = await tx
+        .insert(customers)
+        .values({
+          accountId,
+          name: parsed.data.name,
+          slug,
+          ...(parsed.data.notes !== undefined && {
+            notes: encryptText(parsed.data.notes, dataKey),
+          }),
+        })
+        .returning({ id: customers.id });
+      return { accountId, slug, row };
+    });
+    if (made === undefined) return reply;
+    if (made.row === undefined) return problem(reply, 500, "Internal Server Error");
     await audit?.record({
       verb: "customer_created",
       outcome: "ok",
-      accountId,
+      accountId: made.accountId,
       actor: request.tenant,
       resourceType: "customer",
-      resourceId: row.id,
+      resourceId: made.row.id,
     });
-    return reply.code(201).send({ id: row.id, slug });
+    return reply.code(201).send({ id: made.row.id, slug: made.slug });
   });
 
   app.get("/v1/customers/:id", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(accountId, id);
-    if (customer === undefined) return problem(reply, 404, "Not Found");
+    const body = await inAdmin(request, reply, async (tx, accountId) => {
+    const customer = await mine(tx, accountId, id);
+    if (customer === undefined) return "missing" as const;
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60_000);
     const [assigned, tokens, [givenThisWeek]] = await Promise.all([
-      db
+      tx
         .select({ id: gosini.id, name: gosini.name, locationLabel: gosini.locationLabel })
         .from(customerGosini)
         .innerJoin(gosini, eq(gosini.id, customerGosini.gosinoId))
         .where(eq(customerGosini.customerId, id))
         .orderBy(asc(gosini.bornAt)),
-      db
+      tx
         .select({
           id: customerAccessTokens.id,
           label: customerAccessTokens.label,
@@ -202,7 +209,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
         .orderBy(asc(customerAccessTokens.createdAt)),
       // ADR-058: la stessa finestra mobile del muro — il pannello mostra il
       // conteggio che la reception applica, non un altro
-      db
+      tx
         .select({ count: sql<string>`count(*)` })
         .from(customerRewards)
         .where(and(eq(customerRewards.customerId, id), gt(customerRewards.ts, weekAgo))),
@@ -229,19 +236,22 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
         revokedAt: token.revokedAt?.toISOString() ?? null,
       })),
     };
+    });
+    if (body === undefined) return reply;
+    if (body === "missing") return problem(reply, 404, "Not Found");
+    return body;
   });
 
   app.patch("/v1/customers/:id", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(accountId, id);
-    if (customer === undefined) return problem(reply, 404, "Not Found");
     const parsed = updateSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
     const data = parsed.data;
-    await db
-      .update(customers)
+    const done = await inAdmin(request, reply, async (tx, accountId) => {
+      const customer = await mine(tx, accountId, id);
+      if (customer === undefined) return "missing" as const;
+      await tx
+        .update(customers)
       .set({
         ...(data.name !== undefined && { name: data.name }),
         ...(data.notes !== undefined && {
@@ -260,12 +270,16 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
           archivedAt: data.archived ? new Date() : null,
         }),
       })
-      .where(eq(customers.id, id));
+        .where(eq(customers.id, id));
+      return { accountId };
+    });
+    if (done === undefined) return reply;
+    if (done === "missing") return problem(reply, 404, "Not Found");
     if (data.archived === true) {
       await audit?.record({
         verb: "customer_archived",
         outcome: "ok",
-        accountId,
+        accountId: done.accountId,
         actor: request.tenant,
         resourceType: "customer",
         resourceId: id,
@@ -276,35 +290,34 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
 
   /** the whole assignment in one act: what you see is what there is */
   app.put("/v1/customers/:id/gosini", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(accountId, id);
-    if (customer === undefined) return problem(reply, 404, "Not Found");
     const parsed = assignSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
-    // a foreign gosino answers 404: probing teaches nothing (BOLA)
-    if (parsed.data.gosinoIds.length > 0) {
-      const owned = await db
-        .select({ id: gosini.id })
-        .from(gosini)
-        .where(
-          and(eq(gosini.accountId, accountId), inArray(gosini.id, parsed.data.gosinoIds)),
-        );
-      if (owned.length !== parsed.data.gosinoIds.length) {
-        return problem(reply, 404, "Not Found");
+    const done = await inAdmin(request, reply, async (tx, accountId) => {
+      const customer = await mine(tx, accountId, id);
+      if (customer === undefined) return "missing" as const;
+      // a foreign gosino answers 404: probing teaches nothing (BOLA)
+      if (parsed.data.gosinoIds.length > 0) {
+        const owned = await tx
+          .select({ id: gosini.id })
+          .from(gosini)
+          .where(and(eq(gosini.accountId, accountId), inArray(gosini.id, parsed.data.gosinoIds)));
+        if (owned.length !== parsed.data.gosinoIds.length) return "missing" as const;
       }
-    }
-    await db.delete(customerGosini).where(eq(customerGosini.customerId, id));
-    if (parsed.data.gosinoIds.length > 0) {
-      await db.insert(customerGosini).values(
-        parsed.data.gosinoIds.map((gosinoId) => ({
-          accountId,
-          customerId: id,
-          gosinoId,
-        })),
-      );
-    }
+      await tx.delete(customerGosini).where(eq(customerGosini.customerId, id));
+      if (parsed.data.gosinoIds.length > 0) {
+        await tx.insert(customerGosini).values(
+          parsed.data.gosinoIds.map((gosinoId) => ({
+            accountId,
+            customerId: id,
+            gosinoId,
+          })),
+        );
+      }
+      return "done" as const;
+    });
+    if (done === undefined) return reply;
+    if (done === "missing") return problem(reply, 404, "Not Found");
     return reply.code(204).send();
   });
 
@@ -317,85 +330,104 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
    * irreversibile — e questa cancella anche i documenti dal bucket.
    */
   app.delete("/v1/customers/:id", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
     const body = z.object({ confirmName: z.string().min(1) }).safeParse(request.body);
     if (!body.success) return problem(reply, 400, "Serve confirmName: scrivi il nome del cliente");
-
-    const row = await mine(accountId, id);
-    if (row === undefined) return problem(reply, 404, "Cliente non trovato");
     const clean = (value: string): string => value.trim().toLowerCase().replace(/\s+/gu, " ");
-    if (clean(body.data.confirmName) !== clean(row.name)) {
-      return problem(reply, 400, `Scrivi «${row.name}» per confermare: da qui non si torna indietro`);
-    }
 
-    const trail = {
-      verb: "customer_forgotten",
-      accountId,
-      actor: request.tenant,
-      resourceType: "customer",
-      resourceId: id,
-    } as const;
-    try {
-      const report = await forgetCustomer(db, id, accountId, deps.docsStorage);
-      await audit?.record({ ...trail, outcome: "ok" });
-      return await reply.send(report);
-    } catch (error) {
-      await audit?.record({ ...trail, outcome: "error" });
+    /**
+     * ADR-062: conferma e oblio nella STESSA transazione. Il bucket viene
+     * toccato dentro (compromesso dichiarato, come l'adozione della dote): se
+     * il DELETE fallisce dopo il bucket, il rollback lascia le righe intatte
+     * e il forget resta riprovabile — che è la promessa di ADR-093.
+     */
+    const outcome = await inAdmin(request, reply, async (tx, accountId) => {
+      const row = await mine(tx, accountId, id);
+      if (row === undefined) return "missing" as const;
+      if (clean(body.data.confirmName) !== clean(row.name)) return { wrongName: row.name };
+      const trail = {
+        verb: "customer_forgotten",
+        accountId,
+        actor: request.tenant,
+        resourceType: "customer",
+        resourceId: id,
+      } as const;
+      try {
+        const report = await forgetCustomer(tx, id, accountId, deps.docsStorage);
+        return { report, trail };
+      } catch (error) {
+        return { failed: error instanceof Error ? error.message : "oblio fallito", trail };
+      }
+    });
+    if (outcome === undefined) return reply;
+    if (outcome === "missing") return problem(reply, 404, "Cliente non trovato");
+    if ("wrongName" in outcome) {
+      return problem(
+        reply,
+        400,
+        `Scrivi «${outcome.wrongName}» per confermare: da qui non si torna indietro`,
+      );
+    }
+    if ("failed" in outcome) {
+      await audit?.record({ ...outcome.trail, outcome: "error" });
       // la ragione arriva a chi deve rimediare: di solito è il bucket non
       // configurato con documenti ancora dentro
-      return problem(reply, 409, error instanceof Error ? error.message : "oblio fallito");
+      return problem(reply, 409, outcome.failed);
     }
+    await audit?.record({ ...outcome.trail, outcome: "ok" });
+    return reply.send(outcome.report);
   });
 
   app.post("/v1/customers/:id/tokens", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(accountId, id);
-    if (customer === undefined) return problem(reply, 404, "Not Found");
     const parsed = tokenSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
-    const issued = await issueCustomerToken(db, {
-      accountId,
-      customerId: id,
-      label: parsed.data.label,
-      ...(parsed.data.expiresAt !== undefined && { expiresAt: parsed.data.expiresAt }),
+    const made = await inAdmin(request, reply, async (tx, accountId) => {
+      const customer = await mine(tx, accountId, id);
+      if (customer === undefined) return "missing" as const;
+      const issued = await issueCustomerToken(tx, {
+        accountId,
+        customerId: id,
+        label: parsed.data.label,
+        ...(parsed.data.expiresAt !== undefined && { expiresAt: parsed.data.expiresAt }),
+      });
+      return { accountId, issued };
     });
+    if (made === undefined) return reply;
+    if (made === "missing") return problem(reply, 404, "Not Found");
     await audit?.record({
       verb: "customer_token_issued",
       outcome: "ok",
-      accountId,
+      accountId: made.accountId,
       actor: request.tenant,
       resourceType: "customer_token",
-      resourceId: issued.id,
+      resourceId: made.issued.id,
     });
     // the clear value exists in this response and never again
-    return reply.code(201).send({ id: issued.id, token: issued.token });
+    return reply.code(201).send({ id: made.issued.id, token: made.issued.token });
   });
 
   app.delete("/v1/customers/:id/tokens/:tokenId", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id, tokenId } = request.params as { id: string; tokenId: string };
-    const customer = await mine(accountId, id);
-    if (customer === undefined) return problem(reply, 404, "Not Found");
-    const [token] = await db
-      .select({ id: customerAccessTokens.id })
-      .from(customerAccessTokens)
-      .where(
-        and(
-          eq(customerAccessTokens.id, tokenId),
-          eq(customerAccessTokens.customerId, id),
-        ),
-      );
-    if (token === undefined) return problem(reply, 404, "Not Found");
-    await revokeCustomerToken(db, tokenId);
+    const done = await inAdmin(request, reply, async (tx, accountId) => {
+      const customer = await mine(tx, accountId, id);
+      if (customer === undefined) return "missing" as const;
+      const [token] = await tx
+        .select({ id: customerAccessTokens.id })
+        .from(customerAccessTokens)
+        .where(
+          and(eq(customerAccessTokens.id, tokenId), eq(customerAccessTokens.customerId, id)),
+        );
+      if (token === undefined) return "missing" as const;
+      await revokeCustomerToken(tx, tokenId);
+      return { accountId };
+    });
+    if (done === undefined) return reply;
+    if (done === "missing") return problem(reply, 404, "Not Found");
     await audit?.record({
       verb: "customer_token_revoked",
       outcome: "ok",
-      accountId,
+      accountId: done.accountId,
       actor: request.tenant,
       resourceType: "customer_token",
       resourceId: tokenId,
@@ -404,16 +436,15 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
   });
 
   app.get("/v1/customers/:id/tickets", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(accountId, id);
-    if (customer === undefined) return problem(reply, 404, "Not Found");
-    const rows = await db
-      .select()
-      .from(tickets)
-      .where(eq(tickets.customerId, id))
-      .orderBy(desc(tickets.updatedAt));
+    const body = await inAdmin(request, reply, async (tx, accountId) => {
+      const customer = await mine(tx, accountId, id);
+      if (customer === undefined) return "missing" as const;
+      return tx.select().from(tickets).where(eq(tickets.customerId, id)).orderBy(desc(tickets.updatedAt));
+    });
+    if (body === undefined) return reply;
+    if (body === "missing") return problem(reply, 404, "Not Found");
+    const rows = body;
     return {
       tickets: rows.map((row) => ({
         id: row.id,
@@ -430,29 +461,32 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
 
   /** triage: the owner moves the state, and the journal remembers who did */
   app.patch("/v1/tickets/:id", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
     const parsed = statusSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
-    const [ticket] = await db
-      .select({ id: tickets.id })
-      .from(tickets)
-      .where(and(eq(tickets.id, id), eq(tickets.accountId, accountId)));
-    if (ticket === undefined) return problem(reply, 404, "Not Found");
-    const at = new Date();
-    await db
-      .update(tickets)
-      .set({
-        status: parsed.data.status,
-        updatedAt: at,
-        closedAt: parsed.data.status === "closed" ? at : null,
-      })
-      .where(eq(tickets.id, id));
+    const done = await inAdmin(request, reply, async (tx, accountId) => {
+      const [ticket] = await tx
+        .select({ id: tickets.id })
+        .from(tickets)
+        .where(and(eq(tickets.id, id), eq(tickets.accountId, accountId)));
+      if (ticket === undefined) return "missing" as const;
+      const at = new Date();
+      await tx
+        .update(tickets)
+        .set({
+          status: parsed.data.status,
+          updatedAt: at,
+          closedAt: parsed.data.status === "closed" ? at : null,
+        })
+        .where(eq(tickets.id, id));
+      return { accountId };
+    });
+    if (done === undefined) return reply;
+    if (done === "missing") return problem(reply, 404, "Not Found");
     await audit?.record({
       verb: "ticket_status_changed",
       outcome: "ok",
-      accountId,
+      accountId: done.accountId,
       actor: request.tenant,
       resourceType: "ticket",
       resourceId: id,
@@ -462,12 +496,11 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
 
   /** the numbers of the relationship: volume, spend, and who they talk to */
   app.get("/v1/customers/:id/stats", admin, async (request, reply) => {
-    const accountId = await scope(request, reply);
-    if (accountId === undefined) return reply;
     const { id } = request.params as { id: string };
-    const customer = await mine(accountId, id);
-    if (customer === undefined) return problem(reply, 404, "Not Found");
-    const perGosino = await db
+    const body = await inAdmin(request, reply, async (tx, accountId) => {
+    const customer = await mine(tx, accountId, id);
+    if (customer === undefined) return "missing" as const;
+    const perGosino = await tx
       .select({
         gosinoId: customerMessages.gosinoId,
         messages: sql<string>`count(*) filter (where ${customerMessages.role} = 'user')`,
@@ -477,7 +510,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
       .from(customerMessages)
       .where(eq(customerMessages.customerId, id))
       .groupBy(customerMessages.gosinoId);
-    const ticketCounts = await db
+    const ticketCounts = await tx
       .select({
         gosinoId: tickets.gosinoId,
         status: tickets.status,
@@ -486,7 +519,7 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
       .from(tickets)
       .where(eq(tickets.customerId, id))
       .groupBy(tickets.gosinoId, tickets.status);
-    const names = await db
+    const names = await tx
       .select({ id: gosini.id, name: gosini.name })
       .from(gosini)
       .where(eq(gosini.accountId, accountId));
@@ -503,5 +536,9 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
           .reduce((total, count) => total + Number(count.count), 0),
       })),
     };
+    });
+    if (body === undefined) return reply;
+    if (body === "missing") return problem(reply, 404, "Not Found");
+    return body;
   });
 }

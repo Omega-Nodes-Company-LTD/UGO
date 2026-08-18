@@ -1,9 +1,11 @@
 import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
+  accounts,
   auditLog,
   budgetLedger,
   checkins,
   createDbClient,
+  desires,
   feedings,
   psycheSnapshots,
   rssFeeds,
@@ -16,9 +18,10 @@ import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuditLog } from "../../src/services/auditLog.js";
+import { InitiativeSwitch } from "../../src/services/volition/initiativeSwitch.js";
 import { issueToken } from "../../src/services/tenantAuth.js";
 import { buildServer } from "../../src/server.js";
-import { createHouse, type TestHouse } from "./helpers/tenancy.js";
+import { addBeing, createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 /**
  * ADR-062, il modello: le rotte delle impronte attraversano il muro.
@@ -91,6 +94,10 @@ beforeAll(async () => {
       // il lotto 1 (ADR-062): liste, domande, salvadanaio, umore del branco
       gosini: { dataKey: mine.dataKey },
       stats: { dailyBudgetUsd: 5, timezone: "Europe/Rome" },
+      // lotto 3: la volontà si legge dal pannello
+      initiative: new InitiativeSwitch(() => true),
+      // lotto 4: i clienti della reception
+      customers: { dataKey: mine.dataKey },
     },
   });
 }, 180_000);
@@ -404,5 +411,118 @@ describe("lotto 1: lo stato e i conti come ugo_app", () => {
     const ids = view.json<{ creatures: { id: string }[] }>().creatures.map((c) => c.id);
     expect(ids).toContain(mine.gosinoId);
     expect(ids).not.toContain(theirs.gosinoId);
+  });
+});
+
+/**
+ * Lotto 3: privacy, volontà e impostazioni della casa.
+ */
+describe("lotto 3: privacy e volontà come ugo_app", () => {
+  it("«cosa sai di me» conta solo la mia casa, non il vicinato", async () => {
+    await addBeing(owner, theirs, "Persona Del Vicino");
+    const view = await app.inject({
+      method: "GET",
+      url: "/v1/privacy/summary",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(view.statusCode).toBe(200);
+    expect(view.json<{ beings: number }>().beings).toBe(0);
+
+    const theirView = await app.inject({
+      method: "GET",
+      url: "/v1/privacy/summary",
+      headers: { authorization: `Bearer ${theirToken}` },
+    });
+    expect(theirView.json<{ beings: number }>().beings).toBeGreaterThanOrEqual(1);
+  });
+
+  it("i desideri del vicino non compaiono nel mio pannello della volontà", async () => {
+    await owner.insert(desires).values([
+      { gosinoId: mine.gosinoId, status: "pending", kind: "desiderio", text: "voglio uscire" },
+      { gosinoId: theirs.gosinoId, status: "pending", kind: "desiderio", text: "segreto del vicino" },
+    ]);
+    const view = await app.inject({
+      method: "GET",
+      url: "/v1/volition",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(view.statusCode).toBe(200);
+    const texts = view.json<{ desires: { text: string }[] }>().desires.map((d) => d.text);
+    expect(texts).toContain("voglio uscire");
+    expect(texts).not.toContain("segreto del vicino");
+  });
+
+  it("rinominare la casa rinomina LA MIA, e il vicino resta com'era", async () => {
+    const done = await app.inject({
+      method: "PATCH",
+      url: "/v1/account",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { name: "Casa Rinominata RLS" },
+    });
+    expect(done.statusCode).toBe(200);
+    const rows = await owner
+      .select({ id: accounts.id, name: accounts.name })
+      .from(accounts)
+      .where(sql`${accounts.id} in (${mine.id}, ${theirs.id})`);
+    const byId = new Map(rows.map((r) => [r.id, r.name]));
+    expect(byId.get(mine.id)).toBe("Casa Rinominata RLS");
+    expect(byId.get(theirs.id)).not.toBe("Casa Rinominata RLS");
+  });
+});
+
+/**
+ * Lotto 4: la reception — i clienti sono della casa che li ha.
+ */
+describe("lotto 4: i clienti come ugo_app", () => {
+  it("un cliente creato in casa mia non compare nell'elenco del vicino", async () => {
+    const made = await app.inject({
+      method: "POST",
+      url: "/v1/customers",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { name: "Studio Rossi RLS" },
+    });
+    expect(made.statusCode).toBe(201);
+
+    const theirView = await app.inject({
+      method: "GET",
+      url: "/v1/customers",
+      headers: { authorization: `Bearer ${theirToken}` },
+    });
+    const names = theirView.json<{ customers: { name: string }[] }>().customers.map((c) => c.name);
+    expect(names).not.toContain("Studio Rossi RLS");
+
+    const mineView = await app.inject({
+      method: "GET",
+      url: "/v1/customers",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(
+      mineView.json<{ customers: { name: string }[] }>().customers.map((c) => c.name),
+    ).toContain("Studio Rossi RLS");
+  });
+
+  it("il cliente del vicino è un 404 anche per le sue fonti", async () => {
+    const made = await app.inject({
+      method: "POST",
+      url: "/v1/customers",
+      headers: { authorization: `Bearer ${theirToken}` },
+      payload: { name: "Cliente Del Vicino" },
+    });
+    expect(made.statusCode).toBe(201);
+    const foreignId = made.json<{ id: string }>().id;
+
+    const view = await app.inject({
+      method: "GET",
+      url: `/v1/customers/${foreignId}`,
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(view.statusCode).toBe(404);
+
+    const sources = await app.inject({
+      method: "GET",
+      url: `/v1/customers/${foreignId}/sources`,
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(sources.statusCode).toBe(404);
   });
 });

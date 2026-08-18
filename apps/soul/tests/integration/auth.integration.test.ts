@@ -42,7 +42,10 @@ function build(token: string | undefined): FastifyInstance {
     features: {
       chat: undefined as never, // unused by the routes under test
       psyche: undefined as never,
-      privacy: { forget: new ForgetService({ db, dataKey }), exporter: new ExportService(db, dataKey) },
+      privacy: {
+        forget: (tx) => new ForgetService({ db: tx, dataKey }),
+        exporter: (tx) => new ExportService(tx, dataKey),
+      },
       stats: { dailyBudgetUsd: 0.5, timezone: "Europe/Rome" },
       ...(token !== undefined && { internalToken: token }),
     },
