@@ -7,6 +7,8 @@ import { desc, eq, isNull } from "drizzle-orm";
 import type { AudioStorageConfig } from "../../routes/audio.js";
 import { ChatService } from "../chatService.js";
 import { characterFrom, type Character } from "../council/character.js";
+import { ParcelService } from "../parcelService.js";
+import { TieService } from "../tieService.js";
 import { FaceGateway } from "../faceGateway.js";
 import { PackService } from "../packService.js";
 import { PsycheService } from "../psycheService.js";
@@ -233,6 +235,12 @@ async function buildRuntime(
       nudges: { answer: (text: string, at: Date) => nudges.answer(row.id, text, at) },
     }),
     ...(deps.vision !== undefined && { vision: deps.vision }),
+    // ADR-092: la cartolina a voce — il gesto esiste per ogni esemplare,
+    // perché la porta vera è il consenso della parentela, non il cablaggio
+    postcards: {
+      ties: new TieService(deps.db),
+      parcels: new ParcelService(deps.db, deps.dataKey),
+    },
   });
   // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.
   // Due gosini sotto lo stesso tetto imparano cose diverse, ed è il punto.

@@ -25,6 +25,7 @@ import { registerCheckinRoutes } from "./routes/checkins.js";
 import { registerMemoryBookRoutes } from "./routes/memoryBook.js";
 import { registerPackMoodRoutes } from "./routes/packMood.js";
 import { registerDiaryRoutes } from "./routes/diary.js";
+import { registerTieRoutes } from "./routes/ties.js";
 import { registerTransferRoutes } from "./routes/transfer.js";
 import { registerVetrinaRoutes } from "./routes/vetrina.js";
 import { registerAdoptionRoutes } from "./routes/adoptions.js";
@@ -460,6 +461,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           ...(registry !== undefined && { registry }),
           ...(gosini.chain !== undefined && { chain: new RegistryClient(gosini.chain) }),
         });
+        // ADR-092: le parentele fra le case e le cartoline — serve la KEK,
+        // perché il testo viaggia ri-cifrato con la DEK della destinataria
+        registerTieRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey, audit });
       }
     }
     if (council !== undefined) {

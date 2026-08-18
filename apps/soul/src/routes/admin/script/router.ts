@@ -120,6 +120,10 @@ async function openPage(page) {
   } else if (page === "adozioni") {
     // ADR-084: le pratiche, dai due lati
     await section(loadAdoptions, "adozioni-msg");
+  } else if (page === "parentele") {
+    // ADR-092: i legami fra le case, e la cassetta della posta
+    await section(loadTies, "tie-msg");
+    await section(loadParcels, "parcel-msg");
   } else if (page === "feed") {
     await section(loadFeeds, "feed-msg");
     // ADR-080: e cosa è arrivato davvero, non solo quanti

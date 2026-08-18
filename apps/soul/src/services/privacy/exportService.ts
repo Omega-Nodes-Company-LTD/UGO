@@ -1,4 +1,4 @@
-import { decryptText } from "@ugo/shared";
+import { decryptText, unwrapDataKey } from "@ugo/shared";
 import type { DbClient } from "@ugo/db";
 import { sql } from "drizzle-orm";
 
@@ -68,6 +68,15 @@ export interface ExportBundle {
   births: unknown[];
   feedings: unknown[];
   adoptions: unknown[];
+  /** ADR-092: i legami fra le case — le due parti, mai il vicinato intero */
+  householdTies: unknown[];
+  /**
+   * ADR-092: le cartoline. Le RICEVUTE escono in chiaro (sono della casa);
+   * delle SPEDITE esce la busta — il testo è cifrato con la chiave della
+   * casa destinataria, e un export che potesse riaprirlo smentirebbe la
+   * promessa fatta al momento dell'invio.
+   */
+  parcels: unknown[];
   /** senza il vettore: il fatto che qualcuno è passato, non il suo volto */
   perceptionEvents: unknown[];
   unknownPrints: unknown[];
@@ -251,6 +260,9 @@ export class ExportService {
       births,
       feedings,
       adoptions,
+      householdTies,
+      parcels,
+      houseKeyRow,
       perceptionEvents,
       unknownPrints,
       memoryBeings,
@@ -288,6 +300,19 @@ export class ExportService {
                where kennel_household_id = ${householdId}
                   or buyer_household_id = ${householdId}
                order by reserved_at`),
+      rows(sql`select id, from_household_id, to_household_id, label, from_being_id, to_being_id,
+                      status, proposed_at, accepted_at, revoked_at
+               from household_ties
+               where from_household_id = ${householdId} or to_household_id = ${householdId}
+               order by proposed_at`),
+      rows(sql`select id, tie_id, from_household_id, to_household_id, from_gosino_id,
+                      to_gosino_id, kind, text, status, created_at, delivered_at, kept_at
+               from parcels
+               where from_household_id = ${householdId} or to_household_id = ${householdId}
+               order by created_at`),
+      // la DEK della casa: le cartoline ricevute sono cifrate con LEI (ADR-092
+      // §4), non con la chiave di processo che apre il resto dell'export
+      rows(sql`select wrapped_data_key from households where id = ${householdId}`),
       /**
        * Chi è stato visto o sentito, e quando. Senza il vettore: un embedding
        * biometrico è la cosa che ADR-016 tiene cifrata in `bytea`, e
@@ -351,10 +376,45 @@ export class ExportService {
       births,
       feedings,
       adoptions,
+      householdTies,
+      parcels: this.openParcels(parcels, householdId, houseKeyRow),
       perceptionEvents,
       unknownPrints,
       memoryBeings,
       auditLog,
     };
+  }
+
+  /**
+   * ADR-092: le cartoline ricevute si aprono con la DEK della casa; delle
+   * spedite esce solo la busta — il testo appartiene alla casa destinataria,
+   * e questo file non ha (né deve avere) la chiave per riaprirlo.
+   */
+  private openParcels(
+    parcels: Record<string, unknown>[],
+    householdId: string,
+    houseKeyRow: Record<string, unknown>[],
+  ): Record<string, unknown>[] {
+    let houseKey: Buffer | undefined;
+    const wrapped = houseKeyRow[0]?.wrapped_data_key;
+    if (wrapped != null) {
+      try {
+        houseKey = unwrapDataKey(wrapped as Buffer, this.dataKey);
+      } catch {
+        houseKey = undefined;
+      }
+    }
+    return parcels.map((row) => {
+      if (row.to_household_id !== householdId) {
+        return { ...row, text: "[spedita: il testo è della casa destinataria]" };
+      }
+      const value = row.text;
+      if (typeof value !== "string" || houseKey === undefined) return { ...row, text: UNREADABLE };
+      try {
+        return { ...row, text: decryptText(value, houseKey) };
+      } catch {
+        return { ...row, text: UNREADABLE };
+      }
+    });
   }
 }
