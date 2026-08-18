@@ -1,5 +1,4 @@
 import { gosini, households, memories, type DbClient } from "@ugo/db";
-import { encryptText } from "@ugo/shared";
 import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { DowryService } from "./dowryService.js";
 import { FarewellService } from "./farewellService.js";
@@ -141,7 +140,18 @@ export class MortalityWatch {
         await this.deps.db.insert(memories).values({
           gosinoId: pupil.id,
           kind: lesson.kind,
-          text: encryptText(lesson.text, this.deps.dataKey),
+          /**
+           * In CHIARO, come ogni altro ricordo (ADR-022, riaperto e confermato
+           * da ADR-091).
+           *
+           * Cifrarlo qui sembrava prudenza e faceva quattro danni: la riga non
+           * si ripescava più (il braccio lessicale gira sul ciphertext), **la
+           * redazione dell'oblio non la toccava** — il nome di una persona
+           * cancellata ci restava dentro, riapribile con la chiave di casa —
+           * e, se quella riga finiva a sua volta in un lascito, veniva cifrata
+           * una seconda volta e diventava illeggibile per sempre.
+           */
+          text: lesson.text,
           importance: lesson.importance,
           sourceRefs: { taughtBy: elder.id, order: already.length + step },
         });

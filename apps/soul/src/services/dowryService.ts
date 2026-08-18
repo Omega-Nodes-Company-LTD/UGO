@@ -175,7 +175,24 @@ export class DowryService {
     return { rows, withheld };
   }
 
+  /**
+   * Il testo com'è leggibile (ADR-091).
+   *
+   * Prima provava a decifrare **sempre** e tornava stringa vuota se non ci
+   * riusciva — e il ciclo qui sopra salta le stringhe vuote. Siccome i
+   * ricordi sono in chiaro (ADR-022: il sogno li scrive così), la decifratura
+   * falliva su quasi tutti e **il lascito di una creatura normale usciva
+   * vuoto**: «il lascito resta» era falso nel modo più letterale che ci sia.
+   *
+   * Non l'ha visto nessun test perché le fixture seminavano ricordi cifrati,
+   * cioè ripetevano l'assunzione sbagliata invece di metterla alla prova.
+   *
+   * Adesso: in chiaro passa, cifrato si apre, illeggibile resta vuoto — e
+   * quello sì che si salta, perché è l'unico caso in cui davvero non c'è
+   * niente da tramandare.
+   */
   private readable(value: string): string {
+    if (!value.startsWith("v1:")) return value;
     try {
       return decryptText(value, this.dataKey);
     } catch {
@@ -324,7 +341,18 @@ export class DowryService {
       await this.db.insert(memories).values({
         gosinoId: born.id,
         kind: memory.kind,
-        text: encryptText(memory.text, this.dataKey),
+        /**
+         * In CHIARO, come ogni altro ricordo (ADR-022, riaperto e confermato
+         * da ADR-091).
+         *
+         * Cifrarlo qui sembrava prudenza e faceva quattro danni: la riga non
+         * si ripescava più (il braccio lessicale gira sul ciphertext), **la
+         * redazione dell'oblio non la toccava** — il nome di una persona
+         * cancellata ci restava dentro, riapribile con la chiave di casa —
+         * e, se quella riga finiva a sua volta in un lascito, veniva cifrata
+         * una seconda volta e diventava illeggibile per sempre.
+         */
+        text: memory.text,
         importance: memory.importance,
         ...(vector !== undefined && { embedding: vector }),
       });

@@ -998,6 +998,27 @@ incidente.
    contratto: mai SQL distruttivo a mano, CLAUDE.md regola 5).
 3. Risultato atteso: nessuna richiesta persa; `docker ps` mostra il nuovo container `healthy`.
 
+### Una volta sola, dopo ADR-091: rimettere in chiaro i ricordi cifrati
+
+Per un periodo tre porte — il lascito del congedo, le lezioni dell'anziano e la dote — hanno
+scritto il testo dei ricordi **cifrato**, contro la scelta di ADR-022. Le porte sono chiuse, ma
+le righe già uscite restano com'erano, e finché sono cifrate non si ripescano e **l'oblio non ci
+arriva dentro a togliere un nome**.
+
+Su una casa che non ha ancora avuto congedi né doti non c'è niente da convertire, e il comando
+lo dice. Vale la pena eseguirlo lo stesso: costa un attimo e la risposta è un numero.
+
+```bash
+docker compose exec soul pnpm --filter soul ugo ricordi in-chiaro          # una casa sola
+docker compose exec soul pnpm --filter soul ugo ricordi in-chiaro --casa <slug>
+```
+
+Risposta attesa: `{"ricordi_in_chiaro":{"found":N,"converted":N,"unreadable":0}}`. È idempotente
+— rieseguirlo non cambia niente — e lascia una riga di audit (`memories_plaintext`), perché
+tocca il testo di ogni riga di quella casa. Un `unreadable` maggiore di zero vuol dire righe
+scritte con una chiave diversa da quella attuale: **non vengono sovrascritte**, e vanno guardate
+prima di decidere cosa farne.
+
 ### Rotazione dei segreti (zero modifiche al codice)
 1. `ANTHROPIC_API_KEY`, `S3_*`, `MQTT_PASS`, `VEXA_API_KEY`: genera il nuovo valore, aggiorna la
    variabile nella risorsa Coolify, **Redeploy**. Per MQTT rigenera anche il password file (2.2).

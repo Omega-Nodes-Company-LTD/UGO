@@ -8,6 +8,7 @@ import { ExportService } from "./services/privacy/exportService.js";
 import { createAuditLog } from "./services/auditLog.js";
 import { createHousehold, HouseholdSlugTakenError } from "./services/householdService.js";
 import { ForgetService, BeingNotFoundError } from "./services/privacy/forgetService.js";
+import { plainTextMemories } from "./services/privacy/plainTextMemories.js";
 
 /**
  * `ugo` operator CLI (PROGETTO §7): data-subject rights that must be
@@ -33,6 +34,11 @@ const USAGE = `uso:
                                anonimizza irreversibilmente un essere del branco
   ugo export [--casa <slug|uuid>]
                                esporta i dati di una casa in JSON (stdout)
+
+  ugo ricordi in-chiaro [--casa <slug|uuid>]
+                               rimette in chiaro i ricordi scritti cifrati prima
+                               di ADR-091 (lascito, lezioni, dote): finché sono
+                               cifrati non si ripescano e l'oblio non li redige
 
   ugo casa nuova --slug <slug> --nome "<nome>" [--tz <fuso>] [--locale <it-IT>]
                  [--gosino <nome>] [--archetipo <nome>] [--tipo casa|azienda]
@@ -142,6 +148,19 @@ async function main(): Promise<number> {
         resourceId: householdId,
       });
       console.log(JSON.stringify(bundle, null, 2));
+      return 0;
+    }
+    if (command === "ricordi" && positionals[1] === "in-chiaro") {
+      const householdId = await resolveHousehold(db, values.casa);
+      const report = await plainTextMemories(db, dataKey, householdId);
+      await createAuditLog(db).record({
+        verb: "memories_plaintext",
+        outcome: "ok",
+        householdId,
+        resourceType: "household",
+        resourceId: householdId,
+      });
+      console.log(JSON.stringify({ ricordi_in_chiaro: report }, null, 2));
       return 0;
     }
     if (command === "casa" && positionals[1] === "nuova") {

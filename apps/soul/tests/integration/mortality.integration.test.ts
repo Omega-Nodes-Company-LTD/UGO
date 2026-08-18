@@ -11,7 +11,7 @@ import {
 } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
 import { GUARANTEED_DAYS, JITTER_MAX_DAYS } from "@ugo/psyche";
-import { decryptText, encryptText } from "@ugo/shared";
+import { encryptText } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FarewellService } from "../../src/services/farewellService.js";
@@ -197,10 +197,13 @@ describe("il preavviso, il racconto e il congedo", () => {
     // il primo giro ha già insegnato una cosa (era dentro il tick del preavviso)
     const learned = await db.select().from(memories).where(eq(memories.gosinoId, giovane));
     expect(learned).toHaveLength(2);
-    // ed è leggibile: il sapere passa in chiaro per chi lo riceve
-    const texts = learned.map((row) => decryptText(row.text, DATA_KEY));
+    // ed è leggibile davvero: ADR-091 le scrive in chiaro, quindi il sapere
+    // dell'anziano si RIPESCA e l'oblio ci arriva dentro. Prima erano cifrate
+    // e questo test chiedeva `decryptText`: confermava il difetto
+    const texts = learned.map((row) => row.text);
     expect(texts.join(" ")).toContain("compressore");
     expect(texts.join(" ")).toContain("viti M3");
+    expect(texts.some((text) => text.startsWith("v1:"))).toBe(false);
 
     // finito il sapere del nonno, non inventa lezioni nuove
     await watch.tick(at(GUARANTEED_DAYS - 47));

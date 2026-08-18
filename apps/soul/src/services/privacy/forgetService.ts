@@ -339,19 +339,43 @@ export class ForgetService {
     }
   }
 
+  /** Apre una riga cifrata; se non si apre, la lascia com'è invece di perderla. */
+  private open(value: string, dataKey: Buffer): string {
+    try {
+      return decryptText(value, dataKey);
+    } catch {
+      return value;
+    }
+  }
+
   private async redactMemories(
     redact: (value: string) => string,
     report: ForgetReport,
     householdId: string,
   ): Promise<void> {
-    const { db, embedder } = this.deps;
+    const { db, dataKey, embedder } = this.deps;
     const rows = await db
       .select({ id: memories.id, text: memories.text })
       .from(memories)
       .where(inArray(memories.gosinoId, this.exemplars(householdId)));
     const toReEmbed: { id: string; text: string }[] = [];
     for (const row of rows) {
-      const redacted = redact(row.text);
+      /**
+       * ADR-091 — il buco che questa riga chiudeva male.
+       *
+       * La redazione lavora sul testo, e per un pezzo tre scrittori hanno
+       * messo qui del **ciphertext**: la regex cercava un nome in chiaro, non
+       * lo trovava, e lasciava la riga intatta. Il nome di una persona
+       * cancellata restava dentro il lascito — riapribile con la chiave di
+       * casa, che la casa ha — e l'audit log diceva che era andata bene.
+       *
+       * Adesso si apre prima di cercare. E si **riscrive in chiaro**: l'oblio
+       * è l'unico momento in cui passiamo su quella riga sapendo cosa
+       * contiene, quindi è il momento giusto per rimetterla in regola con
+       * ADR-022 invece di ricifrarla e rifare il buco.
+       */
+      const plain = row.text.startsWith("v1:") ? this.open(row.text, dataKey) : row.text;
+      const redacted = redact(plain);
       if (redacted !== row.text) {
         await db.update(memories).set({ text: redacted }).where(eq(memories.id, row.id));
         report.memoriesRedacted += 1;
