@@ -2444,6 +2444,13 @@ il canvas a (30,30), che ora è sotto la barra: spostati a (300,100), col perch�
   versione — ora nella barra in alto — non cambia, i dispositivi vestono ancora il muso
   vecchio. `faceContracts.ts` non toccato.
 
+Verificato qui: face typecheck + eslint `--max-warnings=0` + **199 unit** (3 nuovi su
+`hudChrome`) + build Vite (font woff2 nel bundle) + **33/33 E2E** su infrastruttura reale
+(Postgres/pgvector, MinIO, Ollama, soul da `dist/`, browser vero) — inclusi i due nuovi:
+nascondi→dock→reload→resta nascosto→⌃ riapre, e foglio+presa su viewport 390×844. Build+lint
+dell'intero monorepo verdi (21/21 task turbo); `pnpm audit` pulito sopra il MODERATE noto di
+§7 (esbuild via drizzle-kit).
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
