@@ -333,6 +333,62 @@ describe("lotto 1: lo stato e i conti come ugo_app", () => {
     expect(view.json<{ budget: { spentUsd: number } }>().budget.spentUsd).toBeCloseTo(0.11, 6);
   });
 
+  it("le stanze: il catalogo è della casa, e il vicino non vede la mia cucina", async () => {
+    const made = await app.inject({
+      method: "POST",
+      url: "/v1/rooms",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { name: "cucina-rls" },
+    });
+    expect([200, 201]).toContain(made.statusCode);
+
+    const theirView = await app.inject({
+      method: "GET",
+      url: "/v1/rooms",
+      headers: { authorization: `Bearer ${theirToken}` },
+    });
+    const names = theirView.json<{ rooms: { name: string }[] }>().rooms.map((r) => r.name);
+    expect(names).not.toContain("cucina-rls");
+  });
+
+  it("la popolazione: l'elenco mostra le creature di casa e nessun'altra", async () => {
+    const view = await app.inject({
+      method: "GET",
+      url: "/v1/gosini",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(view.statusCode).toBe(200);
+    const ids = view.json<{ gosini: { id: string }[] }>().gosini.map((g) => g.id);
+    expect(ids).toContain(mine.gosinoId);
+    expect(ids).not.toContain(theirs.gosinoId);
+  });
+
+  it("il pedigree del vicino è un 404, come una creatura che non esiste", async () => {
+    const view = await app.inject({
+      method: "GET",
+      url: `/v1/gosini/${theirs.gosinoId}/pedigree`,
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(view.statusCode).toBe(404);
+  });
+
+  it("la dote del vicino non si guarda, e la sua mortalità non si accetta", async () => {
+    const preview = await app.inject({
+      method: "POST",
+      url: `/v1/gosini/${theirs.gosinoId}/dowry/preview`,
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: {},
+    });
+    expect(preview.statusCode).toBe(404);
+
+    const mortality = await app.inject({
+      method: "POST",
+      url: `/v1/gosini/${theirs.gosinoId}/mortality`,
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(mortality.statusCode).toBe(409);
+  });
+
   it("l'umore del branco: una serie per creatura, e solo le creature di casa", async () => {
     await owner.insert(psycheSnapshots).values([
       { gosinoId: mine.gosinoId, vars: { energia: 0.5 }, label: "sereno" },

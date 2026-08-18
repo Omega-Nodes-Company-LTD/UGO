@@ -7,7 +7,7 @@ import { AdoptionService } from "../services/adoptionService.js";
 import { VetrinaService } from "../services/vetrinaService.js";
 import { guardBreeding } from "./breeding.js";
 import type { PreHandler } from "./guard.js";
-import { accountScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 
 /**
  * La vetrina (ADR-083).
@@ -71,17 +71,25 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
     const parsed = showSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
-    if (accountId === undefined) return reply;
-    if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
-
-    const done = await vetrina.show(
-      accountId,
-      id,
-      parsed.data.listed,
-      parsed.data.priceCents,
+    const done = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) => {
+        if (!(await guardBreeding(db, accountId, "alleva", reply))) return "denied" as const;
+        const shown = await new VetrinaService(db).show(
+          accountId,
+          id,
+          parsed.data.listed,
+          parsed.data.priceCents,
+        );
+        return shown ?? ("unfit" as const);
+      },
     );
-    if (done === undefined) {
+    if (done === undefined) return reply;
+    if (done === "denied") return reply;
+    if (done === "unfit") {
       return reply.status(422).send({
         error: "non si può mettere in vetrina",
         detail: "in vetrina ci va un nato di questa casa, e un capostipite non si vende",

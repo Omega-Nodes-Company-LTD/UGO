@@ -2,7 +2,7 @@ import { events, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { AuditLogger } from "../services/auditLog.js";
 import type { PreHandler } from "./guard.js";
-import { eldestExemplarOf, accountScope } from "./scope.js";
+import { eldestExemplarOf, inAccount } from "./scope.js";
 
 /**
  * `POST /v1/jobs/dream` (PROGETTO §5.7): manual trigger for the night job.
@@ -26,19 +26,29 @@ export interface JobsRouteDeps {
 
 export function registerJobsRoutes(app: FastifyInstance, deps: JobsRouteDeps): void {
   app.post("/v1/jobs/dream", { preHandler: deps.guard }, async (request, reply) => {
-    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
-    if (accountId === undefined) return reply;
     const body = (request.body ?? {}) as { date?: unknown };
     const date = typeof body.date === "string" ? body.date : undefined;
-    await deps.db.insert(events).values({
-      gosinoId: await eldestExemplarOf(deps.db, accountId),
-      source: "system",
-      type: "dream_requested",
-      // l'evento resta il giornale della creatura: le e' stato chiesto di
-      // sognare, e quello e' un fatto della sua notte. Chi l'ha chiesto e'
-      // un'altra domanda, e da ADR-049 ha la sua tabella.
-      payload: date !== undefined ? { date } : {},
-    });
+    // ADR-062: l'evento nasce nella transazione che dichiara la casa; il
+    // trigger HTTP verso il runner resta fuori
+    const accountId = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, account) => {
+        await db.insert(events).values({
+          gosinoId: await eldestExemplarOf(db, account),
+          source: "system",
+          type: "dream_requested",
+          // l'evento resta il giornale della creatura: le e' stato chiesto di
+          // sognare, e quello e' un fatto della sua notte. Chi l'ha chiesto e'
+          // un'altra domanda, e da ADR-049 ha la sua tabella.
+          payload: date !== undefined ? { date } : {},
+        });
+        return account;
+      },
+    );
+    if (accountId === undefined) return reply;
     await deps.audit?.record({
       verb: "dream_requested",
       outcome: "ok",
