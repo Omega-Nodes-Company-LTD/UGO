@@ -2,7 +2,7 @@ import { gosini, meetings, memories, type DbClient } from "@ugo/db";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { MEMORY_KINDS } from "@ugo/shared";
+import { decryptText, MEMORY_KINDS } from "@ugo/shared";
 import type { ChatService } from "../services/chatService.js";
 import type { PreHandler } from "./guard.js";
 import { exemplarsOf, householdScope } from "./scope.js";
@@ -43,6 +43,19 @@ export interface ArchiveDeps {
   chat: ChatService;
   guard: PreHandler;
   /**
+   * ADR-086: senza, questa rotta restituiva il **ciphertext**.
+   *
+   * I ricordi non sono tutti scritti allo stesso modo: il sogno e le riunioni
+   * li scrivono in chiaro, il lascito di chi se n'è andato (ADR-075) e le
+   * lezioni dell'anziano (ADR-077) li scrivono cifrati con la chiave di casa.
+   * Il pannello li stampava così com'erano, quindi la cosa più preziosa che
+   * resta di una creatura si leggeva `v1:` seguito da base64.
+   *
+   * Facoltativa: senza chiave si continua a mostrare il testo grezzo, che è
+   * esattamente il comportamento di prima.
+   */
+  dataKey?: Buffer;
+  /**
    * ADR-035: memories belong to one creature (ADR-032), so the panel's memory
    * page belongs to one too. Without this the search would answer with the
    * default exemplar's recall under another one's name — the same silent
@@ -57,6 +70,16 @@ export interface ArchiveDeps {
 }
 
 export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): void {
+  /** Cifrato o in chiaro, si legge; illeggibile lo dice invece di fingere. */
+  const readable = (value: string): string => {
+    if (deps.dataKey === undefined) return value;
+    try {
+      return decryptText(value, deps.dataKey);
+    } catch {
+      return value.startsWith("v1:") ? "[non leggibile con la chiave di questa casa]" : value;
+    }
+  };
+
   app.get("/v1/memories", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = listQuerySchema.safeParse(request.query);
     if (!parsed.success) {
@@ -88,7 +111,7 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         mode: "search",
         memories: found.map(({ id, text, kind: memoryKind, score, createdAt }) => ({
           id,
-          text,
+          text: readable(text),
           kind: memoryKind,
           score,
           createdAt,
@@ -116,7 +139,10 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
       ))
       .orderBy(desc(memories.createdAt))
       .limit(limit);
-    return reply.send({ mode: "recent", memories: rows });
+    return reply.send({
+      mode: "recent",
+      memories: rows.map((row) => ({ ...row, text: readable(row.text) })),
+    });
   });
 
   /**

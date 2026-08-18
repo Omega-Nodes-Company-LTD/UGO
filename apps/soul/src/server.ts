@@ -22,6 +22,7 @@ import { registerPiggyBankRoutes } from "./routes/piggybank.js";
 import { registerDowryRoutes } from "./routes/dowry.js";
 import { registerFarewellRoutes } from "./routes/farewell.js";
 import { registerCheckinRoutes } from "./routes/checkins.js";
+import { registerMemoryBookRoutes } from "./routes/memoryBook.js";
 import { registerDiaryRoutes } from "./routes/diary.js";
 import { registerTransferRoutes } from "./routes/transfer.js";
 import { registerVetrinaRoutes } from "./routes/vetrina.js";
@@ -325,6 +326,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       db: options.db,
       chat: v1.chat,
       guard,
+      // ADR-086: senza la chiave il pannello mostrava il lascito in base64
+      ...(gosini?.dataKey !== undefined && { dataKey: gosini.dataKey }),
       ...(registry !== undefined && { registry }),
     });
     registerMemoryGraphRoutes(app, { db: options.db, guard });
@@ -403,6 +406,13 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         registerListRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
         // ADR-079: il libro della vita, che nessuno aveva mai potuto leggere
         registerDiaryRoutes(app, {
+          db: options.db,
+          guard,
+          dataKey: gosini.dataKey,
+          ...(registry !== undefined && { registry }),
+        });
+        // ADR-086: il libro dei ricordi — scorrere, non solo cercare
+        registerMemoryBookRoutes(app, {
           db: options.db,
           guard,
           dataKey: gosini.dataKey,

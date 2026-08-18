@@ -34,6 +34,8 @@ import {
 import { addCheckin, MAX_CHECKINS, silenceCheckins, standingCheckins } from "./checkinService.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
 import { dateFor, parseDiaryAsk, tellDiary } from "./volition/diaryAsk.js";
+import { monthOf, parseMemoryAsk, tellMemories } from "./volition/memoryAsk.js";
+import { MemoryBook } from "./memoryBook.js";
 import { parseNewsAsk, tellNews } from "./volition/news.js";
 import {
   answerTimer,
@@ -57,6 +59,12 @@ const HISTORY_TURNS = 8;
  */
 const HISTORY_WINDOW_HOURS = 12;
 const DIARY_EXCERPT_CHARS = 300;
+/**
+ * Quanti ricordi rilegge a voce (ADR-086). Cinque: a voce un elenco più lungo
+ * non si ascolta, si subisce — il mese intero sta nel pannello, e questa è una
+ * risposta parlata, non un export.
+ */
+const RECALL_ALOUD = 5;
 
 export class BeingNotFoundError extends Error {}
 
@@ -532,6 +540,25 @@ export class ChatService {
      * sono già le parole di chi li ha scritti: farli riscrivere a un modello
      * costerebbe un token per peggiorarli.
      */
+    /**
+     * ADR-086: «cosa ti ricordi di marzo?». Dopo il diario e prima delle
+     * notizie, e l'ordine non è casuale: il diario parla di **una giornata**
+     * e questo di **un periodo**, quindi chi nomina il giorno vince — «cos'hai
+     * fatto ieri» non deve diventare un elenco di ricordi di agosto.
+     */
+    const memoryAsk = parseMemoryAsk(request.text);
+    if (memoryAsk !== undefined) {
+      const period = monthOf(memoryAsk, this.localDate(at));
+      const book = new MemoryBook(db, this.deps.dataKey);
+      const lines = await book.page(this.deps.householdId, this.deps.gosinoId, period, {
+        limit: RECALL_ALOUD,
+        // a voce non si rileggono i ricordi smentiti: nel pannello si vedono
+        // perché spiegano cosa credeva, detti a voce sarebbero una bugia
+        onlyValid: true,
+      });
+      return this.answered(tellMemories(lines, period), request, at);
+    }
+
     const newsAsk = parseNewsAsk(request.text);
     if (newsAsk !== undefined) {
       const news = new NewsService(db);
