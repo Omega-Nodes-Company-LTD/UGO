@@ -99,4 +99,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [091](./091-i-ricordi-si-scrivono-in-chiaro.md) | I ricordi si scrivono in chiaro, e cinque difetti erano uno solo | Accettata |
 | [092](./092-da-casa-ad-account.md) | «Casa» diventa «account»: una parola per lavoro | Accettata |
 | [093](./093-l-oblio-del-cliente.md) | L'oblio di un cliente: la rotta che ADR-052 prometteva | Accettata |
-| 094 | *(prossimo numero disponibile)* | — |
+| [094](./094-la-voce-di-casa-parla-per-prima.md) | La voce di casa parla per prima: il provider è il soccorso | Accettata |
+| 095 | *(prossimo numero disponibile)* | — |

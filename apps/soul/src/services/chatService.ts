@@ -11,7 +11,7 @@ import {
   searchMemories,
   searchTranscripts,
   type EmbeddingsClient,
-  type LlmClient,
+  type ChatLlm,
   type LlmHistoryTurn,
   type RankedMemory,
 } from "@ugo/memory";
@@ -78,7 +78,7 @@ export class BeingNotFoundError extends Error {}
 export interface ChatServiceDeps {
   db: DbClient;
   embedder: EmbeddingsClient;
-  llm: LlmClient;
+  llm: ChatLlm;
   psyche: PsycheService;
   dataKey: Buffer;
   /** the pack block of the prompt (ADR-014); absent = no pack context */

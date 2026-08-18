@@ -58,6 +58,16 @@ export interface LlmChatResult {
   costUsd?: number;
 }
 
+/**
+ * Ciò che una conversazione chiede a un modello: una risposta. ADR-094 mette
+ * due implementazioni dietro questa porta — il provider col budget guard, e
+ * la voce di casa che gli parla davanti — e chi conversa non deve sapere
+ * quale delle due ha risposto.
+ */
+export interface ChatLlm {
+  chat(request: LlmChatRequest, at?: Date): Promise<LlmChatResult>;
+}
+
 export interface LlmClientOptions {
   db: DbClient;
   apiKey: string;
