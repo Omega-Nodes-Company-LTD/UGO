@@ -28,6 +28,9 @@ const actSchema = z.object({
   genomeHash: z.string().regex(/^[0-9a-f]{64}$/),
   parents: z.array(parentSchema).min(1).max(4).optional(),
   at: z.iso.datetime(),
+  // ADR-082: la custodia, in forma opaca — mai un nome, mai una persona
+  fromHash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
+  toHash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   generation: z.number().int().min(0).max(10_000).optional(),
 });
 
@@ -100,11 +103,13 @@ export function buildRegistry(options: RegistryServerOptions): FastifyInstance {
     if (!parsed.success) return reply.status(400).send({ error: "atto non valido" });
     // `exactOptionalPropertyTypes`: le chiavi assenti restano assenti, invece
     // di diventare `undefined` — che cambierebbe l'impronta dell'atto
-    const { parents, generation, ...rest } = parsed.data;
+    const { parents, generation, fromHash, toHash, ...rest } = parsed.data;
     const act: Act = {
       ...rest,
       ...(parents !== undefined && { parents }),
       ...(generation !== undefined && { generation }),
+      ...(fromHash !== undefined && { fromHash }),
+      ...(toHash !== undefined && { toHash }),
     };
 
     /**
@@ -133,6 +138,35 @@ export function buildRegistry(options: RegistryServerOptions): FastifyInstance {
       );
       if (!allSigned) {
         return reply.status(422).send({ error: "firme dei genitori non valide" });
+      }
+    }
+
+    /**
+     * ADR-082 — le due regole che rendono la cessione una legge della specie
+     * invece di una regola del server di qualcuno.
+     *
+     * 1. **Si cedono solo i nati.** Non lo si chiede al venditore: lo si
+     *    guarda in catena. Nessun atto di nascita ⇒ è un capostipite (o
+     *    un'ombra), e un capostipite è l'inizio di una stirpe, non merce.
+     * 2. **La custodia è una catena.** Chi cede deve essere chi teneva. Un
+     *    allevamento che vende due volte lo stesso cucciolo presenta un
+     *    secondo atto la cui provenienza non è più la custodia corrente — ed
+     *    è esattamente la doppia vendita, vista da chiunque.
+     */
+    if (act.kind === "transfer") {
+      if (act.toHash === undefined) {
+        return reply.status(422).send({ error: "una cessione senza destinatario non si registra" });
+      }
+      if (!(await options.store.wasBorn(act.gosinoId))) {
+        return reply
+          .status(422)
+          .send({ error: "si cedono solo i nati: di questa creatura non c'è atto di nascita" });
+      }
+      const holder = await options.store.holderOf(act.gosinoId);
+      if (holder !== undefined && holder !== act.fromHash) {
+        return reply
+          .status(409)
+          .send({ error: "questa creatura è già stata ceduta a qualcun altro" });
       }
     }
 

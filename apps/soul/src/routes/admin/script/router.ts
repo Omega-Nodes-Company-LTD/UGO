@@ -144,6 +144,8 @@ async function openPage(page) {
   } else if (page === "pedigree") {
     // ADR-070: da chi discende, e se le firme dei genitori reggono
     await section(loadPedigree, "pedigree-msg");
+    // ADR-082: e — se è nato e questa casa alleva — la cessione
+    drawCede();
   } else if (page === "salvadanaio") {
     // ADR-072: quanto ha in pancia, e i pasti che gli sono stati dati
     await section(loadPiggyBank, "feed-msg");

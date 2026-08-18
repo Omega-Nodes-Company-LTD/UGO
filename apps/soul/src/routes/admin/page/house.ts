@@ -100,7 +100,6 @@ export const HOUSE_PAGES = `
         <option value="azienda">azienda</option>
       </select>
       <input id="new-house-tz" type="text" placeholder="Europe/Rome" data-testid="new-house-tz" />
-      <input id="new-house-gosino" type="text" placeholder="nome del gosino" data-testid="new-house-gosino" />
       <button id="new-house" class="ghost" data-testid="new-house">Falla nascere</button>
     </div>
     <div id="new-house-msg"></div>

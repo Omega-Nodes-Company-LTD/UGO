@@ -49,11 +49,17 @@ export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRou
     const [fed] = await deps.db
       .select({ total: sql<string>`coalesce(sum(${feedings.amountUsd}), 0)` })
       .from(feedings)
-      .where(eq(feedings.gosinoId, id));
+      /**
+       * ADR-082: **e della casa che guarda.** Da quando un nato può cambiare
+       * casa (ADR-081), un saldo scopato sul solo esemplare sarebbe denaro che
+       * si teletrasporta: la famiglia che compra il cucciolo si troverebbe in
+       * pancia i pasti pagati dall'allevamento.
+       */
+      .where(and(eq(feedings.gosinoId, id), eq(feedings.householdId, householdId)));
     const [eaten] = await deps.db
       .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
       .from(budgetLedger)
-      .where(eq(budgetLedger.gosinoId, id));
+      .where(and(eq(budgetLedger.gosinoId, id), eq(budgetLedger.householdId, householdId)));
     const meals = await deps.db
       .select({
         kind: feedings.kind,
@@ -62,7 +68,7 @@ export function registerPiggyBankRoutes(app: FastifyInstance, deps: PiggyBankRou
         at: feedings.at,
       })
       .from(feedings)
-      .where(eq(feedings.gosinoId, id))
+      .where(and(eq(feedings.gosinoId, id), eq(feedings.householdId, householdId)))
       .orderBy(desc(feedings.at))
       .limit(20);
 

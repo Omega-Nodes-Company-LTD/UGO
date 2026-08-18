@@ -15,7 +15,7 @@ import { decryptText, encryptText } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FarewellService } from "../../src/services/farewellService.js";
-import { createHousehold } from "../../src/services/householdService.js";
+import { createHouseholdWithFounder } from "../../src/services/householdService.js";
 import { MortalityWatch } from "../../src/services/mortalityWatch.js";
 
 /**
@@ -81,7 +81,7 @@ beforeAll(async () => {
 
   // la casa nasce con la sua creatura, che qui fa da allievo: è il più
   // giovane della casa, ed è a lui che l'anziano racconterà
-  const house = await createHousehold(db, MASTER_KEY, {
+  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
     slug: "casa-arco",
     name: "Arco",
     gosinoName: "Nipote",

@@ -180,6 +180,8 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
         bornAt: gosini.bornAt,
         mortalFrom: gosini.mortalFrom,
         jitter: gosini.lifeJitterDays,
+        // ADR-081/082: da dove viene — e quindi se può essere ceduto
+        origin: gosini.origin,
         noticedAt: gosini.deathNoticeAt,
       })
       .from(gosini)
@@ -218,6 +220,7 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
         where: row.where,
         persona: character.persona,
         mortal: mortalFrom !== null,
+        origin: row.origin,
         /** ADR-077: che il preavviso sia stato dato, non quando finisce */
         farewellNotice: row.noticedAt !== null,
         age:

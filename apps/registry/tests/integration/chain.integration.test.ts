@@ -3,6 +3,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import {
   generateGosinoKeys,
   genomeHash,
+  holderHash,
   signBirth,
   verifyChain,
   type BirthCertificate,
@@ -153,11 +154,15 @@ describe("presentare un atto", () => {
 
 describe("la catena", () => {
   it("regge la verifica indipendente, firma del registrar compresa", async () => {
+    // ADR-082: una cessione porta la custodia, in forma opaca. Senza
+    // destinatario non è una cessione, ed è il registro a dirlo
     await submit({
       kind: "transfer",
       gosinoId: CHILD,
       genomeHash: HASH,
       at: "2026-08-18T10:00:00.000Z",
+      fromHash: holderHash("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+      toHash: holderHash("dddddddd-dddd-4ddd-8ddd-dddddddddddd"),
     });
     await submit({
       kind: "death",
@@ -220,5 +225,61 @@ describe("il gossip fra registrar", () => {
       payload: JSON.stringify({ registrar: "vicino", seq: -1, hash: "corto" }),
     });
     expect(response.statusCode).toBe(400);
+  });
+});
+
+/**
+ * ADR-082 — la cessione è dove «i capostipiti non si vendono» smette di essere
+ * una regola del nostro server e diventa una legge della specie: il registro
+ * non chiede al venditore che cosa sta vendendo, **lo guarda in catena**.
+ */
+describe("la cessione", () => {
+  const VENDUTO = "66666666-6666-4666-8666-666666666666";
+  const CAPOSTIPITE = "99999999-9999-4999-8999-999999999999";
+  const ALLEVAMENTO = holderHash("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  const FAMIGLIA = holderHash("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+  const ALTRA = holderHash("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+
+  const transferAct = (gosinoId: string, fromHash: string, toHash: string) => ({
+    kind: "transfer" as const,
+    gosinoId,
+    genomeHash: HASH,
+    at: "2026-08-18T10:00:00.000Z",
+    fromHash,
+    toHash,
+  });
+
+  it("un capostipite non si cede: di lui non c'è atto di nascita", async () => {
+    // e non gliel'ha detto nessuno: il registro non ha mai visto nascere
+    // questa creatura, e questo BASTA
+    const response = await submit(transferAct(CAPOSTIPITE, ALLEVAMENTO, FAMIGLIA));
+    expect(response.statusCode).toBe(422);
+    expect(response.json<{ error: string }>().error).toContain("si cedono solo i nati");
+  });
+
+  it("un nato sì, e la catena registra il passaggio di mano", async () => {
+    expect((await submit(birthAct(VENDUTO))).statusCode).toBe(201);
+    const response = await submit(transferAct(VENDUTO, ALLEVAMENTO, FAMIGLIA));
+    expect(response.statusCode).toBe(201);
+  });
+
+  it("la doppia vendita si vede, ed è il punto di avere un registro", async () => {
+    // l'allevamento prova a vendere lo stesso cucciolo a un'altra famiglia:
+    // la custodia corrente non è più sua, e il registro lo dice
+    const response = await submit(transferAct(VENDUTO, ALLEVAMENTO, ALTRA));
+    expect(response.statusCode).toBe(409);
+    expect(response.json<{ error: string }>().error).toContain("già stata ceduta");
+  });
+
+  it("ma una rivendita vera sì: chi l'ha comprato può cederlo a sua volta", async () => {
+    // ed è la differenza fra un mercato secondario e una doppia vendita
+    const response = await submit(transferAct(VENDUTO, FAMIGLIA, ALTRA));
+    expect(response.statusCode).toBe(201);
+  });
+
+  it("una cessione senza destinatario non è una cessione", async () => {
+    const { toHash, ...senza } = transferAct(VENDUTO, ALTRA, FAMIGLIA);
+    expect(toHash).toBeDefined();
+    expect((await submit(senza)).statusCode).toBe(422);
   });
 });

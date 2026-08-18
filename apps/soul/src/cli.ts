@@ -191,14 +191,25 @@ async function main(): Promise<number> {
       // su stderr e non su stdout: stdout e' per i dati, e un token che finisce
       // dentro una pipe o un file di log e' un token da revocare
       console.error(`casa "${born.slug}" creata.`);
-      console.error(`gosino: ${values.gosino ?? "ugo"} — ${born.persona}`);
+      // ADR-082: una casa nasce vuota se non le si conia un capostipite, e
+      // dirlo è la differenza fra «ecco la tua casa» e «e adesso adotta»
+      console.error(
+        born.gosinoId === undefined
+          ? "nessun gosino: la casa nasce vuota, e riceverà un nato (--gosino ne conia uno)."
+          : `capostipite coniato: ${values.gosino ?? ""} — ${born.persona}`,
+      );
       console.error("");
       console.error("Token del proprietario, mostrato UNA VOLTA SOLA:");
       console.error("");
       console.error(`  ${born.ownerToken}`);
       console.error("");
       console.error("In database c'è solo il suo SHA-256: se lo perdi, se ne emette un altro.");
-      console.log(JSON.stringify({ householdId: born.householdId, gosinoId: born.gosinoId }));
+      console.log(
+        JSON.stringify({
+          householdId: born.householdId,
+          ...(born.gosinoId !== undefined && { gosinoId: born.gosinoId }),
+        }),
+      );
       return 0;
     }
     console.error(USAGE);

@@ -16,7 +16,11 @@ import { eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuditLog } from "../../src/services/auditLog.js";
-import { createHousehold, HouseholdSlugTakenError } from "../../src/services/householdService.js";
+import {
+  createHousehold,
+  createHouseholdWithFounder,
+  HouseholdSlugTakenError,
+} from "../../src/services/householdService.js";
 import { hashToken, issueToken } from "../../src/services/tenantAuth.js";
 import { buildServer } from "../../src/server.js";
 
@@ -63,7 +67,7 @@ afterAll(async () => {
 
 describe("ugo casa nuova", () => {
   it("builds the whole family in one act", async () => {
-    const born = await createHousehold(db, MASTER_KEY, {
+    const born = await createHouseholdWithFounder(db, MASTER_KEY, {
       slug: "Casa-Rossi",
       name: "  Rossi  ",
       timezone: "Europe/Lisbon",

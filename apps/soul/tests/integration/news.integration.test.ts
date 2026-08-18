@@ -14,7 +14,10 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
 import { characterFrom } from "../../src/services/council/character.js";
-import { createHousehold } from "../../src/services/householdService.js";
+import {
+  createHousehold,
+  createHouseholdWithFounder,
+} from "../../src/services/householdService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
 
@@ -47,7 +50,7 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHousehold(db, MASTER_KEY, {
+  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
     slug: "casa-feed",
     name: "Feed",
     gosinoName: "Ugo",

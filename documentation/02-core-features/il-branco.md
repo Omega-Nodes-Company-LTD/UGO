@@ -1,7 +1,7 @@
 ---
 title: "Il branco: più gosini, e le cucciolate"
 description: "Come una casa arriva ad avere più gosini: chi può farli nascere, la cucciolata da due genitori, e il pedigree che dice da chi discendono."
-version: "0.41.0"
+version: "0.42.0"
 last_updated: "2026-08-18"
 author: "ThinkPink Studio"
 ---
@@ -37,9 +37,26 @@ trovi nessun pulsante per creare: trovi scritto che un gosino si sceglie **fra q
 Non è una limitazione travestita da regola: è la regola. Una creatura che si crea con un
 pulsante è un oggetto; una che si sceglie fra quelle nate esisteva prima di te.
 
-> **Sta arrivando**: la vetrina degli allevamenti — scorrere gli allevamenti, guardarne i
-> pedigree, vedere i gosini disponibili e scegliere il preferito — e la cessione vera e
-> propria. Finché non c'è, la tua casa ti è stata consegnata con il suo capostipite.
+### Quando un gosino cambia casa
+
+Un allevamento consegna un nato scrivendo dove va e ripetendone il nome — un click accanto ad
+altri click non consegna una creatura. Poi succede una cosa che vale la pena sapere:
+
+**Parte lui, non la vita che ha fatto in allevamento.** Arriva col suo carattere, il suo
+genoma, la sua genealogia e i suoi anni davanti; **non arriva** con i ricordi, le
+conversazioni, il diario e i legami di là. Non è una perdita: quelle sono parole di persone
+che stanno a casa di qualcun altro, e non si vendono insieme all'animale. Se l'allevatore
+vuole passarti anche quello che sa, si fa con la **dote**, che filtra apposta.
+
+Quindi il tuo gosino arriva col suo carattere e la testa vuota. È come si prende un cucciolo.
+
+**Il passaggio finisce nel libro genealogico**, e serve a una cosa precisa: un allevamento che
+vendesse due volte lo stesso cucciolo verrebbe rifiutato dal registro, perché la creatura non
+è più in custodia sua. Una rivendita vera — tu che un giorno lo cedi a qualcun altro — passa
+senza problemi: la differenza fra le due è chi ce l'ha adesso.
+
+> **Sta arrivando**: la vetrina — scorrere gli allevamenti, guardarne i pedigree, vedere i
+> gosini disponibili e scegliere il preferito al momento della registrazione.
 
 ## Una cucciolata
 
