@@ -10,7 +10,7 @@ import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerArchiveRoutes } from "./routes/archive.js";
 import { registerMemoryGraphRoutes } from "./routes/memoryGraph.js";
 import { registerPackRoutes } from "./routes/pack/index.js";
-import { registerPrivacyRoutes } from "./routes/privacy.js";
+import { registerDataSummaryRoute, registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerStatsRoute } from "./routes/stats.js";
 import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceStatic } from "./routes/faceStatic.js";
@@ -320,6 +320,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     if (privacy !== undefined) {
       registerPrivacyRoutes(app, { db: options.db, ...privacy, guard, audit });
     }
+    // ADR-090: e i conti sempre, anche senza i due servizi — dire cosa si
+    // tiene è il gradino prima di ogni diritto
+    registerDataSummaryRoute(app, { db: options.db, guard });
     // the archive is about memories and meetings, and had no business being
     // gated on the species map: it was registered there only because both
     // arrived in the same afternoon

@@ -10,6 +10,7 @@ import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { myBuildId, shouldReload } from "./version.js";
 import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noiseGate.js";
 import { mountLogPanel } from "./logPanel.js";
+import { mountMyData } from "./myData.js";
 import { startObjectSpotter } from "./objectSpotter.js";
 import { RainSound } from "./rainSound.js";
 import { Speech } from "./speech.js";
@@ -126,6 +127,30 @@ const { remember } = mountLogPanel(
     clear: requireElement("#log-clear"),
   },
   params.get("stanza"),
+);
+
+/**
+ * ADR-090: i due diritti, dove vive chi li ha.
+ *
+ * Il token del chiosco basta per **contare** — quanto tiene, non cosa — e non
+ * basta per i due atti: quelli chiedono il token di casa lì per lì, e non lo
+ * tengono. Su uno schermo che vedono tutti è la differenza fra una porta e un
+ * buco nel muro.
+ */
+mountMyData(
+  {
+    panel: requireElement("#mydata"),
+    toggle: requireElement("#btn-mydata"),
+    close: requireElement("#mydata-close"),
+    lines: requireElement("#mydata-lines"),
+    who: requireElement("#mydata-who") as HTMLSelectElement,
+    confirmName: requireElement("#mydata-confirm") as HTMLInputElement,
+    token: requireElement("#mydata-token") as HTMLInputElement,
+    forget: requireElement("#mydata-forget"),
+    exportAll: requireElement("#mydata-export"),
+    message: requireElement("#mydata-msg"),
+  },
+  { soulHttp, kioskToken: params.get("token") ?? undefined },
 );
 
 /**

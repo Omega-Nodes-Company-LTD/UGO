@@ -1,6 +1,7 @@
 import type { DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { dataSummary } from "../services/privacy/dataSummary.js";
 import type { ExportService } from "../services/privacy/exportService.js";
 import { BeingNotFoundError, type ForgetService } from "../services/privacy/forgetService.js";
 import type { AuditLogger } from "../services/auditLog.js";
@@ -26,6 +27,35 @@ export interface PrivacyRouteDeps {
   guard: PreHandler;
   /** ADR-049: i due atti che un audit log esiste per registrare */
   audit?: AuditLogger;
+}
+
+/**
+ * «Cosa sai di me» (ADR-090) — registrata **da sola**, e non insieme ai due
+ * atti.
+ *
+ * I diritti di cancellazione e portabilità hanno bisogno dei loro servizi;
+ * questa ha bisogno solo del database. Tenerla dentro lo stesso blocco voleva
+ * dire che un'installazione senza quei servizi non poteva nemmeno **dire cosa
+ * tiene** — e sapere cosa un sistema sa di te è il gradino prima di ogni
+ * diritto, quindi è la cosa che deve mancare per ultima.
+ */
+export function registerDataSummaryRoute(
+  app: FastifyInstance,
+  deps: { db: DbClient; guard: PreHandler },
+): void {
+  /**
+   * «Cosa sai di me» (ADR-090).
+   *
+   * Numeri, non contenuti, e **non** dietro `requireAdmin`: sapere quanto un
+   * sistema tiene su di te è il gradino prima di ogni diritto, e metterlo
+   * dietro al token di casa vorrebbe dire che per sapere cosa sa di te devi
+   * chiedere a qualcun altro. I due atti che seguono restano dove sono.
+   */
+  app.get("/v1/privacy/summary", { preHandler: deps.guard }, async (request, reply) => {
+    const householdId = await householdScope(deps.db, request, reply);
+    if (householdId === undefined) return reply;
+    return reply.send(await dataSummary(deps.db, householdId));
+  });
 }
 
 export function registerPrivacyRoutes(app: FastifyInstance, deps: PrivacyRouteDeps): void {

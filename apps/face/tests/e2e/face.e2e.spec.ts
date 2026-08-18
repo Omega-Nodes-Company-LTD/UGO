@@ -103,3 +103,38 @@ test("what was said stays in the scroll, and survives a reload", async ({ page }
   await page.getByTestId("log-close").click();
   await expect(page.getByTestId("log")).toBeHidden();
 });
+
+/**
+ * ADR-090: i due diritti dove vive chi li ha.
+ *
+ * Il pannello `/admin` li aveva già, e chi vive in questa casa il pannello non
+ * lo apre: vede il muso. Qui si prova la strada vera — browser, chiosco, soul
+ * e Postgres veri — perché una pagina che si monta solo nei test unitari non
+ * ha ancora incontrato nessuno.
+ */
+test("dal chiosco si vede cosa UGO tiene, e la cancellazione non parte per sbaglio", async ({
+  page,
+}) => {
+  const token = process.env.UGO_E2E_TOKEN ?? "";
+  await page.goto(
+    `/?soul=${encodeURIComponent(soulWs())}&token=${encodeURIComponent(token)}`,
+  );
+  await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "true");
+
+  await page.getByTestId("btn-mydata").click();
+  await expect(page.getByTestId("mydata")).toBeVisible();
+
+  // i conti ci sono, e sono conti: nove righe, nessun contenuto
+  await expect(page.getByTestId("mydata-lines").locator("li")).toHaveCount(9);
+  await expect(page.getByTestId("mydata-lines")).toContainText("ricordi");
+
+  // «dimentica» senza dire chi non fa niente e lo dice
+  await page.getByTestId("mydata-forget").click();
+  await expect(page.getByTestId("mydata-msg")).toHaveText(/Prima dimmi chi/);
+
+  // chiuso e riaperto, il token digitato non è rimasto lì per il prossimo
+  await page.getByTestId("mydata-token").fill("un-token-qualunque");
+  await page.getByTestId("mydata-close").click();
+  await page.getByTestId("btn-mydata").click();
+  await expect(page.getByTestId("mydata-token")).toHaveValue("");
+});
