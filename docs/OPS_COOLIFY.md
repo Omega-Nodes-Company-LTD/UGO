@@ -630,14 +630,16 @@ buona fede.
 - **archivia il cliente** — tutti i suoi token smettono di valere insieme, e lui non entra più. I
   dati restano.
 
-**La cancellazione vera non ha ancora un bottone**, ed è giusto saperlo prima di prometterla a un
-cliente: la riga `customers` cascata su tutto ciò che era suo (ticket, messaggi, token, fonti,
-indice, cache), ma oggi quel `delete` si esegue solo sul database, a mano, in una finestra
-dedicata — non c'è né una rotta né un comando di pannello, e `Far dimenticare qualcuno` (§5.4)
-riguarda le persone del branco, non le organizzazioni. Per una richiesta di cancellazione di un
-cliente: archivialo subito (l'accesso finisce lì), poi esegui la riga sul database. L'**export**
-della casa invece li conosce già — clienti, ticket, conversazioni e fonti sono dentro il JSON: a
-un cliente che chiede i propri dati si risponde da lì, senza lavoro manuale.
+**La cancellazione vera** (ADR-093) sta nella stessa pagina, sotto «Archivia»: **Dimentica il
+cliente**. Chiede di scrivere il suo nome per intero — è irreversibile, e cancella anche i
+documenti dal bucket, che il cascade del database da solo non tocca. Se il pannello risponde con
+un rifiuto che parla di «bucket non configurato», è la protezione che lavora: ci sono documenti
+nello storage e mancano le variabili S3 (§2.7) — un oblio a metà non parte. Ogni cancellazione
+lascia una riga di audit (`customer_forgotten`), che è ciò che ti permette di dire «cancellato
+il giorno X» a chi l'ha chiesto. Per una richiesta GDPR: **archivia subito** (l'accesso finisce
+lì), raccogli l'eventuale conferma scritta, poi **Dimentica**. L'**export** della casa invece li
+conosce già — clienti, ticket, conversazioni e fonti sono dentro il JSON: a un cliente che
+chiede i propri dati si risponde da lì, senza lavoro manuale.
 
 ### 5.8 Il branco che cresce: una cucciolata, e il suo pedigree
 
