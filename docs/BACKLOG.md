@@ -379,6 +379,22 @@ orienta, la spec comanda — ogni punto promosso a lavoro parte dal suo ADR.
 | 🚫 | **Blockchain per l'anima** | nessun problema di fiducia multi-parte in un sistema mono-proprietario local-first; immutabilità vs oblio GDPR; l'append-only c'è già con due `REVOKE` (ADR-049). Per specie, atti e conti la catena federata parte da subito (VISIONE orizz. 0/1) — ma sulla catena mai ricordi né PII |
 | 🚫 | **Hardware esotico / parti mobili** | ADR-003: zero guasti meccanici; il corpo-telefono nel guscio È l'hardware che nessuno usa così |
 
+## Gruppo 21 — Le parentele e la visione che ricorda (decisioni del proprietario, 2026-08-18)
+
+Dalla domanda sul server GPU e la visione («fammi vedere gli scatti del parco», «manda una foto
+al gosino di nonno Sandro», «cosa costava il PC rosso?»). La prima voce è stata **decisa e
+promossa a lavoro**; le altre tre sono le decisioni che restano da cliccare, ognuna col suo
+prezzo dichiarato.
+
+| | Punto | Note |
+|---|---|---|
+| 🔨 | **Le parentele fra le case** (ADR-092) | deciso 2026-08-18: legame fra due case con consenso bilaterale (`household_ties`), avvertenza PRIMA del click, e la **cartolina** (`parcels`): messaggio o ricordo, testo, **solo su azione esplicita** — mai iniziativa, sogno o job. RLS bilaterale sul precedente di `adoptions`, testo ri-cifrato con la DEK della casa destinataria, consegna come desiderio del gosino destinatario + cassetta della posta nel pannello. Perimetro v1: stessa installazione, solo testo |
+| ⬜️ | **Lo sguardo che si ricorda** (da cliccare) | il pezzo mancante di «cosa costava il PC rosso?»: su gesto esplicito («ricordati questo», «guarda qui») la frase del modello vision e/o l'OCR (ADR-065) diventano un **ricordo** ripescabile — testo, mai pixel: ADR-016 v.1 resta intatto. Niente GPU richiesta: moondream/tesseract su CPU bastano per l'MVP |
+| ⬜️ | **L'album di famiglia** (da cliccare — tocca ADR-016 v.1) | «fammi vedere gli scatti del parco» richiede di CONSERVARE foto, oggi vietato («nessun media raw persistito»). La forma proposta: scatto solo su gesto esplicito, foto cifrate a riposo come i centroidi biometrici, didascalia VLM ripescabile, retention e cestino nel pannello, **mai riconoscimento facciale sulle foto conservate**. È un ADR che riapre un vincolo non negoziabile: decisione del proprietario, non un'implementazione |
+| ⬜️ | **Il nodo GPU (GEX44)** (da cliccare — estende ADR-017) | già registrato nel gruppo 13 per la commercializzazione; per la visione anticipa qwen-VL (didascalie serie, «leggere e capire»), whisper large e XTTS. Stessa tailnet, frame transienti in RAM anche lì, `UGO_DATA_KEY` resta su soul: il perimetro diventa due macchine, e va scritto in un ADR che estende ADR-017 |
+
+La cartolina con la **foto** dipende dall'album: finché l'album non esiste, la cartolina è testo.
+
 ## Scartati, con motivo
 
 - **Marketplace di skill** — vale per dieci famiglie come per una: non è il collo di bottiglia.
@@ -386,7 +402,10 @@ orienta, la spec comanda — ogni punto promosso a lavoro parte dal suo ADR.
 - **Certificazioni** (ISO 27001, SOC 2) — hanno senso vendendo a terzi, non prima.
 - **Multilingua come funzione** — l'italiano è una scelta di progetto; la lingua *per casa* è un'altra cosa ed è nel gruppo 5.
 - **Registratore dedicato con storage a bordo** — siamo su un telefono.
-- **Federazione fra case** — è il confine, non una funzione mancante (ADR-019).
+- **Federazione fra case** — è il confine, non una funzione mancante (ADR-019). **Precisata da
+  ADR-092** (2026-08-18): la *parentela* con consenso bilaterale e l'invio esplicito di una
+  cartolina non sono federazione — nessun flusso automatico, nessuna sincronizzazione; il
+  confine resta.
 - **Regolare carattere e aspetto dopo la nascita** (manopole, skin, editor del muso) — **divieto
   assoluto**, deciso dal proprietario il 2026-08-18. «Si adotta, non si configura»: un carattere
   con una manopola è un'impostazione, e una creatura con le impostazioni è un prodotto. Si

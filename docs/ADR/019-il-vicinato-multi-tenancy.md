@@ -3,6 +3,10 @@
 **Stato: ACCETTATA (2026-08-10)** — decisione presa dal proprietario dopo l'analisi competitiva:
 UGO smetterà di essere un esemplare unico e diventerà un vicinato di esemplari, uno per famiglia.
 
+> **Parzialmente riaperta da ADR-092** (2026-08-18): due case possono stringere una **parentela**
+> con consenso bilaterale, che rende possibile l'invio esplicito di messaggi e ricordi — mai un
+> flusso automatico. Tutto il resto di questa decisione resta in vigore.
+
 ## Contesto
 
 Fino a ieri UGO era una creatura sola su un server solo. ADR-014 stabilisce che l'entità di prima
