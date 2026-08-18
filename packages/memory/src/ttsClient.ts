@@ -31,6 +31,8 @@ export interface TtsSpender {
 
 export interface TtsClientOptions {
   db: DbClient;
+  /** ADR-098: la connessione della casa che spende; assente = `db` */
+  dbFor?: (accountId: string) => DbClient;
   apiKey: string;
   /** fallback ceiling; a house that sets its own in `accounts` overrides it */
   dailyBudgetUsd: number;
@@ -58,8 +60,13 @@ export class OpenAiTtsClient implements LocalTtsClient {
     });
   }
 
+  /** ADR-098: la connessione della casa che spende; assente = `db` */
+  private dbOf(accountId: string): DbClient {
+    return this.options.dbFor?.(accountId) ?? this.options.db;
+  }
+
   private async budgetLeft(spender: TtsSpender, at: Date): Promise<boolean> {
-    const { db } = this.options;
+    const db = this.dbOf(spender.accountId);
     const [row] = await db
       .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
       .from(budgetLedger)
@@ -131,7 +138,7 @@ export class OpenAiTtsClient implements LocalTtsClient {
     // riga in silenzio, che è il modo esatto in cui un tetto smette di essere
     // un tetto. Qui un guasto del registro risale, invece di sparire.
     const cost = text.length * ESTIMATED_USD_PER_CHAR;
-    await this.options.db.insert(budgetLedger).values({
+    await this.dbOf(spender.accountId).insert(budgetLedger).values({
       date: this.today(at),
       provider: "openai",
       model: this.options.model ?? "gpt-4o-mini-tts",

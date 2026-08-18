@@ -79,7 +79,14 @@ if (env.UGO_AUTO_MIGRATE) {
   }
 }
 
-const db = createDbClient(env.DATABASE_URL);
+/**
+ * ADR-062 tempo 2b: il servizio parla col database come `ugo_app` quando
+ * `DATABASE_URL_APP` è impostata — è il flip che accende RLS in produzione.
+ * Le migrazioni sopra restano sull'owner: i privilegi non si applicano al
+ * proprietario delle tabelle, ed è per questo che sono due utenze.
+ */
+const appUrl = env.DATABASE_URL_APP ?? env.DATABASE_URL;
+const db = createDbClient(appUrl);
 
 /**
  * ADR-098: la connessione della casa. Un client per account, creato una volta
@@ -90,7 +97,7 @@ const houseClients = new Map<string, DbClient>();
 const dbFor = (accountId: string): DbClient => {
   const cached = houseClients.get(accountId);
   if (cached !== undefined) return cached;
-  const scoped = createScopedDbClient(env.DATABASE_URL, accountId);
+  const scoped = createScopedDbClient(appUrl, accountId);
   houseClients.set(accountId, scoped);
   return scoped;
 };
@@ -519,16 +526,22 @@ const app = buildServer({
       reception: {
         token: env.UGO_RECEPTION_TOKEN,
         dataKey,
-        quota: new CustomerQuota(db, {
-          hourlyMessages: env.UGO_CUSTOMER_HOURLY_MESSAGES,
-          dailyBudgetUsd: env.UGO_CUSTOMER_DAILY_BUDGET_USD,
-          timezone: env.TZ,
-        }),
+        dbFor,
+        quota: new CustomerQuota(
+          db,
+          {
+            hourlyMessages: env.UGO_CUSTOMER_HOURLY_MESSAGES,
+            dailyBudgetUsd: env.UGO_CUSTOMER_DAILY_BUDGET_USD,
+            timezone: env.TZ,
+          },
+          dbFor,
+        ),
         weeklyRewards: env.UGO_CUSTOMER_WEEKLY_REWARDS,
         llmFor,
         embedder,
         github: new GithubLiveService({
           db,
+          dbFor,
           dataKey,
           ...(env.GITHUB_API_URL !== undefined && { baseUrl: env.GITHUB_API_URL }),
         }),
@@ -554,6 +567,7 @@ const app = buildServer({
     ...(env.OPENAI_API_KEY !== undefined && {
       tts: new OpenAiTtsClient({
         db,
+        dbFor,
         apiKey: env.OPENAI_API_KEY,
         dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
         model: env.UGO_TTS_MODEL,

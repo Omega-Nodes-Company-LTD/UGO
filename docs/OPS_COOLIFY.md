@@ -1048,6 +1048,35 @@ prima di decidere cosa farne.
 4. Il codice legge tutto dalle env: nessun file da toccare, nessun rebuild necessario oltre al
    redeploy.
 
+## 8-bis. Il flip di RLS: l'utenza applicativa (ADR-062 tempo 2b)
+
+Fin qui soul e i job parlano col database come **owner** delle tabelle, a cui le politiche
+Row Level Security non si applicano: il muro fra le case esiste ed è **inerte**. Il flip lo
+accende, e si fa in tre mosse — reversibili togliendo la variabile:
+
+1. **La password dell'utenza applicativa** (una volta sola, da psql come owner):
+
+   ```sql
+   ALTER ROLE ugo_app LOGIN PASSWORD '<password-diversa-dall-owner>';
+   ```
+
+2. **`DATABASE_URL_APP`** su soul E sul container dei job (stesso host e database, utente
+   `ugo_app`):
+
+   ```
+   DATABASE_URL_APP=postgres://ugo_app:<password-app>@<HOST_POSTGRES>:5432/ugo
+   ```
+
+   `DATABASE_URL` **resta com'è**: le migrazioni girano sull'owner, ed è il punto — i
+   privilegi non si applicano al proprietario delle tabelle (ADR-048 §7).
+
+3. **Il giro di fumo**, che con una casa sola dice poco e con due dice tutto: chat dal muso,
+   pannello (`/admin`), un sogno manuale (`POST /v1/jobs/dream`), e — se c'è la reception —
+   un messaggio da un token cliente. Una rotta rimasta fuori dal muro non risponde dati
+   sbagliati: risponde **zero righe**, che si vede subito.
+
+   Per tornare indietro: togli `DATABASE_URL_APP` e riavvia. Nessun dato è cambiato.
+
 ## 9. Il foglio dei valori
 
 I valori tra parentesi angolari usati sopra. Compilali **prima** di cominciare: a metà deploy, cercare

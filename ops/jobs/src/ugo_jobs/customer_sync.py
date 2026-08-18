@@ -35,6 +35,12 @@ def run_customer_sync(cfg: JobsConfig, conn: psycopg.Connection | None = None) -
         ).fetchall()
         report: dict = {}
         for (account_id,) in houses:
+            # ADR-062/098: la casa si dichiara alla sessione prima del suo
+            # giro — la connessione serve le case in serie, e sotto l'utenza
+            # applicativa le fonti di una casa non dichiarata sono zero righe
+            connection.execute(
+                "select set_config('app.account_id', %s, false)", (str(account_id),)
+            )
             report[str(account_id)] = {
                 "repos": run_repos(connection, cfg, str(account_id)),
                 "mail": run_mail(connection, cfg, str(account_id)),

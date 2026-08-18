@@ -9,6 +9,13 @@ const optionalNonEmpty = z.preprocess(
 /** Environment contract for soul-api (Fasi 0-4). Boot fails fast if unmet. */
 export const soulEnvSchema = z.object({
   DATABASE_URL: z.url(),
+  /**
+   * ADR-062 tempo 2b: l'utenza applicativa (`ugo_app`), su cui le politiche
+   * RLS mordono davvero. Assente = si resta sull'owner, dove il muro esiste
+   * ed è inerte — il flip è impostarla, e si può togliere per tornare
+   * indietro. Le migrazioni restano SEMPRE su DATABASE_URL (l'owner).
+   */
+  DATABASE_URL_APP: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   // MQTT exists for the Nano 33 IoT firmware only (PROGETTO §5.7). With the
   // firmware set aside, a deployment has no broker and must not be forced to
   // invent one: leave these unset and the check reports "off", not "error".

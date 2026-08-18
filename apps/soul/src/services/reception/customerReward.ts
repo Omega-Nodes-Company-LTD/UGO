@@ -45,6 +45,8 @@ const WINDOW_DAYS = 7;
 
 export interface CustomerRewardDeps {
   db: DbClient;
+  /** ADR-098: la connessione della casa del cliente; assente = `db` */
+  dbFor?: (accountId: string) => DbClient;
   /** UGO_CUSTOMER_WEEKLY_REWARDS: `customers.weekly_reward_limit` lo scavalca */
   weeklyDefault: number;
   /**
@@ -72,15 +74,27 @@ export class RewardExhaustedError extends Error {
 export class CustomerRewardService {
   public constructor(private readonly deps: CustomerRewardDeps) {}
 
+  /** ADR-098/tempo 2b: il lavoro gira nella casa del cliente, se il cablaggio la porta */
+  private dbOf(accountId: string | undefined): DbClient {
+    return accountId !== undefined && this.deps.dbFor !== undefined
+      ? this.deps.dbFor(accountId)
+      : this.deps.db;
+  }
+
   /** Quante ne restano — il dato che la reception mostra accanto alla mela. */
-  public async allowance(customerId: string, at: Date = new Date()): Promise<ReceptionRewardAllowance> {
-    const [customer] = await this.deps.db
+  public async allowance(
+    customerId: string,
+    at: Date = new Date(),
+    accountId?: string,
+  ): Promise<ReceptionRewardAllowance> {
+    const db = this.dbOf(accountId);
+    const [customer] = await db
       .select({ weeklyRewardLimit: customers.weeklyRewardLimit })
       .from(customers)
       .where(eq(customers.id, customerId));
     const limit = customer?.weeklyRewardLimit ?? this.deps.weeklyDefault;
     const since = new Date(at.getTime() - WINDOW_DAYS * 24 * 60 * 60_000);
-    const given = await this.deps.db
+    const given = await db
       .select({ ts: customerRewards.ts })
       .from(customerRewards)
       .where(and(eq(customerRewards.customerId, customerId), gt(customerRewards.ts, since)))
@@ -109,7 +123,8 @@ export class CustomerRewardService {
     gosinoId: string,
     at: Date = new Date(),
   ): Promise<ReceptionRewardAllowance> {
-    const [assigned] = await this.deps.db
+    const db = this.dbOf(context.accountId);
+    const [assigned] = await db
       .select({ id: customerGosini.id })
       .from(customerGosini)
       .where(
@@ -117,14 +132,14 @@ export class CustomerRewardService {
       );
     if (assigned === undefined) throw new GosinoNotAssignedError();
 
-    const before = await this.allowance(context.customerId, at);
+    const before = await this.allowance(context.customerId, at, context.accountId);
     if (before.remaining === 0) {
       throw new RewardExhaustedError(before.nextAt === undefined ? undefined : new Date(before.nextAt));
     }
 
     // quale risposta l'ha meritata: l'ultima che questo gosino gli ha dato.
     // Risolta qui e non spedita dal client, che i suoi id non li ha mai visti.
-    const [lastReply] = await this.deps.db
+    const [lastReply] = await db
       .select({ id: customerMessages.id })
       .from(customerMessages)
       .where(
@@ -137,7 +152,7 @@ export class CustomerRewardService {
       .orderBy(desc(customerMessages.ts))
       .limit(1);
 
-    await this.deps.db.insert(customerRewards).values({
+    await db.insert(customerRewards).values({
       accountId: context.accountId,
       customerId: context.customerId,
       gosinoId,
@@ -146,7 +161,7 @@ export class CustomerRewardService {
     });
     // la memoria episodica: ID e basta (regola 6), il sogno e il pannello
     // sanno da chi e per cosa senza che qui passi una parola del cliente
-    await this.deps.db.insert(events).values({
+    await db.insert(events).values({
       gosinoId,
       ts: at,
       source: "reception",

@@ -156,10 +156,28 @@ def run_feeds(
     connection = conn or psycopg.connect(cfg.database_url)
     report: dict = {}
     try:
-        feeds = connection.execute(
-            "select id, account_id, url from rss_feeds where enabled order by created_at"
+        # ADR-062/098: i feed si elencano CASA PER CASA, dentro la casa
+        # dichiarata — un solo select su rss_feeds intero, sotto l'utenza
+        # applicativa, sarebbe zero righe e nessun errore
+        houses = connection.execute(
+            "select id from accounts where closed_at is null order by created_at"
         ).fetchall()
+        feeds: list[tuple] = []
+        for (house_id,) in houses:
+            connection.execute(
+                "select set_config('app.account_id', %s, false)", (str(house_id),)
+            )
+            feeds.extend(
+                connection.execute(
+                    "select id, account_id, url from rss_feeds"
+                    " where enabled and account_id = %s order by created_at",
+                    (str(house_id),),
+                ).fetchall()
+            )
         for feed_id, account_id, url in feeds:
+            connection.execute(
+                "select set_config('app.account_id', %s, false)", (str(account_id),)
+            )
             outcome: dict[str, object] = {"new": 0}
             try:
                 entries = parse_feed(download(url))
@@ -198,21 +216,29 @@ def run_feeds(
             report[str(feed_id)] = outcome
 
         # l'embedding in coda, a lotti: un item senza vettore non è ancora
-        # visibile al sogno, e va benissimo — lo diventa al prossimo giro
-        pending = connection.execute(
-            """
-            select id, title, coalesce(summary, '') from feed_items
-            where embedding is null order by created_at limit 50
-            """
-        ).fetchall()
-        if pending:
-            texts = [f"{title}\n{summary}".strip() for _, title, summary in pending]
-            vectors = vectorize(cfg, texts)
-            for (item_id, _, _), vector in zip(pending, vectors, strict=True):
-                connection.execute(
-                    "update feed_items set embedding = %s::vector where id = %s",
-                    (json.dumps(vector), item_id),
-                )
+        # visibile al sogno, e va benissimo — lo diventa al prossimo giro.
+        # Casa per casa, come sopra: la coda di una casa non dichiarata,
+        # sotto l'utenza applicativa, sarebbe vuota in silenzio
+        for (house_id,) in houses:
+            connection.execute(
+                "select set_config('app.account_id', %s, false)", (str(house_id),)
+            )
+            pending = connection.execute(
+                """
+                select id, title, coalesce(summary, '') from feed_items
+                where embedding is null and account_id = %s
+                order by created_at limit 50
+                """,
+                (str(house_id),),
+            ).fetchall()
+            if pending:
+                texts = [f"{title}\n{summary}".strip() for _, title, summary in pending]
+                vectors = vectorize(cfg, texts)
+                for (item_id, _, _), vector in zip(pending, vectors, strict=True):
+                    connection.execute(
+                        "update feed_items set embedding = %s::vector where id = %s",
+                        (json.dumps(vector), item_id),
+                    )
         report["embedded"] = len(pending)
         connection.commit()
         return report
