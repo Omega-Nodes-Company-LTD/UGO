@@ -62,4 +62,25 @@ $("feed-go").addEventListener("click", async () => {
     say("feed-msg", error.message.includes("409") ? "Questo feed è già iscritto." : error.message, "err");
   }
 });
+
+/**
+ * ADR-080: i titoli veri. Il pannello mostrava due contatori e nessun articolo,
+ * quindi un feed rotto o pieno di pubblicità si scopriva solo quando UGO te ne
+ * consigliava uno.
+ */
+async function loadFeedItems() {
+  const data = await call(scoped("/v1/feeds/items?limit=20"), {});
+  const items = data.items ?? [];
+  $("feed-items").innerHTML = items.length === 0
+    ? '<p class="empty">Non è ancora arrivato niente. I feed li scarica il sogno: al prossimo giro si popola.</p>'
+    : items.map((item) =>
+        '<div class="deed"><span class="when">' +
+        escape(item.feed) + (item.publishedAt ? " \u00b7 " + when(item.publishedAt) : "") +
+        (item.advisedAt ? " \u00b7 gi\u00e0 consigliato" : "") + "</span>" +
+        '<div class="act">' +
+        (item.link
+          ? '<a href="' + escape(item.link) + '" target="_blank" rel="noopener noreferrer">' + escape(item.title) + "</a>"
+          : escape(item.title)) +
+        "</div></div>").join("");
+}
 `;

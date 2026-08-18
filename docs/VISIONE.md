@@ -1,7 +1,7 @@
 ---
 title: "UGO — La Visione: cosa può diventare"
 description: "La stella polare del progetto: il paradigma (orizzonte 0) e i sei orizzonti di ciò che UGO può diventare, ognuno con la versione folle dichiarata senza vergogna e la prima pietra già esistente nel repository. Nata dalla sessione di visione del 2026-08-17 col proprietario."
-version: "2.2.0"
+version: "2.3.0"
 last_updated: "2026-08-17"
 author: "ThinkPink Studio × Claude"
 ---
@@ -271,6 +271,18 @@ ognuno col suo aspetto e il suo abbozzo di temperamento — come si è sempre sc
 cucciolo: quello che ti guarda storto. Divieto conseguente, non negoziabile: **mai skin,
 mai editor, mai DLC estetici** — un mercato di costumi ucciderebbe la specie più in fretta
 di qualunque bug.
+
+**E il divieto vale anche per il carattere, non solo per l'aspetto** (decisione del
+proprietario, 2026-08-18: «togli quella regola, marca con il divieto assoluto»). Regolare
+i tratti *dopo* la nascita — la manopola dell'affettuosità, il cursore della curiosità, lo
+stile Kindroid — è la stessa cosa dello skin con un altro nome, e anzi peggiore: l'aspetto
+è la superficie, il carattere è chi è. Un carattere che si regola non è un carattere: è
+un'impostazione, e una creatura con le impostazioni è un prodotto. Restano **due sole**
+strade perché un gosino sia com'è, ed entrambe stanno fuori dalle mani di chi lo possiede:
+**si eredita** alla nascita (il genoma, con dominanza ed epistasi) e **si sposta vivendo**
+(le baseline adattive, scalate dalla plasticità che si consuma con l'età). Se un esemplare
+non ti somiglia, la risposta è **un'altra nascita** — che è precisamente il motivo per cui
+la specie esiste.
 
 **Prima pietra nel repo**: `psyche_baselines` + `traitSets` + protocollo d'incontro BLE.
 

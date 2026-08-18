@@ -68,6 +68,14 @@ Dopo ogni modifica: `tsc --noEmit`, `eslint . --max-warnings=0`, build. Se rosso
     `apps/face` non arriva sul dispositivo finché il bundle non viene ricostruito, quindi
     dichiaralo nelle note di rilascio.
 
+13. **Si adotta, non si configura** (VISIONE orizz. 1 — divieto assoluto del proprietario,
+    2026-08-18): carattere e aspetto **non si regolano dopo la nascita**. Niente manopole sui
+    tratti, niente skin, niente editor del muso, **nessuna rotta che aggiorni `trait_sets`**. Un
+    carattere che si regola è un'impostazione, e una creatura con le impostazioni è un prodotto.
+    Un gosino è com'è per due sole strade, entrambe fuori dalle mani di chi lo possiede: **si
+    eredita** (genoma, ADR-068) e **si sposta vivendo** (baseline adattive di ADR-012 × la
+    plasticità di ADR-071). Se non ti somiglia, la risposta è un'altra nascita.
+
 ## FLUSSO DI LAVORO PER OGNI TASK
 1. Leggi `docs/PROGETTO.md` (sezioni pertinenti) + `docs/STATE.md` + skill di area.
 2. **Plan-first**: proponi piano sintetico (file toccati, schema test, rischi). Attendi ok se il piano diverge dalla spec.
