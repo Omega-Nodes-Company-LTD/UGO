@@ -40,6 +40,12 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().min(1).optional(),
   ),
+  // ADR-095: il secondo anello della catena, fra casa e Anthropic. Solo con
+  // la chiave; senza, la catena lo salta e non se ne accorge nessuno.
+  OPENROUTER_API_KEY: optionalNonEmpty,
+  OPENROUTER_CHAT_MODEL: optionalNonEmpty,
+  /** override per gli stub di rete nei test; vuoto = https://openrouter.ai */
+  OPENROUTER_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   // Initiative off by default is the wrong default for a companion, but it is
   // the right one for a machine that just learned to speak first.
   UGO_INITIATIVE: z
@@ -161,6 +167,15 @@ export const soulEnvSchema = z.object({
   // development, where Vite serves it on its own port
   UGO_FACE_DIR: z.preprocess((value) => (value === "" ? undefined : value), z.string().optional()),
   NODE_ENV: z.string().default("development"),
+}).superRefine((env, ctx) => {
+  // meta' configurazione non e' una configurazione: fail fast al boot (regola 4)
+  if (env.OPENROUTER_API_KEY !== undefined && env.OPENROUTER_CHAT_MODEL === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message: "OPENROUTER_API_KEY impostata senza OPENROUTER_CHAT_MODEL: serve anche il modello",
+      path: ["OPENROUTER_CHAT_MODEL"],
+    });
+  }
 });
 
 export type SoulEnv = z.infer<typeof soulEnvSchema>;

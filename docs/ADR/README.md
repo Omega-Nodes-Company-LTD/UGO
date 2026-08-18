@@ -100,4 +100,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [092](./092-da-casa-ad-account.md) | «Casa» diventa «account»: una parola per lavoro | Accettata |
 | [093](./093-l-oblio-del-cliente.md) | L'oblio di un cliente: la rotta che ADR-052 prometteva | Accettata |
 | [094](./094-la-voce-di-casa-parla-per-prima.md) | La voce di casa parla per prima: il provider è il soccorso | Accettata |
-| 095 | *(prossimo numero disponibile)* | — |
+| [095](./095-la-catena-a-piu-anelli.md) | La catena a più anelli: chi risponde paga, anche casa | Accettata |
+| 096 | *(prossimo numero disponibile)* | — |

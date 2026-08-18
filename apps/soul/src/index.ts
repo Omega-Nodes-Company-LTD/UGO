@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { createDbClient, gosini, accounts, runMigrations, traitSets } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
-import { LlmClient, LocalFirstLlm, type ChatLlm, OllamaEmbeddingsClient,
+import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
   OllamaTextClient,
   OllamaVisionClient,
   OpenAiTtsClient,
@@ -107,11 +107,11 @@ const psyche = await PsycheService.restore(db, new Date(), bootstrapExemplar.id)
 // ADR-050: l'orologio e la lingua arrivano dalla CASA. `env.TZ` resta il
 // ripiego per l'apparato di avvio, che nasce prima che una casa sia risolta.
 /**
- * ADR-094: la voce di casa parla per prima, il provider è il soccorso.
- *
- * Il guard del budget resta dove si spende — dentro `LlmClient` — e una
- * risposta locale non lo sfiora: il metabolismo riguarda il mangiare, e qui
- * non si mangia. Il modello: `OLLAMA_CHAT_MODEL`, o quello del testo
+ * ADR-094/095: la catena — casa (Ollama), poi OpenRouter se c'è la chiave,
+ * poi Anthropic. Ogni anello che risponde scrive la sua riga sul ledger col
+ * suo listino, e il metabolismo gira su tutti: anche la voce di casa mangia,
+ * a listino nominale. I muri (tetto, salvadanaio) stanno all'ingresso della
+ * catena. Il modello locale: `OLLAMA_CHAT_MODEL`, o quello del testo
  * dell'iniziativa, o quello del sogno — la casa ne ha sempre almeno uno.
  */
 const localChatModel = env.OLLAMA_CHAT_MODEL ?? env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL;
@@ -132,10 +132,22 @@ const llmFor = (
     locale: clock.locale,
   });
   if (env.UGO_CHAT_LOCAL_FIRST !== "on") return remote;
-  return new LocalFirstLlm(remote, {
-    baseUrl: env.OLLAMA_URL,
-    model: localChatModel,
+  return new ChatChain({
+    db,
+    accountId,
+    gosinoId,
+    timezone: clock.timezone,
     locale: clock.locale,
+    local: { baseUrl: env.OLLAMA_URL, model: localChatModel },
+    ...(env.OPENROUTER_API_KEY !== undefined &&
+      env.OPENROUTER_CHAT_MODEL !== undefined && {
+        openRouter: {
+          apiKey: env.OPENROUTER_API_KEY,
+          model: env.OPENROUTER_CHAT_MODEL,
+          ...(env.OPENROUTER_BASE_URL !== undefined && { baseUrl: env.OPENROUTER_BASE_URL }),
+        },
+      }),
+    remote,
     // pigro, e non e' un vezzo: llmFor gira al bootstrap, PRIMA che `app`
     // esista — toccare app.log qui era una TDZ che uccideva il boot vero
     // (l'ha detto l'e2e, non i test d'integrazione, che montano buildServer)

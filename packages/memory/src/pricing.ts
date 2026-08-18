@@ -48,3 +48,17 @@ export function computeCostUsd(model: string, usage: TokenUsage): number {
     usage.outputTokens * p.outputPerMTok * perTok
   );
 }
+
+/**
+ * ADR-095: anche la voce di casa paga. Non il provider — la corrente e il
+ * ferro: un listino NOMINALE (~1% di haiku), abbastanza perché il metabolismo
+ * (ADR-072) abbia qualcosa da mangiare, non abbastanza da somigliare a una
+ * bolletta. Vale per qualunque modello servito da Ollama: il nome del modello
+ * locale è libero, e un listino per nome qui sarebbe sempre incompleto.
+ */
+export const LOCAL_INPUT_PER_MTOK = 0.01;
+export const LOCAL_OUTPUT_PER_MTOK = 0.05;
+
+export function computeLocalCostUsd(tokensIn: number, tokensOut: number): number {
+  return (tokensIn * LOCAL_INPUT_PER_MTOK + tokensOut * LOCAL_OUTPUT_PER_MTOK) * 1e-6;
+}

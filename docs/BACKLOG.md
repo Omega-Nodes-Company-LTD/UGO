@@ -89,7 +89,7 @@ Stato: `✅` fatto · `🔨` in corso · `⬜️` da fare · `🚫` scartato con
 | | Punto | Note |
 |---|---|---|
 | ✅ | **La voce di casa parla per prima** (ADR-094) | ribaltato dal proprietario: il modello locale è la PRIMA scelta della chat, il provider è il soccorso. `UGO_CHAT_LOCAL_FIRST=on` di default |
-| ⬜️ | **La catena a più anelli col metabolismo per anello** (sarà ADR-095) | ordine deciso: Ollama → OpenRouter → Anthropic; OGNI anello consuma token e scala dal portafoglio, il locale a listino nominale. Valutare lì un runtime locale diretto (pesi HF senza Ollama) solo se dà vantaggi concreti su modelli/pesi/configurazioni |
+| ✅ | **La catena a più anelli col metabolismo per anello** (ADR-095) | Ollama → OpenRouter → Anthropic: ogni anello che risponde scrive la sua riga sul ledger col suo listino (casa a listino nominale ~1% di haiku) e i muri stanno all'ingresso della catena. Il runtime locale diretto (pesi HF senza Ollama) è valutato e rimandato nell'ADR: se ne riparla quando qualcosa non passa da Ollama |
 | ⬜️ | **RAG su documenti** | UGO conosce solo ciò che ha sentito |
 | ✅ | Verifica che il backup esista davvero | il sogno interroga il bucket prima di saltare il passo: un backup sparito viene rifatto |
 

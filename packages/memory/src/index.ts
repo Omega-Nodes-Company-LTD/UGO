@@ -1,6 +1,6 @@
 export { OllamaEmbeddingsClient, type EmbeddingsClient } from "./embeddings.js";
 export { OllamaTextClient, type LocalTextClient } from "./localText.js";
-export { LocalFirstLlm, type LocalFirstOptions } from "./localFirst.js";
+export { ChatChain, type ChatChainOptions } from "./chatChain.js";
 export { OllamaVisionClient, type LocalVisionClient } from "./localVision.js";
 export { OpenAiTtsClient, type LocalTtsClient, type TtsSpender } from "./ttsClient.js";
 export {
