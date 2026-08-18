@@ -92,4 +92,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [084](./084-l-adozione.md) | L'adozione: il gesto che lega la vetrina alla casa | Accettata |
 | [085](./085-il-check-in.md) | Il check-in: quello che si fa vivo lui, e ogni volta | Accettata |
 | [086](./086-il-libro-dei-ricordi.md) | Il libro dei ricordi: scorrere, non solo cercare | Accettata |
-| 087 | *(prossimo numero disponibile)* | — |
+| [087](./087-l-umore-del-branco.md) | L'umore del branco nel tempo: una linea per creatura | Accettata |
+| 088 | *(prossimo numero disponibile)* | — |

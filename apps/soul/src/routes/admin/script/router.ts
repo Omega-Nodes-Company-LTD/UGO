@@ -100,6 +100,8 @@ async function openPage(page) {
     await section(loadStats, "stats-msg");
     await section(loadHealth, "stats-msg");
     await section(drawGosiniCards, "stats-msg");
+    // ADR-087: e da quanto stanno così, una linea per creatura
+    await section(loadPackMood, "pack-mood-msg");
     await section(showPlace, "place-msg");
     await section(loadCapabilities, "stats-msg");
   } else if (page === "case") {
