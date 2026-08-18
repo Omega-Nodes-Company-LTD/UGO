@@ -95,4 +95,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [087](./087-l-umore-del-branco.md) | L'umore del branco nel tempo: una linea per creatura | Accettata |
 | [088](./088-la-storia-della-buonanotte.md) | La storia della buonanotte: l'unico gesto che deve inventare | Accettata |
 | [089](./089-l-export-che-manteneva-meta-promessa.md) | L'export che manteneva metà promessa | Accettata |
-| 090 | *(prossimo numero disponibile)* | — |
+| [090](./090-i-diritti-dal-chiosco.md) | I diritti dove vive chi li ha | Accettata |
+| 091 | *(prossimo numero disponibile)* | — |

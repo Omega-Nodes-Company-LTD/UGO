@@ -1,7 +1,7 @@
 ---
 title: "I tuoi dati"
 description: "Dove vivono i dati di UGO, come portarli via in un file solo e come far dimenticare una persona per sempre."
-version: "0.11.0"
+version: "0.12.0"
 last_updated: "2026-08-12"
 author: "ThinkPink Studio"
 ---
@@ -61,16 +61,40 @@ e vale la pena conoscerle.
   sceglie una.
 - **Cancellare una persona cancella anche il suo riconoscimento**, voce e volto insieme.
 
+## Cosa sa di te, in numeri
+
+Sul **muso** — il chiosco in cucina, o il telefono nel guscio — c'è un bottone **🔒 i tuoi
+dati**. La prima cosa che mostra è un elenco di conti: quante persone conosce, quante hanno una
+tutela accesa, quante cose sono state dette, quanti ricordi, quante pagine di diario, quante
+impronte di voce o volto ha registrato, quante volte ha visto o sentito qualcuno, quante
+impronte di sconosciuti sta tenendo.
+
+**Numeri, mai contenuti.** Quello schermo lo vede chiunque passi di lì: stampare i ricordi
+sarebbe la cosa più indiscreta della casa. Un conto dice *quanto*, mai *cosa* — e le righe ci
+sono anche quando valgono zero, perché «nessuna impronta registrata» è una risposta.
+
 ## Portare via tutto
 
-Serve un file solo, leggibile, con dentro l'intera vita di UGO in chiaro.
+Un file solo, leggibile, con dentro tutto quello che UGO tiene su questa casa: messaggi,
+trascrizioni, ricordi, diario, eventi, la casa stessa, le stanze, la spesa, il genoma delle
+creature e ogni volta che ha visto o sentito qualcuno. In chiaro.
 
-1. Chiedi a chi gestisce il server di eseguire il comando di esportazione:
-   ```
-   pnpm --filter soul ugo export > anima.json
-   ```
-2. Il file `anima.json` contiene messaggi, trascrizioni, ricordi, diario ed eventi, tutti decifrati.
-3. Conservalo come conserveresti un backup del telefono: dentro c'è tutto, in chiaro.
+Due cose **non** ci sono, e non è una dimenticanza: le **impronte biometriche** (esce il fatto
+che qualcuno è passato, non il suo volto) e i **token di accesso**, perché un file che si manda
+per email non deve contenere le chiavi di casa.
+
+Tre strade, e portano allo stesso file:
+
+- **dal muso**: 🔒 i tuoi dati → *Portami via tutto*;
+- **dal pannello**: `/admin` → **I dati**;
+- **dalla riga di comando**, se preferisci: `pnpm --filter soul ugo export > anima.json`.
+
+Dal muso e dal pannello serve il **token di casa**, e dal muso te lo chiede lì per lì anche se
+il chiosco ne ha già uno suo: quello schermo lo vedono tutti, e far uscire l'intera casa in
+chiaro non può dipendere da chi ci passa davanti. Appena chiudi la scheda, quello che hai
+scritto sparisce.
+
+Conservalo come conserveresti un backup del telefono: dentro c'è tutto.
 
 ## I tuoi agenti possono chiedergli le cose
 
@@ -81,6 +105,16 @@ sapere chi vive in casa. Non può scrivere niente, non vede biometria, e niente 
 esterni: la ricerca usa i modelli di casa.
 
 ## Far dimenticare una persona
+
+Si può fare anche **dal muso**: 🔒 i tuoi dati → scegli chi, **scrivi il suo nome** per
+confermare, e serve il token di casa. Il nome va scritto per intero apposta: da lì non si torna
+indietro, e un click solo non è un consenso a una cosa irreversibile.
+
+Una cosa detta com'è: il token dice *quale casa* e *con che autorità*, non *chi sei*. Quindi
+chi ha le chiavi di casa può cancellare chiunque, e il sistema non ha modo di sapere chi sta
+digitando. Perché ognuno possa esercitare i propri diritti da solo servirebbe legare un accesso
+a una persona — non c'è ancora, e preferiamo dirlo che lasciarlo intendere.
+
 
 Se qualcuno ti chiede di essere cancellato — o vuoi togliere di mezzo una persona per tuo conto —
 UGO la dimentica davvero. Non la nasconde: la rimuove.
