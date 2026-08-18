@@ -1,9 +1,13 @@
 import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
+  accounts,
   auditLog,
+  gosini,
+  memories,
   budgetLedger,
   checkins,
   createDbClient,
+  desires,
   feedings,
   psycheSnapshots,
   rssFeeds,
@@ -16,9 +20,12 @@ import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuditLog } from "../../src/services/auditLog.js";
+import { InitiativeSwitch } from "../../src/services/volition/initiativeSwitch.js";
+import { createAccount } from "../../src/services/accountService.js";
+import { randomBytes } from "node:crypto";
 import { issueToken } from "../../src/services/tenantAuth.js";
 import { buildServer } from "../../src/server.js";
-import { createHouse, type TestHouse } from "./helpers/tenancy.js";
+import { addBeing, createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 /**
  * ADR-062, il modello: le rotte delle impronte attraversano il muro.
@@ -82,6 +89,13 @@ beforeAll(async () => {
   // il server INTERO gira come `ugo_app`: rotte, guard, audit
   app = buildServer({
     db: appDb,
+    // ADR-097: prenotare fa nascere la casa — sulla transazione del mercato
+    createHouse: (tx, input) =>
+      createAccount(tx, randomBytes(32), {
+        slug: input.slug,
+        name: input.name,
+        ...(input.timezone !== undefined && { timezone: input.timezone }),
+      }),
     mqtt: { url: "mqtt://127.0.0.1:1" },
     ollamaUrl: "http://127.0.0.1:1",
     logger: false,
@@ -91,6 +105,10 @@ beforeAll(async () => {
       // il lotto 1 (ADR-062): liste, domande, salvadanaio, umore del branco
       gosini: { dataKey: mine.dataKey },
       stats: { dailyBudgetUsd: 5, timezone: "Europe/Rome" },
+      // lotto 3: la volontà si legge dal pannello
+      initiative: new InitiativeSwitch(() => true),
+      // lotto 4: i clienti della reception
+      customers: { dataKey: mine.dataKey },
     },
   });
 }, 180_000);
@@ -404,5 +422,224 @@ describe("lotto 1: lo stato e i conti come ugo_app", () => {
     const ids = view.json<{ creatures: { id: string }[] }>().creatures.map((c) => c.id);
     expect(ids).toContain(mine.gosinoId);
     expect(ids).not.toContain(theirs.gosinoId);
+  });
+});
+
+/**
+ * Lotto 3: privacy, volontà e impostazioni della casa.
+ */
+describe("lotto 3: privacy e volontà come ugo_app", () => {
+  it("«cosa sai di me» conta solo la mia casa, non il vicinato", async () => {
+    await addBeing(owner, theirs, "Persona Del Vicino");
+    const view = await app.inject({
+      method: "GET",
+      url: "/v1/privacy/summary",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(view.statusCode).toBe(200);
+    expect(view.json<{ beings: number }>().beings).toBe(0);
+
+    const theirView = await app.inject({
+      method: "GET",
+      url: "/v1/privacy/summary",
+      headers: { authorization: `Bearer ${theirToken}` },
+    });
+    expect(theirView.json<{ beings: number }>().beings).toBeGreaterThanOrEqual(1);
+  });
+
+  it("i desideri del vicino non compaiono nel mio pannello della volontà", async () => {
+    await owner.insert(desires).values([
+      { gosinoId: mine.gosinoId, status: "pending", kind: "desiderio", text: "voglio uscire" },
+      { gosinoId: theirs.gosinoId, status: "pending", kind: "desiderio", text: "segreto del vicino" },
+    ]);
+    const view = await app.inject({
+      method: "GET",
+      url: "/v1/volition",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(view.statusCode).toBe(200);
+    const texts = view.json<{ desires: { text: string }[] }>().desires.map((d) => d.text);
+    expect(texts).toContain("voglio uscire");
+    expect(texts).not.toContain("segreto del vicino");
+  });
+
+  it("rinominare la casa rinomina LA MIA, e il vicino resta com'era", async () => {
+    const done = await app.inject({
+      method: "PATCH",
+      url: "/v1/account",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { name: "Casa Rinominata RLS" },
+    });
+    expect(done.statusCode).toBe(200);
+    const rows = await owner
+      .select({ id: accounts.id, name: accounts.name })
+      .from(accounts)
+      .where(sql`${accounts.id} in (${mine.id}, ${theirs.id})`);
+    const byId = new Map(rows.map((r) => [r.id, r.name]));
+    expect(byId.get(mine.id)).toBe("Casa Rinominata RLS");
+    expect(byId.get(theirs.id)).not.toBe("Casa Rinominata RLS");
+  });
+});
+
+/**
+ * Lotto 4: la reception — i clienti sono della casa che li ha.
+ */
+describe("lotto 4: i clienti come ugo_app", () => {
+  it("un cliente creato in casa mia non compare nell'elenco del vicino", async () => {
+    const made = await app.inject({
+      method: "POST",
+      url: "/v1/customers",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { name: "Studio Rossi RLS" },
+    });
+    expect(made.statusCode).toBe(201);
+
+    const theirView = await app.inject({
+      method: "GET",
+      url: "/v1/customers",
+      headers: { authorization: `Bearer ${theirToken}` },
+    });
+    const names = theirView.json<{ customers: { name: string }[] }>().customers.map((c) => c.name);
+    expect(names).not.toContain("Studio Rossi RLS");
+
+    const mineView = await app.inject({
+      method: "GET",
+      url: "/v1/customers",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(
+      mineView.json<{ customers: { name: string }[] }>().customers.map((c) => c.name),
+    ).toContain("Studio Rossi RLS");
+  });
+
+  it("il cliente del vicino è un 404 anche per le sue fonti", async () => {
+    const made = await app.inject({
+      method: "POST",
+      url: "/v1/customers",
+      headers: { authorization: `Bearer ${theirToken}` },
+      payload: { name: "Cliente Del Vicino" },
+    });
+    expect(made.statusCode).toBe(201);
+    const foreignId = made.json<{ id: string }>().id;
+
+    const view = await app.inject({
+      method: "GET",
+      url: `/v1/customers/${foreignId}`,
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(view.statusCode).toBe(404);
+
+    const sources = await app.inject({
+      method: "GET",
+      url: `/v1/customers/${foreignId}/sources`,
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(sources.statusCode).toBe(404);
+  });
+});
+
+/**
+ * ADR-097: il mercato come ugo_app — la vetrina è pubblica, l'adozione nasce,
+ * la cessione passa, e la connessione nuda resta cieca.
+ */
+describe("il mercato sotto RLS (ADR-097)", () => {
+  /** un nato in vetrina, in casa del vicino: è quello che il pubblico guarda */
+  async function listACub(): Promise<string> {
+    const [cub] = await owner
+      .insert(gosini)
+      .values({
+        accountId: theirs.id,
+        name: `nato-vetrina-${String(Date.now())}`,
+        origin: "nato",
+        generation: 1,
+        listedAt: new Date(),
+        priceCents: 12_000,
+      })
+      .returning({ id: gosini.id });
+    if (cub === undefined) throw new Error("cucciolo non piantato");
+    return cub.id;
+  }
+
+  it("la vetrina si sfoglia SENZA casa e mostra il nato del vicino", async () => {
+    const cubId = await listACub();
+    const view = await app.inject({ method: "GET", url: "/v1/vetrina" });
+    expect(view.statusCode).toBe(200);
+    const cubs = view
+      .json<{ allevamenti: { cubs: { gosinoId: string }[] }[] }>()
+      .allevamenti.flatMap((k) => k.cubs)
+      .map((c) => c.gosinoId);
+    expect(cubs).toContain(cubId);
+  });
+
+  it("il pedigree è pubblico per chi è in vetrina, e 404 per chi non lo è", async () => {
+    const cubId = await listACub();
+    const listed = await app.inject({ method: "GET", url: `/v1/vetrina/${cubId}/pedigree` });
+    expect(listed.statusCode).toBe(200);
+
+    const hidden = await app.inject({
+      method: "GET",
+      url: `/v1/vetrina/${mine.gosinoId}/pedigree`,
+    });
+    expect(hidden.statusCode).toBe(404);
+  });
+
+  it("prenotare fa nascere la casa e spegne la vetrina, tutto da ugo_app", async () => {
+    const cubId = await listACub();
+    const slug = `casa-rls-adozione-${String(Date.now())}`;
+    const booked = await app.inject({
+      method: "POST",
+      url: `/v1/vetrina/${cubId}/prenota`,
+      payload: { casa: { slug, nome: "Casa Nuova RLS" } },
+    });
+    expect(booked.statusCode).toBe(201);
+    expect(booked.json<{ token: string }>().token).toBeTruthy();
+
+    // il cucciolo è uscito dalla vetrina nell'atto stesso
+    const [row] = await owner
+      .select({ listedAt: gosini.listedAt })
+      .from(gosini)
+      .where(sql`${gosini.id} = ${cubId}`);
+    expect(row?.listedAt).toBeNull();
+  });
+
+  it("la cessione completa passa: la vita resta, il resto cambia casa", async () => {
+    // un nato in casa MIA, con una memoria che deve restare qui
+    await owner.update(accounts).set({ canBreed: true }).where(sql`${accounts.id} = ${mine.id}`);
+    const [born] = await owner
+      .insert(gosini)
+      .values({ accountId: mine.id, name: "ceduto-rls", origin: "nato", generation: 1 })
+      .returning({ id: gosini.id });
+    if (born === undefined) throw new Error("nato non piantato");
+    await owner.insert(memories).values({
+      gosinoId: born.id,
+      kind: "episode",
+      text: "una vita fatta in allevamento",
+      importance: 3,
+    });
+
+    const done = await app.inject({
+      method: "POST",
+      url: `/v1/gosini/${born.id}/cede`,
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { toAccount: theirs.slug, confirmName: "ceduto-rls" },
+    });
+    expect(done.statusCode).toBe(200);
+    expect(done.json<{ leftBehind: number }>().leftBehind).toBeGreaterThanOrEqual(1);
+
+    const [moved] = await owner
+      .select({ accountId: gosini.accountId })
+      .from(gosini)
+      .where(sql`${gosini.id} = ${born.id}`);
+    expect(moved?.accountId).toBe(theirs.id);
+    // la vita è rimasta in allevamento, cioè non esiste più
+    const life = await owner.select({ id: memories.id }).from(memories)
+      .where(sql`${memories.gosinoId} = ${born.id}`);
+    expect(life).toHaveLength(0);
+  });
+
+  it("il morso: la connessione nuda non vede la vetrina che il mercato vede", async () => {
+    await listACub();
+    const naked = await appDb.select({ id: gosini.id }).from(gosini);
+    expect(naked).toHaveLength(0);
   });
 });

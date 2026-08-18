@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { createDbClient, gosini, accounts, runMigrations, traitSets } from "@ugo/db";
+import { createDbClient, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
@@ -257,9 +257,11 @@ const face: FaceGateway = new FaceGateway({
 });
 const dataKey = parseDataKey(env.UGO_DATA_KEY);
 const embedder = new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL);
+// ADR-062: fabbriche — l'oblio e l'export girano sulla transazione che ha
+// dichiarato la casa, non sulla connessione nuda del processo
 const privacy = {
-  forget: new ForgetService({ db, dataKey, embedder }),
-  exporter: new ExportService(db, dataKey),
+  forget: (tx: DbClient) => new ForgetService({ db: tx, dataKey, embedder }),
+  exporter: (tx: DbClient) => new ExportService(tx, dataKey),
 };
 const meetings =
   env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined
@@ -438,8 +440,9 @@ const app = buildServer({
   // ADR-061: la stessa nascita di `ugo casa nuova`, ma dal pannello — perché
   // «una persona può avere più case e più negozi» finché crearne una vuol dire
   // entrare nel container è una promessa scritta e non una funzione
-  createHouse: (input) =>
-    createAccount(db, parseDataKey(env.UGO_DATA_KEY), {
+  // ADR-097: `tx` è la transazione del mercato (withMarket), non il db nudo
+  createHouse: (tx, input) =>
+    createAccount(tx, parseDataKey(env.UGO_DATA_KEY), {
       slug: input.slug,
       name: input.name,
       ...(input.timezone !== undefined && { timezone: input.timezone }),

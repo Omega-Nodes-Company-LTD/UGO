@@ -1,10 +1,10 @@
-import { accounts, type DbClient } from "@ugo/db";
+import { accounts, withMarket, type DbClient } from "@ugo/db";
 import { asc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { PreHandler } from "./guard.js";
 import type { AuditLogger } from "../services/auditLog.js";
-import { accountScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 import { canAdminister } from "../services/tenantAuth.js";
 
 /**
@@ -102,12 +102,15 @@ export function registerAccountRoutes(
     guard: PreHandler;
     findPlace?: (query: string) => Promise<FoundPlace[]>;
     /** ADR-061: far nascere una casa dal pannello; assente = solo da CLI */
-    createHouse?: (input: {
-      slug: string;
-      name: string;
-      kind?: "famiglia" | "azienda" | undefined;
-      timezone?: string | undefined;
-    }) => Promise<{ accountId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
+    createHouse?: (
+      db: DbClient,
+      input: {
+        slug: string;
+        name: string;
+        kind?: "famiglia" | "azienda" | undefined;
+        timezone?: string | undefined;
+      },
+    ) => Promise<{ accountId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
     audit?: AuditLogger;
   },
 ): void {
@@ -147,6 +150,9 @@ export function registerAccountRoutes(
    * Il token del proprietario torna UNA VOLTA SOLA, come dal CLI: in database
    * esiste solo come SHA-256, e se si perde si riemette — non si recupera.
    */
+  // ADR-062: QUESTA resta fuori da inAccount per costruzione — crea una casa
+  // che ancora non esiste, quindi non c'è una casa da dichiarare. Sotto RLS
+  // vera passa dal lotto della fondazione (stesso giro del mercato)
   app.post("/v1/accounts", { preHandler: deps.guard }, async (request, reply) => {
     const tenant = request.tenant ?? null;
     // solo un operatore: creare una casa non è amministrare la propria
@@ -172,7 +178,10 @@ export function registerAccountRoutes(
         .send({ type: "about:blank", title: "Account creation not configured", status: 501 });
     }
     try {
-      const born = await deps.createHouse(parsed.data);
+      // ADR-097: fondare scrive una casa che un momento prima non esisteva —
+      // l'atto passa dal ruolo del mercato
+      const createHouse = deps.createHouse;
+      const born = await withMarket(deps.db, (db) => createHouse(db, parsed.data));
       await deps.audit?.record({
         verb: "account_created",
         outcome: "ok",
@@ -209,27 +218,40 @@ export function registerAccountRoutes(
         detail: z.prettifyError(parsed.error),
       });
     }
-    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
-    if (accountId === undefined) return reply;
     const { dailyBudgetUsd, ...rest } = parsed.data;
-    await deps.db
-      .update(accounts)
-      .set({
-        ...rest,
-        ...(dailyBudgetUsd !== undefined && { dailyBudgetUsd: dailyBudgetUsd.toFixed(4) }),
-      })
-      .where(eq(accounts.id, accountId));
+    const done = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      (db, accountId) =>
+        db
+          .update(accounts)
+          .set({
+            ...rest,
+            ...(dailyBudgetUsd !== undefined && { dailyBudgetUsd: dailyBudgetUsd.toFixed(4) }),
+          })
+          .where(eq(accounts.id, accountId)),
+    );
+    if (done === undefined) return reply;
     return reply.send({ ok: true });
   });
 
   /** `GET /v1/account/place` — dove sta, per rimostrarlo nel pannello. */
   app.get("/v1/account/place", { preHandler: deps.guard }, async (request, reply) => {
-    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
-    if (accountId === undefined) return reply;
-    const [row] = await deps.db
-      .select({ place: accounts.place, lat: accounts.lat, lon: accounts.lon })
-      .from(accounts)
-      .where(eq(accounts.id, accountId));
+    const rows = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      (db, accountId) =>
+        db
+          .select({ place: accounts.place, lat: accounts.lat, lon: accounts.lon })
+          .from(accounts)
+          .where(eq(accounts.id, accountId)),
+    );
+    if (rows === undefined) return reply;
+    const [row] = rows;
     return reply.send({
       place: row?.place ?? null,
       lat: row?.lat == null ? null : Number(row.lat),
@@ -252,16 +274,22 @@ export function registerAccountRoutes(
         .type("application/problem+json")
         .send({ type: "about:blank", title: "Invalid place", status: 400, detail: z.prettifyError(parsed.error) });
     }
-    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
-    if (accountId === undefined) return reply;
-    await deps.db
-      .update(accounts)
-      .set({
-        place: parsed.data.place,
-        lat: parsed.data.lat.toFixed(5),
-        lon: parsed.data.lon.toFixed(5),
-      })
-      .where(eq(accounts.id, accountId));
+    const done = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      (db, accountId) =>
+        db
+          .update(accounts)
+          .set({
+            place: parsed.data.place,
+            lat: parsed.data.lat.toFixed(5),
+            lon: parsed.data.lon.toFixed(5),
+          })
+          .where(eq(accounts.id, accountId)),
+    );
+    if (done === undefined) return reply;
     return reply.send({ place: parsed.data.place, lat: parsed.data.lat, lon: parsed.data.lon });
   });
 

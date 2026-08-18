@@ -81,13 +81,16 @@ export interface ServerOptions extends HealthDeps {
    * stessa `createAccount` che usa `ugo casa nuova`, e senza di lei la
    * rotta risponde 501 invece di fingere.
    */
-  createHouse?: (input: {
-    slug: string;
-    name: string;
-    kind?: "famiglia" | "azienda" | undefined;
-    timezone?: string | undefined;
-    gosinoName?: string | undefined;
-  }) => Promise<{ accountId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
+  createHouse?: (
+    db: DbClient,
+    input: {
+      slug: string;
+      name: string;
+      kind?: "famiglia" | "azienda" | undefined;
+      timezone?: string | undefined;
+      gosinoName?: string | undefined;
+    },
+  ) => Promise<{ accountId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
   /**
    * v1 feature surface; omitted only by infra-focused tests.
    *
@@ -98,7 +101,10 @@ export interface ServerOptions extends HealthDeps {
     face?: FaceGateway;
     audio?: AudioStorageConfig;
     meetings?: MeetingsService;
-    privacy?: { forget: ForgetService; exporter: ExportService };
+    privacy?: {
+      forget: (db: DbClient) => ForgetService;
+      exporter: (db: DbClient) => ExportService;
+    };
     stats?: { dailyBudgetUsd: number; timezone: string };
     /** the pack surface (ADR-014); the Umwelt map comes from configuration */
     speciesMap?: SpeciesMap;
@@ -434,8 +440,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           db: options.db,
           guard,
           ...(options.createHouse !== undefined && {
-            createHouse: async (input) => {
-              const born = await options.createHouse?.({ slug: input.slug, name: input.name, ...(input.timezone !== undefined && { timezone: input.timezone }) });
+            createHouse: async (db: DbClient, input: { slug: string; name: string; timezone?: string | undefined }) => {
+              const born = await options.createHouse?.(db, {
+                slug: input.slug,
+                name: input.name,
+                ...(input.timezone !== undefined && { timezone: input.timezone }),
+              });
               if (born === undefined) throw new Error("le case non si creano qui");
               return { accountId: born.accountId, ownerToken: born.ownerToken };
             },
