@@ -46,10 +46,12 @@ zavorra. Se una cosa ti sta a cuore, nominala ogni tanto: torna a pesare.
 
 ## Le parole che sono gesti
 
-Tre forme fisse fanno qualcosa di preciso, subito e gratis — le risponde lui, senza scomodare
+Alcune forme fisse fanno qualcosa di preciso, subito e gratis — le risponde lui, senza scomodare
 il modello:
 
 - **`ricordami di … alle …`** — diventa un promemoria: al momento giusto te lo dice lui.
+- **`metti un timer di …`** e **`svegliami alle …`** — timer e sveglia, che suonano in orario
+  (sotto c'è la sezione tutta loro).
 - **`cerca: …`** — apre la finestra sul mondo: la ricerca passa dal motore di casa e la risposta
   arriva in due frasi. La domanda esce verso i motori di ricerca, ma senza nome né casa attaccati.
 - **`leggi`** (anche `leggi lo schermo`) — UGO guarda con la camera del corpo e ti dice **cosa c'è
@@ -135,6 +137,30 @@ bolletta.
 Il conto lo tiene lui: chi gestisce il server può vederlo, insieme al risparmio ottenuto riusando le
 parti fisse del suo carattere, sulla pagina di stato.
 
+## Il timer e la sveglia
+
+Le due frasi che si dicono in cucina e prima di dormire, e che ora funzionano:
+
+- **«metti un timer di 10 minuti»** — anche «timer di 10 minuti», «un timer di mezz'ora»,
+  «90 secondi». Se dici **per cosa** («per la pasta») te lo ricorda quando suona.
+- **«svegliami alle 7»** — anche «metti la sveglia alle 6:30», «sveglia alle 7 e mezza». Se
+  quell'ora è già passata, è quella di domani: è quello che intende chiunque.
+- **«quanto manca al timer?»** e **«a che ora è la sveglia?»** — te lo dice.
+- **«spegni il timer»**, **«togli la sveglia»** — via.
+
+Due dettagli che sembrano piccoli e non lo sono. **Il timer suona in orario**: ha un orologio
+tutto suo che guarda ogni quindici secondi, mentre le cose che decide lui aspettano il momento
+buono — per la pasta il momento buono è adesso. E **una sveglia alle 7 suona alle 7:00 esatte**,
+non ai secondi in cui gliel'hai chiesta.
+
+Ne tiene **uno per tipo**: metterne un altro sostituisce il primo, come una sveglia vera. E
+suona **anche se hai spento l'iniziativa** — spegnerla vuol dire «non attaccare discorso», non
+«dimentica la sveglia che ti ho chiesto io».
+
+Se dici solo «metti un timer» senza dire quanto, non indovina: te lo fa notare la mancanza di
+risposta, e riprovi dicendo il tempo. Preferiamo un timer che non parte a un timer che parte
+sbagliato.
+
 ## Le liste
 
 Tre frasi, e la lista si riempie da sola:
@@ -150,7 +176,7 @@ spuntare e cancellare a mano.
 
 Una cosa che vale la pena sapere: **queste frasi non costano niente.** UGO le capisce da solo,
 in casa, senza chiedere a nessuno — quindi non consumano il budget della giornata e non escono
-dal tuo server. Vale anche per i promemoria («ricordami di…»).
+dal tuo server. Vale anche per i promemoria («ricordami di…»), i timer e le sveglie.
 
 ## Prossimi Passi
 

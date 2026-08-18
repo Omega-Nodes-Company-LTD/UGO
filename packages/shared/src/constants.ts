@@ -37,6 +37,19 @@ export type MemoryKind = (typeof MEMORY_KINDS)[number];
 export const DESIRE_STATUSES = ["pending", "done", "expired"] as const;
 export type DesireStatus = (typeof DESIRE_STATUSES)[number];
 
+/**
+ * ADR-078: che cosa è quella riga con un'ora sopra.
+ *
+ * `desiderio` è quello che il sogno si ripromette («domani gli chiedo del
+ * viaggio»); `promemoria` è quello che hai chiesto tu (ADR-028); `timer` e
+ * `sveglia` sono la stessa cosa con una differenza che si sente: **suonano in
+ * orario**, e non alla prossima occasione buona. Chiuso davvero — ogni valore
+ * qui ha un percorso di codice suo — quindi enum vero e non testo libero,
+ * al contrario di specie e liste (ADR-014).
+ */
+export const DESIRE_KINDS = ["desiderio", "promemoria", "timer", "sveglia"] as const;
+export type DesireKind = (typeof DESIRE_KINDS)[number];
+
 /** The pack (ADR-014). `species` is deliberately NOT a closed domain: adding
  * one must not require a migration. These are the ones we ship a profile for. */
 export const KNOWN_SPECIES = ["human", "dog", "parrot", "reptile", "unknown"] as const;

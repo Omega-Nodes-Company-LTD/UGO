@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { date, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
-import { desireStatus } from "./enums.js";
+import { desireKind, desireStatus } from "./enums.js";
 import { gosinoId } from "./self.js";
 
 // Products of the night job (PROGETTO §5.6): diary and desires.
@@ -31,6 +31,18 @@ export const desires = pgTable("desires", {
   gosinoId: gosinoId(),
   text: text("text").notNull(),
   status: desireStatus("status").notNull().default("pending"),
+  /**
+   * ADR-078: che cosa è questa riga. Il default è `desiderio` perché è ciò
+   * che erano tutte prima — e le righe che avevano già un'ora sopra sono
+   * promemoria, che la migrazione ricuce all'indietro invece di lasciarle
+   * mentire.
+   *
+   * Serve perché adesso questa tabella ha **due consumatori**: l'iniziativa,
+   * che sceglie il momento buono, e il timer, che non sceglie niente e suona
+   * in orario. Senza il tipo, il primo dei due avrebbe letto la sveglia
+   * dell'altro e l'avrebbe detta con le parole sbagliate, in ritardo.
+   */
+  kind: desireKind("kind").notNull().default("desiderio"),
   /** the dream's fuzzy hint, in words: "domani mattina", "quando torna" */
   dueHint: text("due_hint"),
   /**

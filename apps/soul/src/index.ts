@@ -25,6 +25,7 @@ import { IdleConsolidation } from "./services/idleConsolidation.js";
 import { MortalityWatch } from "./services/mortalityWatch.js";
 import { RegistryClient } from "./services/registryClient.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
+import { TimerWatch } from "./services/volition/timerWatch.js";
 import { CouncilService } from "./services/council/councilService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
 import { RuminationService } from "./services/rumination.js";
@@ -605,6 +606,31 @@ const volitionTimer = setInterval(() => {
   });
 }, env.UGO_INITIATIVE_TICK_MINUTES * 60_000);
 volitionTimer.unref();
+
+/**
+ * ADR-078: il timer suona in orario, e quindi ha un orologio suo.
+ *
+ * Quindici secondi: l'iniziativa gira ogni quattro minuti perché sceglie il
+ * momento buono, e per la pasta il momento buono è adesso. Non tiene stato —
+ * la verità è la riga con l'ora sopra — quindi un riavvio non perde nessuna
+ * sveglia.
+ */
+const TIMER_TICK_MS = 15_000;
+const timerTimer = setInterval(() => {
+  for (const runtime of registry.everywhere()) {
+    new TimerWatch({ db, gateway: runtime.gateway, gosinoId: runtime.id })
+      .tick()
+      .then((rang) => {
+        // id e quanti, mai l'etichetta (regola 6): «per la pasta» è roba di casa
+        if (rang > 0) app.log.info({ gosino: runtime.id, rang }, "timer");
+      })
+      .catch((error: unknown) => {
+        app.log.warn(error, "timer tick failed");
+      });
+  }
+}, TIMER_TICK_MS);
+timerTimer.unref();
+periodic.push(timerTimer);
 
 // §5.3: loneliness and neglect are perturbations no sensor can emit
 const solitude = new SolitudeMonitor({ db, gosinoId: bootstrapExemplar.id, psyche });
