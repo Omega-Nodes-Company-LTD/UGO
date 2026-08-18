@@ -62,6 +62,17 @@ export const GOSINO_PAGES = `
     <div id="efficacy-msg"></div>
   </div>
 
+  <div class="block">
+    <h2>Le domande che ti fa tornare</h2>
+    <p class="lede">Gliele chiedi a voce — «<i>ogni sera alle nove chiedimi com'è andata</i>» — e
+       da lì in poi se ne ricorda lui. Non sono sveglie: quando è l'ora <b>gli viene voglia di
+       chiedertelo</b>, e lo dice quando ha senso — se l'iniziativa è spenta, tace.</p>
+    <div id="checkin-list" data-testid="checkin-list"></div>
+    <div id="checkin-msg"></div>
+    <p class="lede" style="margin-top:.9rem">Per spegnerle tutte in una volta basta dirgli
+       «<i>non chiedermelo più</i>».</p>
+  </div>
+
   <div class="grid-2">
     <div class="block">
       <h2>Desideri in sospeso</h2>

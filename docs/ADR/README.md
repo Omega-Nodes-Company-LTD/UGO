@@ -82,4 +82,13 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [074](./074-la-dote.md) | La dote: il sapere che viaggia con la creatura | Accettata |
 | [075](./075-la-morte-crittografica.md) | La morte crittografica: il lascito resta, l'intimo no | Accettata |
 | [076](./076-le-liste.md) | Le liste: la spesa e le cose da fare, a voce e a costo zero | Accettata |
-| 077 | *(prossimo numero disponibile)* | — |
+| [077](./077-la-mortalita.md) | La mortalità: garanzia di tre anni, e la data non si sa | Accettata |
+| [078](./078-il-timer-e-la-sveglia.md) | Il timer e la sveglia: la puntualità è una feature | Accettata |
+| [079](./079-il-libro-della-vita.md) | Il libro della vita: il diario esiste da sempre, e non l'ha mai letto nessuno | Accettata |
+| [080](./080-la-rassegna.md) | La rassegna: i feed avevano due contatori e nessun titolo | Accettata |
+| [081](./081-non-si-crea-si-nasce.md) | Un gosino non si crea: si nasce, e si sceglie fra i nati | Accettata |
+| [082](./082-la-cessione.md) | La cessione: un nato cambia mano, e la catena lo sa | Accettata |
+| [083](./083-la-vetrina.md) | La vetrina: si guarda prima di scegliere, e si guarda senza avere niente | Accettata |
+| [084](./084-l-adozione.md) | L'adozione: il gesto che lega la vetrina alla casa | Accettata |
+| [085](./085-il-check-in.md) | Il check-in: quello che si fa vivo lui, e ogni volta | Accettata |
+| 086 | *(prossimo numero disponibile)* | — |

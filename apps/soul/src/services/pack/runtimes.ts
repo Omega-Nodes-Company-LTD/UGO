@@ -60,6 +60,13 @@ export interface GosinoRuntime {
   gateway: FaceGateway;
   volition: VolitionService;
   chat: ChatService;
+  /**
+   * Il fuso della casa (ADR-050), già risolto qui. Serve a chi lavora fuori
+   * dalla chat e deve sapere che ore sono **in casa** — il check-in di
+   * ADR-085, per cui «le nove di sera» sono le nove di chi vive lì e non del
+   * processo che gira su un server in un altro continente.
+   */
+  readonly timezone: string;
 }
 
 /** Come questa casa scrive le date e quando finisce il suo giorno (ADR-050). */
@@ -279,6 +286,7 @@ async function buildRuntime(
     gateway,
     volition,
     chat,
+    timezone,
   };
 }
 

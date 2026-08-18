@@ -144,6 +144,8 @@ async function openPage(page) {
   } else if (page === "volonta") {
     await section(loadVolition, "volition-msg");
     await section(loadEfficacy, "efficacy-msg");
+    // ADR-085: e cosa si è impegnato a chiederti, e quando
+    await section(loadCheckins, "checkin-msg");
   } else if (page === "pedigree") {
     // ADR-070: da chi discende, e se le firme dei genitori reggono
     await section(loadPedigree, "pedigree-msg");

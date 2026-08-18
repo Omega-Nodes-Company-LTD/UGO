@@ -1,3 +1,5 @@
+import { hourLabel, numberFrom, readClock } from "./clock.js";
+
 /**
  * Il timer e la sveglia (ADR-078) — puri, e apposta non una chiamata al modello.
  *
@@ -43,37 +45,7 @@ const DAY = 24 * HOUR;
 /** Oltre un giorno non è un timer: è un appuntamento, e quello è un promemoria. */
 const MAX_TIMER_SECONDS = DAY;
 
-const WORD_NUMBERS: Readonly<Record<string, number>> = {
-  un: 1,
-  uno: 1,
-  una: 1,
-  due: 2,
-  tre: 3,
-  quattro: 4,
-  cinque: 5,
-  sei: 6,
-  sette: 7,
-  otto: 8,
-  nove: 9,
-  dieci: 10,
-  undici: 11,
-  dodici: 12,
-  quindici: 15,
-  venti: 20,
-  trenta: 30,
-  quaranta: 40,
-  quarantacinque: 45,
-  cinquanta: 50,
-  sessanta: 60,
-  novanta: 90,
-};
 
-const numberFrom = (raw: string | undefined): number | undefined => {
-  if (raw === undefined) return undefined;
-  const digits = Number(raw);
-  if (Number.isFinite(digits)) return digits;
-  return WORD_NUMBERS[raw.toLowerCase()];
-};
 
 /**
  * Le parole che dicono «questo è un promemoria, non una sveglia». Se ci sono,
@@ -105,11 +77,6 @@ function labelFrom(text: string): string {
     text.trim(),
   );
   return (match?.[1] ?? "").trim().replace(/\s+/gu, " ");
-}
-
-/** «7:05» dai due numeri, che è come lo direbbe una persona guardando l'ora. */
-export function hourLabel(hour: number, minute: number): string {
-  return `${String(hour)}:${minute < 10 ? "0" : ""}${String(minute)}`;
 }
 
 /**
@@ -177,21 +144,12 @@ export function parseTimerCommand(
   }
 
   // ── «sveglia alle 7» · «metti la sveglia domani alle 6:30» ────────────
-  const absolute = /\b(?:all[ae]|per\s+le)\s+(\d{1,2})(?:\s*[:.]\s*(\d{2}))?\b/u.exec(lower);
-  if (absolute !== null) {
-    const hour = numberFrom(absolute[1]);
-    let minute = absolute[2] === undefined ? 0 : Number(absolute[2]);
-    /**
-     * «alle 7 e mezza» è come si dice l'ora in italiano, e leggerla come le
-     * 7:00 sarebbe una sveglia di mezz'ora sbagliata — cioè peggio di nessuna
-     * sveglia. Il resto della frase dopo l'ora si legge, non si ignora.
-     */
-    const after = lower.slice(absolute.index + absolute[0].length);
-    if (/^\s*e\s+mezz[ao]\b/u.test(after)) minute += 30;
-    else if (/^\s*e\s+un\s+quarto\b/u.test(after)) minute += 15;
-    else if (/^\s*meno\s+un\s+quarto\b/u.test(after)) minute -= 15;
-    if (hour === undefined || hour > 23 || minute > 59 || minute < -15) return undefined;
-    let deltaMinutes = (hour - nowHour) * 60 + (minute - nowMinute);
+  // L'ora la legge `clock.ts`, che la legge anche per il check-in (ADR-085):
+  // due orologi separati sono due orologi che prima o poi non segnano la
+  // stessa ora. Da lì arrivano gratis «alle sette» e «alle nove di sera».
+  const clock = readClock(lower);
+  if (clock !== undefined) {
+    let deltaMinutes = (clock.hour - nowHour) * 60 + (clock.minute - nowMinute);
     // un'ora già passata vuol dire domani, che è quello che intende una persona
     if (deltaMinutes <= 0 || /\bdomani\b/u.test(lower)) deltaMinutes += 24 * 60;
     if (/\bdomani\b/u.test(lower) && deltaMinutes > 2 * 24 * 60) deltaMinutes -= 24 * 60;
@@ -200,7 +158,7 @@ export function parseTimerCommand(
       kind,
       inSeconds: deltaMinutes * MINUTE,
       anchor: "orologio",
-      label: hourLabel(hour + (minute < 0 ? -1 : 0), (minute + 60) % 60),
+      label: hourLabel(clock.hour, clock.minute),
     };
   }
 

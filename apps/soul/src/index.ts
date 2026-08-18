@@ -25,6 +25,7 @@ import { IdleConsolidation } from "./services/idleConsolidation.js";
 import { MortalityWatch } from "./services/mortalityWatch.js";
 import { RegistryClient } from "./services/registryClient.js";
 import { SolitudeMonitor } from "./services/solitudeMonitor.js";
+import { CheckinWatch } from "./services/checkinService.js";
 import { TimerWatch } from "./services/volition/timerWatch.js";
 import { CouncilService } from "./services/council/councilService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
@@ -630,6 +631,32 @@ const timerTimer = setInterval(() => {
 }, TIMER_TICK_MS);
 timerTimer.unref();
 periodic.push(timerTimer);
+
+/**
+ * ADR-085: le domande che tornano.
+ *
+ * Un minuto, non quindici secondi: un check-in non è una sveglia, è una cosa
+ * che vuole chiedere. Quando è l'ora scrive un desiderio, e a dirlo ci pensa
+ * l'iniziativa — che sceglie il momento buono, rispetta le ore di quiete e,
+ * a interruttore spento, tace. Farsi vivi è precisamente ciò che
+ * quell'interruttore spegne, e per questo qui non c'è nessuna voce.
+ */
+const CHECKIN_TICK_MS = 60_000;
+const checkinTimer = setInterval(() => {
+  for (const runtime of registry.everywhere()) {
+    new CheckinWatch({ db, gosinoId: runtime.id, timezone: runtime.timezone })
+      .tick()
+      .then((report) => {
+        // quante, mai il testo (regola 6): la domanda è roba di casa
+        if (report.asked > 0) app.log.info({ gosino: runtime.id, asked: report.asked }, "checkin");
+      })
+      .catch((error: unknown) => {
+        app.log.warn(error, "checkin tick failed");
+      });
+  }
+}, CHECKIN_TICK_MS);
+checkinTimer.unref();
+periodic.push(checkinTimer);
 
 // §5.3: loneliness and neglect are perturbations no sensor can emit
 const solitude = new SolitudeMonitor({ db, gosinoId: bootstrapExemplar.id, psyche });

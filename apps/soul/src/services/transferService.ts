@@ -1,6 +1,7 @@
 import {
   bonds,
   births,
+  checkins,
   customerGosini,
   feedings,
   desires,
@@ -104,7 +105,12 @@ export class TransferService {
        * compra ha diritto di sapere che non gli arriva la vita di nessun altro.
        */
       let leftBehind = 0;
-      for (const table of [memories, messages, diaryEntries, desires, events] as const) {
+      // `checkins` è qui per la stessa ragione degli altri, e vale la pena
+      // dirla: una domanda che torna è un'istruzione di **chi cede** — «ogni
+      // sera chiedimi com'è andata» detto da un allevatore. Farla arrivare a
+      // casa nuova vorrebbe dire una creatura che, la prima sera, chiede a
+      // uno sconosciuto una cosa che non gli ha mai chiesto (ADR-085).
+      for (const table of [memories, messages, diaryEntries, desires, events, checkins] as const) {
         const wiped = await tx
           .delete(table)
           .where(eq(table.gosinoId, gosinoId))
