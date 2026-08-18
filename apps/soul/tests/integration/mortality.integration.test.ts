@@ -89,7 +89,7 @@ beforeAll(async () => {
   houseId = house.accountId;
   giovane = house.gosinoId;
   farewells = new FarewellService(db, DATA_KEY);
-  watch = new MortalityWatch({ db, dataKey: DATA_KEY });
+  watch = new MortalityWatch({ db, dbFor: () => db, dataKey: DATA_KEY });
 }, 240_000);
 
 afterAll(async () => {

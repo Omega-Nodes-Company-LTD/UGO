@@ -86,6 +86,9 @@ beforeAll(async () => {
 
   await GosinoRegistry.load({
     db,
+    // ADR-098: nei test la connessione di processo e' l'owner, quindi la
+    // "connessione della casa" puo' essere la stessa — il muro qui non morde
+    dbFor: () => db,
     embedder,
     llm: () => undefined as unknown as LlmClient,
     local,
@@ -135,6 +138,7 @@ describe("il genoma arriva fino al database", () => {
 
     await GosinoRegistry.load({
       db,
+      dbFor: () => db,
       embedder,
       llm: () => undefined as unknown as LlmClient,
       local,

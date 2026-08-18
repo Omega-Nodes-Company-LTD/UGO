@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { createDbClient, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
+import { createDbClient, createScopedDbClient, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
@@ -80,6 +80,21 @@ if (env.UGO_AUTO_MIGRATE) {
 }
 
 const db = createDbClient(env.DATABASE_URL);
+
+/**
+ * ADR-098: la connessione della casa. Un client per account, creato una volta
+ * e riusato: `app.account_id` è nel pacchetto di startup, quindi ogni query
+ * dei runtime è già dentro il muro — riconnessioni comprese.
+ */
+const houseClients = new Map<string, DbClient>();
+const dbFor = (accountId: string): DbClient => {
+  const cached = houseClients.get(accountId);
+  if (cached !== undefined) return cached;
+  const scoped = createScopedDbClient(env.DATABASE_URL, accountId);
+  houseClients.set(accountId, scoped);
+  return scoped;
+};
+
 /**
  * The house the boot-time fallback apparatus belongs to.
  *
@@ -96,14 +111,14 @@ const [bootstrapHouse] = await db
   .limit(1);
 if (bootstrapHouse === undefined) throw new Error("no account: run the migrations");
 const bootstrapAccountId = bootstrapHouse.id;
-const [bootstrapExemplar] = await db
+const [bootstrapExemplar] = await dbFor(bootstrapAccountId)
   .select({ id: gosini.id })
   .from(gosini)
   .where(eq(gosini.accountId, bootstrapAccountId))
   .orderBy(asc(gosini.bornAt))
   .limit(1);
 if (bootstrapExemplar === undefined) throw new Error("no exemplar: run the migrations");
-const psyche = await PsycheService.restore(db, new Date(), bootstrapExemplar.id);
+const psyche = await PsycheService.restore(dbFor(bootstrapAccountId), new Date(), bootstrapExemplar.id);
 // ADR-050: l'orologio e la lingua arrivano dalla CASA. `env.TZ` resta il
 // ripiego per l'apparato di avvio, che nasce prima che una casa sia risolta.
 /**
@@ -121,7 +136,9 @@ const llmFor = (
   clock: HouseClock = { timezone: env.TZ, locale: DEFAULT_LOCALE },
 ): ChatLlm => {
   const remote = new LlmClient({
-    db,
+    // ADR-098: il muro del budget legge il ledger DELLA casa — sulla
+    // connessione nuda, sotto ugo_app, vedrebbe zero e non morderebbe mai
+    db: dbFor(accountId),
     apiKey: env.ANTHROPIC_API_KEY,
     model: env.UGO_CHAT_MODEL,
     dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
@@ -133,7 +150,7 @@ const llmFor = (
   });
   if (env.UGO_CHAT_LOCAL_FIRST !== "on") return remote;
   return new ChatChain({
-    db,
+    db: dbFor(accountId),
     accountId,
     gosinoId,
     timezone: clock.timezone,
@@ -175,12 +192,12 @@ const web =
       });
 
 
-const pack = new PackService(db, speciesMap, bootstrapExemplar.id, bootstrapAccountId);
+const pack = new PackService(dbFor(bootstrapAccountId), speciesMap, bootstrapExemplar.id, bootstrapAccountId);
 // ADR-031: anche l'apparato di ripiego ha un carattere. Senza genoma in
 // `trait_sets` `characterFrom({})` risponde «un UGO senza spigoli», che e' la
 // verita' su una casa che non ha ancora scelto niente — non un valore neutro
 // messo li' per far compilare.
-const [bootstrapTraits] = await db
+const [bootstrapTraits] = await dbFor(bootstrapAccountId)
   .select({ traits: traitSets.traits })
   .from(traitSets)
   .where(eq(traitSets.gosinoId, bootstrapExemplar.id))
@@ -208,12 +225,12 @@ const localVision =
 // avvio e i runtime lo vogliono fra le dipendenze) e legge il registro al
 // momento del gesto, quando esiste da un pezzo
 let registryRef: GosinoRegistry | undefined = undefined;
-const nudges = new NudgeService({ db, registry: () => registryRef });
+const nudges = new NudgeService({ dbFor, registry: () => registryRef });
 
 // l'annotazione esplicita spezza il cerchio dell'inferenza: chat → lettore →
 // gateway → chat (il lettore guarda il corpo solo al momento del gesto)
 const chat: ChatService = new ChatService({
-  db,
+  db: dbFor(bootstrapAccountId),
   embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
   llm,
   psyche,
@@ -237,7 +254,7 @@ const chat: ChatService = new ChatService({
 
 const audio = audioStorageFromEnv(env);
 const face: FaceGateway = new FaceGateway({
-  db,
+  db: dbFor(bootstrapAccountId),
   chat,
   psyche,
   gosinoId: bootstrapExemplar.id,
@@ -252,7 +269,7 @@ const face: FaceGateway = new FaceGateway({
   // finestra la controlla il gateway, il deposito è lo stesso del pannello
   ...(audio !== undefined && {
     voiceSample: (input: { beingId: string; audio: Buffer }) =>
-      storeVoiceSample({ db, storage: audio }, { accountId: bootstrapAccountId, ...input }),
+      storeVoiceSample({ db: dbFor(bootstrapAccountId), storage: audio }, { accountId: bootstrapAccountId, ...input }),
   }),
 });
 const dataKey = parseDataKey(env.UGO_DATA_KEY);
@@ -267,6 +284,7 @@ const meetings =
   env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined
     ? new MeetingsService({
         db,
+        dbFor,
         gosinoId: bootstrapExemplar.id,
         accountId: bootstrapAccountId,
         embedder,
@@ -342,6 +360,7 @@ const recognition =
 
 const registry = await GosinoRegistry.load({
   db,
+  dbFor,
   embedder,
   llm: llmFor,
   local: localText,
@@ -574,7 +593,7 @@ if (meetings !== undefined) {
 // sfalsamento, un solo posto da guardare quando ci si chiede «cosa gira».
 // gruppo 12: parla nel sonno — di notte, un frammento del diario di ieri
 // come nuvoletta senza voce. Stesso battito delle iniziative, zero token.
-const sleepTalk = new SleepTalk({ db, hourOf });
+const sleepTalk = new SleepTalk({ dbFor, hourOf });
 
 // gruppo 12, secondo taglio della visione: ogni tanto UGO dà un'occhiata —
 // lo sguardo si chiede al chiosco, il modello locale lo racconta, la frase
@@ -582,10 +601,10 @@ const sleepTalk = new SleepTalk({ db, hourOf });
 const sceneGlance =
   localVision === undefined
     ? undefined
-    : new SceneGlance({ db, vision: localVision, visionUp: () => localVisionUp, hourOf });
+    : new SceneGlance({ dbFor, vision: localVision, visionUp: () => localVisionUp, hourOf });
 
 const rumination = new RuminationService({
-  db,
+  dbFor,
   local: localText,
   localUp: () => localTextUp,
   hourOf,
@@ -660,7 +679,7 @@ volitionTimer.unref();
 const TIMER_TICK_MS = 15_000;
 const timerTimer = setInterval(() => {
   for (const runtime of registry.everywhere()) {
-    new TimerWatch({ db, gateway: runtime.gateway, gosinoId: runtime.id })
+    new TimerWatch({ db: dbFor(runtime.accountId), gateway: runtime.gateway, gosinoId: runtime.id })
       .tick()
       .then((rang) => {
         // id e quanti, mai l'etichetta (regola 6): «per la pasta» è roba di casa
@@ -686,7 +705,7 @@ periodic.push(timerTimer);
 const CHECKIN_TICK_MS = 60_000;
 const checkinTimer = setInterval(() => {
   for (const runtime of registry.everywhere()) {
-    new CheckinWatch({ db, gosinoId: runtime.id, timezone: runtime.timezone })
+    new CheckinWatch({ db: dbFor(runtime.accountId), gosinoId: runtime.id, timezone: runtime.timezone })
       .tick()
       .then((report) => {
         // quante, mai il testo (regola 6): la domanda è roba di casa
@@ -701,7 +720,7 @@ checkinTimer.unref();
 periodic.push(checkinTimer);
 
 // §5.3: loneliness and neglect are perturbations no sensor can emit
-const solitude = new SolitudeMonitor({ db, gosinoId: bootstrapExemplar.id, psyche });
+const solitude = new SolitudeMonitor({ db: dbFor(bootstrapAccountId), gosinoId: bootstrapExemplar.id, psyche });
 const SOLITUDE_TICK_MS = 15 * 60_000;
 const solitudeTimer = setInterval(() => {
   solitude.tick().catch((error: unknown) => {
@@ -715,7 +734,7 @@ solitudeTimer.unref();
 if (env.UGO_IDLE_CONSOLIDATION_MINUTES > 0) {
   const triggerUrl = env.UGO_JOBS_TRIGGER_URL;
   const idle = new IdleConsolidation({
-    db,
+    db: dbFor(bootstrapAccountId),
     gosinoId: bootstrapExemplar.id,
     options: {
       idleMinutes: env.UGO_IDLE_CONSOLIDATION_MINUTES,
@@ -753,6 +772,7 @@ if (env.UGO_IDLE_CONSOLIDATION_MINUTES > 0) {
  */
 const mortality = new MortalityWatch({
   db,
+  dbFor,
   dataKey,
   registry,
   logger: app.log,

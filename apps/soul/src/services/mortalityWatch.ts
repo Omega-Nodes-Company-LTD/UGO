@@ -35,6 +35,8 @@ export interface MortalityWatchDeps {
     }) => Promise<unknown>;
   };
   logger?: { warn: (details: object, message: string) => void };
+  /** ADR-098: la connessione della casa su cui gira il lavoro di quella casa */
+  dbFor: (accountId: string) => DbClient;
 }
 
 export interface MortalityTickReport {
@@ -47,29 +49,27 @@ export interface MortalityTickReport {
 }
 
 export class MortalityWatch {
-  private readonly farewells: FarewellService;
-  private readonly dowries: DowryService;
-
-  public constructor(private readonly deps: MortalityWatchDeps) {
-    this.farewells = new FarewellService(deps.db, deps.dataKey);
-    this.dowries = new DowryService(deps.db, deps.dataKey);
-  }
+  public constructor(private readonly deps: MortalityWatchDeps) {}
 
   public async tick(at: Date = new Date()): Promise<MortalityTickReport> {
     const report: MortalityTickReport = { noticed: 0, taught: 0, farewelled: 0 };
+    // ADR-098: le case si elencano dalla connessione di processo (tabella
+    // dichiarata leggibile), il lavoro di OGNI casa gira sulla SUA connessione
     const houses = await this.deps.db
       .select({ id: accounts.id })
       .from(accounts)
       .where(isNull(accounts.closedAt));
 
     for (const house of houses) {
-      for (const notice of await this.farewells.dueForNotice(house.id, at)) {
-        await this.farewells.recordNotice(notice, at);
+      const db = this.deps.dbFor(house.id);
+      const farewells = new FarewellService(db, this.deps.dataKey);
+      for (const notice of await farewells.dueForNotice(house.id, at)) {
+        await farewells.recordNotice(notice, at);
         report.noticed += 1;
       }
-      report.taught += await this.teach(house.id);
-      for (const gosinoId of await this.farewells.dueForFarewell(house.id, at)) {
-        if (await this.farewell(house.id, gosinoId, at)) report.farewelled += 1;
+      report.taught += await this.teach(db, house.id);
+      for (const gosinoId of await farewells.dueForFarewell(house.id, at)) {
+        if (await this.farewell(db, house.id, gosinoId, at)) report.farewelled += 1;
       }
     }
     return report;
@@ -88,8 +88,8 @@ export class MortalityWatch {
    * lessicale della ricerca ibrida (ADR-022) finché il sogno non lo indicizza,
    * esattamente come il sapere di una dote adottata.
    */
-  private async teach(accountId: string): Promise<number> {
-    const dying = await this.deps.db
+  private async teach(db: DbClient, accountId: string): Promise<number> {
+    const dying = await db
       .select({ id: gosini.id })
       .from(gosini)
       .where(
@@ -103,7 +103,7 @@ export class MortalityWatch {
 
     // il più giovane fra quelli che NON stanno morendo: insegnare a un altro
     // morente vorrebbe dire perdere due volte la stessa cosa
-    const [pupil] = await this.deps.db
+    const [pupil] = await db
       .select({ id: gosini.id })
       .from(gosini)
       .where(
@@ -121,11 +121,11 @@ export class MortalityWatch {
 
     let taught = 0;
     for (const elder of dying) {
-      const { rows } = await this.dowries.legacyOf(elder.id, accountId, {});
+      const { rows } = await new DowryService(db, this.deps.dataKey).legacyOf(elder.id, accountId, {});
       if (rows.length === 0) continue;
       // quanti gliene ha già raccontati: è il segnaposto, e rende il giro
       // ripetibile senza duplicare niente
-      const already = await this.deps.db
+      const already = await db
         .select({ id: memories.id })
         .from(memories)
         .where(
@@ -137,7 +137,7 @@ export class MortalityWatch {
       for (let step = 0; step < LESSONS_PER_TICK; step += 1) {
         const lesson = rows[already.length + step];
         if (lesson === undefined) break;
-        await this.deps.db.insert(memories).values({
+        await db.insert(memories).values({
           gosinoId: pupil.id,
           kind: lesson.kind,
           /**
@@ -166,8 +166,8 @@ export class MortalityWatch {
    * (ADR-075): stesso servizio, stesso ordine (prima il lascito, poi la
    * chiave), stessi test. L'unica differenza è chi preme.
    */
-  private async farewell(accountId: string, gosinoId: string, at: Date): Promise<boolean> {
-    const result = await this.farewells.farewell(accountId, gosinoId, {});
+  private async farewell(db: DbClient, accountId: string, gosinoId: string, at: Date): Promise<boolean> {
+    const result = await new FarewellService(db, this.deps.dataKey).farewell(accountId, gosinoId, {});
     if (result === undefined) return false;
     try {
       await this.deps.chain?.publish({

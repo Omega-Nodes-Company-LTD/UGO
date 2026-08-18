@@ -3,7 +3,7 @@ import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { lifeAt } from "@ugo/psyche";
 import type { SpeciesMap } from "@ugo/shared";
 import type { ChatLlm, EmbeddingsClient, LocalTextClient } from "@ugo/memory";
-import { desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { AudioStorageConfig } from "../../routes/audio.js";
 import { ChatService } from "../chatService.js";
 import { characterFrom, type Character } from "../council/character.js";
@@ -76,6 +76,13 @@ export interface HouseClock {
 }
 
 export interface RuntimeDeps {
+  /**
+   * ADR-098: la connessione DELLA CASA — `app.account_id` dichiarato alla
+   * stretta di mano, ogni query del runtime già dentro il muro. `db` resta la
+   * connessione di processo: serve solo a elencare le case (tabella
+   * dichiarata leggibile, ADR-048 §7).
+   */
+  dbFor: (accountId: string) => DbClient;
   db: DbClient;
   embedder: EmbeddingsClient;
   /**
@@ -161,14 +168,15 @@ async function buildRuntime(
     jitter?: number | null;
   },
 ): Promise<GosinoRuntime> {
-  const [house] = await deps.db
+  const hdb = deps.dbFor(row.accountId);
+  const [house] = await hdb
     .select({ timezone: accounts.timezone, locale: accounts.locale })
     .from(accounts)
     .where(eq(accounts.id, row.accountId));
   const timezone = house?.timezone ?? deps.timezone;
   const locale = house?.locale ?? DEFAULT_LOCALE;
 
-  const traits = await deps.db
+  const traits = await hdb
     .select({ traits: traitSets.traits })
     .from(traitSets)
     .where(eq(traitSets.gosinoId, row.id))
@@ -197,8 +205,8 @@ async function buildRuntime(
   // ripiegava sui valori neutri del motore. Si seminano qui e non alla nascita
   // perche' cosi' vale anche per gli esemplari nati prima di questa riga; e
   // prima di `restore()`, o la prima vita partirebbe comunque neutra.
-  await seedBaselines(deps.db, row.id, character.baselines);
-  const psyche = await PsycheService.restore(deps.db, new Date(), row.id);
+  await seedBaselines(hdb, row.id, character.baselines);
+  const psyche = await PsycheService.restore(hdb, new Date(), row.id);
   const recognition = deps.recognition?.(row.accountId);
   const nudges = deps.nudges;
   // ADR-065: il lettore ha bisogno del gateway, che nasce DOPO la chat (il
@@ -206,7 +214,7 @@ async function buildRuntime(
   // legge il corpo solo al momento del gesto, quando esiste da un pezzo.
   const body: { gateway?: FaceGateway } = {};
   const chat = new ChatService({
-    db: deps.db,
+    db: hdb,
     embedder: deps.embedder,
     llm: deps.llm(row.accountId, row.id, { timezone, locale }),
     psyche,
@@ -217,7 +225,7 @@ async function buildRuntime(
     accountId: row.accountId,
     character,
     ...(deps.speciesMap !== undefined && {
-      pack: new PackService(deps.db, deps.speciesMap, row.id, row.accountId),
+      pack: new PackService(hdb, deps.speciesMap, row.id, row.accountId),
     }),
     ...(deps.web !== undefined && { web: deps.web }),
     // ADR-088: la storia della buonanotte la scrive il modello di casa, lo
@@ -236,16 +244,16 @@ async function buildRuntime(
   });
   // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.
   // Due gosini sotto lo stesso tetto imparano cose diverse, ed è il punto.
-  const efficacy = new EfficacyService(deps.db, row.id);
+  const efficacy = new EfficacyService(hdb, row.id);
   const audio = deps.audio;
   const reward = new RewardService({
-    db: deps.db,
+    db: hdb,
     gosinoId: row.id,
     accountId: row.accountId,
     efficacy,
   });
   const gateway = new FaceGateway({
-    db: deps.db,
+    db: hdb,
     psyche,
     chat,
     gosinoId: row.id,
@@ -255,17 +263,17 @@ async function buildRuntime(
     // controlli a monte dentro — minore e opt-out si rifiutano PRIMA del bucket
     ...(audio !== undefined && {
       voiceSample: (input: { beingId: string; audio: Buffer }) =>
-        storeVoiceSample({ db: deps.db, storage: audio }, { accountId: row.accountId, ...input }),
+        storeVoiceSample({ db: hdb, storage: audio }, { accountId: row.accountId, ...input }),
     }),
   });
   body.gateway = gateway;
   const volition = new VolitionService({
-    db: deps.db,
+    db: hdb,
     gosinoId: row.id,
     psyche,
     gateway,
     curiosity: new Curiosity({
-      db: deps.db,
+      db: hdb,
       local: deps.local,
       dataKey: deps.dataKey,
       name: row.name,
@@ -306,18 +314,42 @@ export class GosinoRegistry {
 
   /** Rebuilds from the database — called at boot and after a birth. */
   public async reload(): Promise<void> {
-    const rows = await this.deps.db
-      .select({
-        id: gosini.id,
-        accountId: gosini.accountId,
-        name: gosini.name,
-        where: gosini.locationLabel,
-        mortalFrom: gosini.mortalFrom,
-        jitter: gosini.lifeJitterDays,
-      })
-      .from(gosini)
-      .where(isNull(gosini.retiredAt))
-      .orderBy(gosini.bornAt);
+    /**
+     * ADR-098: si iterano le CASE (tabella dichiarata leggibile, ADR-048 §7)
+     * e il roster di ognuna si legge attraverso la SUA connessione. Leggere
+     * `gosini` intero dalla connessione di processo, sotto `ugo_app`, avrebbe
+     * risposto zero righe: processo in piedi e nessuna creatura, senza un
+     * errore da nessuna parte.
+     */
+    const houses = await this.deps.db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(isNull(accounts.closedAt));
+    const rows: {
+      id: string;
+      accountId: string;
+      name: string;
+      where: string | null;
+      mortalFrom: Date | null;
+      jitter: number | null;
+    }[] = [];
+    for (const house of houses) {
+      rows.push(
+        ...(await this.deps
+          .dbFor(house.id)
+          .select({
+            id: gosini.id,
+            accountId: gosini.accountId,
+            name: gosini.name,
+            where: gosini.locationLabel,
+            mortalFrom: gosini.mortalFrom,
+            jitter: gosini.lifeJitterDays,
+          })
+          .from(gosini)
+          .where(and(isNull(gosini.retiredAt), eq(gosini.accountId, house.id)))
+          .orderBy(gosini.bornAt)),
+      );
+    }
     for (const row of rows) {
       const living = this.byId.get(row.id);
       if (living === undefined) {

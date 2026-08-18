@@ -88,6 +88,9 @@ beforeAll(async () => {
 
   registry = await GosinoRegistry.load({
     db,
+    // ADR-098: nei test la connessione di processo e' l'owner, quindi la
+    // "connessione della casa" puo' essere la stessa — il muro qui non morde
+    dbFor: () => db,
     embedder: idleEmbedder,
     // ADR-019 fase 2: `llm` e' una fabbrica per esemplare, non un client.
     // Qui era `undefined as never`, che compilava finche' il client veniva solo
