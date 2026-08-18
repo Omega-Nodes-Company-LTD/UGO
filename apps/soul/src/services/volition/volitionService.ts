@@ -1,5 +1,5 @@
 import { desires, events, messages, type DbClient } from "@ugo/db";
-import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, notInArray, sql } from "drizzle-orm";
 import type { FaceGateway } from "../faceGateway.js";
 import type { PsycheService } from "../psycheService.js";
 import { GLYPH_PATTERNS, type GlyphPattern } from "@ugo/shared";
@@ -155,10 +155,25 @@ export class VolitionService {
     text: string | undefined;
     id: string | undefined;
   }> {
+    /**
+     * ADR-078: **timer e sveglie non sono affari suoi**. Vivono nella stessa
+     * tabella — sono desideri con un'ora sopra come i promemoria — ma li fa
+     * suonare `TimerWatch`, in orario. Senza questo filtro l'iniziativa
+     * avrebbe pescato la sveglia delle 7 al primo giro utile e l'avrebbe
+     * detta con le parole di un promemoria: «ehi, mi avevi detto di ricordarti
+     * 7:00». Due consumatori sulla stessa tabella si guardano in cagnesco
+     * finché non si dice chi legge cosa.
+     */
     const rows = await this.deps.db
       .select({ id: desires.id, text: desires.text, dueAt: desires.dueAt, dueHint: desires.dueHint })
       .from(desires)
-      .where(and(eq(desires.status, "pending"), this.mine(desires)))
+      .where(
+        and(
+          eq(desires.status, "pending"),
+          notInArray(desires.kind, ["timer", "sveglia"]),
+          this.mine(desires),
+        ),
+      )
       .orderBy(asc(desires.createdAt));
 
     // A reminder the owner asked for outranks everything: it comes first, and

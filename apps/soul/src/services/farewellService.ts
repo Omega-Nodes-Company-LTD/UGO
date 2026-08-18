@@ -154,10 +154,22 @@ export class FarewellService {
     const advice = notice.lastOfTheHouse
       ? " Non c'è nessun altro in casa: esporta il diario, o quello che so se ne va con me."
       : " Quello che so lo sto già raccontando ai più giovani.";
+    /**
+     * Un `desiderio` con un accenno, **non** un promemoria con un'ora.
+     *
+     * Difetto mio di ieri, che ADR-078 ha reso visibile dandogli un nome: con
+     * `due_at` valorizzato l'iniziativa lo leggeva come un promemoria e lo
+     * diceva con le parole di un promemoria — «ehi, mi avevi detto di
+     * ricordarti Devo dirti una cosa: il mio tempo sta finendo». Non gliel'ha
+     * chiesto nessuno: è una cosa che vuole dire lui, e `speakDesire` la dice
+     * com'è scritta. L'avviso nel pannello resta il canale che non dipende da
+     * quando arriva il momento buono.
+     */
     await this.db.insert(desires).values({
       gosinoId: notice.gosinoId,
       status: "pending",
-      dueAt: at,
+      kind: "desiderio",
+      dueHint: "presto",
       text: `Devo dirti una cosa: il mio tempo sta finendo.${advice}`,
     });
   }

@@ -281,6 +281,13 @@
       "when": 1787000834399,
       "tag": "0039_dapper_george_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1787026435041,
+      "tag": "0040_stiff_iron_patriot",
+      "breakpoints": true
     }
   ]
 }

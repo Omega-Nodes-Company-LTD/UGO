@@ -76,6 +76,8 @@ export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoute
         id: desires.id,
         text: desires.text,
         status: desires.status,
+        // ADR-078: un timer non è un desiderio, e il pannello lo deve dire
+        kind: desires.kind,
         dueAt: desires.dueAt,
         dueHint: desires.dueHint,
         createdAt: desires.createdAt,

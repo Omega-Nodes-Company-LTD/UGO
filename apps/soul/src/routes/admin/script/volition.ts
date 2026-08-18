@@ -48,11 +48,21 @@ async function loadVolition() {
       + (state.fromEnv ? "può" : "non può") + "» al prossimo riavvio.";
   }
 
+  // ADR-078: tre cose diverse nella stessa lista, e si vedono. Un timer che
+  // sembrasse un desiderio del sogno farebbe pensare che «fra 10 minuti»
+  // significhi «quando capita», che è precisamente il contrario
+  const DESIRE_MARK = { timer: "\u23F1 timer", sveglia: "\u23F0 sveglia", promemoria: "promemoria" };
   $("desire-list").innerHTML = data.desires.length === 0
     ? '<p class="lede">Niente in sospeso.</p>'
-    : data.desires.map((d) => '<div class="deed"><span class="when">' +
-        (d.dueAt ? "per " + when(d.dueAt) : escape(d.dueHint ?? "quando capita")) +
-        '</span><div class="act">' + escape(d.text) + "</div></div>").join("");
+    : data.desires.map((d) => {
+        const mark = DESIRE_MARK[d.kind];
+        return '<div class="deed"><span class="when">' +
+          (mark ? escape(mark) + " \u00b7 " : "") +
+          (d.dueAt ? "per " + when(d.dueAt) : escape(d.dueHint ?? "quando capita")) +
+          '</span><div class="act">' +
+          escape(d.text === "" ? (d.kind === "timer" ? "un timer" : "una sveglia") : d.text) +
+          "</div></div>";
+      }).join("");
 
   // what actually moves him, ranked. One line of arithmetic answers a question
   // the list cannot: is he lonely, or just bored?

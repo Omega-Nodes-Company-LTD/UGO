@@ -23,6 +23,13 @@ import { buildPackPrompt, selfLine } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
 import { readGestureOf, replyForReading, type ReadOutcome } from "./sceneReader.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
+import {
+  answerTimer,
+  confirmCancel,
+  confirmTimer,
+  parseTimerCommand,
+  type TimerCommand,
+} from "./volition/timers.js";
 import { confirmList, parseListCommand, type ListCommand } from "./volition/lists.js";
 import { searchQueryOf } from "./webSearch.js";
 
@@ -321,7 +328,7 @@ export class ChatService {
     request: ChatRequest,
     at: Date,
   ): Promise<ChatResponse> {
-    const { db, dataKey, psyche } = this.deps;
+    const { db, dataKey } = this.deps;
     const householdId = this.deps.householdId;
     let reply: string;
 
@@ -375,6 +382,76 @@ export class ChatService {
       }
     }
 
+    return this.answered(reply, request, at);
+  }
+
+  /**
+   * ADR-078: mettere, spegnere, chiedere. Un timer È un desiderio con un'ora
+   * sopra — la tabella c'era già (ADR-028) — e quello che cambia è chi lo
+   * legge: la sentinella del timer, che suona in orario, invece
+   * dell'iniziativa, che sceglie il momento buono.
+   */
+  private async applyTimer(command: TimerCommand, at: Date): Promise<string> {
+    const { db } = this.deps;
+    const mine = and(
+      eq(desires.gosinoId, this.deps.gosinoId),
+      eq(desires.kind, command.kind),
+      eq(desires.status, "pending"),
+    );
+
+    if (command.action === "set") {
+      // uno per volta, come una sveglia vera: metterne una seconda sostituisce
+      // la prima invece di farne suonare due
+      await db.update(desires).set({ status: "expired" }).where(mine);
+      /**
+       * Una sveglia «alle 7» suona alle 7:00:00. Contando dall'istante in cui
+       * l'hai chiesta si portava dietro i suoi secondi e suonava alle 7:00:40:
+       * un timer si conta da adesso, un'ora si legge sull'orologio.
+       */
+      const anchor =
+        command.anchor === "orologio" ? new Date(Math.floor(at.getTime() / 60_000) * 60_000) : at;
+      await db.insert(desires).values({
+        gosinoId: this.deps.gosinoId,
+        kind: command.kind,
+        status: "pending",
+        text: command.label,
+        dueAt: new Date(anchor.getTime() + command.inSeconds * 1000),
+      });
+      return confirmTimer(command);
+    }
+
+    const [pending] = await db
+      .select({ id: desires.id, text: desires.text, dueAt: desires.dueAt })
+      .from(desires)
+      .where(mine)
+      .orderBy(asc(desires.dueAt))
+      .limit(1);
+
+    if (command.action === "cancel") {
+      // `expired` e non `done`: un timer spento non è un timer che ha suonato
+      if (pending !== undefined) {
+        await db.update(desires).set({ status: "expired" }).where(eq(desires.id, pending.id));
+      }
+      return confirmCancel(command.kind, pending !== undefined);
+    }
+
+    const left =
+      pending?.dueAt === undefined || pending.dueAt === null
+        ? undefined
+        : Math.max(0, (pending.dueAt.getTime() - at.getTime()) / 1000);
+    return answerTimer(command.kind, left, pending?.text ?? "");
+  }
+
+  /**
+   * Un gesto risolto in casa: la risposta è già decisa, e quello che resta è
+   * la parte che non cambia mai — **lo scambio va in biografia cifrato come
+   * ogni altro**. Era copiata cinque volte, una per gesto, e ogni gesto nuovo
+   * ne avrebbe aggiunta una sesta: una scorciatoia sul costo non è una
+   * scorciatoia sulla memoria, e questo metodo è dove quella promessa smette
+   * di dipendere da chi copia bene.
+   */
+  private async answered(reply: string, request: ChatRequest, at: Date): Promise<ChatResponse> {
+    const { db, dataKey, psyche } = this.deps;
     const owner = { gosinoId: this.deps.gosinoId };
     await db.insert(messages).values([
       {
@@ -426,35 +503,32 @@ export class ChatService {
       return this.applyList(listCommand, request, at);
     }
 
+    /**
+     * ADR-078: «metti un timer di 10 minuti», «svegliami alle 7». Prima del
+     * promemoria apposta — «svegliami» è un verbo che appartiene a entrambi,
+     * e ADR-028 lo scartava perché non c'era niente da ricordare. Se invece la
+     * frase porta anche una cosa da ricordare, il parser del timer si tira
+     * indietro da solo e la frase arriva qui sotto intera.
+     */
+    const timer = parseTimerCommand(request.text, wall.hour, wall.minute);
+    if (timer !== undefined) {
+      return this.answered(await this.applyTimer(timer, at), request, at);
+    }
+
     const reminder = parseReminder(request.text, wall.hour, wall.minute);
     if (reminder !== undefined) {
       await db.insert(desires).values({
         text: reminder.task,
         status: "pending",
+        // ADR-078: da qui in poi la riga dice cosa è. Un promemoria aspetta il
+        // momento buono; un timer no — e a leggerli allo stesso modo si
+        // sbagliano tutti e due
+        kind: "promemoria",
         dueAt: new Date(at.getTime() + reminder.inMinutes * 60_000),
         gosinoId: this.deps.gosinoId,
       });
-      const reply = confirmReminder(reminder);
       // the exchange still goes into the biography, encrypted like every other
-      const owner = { gosinoId: this.deps.gosinoId };
-      await db.insert(messages).values([
-        {
-          ...owner,
-          ts: at,
-          channel: request.channel,
-          role: "user",
-          beingId: request.beingId ?? null,
-          text: encryptText(request.text, dataKey),
-        },
-        {
-          ...owner,
-          ts: new Date(at.getTime() + 1),
-          channel: request.channel,
-          role: "assistant",
-          text: encryptText(reply, dataKey),
-        },
-      ]);
-      return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+      return this.answered(confirmReminder(reminder), request, at);
     }
 
     // ADR-063: «cerca: …» — la finestra sul mondo, aperta SOLO su gesto
@@ -465,25 +539,7 @@ export class ChatService {
       const reply =
         (await this.deps.web.ask(query)) ??
         "Ho provato a guardare fuori, ma la finestra sul mondo ora non si apre. Grunf.";
-      const owner = { gosinoId: this.deps.gosinoId };
-      await db.insert(messages).values([
-        {
-          ...owner,
-          ts: at,
-          channel: request.channel,
-          role: "user",
-          beingId: request.beingId ?? null,
-          text: encryptText(request.text, dataKey),
-        },
-        {
-          ...owner,
-          ts: new Date(at.getTime() + 1),
-          channel: request.channel,
-          role: "assistant",
-          text: encryptText(reply, dataKey),
-        },
-      ]);
-      return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+      return this.answered(reply, request, at);
     }
 
     // ADR-065: «leggi» — la lettura su gesto esplicito, stessa famiglia del
@@ -491,25 +547,7 @@ export class ChatService {
     // biografia cifrata come tutto
     if (this.deps.reader !== undefined && readGestureOf(request.text)) {
       const reply = replyForReading(await this.deps.reader.read());
-      const owner = { gosinoId: this.deps.gosinoId };
-      await db.insert(messages).values([
-        {
-          ...owner,
-          ts: at,
-          channel: request.channel,
-          role: "user",
-          beingId: request.beingId ?? null,
-          text: encryptText(request.text, dataKey),
-        },
-        {
-          ...owner,
-          ts: new Date(at.getTime() + 1),
-          channel: request.channel,
-          role: "assistant",
-          text: encryptText(reply, dataKey),
-        },
-      ]);
-      return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+      return this.answered(reply, request, at);
     }
 
     // ADR-064: le spinte — stessa famiglia deterministica, stessa strada in
@@ -518,25 +556,7 @@ export class ChatService {
     if (this.deps.nudges !== undefined && request.channel === "home") {
       const nudged = await this.deps.nudges.answer(request.text, at);
       if (nudged !== undefined) {
-        const owner = { gosinoId: this.deps.gosinoId };
-        await db.insert(messages).values([
-          {
-            ...owner,
-            ts: at,
-            channel: request.channel,
-            role: "user",
-            beingId: request.beingId ?? null,
-            text: encryptText(request.text, dataKey),
-          },
-          {
-            ...owner,
-            ts: new Date(at.getTime() + 1),
-            channel: request.channel,
-            role: "assistant",
-            text: encryptText(nudged, dataKey),
-          },
-        ]);
-        return { reply: nudged, moodLabel: psyche.current(at).label, memoriesUsed: [] };
+        return this.answered(nudged, request, at);
       }
     }
 
