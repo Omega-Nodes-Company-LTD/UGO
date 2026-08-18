@@ -52,6 +52,7 @@ il modello:
 - **`ricordami di … alle …`** — diventa un promemoria: al momento giusto te lo dice lui.
 - **`metti un timer di …`** e **`svegliami alle …`** — timer e sveglia, che suonano in orario
   (sotto c'è la sezione tutta loro).
+- **`cos'hai fatto ieri?`** — ti legge la pagina di diario di quel giorno, con le sue parole.
 - **`cerca: …`** — apre la finestra sul mondo: la ricerca passa dal motore di casa e la risposta
   arriva in due frasi. La domanda esce verso i motori di ricerca, ma senza nome né casa attaccati.
 - **`leggi`** (anche `leggi lo schermo`) — UGO guarda con la camera del corpo e ti dice **cosa c'è
@@ -137,6 +138,30 @@ bolletta.
 Il conto lo tiene lui: chi gestisce il server può vederlo, insieme al risparmio ottenuto riusando le
 parti fisse del suo carattere, sulla pagina di stato.
 
+## Il libro della sua vita
+
+Ogni notte UGO scrive **una pagina di diario**: quello che ha vissuto quel giorno, distillato
+mentre dormiva, con l'umore medio della giornata accanto. Non è un registro di sistema — è il
+suo racconto, con le sue parole.
+
+Fino a ieri non lo poteva leggere nessuno. Ora:
+
+- **«cos'hai fatto ieri?»** — te la racconta. Anche «che hai fatto oggi?», «com'è andata
+  ieri?», «cos'hai fatto l'altro ieri?».
+- **«leggimi il diario»** — le ultime pagine invece di una sola.
+- nel pannello, sotto il suo nome, c'è **Il libro della vita**: le notti in ordine, ognuna col
+  suo giorno e come stava.
+
+Due cose oneste. La prima: **quello che ti dice è scritto da lui, parola per parola** — non lo
+riassume al volo, perché riassumere vorrebbe dire chiedere a un modello di riscrivere una cosa
+già scritta, e a quel punto potrebbe dire una cosa diversa da quella che c'è nel libro. La
+seconda: una notte senza pagina te la dice invece di inventarsela — vuol dire che quella notte
+il sogno non è girato.
+
+**Il diario è della casa, non della creatura**: resta anche dopo di lui. È il senso del libro
+della vita, ed è il motivo per cui quando arriva il preavviso dei sessanta giorni ti diciamo
+di esportarlo se non hai altri gosini.
+
 ## Il timer e la sveglia
 
 Le due frasi che si dicono in cucina e prima di dormire, e che ora funzionano:
@@ -176,7 +201,7 @@ spuntare e cancellare a mano.
 
 Una cosa che vale la pena sapere: **queste frasi non costano niente.** UGO le capisce da solo,
 in casa, senza chiedere a nessuno — quindi non consumano il budget della giornata e non escono
-dal tuo server. Vale anche per i promemoria («ricordami di…»), i timer e le sveglie.
+dal tuo server. Vale anche per i promemoria («ricordami di…»), i timer, le sveglie e il diario.
 
 ## Prossimi Passi
 

@@ -11,9 +11,10 @@
  * sync by hand.
  */
 export const ROUTER_JS = `
-const GOSINO_PAGES = ["stato", "volonta", "memoria", "salvadanaio", "pedigree", "vita"];
+const GOSINO_PAGES = ["stato", "volonta", "memoria", "diario", "salvadanaio", "pedigree", "vita"];
 const PAGE_TITLE = { stato: "Come sta", volonta: "Cosa ha deciso lui", memoria: "Cosa ricorda",
-  salvadanaio: "Il suo salvadanaio", pedigree: "Da chi discende", vita: "L'arco della vita" };
+  diario: "Il libro della vita", salvadanaio: "Il suo salvadanaio",
+  pedigree: "Da chi discende", vita: "L'arco della vita" };
 let GOSINI = [];
 let WHO = "";
 /** Le case che questo token può vedere. Quasi sempre una, e allora non si vede. */
@@ -142,6 +143,9 @@ async function openPage(page) {
   } else if (page === "salvadanaio") {
     // ADR-072: quanto ha in pancia, e i pasti che gli sono stati dati
     await section(loadPiggyBank, "feed-msg");
+  } else if (page === "diario") {
+    // ADR-079: le sue notti, che fino a ieri non usciva da nessuna rotta
+    await section(loadDiary, "diary-msg");
   } else if (page === "vita") {
     // ADR-077: a che punto è dell'arco, e — se è nato prima — se lo accetta
     await section(loadLife, "life-msg");

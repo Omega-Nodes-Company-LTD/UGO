@@ -1,10 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { beings, diaryEntries, gosini, type DbClient } from "@ugo/db";
+import { beings, gosini, type DbClient } from "@ugo/db";
 import { searchMemories, type EmbeddingsClient } from "@ugo/memory";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { DiaryService } from "../services/diaryService.js";
 import { eldestExemplarOf, householdScope } from "./scope.js";
 
 /**
@@ -30,6 +31,13 @@ import { eldestExemplarOf, householdScope } from "./scope.js";
 export interface McpRouteDeps {
   db: DbClient;
   embedder: EmbeddingsClient;
+  /**
+   * ADR-079: la chiave di casa, per leggere il diario **comunque sia scritto**.
+   * Questo strumento restituiva `diary_entries.text` grezzo: funziona finché
+   * il sogno scrive in chiaro, e il giorno che cifrasse avrebbe consegnato
+   * base64 a un agente esterno senza che nessuno se ne accorgesse.
+   */
+  dataKey?: Buffer;
 }
 
 const MAX_K = 20;
@@ -81,12 +89,11 @@ function buildMcpServer(deps: McpRouteDeps, householdId: string): McpServer {
     },
     async ({ giorni }) => {
       const gosinoId = await eldestExemplarOf(deps.db, householdId);
-      const pages = await deps.db
-        .select({ date: diaryEntries.date, text: diaryEntries.text })
-        .from(diaryEntries)
-        .where(eq(diaryEntries.gosinoId, gosinoId))
-        .orderBy(desc(diaryEntries.date))
-        .limit(giorni ?? 7);
+      const pages = await new DiaryService(deps.db, deps.dataKey ?? Buffer.alloc(32)).pages(
+        householdId,
+        gosinoId,
+        { limit: giorni ?? 7 },
+      );
       const text =
         pages.length === 0
           ? "Il diario è ancora vuoto."

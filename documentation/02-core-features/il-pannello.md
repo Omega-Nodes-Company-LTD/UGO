@@ -25,9 +25,11 @@ La colonna a sinistra è divisa in due, e non è un dettaglio grafico.
 **La casa** è quello che i gosini si dividono: il branco, il budget, l'orologio,
 i dati. Se hai due gosini non hanno due branchi né due portafogli — ne hanno uno.
 
-**Ogni gosino** ha le sue pagine: come sta, cosa ha deciso lui, cosa ricorda.
-Clicca il suo nome e sotto compaiono. Sono cose sue: l'umore di Ugo non è quello
-di Nino, e nemmeno i ricordi.
+**Ogni gosino** ha le sue pagine: come sta, cosa ha deciso lui, cosa ricorda, **il
+libro della sua vita** (le pagine di diario che scrive ogni notte), il suo
+salvadanaio, da chi discende e l'arco della sua vita. Clicca il suo nome e sotto
+compaiono. Sono cose sue: l'umore di Ugo non è quello di Nino, e nemmeno i ricordi
+o le sue giornate.
 
 L'indirizzo dice sempre dove sei — `#/g/.../stato` — quindi puoi ricaricare la
 pagina e ritrovarti dov'eri, o tenerti un segnalibro sulla pagina di uno solo.
