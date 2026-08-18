@@ -23,6 +23,7 @@ import { registerDowryRoutes } from "./routes/dowry.js";
 import { registerFarewellRoutes } from "./routes/farewell.js";
 import { registerCheckinRoutes } from "./routes/checkins.js";
 import { registerMemoryBookRoutes } from "./routes/memoryBook.js";
+import { registerPackMoodRoutes } from "./routes/packMood.js";
 import { registerDiaryRoutes } from "./routes/diary.js";
 import { registerTransferRoutes } from "./routes/transfer.js";
 import { registerVetrinaRoutes } from "./routes/vetrina.js";
@@ -411,6 +412,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           dataKey: gosini.dataKey,
           ...(registry !== undefined && { registry }),
         });
+        // ADR-087: come sta il branco nel tempo, una serie per creatura
+        registerPackMoodRoutes(app, { db: options.db, guard });
         // ADR-086: il libro dei ricordi — scorrere, non solo cercare
         registerMemoryBookRoutes(app, {
           db: options.db,

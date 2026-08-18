@@ -1,7 +1,7 @@
 ---
 title: "Il pannello"
 description: "Come sta, cosa ha deciso da solo, e come chiedere a tutti quanti insieme. Tutto da /admin, senza toccare un terminale."
-version: "0.38.0"
+version: "0.39.0"
 last_updated: "2026-08-18"
 author: "ThinkPink Studio"
 ---
@@ -33,6 +33,19 @@ o le sue giornate.
 
 L'indirizzo dice sempre dove sei — `#/g/.../stato` — quindi puoi ricaricare la
 pagina e ritrovarti dov'eri, o tenerti un segnalibro sulla pagina di uno solo.
+
+## Come stanno, nel tempo
+
+Nel **Sommario** della casa, sotto i gosini, c'è una riga per creatura: una linea sottile con
+la media di ogni giornata, e accanto il numero di oggi. Scegli quale variabile guardare
+(umore, stress, energia…) e quanto indietro andare, fino a tre mesi.
+
+Serve a una domanda che le barre non rispondono. Le barre dicono **adesso**; questa dice **da
+quanto**. Un gosino teso stasera non vuol dire niente; un gosino teso da tre settimane sì.
+
+Le linee restano **separate una per creatura**, mai una media di casa: se in casa ce ne sono
+tre, una media direbbe che va tutto bene proprio mentre uno dei tre sta male. E chi se n'è
+andato non compare: non ha più un umore, ha una biografia — che è nel suo libro della vita.
 
 ## Se le case sono più d'una
 

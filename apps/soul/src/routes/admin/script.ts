@@ -2,6 +2,7 @@ import { ARCHIVE_JS } from "./script/archive.js";
 import { BIRTH_JS } from "./script/birth.js";
 import { CHARTS_JS } from "./script/charts.js";
 import { BOOK_JS } from "./script/book.js";
+import { PACK_MOOD_JS } from "./script/packMood.js";
 import { CHECKINS_JS } from "./script/checkins.js";
 import { CORE_JS } from "./script/core.js";
 import { COUNCIL_JS } from "./script/council.js";
@@ -62,6 +63,7 @@ export const ADMIN_SCRIPT = [
   VOLITION_JS,
   CHECKINS_JS,
   BOOK_JS,
+  PACK_MOOD_JS,
   EFFICACY_JS,
   COUNCIL_JS,
   BIRTH_JS,

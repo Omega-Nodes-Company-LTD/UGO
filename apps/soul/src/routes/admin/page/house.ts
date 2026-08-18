@@ -21,6 +21,25 @@ export const HOUSE_PAGES = `
   </div>
 
   <div class="block">
+    <h2>Come stanno, nel tempo</h2>
+    <p class="lede">Le barre qui sopra dicono <b>adesso</b>. Questo dice <b>da quanto</b>: una
+       linea per creatura, una media al giorno. È la domanda che una casa con più gosini si fa
+       per prima — chi sta bene e chi no, e da quando.</p>
+    <div class="row" style="align-items:center">
+      <div id="pack-mood-vars" data-testid="pack-mood-vars"></div>
+      <div style="flex:0 1 10rem"><label for="pack-mood-days">Quanto indietro</label>
+        <select id="pack-mood-days" data-testid="pack-mood-days">
+          <option value="7">una settimana</option>
+          <option value="14" selected>due settimane</option>
+          <option value="30">un mese</option>
+          <option value="90">tre mesi</option>
+        </select></div>
+    </div>
+    <div class="sparks" id="pack-mood" data-testid="pack-mood"></div>
+    <div id="pack-mood-msg"></div>
+  </div>
+
+  <div class="block">
     <h2>Dove sta questa casa</h2>
     <p class="lede">Serve al cielo del recinto: il tempo che fa lo prende da qui. Scrivi il
        paese o la citt&agrave; e scegli dalla lista &mdash; le coordinate le trova lui, e restano
