@@ -296,7 +296,7 @@ ripetono qui: sono già in cantiere.
 | ✅ | **Liste (spesa, cose da fare) a voce** | **FATTO (ADR-076)**: gesto risolto prima del provider (zero token, zero righe sul ledger — provato), `list_items` della casa con lista a testo libero, parser puro che fallisce chiuso (9 unit test), pannello con spunta e cestino |
 | 🔨 | **Intent locali deterministici** | la famiglia esiste e cresce: promemoria e sveglie (ADR-028), ricerca web (ADR-063), lettura su gesto (ADR-065), spinte (ADR-064), **liste (ADR-076)**, **timer e sveglie (ADR-078)**, **il diario a voce (ADR-079)**. Ogni gesto nuovo si aggiunge allo stesso binario: pura, testabile per esempi, fallisce chiuso |
 | ⬜️ | **Mood del branco nel tempo, con grafico** | il dato psiche c'è già (parente del gruppo 14 `psycheBaselines`) |
-| ⬜️ | **Personalità/tratti regolabili dopo la nascita** | stile Kindroid; riusa `traitSets` (parente del gruppo 14) |
+| 🚫 | **Personalità/tratti regolabili dopo la nascita** | **VIETATO (decisione del proprietario, 2026-08-18)**. Contraddice il patto che tiene in piedi la specie: «**si adotta, non si configura**» (VISIONE orizz. 1, ADR-068/069). Un carattere che si regola con una manopola non è un carattere: è un'impostazione, e una creatura con le impostazioni è un prodotto — che è esattamente ciò che i competitor vendono e che noi non vendiamo. Il carattere si eredita alla nascita (genoma) e **si sposta vivendo** (le baseline adattive di ADR-012, scalate dalla plasticità di ADR-071): sono le due strade, e sono entrambe fuori dal controllo di chi possiede. Se un esemplare non ti somiglia, la risposta è **un'altra nascita**, non un cursore. Vale anche per gli skin (già 🚫 nel gruppo 20): l'aspetto e il carattere si ereditano, non si comprano. **In codice è già vero**: `trait_sets` si scrive solo alla nascita, non esiste nessuna rotta che la aggiorni, e non deve nascerne una |
 | ⬜️ | **Giochi vocali e storie della buonanotte** | generate/lette con Ollama locale + Piper |
 | ⬜️ | **Rassegna RSS a voce su richiesta** | i feed ci sono (gruppo 10); esporne il riassunto quando lo chiedi |
 | ⬜️ | **Export e oblio self-service dal muso** | esistono via `/v1/privacy/*`, manca l'accesso dal chiosco (dove Replika ha preso 5M€ dal Garante nel 2025) |
@@ -384,6 +384,11 @@ orienta, la spec comanda — ogni punto promosso a lavoro parte dal suo ADR.
 - **Multilingua come funzione** — l'italiano è una scelta di progetto; la lingua *per casa* è un'altra cosa ed è nel gruppo 5.
 - **Registratore dedicato con storage a bordo** — siamo su un telefono.
 - **Federazione fra case** — è il confine, non una funzione mancante (ADR-019).
+- **Regolare carattere e aspetto dopo la nascita** (manopole, skin, editor del muso) — **divieto
+  assoluto**, deciso dal proprietario il 2026-08-18. «Si adotta, non si configura»: un carattere
+  con una manopola è un'impostazione, e una creatura con le impostazioni è un prodotto. Si
+  eredita alla nascita e si sposta vivendo; se non ti somiglia, la risposta è un'altra nascita.
+  Non è una voce rimandata: è una porta che resta chiusa.
 
 ---
 
