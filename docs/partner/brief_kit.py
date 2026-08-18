@@ -230,7 +230,8 @@ class StageBars(Flowable):
     lightest step requires. Legend below, so identity is never colour alone.
     """
 
-    def __init__(self, groups, series, width=CW, height=52 * mm, ymax=1.0, title=""):
+    def __init__(self, groups, series, width=CW, height=52 * mm, ymax=1.0, title="",
+                 fmt=None, axis_fmt=None):
         super().__init__()
         self.groups = groups          # [(label, [v_a, v_b, v_c]), ...]
         self.series = series          # ["A · …", "B · …", "C · …"]
@@ -238,6 +239,9 @@ class StageBars(Flowable):
         self.height = height
         self.ymax = ymax
         self.title = title
+        # a money chart and a recall chart do not label the same way
+        self.fmt = fmt or (lambda v: f"{v:.2f}")
+        self.axis_fmt = axis_fmt or (lambda v: f"{v:.2f}")
 
     def wrap(self, availWidth, availHeight):
         return (self.width, self.height)
@@ -266,7 +270,7 @@ class StageBars(Flowable):
             c.setLineWidth(0.4)
             c.line(left, y, left + plot_w, y)
             c.setFillColor(MUTED)
-            c.drawRightString(left - 4, y - 2, f"{frac * self.ymax:.2f}")
+            c.drawRightString(left - 4, y - 2, self.axis_fmt(frac * self.ymax))
 
         n_groups = len(self.groups)
         group_w = plot_w / n_groups
@@ -282,13 +286,15 @@ class StageBars(Flowable):
                 c.roundRect(x, base_y, bar_w, h, 2, fill=1, stroke=0)
                 c.setFillColor(INK if v > 0 else MUTED)
                 c.setFont("Helvetica-Bold", 6.4)
-                c.drawCentredString(x + bar_w / 2, base_y + h + 2.5, f"{v:.2f}")
+                c.drawCentredString(x + bar_w / 2, base_y + h + 2.5, self.fmt(v))
             c.setFillColor(INK)
             c.setFont("Helvetica-Bold", 7.4)
             for li, line in enumerate(label.split("\n")):
                 c.drawCentredString(gx + group_w / 2, base_y - 11 - li * 8.4, line)
 
-        # legend
+        # legend — only when there is more than one series to tell apart
+        if len(self.series) < 2:
+            return
         lx = left
         ly = 4
         for si, name in enumerate(self.series):
@@ -401,3 +407,87 @@ class ArchDiagram(Flowable):
         self._arrow(col2 + bw + 2, y1, col3 - 2, y1)
         self._arrow(col1 + bw / 2, H - 30 * mm, col1 + bw / 2, H - 52 * mm + bh, "")
         self._arrow(col3 + bw / 2, H - 74 * mm, col3 + bw / 2, H - 96 * mm + 6 + 12 * mm, "", dashed=True)
+
+
+# ── the assumption box ───────────────────────────────────────────────────
+class Assumption(Flowable):
+    """A declared assumption.
+
+    Part B of this brief contains numbers that the repository cannot prove,
+    because a price is a decision and not a fact. Those numbers are never mixed
+    into the body text: they sit in this box, visually unlike anything in Part
+    A, so a reader can always tell what is measured from what is assumed.
+    """
+
+    def __init__(self, lines, width=CW, size=7.6, leading=10.2):
+        super().__init__()
+        self.lines = lines if isinstance(lines, (list, tuple)) else [lines]
+        self.width = width
+        self.size = size
+        self.leading = leading
+        self.pad = 6
+        self.para = [Paragraph(t, ParagraphStyle(
+            f"assum{i}", fontName="Helvetica", fontSize=size, leading=leading,
+            textColor=HexColor("#4a4126"), spaceAfter=2)) for i, t in enumerate(self.lines)]
+        self.head = Paragraph(
+            '<font color="#8a7320"><b>ASSUMPTION</b></font>',
+            ParagraphStyle("assumhead", fontName="Helvetica-Bold", fontSize=6.8,
+                           leading=9, spaceAfter=2))
+
+    def wrap(self, availWidth, availHeight):
+        inner = self.width - 2 * self.pad - 4
+        h = self.head.wrap(inner, availHeight)[1] + 2
+        for para in self.para:
+            h += para.wrap(inner, availHeight)[1] + 2
+        self.height = h + 2 * self.pad
+        return (self.width, self.height)
+
+    def draw(self):
+        c = self.canv
+        c.setFillColor(HexColor("#f3ecd6"))
+        c.setStrokeColor(HexColor("#e0d2a4"))
+        c.setLineWidth(0.6)
+        c.roundRect(0, 0, self.width, self.height, 2.5, fill=1, stroke=1)
+        c.setFillColor(GOLD)
+        c.rect(0, 0, 2.2, self.height, fill=1, stroke=0)
+        inner = self.width - 2 * self.pad - 4
+        y = self.height - self.pad
+        h = self.head.wrap(inner, self.height)[1]
+        self.head.drawOn(c, self.pad + 4, y - h)
+        y -= h + 2
+        for para in self.para:
+            ph = para.wrap(inner, self.height)[1]
+            para.drawOn(c, self.pad + 4, y - ph)
+            y -= ph + 2
+
+
+# ── part divider ─────────────────────────────────────────────────────────
+class PartDivider(Flowable):
+    """A full-width band that says which half of the document you are in."""
+
+    def __init__(self, part, title, blurb, width=CW, height=42 * mm):
+        super().__init__()
+        self.part, self.title, self.blurb = part, title, blurb
+        self.width, self.height = width, height
+
+    def wrap(self, availWidth, availHeight):
+        return (self.width, self.height)
+
+    def draw(self):
+        c = self.canv
+        c.setFillColor(NAVY)
+        c.roundRect(0, 0, self.width, self.height, 4, fill=1, stroke=0)
+        c.setFillColor(GOLD)
+        c.rect(0, 0, 3, self.height, fill=1, stroke=0)
+        c.setFillColor(GOLD)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(16, self.height - 15, self.part)
+        c.setFillColor(white)
+        c.setFont("Helvetica-Bold", 20)
+        c.drawString(16, self.height - 36, self.title)
+        c.setFillColor(HexColor("#c8cede"))
+        c.setFont("Helvetica", 8.6)
+        y = self.height - 50
+        for line in self.blurb:
+            c.drawString(16, y, line)
+            y -= 11

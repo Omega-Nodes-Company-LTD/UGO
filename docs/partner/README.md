@@ -1,6 +1,6 @@
 # Materiale di presentazione partner
 
-`UGO-Partner-Brief-OmegaNodes.pdf` — brief di 25 pagine in inglese a nome **OmegaNodes.ai**
+`UGO-Partner-Brief-OmegaNodes.pdf` — brief di 45 pagine in inglese (Parte A: le prove dal codice · Parte B: la proposta commerciale ed economica, con le assunzioni dichiarate in box dedicati) a nome **OmegaNodes.ai**
 per potenziali partner, e bussola interna per il team: cosa è UGO, com'è costruito, i motori
 (psiche, sogno, memoria, riconoscimento, **il motore genetico**), il pannello, i costi, la postura di sicurezza, il
 confronto coi competitor **con i buchi dichiarati**, la strategia economica e i sei orizzonti.

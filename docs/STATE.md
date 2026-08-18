@@ -2485,7 +2485,7 @@ telefono, il guscio, lo stack Vexa.
 ## Materiale partner (2026-08-17)
 
 `docs/partner/` contiene il **partner brief in inglese a nome OmegaNodes.ai**
-(`UGO-Partner-Brief-OmegaNodes.pdf`, 25 pagine): cosa è UGO, architettura, i motori (psiche,
+(`UGO-Partner-Brief-OmegaNodes.pdf`, 45 pagine: Parte A le prove dal codice, Parte B la proposta commerciale con assunzioni dichiarate in box separati dai fatti sorgentati): cosa è UGO, architettura, i motori (psiche,
 sogno, memoria misurata, riconoscimento, il motore genetico di ADR-068…072), il pannello, i costi, la sicurezza, il confronto coi
 competitor **coi buchi dichiarati**, la strategia economica (i sei flussi di `VISIONE.md` §0) e i
 sei orizzonti.

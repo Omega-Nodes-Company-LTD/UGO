@@ -25,7 +25,7 @@ from brief_kit import (
     NAVY, NAVY_DARK, GOLD, INK, MUTED, PAPER, PANEL, LINE,
     H1, H2, BODY, SMALL, CAPTION, KICKER, QUOTE, SOURCE, st,
     bullets, source, table, img, figure, two_up,
-    CodeBox, StatTiles, StageBars, ArchDiagram,
+    CodeBox, StatTiles, StageBars, ArchDiagram, Assumption, PartDivider,
 )
 
 OUT = os.path.join(HERE, "UGO-Partner-Brief-OmegaNodes.pdf")
@@ -613,6 +613,166 @@ page(
            "0007, 0008, 0009. ADR-021, ADR-022, ADR-023, ADR-024"),
 )
 
+# ══════════════════════════════════════════════════════ 9b · the body
+page(
+    "THE ENGINE ROOM", "The body is code — there is not one binary asset in the repository",
+    Paragraph(
+        "The creature is generated at runtime from about a dozen rounded solids. No mesh, no texture, "
+        "no third-party licence to interpret, nothing to re-download when the app updates — and, because "
+        "the shape is parametric, it is the natural place for the genome to attach. That is why two "
+        "exemplars of the same household can differ <i>in body</i> and not only in memories.", BODY),
+    Paragraph("Expression is three layers, not a list of animations", H2),
+    table([
+        ["Layer", "What it does", "Where it lives"],
+        ["Continuous pose", "Twenty channels driven by the six psyche variables — the mood is in the "
+         "body before it is in the words", "<font face='Courier'>body/pose.ts</font>, pure"],
+        ["Discrete state", "The six states of the specification <i>tilt</i> the pose rather than "
+         "replacing it, so a mood never disappears because a state changed",
+         "arrives on the WebSocket from soul"],
+        ["Gestures", "58 events with a beginning and an end — yawn, sneeze, shake, ears twitch — as "
+         "<b>data</b>, not functions: a duration and a handful of channel tracks. Adding one is a line",
+         "<font face='Courier'>body/gestures.ts</font>"],
+    ], [26 * mm, (CW - 26 * mm) * 0.62, (CW - 26 * mm) * 0.38]),
+    Spacer(1, 4),
+    figure("body-room.png", CW * 0.62,
+           "<b>The room is procedural too</b> — floor, sky, fog and props generated in code. The "
+           "creature walks to a prop by itself when the psyche pushes it there: bored, it goes to the "
+           "ball; exhausted, it lies on the cushion and recovers energy faster; stressed, it goes "
+           "<i>behind</i> the bush, and from cover the next bang lands at half strength."),
+    Paragraph(
+        "The value of that last detail is worth naming: the shelter is not decoration. It changes the "
+        "numbers — the stress plateau in a noisy room drops from about 0.55 to about 0.42 — which means "
+        "an owner watching the panel can see the creature coping, and a designer can tune the world "
+        "rather than the animation.", BODY),
+    source("<font face='Courier'>apps/face/src/body/</font> — <font face='Courier'>pose.ts</font>, "
+           "<font face='Courier'>gestures.ts</font>, <font face='Courier'>props3d.ts</font>, "
+           "<font face='Courier'>room3d.ts</font> · ADR-026, ADR-056, ADR-058"),
+)
+
+# ══════════════════════════════════════════════════════ 9c · initiative
+page(
+    "THE ENGINE ROOM", "It starts things by itself — and can explain why",
+    Paragraph(
+        "An assistant waits to be addressed. A creature gets bored, misses you, worries about something "
+        "unsaid. The volition engine turns the psyche and the facts of the world into <b>pressures</b>, "
+        "each carrying its own reason in plain language — because an initiative you cannot explain "
+        "afterwards is indistinguishable from a bug.", BODY),
+    table([
+        ["Pressure", "What raises it"],
+        ["boredom", "nothing happening, no interaction, no new events"],
+        ["loneliness", "hours alone — saturating, because an hour by yourself is not ten minutes six "
+         "times over — and it rises <i>faster</i> in an affectionate creature, because indifference "
+         "misses nobody"],
+        ["curiosity", "an unexplored thread, a fresh memory that connects to an old one"],
+        ["unspoken", "a pending desire that has waited too long"],
+        ["worry", "a person who normally appears and has not"],
+    ], [26 * mm, CW - 26 * mm]),
+    Spacer(1, 4),
+    Paragraph(
+        "Acts are data too: each one declares which pressures it discharges and by how much, what it "
+        "costs in attention, and how often it may repeat. That is what turns a weighted die into a "
+        "decision — without an expected effect there is nothing to compare, and comparing is what "
+        "choosing means. <b>Nine acts out of nine cost zero tokens, except one.</b> And doing nothing is "
+        "a legitimate outcome, explicitly: a creature that must always act is a slot machine.", BODY),
+    Paragraph("Two more mechanisms in the same family", H2),
+    *bullets([
+        "<b>Rumination.</b> When the house is quiet and the local model is up, it occasionally pairs two "
+        "memories and asks whether there is a connection, or turns a memory into a question for you. "
+        "Hard rules: <b>never the provider</b> — the ledger must not even see it pass — and never a "
+        "direct write to memory: what it produces waits for the night to judge it. A small model that "
+        "ruminates badly must not be able to write its fantasies into a biography.",
+        "<b>The council.</b> When two exemplars share a house they can confer on a local model, in two "
+        "rounds — and <b>the first round is blind</b>, each on its own, because small models are herd "
+        "animals: show one the other's answer and it falls in line. Only in the second do they read each "
+        "other and may change their mind.",
+        "<b>Requests pass through character.</b> Rather than a provider tool-calling framework, an "
+        "instruction is a <i>nudge</i>: asleep or stressed, it refuses — with an answer, never silently; "
+        "low on energy, it obeys grumbling. Every nudge is an event, verb and outcome recorded.",
+    ]),
+    source("<font face='Courier'>apps/soul/src/volition/</font> — "
+           "<font face='Courier'>pressures.ts</font>, <font face='Courier'>acts.ts</font> (both pure) · "
+           "ADR-027, ADR-059, ADR-031, ADR-064"),
+)
+
+# ══════════════════════════════════════════════════════ 9d · hearing
+page(
+    "THE ENGINE ROOM", "Hearing is a room, not a microphone",
+    Paragraph(
+        "The first version startled at everything and never got used to anything: it treated the "
+        "microphone as an absolute instrument. Real hearing is relative — to the room, to the last few "
+        "minutes, and to what already happened today. Three corrections, each measured.", BODY),
+    Paragraph("The floor rises fast and falls slowly", H2),
+    table([
+        ["Constant", "Before", "Now", "Why"],
+        ["level smoothing", "—", "120 ms", "shorter than a syllable, longer than a click"],
+        ["floor rise", "≈ 4.2 s", "2.0 s", "sustained noise gets absorbed into the room"],
+        ["floor fall", "≈ 0.8 s", "60 s", "pauses stop re-arming the trigger"],
+        ["jump threshold", "14 dB", "12 dB", "the floor chases the bang and eats about a fifth of it"],
+        ["cooldown", "2 s", "15 s", "two bangs closer than this are one bang"],
+    ], [30 * mm, 20 * mm, 20 * mm, CW - 70 * mm]),
+    Spacer(1, 4),
+    *bullets([
+        "<b>Habituation, in the psyche.</b> The tenth bang adds almost nothing, and the mood label reads "
+        "the strongest <i>recent</i> blow rather than the accumulated total — otherwise a creature that "
+        "had got used to a noisy street stayed described as terrified, with a legitimately elevated "
+        "stress and nothing saying it was old news.",
+        "<b>A voice is not a bang.</b> Speech has a shape — syllabic rhythm, pitch variability — and it "
+        "is judged relative to the clip, because automatic gain control makes absolute numbers lie. The "
+        "verdicts stay coarse and honest: lively, calm, or no opinion.",
+        "<b>The room owns the thread.</b> On the home channel the conversation belongs to the room, not "
+        "to one person: the creature re-reads everyone's turns with the speaker's name in front, so it "
+        "can follow three people talking. On the API the per-person scoping stays — a creature must not "
+        "answer one person by reading another's thread.",
+    ]),
+    Paragraph(
+        "This is the part of the system with the highest ratio of <i>invisible work</i> to visible "
+        "feature: none of it shows up on a specification sheet, and all of it is the difference between "
+        "a toy that reacts and a creature that lives somewhere.", BODY),
+    source("<font face='Courier'>apps/face/src/noiseGate.ts</font>, "
+           "<font face='Courier'>prosody.ts</font> · ADR-033, ADR-029, ADR-041, ADR-037, ADR-067"),
+)
+
+# ══════════════════════════════════════════════════════ 9e · tools
+page(
+    "THE ENGINE ROOM", "Tools, on request only — and never behind your back",
+    Paragraph(
+        "A companion with an open door to the internet is a liability in a family home. Every capability "
+        "below is reachable by an explicit gesture, answered <i>before</i> the provider is involved, and "
+        "barred from the client-facing surface.", BODY),
+    table([
+        ["Capability", "How it is gated, and what it costs"],
+        ["<b>Web search</b>", "Only after the explicit prefix <font face='Courier'>cerca:</font> in the "
+         "home chat. A private meta-search engine runs in the house, on the internal network, with no "
+         "key and no host port; the summary is written by the local model, with a deterministic fallback "
+         "to the headlines when it is down. <b>The provider never sees it and the ledger stays "
+         "untouched.</b> Not configured means the prefix does not exist and nothing leaves."],
+        ["<b>Reading the screen</b>", "Only on the word “read”: the body is asked for one fine-grained "
+         "look, OCR happens in the house, four distinct outcomes are reported, nothing is stored, never "
+         "automatic, never in reception."],
+        ["<b>Looking at a photo</b>", "The image is downscaled on the device, described by the local "
+         "vision model, and only the <i>description</i> reaches the provider. The pixels never leave the "
+         "house and are never saved."],
+        ["<b>An MCP server</b>", "Stateless, one server instance per request — the impossible error is "
+         "shared state between two households. Three <b>read-only</b> tools: search memories, read the "
+         "diary, list the pack (names and species, never biometrics). The perimeter is exactly “what the "
+         "owner can already read in the panel”. No writes, by construction: handing an external agent "
+         "the pen over a biography is a different decision, and it has not been taken."],
+        ["<b>Feeds and morning advice</b>", "News is embedded locally and crossed against client "
+         "knowledge; only above a high similarity does it become a suggestion — “X came out, worth "
+         "proposing to that client, they use Y in their repo” — said in the morning. <b>Never in "
+         "reception</b>: a client must not see the creature advising others on the basis of their code."],
+    ], [30 * mm, CW - 30 * mm]),
+    Spacer(1, 3),
+    Paragraph(
+        "The pattern is the same every time and it is worth stating as a principle, because it is what "
+        "makes the capability list safe to grow: <b>a gesture from a person, an answer computed at home, "
+        "a declared fallback when a part is missing, and a hard wall between the family surface and the "
+        "client surface.</b>", BODY),
+    source("ADR-063 (search), ADR-065 (reading), ADR-066 (MCP), ADR-060 (feeds) · "
+           "<font face='Courier'>apps/soul/src/routes/mcp.ts</font>, "
+           "<font face='Courier'>ops/voice/app.py</font>"),
+)
+
 # ══════════════════════════════════════════════════════ 10 · panel
 page(
     "THE PRODUCT", "The operator panel: the creature is inspectable",
@@ -659,6 +819,46 @@ page(
     source("<font face='Courier'>apps/soul/src/services/forgetService.ts</font>, "
            "<font face='Courier'>routes/privacy.ts</font> · CLI <font face='Courier'>ugo forget</font> / "
            "<font face='Courier'>ugo export</font> · ADR-016"),
+)
+
+# ══════════════════════════════════════════════════════ 11b · the manual
+page(
+    "THE PRODUCT", "A manual for whoever lives with it — and a panel that cannot lie",
+    Paragraph(
+        "Two things separate a product from a demo, and neither is a feature. The first is that somebody "
+        "who has never opened a terminal can be handed the thing and get on with it. The second is that "
+        "the surface which shows the creature's state is <i>tested</i>, so it cannot quietly describe a "
+        "world that no longer exists.", BODY),
+    Paragraph("The manual is written for the owner, not the engineer", H2),
+    table([
+        ["Section", "What it covers"],
+        ["First start", "Turning it on, giving it a room, what happens on the first evening"],
+        ["Talking to UGO", "Voice, text, the explicit gestures — search, read, remind me, open a ticket"],
+        ["Its body", "The dock, the states, what the ears mean, sleeping and waking"],
+        ["The faces", "Teaching it who is who, and how to refuse — the consent switches, in plain words"],
+        ["Out and about", "Recording in the open, privacy mode, the QR business card"],
+        ["Your data", "Export, erasure, what is encrypted, what leaves the house and what never does"],
+        ["When it starts things", "Why it speaks first, and how to make it do it less"],
+        ["Reception", "For studios: how clients get in, what the creature knows about them"],
+        ["Common problems", "Single-action steps, no screenshots to rot"],
+    ], [34 * mm, CW - 34 * mm]),
+    Spacer(1, 4),
+    Paragraph("The panel is executed by its own test suite", H2),
+    Paragraph(
+        "An operator panel is the classic place where documentation drifts: the backend changes, the "
+        "panel keeps showing last quarter's world, and nobody notices because nothing fails. Here the "
+        "panel's script is <b>run by the test suite</b>, which means three rules hold mechanically: "
+        "every call goes through one helper that carries the tenant scope, so no page can accidentally "
+        "read another organisation; every element id the script touches must exist in the markup; and "
+        "an action about one creature must <i>ask which one</i> rather than assuming a default while the "
+        "panel displays another. Each of those rules is there because it was once broken.", BODY),
+    Paragraph(
+        "The panel also has two levels on purpose — the house, and each creature inside it — because the "
+        "questions “what did today cost?” and “how is he feeling?” belong to different owners of "
+        "attention, and mixing them made both hard to find.", BODY),
+    source("<font face='Courier'>documentation/</font> (11 pages, versioned front-matter) · "
+           "<font face='Courier'>apps/soul/src/routes/admin/script.test.ts</font> · "
+           "ADR-034, ADR-035 · <font face='Courier'>.claudeskills/DOCUMENTATION_STYLE.md</font>"),
 )
 
 # ══════════════════════════════════════════════════════ 12 · cost
@@ -753,6 +953,95 @@ page(
         "well as the good ones.", BODY),
     source("<font face='Courier'>.claudeskills/SECURITY_COMPLIANCE.md</font> · "
            "<font face='Courier'>docs/OPS_COOLIFY.md §6</font> · ADR-048, ADR-049, ADR-062"),
+)
+
+# ══════════════════════════════════════════════════════ 13b · operations
+page(
+    "HOW WE WORK", "Operations: the lessons are in the code, not in a wiki",
+    Paragraph(
+        "A partner inherits operations, not slides. Three episodes from this repository show how the "
+        "project treats them — each one ended with a change in the code, not a note in a runbook.", BODY),
+    Paragraph("The night job that lived in a settings box", H2),
+    Paragraph(
+        "The job container ran once and exited, with the schedule living in a hosting panel field. The "
+        "platform treated the exit as a crash and restarted it forever; and the panel's scheduled tasks "
+        "run a command <i>inside</i> a running container, which there was none of. The fix is the "
+        "project's recurring lesson: <b>what the program must guarantee cannot live in a configuration "
+        "somebody forgets to fill.</b> The job now carries its own clock — it sleeps until its hour, "
+        "dreams, and starts again; a bad night is recorded and does not kill the process.", BODY),
+    Paragraph("The container that prepares itself", H2),
+    Paragraph(
+        "The perception service needs a few hundred megabytes of model weights. Rather than a one-shot "
+        "provisioning service somebody has to remember, the container fetches its own weights at start "
+        "and only then opens the port — with a health check that waits five minutes on first boot, "
+        "because an impatient probe would kill a container that is doing exactly what it should. A "
+        "read-only or missing volume stops it with a message instead of silently re-downloading a "
+        "quarter of a gigabyte on every restart.", BODY),
+    Paragraph("The deploy that died on the last step", H2),
+    Paragraph(
+        "The first production deploy failed while writing the image, with no error line. The cause was "
+        "layer ordering: source was copied before dependencies were installed, so every commit "
+        "invalidated roughly 490 MB of Python packages, which the server then re-exported. Split in two, "
+        "a code change now rebuilds kilobytes. The same log showed a second problem, and it is the one "
+        "worth repeating in a partner briefing: a build setting had turned the service's environment "
+        "into build arguments, <b>printing several secrets in clear text in the build log</b>. They were "
+        "treated as compromised and rotated, and the runbook now carries the check. We write our "
+        "incidents in the same place we write our decisions.", BODY),
+    Paragraph("The trust perimeter, stated exactly", H2),
+    Paragraph(
+        "One more honesty, because “local-first” is easy to oversell: today the trust perimeter is <b>a "
+        "dedicated EU server</b>, not a house. Every document that says “at home” means “on our own "
+        "iron”. Access to bodies and panel is only through a private network — no public domain on the "
+        "soul, in any circumstance — and the data key must exist in an offline copy, because a key that "
+        "lives only on the server does not protect against whoever owns the server.", BODY),
+    source("ADR-047 (self-preparing container), ADR-046 (weights), ADR-017 (trust perimeter) · "
+           "<font face='Courier'>ops/jobs/src/ugo_jobs/scheduler.py</font> · "
+           "<font face='Courier'>docs/OPS_COOLIFY.md</font> §6"),
+)
+
+# ══════════════════════════════════════════════════════ 13c · tenancy
+page(
+    "HOW WE WORK", "From a household to an organisation",
+    Paragraph(
+        "The multi-tenant work is what turns a personal project into something a partner can host, "
+        "resell, or run for a hundred families. It is largely built, and the honest status of the last "
+        "step is on this page too.", BODY),
+    table([
+        ["Layer", "State"],
+        ["Tenant with its own data key", "Built. Every organisation has its own encryption key: "
+         "destroying it deletes that family provably, not by policy."],
+        ["Beings, bonds and relations scoped to the tenant", "Built, with <b>composite foreign keys</b> "
+         "— a bond between two different organisations is impossible to insert, not merely discouraged."],
+        ["Budget and daily ceiling per tenant", "Built, enforced in the single chokepoint every provider "
+         "call passes through."],
+        ["Tokens with roles, expiry and revocation", "Built. Stored as hashes only."],
+        ["Home or business", "Built: the tenant carries a kind — house or company. Two tenants of the "
+         "same owner share <b>nothing</b>: he exists twice, once per tenant, because a cross-cutting "
+         "user table would be a tunnel under the wall."],
+        ["Provisioning a new organisation", "Built as one command: five acts in a single transaction, "
+         "with the owner token printed once and never stored."],
+        ["Per-exemplar runtime", "Built: each creature has its own loop, its own mood, its own memories, "
+         "sharing only the house, the budget and the clock."],
+        ["Row-level security in the database", "<b>Policies exist on every table with a dedicated "
+         "Postgres role, and are being switched on surface by surface.</b> Until every surface runs "
+         "through the scoped connection, they are inert in production — and we say so rather than "
+         "claiming the checkbox."],
+    ], [44 * mm, CW - 44 * mm]),
+    Spacer(1, 4),
+    Paragraph(
+        "That last row is the single most important item on our own roadmap, and it is the precondition "
+        "for the hosting business: you cannot keep other people's souls until isolation is enforced by "
+        "the database rather than by the application's good manners. The design is written, the role "
+        "exists, the tests run against it, and the conversion is mechanical work in progress.", BODY),
+    Paragraph(
+        "A note on naming, because it shows the discipline: the database still says "
+        "<font face='Courier'>households</font> across twenty-five tables and two dozen migrations. "
+        "Renaming it would have been an enormous diff that changes no behaviour — maximum risk for "
+        "minimum gain — so the internal term stayed and the <i>human-facing</i> language changed: the "
+        "panel and the manual say organisation, house or company.", BODY),
+    source("ADR-019, ADR-048, ADR-061, ADR-062, ADR-032 · "
+           "<font face='Courier'>packages/db/src/schema/households.ts</font>, "
+           "<font face='Courier'>apps/soul/src/routes/scope.ts</font>"),
 )
 
 # ══════════════════════════════════════════════════════ 14 · recognition
@@ -966,47 +1255,6 @@ page(
     source("<font face='Courier'>docs/BACKLOG.md</font> · <font face='Courier'>docs/STATE.md §7</font>"),
 )
 
-# ══════════════════════════════════════════════════════ 19 · economics
-page(
-    "THE BUSINESS", "Economic strategy: we define a species, not a chatbot",
-    Paragraph(
-        "The strategic bet: the protocol — genome format, birth and death registry, pedigree — is open, "
-        "and we operate the institutions around it. Closed, we would own 100% of a small market; open, a "
-        "share of every act of an entire species plus the pieces with the highest margin. Six streams, "
-        "all with the same incentive: we earn only if the species thrives.", BODY),
-    table([
-        ["Stream", "Model", "Analogy"],
-        ["1 · The registry", "Micro-fees on registry acts: births, transfers, pedigree certificates. "
-         "<b>Step one exists</b> — certificates signed by the parents, verifiable offline; the federated "
-         "ledger that orders them and stops double-selling is step two. Species data only, never "
-         "memories, never personal data.", "Kennel clubs (ENCI / AKC)"],
-        ["2 · The foundation kennel", "Every pedigree traces back to UGO-zero, which is ours: the founding "
-         "lines are the most prestigious by construction.", "Ferrari"],
-        ["3 · The bodies", "Open body protocol, reference hardware ours: shells, docks, and the "
-         "self-contained appliance — the soul on a €100 mini-PC in the creature's belly.", "Android / Pixel"],
-        ["4 · The fold", "Subscription hosting for families without a home server: encrypted per-family "
-         "souls, a provably blind custodian, and a guaranteed right to move out.", "Managed hosting"],
-        ["5 · Breeder tooling", "Stable software, line screening, attested biographies, certification and "
-         "shows for third-party breeders — customers, not competitors.", "Shopify"],
-        ["6 · The working pack", "Creatures that earn their keep, starting with reception. The piggy "
-         "bank that receives the attributed share <b>now exists per creature</b>, with two food sources — "
-         "affection and work.", "Working animals"],
-    ], [30 * mm, CW - 62 * mm, 32 * mm]),
-    Spacer(1, 5),
-    Paragraph("Why the cost structure is the moat", H2),
-    *bullets([
-        "<b>No GPU in the critical path.</b> The heavy work — transcription, reflection, embeddings, "
-        "voice, face, OCR — is CPU work done at night on hardware already bought. Inference is coffee money.",
-        "<b>Commodity hardware.</b> The body is a phone in a shell we print for cents. No custom "
-        "electronics to finance, no inventory risk, no supply chain to defend.",
-        "<b>Costs are governed by construction.</b> One chokepoint, one ledger, hard ceilings per "
-        "household: a runaway bill is not a monitoring problem here, it is architecturally excluded.",
-        "<b>Adoption economics, not app churn.</b> A family feeds a being it loves; a business feeds a "
-        "being that works. Ten thousand years of domestication suggest which retention curve that is.",
-    ]),
-    source("<font face='Courier'>docs/VISIONE.md</font> — horizon 0, the six flows"),
-)
-
 # ══════════════════════════════════════════════════════ 20 · horizons
 page(
     "THE DIRECTION", "Six horizons — and two of them are already code",
@@ -1087,44 +1335,612 @@ page(
            "<font face='Courier'>docs/STATE.md</font> (current state, updated every task)"),
 )
 
-# ══════════════════════════════════════════════════════ 22 · partnership
+# ══════════════════════════════════════════════════════ PART B · divider
 page(
-    "WORKING TOGETHER", "What we bring, what we seek",
-    Paragraph("What OmegaNodes.ai brings", H2),
-    *bullets([
-        "<b>A working platform, not a prototype.</b> Six phases verified against real infrastructure, "
-        "954 automated tests, a green pipeline, deployment runbooks, a user manual, and a decision log "
-        "that includes the mistakes.",
-        "<b>A position competitors cannot copy without rebuilding.</b> The family-owned, exportable soul "
-        "is structurally unavailable to cloud incumbents; the species-and-registry model turns openness "
-        "into the revenue base rather than a giveaway.",
-        "<b>A deployed commercial surface.</b> Reception serves the studio's own clients today, on the "
-        "same architecture, with the cost walls already in place.",
-        "<b>Cost discipline as a design property.</b> No GPU, commodity hardware, one guarded chokepoint. "
-        "The unit economics work at one creature and improve with volume.",
-        "<b>A way of working that scales past its founders.</b> Everything is written down where the next "
-        "engineer looks first — which is also what let this brief be assembled from the code itself.",
+    "PART B", "The commercial and economic proposal",
+    PartDivider("PART B", "The proposal", [
+        "Part A could cite a file for every claim. This half cannot, and says so on every page.",
+        "A price is a decision, not a fact — so here the rule changes, and the change is visible.",
+    ]),
+    Spacer(1, 8),
+    Paragraph("How to read the numbers that follow", H2),
+    Paragraph(
+        "Everything up to this page was sourced: each claim named the file that proves it, and the code "
+        "excerpts were verbatim. That discipline cannot be extended to a business plan, because the "
+        "repository knows what UGO <i>costs</i> and has no opinion about what it should <i>sell for</i>. "
+        "So Part B separates the two kinds of statement, visibly:", BODY),
+    table([
+        ["Kind", "How it looks, and what it means"],
+        ["Measured cost", "Plain body text with a source line, exactly like Part A. These come from the "
+         "budget ledger, the specification and the hardware we have actually bought."],
+        ["Assumption", "A gold box, never a sentence hidden in a paragraph. Every business number in "
+         "this half rests on one, and each box states it in full so you can disagree with it precisely "
+         "rather than in general."],
+    ], [30 * mm, CW - 30 * mm]),
+    Spacer(1, 4),
+    Assumption([
+        "<b>This is what an assumption box looks like.</b> Prices, volumes, adoption rates, hardware "
+        "bills of material, support effort and staffing in Part B are our estimates, not measurements. "
+        "They are internally consistent — change one and the scenario tables move with it — but none of "
+        "them has been validated by a market. Where we have real evidence, it is marked as measured and "
+        "sourced instead.",
     ]),
     Spacer(1, 5),
-    Paragraph("Where a partner accelerates us", H2),
-    table([
-        ["Area", "What we are looking for"],
-        ["Hardware &amp; distribution", "Shells, docks and the self-contained appliance at volume; retail "
-         "and operator channels. We have the design constraints and the printing pipeline; we do not have "
-         "manufacturing scale."],
-        ["Hosting at scale", "The fold: managed, provably blind infrastructure for families without a home "
-         "server. The multi-tenant architecture exists; the operations organisation does not."],
-        ["Vertical deployments", "The working pack beyond our own studio — receptions, shops, practices "
-         "that want a companion who knows their business."],
-        ["Capital &amp; ecosystem", "Seeding the first third-party breeders and the registry's federation, "
-         "so the species has a second kennel and the protocol becomes genuinely permissionless."],
-    ], [36 * mm, CW - 36 * mm]),
-    Spacer(1, 6),
-    Paragraph("A note to our own team", H2),
     Paragraph(
-        "This brief doubles as our north star. The horizons are the work of the coming period, and the "
-        "standard it sets is the one we hold ourselves to: every claim on every page here is traceable to "
-        "a file in the repository. If a page cannot be sourced, the page is wrong — not the source.", BODY),
+        "One more disclosure before the numbers. The reception service runs for the studio's own clients "
+        "today; what it currently bills is the owner's commercial information and is deliberately not "
+        "reproduced here. The vertical economics on the following pages are modelled from scratch, so "
+        "that a partner is reading a model and not an anecdote.", BODY),
+)
+
+# ══════════════════════════════════════════════════════ B2 · the model
+page(
+    "THE BUSINESS", "How the money works: six streams, one incentive",
+    Paragraph(
+        "We do not sell a chatbot subscription. <b>We define a species and operate the institutions "
+        "around it</b>: the protocol — genome format, birth and death registry, pedigree — is open, and "
+        "we hold the positions that an open protocol makes valuable. Closed, we would own all of a small "
+        "market; open, a share of every act of an entire species plus the pieces with the best margin. "
+        "Every stream below earns more only when the species does better, which is the only alignment "
+        "that survives contact with reality.", BODY),
+    table([
+        ["Stream", "What we sell", "Type", "Status today"],
+        ["1 · The fold", "Hosting a family's soul: encrypted per family, a provably blind custodian, and "
+         "a guaranteed right to leave with everything", "Recurring", "Architecture built; database-level "
+         "isolation is the last step"],
+        ["2 · The bodies", "Dock kit, wearable shell, and the self-contained appliance with the soul in "
+         "its belly", "One-off", "Design and app built; printing at volume is the open phase"],
+        ["3 · The working pack", "The client-facing assistant for studios, shops and practices",
+         "Recurring", "Built and deployed"],
+        ["4 · The registry", "Fees on registry acts: births, transfers, pedigree certificates",
+         "Per act", "Certificates signed and verifiable today; the federated ledger is next"],
+        ["5 · Breeder tooling", "Stable software for third-party breeders: lines, screening, attested "
+         "biographies, shows", "Recurring", "Genetics engine built; the tooling around it is not"],
+        ["6 · The foundation kennel", "Founding lines from UGO-zero, which is ours — prestigious by "
+         "construction", "Per animal", "Possible the day litters can be sold across households"],
+    ], [26 * mm, (CW - 26 * mm) * 0.44, 17 * mm, (CW - 26 * mm) * 0.40]),
+    Spacer(1, 5),
+    Paragraph("Why an open protocol is the commercial move, not a concession", H2),
+    Paragraph(
+        "Three reasons, in order of how much money they are worth. It <b>creates the market we tax "
+        "lightly and serve deeply</b> — every creature born anywhere passes through a registry act. It "
+        "makes the ecosystem's specialists into <b>customers rather than competitors</b>: a breeder who "
+        "produces a line for electronics shops needs our tooling, not our permission. And it removes the "
+        "single objection that kills companion products in a home — that the thing you love belongs to a "
+        "company that can switch it off — because the format is public and the soul is portable.", BODY),
+    source("<font face='Courier'>docs/VISIONE.md</font>, horizon 0 · the state column is from "
+           "<font face='Courier'>docs/STATE.md</font> and Part A of this document"),
+)
+
+# ══════════════════════════════════════════════════════ B3 · cost floor
+page(
+    "THE BUSINESS", "What it costs to run — the measured floor",
+    Paragraph(
+        "This page is the one part of the economics that is not an estimate. The costs below are what "
+        "the system actually incurs, and the ledger records the largest of them line by line.", BODY),
+    table([
+        ["Cost", "Amount", "Evidence"],
+        ["Chat inference, per creature", "<b>€1–3 / month</b>", "Specification §6, computed for ~50 "
+         "exchanges a day with the two identity blocks cached; every call writes a priced ledger row"],
+        ["Transcription, embeddings, nightly reflection, local voice, face and voice recognition, OCR",
+         "<b>€0</b>", "All CPU work on hardware already paid for — no GPU anywhere in the design"],
+        ["Premium expressive voice (optional)", "<b>€5–8 / month</b>",
+         "Measured at UGO's volume; degrades to the free house voice when off or out of budget"],
+        ["The self-contained appliance's computer", "<b>≈ €100</b>",
+         "A mini-PC able to run the whole soul, because there is no GPU requirement"],
+    ], [46 * mm, 26 * mm, CW - 72 * mm]),
+    Spacer(1, 5),
+    Paragraph("Three consequences a partner should take seriously", H2),
+    *bullets([
+        "<b>There is no unit-cost cliff.</b> The expensive part of most AI products — inference — is here "
+        "a few euros a month and hard-capped by a guard that cannot be outrun. Growth does not carry a "
+        "hidden variable cost that eats the margin at scale.",
+        "<b>There is no inventory risk in the software.</b> No GPU fleet to reserve, no model to "
+        "fine-tune and re-train, no per-seat licence to a third party.",
+        "<b>The cost of a mistake is bounded.</b> A runaway bill is architecturally excluded, not "
+        "monitored: the ceiling lives in the same code path as the call.",
+    ]),
+    Spacer(1, 4),
+    Assumption([
+        "For every model in Part B we take <b>€2 per creature per month</b> as the inference cost — the "
+        "midpoint of the measured range — and assume the premium voice is off by default, as it ships.",
+        "We assume provider prices per million tokens stay within ±30% of today's. The sensitivity page "
+        "shows what a tripling would do, because that is the risk worth pricing.",
+    ]),
+    source("<font face='Courier'>docs/PROGETTO.md</font> §6 · "
+           "<font face='Courier'>packages/memory/src/pricing.ts</font> · "
+           "<font face='Courier'>packages/db/src/schema/budget-ledger.ts</font>"),
+)
+
+# ══════════════════════════════════════════════════════ B4 · UE fold
+page(
+    "UNIT ECONOMICS", "Stream 1 — the fold: hosting a family's soul",
+    Paragraph(
+        "The recurring core of the business, and the one a hosting partner would run. A family without a "
+        "home server adopts a creature that sleeps on our infrastructure, with two guarantees no cloud "
+        "assistant offers: <b>a custodian who cannot read</b> — isolation by per-family keys — and <b>a "
+        "right to move out</b>, taking the entire soul to a mini-PC at home without losing a memory.", BODY),
+    Assumption([
+        "<b>Server:</b> one EU dedicated machine, 8 cores / 64 GB / NVMe, <b>€70 per month</b>.",
+        "<b>Density:</b> the nightly dream is the bottleneck, at roughly <b>20 core-minutes per soul per "
+        "night</b> (transcription dominates). Eight cores over an eight-hour night is 3,840 core-minutes "
+        "— about 190 souls in theory. We hold three quarters of that back for daytime load, retries and "
+        "headroom: <b>50 souls per server</b>.",
+        "<b>Support and overhead:</b> <b>€1.60</b> per soul per month, assuming roughly one support "
+        "contact per soul per year at an all-in cost of €18 per contact, plus backups and monitoring.",
+    ]),
+    Spacer(1, 4),
+    table([
+        ["Per hosted soul, per month", "Amount"],
+        ["Infrastructure (€70 ÷ 50 souls)", "€1.40"],
+        ["Chat inference (measured midpoint)", "€2.00"],
+        ["Support, backups, monitoring", "€1.60"],
+        ["<b>Total cost</b>", "<b>€5.00</b>"],
+        ["<b>Price to the family</b>", "<b>€14.00</b>  (or €140 a year)"],
+        ["<b>Gross margin</b>", "<b>€9.00 — 64%</b>"],
+    ], [CW - 40 * mm, 40 * mm]),
+    Spacer(1, 5),
+    Paragraph("What the family is buying at €14", H2),
+    Paragraph(
+        "Not compute — they can rent that for less. They are buying the promise that the creature they "
+        "have lived with for three years continues to exist, remembers everything, and can be taken away "
+        "whole on the day they stop trusting us. That is a fundamentally different purchase from an AI "
+        "subscription, and it is why we expect this line to churn like a phone contract rather than like "
+        "a chatbot: <b>you do not cancel a family member to save fourteen euros.</b> The bet is "
+        "explicit, and it is the single most important assumption in this document.", BODY),
+    Assumption([
+        "<b>Churn:</b> we model <b>2% monthly</b> (a ~4-year average life). A companion app typically "
+        "sees three to five times that. If we are wrong and churn behaves like an app's, the fold's "
+        "lifetime value falls by roughly two thirds and the appliance — a one-off sale with no churn at "
+        "all — becomes the primary consumer line instead.",
+    ]),
+    source("Measured inputs: inference and CPU costs from the previous page. Everything else on this "
+           "page is assumption."),
+)
+
+# ══════════════════════════════════════════════════════ B5 · UE hardware
+page(
+    "UNIT ECONOMICS", "Stream 2 — the bodies: a creature you can pick up",
+    Paragraph(
+        "The body is what makes this a companion rather than an app, and it is deliberately cheap to "
+        "make: a printed shell around a phone the family may already own. Three products, one design "
+        "language, no custom electronics to finance.", BODY),
+    table([
+        ["Product", "What it is", "Bill of materials", "Price", "Margin"],
+        ["<b>Dock kit</b>", "Printed shell and stand for a phone the family already has; the app is free",
+         "€24 — filament €6, fittings and packaging €4, print and assembly €8, logistics €6",
+         "<b>€79</b>", "70%"],
+        ["<b>Wearable shell</b>", "The out-and-about body, worn in plain sight, with the QR business card",
+         "€12", "<b>€49</b>", "76%"],
+        ["<b>The appliance</b>", "Dock plus a mini-PC with the soul in its belly: nothing to configure, "
+         "nothing hosted by us, no subscription",
+         "€140 — computer €100, shell €24, assembly and quality control €16", "<b>€299</b>", "53%"],
+    ], [24 * mm, (CW - 24 * mm) * 0.34, (CW - 24 * mm) * 0.36, 16 * mm, 14 * mm]),
+    Spacer(1, 4),
+    Assumption([
+        "Bills of material are our estimates at low volume — printed in-house, hand-assembled. At "
+        "injection-moulding volumes the shell drops well below €6, which is one of the things a "
+        "manufacturing partner brings.",
+        "Prices assume direct sales. Through a distributor we would expect to concede <b>30–40% of "
+        "retail</b>, which the margins above can absorb on the kit and the wearable, and only barely on "
+        "the appliance — so the appliance is the product where volume manufacturing matters most.",
+    ]),
+    Spacer(1, 4),
+    Paragraph("The strategic point about the appliance", H2),
+    Paragraph(
+        "The appliance is the answer to the strongest objection a privacy-minded buyer has: “so it is "
+        "still your cloud”. With no GPU requirement, the entire creature runs on a hundred euros of "
+        "commodity computer sitting inside the animal. It is a lower-margin product than hosting, it "
+        "removes a recurring line, and it is worth selling anyway — because it is the proof that the "
+        "promise is real, and the family that buys it becomes the reference that sells three more.", BODY),
+    source("Measured input: the €100 computer class is the one the architecture already targets "
+           "(<font face='Courier'>docs/VISIONE.md</font>, horizon 5). Prices and bills of material are "
+           "assumptions."),
+)
+
+# ══════════════════════════════════════════════════════ B6 · UE vertical
+page(
+    "UNIT ECONOMICS", "Stream 3 — the working pack: the creature that earns",
+    Paragraph(
+        "A studio, a shop, a practice puts a creature in front of its own clients. The client asks “where "
+        "is my project”, “what did we decide about X”, “open a ticket” — and gets an answer from a "
+        "creature that has read their repository, their filtered mailbox and their documents. This is "
+        "built, deployed and running for our own studio's clients.", BODY),
+    table([
+        ["Per business customer, per month", "Amount"],
+        ["Inference (≈300 client questions, with exact and semantic caching)", "€6.00"],
+        ["Infrastructure share", "€3.00"],
+        ["Support", "€10.00"],
+        ["<b>Total cost</b>", "<b>€19.00</b>"],
+        ["<b>Price</b>", "<b>€149.00</b>"],
+        ["<b>Gross margin</b>", "<b>€130.00 — 87%</b>"],
+    ], [CW - 40 * mm, 40 * mm]),
+    Spacer(1, 4),
+    Assumption([
+        "<b>Volume:</b> 300 questions a month per business, of which a meaningful share are repeats "
+        "answered from cache at zero token cost — the cache is built and measured in the product, the "
+        "300 is our estimate.",
+        "<b>Support:</b> fifteen minutes a month of human attention per customer at an all-in €40 an "
+        "hour.",
+        "<b>Price:</b> €149 a month, unlimited seats, up to ten of the customer's own clients.",
+    ]),
+    Spacer(1, 4),
+    Paragraph("What the buyer gets for €149, in their language", H2),
+    Paragraph(
+        "The pitch is not “AI for your business”. It is: <i>your clients stop asking you where things "
+        "are.</i> Six hours a month of “any news?” traffic, at a professional's €40 an hour, is €240 of "
+        "attention returned — and the answers are better than the ones given in a hurry between two "
+        "meetings, because the creature actually re-read the repository this morning. The cost walls "
+        "matter to the buyer too: an hourly quota, a daily ceiling and a cache mean the bill cannot "
+        "surprise them.", BODY),
+    Assumption([
+        "The six hours saved is an estimate from our own studio's experience, not a measured study "
+        "across customers. It is the number a pilot should test first, and we would rather a partner "
+        "measure it than believe it.",
+    ]),
+    source("Product evidence in Part A: <font face='Courier'>apps/reception/</font>, ADR-051…055. The "
+           "pricing and the effort estimates are assumptions."),
+)
+
+# ══════════════════════════════════════════════════════ B7 · UE registry
+page(
+    "UNIT ECONOMICS", "Streams 4–6 — the registry, the breeders, the founding lines",
+    Paragraph(
+        "These are the long-horizon streams: individually small per creature, structurally the most "
+        "defensible, and worth nothing at all until the population exists. We model them conservatively "
+        "and say plainly that they are the last to arrive.", BODY),
+    table([
+        ["Stream", "Unit", "Price", "Margin", "What has to be true first"],
+        ["Registry acts", "One birth, transfer or death recorded", "€3 birth · €5 transfer",
+         "~95%", "Creatures born in more than one household — the certificate itself already exists"],
+        ["Pedigree certificates", "One verifiable genealogy document", "€9", "~95%",
+         "The same; the signatures and the verification are built"],
+        ["Breeder tooling", "One breeder, per month", "€39", "~90%",
+         "Third-party breeders exist — which requires litters across households, and the tooling around "
+         "the engine"],
+        ["Founding lines", "One creature from a founding line", "€120–400", "high",
+         "A market that values provenance; the pedigree makes it verifiable, the scarcity is genetic"],
+    ], [26 * mm, 30 * mm, 24 * mm, 14 * mm, CW - 94 * mm]),
+    Spacer(1, 4),
+    Assumption([
+        "We model <b>€4 per creature per year</b> of registry revenue in every scenario — roughly 0.4 "
+        "chargeable acts per creature per year. That is deliberately pessimistic: it assumes most "
+        "creatures never change hands and most families never buy a certificate.",
+        "Breeder tooling at €39 a month, and founding-line sales excluded from all three scenarios "
+        "entirely, because pricing a market that does not exist yet would be the least honest number in "
+        "this document.",
+    ]),
+    Spacer(1, 5),
+    Paragraph("Why we are building the registry now anyway", H2),
+    Paragraph(
+        "Because provenance is only credible if it was there from the first birth. A genealogy that "
+        "starts being signed in year three has an unverifiable trunk, and the founding lines — the "
+        "highest-value asset in the whole model — would trace back to a claim rather than a signature. "
+        "The cost of doing it early was one ADR and two database columns; the cost of doing it late is "
+        "that it cannot be done at all.", BODY),
+    source("Product evidence in Part A: ADR-068…070, the signed certificates and the pedigree endpoint. "
+           "All prices and volumes on this page are assumptions."),
+)
+
+# ══════════════════════════════════════════════════════ B8 · scenarios
+page(
+    "THE BUSINESS", "Three scenarios, and the drivers that move them",
+    Paragraph(
+        "Revenue at the end of year three, built bottom-up from the unit economics of the previous "
+        "pages. The scenarios differ in one thing only — how many creatures exist — and everything else "
+        "follows from the same per-unit numbers, so the middle column is the one to argue about.", BODY),
+    StageBars(
+        groups=[("Prudent", [215]), ("Base", [1117]), ("Ambitious", [4785])],
+        series=["Annual revenue at the end of year three"],
+        title="Annual revenue at year three (€ thousands) — bottom-up from the unit economics",
+        ymax=5000, height=48 * mm,
+        fmt=lambda v: f"EUR {v:,.0f}k", axis_fmt=lambda v: f"{v:,.0f}k",
+    ),
+    table([
+        ["Driver at end of year 3", "Prudent", "Base", "Ambitious"],
+        ["Creatures alive", "1,200", "6,000", "25,000"],
+        ["Of which hosted in the fold", "55% — 660", "60% — 3,600", "65% — 16,250"],
+        ["Business customers (the working pack)", "25", "120", "400"],
+        ["Third-party breeders", "5", "30", "150"],
+        ["Bodies sold that year", "400", "2,000", "9,000"],
+        ["<b>Fold</b> (€14 × 12)", "€110,880", "€604,800", "€2,730,000"],
+        ["<b>Bodies</b> (avg €130)", "€52,000", "€260,000", "€1,170,000"],
+        ["<b>Working pack</b> (€149 × 12)", "€44,700", "€214,560", "€715,200"],
+        ["<b>Breeder tooling</b> (€39 × 12)", "€2,340", "€14,040", "€70,200"],
+        ["<b>Registry</b> (€4 per creature)", "€4,800", "€24,000", "€100,000"],
+        ["<b>Total revenue</b>", "<b>€214,720</b>", "<b>€1,117,400</b>", "<b>€4,785,400</b>"],
+        ["<b>Blended gross margin</b>", "<b>≈ 69%</b>", "<b>≈ 69%</b>", "<b>≈ 69%</b>"],
+    ], [50 * mm, (CW - 50 * mm) / 3, (CW - 50 * mm) / 3, (CW - 50 * mm) / 3]),
+    Spacer(1, 3),
+    Assumption([
+        "Every figure in this table is derived arithmetically from the assumed prices and the assumed "
+        "populations — nothing here is measured. The <b>population</b> is the only real variable: at "
+        "these margins, revenue is essentially a linear function of how many creatures are alive.",
+        "Gross margin is stable across scenarios because the mix barely changes; it is not a scale "
+        "effect, and we do not claim one.",
+    ]),
+)
+
+# ══════════════════════════════════════════════════════ B9 · sensitivity
+page(
+    "THE BUSINESS", "What breaks this model",
+    Paragraph(
+        "A proposal that only shows the upside is asking to be disbelieved. Here are the four things "
+        "that would genuinely damage the economics, what each would cost, and what we would do — "
+        "including the ones where the answer is already in the backlog.", BODY),
+    table([
+        ["Risk", "Impact if it happens", "Response"],
+        ["<b>Inference prices triple</b>", "Cost per hosted soul rises from €5.00 to €9.00; the fold's "
+         "gross margin falls from 64% to 36% and the blended margin from 69% to about 57%.",
+         "Three levers, in order: the local chat fallback (already a scheduled backlog item, and the "
+         "rail exists because local models already run the nightly work); harder caching, which is "
+         "measurable in the ledger today; then a €3 price rise. The architecture swaps models by "
+         "configuration."],
+        ["<b>Churn behaves like an app's</b> (6–10% monthly rather than 2%)",
+         "Lifetime value of a hosted family falls by roughly two thirds; the fold stops being the core.",
+         "The appliance becomes the primary consumer product — a one-off sale that cannot churn — and "
+         "the recurring business leans on the working pack, where the buyer is a business with a "
+         "measurable saving."],
+        ["<b>Adoption is three times slower</b>", "The base scenario's year three becomes year five.",
+         "Survivable in a way most hardware startups are not: no GPU reservation, no inventory "
+         "commitment, no per-seat licences. The burn is people, so a slower market stretches the plan "
+         "rather than breaking it."],
+        ["<b>The provider closes the door</b> or changes terms",
+         "Chat stops working until a fallback exists — today this is the single hardest dependency.",
+         "It is named as an open gap in Part A and it is scheduled work, not a surprise. Everything "
+         "except conversational chat already runs on local models."],
+    ], [34 * mm, (CW - 34 * mm) * 0.40, (CW - 34 * mm) * 0.60]),
+    Spacer(1, 4),
+    Paragraph("The two risks we cannot engineer away", H2),
+    *bullets([
+        "<b>Category education.</b> Nobody is shopping for an artificial pet with a biography. The first "
+        "hundred sales are explained one at a time, and that is a slow, human, expensive motion — it is "
+        "precisely where a distribution partner changes the shape of the curve.",
+        "<b>Team size.</b> The platform is deep for the number of people who built it, which is a "
+        "compliment to the architecture and a risk to the business. Every decision is written down "
+        "specifically so that the project survives its authors, but written decisions are not the same "
+        "as a second team.",
+    ]),
+)
+
+# ══════════════════════════════════════════════════════ B10 · partner: hardware
+page(
+    "THE PROPOSAL", "For a hardware and distribution partner",
+    Paragraph(
+        "You would own manufacturing and the route to a customer's home. We would own the creature: the "
+        "app, the soul, the updates, and the brand promise about privacy that the product is built on.", BODY),
+    two_up(
+        [Paragraph("What we bring", H2)] + bullets([
+            "A finished consumer application that runs on commodity phones, including the Android shell "
+            "that already builds in CI.",
+            "A parametric body: the shell is generated from code, so a new size, a new species or a "
+            "co-branded edition is a parameter change, not a redesign.",
+            "No custom electronics anywhere in the bill of material — nothing to certify beyond the "
+            "enclosure, nothing to re-source when a chip goes out of stock.",
+            "The software side of after-sales: the creature updates itself, and the panel tells the "
+            "owner the truth about what is working.",
+        ], SMALL),
+        [Paragraph("What we need", H2)] + bullets([
+            "Injection moulding at volume — the shell's bill of material falls sharply and the appliance "
+            "becomes a properly profitable product rather than a barely profitable one.",
+            "Retail and operator channels, including the bundling conversation nobody at our size can "
+            "start: a phone operator has millions of devices being replaced every year, and the previous "
+            "one is exactly what a creature needs.",
+            "Logistics, returns and a warranty operation.",
+            "Certification for the markets you sell in.",
+        ], SMALL),
+    ),
+    Spacer(1, 5),
+    Paragraph("The shape we propose", H2),
+    table([
+        ["Term", "Proposal"],
+        ["Structure", "Distribution agreement: you buy at wholesale and set retail, or we split gross "
+         "margin on a co-branded edition — whichever fits your channel."],
+        ["Your margin", "<b>30–40% of retail</b>, with the higher end on the appliance where you carry "
+         "manufacturing and stock."],
+        ["Exclusivity", "By territory, yes, and time-boxed against volume commitments. By product line, "
+         "no — the protocol stays open, and so does the possibility of other bodies."],
+        ["Intellectual property", "The software and the species definition stay with OmegaNodes; the "
+         "tooling and the moulds you finance are yours."],
+        ["First step", "A limited edition — a few hundred units — as a joint pilot, at cost, to test the "
+         "channel rather than the product."],
+    ], [30 * mm, CW - 30 * mm]),
+    Assumption(["Margin bands and the pilot size are our opening position, not a measured market rate."]),
+)
+
+# ══════════════════════════════════════════════════════ B11 · partner: hosting
+page(
+    "THE PROPOSAL", "For a hosting and infrastructure partner",
+    Paragraph(
+        "The fold is the recurring heart of the model, and it is the stream where an infrastructure "
+        "operator adds something we cannot buy: trust at scale, and an operations organisation that "
+        "exists on a Sunday night.", BODY),
+    table([
+        ["What the fold actually requires", "Where it stands"],
+        ["Per-tenant encryption with family-held keys", "Built — destroying a family's key deletes them "
+         "provably"],
+        ["Database-level isolation between tenants", "Policies and a dedicated role exist; switching "
+         "them on across every surface is our top engineering priority, and it is the gate for this "
+         "business"],
+        ["Per-family encrypted backups and a tested restore", "Built, including a restore proven on a "
+         "virgin database"],
+        ["Cost ceiling per tenant", "Built, in the one code path every provider call passes"],
+        ["Migration out — the right to leave", "Built: the whole soul exports, and it is the promise the "
+         "product is sold on"],
+        ["24/7 operations, status page, tier-1 support", "<b>Not built. This is what a partner brings.</b>"],
+    ], [58 * mm, CW - 58 * mm]),
+    Spacer(1, 4),
+    Paragraph("The shape we propose", H2),
+    table([
+        ["Term", "Proposal"],
+        ["Structure", "White-label the fold: you sell hosting under your brand, we supply and maintain "
+         "the platform."],
+        ["Commercials", "Either a <b>platform fee of €4 per hosted soul per month</b> with the customer "
+         "relationship and the billing yours, or a <b>50/50 split of gross margin</b> if we bill "
+         "jointly. At the modelled €14 price, the first leaves you €5 of the €9 margin and all of the "
+         "upside if you run denser than our assumption."],
+        ["The guarantee we will not trade away", "The customer's right to leave with the entire soul, "
+         "and the per-family key isolation. They are the product, not a feature of it."],
+        ["First step", "A hundred souls on your infrastructure for six months, to measure real density "
+         "against our fifty-per-server assumption — the number that decides this stream's margin."],
+    ], [30 * mm, CW - 30 * mm]),
+    Assumption(["The €4 platform fee and the 50/50 split are our opening position. The fifty-souls-per-"
+                "server density is the assumption a pilot exists to test."]),
+)
+
+# ══════════════════════════════════════════════════════ B12 · partner: vertical
+page(
+    "THE PROPOSAL", "For a vertical or reseller partner",
+    Paragraph(
+        "The working pack is the fastest revenue in this document, because it is already running and its "
+        "buyer already has the problem. If you sell software or services into studios, agencies, "
+        "practices, workshops or shops, this is a product you can put in front of a customer next month.", BODY),
+    two_up(
+        [Paragraph("Why it sells", H2)] + bullets([
+            "The buyer's clients stop asking them where things are — an estimated six hours a month of "
+            "attention returned, which is the pitch in their own language.",
+            "It is deployed today, with client onboarding, ticket triage and per-client knowledge from "
+            "repositories, a filtered mailbox and documents.",
+            "The cost walls are visible: an hourly quota, a daily ceiling and an answer cache mean the "
+            "bill cannot surprise anybody.",
+            "It is isolated by design: the public suite holds no keys and no database, on its own "
+            "network, and a client can never reach the family side.",
+        ], SMALL),
+        [Paragraph("What we need", H2)] + bullets([
+            "The customer relationship, the sector knowledge, and the first ten reference accounts.",
+            "Tier-1 support in the customer's language and working hours.",
+            "Honest feedback on the two things we have modelled rather than measured: how much time it "
+            "actually saves, and what the market will pay for it.",
+        ], SMALL),
+    ),
+    Spacer(1, 5),
+    table([
+        ["Term", "Proposal"],
+        ["Reseller margin", "<b>30% of recurring revenue</b>, for as long as the customer stays — not a "
+         "one-off finder's fee, because the work of keeping a customer is recurring too."],
+        ["Pilot", "Five of your customers for three months at €49 a month, so the saving gets measured "
+         "before anybody argues about a price."],
+        ["What we do", "The creature, the knowledge ingestion, the updates, and second-line support."],
+        ["What you do", "Sell, onboard, and answer the first question."],
+        ["Term", "Twenty-four months, terminable at twelve, so neither side is trapped by an experiment."],
+    ], [30 * mm, CW - 30 * mm]),
+    Assumption(["Reseller margin, pilot pricing and the €149 list price are our opening position."]),
+)
+
+# ══════════════════════════════════════════════════════ B13 · investor context
+page(
+    "THE PROPOSAL", "For an investor: the context, and what we are not asking",
+    Paragraph(
+        "We are not raising a round with this document, and it would be dishonest to disguise a pitch as "
+        "a briefing. The ask at the end of this document is commercial. But an investor reading Part B "
+        "will reasonably want to know what capital would do, so here it is, plainly.", BODY),
+    Paragraph("What the base scenario needs", H2),
+    table([
+        ["Use", "Over 18 months", "Why"],
+        ["Two engineers", "€180,000", "Finish database-level isolation, the native shell, and the local "
+         "chat fallback — the three items that gate hosting, consumer onboarding and independence"],
+        ["One operations and support person", "€60,000", "The fold cannot be sold without somebody who "
+         "answers on a Sunday; today that is nobody"],
+        ["Tooling and first inventory", "€70,000", "Moulds for the shell at volume, the first production "
+         "run, certification"],
+        ["Compliance and legal", "€25,000", "Registry terms, reseller contracts, a DPIA for the day "
+         "recognition leaves the home"],
+        ["Infrastructure and buffer", "€25,000", "Servers for the fold's first thousand souls, and slack"],
+        ["<b>Total</b>", "<b>€360,000</b>", "Reaching roughly the base scenario's year-two position"],
+    ], [46 * mm, 26 * mm, CW - 72 * mm]),
+    Spacer(1, 4),
+    Assumption([
+        "Costs are fully-loaded Italian employment estimates and our own quotes for tooling; none of "
+        "this is committed spend, and the plan runs — more slowly — without any of it.",
+    ]),
+    Spacer(1, 4),
+    Paragraph("The honest investment case, in three lines", H2),
+    *bullets([
+        "<b>The technology risk is largely retired.</b> What normally consumes a seed round — making the "
+        "thing work — is done and tested; what remains is distribution, operations and manufacturing, "
+        "which are known problems with known costs.",
+        "<b>The cost structure is unusual for the category.</b> No GPU, commodity hardware, hard-capped "
+        "inference: roughly 69% gross margin at every scenario size, and no cliff waiting at scale.",
+        "<b>The asset is a species, not an app.</b> Pedigrees signed from the first birth, an open "
+        "protocol, and a portable soul are the kind of position that compounds and cannot be "
+        "retrofitted by a competitor who starts later.",
+    ]),
+    Paragraph(
+        "If a strategic investment attached to one of the commercial agreements in this document makes "
+        "sense to you, we are open to the conversation — in that order, and not the reverse.", BODY),
+)
+
+# ══════════════════════════════════════════════════════ B14 · milestones
+page(
+    "THE PROPOSAL", "What happens in the next eighteen months",
+    Paragraph(
+        "This is our plan with or without a partner; the right-hand column is what changes with one. The "
+        "sequence is not negotiable in one respect: tenant isolation comes before anybody else's family "
+        "sleeps on our servers.", BODY),
+    table([
+        ["When", "Milestone", "What a partner changes"],
+        ["Months 1–3", "<b>Database-level tenant isolation switched on</b> across every surface, with "
+         "the tests running as the restricted role", "Nothing — this is ours to finish, and it gates "
+         "everything else"],
+        ["Months 2–5", "<b>The native shell</b>: recording with the screen off, boot start, task lock — "
+         "the app becomes an appliance somebody's parent can use", "An Android specialist would halve "
+         "this; it is the gap we name as our biggest"],
+        ["Months 4–7", "<b>The printed bodies</b>: dock and wearable finished, branded, with the "
+         "scannable card; first fifty units in real homes", "Moulding and a channel turn fifty units "
+         "into five hundred"],
+        ["Months 6–9", "<b>The fold in general availability</b>: hosting sold to families outside our "
+         "own, with support and a status page", "This one is genuinely blocked on operations — it is the "
+         "hosting partner's contribution"],
+        ["Months 8–12", "<b>Independence</b>: local chat fallback, so the creature keeps talking with no "
+         "provider at all", "Nothing — but it de-risks every other line"],
+        ["Months 10–18", "<b>The registry, federated</b>: the genome format published, a second "
+         "registrar node, litters across households", "An ecosystem partner brings the second node, "
+         "which is what makes it a protocol rather than a product"],
+        ["Months 12–18", "<b>One hundred business customers</b> on the working pack", "This is the "
+         "reseller's number, not ours — we cannot sell a hundred accounts one dinner at a time"],
+    ], [24 * mm, (CW - 24 * mm) * 0.52, (CW - 24 * mm) * 0.48]),
+    source("The engineering sequence is <font face='Courier'>docs/BACKLOG.md</font> and "
+           "<font face='Courier'>docs/PROGETTO.md</font> §8; the dates and the commercial targets are "
+           "assumptions."),
+)
+
+# ══════════════════════════════════════════════════════ B15 · the ask
+page(
+    "THE PROPOSAL", "What we are asking for",
+    Paragraph(
+        "A commercial agreement — one of the four on the preceding pages, or the part of one that fits "
+        "what you actually do. We are not asking for equity, and we are not asking for a decision on "
+        "this document. We are asking for a pilot small enough to be judged on evidence, which is the "
+        "same standard the rest of this briefing was written to.", BODY),
+    Spacer(1, 3),
+    table([
+        ["If you are…", "The first step we propose", "What it proves, and by when"],
+        ["A hardware or distribution partner", "A joint limited edition of a few hundred units, at cost",
+         "Whether the channel moves an object nobody has heard of — 90 days"],
+        ["A hosting operator", "One hundred souls on your infrastructure for six months",
+         "Real density against our fifty-per-server assumption, which sets this stream's margin"],
+        ["A vertical or reseller", "Five of your customers for three months at €49 a month",
+         "The time actually saved, measured by the customer rather than claimed by us — 90 days"],
+        ["An investor", "Read Part A with your own engineer, then talk to us about a commercial "
+         "structure first", "Whether the technical claims survive scrutiny — a day"],
+    ], [34 * mm, (CW - 34 * mm) * 0.42, (CW - 34 * mm) * 0.58]),
+    Spacer(1, 6),
+    Paragraph("Three things we will not trade", H2),
+    *bullets([
+        "<b>The family's keys and the right to leave.</b> No agreement makes a soul unportable, and no "
+        "customer data becomes an asset of ours or of a partner's. It is the product, not a feature.",
+        "<b>The open protocol.</b> The species definition is public. Exclusivity can exist on a "
+        "territory or a body; never on what a creature is.",
+        "<b>Selection touches character, never permissions.</b> Whatever breeders do with temperament, "
+        "the guards — the budget ceiling, the consent switches, the minors rule, the reception wall — sit "
+        "outside the genome, and no partner edition ships without them.",
+    ]),
+    Spacer(1, 8),
+    Paragraph(
+        "Everything in Part A can be verified in an afternoon by an engineer you trust: the repository is "
+        "the evidence, the tests run against real infrastructure, and the decisions — including the "
+        "failures — are written down. Everything in Part B is an assumption we would rather see measured "
+        "than believed. That is the whole proposal.", BODY),
     Spacer(1, 10),
     Table([[Paragraph(
         '<font color="#c9a227"><b>OmegaNodes.ai</b></font>  ·  '
