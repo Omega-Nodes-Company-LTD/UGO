@@ -96,8 +96,10 @@ describe("audit_log", () => {
     // le colonne che ci sono sono tutte id, verbi ed esiti: non esiste un posto
     // dove infilare un nome, ed e' il punto (regola 6)
     expect(Object.keys(row ?? {}).sort()).toEqual([
-      "at",
+      // in ordine alfabetico, perché sopra c'è un .sort(): ADR-092 ha
+      // rinominato householdId in accountId e l'ordine è cambiato con lui
       "accountId",
+      "at",
       "id",
       "outcome",
       "resourceId",
