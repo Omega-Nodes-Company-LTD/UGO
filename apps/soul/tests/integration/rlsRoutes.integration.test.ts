@@ -1,7 +1,12 @@
 import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   auditLog,
+  budgetLedger,
+  checkins,
   createDbClient,
+  feedings,
+  psycheSnapshots,
+  rssFeeds,
   runMigrations,
   unknownPrints,
   type DbClient,
@@ -83,6 +88,9 @@ beforeAll(async () => {
     features: {
       chat: undefined as never,
       psyche: undefined as never,
+      // il lotto 1 (ADR-062): liste, domande, salvadanaio, umore del branco
+      gosini: { dataKey: mine.dataKey },
+      stats: { dailyBudgetUsd: 5, timezone: "Europe/Rome" },
     },
   });
 }, 180_000);
@@ -176,5 +184,169 @@ describe("le rotte delle impronte come ugo_app (ADR-062)", () => {
       .from(auditLog)
       .where(sql`${auditLog.verb} = 'denied' and ${auditLog.accountId} is null`);
     expect(rows.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+/**
+ * Lotto 1 della conversione (ADR-062): lo stato e i conti attraversano il
+ * muro. Ogni caso pianta un dato in ENTRAMBE le case e pretende che ognuna
+ * veda solo il suo — sotto `ugo_app`, dove una query fuori da `inAccount`
+ * vedrebbe zero righe e il test lo direbbe.
+ */
+describe("lotto 1: lo stato e i conti come ugo_app", () => {
+  it("le liste: si scrive e si legge dentro casa, il vicino non le vede", async () => {
+    const made = await app.inject({
+      method: "POST",
+      url: "/v1/lists",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { list: "spesa", text: "latte di soia" },
+    });
+    expect(made.statusCode).toBe(201);
+
+    const mineView = await app.inject({
+      method: "GET",
+      url: "/v1/lists",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    const texts = mineView.json<{ items: { text: string }[] }>().items.map((i) => i.text);
+    expect(texts).toContain("latte di soia");
+
+    const theirView = await app.inject({
+      method: "GET",
+      url: "/v1/lists",
+      headers: { authorization: `Bearer ${theirToken}` },
+    });
+    expect(theirView.json<{ items: unknown[] }>().items).toHaveLength(0);
+  });
+
+  it("le domande che tornano: la lista è della casa, e il 404 del vicino non cancella", async () => {
+    await owner.insert(checkins).values({ gosinoId: mine.gosinoId, question: "com'è andata?", hour: 21 });
+    const [neighbour] = await owner
+      .insert(checkins)
+      .values({ gosinoId: theirs.gosinoId, question: "tutto bene?", hour: 9 })
+      .returning({ id: checkins.id });
+    if (neighbour === undefined) throw new Error("checkin non piantato");
+
+    const mineView = await app.inject({
+      method: "GET",
+      url: "/v1/checkins",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(mineView.statusCode).toBe(200);
+    const questions = mineView
+      .json<{ checkins: { question: string }[] }>()
+      .checkins.map((c) => c.question);
+    expect(questions).toContain("com'è andata?");
+    expect(questions).not.toContain("tutto bene?");
+
+    // spegnere la domanda del vicino risponde «non esiste», e la riga resta
+    const cross = await app.inject({
+      method: "DELETE",
+      url: `/v1/checkins/${neighbour.id}`,
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(cross.statusCode).toBe(404);
+    const left = await owner
+      .select({ id: checkins.id })
+      .from(checkins)
+      .where(sql`${checkins.id} = ${neighbour.id}`);
+    expect(left).toHaveLength(1);
+  });
+
+  it("i feed: iscritti in casa mia, invisibili dal token del vicino", async () => {
+    const made = await app.inject({
+      method: "POST",
+      url: "/v1/feeds",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { url: "https://example.org/rss.xml", label: "esempio" },
+    });
+    expect(made.statusCode).toBe(201);
+
+    const theirView = await app.inject({
+      method: "GET",
+      url: "/v1/feeds",
+      headers: { authorization: `Bearer ${theirToken}` },
+    });
+    expect(theirView.json<{ feeds: unknown[] }>().feeds).toHaveLength(0);
+    const rows = await owner
+      .select({ id: rssFeeds.id })
+      .from(rssFeeds)
+      .where(sql`${rssFeeds.accountId} = ${mine.id}`);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("il salvadanaio: il saldo è della casa che guarda, e l'esemplare altrui è un 404", async () => {
+    await owner.insert(feedings).values({
+      accountId: mine.id,
+      gosinoId: mine.gosinoId,
+      kind: "lavoro",
+      amountUsd: "2.500000",
+    });
+
+    const mineView = await app.inject({
+      method: "GET",
+      url: `/v1/gosini/${mine.gosinoId}/piggybank`,
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(mineView.statusCode).toBe(200);
+    expect(mineView.json<{ fedUsd: number }>().fedUsd).toBeCloseTo(2.5, 6);
+
+    const cross = await app.inject({
+      method: "GET",
+      url: `/v1/gosini/${mine.gosinoId}/piggybank`,
+      headers: { authorization: `Bearer ${theirToken}` },
+    });
+    expect(cross.statusCode).toBe(404);
+  });
+
+  it("i conti: la spesa di oggi è solo la mia, non quella del vicinato", async () => {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date());
+    await owner.insert(budgetLedger).values([
+      {
+        accountId: mine.id,
+        gosinoId: mine.gosinoId,
+        date: today,
+        provider: "anthropic",
+        model: "claude-haiku-4-5",
+        tokensIn: 10,
+        tokensOut: 10,
+        costUsd: "0.110000",
+      },
+      {
+        accountId: theirs.id,
+        gosinoId: theirs.gosinoId,
+        date: today,
+        provider: "anthropic",
+        model: "claude-haiku-4-5",
+        tokensIn: 10,
+        tokensOut: 10,
+        costUsd: "0.990000",
+      },
+    ]);
+
+    const view = await app.inject({
+      method: "GET",
+      url: "/v1/stats",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(view.statusCode).toBe(200);
+    expect(view.json<{ budget: { spentUsd: number } }>().budget.spentUsd).toBeCloseTo(0.11, 6);
+  });
+
+  it("l'umore del branco: una serie per creatura, e solo le creature di casa", async () => {
+    await owner.insert(psycheSnapshots).values([
+      { gosinoId: mine.gosinoId, vars: { energia: 0.5 }, label: "sereno" },
+      { gosinoId: theirs.gosinoId, vars: { energia: 0.2 }, label: "stanco" },
+    ]);
+
+    const view = await app.inject({
+      method: "GET",
+      url: "/v1/psyche/branco",
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(view.statusCode).toBe(200);
+    const ids = view.json<{ creatures: { id: string }[] }>().creatures.map((c) => c.id);
+    expect(ids).toContain(mine.gosinoId);
+    expect(ids).not.toContain(theirs.gosinoId);
   });
 });
