@@ -26,3 +26,4 @@ __pycache__/
 # Next.js (apps/reception)
 .next/
 next-env.d.ts
+apps/face/test-results/

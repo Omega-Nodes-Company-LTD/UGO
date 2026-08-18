@@ -23,10 +23,11 @@ test("the face connects and shows UGO's mood", async ({ page }) => {
 
 test("a tap wakes attention: alert state, mood refresh and Glyph pattern", async ({ page }) => {
   await openFace(page);
-  // in un ANGOLO, non al centro: da ADR-058 un click sul muso è una mela
-  // (`reward`, che non cambia stato), e col vagabondaggio acceso il maiale
-  // ogni tanto sta proprio lì — il click al centro era una moneta lanciata
-  await page.getByTestId("face-canvas").click({ position: { x: 30, y: 30 } });
+  // NON al centro: da ADR-058 un click sul muso è una mela (`reward`, che non
+  // cambia stato), e col vagabondaggio acceso il maiale ogni tanto sta proprio
+  // lì. E non nell'angolo (30,30) di prima: da ADR-093 lassù ci sono barra e
+  // colonna comandi, che intercetterebbero il click.
+  await page.getByTestId("face-canvas").click({ position: { x: 300, y: 100 } });
   await expect(page.getByTestId("app")).toHaveAttribute("data-state", "alert");
   await expect(page.getByTestId("mood-label")).not.toHaveText("");
   // §4.1: the state is also readable across the room, on the Glyph LEDs
@@ -102,6 +103,44 @@ test("what was said stays in the scroll, and survives a reload", async ({ page }
   await expect(page.getByTestId("log-lines").locator("li.empty")).toHaveCount(1);
   await page.getByTestId("log-close").click();
   await expect(page.getByTestId("log")).toBeHidden();
+});
+
+/**
+ * ADR-093: il chiosco nascondibile. Due stati per lo stesso markup: qui si
+ * prova che il nascondere non porta via i gesti primari, e che la scelta è
+ * del dispositivo — un reload non riporta il chiosco che avevi mandato via.
+ */
+test("il chiosco si nasconde nel dock e la scelta sopravvive al reload", async ({ page }) => {
+  await openFace(page);
+  await expect(page.getByTestId("app")).toHaveAttribute("data-chrome", "esteso");
+
+  await page.getByTestId("btn-hide").click();
+  await expect(page.getByTestId("app")).toHaveAttribute("data-chrome", "nascosto");
+  // dal dock i gesti primari restano vivi: il registro si apre lo stesso
+  await page.getByTestId("btn-log").click();
+  await expect(page.getByTestId("log")).toBeVisible();
+  await page.getByTestId("log-close").click();
+
+  await page.reload();
+  await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "true");
+  await expect(page.getByTestId("app")).toHaveAttribute("data-chrome", "nascosto");
+
+  await page.getByTestId("btn-expand").click();
+  await expect(page.getByTestId("app")).toHaveAttribute("data-chrome", "esteso");
+});
+
+test("su telefono i comandi sono un foglio, e la presa lo nasconde", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openFace(page);
+  // la presa esiste solo dove il foglio esiste: su desktop è il bottone in barra
+  await expect(page.getByTestId("sheet-grip")).toBeVisible();
+
+  await page.getByTestId("sheet-grip").click();
+  await expect(page.getByTestId("app")).toHaveAttribute("data-chrome", "nascosto");
+  await expect(page.getByTestId("sheet-grip")).toBeHidden();
+
+  await page.getByTestId("btn-expand").click();
+  await expect(page.getByTestId("app")).toHaveAttribute("data-chrome", "esteso");
 });
 
 /**
