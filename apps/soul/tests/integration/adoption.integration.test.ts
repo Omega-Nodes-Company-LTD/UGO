@@ -96,7 +96,13 @@ beforeAll(async () => {
   allevamento = kennel.ownerToken;
   allevamentoId = kennel.householdId;
 
-  // due genitori con genomi abbastanza diversi da poter avere cuccioli
+  // Due genitori che possono DAVVERO avere cuccioli, e sempre.
+  //
+  // Il ceppo va dichiarato: senza, `deriveCeppo` lo ricava dall'uuid, e due
+  // uuid casuali cadono sullo stesso ceppo una volta su otto (CEPPI = 8) —
+  // `ceppi-uguali`, 422, e un test che passa in locale e cade in CI un
+  // martedì. È esattamente com'è caduto. Qui la compatibilità è aritmetica:
+  // ceppi 1 e 2, distanza 0.157 dentro l'anello [0.04, 0.55].
   const seedParent = async (name: string, traits: Record<string, number>): Promise<string> => {
     const [row] = await db
       .insert(gosini)
@@ -111,8 +117,20 @@ beforeAll(async () => {
     });
     return row.id;
   };
-  padre = await seedParent("Padre", { calm: 0.2, curiosity: 0.8, boldness: 0.7, affection: 0.3 });
-  madre = await seedParent("Madre", { calm: 0.8, curiosity: 0.3, boldness: 0.2, affection: 0.9 });
+  padre = await seedParent("Padre", {
+    ceppo: 1,
+    calm: 0.2,
+    curiosity: 0.8,
+    boldness: 0.7,
+    affection: 0.3,
+  });
+  madre = await seedParent("Madre", {
+    ceppo: 2,
+    calm: 0.8,
+    curiosity: 0.3,
+    boldness: 0.2,
+    affection: 0.9,
+  });
 
   const [born] = await db
     .insert(gosini)
@@ -190,7 +208,10 @@ describe("la nascita arriva al registro davvero", () => {
       { parentIds: [padre, madre], seed: 42 },
       allevamento,
     );
-    expect(litter.statusCode).toBe(200);
+    // il corpo nell'asserzione: un 422 nudo dice «422 invece di 200» e non
+    // dice mai perché — il motivo del rifiuto è lì dentro, e serve a chi
+    // leggerà il rosso, non a noi adesso
+    expect({ status: litter.statusCode, body: litter.body }).toMatchObject({ status: 200 });
 
     const birth = await post(
       "/v1/gosini/births",
