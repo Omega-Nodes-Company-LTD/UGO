@@ -1,8 +1,8 @@
 ---
 title: "Il corpo di UGO"
 description: "Come si muove il porcetto sullo schermo: le posture, il vagabondaggio, i piccoli gesti e cosa raccontano del suo umore."
-version: "0.15.0"
-last_updated: "2026-08-15"
+version: "0.79.0"
+last_updated: "2026-08-19"
 author: "ThinkPink Studio"
 ---
 
@@ -195,3 +195,20 @@ Puoi forzare una delle due versioni aggiungendo `?renderer=3d` o `?renderer=2d` 
 - [In giro](./in-giro.md) — il corpo indossabile e la modalità a basso consumo
 - [Il pannello](./il-pannello.md) — le stanze, chi ci vive e come spostarli
 - [Problemi comuni](../04-troubleshooting/problemi-comuni.md)
+
+## Il verso, e perché non è uguale per tutti
+
+Da questa versione il grugnito **si sente**. Non è un suono registrato: se lo fa lui, e il
+timbro viene dal suo corpo — **più è grosso, più suona basso**; **più ha il grugno lungo, più
+suona scuro**. Due gosini della stessa cucciolata fanno versi diversi perché hanno corpi
+diversi, e non c'è niente da regolare: si eredita, come le orecchie.
+
+Tre cose che non fa mai, e sono quelle che contano:
+
+- **non grugnisce mentre parla.** Un verso sopra una frase è una frase che non si capisce;
+- **di notte tace.** Un verso attraverso il buio è una sveglia;
+- **non suona finché non accendete i sensi.** È l'interruttore che c'è già — non ne trovate uno
+  nuovo per l'audio, perché due interruttori sono il modo in cui uno resta acceso per sbaglio.
+
+Finché i sensi sono spenti il grugnito resta quello di prima: bocca, orecchie e una scossa,
+senza rumore.

@@ -7,7 +7,13 @@ import { openFaceLocator } from "./faceLocator.js";
 import { GlyphDriver } from "./glyph.js";
 import { PortableController } from "./portable.js";
 import { ScreenAwake } from "./wakelock.js";
-import { createFace } from "@ugo/face-body";
+import {
+  createFace,
+  DEFAULT_TRAITS,
+  GruntSound,
+  gruntShouldSound,
+  gruntVoice,
+} from "@ugo/face-body";
 import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { myBuildId, shouldReload } from "./version.js";
@@ -101,7 +107,13 @@ function captureGlimpse(fine = false): string | undefined {
 }
 let lastPresenceAt = 0;
 /** who is in this room (ADR-036); one nameless entry until the roster lands */
-let residents: { id: string; name: string }[] = [];
+/**
+ * Il roster. Porta anche i **tratti** da ADR-116: il timbro del verso viene dal
+ * corpo di chi grugnisce, e senza di loro tutti i gosini di una stanza
+ * suonerebbero uguali — che è precisamente il contrario di come si eredita
+ * tutto il resto.
+ */
+let residents: { id: string; name: string; traits?: Record<string, number> | undefined }[] = [];
 const nameOf = (who: string | undefined): string | undefined =>
   residents.find((r) => r.id === who)?.name;
 /** each creature's mood, so the caption can name all of them (ADR-038) */
@@ -501,6 +513,9 @@ function onServerMessage(message: ServerToFaceMessage): void {
       // ADR-027: soul decided, the body performs. Unknown ids are dropped by
       // the player, so an older face and a newer soul stay compatible.
       renderer.reflex(message.id, message.who);
+      // ADR-116: e se il gesto è un grugnito, adesso si sente — col timbro di
+      // QUEL corpo, e solo quando le tre regole del silenzio lo permettono
+      if (message.id === "grunt") gruntFor(message.who);
       return;
     case "scene":
       // ADR-056: cosa c'è nella stanza. Arriva dopo il roster all'apertura, e
@@ -909,6 +924,27 @@ void loadRooms();
 // non ha un cielo e ignora tutto, come per gli arredi. Gruppo 13: quando nel
 // cielo piove, si sente — piano, mai di notte, e solo a sensi accesi
 const rain = new RainSound();
+
+/**
+ * Il verso (ADR-116).
+ *
+ * Il timbro esce dai geni del corpo di chi grugnisce — `chonk` e `snout`,
+ * niente di nuovo da ereditare — quindi due gosini della stessa stanza fanno
+ * versi diversi senza che nessuno li abbia configurati. Chi non è nel roster
+ * (una casa a esemplare solo, dove `who` è vuoto) grugnisce col corpo medio.
+ */
+const grunt = new GruntSound();
+
+function gruntFor(who: string | undefined): void {
+  const allowed = gruntShouldSound({
+    sensesOn: app.dataset.ears === "on",
+    night: lastSky?.mode === "night",
+    speaking: speech.isSpeaking(),
+  });
+  if (!allowed) return;
+  const traits = residents.find((one) => one.id === who)?.traits ?? {};
+  grunt.play(gruntVoice({ ...DEFAULT_TRAITS, ...traits }));
+}
 let lastSky: Parameters<typeof rain.update>[0];
 watchSky(soulHttp, (state) => {
   renderer.setSky?.(state);

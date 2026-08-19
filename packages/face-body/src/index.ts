@@ -44,3 +44,4 @@ export {
 } from "./ephemeris.js";
 export type { SkyState, SkyWeather } from "./room3d.js";
 export { POSTURES, POSTURE_IT, type Posture } from "./channels.js";
+export { GruntSound, gruntShouldSound, gruntVoice, type GruntVoice } from "./gruntSound.js";

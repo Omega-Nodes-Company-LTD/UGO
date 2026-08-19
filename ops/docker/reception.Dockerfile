@@ -10,10 +10,13 @@ WORKDIR /repo
 # manifests first: dependency layers survive code-only commits
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
+# ADR-115: la reception monta il corpo vero del gosino scelto
+COPY packages/face-body/package.json packages/face-body/
 COPY apps/reception/package.json apps/reception/turbo.json apps/reception/
 RUN pnpm install --frozen-lockfile --filter reception... --filter @ugo/shared
 
 COPY packages/shared packages/shared
+COPY packages/face-body packages/face-body
 COPY apps/reception apps/reception
 RUN pnpm --filter @ugo/shared build && pnpm --filter reception build
 

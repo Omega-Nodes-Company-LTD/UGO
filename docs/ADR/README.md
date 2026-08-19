@@ -121,4 +121,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [113](./113-i-luoghi-dell-account.md) | I luoghi dell'account: il cielo è del posto, non del titolare | Accettata |
 | [114](./114-lo-screening-in-silico-non-filtra-niente.md) | Lo screening in silico non filtra niente (risultato negativo) | Accettata |
 | [115](./115-la-reception-e-una-nostra-stanza.md) | La reception è una nostra stanza: il corpo esce dal chiosco | Accettata |
-| 116 | *(prossimo numero disponibile)* | — |
+| [116](./116-il-verso-ha-un-timbro.md) | Il verso ha un timbro, e viene dal corpo | Accettata |
+| 117 | *(prossimo numero disponibile)* | — |
