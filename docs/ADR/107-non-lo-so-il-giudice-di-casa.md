@@ -160,6 +160,27 @@ costante, e un unit test presidia lo zero. Le misure vere ricominciano da qui.
 E vale la pena notarlo: il tetto sulle perse, acceso un'ora prima, ha **trovato questo al primo
 giro** — dopo che tre run verdi di fila non avevano detto niente.
 
+### La prima misura vera (run 32226212120, temperatura 0)
+
+| | |
+|---|---|
+| riconosciute | **10 / 10** |
+| inventate | **0 / 10** |
+| perse | **3 / 10** — Sofia/gamberi, compleanno della nonna, modello della caldaia |
+| chiamate al modello | 14 / 20 |
+
+Confrontata col giudice che non esiste — astenersi sempre quando i bracci non concordano, che
+perde **4 su 10** — il contributo reale del modello è **una domanda su dieci**: recupera soltanto
+«quando è la riunione settimanale del team?» fra le quattro che gli arrivano.
+
+**Questo cambia il conto che era stato presentato al proprietario.** Lo scambio annunciato era
+«dieci confabulazioni evitate contro un "non lo so" di troppo»; quello vero è **dieci contro tre**,
+e fra i tre c'è l'allergia. La decisione di cablare è stata confermata sapendolo, con la
+motivazione di valutarlo sull'uso invece che sul banco — venti domande scritte da chi ha scritto il
+codice non sono un campione, e provarlo in casa dice di più.
+
+Le tre tabelle qui sotto restano come cronaca di come ci si è arrivati, **non come misure**.
+
 ### La riga che rimette tutto in prospettiva
 
 La prima riga della tabella è un giudice che non esiste: **astenersi sempre**, quando i bracci non
