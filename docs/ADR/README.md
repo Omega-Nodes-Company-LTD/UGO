@@ -117,4 +117,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [109](./109-un-gene-nuovo-non-azzera-i-pedigree.md) | Un gene nuovo non deve azzerare i pedigree (e le setole) | Accettata |
 | [110](./110-la-ricerca-conta-meno-dell-anagrafica.md) | La ricerca contava meno dell'anagrafica del ricordo | Accettata |
 | [111](./111-i-documenti-di-casa.md) | I documenti di casa: UGO conosce solo ciò che ha sentito | Accettata |
-| 112 | *(prossimo numero disponibile)* | — |
+| [112](./112-il-gioco-e-fatto-di-turni.md) | Un gioco è fatto di turni: lo stato che non esisteva | Accettata |
+| 113 | *(prossimo numero disponibile)* | — |

@@ -86,6 +86,24 @@ tutti gli altri — non perché UGO sappia di medicina, ma perché l'hai detto t
 che lo riguarda salta fuori. Prima di questa regola poteva succedere che si tenesse l'allergia per
 sé e rispondesse «non lo so»: era il modo peggiore possibile di essere prudenti.
 
+### Giocare: «ho pensato un numero»
+
+Ditegli **«giochiamo?»** e pensa un numero fra 1 e 100. Da lì in poi ogni numero che dite è un
+tentativo, e vi risponde «più alto» o «più basso» finché non ci prendete. Se vi arenate,
+dopo un po' vi offre lui la via d'uscita: **«mi arrendo»** e ve lo dice.
+
+Tre cose:
+
+- **il numero non lo sa nessun modello.** Se lo tiene lui, cifrato, e a dirvi «più alto» è un
+  conto fatto in casa: il gioco non costa niente;
+- **fuori partita un numero è solo un numero.** Se dite «ho 43 anni» quando non state giocando,
+  non comincia una partita;
+- **una partita lasciata a metà scade** dopo mezza giornata, così un numero pensato stamattina
+  non trasforma le cifre di stasera in tentativi.
+
+Se esportate i vostri dati a partita aperta, dentro ci trovate anche il numero. È il vostro
+file: non vi nasconde niente, nemmeno quando sarebbe più divertente.
+
 ### «Com'è andata la settimana?»
 
 Di una giornata sola te la racconta a memoria: il diario l'ha già scritto lui stanotte, e non
