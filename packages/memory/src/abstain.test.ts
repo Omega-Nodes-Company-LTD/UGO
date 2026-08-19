@@ -73,6 +73,14 @@ describe("judgePrompt", () => {
     expect(prompt).toMatch(/SI oppure NO/u);
     // il giudice non deve mai essere invitato a rispondere nel merito
     expect(prompt).not.toMatch(/rispondi alla domanda/iu);
+    /**
+     * L'asimmetria degli errori vive anche nel testo, e la prima stesura la
+     * contraddiceva: spingeva verso il NO mentre il codice fa cadere ogni
+     * dubbio dalla parte del SI. È costata l'allergia di Sofia. Questa guardia
+     * esiste perché non torni indietro senza che nessuno se ne accorga.
+     */
+    expect(prompt).toMatch(/Rispondi SI se la risposta si ricava/u);
+    expect(prompt).toMatch(/NO solo se/u);
   });
 });
 

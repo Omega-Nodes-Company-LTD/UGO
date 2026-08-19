@@ -53,6 +53,20 @@ export interface AnswerableVerdict {
  * Volutamente **senza** chiedergli la risposta: gli si chiede solo se la
  * risposta è lì dentro. Un giudice che risponde nel merito diventa un secondo
  * generatore, con un secondo modo di sbagliare e il doppio dei token.
+ *
+ * **L'asimmetria degli errori sta anche qui, e la prima stesura la
+ * contraddiceva.** Diceva «rispondi NO se la risposta non c'è, anche se gli
+ * appunti parlano di cose vicine»: una spinta verso il no, in un meccanismo il
+ * cui codice fa cadere ogni dubbio dalla parte del sì. La misura ha presentato
+ * il conto sulla domanda peggiore possibile — «Sofia può mangiare i gamberi?»,
+ * con in mano il ricordo «Sofia è allergica ai crostacei», giudicato `NO` —
+ * cioè un'allergia taciuta perché serviva un passaggio solo, da gamberi a
+ * crostacei.
+ *
+ * Adesso il testo dice la stessa cosa che dice il codice: **NO solo se negli
+ * appunti non c'è proprio**, e SI anche quando la risposta si ricava
+ * indirettamente. Non si nomina il caso — insegnare al giudice che i gamberi
+ * sono crostacei vorrebbe dire tarare il prompt sul banco.
  */
 export function judgePrompt(question: string, memories: readonly string[]): string {
   const list = memories.map((text, at) => `${String(at + 1)}. ${text}`).join("\n");
@@ -66,7 +80,8 @@ export function judgePrompt(question: string, memories: readonly string[]): stri
     "",
     "Gli appunti contengono la risposta a questa domanda?",
     "Rispondi con una sola parola: SI oppure NO.",
-    "Rispondi NO se la risposta non c'è, anche se gli appunti parlano di cose vicine.",
+    "Rispondi SI se la risposta si ricava dagli appunti, anche indirettamente.",
+    "Rispondi NO solo se negli appunti non c'e proprio.",
   ].join("\n");
 }
 

@@ -72,6 +72,40 @@ asserisce ancora niente, e il floor di `astensione` resta 0.
 È la stessa disciplina di ADR-106, e per la stessa ragione: le soglie si fissano ai valori
 misurati, e la misura vive solo dove gira un Ollama vero.
 
+## La prima misura, e cosa ha insegnato (run CI 32218211586, `qwen2.5:1.5b`)
+
+| | |
+|---|---|
+| riconosciute | **10 / 10** — tutte le domande senza risposta rifiutate |
+| inventate | **0 / 10** — mai risposto a vuoto |
+| perse | **1 / 10** |
+| chiamate al modello | **14 / 20** — il pre-filtro ne ha risparmiate sei |
+
+Numeri buoni ovunque tranne che in un posto, e quel posto conta più di tutti gli altri messi
+insieme: **la domanda persa è «Sofia può mangiare i gamberi?»**, con in mano il ricordo «Sofia è
+allergica ai crostacei e porta sempre con sé l'autoiniettore». Il giudice ha risposto `NO.`
+
+Non è una domanda di trivia mancata: è **un'allergia taciuta**, cioè l'unico caso del corpus in cui
+il silenzio può fare male a qualcuno. Serviva un passaggio solo — dai gamberi ai crostacei — e il
+modello non l'ha fatto.
+
+Il criterio con cui questa misura andava letta diceva «una persa su dieci è accettabile». **Era il
+criterio sbagliato**, e vale la pena scriverlo: un conteggio che tratta l'allergia di Sofia come
+intercambiabile col compleanno della nonna non misura il danno, misura la frequenza.
+
+### E la causa era nel prompt, non nel modello
+
+La prima stesura chiudeva così: *«Rispondi NO se la risposta non c'è, anche se gli appunti parlano
+di cose vicine.»* Una spinta verso il no — dentro un meccanismo il cui codice fa cadere ogni dubbio
+dalla parte del sì. **Il testo diceva il contrario di quello che diceva la logica intorno**, e la
+misura ha presentato il conto sulla domanda peggiore possibile.
+
+Adesso il prompt porta la stessa asimmetria del resto: SI se la risposta si ricava dagli appunti
+**anche indirettamente**, NO **solo** se non c'è proprio. Il caso non viene nominato: insegnare al
+giudice che i gamberi sono crostacei sarebbe tarare il prompt sul banco, che è l'errore contro cui
+esiste tutto questo capitolo. Un test di unità presidia la frase, perché non torni indietro senza
+che nessuno se ne accorga.
+
 ## Conseguenze
 
 - La CI del job `integration` scarica ora anche un modello di **testo** (`qwen2.5:1.5b`, ~1 GB).
