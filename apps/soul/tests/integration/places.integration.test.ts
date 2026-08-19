@@ -1,11 +1,12 @@
 import { randomBytes } from "node:crypto";
 import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, type DbClient, places, rooms, runMigrations, slugOfRoom } from "@ugo/db";
+import { createDbClient, type DbClient, places, rooms, runMigrations } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
 import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAccountWithFounder } from "../../src/services/accountService.js";
+import { RoomCatalogue } from "../../src/services/roomCatalogue.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -67,11 +68,22 @@ describe("il traghetto della migrazione", () => {
     const mine = await db.select().from(places).where(eq(places.accountId, houseId));
     expect(mine, "un account senza luoghi è un account senza cielo").toHaveLength(1);
 
-    const [room] = await db
-      .insert(rooms)
-      .values({ accountId: houseId, name: "Cucina", slug: slugOfRoom("Cucina") })
-      .returning({ id: rooms.id });
-    expect(room).toBeDefined();
+    /**
+     * La stanza si crea dal **catalogo** e non con un insert a mano, ed è il
+     * punto: è il catalogo che sa attaccarla a un luogo. Un test che scrive
+     * dritto sulla tabella prova che la tabella accetta una riga, non che il
+     * prodotto faccia la cosa giusta — e infatti la prima versione di questo
+     * file scriveva a mano, e non si accorgeva che la stanza restava senza
+     * cielo.
+     */
+    const room = await new RoomCatalogue(db).create(houseId, "Cucina");
+    expect(room?.created).toBe(true);
+
+    const [placed] = await db
+      .select({ placeId: rooms.placeId })
+      .from(rooms)
+      .where(eq(rooms.id, room?.id ?? ""));
+    expect(placed?.placeId, "una stanza senza luogo è una stanza senza cielo").not.toBeNull();
   });
 });
 
