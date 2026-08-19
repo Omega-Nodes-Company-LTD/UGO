@@ -279,3 +279,70 @@ describe("parcels: la cartolina la vedono mittente e destinatario", () => {
     ).rejects.toThrow();
   });
 });
+
+/**
+ * ADR-099 §6: il ruolo della posta, e quanto è **stretto**.
+ *
+ * ADR-097 chiama i grants «l'inventario leggibile di cosa il mercato è». Un
+ * inventario che nessuno conta è una dichiarazione d'intenti: qui si conta.
+ * Il ruolo deve poter fare esattamente il suo mestiere — vedere la casa a cui
+ * si spedisce e la sua chiave avvolta — e sbattere contro tutto il resto.
+ */
+describe("ugo_post: il blast radius è la posta, non la casa", () => {
+  /** come `withPost`, ma dal client di prova: `SET LOCAL ROLE` in transazione */
+  const asPost = async <T>(work: (tx: DbClient) => Promise<T>): Promise<T> =>
+    app.transaction(async (tx) => {
+      await tx.execute(sql`set local role ugo_post`);
+      return work(tx as unknown as DbClient);
+    });
+
+  it("vede la casa a cui si spedisce, e la sua chiave AVVOLTA", async () => {
+    const rows = await asPost((tx) =>
+      tx.execute<{ slug: string }>(
+        sql`select slug, name, wrapped_data_key from accounts where id = ${parenti.id}`,
+      ),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.slug).toBe("casa-ties-parenti");
+  });
+
+  it("NON vede il resto della riga: il budget non è affare della posta", async () => {
+    await expect(
+      asPost((tx) => tx.execute(sql`select daily_budget_usd from accounts limit 1`)),
+    ).rejects.toThrow();
+    await expect(
+      asPost((tx) => tx.execute(sql`select metabolism from accounts limit 1`)),
+    ).rejects.toThrow();
+  });
+
+  it("NON tocca ciò che non è suo: clienti, ricordi in lettura, audit", async () => {
+    await expect(asPost((tx) => tx.execute(sql`select id from customers limit 1`))).rejects.toThrow();
+    // può SCRIVERE un ricordo (il «tienilo»), non leggerne uno
+    await expect(asPost((tx) => tx.execute(sql`select text from memories limit 1`))).rejects.toThrow();
+    await expect(asPost((tx) => tx.execute(sql`select id from audit_log limit 1`))).rejects.toThrow();
+    await expect(
+      asPost((tx) => tx.execute(sql`select payload from recognition_profiles limit 1`)),
+    ).rejects.toThrow();
+  });
+
+  /**
+   * `WITH INHERIT FALSE`: il ruolo si assume, non si porta addosso. La prova
+   * va fatta dove il muro c'è davvero — **non** su `accounts`, che ADR-048
+   * lascia leggibile a tutti per costruzione (`accounts_read USING (true)`:
+   * risolvere un token precede il sapere di che casa si parla). È il motivo
+   * per cui i grants del ruolo su `accounts` sono per COLONNA: dentro la
+   * porta la posta vede meno, non di più.
+   */
+  it("non si porta addosso: senza SET ROLE l'esemplare altrui resta invisibile", async () => {
+    const asPostSees = await asPost((tx) =>
+      tx.execute(sql`select id from gosini where account_id = ${parenti.id}`),
+    );
+    expect(asPostSees.length).toBeGreaterThan(0);
+
+    // la stessa query dallo scope di casa nostra, senza assumere il ruolo
+    const blind = await withAccount(app, nostra.id, (tx) =>
+      tx.execute(sql`select id from gosini where account_id = ${parenti.id}`),
+    );
+    expect(blind).toHaveLength(0);
+  });
+});

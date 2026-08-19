@@ -117,6 +117,14 @@ enumerate — mai `GRANT SELECT ON accounts` — perché il resto della riga (bu
 autorizzazioni d'allevamento) non ha niente a che vedere con la posta, e un giorno qualcuno ne
 aggiungerà una più delicata di tutte quelle di oggi.
 
+E una precisazione che il test ha imposto, perché senza di essa questo paragrafo prometterebbe più
+di quanto mantiene: su `accounts` la lettura è **già aperta a chiunque** (`accounts_read USING
+(true)`, ADR-048 — risolvere un token precede il sapere di che casa si parla, e da lì si legge
+anche la DEK avvolta). Enumerare le colonne qui non toglie a `ugo_app` niente di ciò che ha: le
+restringe **dentro la porta**, dove la posta lavora. Il muro che il ruolo attraversa davvero è
+altrove — `gosini` e le due tabelle della posta — ed è lì che il test prova `WITH INHERIT FALSE`.
+Il giorno in cui `accounts_read` venisse stretta, e sarebbe un bene, queste righe reggono già.
+
 La prova non è un ragionamento: `tiesUnderRls.integration.test.ts` si collega **come `ugo_app`**,
 come la produzione, e cammina il giro intero. Verificato **rosso** togliendo `withPost` — cinque
 test su sei, «casa sconosciuta» al primo passo — e verde rimettendolo.

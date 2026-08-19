@@ -139,6 +139,14 @@ $$;--> statement-breakpoint
 --
 --    E `wrapped_data_key` è la chiave AVVOLTA: senza la KEK di processo non
 --    apre niente. Il ruolo consegna una busta chiusa, non un segreto.
+--
+--    Nota che va detta, o questo blocco promette più di quel che fa: su
+--    `accounts` la lettura è già aperta a chiunque (`accounts_read USING
+--    (true)`, ADR-048 §106 — risolvere un token precede il sapere di che casa
+--    si parla, e ci si legge anche la DEK avvolta). Enumerare le colonne qui
+--    non toglie a `ugo_app` ciò che ha: restringe ciò che vede **dentro la
+--    porta**, dove la posta lavora. Il giorno in cui quella politica venisse
+--    stretta — e sarebbe un bene — queste righe reggono già.
 GRANT SELECT (id, slug, name, closed_at, wrapped_data_key) ON accounts TO ugo_post;--> statement-breakpoint
 GRANT SELECT (id, account_id, name, born_at, retired_at) ON gosini TO ugo_post;--> statement-breakpoint
 DO $$
