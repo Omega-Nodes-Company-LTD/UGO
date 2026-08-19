@@ -10,6 +10,7 @@ import { CUSTOMERS_JS } from "./script/customers.js";
 import { DATA_JS } from "./script/data.js";
 import { ADOPTIONS_JS } from "./script/adoptions.js";
 import { DIARY_JS } from "./script/diary.js";
+import { JOURNAL_JS } from "./script/journal.js";
 import { EFFICACY_JS } from "./script/efficacy.js";
 import { FEEDS_JS } from "./script/feeds.js";
 import { EXEMPLARS_JS } from "./script/exemplars.js";
@@ -71,6 +72,7 @@ export const ADMIN_SCRIPT = [
   PIGGYBANK_JS,
   LIFE_JS,
   DIARY_JS,
+  JOURNAL_JS,
   ADOPTIONS_JS,
   LISTS_JS,
 ].join("\n");
