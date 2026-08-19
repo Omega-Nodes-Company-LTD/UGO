@@ -18,6 +18,7 @@ import {
 } from "@ugo/memory";
 import { decryptText, encryptText, type ChatRequest, type ChatResponse } from "@ugo/shared";
 import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { recordExchange } from "./chat/biography.js";
 import type { Character } from "./council/character.js";
 import type { PackService } from "./packService.js";
 import { buildPackPrompt, selfLine } from "./packPrompt.js";
@@ -557,24 +558,17 @@ export class ChatService {
    */
   private async answered(reply: string, request: ChatRequest, at: Date): Promise<ChatResponse> {
     const { db, dataKey, psyche } = this.deps;
-    const owner = { gosinoId: this.deps.gosinoId };
-    await db.insert(messages).values([
+    await recordExchange(
+      db,
+      { gosinoId: this.deps.gosinoId, dataKey },
       {
-        ...owner,
-        ts: at,
         channel: request.channel,
-        role: "user",
         beingId: request.beingId ?? null,
-        text: encryptText(request.text, dataKey),
+        at,
+        said: request.text,
+        replied: reply,
       },
-      {
-        ...owner,
-        ts: new Date(at.getTime() + 1),
-        channel: request.channel,
-        role: "assistant",
-        text: encryptText(reply, dataKey),
-      },
-    ]);
+    );
     return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
   }
 
@@ -895,30 +889,25 @@ export class ChatService {
     );
 
     // biography is append-only and encrypted at rest (CLAUDE.md rule 6)
-    const owner = { gosinoId: this.deps.gosinoId };
-    await db.insert(messages).values([
+    await recordExchange(
+      db,
+      { gosinoId: this.deps.gosinoId, dataKey },
       {
-        ...owner,
-        ts: at,
         channel: request.channel,
-        role: "user",
         beingId: request.beingId ?? null,
-        text: encryptText(request.text, dataKey),
+        at,
+        said: request.text,
+        replied: result.text,
+        spent: {
+          tokensIn:
+            (result.usage?.inputTokens ?? 0) +
+            (result.usage?.cacheCreationInputTokens ?? 0) +
+            (result.usage?.cacheReadInputTokens ?? 0),
+          tokensOut: result.usage?.outputTokens ?? 0,
+          costUsd: result.costUsd ?? 0,
+        },
       },
-      {
-        ...owner,
-        ts: new Date(at.getTime() + 1),
-        channel: request.channel,
-        role: "assistant",
-        text: encryptText(result.text, dataKey),
-        tokensIn:
-          (result.usage?.inputTokens ?? 0) +
-          (result.usage?.cacheCreationInputTokens ?? 0) +
-          (result.usage?.cacheReadInputTokens ?? 0),
-        tokensOut: result.usage?.outputTokens ?? 0,
-        costUsd: (result.costUsd ?? 0).toFixed(6),
-      },
-    ]);
+    );
 
     return {
       reply: result.text,
