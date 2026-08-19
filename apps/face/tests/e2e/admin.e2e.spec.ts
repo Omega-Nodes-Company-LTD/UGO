@@ -242,8 +242,11 @@ test("the whole soul can be downloaded, and a being erased for good", async ({ p
 test("the panel shows whether the machinery underneath is alive", async ({ page }) => {
   await openPanel(page);
   await goHouse(page, "sommario");
-  await expect(page.getByTestId("health")).toContainText("db");
-  await expect(page.getByTestId("health")).toContainText("ollama");
+  // ADR-110: i controlli si chiamano con parole, non con le chiavi tecniche —
+  // chi guarda il sommario non deve dedurre da «ollamaGpu» che esiste una
+  // seconda macchina
+  await expect(page.getByTestId("health")).toContainText("database");
+  await expect(page.getByTestId("health")).toContainText("modelli in casa");
 });
 
 test("what UGO remembers can be read, and searched the way he would", async ({ page }) => {
@@ -339,14 +342,18 @@ test("each service says what it is doing in words, not only in colour", async ({
   await openPanel(page);
   await goHouse(page, "sommario");
   const pills = page.getByTestId("health").locator(".pill");
-  // db, mqtt, ollama, percezione: il conto è qui apposta, perché un servizio
-  // che sparisce dal sommario si legge come un servizio che sta bene
-  await expect(pills).toHaveCount(4);
-  await expect(pills.filter({ hasText: "db" })).toContainText("risponde");
+  // database, broker, modelli in casa, nodo GPU, percezione: il conto è qui
+  // apposta, perché un servizio che sparisce dal sommario si legge come un
+  // servizio che sta bene
+  await expect(pills).toHaveCount(5);
+  await expect(pills.filter({ hasText: "database" })).toContainText("risponde");
   // mqtt is deliberately unconfigured on this deployment, and says so
-  await expect(pills.filter({ hasText: "mqtt" })).toContainText("non configurato");
+  await expect(pills.filter({ hasText: "broker" })).toContainText("non configurato");
   // ADR-101: e la percezione, spenta qui, lo dice con la stessa parola
-  await expect(pills.filter({ hasText: "perception" })).toContainText("non configurato");
+  await expect(pills.filter({ hasText: "percezione" })).toContainText("non configurato");
+  // ADR-110: il nodo GPU è una SECONDA macchina, e ha una riga sua — «spenta»
+  // è uno stato legittimo, ed è pure il default
+  await expect(pills.filter({ hasText: "nodo GPU" })).toContainText("non configurato");
 });
 
 /**
