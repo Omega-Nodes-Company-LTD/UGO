@@ -211,6 +211,19 @@ lo so» è una reticenza. Quella domanda — e la sua compagna nuova, «posso da
 — escono dalla tabella e finiscono in `riferite`, che è una misura del **codice** (il giudice
 non deve vederle) e non del modello.
 
-Il conto atteso diventa quindi **perse 2 / 9** contro un riferimento di **3 / 9**, e il tetto
-scende da `< 4` a `< 3`. Il guadagno del giudice **non cambia**: resta una domanda su dieci. La
-domanda uscita era su tutt'e due i lati del confronto.
+Il conto scende quindi a **perse 2 / 9** contro un riferimento di **3 / 9**, e il tetto da `< 4`
+a `< 3`. Il guadagno del giudice **non cambia**: resta una domanda su dieci. La domanda uscita
+era su tutt'e due i lati del confronto.
+
+Misura, run 32233419266, `qwen2.5:1.5b`, temperatura 0:
+
+| | valore |
+|---|---|
+| riconosciute | 10 / 10 |
+| inventate | 0 / 10 |
+| **perse** | **2 / 9** — il compleanno della nonna, il modello della caldaia |
+| riferite | 2 / 2 |
+| chiamate al modello | 13 / 21 |
+
+Le chiamate scendono da 14/20 a 13/21 con una domanda in più nel corpus: le due di verdetto non
+passano dal giudice, quindi non costano niente (ADR-095).

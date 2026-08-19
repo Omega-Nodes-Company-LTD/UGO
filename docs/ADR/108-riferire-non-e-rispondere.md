@@ -106,9 +106,14 @@ tutte le domande che una risposta ce l'hanno o non ce l'hanno.
 domande di verdetto escono dalla tabella `rispondo`/`non lo so`, perché non hanno una risposta
 giusta in nessuna delle due colonne e contarle falserebbe tutt'e due. «Sofia può mangiare i
 gamberi?» esce quindi **da tutt'e due i lati del confronto**: era una delle 3 perse del giudice
-*e* una delle 4 del giudice-che-non-esiste. Attesa: perse 2/9 contro un riferimento di 3/9. Il
-guadagno vero del giudice resta quello misurato — **una domanda su dieci** — e questa ADR non lo
-tocca.
+*e* una delle 4 del giudice-che-non-esiste.
+
+**Misurato** (run 32233419266, `qwen2.5:1.5b`, temperatura 0): riconosciute 10/10, inventate
+0/10, **perse 2/9**, **riferite 2/2**, chiamate al modello 13/21. Le due perse sono il
+compleanno della nonna e il modello della caldaia; l'allergia di Sofia non è più fra loro,
+perché non passa più dal giudice. Il riferimento — astenersi sempre quando i bracci non
+concordano — è **3/9** sulle stesse domande: il guadagno vero del giudice resta quello di
+prima, **una domanda su dieci**, e questa ADR non lo tocca.
 
 Al suo posto il banco conta `riferite`, che è una misura **deterministica del codice** e non del
 modello: se una domanda di verdetto arriva al giudice, il giudice può zittirla.
