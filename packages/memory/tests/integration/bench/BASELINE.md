@@ -89,6 +89,24 @@ alla domanda «cosa si è rotto in casa?» spariva la lavatrice — che è il mo
 L'astensione resta aperta nel backlog e richiede un meccanismo che non sia una soglia sul coseno: un
 criterio relativo invece che assoluto, una verifica del modello, o un embedder che separi meglio.
 
+### La misura che deve venire prima (2026-08-19)
+
+Scegliere *quale* criterio relativo senza vedere i numeri vuol dire tararlo su questo corpus — cioè
+rifare, con un'altra formula, lo stesso errore dei 0.675. Quindi il banco adesso **misura e basta**:
+per ogni domanda stampa i segnali candidati, separati fra domande con risposta e senza.
+
+| segnale | cosa vorrebbe dire |
+|---|---|
+| `top1` | la similarità migliore. Già misurata, già insufficiente |
+| `gap` | quanto il primo stacca il secondo: una risposta vera emerge, un plateau di mediocri no |
+| `gapRel` | lo stesso distacco in proporzione al primo, per non dipendere dal livello assoluto |
+| `plateau` | quanto il primo stacca la **media** degli altri: più stabile del solo secondo, che può essere un quasi-duplicato legittimo |
+| `bothArms` | se il primo l'hanno trovato **entrambi** i bracci: due strade che convergono sono un indizio che un coseno da solo non ha |
+| `lexHits` | quanti dei k hanno un aggancio lessicale: zero vuol dire che nessuna parola della domanda compare da nessuna parte |
+
+Il test non asserisce niente e non cambia il recupero. I numeri si leggono **dai log della CI**: è
+l'unico posto dove `nomic-embed-text` gira davvero, quindi è l'unico posto dove la misura è vera.
+
 ## Le soglie
 
 Le soglie di non regressione stanno in `FLOORS`, dentro `memoryBench.integration.test.ts`, e sono
