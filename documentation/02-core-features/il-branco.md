@@ -96,13 +96,16 @@ Se la tua casa è un allevamento autorizzato, nella pagina della nascita trovi *
 lo decidono i genitori e un pizzico di caso, come succede agli animali veri.
 
 1. Scegli **due genitori** dai due elenchi. Devono essere due gosini diversi della stessa casa.
-2. Clicca **Genera la cucciolata**. Compaiono quattro cuccioli, ognuno col suo carattere già
-   scritto in una riga («Sei curiosissimo, appiccicoso…») e col suo manto.
-3. Clicca il cucciolo che vuoi. Si evidenzia.
-4. Scrivi il **nome** e clicca **Adotta**. Nasce, e il pannello ti porta subito nella sua pagina.
+2. Clicca **Guarda la cucciolata**. Compaiono i cuccioli — **quanti sono non lo decidi tu**:
+   di solito da due a otto, molto di rado uno solo o dieci. Ognuno ha il suo carattere già
+   scritto in una riga («Sei curiosissimo, appiccicoso…») e il suo manto.
+3. Scrivi **un nome dentro ogni scheda**. Servono tutti: il bottone resta spento finché ne
+   manca uno.
+4. Clicca **Falli nascere**. Nascono **tutti**, e il pannello ti porta nella pagina del primo.
 
-**I cuccioli che non adotti non esistono.** Non restano da nessuna parte: se generi di nuovo,
-la cucciolata è un'altra. Questo è voluto — si sceglie tra i nati, non si disegna un gosino.
+**Nascono tutti, e la scelta viene dopo.** Non si adotta un cucciolo scartando i fratelli:
+si guarda crescere chi c'è, e chi non diventa il tuo lo puoi cedere (se hai un allevamento)
+o ritirare. È come si sceglie un cane, non come si sceglie un avatar.
 
 ### Perché a volte rifiuta
 
@@ -124,7 +127,23 @@ perennemente in allarme. Il pannello la mostra sbiadita, con scritto perché, e 
 adottarla**.
 
 Non è un errore né uno spreco: è un controllo, come quelli che fa un allevatore vero prima di
-far nascere una cucciolata. Scegline un altro, o genera di nuovo.
+far nascere una cucciolata. Gli altri della cucciolata nascono lo stesso; alla fine il pannello
+ti dice quanti non ce l'hanno fatta.
+
+### Quanto costa, e ogni quanto
+
+Una cucciolata **si paga**, ma non subito: i figli di un **capostipite** sono gratis, perché
+sono l'inizio di una stirpe. Dalla **terza generazione** in poi ogni cucciolo costa (per
+impostazione predefinita 0,25 $, e chi gestisce il server può cambiarlo), e il conto si vede
+**prima** di dare i nomi.
+
+Chi paga sono i **genitori**, dal loro salvadanaio (vedi *Il suo salvadanaio* nella pagina di
+ognuno), in parti uguali. Se il metabolismo di casa è acceso e uno dei due non ha abbastanza
+in pancia, la cucciolata non nasce e il pannello ti dice chi è a corto.
+
+E c'è una pausa: **due genitori che hanno appena avuto una cucciolata riposano un mese.** Vale
+per quella coppia, non per i singoli — con un altro partner si può subito. Se ci provi prima,
+il pannello ti dice da quando sono liberi.
 
 ### Cosa eredita, e cosa no
 

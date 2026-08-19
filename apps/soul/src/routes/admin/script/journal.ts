@@ -1,5 +1,5 @@
 /**
- * Il giornale e la cronaca (ADR-099), lato pannello.
+ * Il giornale e la cronaca (ADR-102), lato pannello.
  *
  * Tre liste con un cursore ciascuna: «più indietro» continua da dove si era
  * arrivati invece di ricaricare tutto, perché un anno di registro non entra

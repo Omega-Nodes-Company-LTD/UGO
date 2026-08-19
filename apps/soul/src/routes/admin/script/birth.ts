@@ -75,12 +75,15 @@ $("new-go").addEventListener("click", async () => {
 });
 
 /**
- * The litter (ADR-069). «Si adotta, non si configura»: no dials here — you
- * pick the parents, look at the born, and adopt one. The seed comes back from
- * the preview and goes into the adoption, so what you saw is what is born.
+ * La cucciolata (ADR-069, riscritta da ADR-103).
+ *
+ * «Si adotta, non si configura», e adesso per davvero: qui non c'è né una
+ * manopola sul carattere né una sul **numero**. Si guardano i cuccioli che il
+ * seme ha fatto, si dà un nome a ognuno, e nascono tutti — la scelta di chi
+ * tenere vicino è a posteriori, guardandoli crescere, non a priori scartando
+ * fratelli mai esistiti.
  */
-let LITTER_STATE = null; // { seed, parentIds, cubs } of the litter on screen
-let LITTER_PICK = -1;
+let LITTER_STATE = null; // { seed, parentIds, cubs, costUsd, generation }
 
 async function drawLitterParents() {
   const all = (await call("/v1/gosini", {})).gosini ?? [];
@@ -91,21 +94,40 @@ async function drawLitterParents() {
   if (all.length > 1) $("litter-b").selectedIndex = 1;
 }
 
+/**
+ * Una scheda per cucciolo, e dentro il campo del nome.
+ *
+ * Il nome sta NELLA scheda e non in una riga sotto perché con sei cuccioli una
+ * casella sola avrebbe chiesto «il nome del cucciolo scelto» quando non c'è
+ * più niente da scegliere: si battezza chi si sta guardando.
+ */
 function drawLitterCubs() {
   const cubs = LITTER_STATE?.cubs ?? [];
   $("litter-cubs").innerHTML = cubs.map((cub) => {
     const coat = "chiazze " + cub.traits.spots.toFixed(2) +
       " · coda " + cub.traits.tail.toFixed(2) + " · tinta " + cub.traits.hue.toFixed(2);
-    return '<button class="cub" data-cub="' + cub.index + '"' +
-      ' data-viable="' + cub.viable + '"' +
-      ' data-picked="' + (cub.index === LITTER_PICK) + '">' +
+    return '<div class="cub" data-cub="' + cub.index + '"' +
+      ' data-viable="' + cub.viable + '">' +
       "<h4>Cucciolo " + (cub.index + 1) + "</h4>" +
       '<div class="persona">' + escape(cub.persona) + "</div>" +
       '<div class="coat">' + coat + "</div>" +
-      (cub.viable ? "" : '<div class="warn">non vitale: ' + escape((cub.reasons ?? []).join("; ")) + "</div>") +
-      "</button>";
+      (cub.viable
+        ? '<input class="cub-name" data-name="' + cub.index + '" placeholder="un nome">'
+        : '<div class="warn">non vitale: ' + escape((cub.reasons ?? []).join("; ")) + "</div>") +
+      "</div>";
   }).join("");
 }
+
+/** Quanti nomi mancano: il bottone si accende solo quando ci sono tutti. */
+function litterReady() {
+  const cubs = LITTER_STATE?.cubs ?? [];
+  const missing = cubs.filter((cub) =>
+    cub.viable && ($("litter-cubs").querySelector('[data-name="' + cub.index + '"]')?.value ?? "").trim() === "");
+  $("litter-adopt").disabled = cubs.length === 0 || missing.length > 0;
+  return missing.length;
+}
+
+$("litter-cubs").addEventListener("input", () => { litterReady(); });
 
 $("litter-go").addEventListener("click", async () => {
   const parentIds = [$("litter-a").value, $("litter-b").value];
@@ -117,50 +139,50 @@ $("litter-go").addEventListener("click", async () => {
     const litter = await call("/v1/gosini/litters", {
       method: "POST", body: JSON.stringify({ parentIds }),
     });
-    LITTER_STATE = { seed: litter.seed, parentIds, cubs: litter.cubs };
-    LITTER_PICK = -1;
-    $("litter-adopt").disabled = true;
+    LITTER_STATE = { seed: litter.seed, parentIds, cubs: litter.cubs,
+      costUsd: litter.costUsd, generation: litter.generation };
     drawLitterCubs();
-    say("litter-msg", "Cucciolata " + litter.seed + ": scegli chi adottare.", "info");
+    litterReady();
+    const quanti = litter.cubs.length;
+    const conto = litter.costUsd > 0
+      ? " Costa " + litter.costUsd.toFixed(2) + " dollari, divisi fra i genitori."
+      : " Sono figli di capostipiti: non costano niente.";
+    say("litter-msg", "Ne sono venuti " + quanti + ". Dai un nome a ognuno." + conto, "info");
   } catch (error) {
-    LITTER_STATE = null; $("litter-cubs").innerHTML = "";
+    LITTER_STATE = null; $("litter-cubs").innerHTML = ""; $("litter-adopt").disabled = true;
     say("litter-msg", error.message, "err");
   } finally { $("litter-go").disabled = false; }
 });
 
-$("litter-cubs").addEventListener("click", (event) => {
-  const card = event.target.closest("[data-cub]");
-  if (card === null || LITTER_STATE === null) return;
-  const cub = LITTER_STATE.cubs[Number(card.dataset.cub)];
-  if (cub === undefined) return;
-  if (!cub.viable) { say("litter-msg", "Questo cucciolo non è vitale: non può nascere.", "info"); return; }
-  LITTER_PICK = cub.index;
-  $("litter-adopt").disabled = false;
-  drawLitterCubs();
-});
-
 $("litter-adopt").addEventListener("click", async () => {
-  if (LITTER_STATE === null || LITTER_PICK < 0) return;
-  const name = $("litter-name").value.trim();
-  if (name === "") { say("litter-msg", "Serve un nome.", "info"); return; }
+  if (LITTER_STATE === null) return;
+  if (litterReady() > 0) { say("litter-msg", "Manca un nome.", "info"); return; }
+  // un nome per INDICE, nati morti compresi: il server allinea i nomi ai
+  // cuccioli dell'anteprima, e un buco sposterebbe tutti i nomi di uno
+  const names = LITTER_STATE.cubs.map((cub) =>
+    ($("litter-cubs").querySelector('[data-name="' + cub.index + '"]')?.value ?? "").trim()
+      || "Cucciolo " + (cub.index + 1));
   $("litter-adopt").disabled = true;
   try {
-    const born = await call("/v1/gosini/births", {
+    const litter = await call("/v1/gosini/births", {
       method: "POST",
       body: JSON.stringify({
         parentIds: LITTER_STATE.parentIds,
         seed: LITTER_STATE.seed,
-        cubIndex: LITTER_PICK,
-        name,
+        names,
       }),
     });
-    say("litter-msg", "È nato " + born.name + " (generazione " + born.generation + "): " + born.persona, "ok");
-    LITTER_STATE = null; LITTER_PICK = -1;
-    $("litter-cubs").innerHTML = ""; $("litter-name").value = "";
+    const nati = litter.born.map((c) => c.name).join(", ");
+    const morti = litter.stillborn.length > 0
+      ? " Non ce l'hanno fatta in " + litter.stillborn.length + "."
+      : "";
+    say("litter-msg", "Sono nati (generazione " + litter.generation + "): " + nati + "." + morti, "ok");
+    const primo = litter.born[0];
+    LITTER_STATE = null;
+    $("litter-cubs").innerHTML = "";
     await drawLitterParents();
     await loadGosini();
-    WHO = born.id;
-    location.hash = "#/g/" + born.id + "/stato";
+    if (primo) { WHO = primo.id; location.hash = "#/g/" + primo.id + "/stato"; }
   } catch (error) {
     say("litter-msg", error.message, "err");
     $("litter-adopt").disabled = false;

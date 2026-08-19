@@ -11,6 +11,7 @@ import {
 import {
   canMate,
   COMPAT_MAX_DISTANCE,
+  drawLitterSize,
   genomeDistance,
   mate,
   mulberry32,
@@ -209,5 +210,32 @@ describe("lo screening: filtra i rotti, non sceglie i migliori", () => {
     const verdict = screen(g);
     expect(verdict.viable).toBe(false);
     if (!verdict.viable) expect(verdict.reasons.join(" ")).toMatch(/sovraeccitato/);
+  });
+});
+
+describe("drawLitterSize (ADR-103)", () => {
+  /**
+   * La taglia non si sceglie: si tira. Questo test guarda la **forma** della
+   * distribuzione su un campione grande — non un caso singolo, che di un dado
+   * non dice niente.
+   */
+  it("sta fra 1 e 10, e vive quasi sempre fra 2 e 8", () => {
+    const rand = mulberry32(20260819);
+    const sizes = Array.from({ length: 20_000 }, () => drawLitterSize(rand));
+    expect(Math.min(...sizes)).toBe(1);
+    expect(Math.max(...sizes)).toBe(10);
+    const rare = sizes.filter((n) => n === 1 || n === 10).length;
+    // le code sono rare per davvero: attese ~4%, e questo test fallirebbe sia
+    // se sparissero sia se diventassero un caso comune
+    expect(rare / sizes.length).toBeGreaterThan(0.02);
+    expect(rare / sizes.length).toBeLessThan(0.07);
+    // e ogni taglia dell'intervallo normale esce
+    for (const n of [2, 3, 4, 5, 6, 7, 8]) expect(sizes).toContain(n);
+  });
+
+  it("dallo stesso seme esce la stessa cucciolata, taglia compresa", () => {
+    const first = Array.from({ length: 5 }, (_, i) => drawLitterSize(mulberry32(1000 + i)));
+    const again = Array.from({ length: 5 }, (_, i) => drawLitterSize(mulberry32(1000 + i)));
+    expect(again).toEqual(first);
   });
 });

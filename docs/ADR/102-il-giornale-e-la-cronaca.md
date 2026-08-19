@@ -1,4 +1,8 @@
-# ADR-099 — Il giornale e la cronaca: ciò che il pannello non poteva vedere
+# ADR-102 — Il giornale e la cronaca: ciò che il pannello non poteva vedere
+
+> **Rinumerato da 099 a 102** (2026-08-19): due rami hanno preso lo stesso numero e sono
+> finiti su `main` a poche ore di distanza. Regola applicata: **chi è arrivato primo tiene il
+> numero** — ADR-099 è «Le parentele fra le case», e questo prende il primo libero.
 
 **Stato: ACCETTATA** (2026-08-19). Fase D, primo lotto del gruppo 14 — il giro delle
 superfici.

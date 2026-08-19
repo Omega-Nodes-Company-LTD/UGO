@@ -48,6 +48,7 @@ export {
   genomeDistance,
   canMate,
   mate,
+  drawLitterSize,
   screen,
   mulberry32,
   type MateRefusalReason,

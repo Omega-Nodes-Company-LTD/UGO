@@ -213,20 +213,30 @@ describe("la nascita arriva al registro davvero", () => {
     // leggerà il rosso, non a noi adesso
     expect({ status: litter.statusCode, body: litter.body }).toMatchObject({ status: 200 });
 
+    // ADR-103: un nome per cucciolo, e la taglia la decide il seme
+    const cubs = litter.json<{ cubs: unknown[] }>().cubs.length;
     const birth = await post(
       "/v1/gosini/births",
-      { parentIds: [padre, madre], seed: 42, cubIndex: 0, name: "Cucciolo" },
+      {
+        parentIds: [padre, madre],
+        seed: 42,
+        names: Array.from({ length: cubs }, (_, at) => `Cucciolo ${String(at + 1)}`),
+      },
       allevamento,
     );
     expect(birth.statusCode).toBe(201);
-    const nato = birth.json<{ id: string }>().id;
+    const nati = birth.json<{ born: { id: string }[] }>().born;
+    expect(nati.length).toBeGreaterThan(0);
 
-    const entries = await store.actsFor(nato);
-    expect(entries).toHaveLength(1);
-    expect(entries[0]?.act.kind).toBe("birth");
-    // le firme dei genitori sono NELL'ATTO: il registro le ha verificate, e
-    // chiunque può rifarlo senza di noi
-    expect(entries[0]?.act.parents).toHaveLength(2);
+    // in catena ci va **ognuno**: un atto per cucciolo, non uno per cucciolata
+    for (const nato of nati) {
+      const entries = await store.actsFor(nato.id);
+      expect(entries).toHaveLength(1);
+      expect(entries[0]?.act.kind).toBe("birth");
+      // le firme dei genitori sono NELL'ATTO: il registro le ha verificate, e
+      // chiunque può rifarlo senza di noi
+      expect(entries[0]?.act.parents).toHaveLength(2);
+    }
   });
 });
 

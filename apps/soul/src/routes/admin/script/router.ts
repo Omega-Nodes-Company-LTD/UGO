@@ -140,7 +140,7 @@ async function openPage(page) {
     // ADR-080: e cosa è arrivato davvero, non solo quanti
     await section(loadFeedItems, "feed-msg");
   } else if (page === "giornale") {
-    // ADR-099: chi ha fatto cosa, cosa ci si è detti, chi si è visto
+    // ADR-102: chi ha fatto cosa, cosa ci si è detti, chi si è visto
     fillMessageWho();
     await section(() => loadAudit(false), "audit-msg");
     await section(() => loadHouseMessages(false), "msg-msg");

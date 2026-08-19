@@ -104,7 +104,9 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [096](./096-il-chiosco-nascondibile.md) | Il chiosco nascondibile: redesign dell'HUD del muso | Accettata |
 | [097](./097-il-mercato-sotto-rls.md) | Il mercato sotto RLS: un ruolo per l'atto, non un buco nel muro | Accettata |
 | [098](./098-la-connessione-della-casa.md) | La connessione della casa: la superficie 2 entra nel muro | Accettata |
-| [099](./099-il-giornale-e-la-cronaca.md) | Il giornale e la cronaca: ciò che il pannello non poteva vedere | Accettata |
+| [099](./099-le-parentele-fra-le-case.md) | Le parentele fra le case: il confine si apre a mano, mai da solo | Accettata |
 | [100](./100-le-chiavi-e-le-correzioni.md) | Le chiavi di casa, le correzioni, e la mela che sa cosa premia | Accettata |
 | [101](./101-le-cose-che-nessuno-guardava.md) | Le sei cause, la percezione, i rapporti, e le rotte senza consumatore | Accettata |
-| 102 | *(prossimo numero disponibile)* | — |
+| [102](./102-il-giornale-e-la-cronaca.md) | Il giornale e la cronaca: ciò che il pannello non poteva vedere | Accettata |
+| [103](./103-la-cucciolata.md) | La cucciolata: quanti li decide il dado, nascono tutti, e dalla terza generazione si paga | Accettata |
+| 104 | *(prossimo numero disponibile)* | — |

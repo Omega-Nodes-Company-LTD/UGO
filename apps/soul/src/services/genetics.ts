@@ -2,6 +2,7 @@ import { gosini, traitSets, type DbClient } from "@ugo/db";
 import {
   canMate,
   CEPPI,
+  drawLitterSize,
   expressedTraits,
   founderGenome,
   GENE_KEYS,
@@ -127,17 +128,26 @@ export interface LitterPreview {
   genomes: Genome[];
 }
 
-/** Same parents + same seed = same litter: the preview is arithmetic, not memory. */
+/**
+ * Same parents + same seed = same litter: the preview is arithmetic, not memory.
+ *
+ * ADR-103: **quanti** non è più un parametro. La taglia esce dallo stesso
+ * flusso di dadi che fa i genomi, e per prima — così il seme determina la
+ * cucciolata *intera*, numero compreso, e nessun chiamante può chiedere «fammene
+ * otto». Il dado si legge prima dei genomi: invertire l'ordine cambierebbe
+ * silenziosamente ogni cucciolata già vista in anteprima.
+ */
 export function previewLitter(
   parents: readonly Parent[],
   seed: number,
-  litterSize: number,
 ): LitterPreview | { refused: Exclude<MateVerdict, { ok: true }> } {
   const genomes = parents.map((p) => p.genome);
   const verdict = canMate(genomes);
   if (!verdict.ok) return { refused: verdict };
 
-  const litter = mate(genomes, { rand: mulberry32(seed), litterSize });
+  const rand = mulberry32(seed);
+  const litterSize = drawLitterSize(rand);
+  const litter = mate(genomes, { rand, litterSize });
   const cubs = litter.map((genome, index) => {
     const expressed = expressedTraits(genome);
     const health = screen(genome);
