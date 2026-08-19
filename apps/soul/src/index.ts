@@ -10,6 +10,7 @@ import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
 import { NudgeService } from "./services/nudges.js";
+import { SceneMemory } from "./services/sceneMemory.js";
 import { SceneReader } from "./services/sceneReader.js";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
@@ -253,6 +254,23 @@ const chat: ChatService = new ChatService({
     reader: new SceneReader({
       gateway: (): FaceGateway => face,
       ocr: (image) => bootstrapPercezione.ocr(image),
+    }),
+  }),
+  // ADR-108: «ricordati questo», anche per l'apparato di avvio — la rotta
+  // /v1/chat parla con QUESTA istanza, e il gesto deve valere da lì come dal
+  // chiosco (la lezione di ADR-065, che il lettore l'aveva imparata)
+  ...((bootstrapPercezione !== undefined || localVision !== undefined) && {
+    keepsake: new SceneMemory({
+      gateway: (): FaceGateway => face,
+      db,
+      gosinoId: bootstrapExemplar.id,
+      ...(bootstrapPercezione !== undefined && {
+        ocr: (image: string) => bootstrapPercezione.ocr(image),
+      }),
+      ...(localVision !== undefined && {
+        vision: { describe: (image: string) => localVision.describe(image) },
+      }),
+      embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
     }),
   }),
   nudges: { answer: (text, at) => nudges.answer(bootstrapExemplar.id, text, at) },

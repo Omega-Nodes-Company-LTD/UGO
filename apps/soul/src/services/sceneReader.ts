@@ -32,12 +32,42 @@ const FRESH_MS = 15_000;
 
 export interface SceneReaderDeps {
   /** il corpo di QUESTO esemplare; una scatola, perché il gateway nasce dopo */
-  gateway: () => Pick<FaceGateway, "hasBody" | "askGlimpse" | "takeGlimpse"> | undefined;
+  gateway: () => GlimpseBody | undefined;
   /** tesseract sul servizio di percezione; undefined = giù */
   ocr: (imageBase64: string) => Promise<string | undefined>;
   /** iniettabili nei test: nessuna attesa vera in un test di logica */
   waitMs?: number;
   pollMs?: number;
+}
+
+/** Il corpo, per quel poco che serve a chiedergli uno sguardo. */
+export type GlimpseBody = Pick<FaceGateway, "hasBody" | "askGlimpse" | "takeGlimpse">;
+
+/**
+ * Chiedi uno sguardo e aspettalo: la meccanica, senza cosa farsene.
+ *
+ * Estratta da `SceneReader.read()` quando è arrivato il secondo chiamante
+ * (ADR-108, lo sguardo che si ricorda): due copie di questo ciclo sono due
+ * posti in cui `FRESH_MS` può divergere, e il frame lo si prende **una volta
+ * sola** perché `takeGlimpse` è distruttivo — chi lo vuole per due usi lo
+ * chiede una volta e lo passa a entrambi.
+ *
+ * `undefined` non distingue «niente corpo» da «camera spenta»: quello lo
+ * decide chi chiama, che sa già se il corpo c'è.
+ */
+export async function awaitGlimpse(
+  body: GlimpseBody,
+  options: { fine: boolean; waitMs?: number | undefined; pollMs?: number | undefined },
+): Promise<string | undefined> {
+  body.askGlimpse(options.fine);
+  const pollMs = options.pollMs ?? POLL_MS;
+  const deadline = Date.now() + (options.waitMs ?? WAIT_MS);
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+    const held = body.takeGlimpse(FRESH_MS);
+    if (held !== undefined) return held;
+  }
+  return undefined;
 }
 
 export class SceneReader {
@@ -46,22 +76,17 @@ export class SceneReader {
   public async read(): Promise<ReadOutcome> {
     const gateway = this.deps.gateway();
     if (gateway?.hasBody() !== true) return { outcome: "no_body" };
-    gateway.askGlimpse(true);
-    const waitMs = this.deps.waitMs ?? WAIT_MS;
-    const pollMs = this.deps.pollMs ?? POLL_MS;
-    const deadline = Date.now() + waitMs;
-    while (Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, pollMs));
-      const held = gateway.takeGlimpse(FRESH_MS);
-      if (held === undefined) continue;
-      const text = await this.deps.ocr(held);
-      if (text === undefined) return { outcome: "unreadable" };
-      if (text === "") return { outcome: "unreadable" };
-      return { outcome: "read", text };
-    }
+    const held = await awaitGlimpse(gateway, {
+      fine: true,
+      waitMs: this.deps.waitMs,
+      pollMs: this.deps.pollMs,
+    });
     // camera spenta o corpo lento: il muso risponde a `glimpse_ask` solo a
     // camera accesa, quindi il silenzio è una risposta e va detta
-    return { outcome: "no_glimpse" };
+    if (held === undefined) return { outcome: "no_glimpse" };
+    const text = await this.deps.ocr(held);
+    if (text === undefined || text === "") return { outcome: "unreadable" };
+    return { outcome: "read", text };
   }
 }
 

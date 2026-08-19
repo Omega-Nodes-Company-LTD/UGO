@@ -23,6 +23,7 @@ import type { PackService } from "./packService.js";
 import { buildPackPrompt, selfLine } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
 import { readGestureOf, replyForReading, type ReadOutcome } from "./sceneReader.js";
+import { keepsakeGestureOf, replyForKeepsake, type KeepsakeOutcome } from "./sceneMemory.js";
 import { DiaryService } from "./diaryService.js";
 import { houseClock } from "./houseClock.js";
 import { NewsService } from "./newsService.js";
@@ -106,6 +107,12 @@ export interface ChatServiceDeps {
    * gesto non esiste e la frase va al modello come una qualunque.
    */
   reader?: { read: () => Promise<ReadOutcome> };
+  /**
+   * ADR-108: «ricordati questo» — lo sguardo che diventa un ricordo. Fratello
+   * di `reader` e cablato accanto a lui: stesso frame `fine`, ma guardato da
+   * due occhi e scritto in memoria. Assente = il gesto non esiste.
+   */
+  keepsake?: { keep: (at?: Date) => Promise<KeepsakeOutcome> };
   /**
    * ADR-099: «manda ai nonni: …» — la cartolina a voce. L'atto esplicito è
    * l'UNICA strada da cui una cartolina parte; assente = il gesto non esiste
@@ -772,6 +779,17 @@ export class ChatService {
     // biografia cifrata come tutto
     if (this.deps.reader !== undefined && readGestureOf(request.text)) {
       const reply = replyForReading(await this.deps.reader.read());
+      return this.answered(reply, request, at);
+    }
+
+    /**
+     * ADR-108: «ricordati questo». Accanto a «leggi» perché è lo stesso
+     * sguardo, e DOPO i promemoria perché «ricordami di comprare il latte»
+     * porta un compito e appartiene ad ADR-028: chi ha un compito dentro
+     * vince, chi ha solo un «questo» arriva qui.
+     */
+    if (this.deps.keepsake !== undefined && keepsakeGestureOf(request.text)) {
+      const reply = replyForKeepsake(await this.deps.keepsake.keep(at));
       return this.answered(reply, request, at);
     }
 

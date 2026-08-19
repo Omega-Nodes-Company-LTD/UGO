@@ -12,6 +12,7 @@ import { TieService } from "../tieService.js";
 import { FaceGateway } from "../faceGateway.js";
 import { PackService } from "../packService.js";
 import { PsycheService } from "../psycheService.js";
+import { SceneMemory } from "../sceneMemory.js";
 import { SceneReader } from "../sceneReader.js";
 import { storeVoiceSample } from "../voiceEnrolment.js";
 import { Curiosity } from "../volition/curiosity.js";
@@ -246,6 +247,21 @@ async function buildRuntime(
       reader: new SceneReader({
         gateway: () => body.gateway,
         ocr: (image) => recognition.ocr(image),
+      }),
+    }),
+    /**
+     * ADR-108: lo sguardo che si ricorda. Vive anche SENZA la percezione —
+     * con la sola descrizione del modello vision il ricordo è più povero ma
+     * esiste, e «il PC rosso» sta lì dentro, non nel cartellino.
+     */
+    ...((recognition !== undefined || deps.vision !== undefined) && {
+      keepsake: new SceneMemory({
+        gateway: () => body.gateway,
+        db: deps.db,
+        gosinoId: row.id,
+        ...(recognition !== undefined && { ocr: (image: string) => recognition.ocr(image) }),
+        ...(deps.vision !== undefined && { vision: deps.vision }),
+        embedder: deps.embedder,
       }),
     }),
     ...(nudges !== undefined && {
