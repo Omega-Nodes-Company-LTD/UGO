@@ -25,6 +25,7 @@ export {
   customerChunks,
 } from "./customer-sources.js";
 export { houseDocuments, houseChunks } from "./house-docs.js";
+export { games } from "./games.js";
 export { customerAnswerCache } from "./customer-answer-cache.js";
 export { beings } from "./beings.js";
 export { gosini, traitSets } from "./gosini.js";

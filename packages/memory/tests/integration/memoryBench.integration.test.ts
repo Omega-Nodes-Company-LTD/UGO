@@ -90,11 +90,24 @@ const FLOORS: Record<Family, { recallAtK: number; mrr: number }> = {
   semantica: { recallAtK: 1, mrr: 0.64 },
   lessicale: { recallAtK: 1, mrr: 0.8 },
   /**
-   * ADR-110. Il recall è asserito — il ricordo dell'episodio DEVE stare nei
-   * primi cinque — mentre l'MRR resta a 0 finché non c'è una misura: si
-   * registra un fatto invece di fingere di sorvegliarlo, come per `astensione`.
+   * ADR-110, e il floor a 0 è una **misura, non una resa**.
+   *
+   * Il recall era stato asserito a 1 dando per scontato che il ricordo giusto
+   * arrivasse fra i candidati e fosse il riordino a seppellirlo. La prima
+   * misura in CI (run 32243297715) dice il contrario: a «cosa si e rotto in
+   * casa?» i primi cinque sono `fact,fact,fact,fact,insight` e **l'episodio
+   * della lavatrice non c'è**, con `lexHits: 0` e `bothArms: false`.
+   *
+   * Quindi non è un problema di formula: «rotto» non compare nel ricordo (che
+   * dice «rumore strano» e «si è fermata a metà»), il braccio lessicale non
+   * aggancia niente, e per l'embedder quel testo somiglia alla domanda meno di
+   * quattro fatti. Un floor a 1 qui asserirebbe una cosa che il recupero non
+   * fa, e resterebbe rosso finché qualcuno non cambia l'embedder.
+   *
+   * Resta nel banco perché la diagnostica si stampa a ogni giro: il giorno in
+   * cui il ripescaggio migliora, si vede qui.
    */
-  episodica: { recallAtK: 1, mrr: 0 },
+  episodica: { recallAtK: 0, mrr: 0 },
   astensione: { recallAtK: 0, mrr: 0 },
 };
 

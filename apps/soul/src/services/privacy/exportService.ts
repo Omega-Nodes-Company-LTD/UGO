@@ -63,6 +63,13 @@ export interface ExportBundle {
    */
   houseDocuments: unknown[];
   houseChunks: unknown[];
+  /**
+   * ADR-112: le partite. Esce anche il numero pensato, in chiaro come tutto il
+   * resto — e sì, vuol dire che esportare a partita aperta è uno spoiler. Il
+   * file è della famiglia: nasconderle qualcosa di suo per non rovinarle un
+   * gioco sarebbe la prima bugia di un export che promette tutto.
+   */
+  games: unknown[];
   /** ADR-089: la casa stessa, e tutto ciò che nessuno aveva mai portato fuori */
   account: unknown[];
   rooms: unknown[];
@@ -164,6 +171,7 @@ export class ExportService {
       customerAnswerCache,
       houseDocuments,
       houseChunks,
+      gameRows,
     ] =
       await Promise.all([
         rows(sql`select id, display_name, aliases, notes, created_at from beings
@@ -251,6 +259,8 @@ export class ExportService {
                  from house_documents where account_id = ${accountId} order by uploaded_at`),
         rows(sql`select id, document_id, ref, text, created_at
                  from house_chunks where account_id = ${accountId} order by created_at`),
+        rows(sql`select id, gosino_id, kind, secret, turns, started_at, last_at, ended_at
+                 from games where account_id = ${accountId} order by started_at`),
       ]);
 
     /**
@@ -383,6 +393,7 @@ export class ExportService {
       ]),
       houseDocuments: this.decryptColumn(houseDocuments, ["filename"]),
       houseChunks: this.decryptColumn(houseChunks),
+      games: this.decryptColumn(gameRows, ["secret"]),
       account,
       rooms,
       placedProps,

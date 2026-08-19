@@ -54,15 +54,38 @@ che agisce sulla causa misurata.
 
 ## Conseguenze
 
-- il banco guadagna la famiglia **`episodica`** e la domanda «cosa si è rotto in casa?», con il
-  recall asserito (il ricordo dell'episodio **deve** stare nei primi cinque) e l'MRR a 0 finché
-  non c'è una misura: si registra un fatto invece di fingere di sorvegliarlo, come per
-  `astensione`;
+- il banco guadagna la famiglia **`episodica`** e la domanda «cosa si è rotto in casa?». Il
+  floor era stato messo a recall 1 dando per scontato che il ricordo giusto arrivasse fra i
+  candidati e fosse il riordino a seppellirlo. **La prima misura in CI lo smentisce** (run
+  32243297715): a quella domanda i primi cinque sono `fact,fact,fact,fact,insight` e
+  l'episodio della lavatrice **non è ripescato affatto** — `lexHits: 0`, `bothArms: false`.
+  «Rotto» non compare nel ricordo, che dice «rumore strano» e «si è fermata a metà»: il
+  braccio lessicale non aggancia niente, e per l'embedder quel testo somiglia alla domanda
+  meno di quattro fatti. **Questa ADR quindi NON risolve il sintomo del backlog**, e il floor
+  scende a 0 per registrare la misura invece di asserire una cosa che il recupero non fa;
 - il banco stampa ora l'**escursione dei tre fattori** per ogni domanda. Se `impRec` torna a
   scavalcare `rel`, la formula è di nuovo governata dall'anagrafica del ricordo invece che dalla
   ricerca — e si vede lì prima che si veda in casa;
 - i floor delle altre famiglie non si abbassano: se questa modifica peggiora una famiglia
   misurata, la CI diventa rossa. È il motivo per cui il banco asserisce.
+
+## Cosa resta aperto, misurato
+
+La voce di backlog nasceva da un sintomo — «a *cosa si è rotto in casa?* i primi cinque sono
+tutti fatti» — e la causa **non è quella che sembrava**, due volte di fila:
+
+1. non è la recency (era l'importanza, ed è la scoperta che ha prodotto questa ADR);
+2. e per **quella domanda lì** non è nemmeno la formula: l'episodio non entra fra i candidati,
+   quindi nessun riordino può ripescarlo.
+
+Resta quindi aperto un problema **di recupero, non di riordino**: un episodio descritto con le
+sue parole («ha fatto un rumore strano», «si è fermata a metà») non si trova cercando l'effetto
+(«cosa si è rotto»). Il braccio lessicale non può aiutare — le parole non ci sono — e quello
+vettoriale, con `nomic-embed-text` sull'italiano, mette quattro fatti davanti. È una voce nuova
+del gruppo 1, e va affrontata dove sta: l'indice, non il punteggio.
+
+Quello che questa ADR risolve resta vero e provato a parte: a parità di candidati, un episodio
+su cui i due bracci concordano non perde più contro un fatto più importante e più fresco.
 
 ## Verifica
 

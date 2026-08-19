@@ -20,6 +20,7 @@ import {
 import { decryptText, encryptText, type ChatRequest, type ChatResponse } from "@ugo/shared";
 import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import { recordExchange } from "./chat/biography.js";
+import { GameService } from "./gameService.js";
 import type { Character } from "./council/character.js";
 import type { PackService } from "./packService.js";
 import { buildPackPrompt, selfLine } from "./packPrompt.js";
@@ -654,6 +655,24 @@ export class ChatService {
      * token per farsi ripetere una cosa che è in casa. Il testo è suo, parola
      * per parola: qui non si riassume il riassunto.
      */
+    /**
+     * ADR-112: il gioco. Sta fra i primi perché a partita aperta **un numero
+     * cambia significato** — «42» è un tentativo, non una frase da passare al
+     * modello — e perché il segreto non deve avvicinarsi a un prompt.
+     *
+     * Solo in casa: una partita in riunione o con un cliente non è una
+     * distrazione simpatica, è una risposta sbagliata.
+     */
+    if (request.channel === "home") {
+      const played = await new GameService({
+        db,
+        accountId: this.deps.accountId,
+        gosinoId: this.deps.gosinoId,
+        dataKey,
+      }).answer(request.text, at);
+      if (played !== undefined) return this.answered(played, request, at);
+    }
+
     /**
      * Backlog gruppo 2: «com'è andata la settimana?». Sta PRIMA della domanda
      * sul diario perché è più specifica — sette pagine in fila non sono un
