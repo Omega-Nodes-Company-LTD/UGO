@@ -36,6 +36,7 @@ import { registerVetrinaRoutes } from "./routes/vetrina.js";
 import { registerAdoptionRoutes } from "./routes/adoptions.js";
 import { registerListRoutes } from "./routes/lists.js";
 import { registerHouseDocRoutes, type HouseDocsStorage } from "./routes/houseDocs.js";
+import { registerPlaceRoutes } from "./routes/places.js";
 import { PeerService } from "./services/peerService.js";
 import { RegistryClient } from "./services/registryClient.js";
 import type { CouncilService } from "./services/council/councilService.js";
@@ -469,6 +470,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         });
         // ADR-076: le liste si vedono e si spuntano anche dal pannello
         registerListRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
+        // ADR-113: i luoghi dell'account, e in quale luogo sta una stanza
+        registerPlaceRoutes(app, { db: options.db, guard });
         // ADR-111: i documenti di casa — «UGO conosce solo ciò che ha sentito»
         registerHouseDocRoutes(app, {
           db: options.db,

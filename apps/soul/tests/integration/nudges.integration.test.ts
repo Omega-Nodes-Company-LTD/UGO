@@ -14,7 +14,7 @@ import type { ServerToFaceMessage } from "@ugo/shared";
 import { eq, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { NudgeService, nudgeOf } from "../../src/services/nudges.js";
+import { NudgeService } from "../../src/services/nudges.js";
 import { GosinoRegistry } from "../../src/services/pack/runtimes.js";
 
 /**
@@ -96,35 +96,15 @@ afterAll(async () => {
   await pg.stop();
 });
 
-describe("nudgeOf: le forme", () => {
-  it("riconosce i due verbi e lascia in pace il resto", () => {
-    expect(nudgeOf("vai in cucina")).toEqual({ verb: "go", room: "cucina" });
-    expect(nudgeOf("Ugo, vai nello studio!")).toEqual({ verb: "go", room: "studio" });
-    expect(nudgeOf("spostati al salotto")).toEqual({ verb: "go", room: "salotto" });
-    expect(nudgeOf("chiama Silvio")).toEqual({ verb: "call", name: "Silvio" });
-    // frasi qualunque: NON sono spinte
-    expect(nudgeOf("vado in cucina a farmi un caffè")).toBeUndefined();
-    expect(nudgeOf("chiamami quando arrivi")).toBeUndefined();
-    expect(nudgeOf("ieri sono andato in studio")).toBeUndefined();
-  });
-
-  /** I due verbi aggiunti dopo (ADR-064, «prossimi verbi possibili»). */
-  it("riconosce «dormi» e «vieni qui», e non la sveglia", () => {
-    expect(nudgeOf("vai a dormire")).toEqual({ verb: "sleep" });
-    expect(nudgeOf("Ugo, dormi")).toEqual({ verb: "sleep" });
-    expect(nudgeOf("a nanna")).toEqual({ verb: "sleep" });
-    expect(nudgeOf("vieni qui")).toEqual({ verb: "come" });
-    expect(nudgeOf("torna qua!")).toEqual({ verb: "come" });
-    /**
-     * La sveglia a comando NON è un verbo, ed è una scelta: sarebbe un
-     * interruttore. A svegliarlo basta farsi vedere — `face_seen` lo fa già,
-     * con tanto di saluto.
-     */
-    expect(nudgeOf("svegliati")).toBeUndefined();
-    expect(nudgeOf("stanotte ho dormito male")).toBeUndefined();
-  });
-});
-
+/**
+ * Le FORME stanno in `src/services/nudges.test.ts`, come unit: sono pure, e
+ * tenerle qui voleva dire che un errore di riconoscimento si scopriva in CI
+ * invece che in cinque secondi. È successo con «vai a dormire», letto come
+ * «vai nella stanza *dormire*».
+ *
+ * Qui resta ciò che ha bisogno di un database e di un registro veri: cosa
+ * SUCCEDE quando una spinta arriva.
+ */
 describe("«dormi» e «vieni qui»", () => {
   it("senza un corpo acceso non finge di andare a dormire", async () => {
     const reply = await nudges.answer(ugo, "vai a dormire");

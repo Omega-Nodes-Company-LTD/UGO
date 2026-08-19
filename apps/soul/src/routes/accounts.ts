@@ -74,11 +74,6 @@ const houseSettingsSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, "niente da cambiare");
 
-const placeSchema = z.object({
-  place: z.string().min(1).max(120),
-  lat: z.number().min(-90).max(90),
-  lon: z.number().min(-180).max(180),
-});
 
 /**
  * `GET /v1/accounts` — quali case posso vedere (ADR-019 fase 3).
@@ -115,10 +110,16 @@ export function registerAccountRoutes(
   },
 ): void {
   /**
-   * `GET /v1/places?q=…` — cerca un posto. Guardata: è una chiamata verso
-   * l'esterno, e si fa fare solo a chi amministra.
+   * `GET /v1/places/search?q=…` — cerca un posto **nel mondo**, per trovarne le
+   * coordinate. Guardata: è una chiamata verso l'esterno, e si fa fare solo a
+   * chi amministra.
+   *
+   * Si chiamava `/v1/places`, e ADR-113 gliel'ha dovuto togliere: quel
+   * cammino adesso è la lista dei luoghi **dell'account**. Un dizionario e un
+   * elenco di proprietà non sono la stessa risorsa, e tenerli sullo stesso
+   * indirizzo era già ambiguo prima che diventasse un conflitto.
    */
-  app.get("/v1/places", { preHandler: deps.guard }, async (request, reply) => {
+  app.get("/v1/places/search", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = z.object({ q: z.string().min(2).max(120) }).safeParse(request.query);
     if (!parsed.success) {
       return reply
@@ -237,61 +238,15 @@ export function registerAccountRoutes(
     return reply.send({ ok: true });
   });
 
-  /** `GET /v1/account/place` — dove sta, per rimostrarlo nel pannello. */
-  app.get("/v1/account/place", { preHandler: deps.guard }, async (request, reply) => {
-    const rows = await inAccount(
-      deps.db,
-      request,
-      reply,
-      { requireAdmin: true },
-      (db, accountId) =>
-        db
-          .select({ place: accounts.place, lat: accounts.lat, lon: accounts.lon })
-          .from(accounts)
-          .where(eq(accounts.id, accountId)),
-    );
-    if (rows === undefined) return reply;
-    const [row] = rows;
-    return reply.send({
-      place: row?.place ?? null,
-      lat: row?.lat == null ? null : Number(row.lat),
-      lon: row?.lon == null ? null : Number(row.lon),
-    });
-  });
-
   /**
-   * `PUT /v1/account/place` — dove sta questa casa.
+   * `GET/PUT /v1/account/place` **non esistono più** (ADR-113).
    *
-   * Sostituisce `UGO_HOME_LAT`/`UGO_HOME_LON`, che erano dell'ambiente del
-   * processo: con quelle, servire due famiglie voleva dire due server. Qui il
-   * posto è della casa, come il fuso e la lingua.
+   * Davano per scontato che un titolare abitasse in un posto solo, e con la
+   * casa in città più quella al mare il cielo era per forza sbagliato in una
+   * delle due. Adesso i luoghi sono una lista: `/v1/places`. La vecchia rotta
+   * è stata tolta e non lasciata accanto — due verità sulla stessa cosa sono
+   * il difetto che ADR-092 è servita a togliere.
    */
-  app.put("/v1/account/place", { preHandler: deps.guard }, async (request, reply) => {
-    const parsed = placeSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply
-        .code(400)
-        .type("application/problem+json")
-        .send({ type: "about:blank", title: "Invalid place", status: 400, detail: z.prettifyError(parsed.error) });
-    }
-    const done = await inAccount(
-      deps.db,
-      request,
-      reply,
-      { requireAdmin: true },
-      (db, accountId) =>
-        db
-          .update(accounts)
-          .set({
-            place: parsed.data.place,
-            lat: parsed.data.lat.toFixed(5),
-            lon: parsed.data.lon.toFixed(5),
-          })
-          .where(eq(accounts.id, accountId)),
-    );
-    if (done === undefined) return reply;
-    return reply.send({ place: parsed.data.place, lat: parsed.data.lat, lon: parsed.data.lon });
-  });
 
   app.get("/v1/accounts", async (request, reply) => {
     const tenant = request.tenant ?? null;
@@ -312,8 +267,6 @@ export function registerAccountRoutes(
         kind: accounts.kind,
         timezone: accounts.timezone,
         locale: accounts.locale,
-        // il posto, per mostrarlo nell'elenco senza una seconda chiamata
-        place: accounts.place,
         dailyBudgetUsd: accounts.dailyBudgetUsd,
         // ADR-081: cosa può fare questa casa. Il pannello deve **non offrire**
         // le porte che risponderebbero 403: un pulsante che rifiuta sempre è

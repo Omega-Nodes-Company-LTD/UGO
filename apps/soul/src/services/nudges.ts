@@ -38,13 +38,23 @@ const SLEEP_FORM = /^(?:ugo[,!]?\s+)?(?:vai a dormire|va['’] a dormire|dormi|a
 /** «Vieni qui»: la stanza non è nominata, la deve sapere chi lo dice. */
 const COME_FORM = /^(?:ugo[,!]?\s+)?(?:vieni (?:qui|qua|da me)|torna (?:qui|qua))\s*[.!]*$/i;
 
+/**
+ * **L'ordine conta, e costa un giro di CI impararlo.**
+ *
+ * `«vai a dormire»` combacia anche con la forma dello spostamento — «vai» +
+ * «a» + «dormire» — e messa dopo veniva letta come *«vai nella stanza
+ * dormire»*, con la risposta «non conosco una stanza che si chiama dormire».
+ * Le forme specifiche vanno provate per prime: una regola generale messa
+ * davanti a una specifica se la mangia sempre.
+ */
 export function nudgeOf(text: string): Nudge | undefined {
-  const go = GO_FORM.exec(text.trim());
+  const trimmed = text.trim();
+  if (SLEEP_FORM.test(trimmed)) return { verb: "sleep" };
+  if (COME_FORM.test(trimmed)) return { verb: "come" };
+  const go = GO_FORM.exec(trimmed);
   if (go?.[1] !== undefined) return { verb: "go", room: go[1].trim() };
-  const call = CALL_FORM.exec(text.trim());
+  const call = CALL_FORM.exec(trimmed);
   if (call?.[1] !== undefined) return { verb: "call", name: call[1].trim() };
-  if (SLEEP_FORM.test(text.trim())) return { verb: "sleep" };
-  if (COME_FORM.test(text.trim())) return { verb: "come" };
   return undefined;
 }
 

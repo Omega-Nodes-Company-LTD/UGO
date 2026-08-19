@@ -53,6 +53,7 @@ export const ACCOUNT_PAGES = `
     </div>
     <div id="place-results" data-testid="place-results"></div>
     <p class="lede" id="place-now" data-testid="place-now"></p>
+    <div id="place-mine" data-testid="place-mine"></div>
     <div id="place-msg"></div>
   </div>
 

@@ -73,6 +73,8 @@ export interface ExportBundle {
   /** ADR-089: la casa stessa, e tutto ciò che nessuno aveva mai portato fuori */
   account: unknown[];
   rooms: unknown[];
+  /** ADR-113: dove sta la famiglia, un luogo per riga */
+  places: unknown[];
   placedProps: unknown[];
   propStock: unknown[];
   listItems: unknown[];
@@ -276,6 +278,7 @@ export class ExportService {
      */
     const [
       account,
+      placeRows,
       rooms,
       placedProps,
       propStock,
@@ -298,7 +301,9 @@ export class ExportService {
       rows(sql`select id, slug, name, kind, timezone, locale, daily_budget_usd, metabolism,
                       created_at
                from accounts where id = ${accountId}`),
-      rows(sql`select id, name, slug, created_at from rooms
+      rows(sql`select id, name, slug, lat, lon, created_at from places
+               where account_id = ${accountId} order by created_at`),
+      rows(sql`select id, name, slug, place_id, created_at from rooms
                where account_id = ${accountId} order by created_at`),
       rows(sql`select id, room_slug, kind, x, z, rot, created_at from placed_props
                where account_id = ${accountId} order by created_at`),
@@ -395,6 +400,7 @@ export class ExportService {
       houseChunks: this.decryptColumn(houseChunks),
       games: this.decryptColumn(gameRows, ["secret"]),
       account,
+      places: placeRows,
       rooms,
       placedProps,
       propStock,

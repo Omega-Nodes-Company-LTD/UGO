@@ -393,6 +393,13 @@
       "when": 1787100988437,
       "tag": "0055_il-gioco-in-corso",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1787101048437,
+      "tag": "0056_i-luoghi-dell-account",
+      "breakpoints": true
     }
   ]
 }

@@ -126,8 +126,11 @@ jobs:
       # e infatti `playwright install --with-deps` — che apt lo usa anche lui —
       # è rimasto scoperto e ha appeso il job per quindici minuti.
       - uses: ./.github/actions/apt-ready
+      # Dodici e non otto: il tetto qui non serve a essere severi, serve a
+      # impedire che un mirror lento si mangi i trenta minuti del job. Otto li
+      # ha sfondati un `.deb` da 4,5 MB servito a pochi kB/s (19/08/2026).
       - name: espeak-ng provides the synthetic voice for the ingest fixture
-        timeout-minutes: 8
+        timeout-minutes: 12
         run: sudo apt-get install -y --no-install-recommends -o Acquire::Retries=2 espeak-ng
       - uses: actions/cache@v4
         with:
