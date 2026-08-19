@@ -125,9 +125,55 @@ Da gamberi a crostacei serve un passaggio di conoscenza del mondo. A 1.5B non c'
 formulazione. Il giudice passa quindi a **`qwen2.5:3b`** (~2 GB), unica variabile cambiata rispetto
 al riferimento — prompt A, corpus identico — così che se Sofia si recupera si sappia **perché**.
 
-Se non basta nemmeno 3B, la strada non è ingrandire ancora: è che un giudizio binario su un
-appunto non è il posto dove chiedere un'inferenza, e servirà un giudice che veda anche la domanda
-riformulata. Ma prima si misura.
+### 3B ha fatto peggio, e il modello non è la variabile (run 32221620314)
+
+| configurazione | riconosciute | inventate | **perse** |
+|---|---|---|---|
+| «astieniti sempre», nessun giudice | 10 / 10 | 0 / 10 | **4 / 10** |
+| `qwen2.5:1.5b`, prompt A | 10 / 10 | 0 / 10 | **1 / 10** |
+| `qwen2.5:1.5b`, prompt B | 10 / 10 | 0 / 10 | 3 / 10 |
+| `qwen2.5:3b`, prompt A | 10 / 10 | 0 / 10 | 3 / 10 |
+
+Raddoppiare i parametri ha **peggiorato**, e perde le stesse tre di prompt B. Il giudice è quindi
+tornato a `1.5b` + prompt A, che è la configurazione migliore misurata — non quella che suonava
+meglio.
+
+### La riga che rimette tutto in prospettiva
+
+La prima riga della tabella è un giudice che non esiste: **astenersi sempre**, quando i bracci non
+concordano. Fa `10/10` riconosciute e `0/10` inventate — gli stessi numeri di tutte le altre
+configurazioni.
+
+Il che dice una cosa scomoda e vera: **il 10/10 non è merito del giudice.** Lo comprano il
+pre-filtro e la reticenza. Delle quattordici domande che gli arrivano, il modello risponde `NO`
+tredici volte; il suo contributo reale è **una sola** risposta salvata rispetto al non fare niente
+— tre, con la configurazione buona.
+
+Non è poco: da 4 perse a 1 è un terzo del danno. Ma va detto in questi termini, perché «dieci su
+dieci» letto da solo racconta un giudice acuto, e questo giudice non è acuto: è **prudente**, e la
+prudenza qui è gratis solo finché non incontra una domanda a cui bisognava rispondere.
+
+## Il compromesso, e perché non lo decide chi scrive il codice
+
+La configurazione migliore misurata offre questo scambio:
+
+- **si guadagna**: dieci confabulazioni su dieci evitate. Alla domanda sulla cattedrale di
+  Chartres UGO smette di ricevere lavatrice, gatto e caldaia sotto «Ricordi pertinenti»;
+- **si perde**: una risposta su dieci fra quelle che una risposta ce l'hanno. E quella una, su
+  questo corpus, è **«Sofia può mangiare i gamberi?»** con in mano «Sofia è allergica ai
+  crostacei».
+
+Le due cose non sono commensurabili, e la scelta non è tecnica. Un compagno che tace su
+un'allergia è un danno di natura diversa da un compagno che dice una sciocchezza sulle cattedrali
+gotiche — e nessuna delle due misure qui sopra sa pesarla.
+
+Quindi il meccanismo resta **misurato e non cablato**, e la decisione va al proprietario. Le tre
+strade, dichiarate:
+
+1. **Cablare così**: meno invenzioni, e un «non lo so» ogni dieci risposte vere.
+2. **Non cablare**: UGO continua a rispondere sempre, anche a vuoto — il comportamento di oggi.
+3. **Restringere il campo**: il giudice solo dove inventare costa di più che tacere (la reception
+   coi clienti, per dire) e mai nella chat di casa. Non è ancora misurato.
 
 ## Conseguenze
 
