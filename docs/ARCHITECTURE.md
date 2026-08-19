@@ -73,8 +73,11 @@ Tutto il resto (embeddings, trascrizione, diarizzazione, riflessione notturna) g
 > snapshot e dump esfiltrati — **non** chi ottiene root sulla macchina viva, dove chiave e dati
 > convivono. Per questo la copia offline di `UGO_DATA_KEY` è un requisito, non un consiglio.
 
-**Perché questo confine è dove è** (ADR-001 + ADR-007): il server non ha GPU e un server GPU di terzi è
-escluso. La chat real-time ha un vincolo di latenza che una CPU non regge; il lavoro batch notturno no,
+**Perché questo confine è dove è** (ADR-001 + ADR-007): il ferro di casa non ha GPU e un server GPU
+**di terzi** è escluso — ed è il secondo divieto quello che regge il confine. ADR-110 aggiunge la
+possibilità di un **secondo server nostro, con scheda video, dentro la stessa tailnet**
+(`OLLAMA_GPU_URL`, assente per default): non allarga il confine verso un fornitore, lo allarga a due
+host nostri. Ciò che esce da quel perimetro resta soltanto il contesto di un turno di chat. La chat real-time ha un vincolo di latenza che una CPU non regge; il lavoro batch notturno no,
 quindi resta in casa. Risultato: l'unico dato che esce è il contesto di un singolo turno di conversazione,
 mai l'archivio. Le trascrizioni delle riunioni con clienti — il dato più sensibile del sistema — non
 lasciano mai il perimetro per essere elaborate.
@@ -89,6 +92,11 @@ Tre livelli di esposizione, in ordine decrescente di privilegio:
    operatore `/admin` via Tailscale/WireGuard. Nessun dominio pubblico, nessun ingress su Internet.
    Con il server fuori casa (ADR-017) questo livello non è più una comodità: è l'unica cosa che
    tiene soul irraggiungibile dal resto di Internet.
+2-bis. **Tailnet come trasporto interno** (ADR-110) — quando esiste un nodo GPU, `soul-api` chiama
+   `ollama` su una **seconda macchina**, e fra i due host la rete Docker privata del livello 1 non
+   c'è più. **Ollama non ha autenticazione**: l'unica cosa che tiene quel modello privato è che i
+   due indirizzi sono indirizzi di tailnet. Un `OLLAMA_GPU_URL` che non lo sia pubblica il modello
+   a Internet, e non esiste un secondo controllo che lo impedisca.
 3. **LAN/VLAN IoT** — `mosquitto` sulla 1883 per il solo Nano 33 IoT, con credenziali dedicate al device
    e ACL ristretta ai topic `ugo/#`.
 
@@ -399,7 +407,7 @@ Una modifica che viola uno di questi punti richiede un ADR, non una PR:
 
 | ADR | Impatto strutturale |
 |---|---|
-| ADR-001 Niente GPU | Confine di fiducia §2.1; Ollama CPU; disciplina di caching §6.3 |
+| ADR-001 Niente GPU | Confine di fiducia §2.1; Ollama CPU; disciplina di caching §6.3 — **precisata da ADR-110**: il divieto che regge è quello sull'inferenza di terzi |
 | ADR-002 Audio, non video | `meetings.audio_uri`, bucket audio, retention §7.2 |
 | ADR-003 Niente servo | Espressività interamente software: `apps/face` + Glyph |
 | ADR-004 Vexa self-hosted | Servizio esterno al monorepo, integrato via API/WS (Fase 5) |
@@ -416,6 +424,7 @@ Una modifica che viola uno di questi punti richiede un ADR, non una PR:
 | ADR-015 Genoma versionato | `gosini`/`trait_sets`; `gosino_id` su ogni tabella di stato |
 | ADR-016 Percezione multimodale | `perception_events`, biometrici cifrati, blocco 3-bis del prompt |
 | ADR-017 Ferro dedicato in UE | §2.1 confine di fiducia; tailnet obbligatoria; chiave dati offline |
+| ADR-110 Il nodo GPU | Confine di fiducia §2.1; topologia §2.2 livello 2-bis; `OLLAMA_GPU_URL` (vision, testo locale, anello di chat — **mai** gli embedding) |
 
 Nuove decisioni architetturali → `docs/ADR/NNN-titolo.md` a partire da **018**.
 

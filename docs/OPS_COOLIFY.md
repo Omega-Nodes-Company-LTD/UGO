@@ -44,6 +44,30 @@ bussare. È gratis fino a 100 dispositivi e non richiede di toccare il router n�
 5. Rendilo permanente: `tailscale up --ssh=false --accept-routes` non serve; basta verificare che il
    servizio parta da solo con `systemctl is-enabled tailscaled` → atteso `enabled`.
 
+### 0.2-bis Il secondo server, quello con la scheda video (opzionale, ADR-110)
+
+Solo se hai preso un nodo GPU. **Se non ce l'hai, salta**: senza `OLLAMA_GPU_URL` tutto gira come
+prima, solo più lentamente — non è un guasto e il pannello lo dice con quelle parole.
+
+1. Sulla macchina nuova, stessi passi di §0.2: installa Tailscale, `tailscale up`, conferma dal
+   browser **con lo stesso account**.
+2. `tailscale ip -4` → **questo è `<TAILSCALE_IP_GPU>`**. Annotalo accanto all'altro.
+3. Installa Ollama sulla macchina nuova e **fallo ascoltare solo sulla tailnet**:
+   `OLLAMA_HOST=<TAILSCALE_IP_GPU>:11434`. Su systemd si mette in
+   `/etc/systemd/system/ollama.service.d/override.conf` come `Environment="OLLAMA_HOST=…"`, poi
+   `systemctl daemon-reload && systemctl restart ollama`.
+4. Verifica **dalla macchina di casa**, non da quella nuova:
+   `curl -s http://<TAILSCALE_IP_GPU>:11434/api/tags` → deve rispondere.
+5. Verifica anche il contrario, ed è il controllo che conta: da una macchina **fuori** dalla
+   tailnet, `curl http://<IP_PUBBLICO_GPU>:11434/api/tags` deve **fallire**.
+
+> ⚠️ **Ollama non ha autenticazione. Nessuna.** Su una macchina sola non è mai stato un problema
+> perché il container sta in una rete Docker privata; fra due macchine quella protezione non esiste
+> più, e **l'unica cosa che tiene il modello privato è che l'indirizzo sia di tailnet** (ADR-110 §4,
+> §2.3 qui sotto). Se al punto 5 la curl da fuori risponde, fermati e sistema `OLLAMA_HOST` prima di
+> andare avanti: stai regalando inferenza — e, con il vision acceso, la possibilità di far
+> descrivere immagini — a chiunque scansioni quella porta.
+
 ### 0.3 Metti il telefono nella rete
 
 1. Installa **Tailscale** dal Play Store sul Nothing Phone.
@@ -164,6 +188,28 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
 7. Verifica cosa c'è: `ollama list` → devi vedere entrambi.
 8. Prova dalla shell di soul: `curl -s http://<HOST_OLLAMA>:11434/api/tags` → deve elencare
    `nomic-embed-text`.
+
+### 2.3-quater · ollama-gpu (il nodo con la scheda video, ADR-110)
+
+Solo se hai fatto §0.2-bis. Non è una risorsa di Coolify: è una macchina a parte, e a soul si dice
+soltanto dove trovarla.
+
+1. Sul nodo GPU scarica i modelli che ci devono girare:
+   `ollama pull <il-tuo-modello-vision>` (per esempio `qwen2.5vl:7b` o `moondream`) e, se vuoi che
+   anche l'iniziativa e la chat di casa girino lì, il modello di testo che usi già.
+2. In `soul-api` → **Environment Variables** aggiungi
+   `OLLAMA_GPU_URL=http://<TAILSCALE_IP_GPU>:11434`. **Lascia `OLLAMA_URL` com'è**: continua a
+   servire, ed è lì che restano gli embeddings.
+3. Redeploy di `soul-api`. Verifica: `curl -s http://<TAILSCALE_IP>:3000/health | jq .checks` →
+   deve comparire `"ollamaGpu": "ok"`. Se leggi `"off"` la variabile non è arrivata; se leggi
+   `"error"` la macchina o la tailnet non rispondono.
+4. Nel pannello, **Sommario** → la riga «nodo GPU» dice la stessa cosa a parole.
+
+> **Cosa ci va e cosa no**: il modello vision, il testo locale e l'anello di casa della catena di
+> chat. **Gli embeddings restano sulla macchina di casa, sempre** — sono l'unico pezzo che *si
+> ferma* invece di degradare quando il modello non risponde, e metterli di là vorrebbe dire che la
+> tailnet giù = i ricordi non si scrivono (ADR-110 §3). Non provare a "uniformare": c'è un test che
+> lo impedisce.
 
 ### 2.3-bis · percezione (riconoscimento, dettatura, voce di casa, lettura)
 
@@ -909,6 +955,27 @@ Come si distingue in dieci secondi:
 3. Ricorda sempre il terzo posto: `.env.example` e il foglio dei valori (§9) servono al TE del
    prossimo deploy, non a questo.
 
+### «Ho preso il nodo GPU e va tutto come prima»
+
+Prima domanda, e nel 90% dei casi è finita lì: `curl -s http://<TAILSCALE_IP>:3000/health | jq
+.checks.ollamaGpu`.
+
+- `"off"` → **`OLLAMA_GPU_URL` non è arrivata a soul.** Aggiungila in *soul-api* → Environment
+  Variables e **redeploy**: le variabili si leggono all'avvio. È lo stesso equivoco della voce qui
+  sopra, e si distingue allo stesso modo.
+- `"error"` → la variabile c'è e la macchina non risponde. Nell'ordine: il nodo GPU è acceso?
+  `tailscale status` da casa lo vede? `curl http://<TAILSCALE_IP_GPU>:11434/api/tags` **dalla
+  macchina di casa** risponde? Se l'ultima fallisce ma le prime due no, quasi sempre `OLLAMA_HOST`
+  sul nodo è rimasto su `127.0.0.1` e Ollama ascolta solo sé stesso (§0.2-bis punto 3).
+- `"ok"` → il nodo c'è e risponde, ma **il modello che serve non è stato scaricato lì**. Un modello
+  assente non è un errore per Ollama, è un 404 su quella richiesta: il vision degrada in silenzio e
+  UGO dice che non riesce a vedere. `ollama list` **sul nodo GPU** deve contenere il valore di
+  `OLLAMA_VISION_MODEL`.
+
+E la cosa che non è un guasto: gli **embeddings restano lenti come prima**, perché girano ancora
+sulla macchina di casa e ci restano per scelta (ADR-110 §3). Se la memoria è lenta, il rimedio è
+un'altra cosa, non questo.
+
 ### UGO sente ma non risponde
 
 Le orecchie che si muovono sono una reazione **locale** della faccia al rumore: dimostrano che il
@@ -1253,6 +1320,7 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 | Valore | Dove lo trovi |
 |---|---|
 | `<TAILSCALE_IP>` | `tailscale ip -4` sul server (§0.2) — è anche `<INDIRIZZO_UGO>` del pannello |
+| `<TAILSCALE_IP_GPU>` | `tailscale ip -4` sul nodo GPU, solo se ne hai uno (§0.2-bis); vuoto altrimenti — senza, tutto gira sulla macchina di casa |
 | `<IP_HETZNER>` | l'IP pubblico del server: serve **solo** per il primo SSH, prima di Tailscale |
 | `<NOME_SERVER>` `<NOME_TAILNET>` | li stampa `sudo tailscale serve status` (§10.1): compongono `https://<NOME_SERVER>.<NOME_TAILNET>.ts.net`, l'indirizzo di UGO dal telefono |
 | `<UTENTE>` | l'utente SSH che usi già (spesso `root`) |

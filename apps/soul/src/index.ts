@@ -140,6 +140,19 @@ const psyche = await PsycheService.restore(dbFor(bootstrapAccountId), new Date()
  * catena. Il modello locale: `OLLAMA_CHAT_MODEL`, o quello del testo
  * dell'iniziativa, o quello del sogno — la casa ne ha sempre almeno uno.
  */
+/**
+ * ADR-110: dove girano i modelli che vale la pena mettere su una GPU.
+ *
+ * Una sola costante, e passa **solo** al vision, al testo locale e all'anello
+ * Ollama della catena di chat. Gli embedding restano su `OLLAMA_URL` per
+ * scelta: sono l'unico client locale che lancia invece di degradare, e una
+ * seconda macchina in mezzo li renderebbe una dipendenza dura.
+ *
+ * Senza `OLLAMA_GPU_URL` questa riga vale `env.OLLAMA_URL` e il sistema è
+ * identico a com'era.
+ */
+const gpuUrl = env.OLLAMA_GPU_URL ?? env.OLLAMA_URL;
+
 const localChatModel = env.OLLAMA_CHAT_MODEL ?? env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL;
 const llmFor = (
   accountId: string,
@@ -166,7 +179,7 @@ const llmFor = (
     gosinoId,
     timezone: clock.timezone,
     locale: clock.locale,
-    local: { baseUrl: env.OLLAMA_URL, model: localChatModel },
+    local: { baseUrl: gpuUrl, model: localChatModel },
     ...(env.OPENROUTER_API_KEY !== undefined &&
       env.OPENROUTER_CHAT_MODEL !== undefined && {
         openRouter: {
@@ -198,7 +211,7 @@ const web =
     ? undefined
     : new WebWindow({
         searx: new SearxClient({ baseUrl: env.SEARXNG_URL }),
-        local: new OllamaTextClient(env.OLLAMA_URL, env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL),
+        local: new OllamaTextClient(gpuUrl, env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL),
         localUp: () => localTextUp,
       });
 
@@ -231,7 +244,7 @@ const bootstrapPercezione =
 const localVision =
   env.OLLAMA_VISION_MODEL === undefined
     ? undefined
-    : new OllamaVisionClient(env.OLLAMA_URL, env.OLLAMA_VISION_MODEL);
+    : new OllamaVisionClient(gpuUrl, env.OLLAMA_VISION_MODEL);
 // ADR-064: le spinte — il servizio nasce PRIMA di ogni chat (l'apparato di
 // avvio e i runtime lo vogliono fra le dipendenze) e legge il registro al
 // momento del gesto, quando esiste da un pezzo
@@ -338,7 +351,7 @@ const meetings =
 
 // ADR-027: initiative. Until now every single thing UGO said was a reply.
 const localText = new OllamaTextClient(
-  env.OLLAMA_URL,
+  gpuUrl,
   env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
 );
 let localTextUp = false;
@@ -453,6 +466,16 @@ const capabilities = (): Capability[] => [
     }),
   },
   {
+    id: "gpuNode",
+    label: "Il nodo con la scheda video",
+    on: env.OLLAMA_GPU_URL !== undefined,
+    ...(env.OLLAMA_GPU_URL === undefined && {
+      // ADR-110: spenta è uno stato legittimo, e qui è pure il default. Senza
+      // nodo GPU tutto gira sulla macchina di casa, solo più lentamente
+      why: "manca OLLAMA_GPU_URL: vision e testo locale girano sulla stessa macchina di tutto il resto. Non è un guasto — è più lento, e basta.",
+    }),
+  },
+  {
     id: "recognition",
     label: "Riconoscere voce e volto",
     on: env.UGO_RECOGNITION_URL !== undefined && env.UGO_INTERNAL_TOKEN !== undefined,
@@ -531,6 +554,10 @@ const app = buildServer({
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
+  // ADR-110: la seconda macchina si guarda a parte. Una GPU che non risponde
+  // e un Ollama di casa che non risponde sono due guasti diversi e si
+  // rimediano in due posti diversi
+  ...(env.OLLAMA_GPU_URL !== undefined && { ollamaGpuUrl: env.OLLAMA_GPU_URL }),
   // ADR-101: volto e voce dipendono dalla percezione, e /health non la guardava
   ...(env.UGO_RECOGNITION_URL !== undefined && { perceptionUrl: env.UGO_RECOGNITION_URL }),
   features: {
