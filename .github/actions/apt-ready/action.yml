@@ -1,0 +1,39 @@
+name: apt pronto
+description: >
+  Mette apt in condizione di lavorare prima che qualcuno lo usi: ripara un dpkg
+  lasciato a metà, e se il mirror di default non risponde ne cambia uno.
+
+# Perché esiste, e perché è un'azione invece di uno script copiato due volte.
+#
+# `azure.archive.ubuntu.com` — il mirror di default dei runner — smette di
+# rispondere a periodi (`Ign:` in ciclo) mentre `archive.ubuntu.com` sta in
+# piedi. Il 19/08/2026 ha fatto rosso o appeso quattro run di fila, in DUE punti
+# diversi: il passo che installa espeak-ng, e `playwright install --with-deps`,
+# che apt lo chiama dentro di sé. Il secondo non aveva nessuna difesa, perché la
+# prima correzione era stata scritta a mano dentro l'altro job — ed è
+# esattamente il motivo per cui una difesa va estratta invece che copiata.
+#
+# Qui si prepara soltanto: `apt-get update` è il comando che parla col mirror,
+# quindi è quello a cui si dà un tetto. L'installazione vera la fa chi chiama, e
+# **non si interrompe mai a metà**: un apt ucciso durante «Setting up» lascia
+# dpkg interrotto, e da lì in poi ogni tentativo muore — è così che main è
+# diventato rosso dopo una correzione che credeva di aver risolto.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo dpkg --configure -a || true
+        for attempt in 1 2 3; do
+          if [ "$attempt" != 1 ]; then
+            echo "cambio mirror: azure non risponde, provo archive.ubuntu.com"
+            sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+          fi
+          if timeout 120 sudo apt-get update -o Acquire::Retries=2; then exit 0; fi
+          echo "apt non ha risposto (tentativo $attempt/3)"
+          sudo dpkg --configure -a || true
+          sleep 10
+        done
+        echo "::error::apt non risponde nemmeno cambiando mirror: e infrastruttura, non il diff"
+        exit 1
