@@ -19,7 +19,7 @@ import { issueToken } from "../../src/services/tenantAuth.js";
 import { createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 /**
- * ADR-099: il giornale, le conversazioni e gli incontri.
+ * ADR-102: il giornale, le conversazioni e gli incontri.
  *
  * Tre viste che esistevano solo in `psql`. I casi che contano non sono «la
  * lista risponde»: sono che il **vicino non compare**, che il testo esce **in
@@ -71,7 +71,7 @@ afterAll(async () => {
 const get = (url: string, token: string) =>
   app.inject({ method: "GET", url, headers: { authorization: `Bearer ${token}` } });
 
-describe("il giornale (ADR-099)", () => {
+describe("il giornale (ADR-102)", () => {
   it("mostra i verbi della mia casa e nessuno di quella del vicino", async () => {
     await db.insert(auditLog).values([
       { accountId: mine.id, verb: "export", outcome: "ok", resourceType: "account", role: "owner" },
@@ -112,7 +112,7 @@ describe("il giornale (ADR-099)", () => {
   });
 });
 
-describe("le conversazioni di casa (ADR-099)", () => {
+describe("le conversazioni di casa (ADR-102)", () => {
   it("escono IN CHIARO, che è come il proprietario le ha dette", async () => {
     const [who] = await db
       .insert(beings)
@@ -139,7 +139,7 @@ describe("le conversazioni di casa (ADR-099)", () => {
   });
 });
 
-describe("chi ha visto, e cosa (ADR-099)", () => {
+describe("chi ha visto, e cosa (ADR-102)", () => {
   it("dice il nome e quanto ci credeva, mai l'impronta", async () => {
     const [seen] = await db
       .insert(beings)

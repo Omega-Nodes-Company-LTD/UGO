@@ -1,5 +1,5 @@
 /**
- * Il giornale e la cronaca (ADR-099): tre viste che il pannello non aveva.
+ * Il giornale e la cronaca (ADR-102): tre viste che il pannello non aveva.
  *
  * Una pagina sola e non tre voci nel menu, perché sono la stessa domanda —
  * «cosa è successo qui?» — guardata da tre lati: chi ha fatto cosa (il

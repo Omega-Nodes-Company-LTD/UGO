@@ -507,6 +507,8 @@ const app = buildServer({
         env.UGO_REGISTRY_TOKEN !== undefined && {
           chain: { baseUrl: env.UGO_REGISTRY_URL, token: env.UGO_REGISTRY_TOKEN },
         }),
+      // ADR-103: il listino della cucciolata
+      litterCostUsd: env.UGO_LITTER_COST_USD,
     },
     psyche,
     face,

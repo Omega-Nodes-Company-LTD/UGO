@@ -14,7 +14,7 @@ import type { PreHandler } from "./guard.js";
 import { exemplarsOf, inAccount } from "./scope.js";
 
 /**
- * Ciò che il pannello non poteva vedere (ADR-099).
+ * Ciò che il pannello non poteva vedere (ADR-102).
  *
  * Tre viste in sola lettura, tre buchi che il gruppo 14 elencava da giorni:
  *

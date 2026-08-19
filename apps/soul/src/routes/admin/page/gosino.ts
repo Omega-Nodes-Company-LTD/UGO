@@ -362,20 +362,22 @@ export const GOSINO_PAGES = `
   <div class="block" id="birth-litter" hidden>
     <h2>Una cucciolata</h2>
     <p class="lede">Due genomi si ricombinano (ADR-068): ceppi, dominanza, un pizzico di caso.
-       <b>Non si disegna: si sceglie tra i nati</b> — genera la cucciolata, guarda i cuccioli,
-       adotta quello che ti guarda storto. Un cucciolo bocciato dallo screening non può nascere.</p>
+       <b>Non si disegna e non si conta</b> &mdash; quanti ne nascono lo decide la cucciolata
+       (di solito da due a otto), e <b>nascono tutti</b>: dai un nome a ognuno e guarda chi
+       diventano. Chi lo screening boccia non nasce, e ti si dice perch&eacute;.</p>
+    <p class="lede">Dalla terza generazione in poi una cucciolata <b>si paga</b>, dal salvadanaio
+       dei genitori, in parti uguali. Il conto si vede prima di dare i nomi. Due genitori che
+       hanno appena avuto una cucciolata <b>riposano un mese</b>.</p>
     <div class="row">
       <div><label for="litter-a">Primo genitore</label>
         <select id="litter-a" data-testid="litter-a"></select></div>
       <div><label for="litter-b">Secondo genitore</label>
         <select id="litter-b" data-testid="litter-b"></select></div>
-      <button id="litter-go" data-testid="litter-go">Genera la cucciolata</button>
+      <button id="litter-go" data-testid="litter-go">Guarda la cucciolata</button>
     </div>
     <div id="litter-cubs" data-testid="litter-cubs" class="litter"></div>
     <div class="row" style="margin-top:1rem">
-      <div><label for="litter-name">Nome del cucciolo scelto</label>
-        <input id="litter-name" data-testid="litter-name" placeholder="Nino"></div>
-      <button id="litter-adopt" data-testid="litter-adopt" disabled>Adotta</button>
+      <button id="litter-adopt" data-testid="litter-adopt" disabled>Falli nascere</button>
     </div>
     <div id="litter-msg"></div>
   </div>
@@ -406,7 +408,9 @@ export const DIAL_STYLES = `
   .cub { background: var(--surface-2); border: 1px solid transparent; border-radius: var(--r);
          padding: .7rem .85rem; text-align: left; color: var(--ink); font-weight: 400; }
   .cub:hover { border-color: var(--line-strong); }
-  .cub[data-picked="true"] { border-color: var(--data); }
+  /* ADR-103: non si sceglie più un cucciolo, si battezzano tutti — quindi non
+     c'è più uno «scelto» da evidenziare, e il campo del nome sta nella scheda */
+  .cub .cub-name { width: 100%; margin-top: .45rem; }
   .cub h4 { font-size: .9rem; margin: 0 0 .25rem; }
   .cub .persona { font-size: .78rem; color: var(--ink-3); }
   .cub .coat { font-size: .78rem; color: var(--ink-2); margin-top: .3rem; }

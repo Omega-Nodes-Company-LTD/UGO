@@ -66,6 +66,12 @@ export const soulEnvSchema = z.object({
   ANTHROPIC_BASE_URL: z.url().optional(),
   UGO_CHAT_MODEL: z.string().min(1).default("claude-haiku-4-5"),
   UGO_DAILY_BUDGET_USD: z.coerce.number().positive().default(0.5),
+  /**
+   * ADR-103: quanto costa un cucciolo, **per cucciolo** e dalla terza
+   * generazione in poi. Zero è legittimo e vuol dire «da questa casa si nasce
+   * gratis»: è una scelta dichiarata, non una manopola sul carattere.
+   */
+  UGO_LITTER_COST_USD: z.coerce.number().min(0).default(0.25),
   /** 32 bytes base64 — AES-256-GCM key for at-rest message encryption */
   UGO_DATA_KEY: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(3000),

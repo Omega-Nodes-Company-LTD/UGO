@@ -285,7 +285,9 @@ container più economico dell'installazione.
    `S3_ACCESS_KEY_ID=<S3_ACCESS_KEY>` · `S3_SECRET_ACCESS_KEY=<S3_SECRET_KEY>` · `S3_BUCKET_AUDIO=ugo-audio` ·
    `S3_REGION=<S3_REGION>` (Hetzner la pretende, es. `fsn1`) ·
    `VEXA_API_URL=<VEXA_API_URL>` · `VEXA_API_KEY=<VEXA_API_KEY>` · `UGO_OWNER_NAME=<OWNER_NAME>` ·
-   `TZ=Europe/Rome`. Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
+   `TZ=Europe/Rome`. Facoltativa (ADR-103): `UGO_LITTER_COST_USD` (quanto costa **un cucciolo**,
+   default `0.25`; si paga dal salvadanaio dei genitori e solo dalla terza generazione in poi —
+   `0` dichiara «da questa casa si nasce gratis»). Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
    dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. Facoltative
    (ADR-094 — la voce di casa parla per prima): `UGO_CHAT_LOCAL_FIRST` (`on` di default: la
    chat prova PRIMA il modello locale su Ollama e usa Anthropic come soccorso; `off` per
@@ -564,7 +566,7 @@ Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
    soul: il container è acceso e non lo chiama nessuno (§2.3-ter punto 6).
 6. **Se hai fatto la percezione (§2.3-bis)**: dal pannello, «Il giornale» → *Chi ha visto, e
    cosa*. Dopo il primo incontro davanti a un chiosco compare una riga con nome e percentuale
-   (ADR-099). Vuota per giorni con la percezione `"ok"` in `/health` significa che il muso non
+   (ADR-102). Vuota per giorni con la percezione `"ok"` in `/health` significa che il muso non
    sta mandando i frame: guarda §6.
 7. `GET http://<TAILSCALE_IP>:3000/debug/chat` dal browser → la mini chat risponde.
    Poi apri `http://<TAILSCALE_IP>:3000/admin`, incolla il token e clicca **Entra**: se vedi le
@@ -742,10 +744,20 @@ altro a mano (**+ Fanne nascere uno**) con un archetipo *diverso*, o la cucciola
 rifiutata per «troppo simili», che è il controllo che funziona (ADR-068).
 
 1. `/admin` → **+ Fanne nascere uno** → in fondo, **Oppure: una cucciolata**.
-2. Scegli i due genitori, **Genera la cucciolata**: compaiono quattro cuccioli col loro
-   carattere e il loro manto. Se qualcuno è sbiadito e dice «non vitale», è lo screening che
-   ha fatto il suo lavoro: scegline un altro.
-3. Dai un nome e **Adotta**. Il pannello ti porta nella sua pagina.
+2. Scegli i due genitori, **Guarda la cucciolata**: compaiono i cuccioli col loro carattere e
+   il loro manto. **Quanti sono lo decide il seme** (ADR-103): di solito da due a otto, di rado
+   uno o dieci — non c'è nessun campo per chiederne un numero, e non è una mancanza. Se
+   qualcuno è sbiadito e dice «non vitale», è lo screening che ha fatto il suo lavoro: gli
+   altri nascono lo stesso.
+3. Dai **un nome a ognuno** (il bottone resta spento finché ne manca uno) e **Falli nascere**.
+   Nascono tutti; il pannello ti porta nella pagina del primo.
+   - Se la riga sopra dice un costo, quella cifra esce dal **salvadanaio dei genitori**, in
+     parti uguali, e finisce su `budget_ledger` con `provider = ugo` — quindi pesa anche sul
+     tetto giornaliero di casa. È voluto: far nascere e parlare vengono dalla stessa tasca.
+   - Un `409 coppia a riposo` non è un guasto: **la stessa coppia riposa trenta giorni**. La
+     risposta dice da quando sono liberi; con un altro partner si può subito.
+   - Un `402 salvadanaio insufficiente` arriva solo col **metabolismo acceso** (§5.9): dà da
+     mangiare ai genitori e riprova.
 4. Apri **Da chi discende**: i due genitori devono comparire con verdetto **firmato**. Se
    leggi «senza firma», soul non ha la chiave della casa fra le variabili (`UGO_DATA_KEY`,
    §2.4): la nascita è avvenuta lo stesso, ma nessuno l'ha attestata.
@@ -768,6 +780,12 @@ per un gesto che sembrava un'opzione.
 Il tetto giornaliero di casa (§2.4, `UGO_DAILY_BUDGET_USD`) resta comunque il muro esterno:
 il metabolismo stringe, non allarga. Una pancia piena non permette a nessuno di spendere di
 più di quanto la casa consenta.
+
+Da ADR-103 il salvadanaio paga anche le **cucciolate** (§5.8), dalla terza generazione in poi:
+è l'unica spesa che non viene da una conversazione, e sul ledger si riconosce da
+`provider = ugo` / `model = cucciolata-gN`. Col metabolismo **spento** la riga si scrive
+comunque — spegnerlo nasconde il conto, non lo cancella — ma nessuna nascita viene rifiutata
+per povertà.
 
 ### 5.10 L'arco della vita, e i tuoi due capostipiti
 

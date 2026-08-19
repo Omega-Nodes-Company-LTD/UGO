@@ -19,6 +19,7 @@ import { registerFaceStatic } from "./routes/faceStatic.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerCouncilRoutes } from "./routes/council.js";
 import { registerGosiniRoutes } from "./routes/gosini.js";
+import { DEFAULT_LITTER_COST_USD } from "./services/litterCost.js";
 import { registerLitterRoutes } from "./routes/litters.js";
 import { registerPiggyBankRoutes } from "./routes/piggybank.js";
 import { registerDowryRoutes } from "./routes/dowry.js";
@@ -133,6 +134,11 @@ export interface ServerOptions extends HealthDeps {
       chain?: { baseUrl: string; token: string };
       /** ADR-074: senza, il sapere adottato si ripesca solo per parole */
       embedder?: { embed: (texts: string[]) => Promise<number[][]> };
+      /**
+       * ADR-103: quanto costa un cucciolo, dalla terza generazione in poi.
+       * Assente = `DEFAULT_LITTER_COST_USD`.
+       */
+      litterCostUsd?: number;
     };
     /** ADR-032: the per-exemplar runtimes a socket can ask to be */
     registry?: GosinoRegistry;
@@ -409,6 +415,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         ...(gosini.chain !== undefined && {
           chain: new RegistryClient(gosini.chain),
         }),
+        litterCostUsd: gosini.litterCostUsd ?? DEFAULT_LITTER_COST_USD,
       });
       // ADR-072: il salvadanaio vive con la popolazione, come la cucciolata
       registerPiggyBankRoutes(app, { db: options.db, guard });
@@ -424,7 +431,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         });
         // ADR-076: le liste si vedono e si spuntano anche dal pannello
         registerListRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
-        // ADR-099: il giornale, le conversazioni di casa, chi è stato visto
+        // ADR-102: il giornale, le conversazioni di casa, chi è stato visto
         registerJournalRoutes(app, {
           db: options.db,
           guard,

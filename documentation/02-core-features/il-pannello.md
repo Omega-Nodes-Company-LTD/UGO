@@ -153,8 +153,10 @@ creare: dice che **un gosino non si crea, si sceglie fra quelli nati**. È la re
 limite del pannello.
 
 Se la tua casa è un **allevamento autorizzato**, trovi **una cucciolata**: due gosini che hai
-già, e il carattere non lo scegli tu — lo scelgono i genitori. Come funziona, perché a volte
-rifiuta e cosa vuol dire il pedigree sta tutto in [Il branco](./il-branco.md).
+già, e né il carattere né **quanti ne nascono** li scegli tu. Nascono tutti, gli dai un nome a
+testa, e dalla terza generazione in poi la nascita si paga dal salvadanaio dei genitori. Come
+funziona, quanto costa, perché a volte rifiuta e cosa vuol dire il pedigree sta tutto in
+[Il branco](./il-branco.md).
 
 Se la tua casa è l'**allevamento fondatore**, trovi anche il modo di **coniare un
 capostipite**: nome, stanza, e il carattere con archetipo e manopole. È l'unico posto in cui

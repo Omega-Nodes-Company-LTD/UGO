@@ -189,3 +189,27 @@ export function mulberry32(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+/**
+ * Quanti ne nascono (ADR-103, direttiva del proprietario 2026-08-18).
+ *
+ * **Da 2 a 8, e non lo sceglie nessuno.** La taglia della cucciolata non è un
+ * parametro dell'allevatore: è la natura, e chiederla al chiamante l'avrebbe
+ * resa una manopola — la stessa cosa che ADR-068 e la regola 13 vietano per
+ * il carattere. Il seme la determina come determina i genomi: stessa
+ * cucciolata, stessa taglia.
+ *
+ * Le due code — **1 e 10** — esistono e sono rare (2% ciascuna): un cucciolo
+ * unico e una nidiata enorme sono cose che capitano, e un intervallo senza
+ * eccezioni sarebbe un generatore, non una specie.
+ */
+export function drawLitterSize(rand: () => number): number {
+  const roll = rand();
+  if (roll < 0.02) return 1;
+  if (roll >= 0.98) return 10;
+  // il resto si spalma uniformemente su 2..8, rileggendo il dado una volta
+  // sola: due letture renderebbero la taglia dipendente dall'ordine delle
+  // chiamate, e il seme smetterebbe di riprodurre la stessa cucciolata
+  const spread = (roll - 0.02) / 0.96;
+  return 2 + Math.min(6, Math.floor(spread * 7));
+}
