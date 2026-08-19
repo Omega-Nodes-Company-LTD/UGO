@@ -111,4 +111,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [103](./103-la-cucciolata.md) | La cucciolata: quanti li decide il dado, nascono tutti, e dalla terza generazione si paga | Accettata |
 | [104](./104-la-scrivania.md) | La scrivania: le cose che si facevano solo in psql | Accettata |
 | [105](./105-il-genoma-si-rilegge.md) | Il genoma si rilegge (e non si tocca) | Accettata |
-| 106 | *(prossimo numero disponibile)* | — |
+| [106](./106-l-astensione-il-criterio-relativo-non-regge.md) | L'astensione: il criterio relativo non regge, e il banco non poteva accorgersene | Accettata |
+| 107 | *(prossimo numero disponibile)* | — |

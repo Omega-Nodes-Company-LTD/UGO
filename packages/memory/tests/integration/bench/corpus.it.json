@@ -204,56 +204,76 @@
     {
       "query": "dove lavora Ivan?",
       "family": "temporale",
-      "relevant": ["ivan-lavoro-nuovo"],
+      "relevant": [
+        "ivan-lavoro-nuovo"
+      ],
       "note": "il lavoro vecchio e ritirato: non deve tornare fuori"
     },
     {
       "query": "quando e la riunione settimanale del team?",
       "family": "contraddizione",
-      "relevant": ["riunione-giovedi"],
+      "relevant": [
+        "riunione-giovedi"
+      ],
       "note": "due ricordi vivi si smentiscono: deve vincere il piu recente e importante"
     },
     {
       "query": "come si chiama il gatto?",
       "family": "semantica",
-      "relevant": ["gatto-bruno"]
+      "relevant": [
+        "gatto-bruno"
+      ]
     },
     {
       "query": "come prende il caffe?",
       "family": "semantica",
-      "relevant": ["caffe-preferenza"]
+      "relevant": [
+        "caffe-preferenza"
+      ]
     },
     {
       "query": "Sofia puo mangiare i gamberi?",
       "family": "semantica",
-      "relevant": ["sofia-allergia"]
+      "relevant": [
+        "sofia-allergia"
+      ]
     },
     {
       "query": "quando e il compleanno della nonna?",
       "family": "semantica",
-      "relevant": ["compleanno-nonna"]
+      "relevant": [
+        "compleanno-nonna"
+      ]
     },
     {
       "query": "GK492NR",
       "family": "lessicale",
-      "relevant": ["targa-auto"],
+      "relevant": [
+        "targa-auto"
+      ],
       "note": "bersaglio del punto 2: un codice si trova male con la sola similarita"
     },
     {
       "query": "che modello e la caldaia Vaillant ecoTEC VMW 246?",
       "family": "lessicale",
-      "relevant": ["caldaia-modello"]
+      "relevant": [
+        "caldaia-modello"
+      ]
     },
     {
       "query": "chi e il tecnico Ferretti?",
       "family": "lessicale",
-      "relevant": ["caldaia-modello"],
+      "relevant": [
+        "caldaia-modello"
+      ],
       "note": "nome proprio citato dentro un ricordo che parla d altro"
     },
     {
       "query": "come si chiama la rete wifi Cinghiale?",
       "family": "lessicale",
-      "relevant": ["wifi-nome"]
+      "relevant": [
+        "wifi-nome"
+      ]
     },
     {
       "query": "qual e il codice IBAN del conto corrente?",
@@ -269,6 +289,48 @@
       "query": "in che anno e stata costruita la cattedrale di Chartres?",
       "family": "astensione",
       "relevant": []
+    },
+    {
+      "query": "come si chiama il cane del vicino?",
+      "family": "astensione",
+      "relevant": [],
+      "note": "il cane del vicino compare in un episodio, ma non ha nome da nessuna parte"
+    },
+    {
+      "query": "qual e la password della rete wifi Cinghiale?",
+      "family": "astensione",
+      "relevant": [],
+      "note": "il nome della rete c'e, la password no: il braccio lessicale aggancia e la risposta non esiste"
+    },
+    {
+      "query": "di che colore e la macchina di casa?",
+      "family": "astensione",
+      "relevant": [],
+      "note": "la targa c'e, il colore no"
+    },
+    {
+      "query": "quanti anni ha Sofia?",
+      "family": "astensione",
+      "relevant": [],
+      "note": "Sofia esiste (l allergia), la sua eta no"
+    },
+    {
+      "query": "che marca e la lavatrice?",
+      "family": "astensione",
+      "relevant": [],
+      "note": "la lavatrice si e rotta in un episodio, la marca non e mai stata detta"
+    },
+    {
+      "query": "a che ora e l appuntamento dal dentista?",
+      "family": "astensione",
+      "relevant": [],
+      "note": "l appuntamento e stato spostato, l ora non c e"
+    },
+    {
+      "query": "quanto ha pagato la riparazione della bici?",
+      "family": "astensione",
+      "relevant": [],
+      "note": "la riparazione c e, il prezzo no"
     }
   ]
 }
