@@ -237,11 +237,11 @@ ADR-051/053 regge per costruzione: un solo residente, mai `setSky`/`setProps`/ro
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Estrarre il corpo in un package condiviso** | `apps/face/src/body/*` (+ `renderer.ts` 2D) → `@ugo/face-body` con `three` come dep; sia `apps/face` sia `apps/reception` lo importano. La parte sporca (`main.ts`: socket/sensori/portable) NON si porta dietro |
-| ⬜️ | **Il porcello del gosino scelto nella reception** | componente client (`"use client"`, dynamic import `ssr:false`) che monta `createFace` con un solo residente e scena neutra; fallback all'avatar 2D su device senza WebGL |
-| ⬜️ | **Esporre l'aspetto del gosino** | `character.traits` in `/v1/reception/me` (query già pronta: `traitSets` per `gosinoId`, `order by version desc limit 1`, `characterFrom(...)`, `runtimes.ts:145`) per `setResidents` — stessa geometria da genoma del muso di casa |
-| ⬜️ | **Esporre l'emozione senza WS** | arricchire la risposta di `/v1/reception/chat` (oggi solo `{reply,degraded,cached,ticketId?}`) con `{ mood:{label,vars}, gesture? }` dalla psiche del gosino; il client chiama `setMood`/`reflex` sul dato pollato. Rispetta il «niente WS» di ADR-053 |
-| ⬜️ | **Layout stanza + pannelli** | canvas 3D accanto a chat e ai tab ticket/lavori/conversazioni già esistenti. ADR per il renderer condiviso e per il contratto di stato reception |
+| ✅ | **Estrarre il corpo in un package condiviso** | `apps/face/src/body/*` (+ `renderer.ts` 2D) → `@ugo/face-body` con `three` come dep; sia `apps/face` sia `apps/reception` lo importano. La parte sporca (`main.ts`: socket/sensori/portable) NON si porta dietro — **FATTO (ADR-115)** |
+| ✅ | **Il porcello del gosino scelto nella reception** | componente client (`"use client"`, dynamic import `ssr:false`) che monta `createFace` con un solo residente e scena neutra; fallback all'avatar 2D su device senza WebGL — **FATTO (ADR-115)** |
+| ✅ | **Esporre l'aspetto del gosino** | `character.traits` in `/v1/reception/me` (query già pronta: `traitSets` per `gosinoId`, `order by version desc limit 1`, `characterFrom(...)`, `runtimes.ts:145`) per `setResidents` — stessa geometria da genoma del muso di casa — **FATTO (ADR-115)** |
+| ✅ | **Esporre l'emozione senza WS** | arricchire la risposta di `/v1/reception/chat` (oggi solo `{reply,degraded,cached,ticketId?}`) con `{ mood:{label,vars}, gesture? }` dalla psiche del gosino; il client chiama `setMood`/`reflex` sul dato pollato. Rispetta il «niente WS» di ADR-053 — **FATTO (ADR-115)** |
+| ✅ | **Layout stanza + pannelli** | canvas 3D accanto a chat e ai tab ticket/lavori/conversazioni già esistenti. ADR per il renderer condiviso e per il contratto di stato reception — **FATTO (ADR-115)** |
 
 ## Gruppo 16 — Onboarding cliente e consenso voce/volto
 
