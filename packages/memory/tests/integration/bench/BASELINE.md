@@ -139,6 +139,32 @@ L'unico che sembra separare è `top1`: massimo senza risposta 0.5966, minimo con
 **Ventotto decimillesimi.** È lo stesso margine tarato sul corpus dei 0.675 di ADR-022, con un
 altro numero: non è una soluzione, è la stessa trappola.
 
+### E infatti, coi dieci negativi, `top1` non separa più (run CI 32213298487)
+
+La misura rifatta sul corpus allargato, dove le domande senza risposta sono dieci invece di tre:
+
+| | `top1` |
+|---|---|
+| domande **senza** risposta | da 0.5528 a **0.6393** |
+| domande **con** risposta | da **0.5994** a 0.8824 |
+
+**Le bande si sovrappongono di quattro centesimi**, e tre domande senza risposta stanno *sopra* la
+più bassa con risposta: «di che colore è la macchina di casa?» (0.6393), «qual è la password della
+rete wifi Cinghiale?» (0.6156) e «quanti anni ha Sofia?» (0.6122) battono «quando è il compleanno
+della nonna?» (0.5994), che una risposta ce l'ha.
+
+I ventotto decimillesimi non erano un margine sottile: erano **un artefatto di tre negativi
+facili**. Ed è esattamente ciò che l'allargamento del corpus serviva a scoprire.
+
+`gap` e `plateau` restano rovesciati come prima: «di che colore è la macchina» — senza risposta —
+ha `gap` +0.0711 e `plateau` +0.0094, meglio di cinque domande che una risposta ce l'hanno.
+
+**`bothArms` invece regge, e adesso vale qualcosa.** Zero falsi positivi su **dieci** negativi, coi
+near-miss compresi: nemmeno «la password della rete wifi Cinghiale» accende il braccio lessicale,
+benché due parole su cinque stiano dentro un ricordo. Resta vero che copre solo 6 delle 10 domande
+con risposta, quindi **non è un criterio di astensione** — ma come indizio *positivo* non è più
+un'illusione del corpus: è una precisione misurata dove poteva rompersi.
+
 ### Perché il corpus è stato allargato
 
 Tre sole domande senza risposta, e tutte **lontane dal dominio** (IBAN, treni, cattedrali gotiche):

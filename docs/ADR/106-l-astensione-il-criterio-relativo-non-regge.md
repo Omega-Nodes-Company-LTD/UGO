@@ -38,6 +38,28 @@ non è una prova di niente.
 0.5994: **ventotto decimillesimi**. È lo stesso margine tarato sul corpus che ADR-022 aveva
 rifiutato a 0.675, con un altro numero davanti. Prenderlo vorrebbe dire aver visto le risposte.
 
+### La conferma, sul corpus allargato (run CI 32213298487)
+
+Rifatta la misura coi dieci negativi, `top1` **non separa nemmeno più per finta**: le bande vanno
+da 0.5528 a **0.6393** senza risposta e da **0.5994** a 0.8824 con risposta, cioè si sovrappongono
+di quattro centesimi. Tre domande senza risposta stanno sopra la più bassa con risposta — «di che
+colore è la macchina di casa?» (0.6393), «la password della rete wifi Cinghiale?» (0.6156),
+«quanti anni ha Sofia?» (0.6122) contro il compleanno della nonna (0.5994).
+
+I ventotto decimillesimi non erano un margine sottile: erano **un artefatto di tre negativi
+facili**. È la prova che l'allargamento del corpus non era diligenza, era la correzione di una
+misura sbagliata.
+
+`gap` e `plateau` restano rovesciati: «di che colore è la macchina», che risposta non ne ha, ha
+`gap` +0.0711 e `plateau` +0.0094 — meglio di cinque domande che ce l'hanno.
+
+**`bothArms` invece regge la prova più dura.** Zero falsi positivi su **dieci** negativi, near-miss
+compresi: nemmeno la password del wifi Cinghiale accende il braccio lessicale, benché due parole su
+cinque stiano dentro un ricordo. Continua a non essere un criterio di astensione — copre 6 delle 10
+domande con risposta, quindi «no» resta muto — ma la sua precisione non è più un'illusione del
+corpus: è misurata nel posto in cui poteva rompersi. Se la verifica del modello locale avrà bisogno
+di un indizio a buon mercato da cui partire, questo è quello che ha retto.
+
 ## Decisione
 
 **Nessun criterio relativo viene implementato.** Non perché sia difficile, ma perché i dati dicono
