@@ -110,6 +110,25 @@ describe("canAnswer", () => {
     expect(verdict).toMatchObject({ answerable: false, asked: true, said: "NO" });
   });
 
+  /**
+   * La guardia più importante del file. Il client nasce a temperatura 0.8 — la
+   * temperatura del cantastorie — e un giudice che campiona dà verdetti
+   * diversi sulla stessa domanda a ogni giro: è costato tre «misure» di
+   * ADR-107 che confrontavano estrazioni invece di configurazioni.
+   */
+  it("chiede al modello a temperatura ZERO, o il verdetto cambia a ogni giro", async () => {
+    let opts: unknown;
+    const local = {
+      generate: (_p: string, _m?: number, options?: { temperature?: number }) => {
+        opts = options;
+        return Promise.resolve("SI");
+      },
+      available: () => Promise.resolve(true),
+    };
+    await canAnswer({ local }, "q", [memory({ vectorRank: 1 })]);
+    expect(opts).toMatchObject({ temperature: 0 });
+  });
+
   it("mostra al giudice solo i ricordi che finirebbero nel prompt", async () => {
     let seen = "";
     const local = {

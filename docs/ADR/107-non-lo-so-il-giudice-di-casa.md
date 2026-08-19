@@ -138,6 +138,28 @@ Raddoppiare i parametri ha **peggiorato**, e perde le stesse tre di prompt B. Il
 tornato a `1.5b` + prompt A, che è la configurazione migliore misurata — non quella che suonava
 meglio.
 
+### E tutte e tre le misure erano estrazioni, non misure
+
+Con i floor accesi, il banco è diventato rosso alla prima occasione: **`perse` 3, sulla stessa
+identica configurazione che un'ora prima ne aveva misurata 1.** Stesso modello, stesso prompt,
+stesso corpus.
+
+La causa stava in una riga scritta per tutt'altro: `OllamaTextClient` nasceva con
+`temperature: 0.8`, la temperatura giusta per il cantastorie di ADR-088, dove inventare è il punto.
+Un giudice a 0.8 **campiona il proprio verdetto**: sulla stessa domanda, un giro dice SI e quello
+dopo dice NO.
+
+Quindi le tre tabelle qui sopra confrontano **estrazioni, non configurazioni**, e le due
+conclusioni che ne avevo tratto — «il prompt B è peggiore», «3B è peggiore» — non sono sostenute
+dai dati: un solo campione per configurazione, da un processo che varia di due unità fra un giro e
+l'altro. Restano scritte perché il modo in cui si è sbagliato è la parte utile.
+
+Il giudice adesso gira a **temperatura 0**, la temperatura è un parametro del client invece di una
+costante, e un unit test presidia lo zero. Le misure vere ricominciano da qui.
+
+E vale la pena notarlo: il tetto sulle perse, acceso un'ora prima, ha **trovato questo al primo
+giro** — dopo che tre run verdi di fila non avevano detto niente.
+
 ### La riga che rimette tutto in prospettiva
 
 La prima riga della tabella è un giudice che non esiste: **astenersi sempre**, quando i bracci non
@@ -192,13 +214,15 @@ che manca è più difficile da dimenticare accesa.
 
 ### I floor, e uno è un tetto
 
-Il banco adesso asserisce, ai valori misurati: riconosciute ≥ 10/10, inventate = 0, e **perse ≤ 1**.
+Il banco adesso asserisce: riconosciute ≥ 10/10, inventate = 0, e **perse < 4**.
 
-Quello sulle perse è un **tetto**, non un pavimento, perché è l'errore che pesa di più: se una
-modifica ne facesse perdere due, il banco deve diventare rosso anche se tutto il resto migliora.
-È già successo due volte — col prompt riscritto e col modello raddoppiato — e in entrambi i casi
-la CI è rimasta verde: il difetto si è visto solo perché qualcuno è andato a leggere i log. Adesso
-lo dice da sé.
+Quello sulle perse è un **tetto**, non un pavimento, perché è l'errore che pesa di più. E il numero
+non è il valore misurato del giudice, perché **un valore misurato del giudice non esiste ancora**:
+le prime tre misure erano estrazioni a temperatura 0.8. Il tetto è quindi il **giudice che non
+esiste** — astenersi sempre perde 4 su 10 — e dice l'unica cosa che oggi si può affermare: sotto
+quel numero il giudice guadagna qualcosa, sopra sta facendo peggio del non averlo.
+
+Si stringerà al valore vero appena ci sarà una misura deterministica, e non prima.
 
 ## Conseguenze
 

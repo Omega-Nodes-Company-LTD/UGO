@@ -141,6 +141,15 @@ export async function canAnswer(
   if (armsAgree(ranked)) return { answerable: true, asked: false };
 
   const shown = ranked.slice(0, deps.limit ?? ranked.length).map((memory) => memory.text);
-  const said = await deps.local.generate(judgePrompt(question, shown), 8);
+  /**
+   * **Temperatura zero, e non è un dettaglio.**
+   *
+   * Il client nasceva a 0.8, che è la temperatura del cantastorie: giusta per
+   * inventare una favola, disastrosa per un giudizio. Un giudice che campiona
+   * dà verdetti diversi sulla stessa domanda a ogni giro — e infatti tre
+   * «misure» di ADR-107 fatte prima di accorgersene confrontavano estrazioni,
+   * non configurazioni. Qui si vuole la stessa risposta ogni volta.
+   */
+  const said = await deps.local.generate(judgePrompt(question, shown), 8, { temperature: 0 });
   return { answerable: readVerdict(said), asked: true, said };
 }

@@ -16,9 +16,26 @@ import { z } from "zod";
 
 const generateResponseSchema = z.object({ response: z.string() });
 
+/**
+ * ADR-107: la temperatura è un parametro, e non lo era.
+ *
+ * Era inchiodata a 0.8 — giusta per il cantastorie di ADR-088, dove inventare
+ * è il punto — e sbagliata per chi deve dare un giudizio. Un giudice a 0.8
+ * **campiona** il suo verdetto: sulla stessa domanda, con lo stesso modello e
+ * lo stesso prompt, un giro dice SI e quello dopo dice NO.
+ */
+export interface GenerateOptions {
+  /** 0 = deterministico. Assente = 0.8, com'era per tutti prima. */
+  temperature?: number;
+}
+
 export interface LocalTextClient {
   /** Returns undefined when the model is unreachable: never throws at callers. */
-  generate(prompt: string, maxTokens?: number): Promise<string | undefined>;
+  generate(
+    prompt: string,
+    maxTokens?: number,
+    options?: GenerateOptions,
+  ): Promise<string | undefined>;
   available(): Promise<boolean>;
 }
 
@@ -42,7 +59,11 @@ export class OllamaTextClient implements LocalTextClient {
     }
   }
 
-  public async generate(prompt: string, maxTokens = 120): Promise<string | undefined> {
+  public async generate(
+    prompt: string,
+    maxTokens = 120,
+    options: GenerateOptions = {},
+  ): Promise<string | undefined> {
     try {
       const response = await fetch(new URL("/api/generate", this.baseUrl), {
         method: "POST",
@@ -51,7 +72,7 @@ export class OllamaTextClient implements LocalTextClient {
           model: this.model,
           prompt,
           stream: false,
-          options: { num_predict: maxTokens, temperature: 0.8 },
+          options: { num_predict: maxTokens, temperature: options.temperature ?? 0.8 },
         }),
         signal: AbortSignal.timeout(this.timeoutMs),
       });
