@@ -107,6 +107,46 @@ describe("nudgeOf: le forme", () => {
     expect(nudgeOf("chiamami quando arrivi")).toBeUndefined();
     expect(nudgeOf("ieri sono andato in studio")).toBeUndefined();
   });
+
+  /** I due verbi aggiunti dopo (ADR-064, «prossimi verbi possibili»). */
+  it("riconosce «dormi» e «vieni qui», e non la sveglia", () => {
+    expect(nudgeOf("vai a dormire")).toEqual({ verb: "sleep" });
+    expect(nudgeOf("Ugo, dormi")).toEqual({ verb: "sleep" });
+    expect(nudgeOf("a nanna")).toEqual({ verb: "sleep" });
+    expect(nudgeOf("vieni qui")).toEqual({ verb: "come" });
+    expect(nudgeOf("torna qua!")).toEqual({ verb: "come" });
+    /**
+     * La sveglia a comando NON è un verbo, ed è una scelta: sarebbe un
+     * interruttore. A svegliarlo basta farsi vedere — `face_seen` lo fa già,
+     * con tanto di saluto.
+     */
+    expect(nudgeOf("svegliati")).toBeUndefined();
+    expect(nudgeOf("stanotte ho dormito male")).toBeUndefined();
+  });
+});
+
+describe("«dormi» e «vieni qui»", () => {
+  it("senza un corpo acceso non finge di andare a dormire", async () => {
+    const reply = await nudges.answer(ugo, "vai a dormire");
+    expect(reply).toMatch(/corpo acceso/u);
+    const noted = await db
+      .select({ payload: events.payload })
+      .from(events)
+      .where(sql`${events.type} = 'nudge' and ${events.gosinoId} = ${ugo}`);
+    expect(noted.map((n) => (n.payload as { outcome: string }).outcome)).toContain("no_body");
+  });
+
+  /**
+   * «Qui» è la sola parola che questo sistema non può risolvere: un messaggio
+   * di chat non porta con sé la stanza da cui è stato scritto. Le strade erano
+   * due — indovinare o chiedere — e vale la regola del pannello: si chiede
+   * QUALE, invece di prendere un default e sperare.
+   */
+  it("«vieni qui» chiede quale stanza invece di indovinare", async () => {
+    const reply = await nudges.answer(ugo, "vieni qui");
+    expect(reply).toMatch(/non so in che stanza/u);
+    expect(reply).toMatch(/vai in/u);
+  });
 });
 
 describe("«vai in…»: lo stesso giro del pannello", () => {

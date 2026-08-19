@@ -22,18 +22,29 @@ import { RoomCatalogue } from "./roomCatalogue.js";
 
 export type Nudge =
   | { verb: "go"; room: string }
-  | { verb: "call"; name: string };
+  | { verb: "call"; name: string }
+  | { verb: "sleep" }
+  | { verb: "come" };
 
 /** le forme: chiuse, in italiano, coi rafforzativi tollerati */
 const GO_FORM =
   /^(?:ugo[,!]?\s+)?(?:vai|va'|spostati)\s+(?:in|nel|nella|nello|al|alla|allo|a)\s+(.{2,40}?)\s*[.!]*$/i;
 const CALL_FORM = /^(?:ugo[,!]?\s+)?chiama\s+([\p{L}][\p{L} '’-]{1,39}?)\s*[.!]*$/iu;
+/**
+ * «Vai a dormire». Solo verso il sonno, mai verso la sveglia: svegliarlo a
+ * comando sarebbe un interruttore, e a svegliarlo basta farsi vedere.
+ */
+const SLEEP_FORM = /^(?:ugo[,!]?\s+)?(?:vai a dormire|va['’] a dormire|dormi|a nanna|fai la nanna)\s*[.!]*$/i;
+/** «Vieni qui»: la stanza non è nominata, la deve sapere chi lo dice. */
+const COME_FORM = /^(?:ugo[,!]?\s+)?(?:vieni (?:qui|qua|da me)|torna (?:qui|qua))\s*[.!]*$/i;
 
 export function nudgeOf(text: string): Nudge | undefined {
   const go = GO_FORM.exec(text.trim());
   if (go?.[1] !== undefined) return { verb: "go", room: go[1].trim() };
   const call = CALL_FORM.exec(text.trim());
   if (call?.[1] !== undefined) return { verb: "call", name: call[1].trim() };
+  if (SLEEP_FORM.test(text.trim())) return { verb: "sleep" };
+  if (COME_FORM.test(text.trim())) return { verb: "come" };
   return undefined;
 }
 
@@ -82,6 +93,8 @@ export class NudgeService {
     }
 
     if (nudge.verb === "go") return this.go(registry, me, nudge.room, vars);
+    if (nudge.verb === "sleep") return this.sleep(me);
+    if (nudge.verb === "come") return this.come(me);
     return this.call(registry, me, nudge.name);
   }
 
@@ -139,6 +152,49 @@ export class NudgeService {
     other.gateway.broadcastGesture("perkUp");
     return this.noted(me, { verb: "call", name: other.name }, "done",
       `L'ho chiamato: ${other.name} ha drizzato le orecchie ${other.where !== undefined ? `in ${other.where}` : "dov'è"}.`);
+  }
+
+  /**
+   * «Vai a dormire» (terzo verbo).
+   *
+   * Solo verso il sonno: svegliarlo a comando sarebbe un interruttore, e a
+   * svegliarlo basta farsi vedere — `face_seen` lo fa già, con tanto di
+   * saluto. Reversibile e visibile, come chiede ADR-064 §5.
+   *
+   * Senza un corpo acceso non c'è niente da mandare a dormire, e lo dice: un
+   * «va bene, dormo» a schermi spenti sarebbe una bugia gentile.
+   */
+  private async sleep(me: GosinoRuntime): Promise<string> {
+    if (!me.gateway.hasBody()) {
+      return this.noted(me, { verb: "sleep" }, "no_body",
+        "Non ho un corpo acceso in questo momento: sono già al buio, grunf.");
+    }
+    if (!me.gateway.nudgeToSleep()) {
+      return this.noted(me, { verb: "sleep" }, "already", "Sto già dormendo... grunf.");
+    }
+    return this.noted(me, { verb: "sleep" }, "done", "Va bene. Buonanotte, grunf...");
+  }
+
+  /**
+   * «Vieni qui» (quarto verbo), e **non indovina**.
+   *
+   * Un messaggio di chat non porta con sé la stanza da cui è stato scritto:
+   * «qui» è la sola parola della lingua che questo sistema non può risolvere.
+   * Le strade erano due — tirare a indovinare con la stanza più probabile, o
+   * chiedere — e vale la stessa regola del pannello: un'azione che riguarda un
+   * posto chiede **quale** posto, invece di prendere un default e sperare.
+   *
+   * Elenca le stanze che conosce, così la risposta insegna la forma che
+   * funziona («vai in cucina») invece di lasciare l'utente a indovinarla.
+   */
+  private async come(me: GosinoRuntime): Promise<string> {
+    const rooms = await new RoomCatalogue(this.deps.dbFor(me.accountId)).list(me.accountId);
+    const known = rooms
+      .map((entry) => entry.room)
+      .filter((room) => room.toLowerCase() !== (me.where ?? "").toLowerCase());
+    const list = known.length === 0 ? "" : ` Le stanze che conosco sono: ${known.join(", ")}.`;
+    return this.noted(me, { verb: "come" }, "which_room",
+      `Vengo volentieri, ma da qui non so in che stanza sei: dimmi «vai in ...».${list}`);
   }
 
   /** ogni spinta lascia una riga nel registro: verbi ed esiti, mai contenuti */

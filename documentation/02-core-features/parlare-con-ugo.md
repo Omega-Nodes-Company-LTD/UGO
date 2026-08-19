@@ -123,6 +123,12 @@ E due sono **richieste, non comandi** — passano dal suo carattere, e può dirt
   sullo schermo di quella stanza. Se sta dormendo o ha appena preso uno spavento te lo dice,
   e se è stanco obbedisce sbuffando. Una stanza che non esiste non lo confonde: ti risponde
   che non la conosce.
+- **`vai a dormire`** — se ha un corpo acceso, si mette a dormire. **Non c'è il comando
+  contrario**, ed è voluto: per svegliarlo basta farti vedere. Se non ha nessuno schermo
+  acceso te lo dice, invece di rispondere «va bene» al buio.
+- **`vieni qui`** — ti risponde che da lì non sa in che stanza sei, e ti elenca quelle che
+  conosce. Un messaggio scritto non porta con sé la stanza da cui l'hai scritto, e tirare a
+  indovinare la stanza giusta sarebbe peggio che chiedertelo.
 - **`chiama Silvio`** (o come si chiama l'altro gosino) — il corpo di Silvio, dovunque sia,
   drizza le orecchie e risponde. Se non ha uno schermo acceso, UGO ti dice la verità: non
   può sentirlo.

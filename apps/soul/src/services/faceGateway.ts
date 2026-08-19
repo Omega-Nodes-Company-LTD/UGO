@@ -186,6 +186,29 @@ export class FaceGateway {
     return this.state;
   }
 
+  /**
+   * «Vai a dormire» (ADR-064, terzo verbo).
+   *
+   * È l'unico modo previsto per portare lo stato dall'esterno, e porta **solo**
+   * al sonno: risvegliarlo a comando sarebbe un interruttore, mentre un volto
+   * che compare lo sveglia già da sé (`face_seen`). Reversibile e visibile a
+   * occhio, come chiede ADR-064 §5 — il Glyph cambia insieme allo stato.
+   *
+   * Torna `false` quando non c'è niente da fare: già addormentato, o nessun
+   * corpo acceso a cui dirlo. Chi chiama trasforma quel `false` in una risposta
+   * onesta, invece di far finta.
+   */
+  public nudgeToSleep(): boolean {
+    if (this.state === "sleeping" || this.senders.size === 0) return false;
+    this.state = "sleeping";
+    const pattern = GLYPH_FOR_STATE.sleeping;
+    for (const send of this.senders) {
+      send({ type: "state", state: "sleeping" });
+      if (pattern !== undefined) send({ type: "glyph", pattern });
+    }
+    return true;
+  }
+
   /** current mood snapshot for the connection hello */
   public psycheView(): { vars: Record<string, number>; label: string } {
     const { vars, label } = this.deps.psyche.current(this.now());
