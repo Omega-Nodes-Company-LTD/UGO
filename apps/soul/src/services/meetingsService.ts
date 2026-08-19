@@ -1,5 +1,6 @@
 import { events, meetings, memories, messages, transcriptSegments, type DbClient } from "@ugo/db";
 import { searchMemories, type EmbeddingsClient, type ChatLlm } from "@ugo/memory";
+import { summaryPrompt } from "@ugo/prompts";
 import { decryptText, encryptText } from "@ugo/shared";
 import { asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -235,10 +236,10 @@ export class MeetingsService {
     const result = await this.deps.llm.chat(
       {
         channel: "meeting",
-        dynamicSystem:
-          "Riassumi la riunione appena conclusa in massimo 3 frasi, citando le decisioni e gli " +
-          "action item. Scrivi in italiano, in terza persona, senza markdown.\n\n" +
-          lines.join("\n"),
+        // il testo del riassunto è un artefatto versionato come gli altri
+        // blocchi (backlog gruppo 2): era scritto a mano qui, dove nessun test
+        // poteva vederlo e nessuna traduzione poteva raggiungerlo
+        dynamicSystem: `${summaryPrompt("riunione")}\n\n${lines.join("\n")}`,
         userText: "Fammi il riassunto della riunione.",
       },
       at,

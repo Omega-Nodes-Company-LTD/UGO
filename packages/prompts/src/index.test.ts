@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_LOCALE, identityPrompt, rulesPrompt } from "./index.js";
+import { DEFAULT_LOCALE, identityPrompt, rulesPrompt, summaryPrompt } from "./index.js";
 
 // File loading of package-local versioned artifacts; content assertions are
 // stability guarantees for the prompt-cache discipline (§5.5).
@@ -80,5 +80,34 @@ describe("una cache per lingua", () => {
     for (const block of [identityPrompt("en-GB"), rulesPrompt("en-GB")]) {
       expect(block).not.toMatch(/\{lingua\}|\{locale\}|\$\{/);
     }
+  });
+});
+
+describe("summaryPrompt: tre contesti, tre lavori diversi", () => {
+  it("dà a ogni contesto il suo testo, e sono distinti", () => {
+    const riunione = summaryPrompt("riunione");
+    const cliente = summaryPrompt("cliente");
+    const famiglia = summaryPrompt("famiglia");
+    expect(riunione).toMatch(/action item/u);
+    expect(cliente).toMatch(/aperto/u);
+    expect(famiglia).toMatch(/settimana/u);
+    expect(new Set([riunione, cliente, famiglia]).size).toBe(3);
+  });
+
+  /**
+   * Nessuno dei tre deve invitare a riempire i buchi: è la regola 7 del blocco
+   * cached applicata dove serve di più — un riassunto è esattamente il posto in
+   * cui un modello colma le lacune per far tornare il discorso.
+   */
+  it("i due che leggono appunti altrui vietano di inventare", () => {
+    expect(summaryPrompt("cliente")).toMatch(/non inventare/u);
+    expect(summaryPrompt("famiglia")).toMatch(/non inventarla/u);
+    for (const context of ["riunione", "cliente", "famiglia"] as const) {
+      expect(summaryPrompt(context), context).not.toMatch(/immagina/iu);
+    }
+  });
+
+  it("una lingua che non c'è ripiega sull'italiano, come gli altri blocchi", () => {
+    expect(summaryPrompt("riunione", "sw-UG")).toBe(summaryPrompt("riunione", DEFAULT_LOCALE));
   });
 });

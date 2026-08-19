@@ -36,6 +36,12 @@ import {
 import { addCheckin, MAX_CHECKINS, silenceCheckins, standingCheckins } from "./checkinService.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
 import { dateFor, parseDiaryAsk, tellDiary } from "./volition/diaryAsk.js";
+import {
+  parseWeekAsk,
+  tellNoWeek,
+  tellWeekUnavailable,
+  weekPrompt,
+} from "./volition/weekAsk.js";
 import { monthOf, parseMemoryAsk, tellMemories } from "./volition/memoryAsk.js";
 import { parseStoryAsk, storyPrompt, tellNoStory } from "./volition/story.js";
 import { MemoryBook } from "./memoryBook.js";
@@ -84,6 +90,9 @@ const RECALL_ALOUD = 5;
  * non gli si mette un limite, continua.
  */
 const STORY_TOKENS = 320;
+
+/** Tre frasi di riassunto: il template ne chiede tre, e tre bastano. */
+const WEEK_MAX_TOKENS = 160;
 
 export class BeingNotFoundError extends Error {}
 
@@ -620,6 +629,25 @@ export class ChatService {
      * token per farsi ripetere una cosa che è in casa. Il testo è suo, parola
      * per parola: qui non si riassume il riassunto.
      */
+    /**
+     * Backlog gruppo 2: «com'è andata la settimana?». Sta PRIMA della domanda
+     * sul diario perché è più specifica — sette pagine in fila non sono un
+     * riassunto — e la fa il **modello di casa**: il materiale è la vita
+     * privata della famiglia, farla uscire per farsela riassumere sarebbe il
+     * contrario di quello che il confidente inviolabile promette.
+     */
+    if (parseWeekAsk(request.text)) {
+      const diary = new DiaryService(db, dataKey);
+      const pages = await diary.pages(this.deps.accountId, this.deps.gosinoId, { limit: 7 });
+      if (pages.length === 0) return this.answered(tellNoWeek(), request, at);
+      if (this.deps.storyteller === undefined) {
+        return this.answered(tellWeekUnavailable(), request, at);
+      }
+      const told = await this.deps.storyteller.generate(weekPrompt(pages), WEEK_MAX_TOKENS);
+      const text = told?.trim() ?? "";
+      return this.answered(text === "" ? tellWeekUnavailable() : text, request, at);
+    }
+
     const diaryAsk = parseDiaryAsk(request.text);
     if (diaryAsk !== undefined) {
       const diary = new DiaryService(db, dataKey);

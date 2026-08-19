@@ -74,3 +74,34 @@ export function rulesPrompt(locale: string = DEFAULT_LOCALE): string {
 export function receptionPrompt(locale: string = DEFAULT_LOCALE): string {
   return loadPromptFile("reception", locale);
 }
+
+/**
+ * I contesti in cui UGO riassume qualcosa (backlog gruppo 2).
+ *
+ * Sono tre lavori diversi e per mesi ne è esistito uno solo, scritto a mano
+ * dentro `meetingsService` — cioè un prompt di produzione che nessun test
+ * poteva vedere e nessuna traduzione poteva raggiungere. Riassumere una
+ * riunione (decisioni e action item, terza persona), lo stato di un cliente
+ * (cosa è aperto, cosa aspetta) e una settimana di casa (a chi ci vive) non
+ * sono lo stesso testo con parole diverse: cambiano il destinatario e cosa
+ * conta lasciare fuori.
+ *
+ * Stessa disciplina degli altri blocchi: file versionato, mai interpolato, e
+ * una lingua per file.
+ */
+export type SummaryContext = "riunione" | "cliente" | "famiglia";
+
+/**
+ * Un file solo con tre sezioni invece di tre file: sono tre righe, e tenerle
+ * vicine è l'unico modo per accorgersi che stanno divergendo.
+ */
+export function summaryPrompt(
+  context: SummaryContext,
+  locale: string = DEFAULT_LOCALE,
+): string {
+  const document = loadPromptFile("summaries", locale);
+  const sections = document.split(/^# /mu).map((block) => block.trim());
+  const wanted = sections.find((block) => block.startsWith(context));
+  if (wanted === undefined) throw new Error(`summary prompt "${context}" missing for ${locale}`);
+  return wanted.slice(context.length).trim();
+}

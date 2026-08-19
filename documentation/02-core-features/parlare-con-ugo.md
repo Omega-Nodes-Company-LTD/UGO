@@ -86,6 +86,18 @@ tutti gli altri — non perché UGO sappia di medicina, ma perché l'hai detto t
 che lo riguarda salta fuori. Prima di questa regola poteva succedere che si tenesse l'allergia per
 sé e rispondesse «non lo so»: era il modo peggiore possibile di essere prudenti.
 
+### «Com'è andata la settimana?»
+
+Di una giornata sola te la racconta a memoria: il diario l'ha già scritto lui stanotte, e non
+costa niente. Di una **settimana** no — sette pagine in fila non sono un riassunto — e allora
+le mette in ordine e te la racconta in tre frasi.
+
+A farlo è **la voce di casa**, sempre, anche quando per il resto sta rispondendo il modello
+grande: quello che c'è scritto nel diario è la vita di chi ci abita, e non esce per farsi
+riassumere.
+
+Se di quei giorni non ha scritto niente te lo dice, invece di inventarti una settimana.
+
 ## Le parole che sono gesti
 
 Alcune forme fisse fanno qualcosa di preciso, subito e gratis — le risponde lui, senza scomodare
