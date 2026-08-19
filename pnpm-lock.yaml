@@ -107,6 +107,9 @@ importers:
 
   apps/reception:
     dependencies:
+      '@ugo/face-body':
+        specifier: workspace:*
+        version: link:../../packages/face-body
       '@ugo/shared':
         specifier: workspace:*
         version: link:../../packages/shared

@@ -320,3 +320,20 @@ label {
   background: color-mix(in srgb, var(--ok) 12%, transparent);
   color: var(--ok);
 }
+
+/* ADR-115: la stanza del gosino nella reception. Un riquadro con un rapporto
+   fisso, così il corpo non salta quando la pagina si ridimensiona — e un fondo
+   che non è bianco, perché una creatura sospesa nel vuoto sembra un errore. */
+.body3d {
+  width: 100%;
+  max-width: 22rem;
+  aspect-ratio: 4 / 3;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f3ecf3 0%, #e7dfe6 100%);
+}
+.body3d-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

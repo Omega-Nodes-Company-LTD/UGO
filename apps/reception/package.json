@@ -16,7 +16,8 @@
     "@ugo/shared": "workspace:*",
     "next": "^15.5.12",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "@ugo/face-body": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.19.0",

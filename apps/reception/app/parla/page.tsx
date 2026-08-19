@@ -9,6 +9,7 @@ import type {
   ReceptionRewardResponse,
 } from "@ugo/shared";
 import { Avatar, type AvatarState } from "../../components/avatar";
+import { Body3d } from "../../components/body3d";
 import { ApiError, call, download } from "../../lib/api";
 import { chosenGosino } from "../../lib/session";
 import { hush, listen, speak, speechAvailable, type ListenHandle } from "../../lib/speech";
@@ -42,6 +43,12 @@ export default function Parla(): React.JSX.Element {
   const [liveText, setLiveText] = useState("");
   const [draft, setDraft] = useState("");
   const [avatar, setAvatar] = useState<AvatarState>("idle");
+  /**
+   * ADR-115: l'umore arriva **con la risposta**, non da un canale aperto. Fra
+   * una risposta e l'altra il corpo respira e basta — che è quello che fa un
+   * animale quando non gli parli.
+   */
+  const [mood, setMood] = useState<Record<string, number> | undefined>(undefined);
   const [voiceOn, setVoiceOn] = useState(true);
   const [busy, setBusy] = useState(false);
   /**
@@ -107,6 +114,7 @@ export default function Parla(): React.JSX.Element {
         ...turns,
         { who: "ugo", text: reply.reply, ...(reply.guide === true && { guide: true }) },
       ]);
+      if (reply.mood !== undefined) setMood(reply.mood.vars);
       if (reply.ticketId !== undefined) {
         setThread((turns) => [
           ...turns,
@@ -213,7 +221,12 @@ export default function Parla(): React.JSX.Element {
   return (
     <div>
       <div className="stage">
-        <Avatar state={avatar} seed={gosino} />
+        <Body3d
+          look={who?.look}
+          state={avatar}
+          mood={mood}
+          fallback={<Avatar state={avatar} seed={gosino} />}
+        />
         <div className="who" data-testid="who">
           {who !== undefined ? `Stai parlando con ${who.name}` : "…"}
         </div>

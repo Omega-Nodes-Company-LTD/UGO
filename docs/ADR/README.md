@@ -120,4 +120,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [112](./112-il-gioco-e-fatto-di-turni.md) | Un gioco è fatto di turni: lo stato che non esisteva | Accettata |
 | [113](./113-i-luoghi-dell-account.md) | I luoghi dell'account: il cielo è del posto, non del titolare | Accettata |
 | [114](./114-lo-screening-in-silico-non-filtra-niente.md) | Lo screening in silico non filtra niente (risultato negativo) | Accettata |
-| 115 | *(prossimo numero disponibile)* | — |
+| [115](./115-la-reception-e-una-nostra-stanza.md) | La reception è una nostra stanza: il corpo esce dal chiosco | Accettata |
+| 116 | *(prossimo numero disponibile)* | — |

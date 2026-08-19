@@ -470,8 +470,6 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         });
         // ADR-076: le liste si vedono e si spuntano anche dal pannello
         registerListRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
-        // ADR-113: i luoghi dell'account, e in quale luogo sta una stanza
-        registerPlaceRoutes(app, { db: options.db, guard });
         // ADR-111: i documenti di casa — «UGO conosce solo ciò che ha sentito»
         registerHouseDocRoutes(app, {
           db: options.db,
@@ -605,12 +603,35 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           ...(reception.github !== undefined && { github: reception.github }),
           // ADR-055 wall 3, built here so it shares db and key with the rest
           cache: new AnswerCache(options.db, reception.dataKey, reception.embedder, reception.dbFor),
+          /**
+           * ADR-115: la reception LEGGE l'umore, non lo muove — e lo legge
+           * solo quando risponde. Senza registro (una casa senza runtime
+           * accesi) il corpo si disegna fermo, che è ciò che faceva prima.
+           */
+          ...(registry !== undefined && {
+            moodOf: (gosinoId: string) =>
+              registry
+                .everywhere()
+                .find((runtime) => runtime.id === gosinoId)
+                ?.psyche.current(new Date()),
+          }),
         }),
         dataKey: reception.dataKey,
         audit,
         ...(reception.github !== undefined && { github: reception.github }),
       });
     }
+    /**
+     * ADR-113: i luoghi sono **dell'account**, non delle creature.
+     *
+     * Erano finiti dentro il blocco `gosini`, che è dove vivono nascite e
+     * genoma: una casa senza creature accese rispondeva 404 al proprio
+     * indirizzo. Le hanno trovate i test, ed è la stessa lezione della parola
+     * che faceva tre lavori — una rotta registrata sotto la condizione
+     * sbagliata è una rotta che a volte non c'è.
+     */
+    registerPlaceRoutes(app, { db: options.db, guard });
+
     if (face !== undefined) {
       app.register(async (instance) => {
         await registerFaceWs(instance, face, options.db, registry, {
