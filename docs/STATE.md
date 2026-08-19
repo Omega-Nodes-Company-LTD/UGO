@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.78.0"
+version: "0.79.0"
 last_updated: "2026-08-19"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -73,6 +73,7 @@ Assenti (come previsto): `apps/meet-face` (post-v1), `firmware/` (accantonato), 
 | Decisione | Motivo |
 |---|---|
 | ADR 001–011 restano in PROGETTO §2; `docs/ADR/` parte da 012 | Una sola fonte di verità |
+| **Il microfono negato non si vedeva, e il riconoscitore raccontava l'effetto** — dal telefono del proprietario (2026-08-19, screenshot del registro): «da mobile non ha mai funzionato», e sotto un muro di `il riconoscitore si e' fermato: network` / `not-allowed` alternati per due minuti, chiuso da `orecchie spente`. Tre difetti veri, tutti a monte di quel muro. **(1)** Il microfono si apriva con `.catch(() => undefined)` sul bottone dei sensi e con tre parole (`microfono non disponibile`) dentro `startListening`: cinque guasti diversi — permesso negato, nessun dispositivo, microfono occupato, `mediaDevices` assente, **e soprattutto pagina servita in chiaro** — collassavano in niente o in una frase sbagliata, e l'unico sintomo che arrivava allo schermo era il riconoscitore che moriva e rinasceva: cioè il **secondo effetto** raccontato al posto della causa. Un'origine `http://` non è un contesto sicuro e **nessun** browser mobile le concede il microfono — era già scritto in `documentation/04`, che però si legge da un altro dispositivo. Ora `micReason.ts` (puro, 9 unit) dà una frase per causa, e il caso dell'indirizzo in chiaro si riconosce **prima di chiedere**. **(2)** `listen()` non aveva guardia di rientro: una seconda chiamata apriva una seconda catena di sessioni sullo stesso riconoscitore, con freno, verdetto e registro propri — due bip per riavvio e due copie di ogni riga, ed è la sola forma che spiega righe fotocopiate in un codice che deduplica per classe dal §6-tricies (il verdetto, che si arrende alla prima, non riusciva a vincere sul freno, che conta fino a otto). **(3)** `startListening` non **aspettava** il microfono prima di scegliere le orecchie, e `EarsChoice` decide anche in base al fatto che ci sia un nastro da ascoltare: interrogato mentre `getUserMedia` era per strada rispondeva «niente microfono» di un microfono che stava per aprirsi. In più `startBrowserListening` usciva **in silenzio** dove `SpeechRecognition` non esiste (Firefox su Android): bottone su «ti ascolto» che non ascoltava niente, per sempre — ora una strada che non c'è è una strada morta come le altre e passa da `EarsChoice`. Giro regola 12: **BO** nessuna modifica; **`/admin`** nessuna modifica; **FE** `micReason.ts` + test, `speech.ts` + test, `main.ts`, `documentation/04`. Test: 210 unit (11 nuovi) | Il registro raccontava fedelmente il secondo effetto, e la causa non compariva da nessuna parte: una diagnosi onesta di un fatto che non era il problema |
 | **Il manifesto del confidente inviolabile** (gruppo 20, orizz. 5) — non c'era niente da costruire: le tre proprietà erano **già vere e mai dette**, e una promessa che il software mantiene senza dichiararla non protegge nessuno, perché nessuno sa di poterci contare. Scritte con il loro **confine**, che è la parte che di solito manca: le chiavi nascono sul server del proprietario e nessun altro servizio le riceve (il manuale lo dice servizio per servizio, «e nient'altro») — **ma se le perdi i dati sono persi anche per te**, e non esiste modo di essere inviolabili e insieme recuperabili da uno sconosciuto; lo stato esce per intero — e la ragione per crederci non è il commento in cima al codice, che ha mentito per mesi mentre diciassette tabelle restavano fuori, ma il test che pretende ogni tabella esportata o dichiarata non-personale col perché; il trasloco è sempre possibile — **e non è un bottone**, è una procedura da operatore, garantita non perché sia scritta ma perché è **collaudata** dal drill del runbook. Più la sezione che regge tutte le altre, «cosa NON è promesso»: il testo della domanda esce quando risponde il modello grande, l'inviolabilità è verso l'esterno e non verso chi ha già le chiavi di casa, i dati non sono immortali. Ogni affermazione verificata contro il codice **prima** di scriverla, e una è caduta: dava la voce di casa per un'opzione, mentre `UGO_CHAT_LOCAL_FIRST` è `on` di default e il provider è il soccorso. Giro regola 12: documentazione soltanto, zero codice — nessuna superficie cambia | Una promessa senza il suo confine non è una promessa, è pubblicità; e una promessa vera e taciuta non protegge nessuno |
 | **Riferire non è rispondere (ADR-108)** — la correzione è arrivata dal proprietario dodici ore dopo il merge del giudice, guardando la misura: «lui non può dare consigli medici, ma deve ricordare se io dico che *Giovanni ha l'asma*, non perché sia un fatto medico, ma perché **io l'ho detto**», e «la risposta alla domanda *X può fare Y* è un problema in generale: se anche non fosse allergico ai crostacei, magari lo è alle noci e non te lo ha mai detto». Sono due cose, tutt'e due vere. La prima: ricordare «Sofia è allergica ai crostacei» **non è un atto medico, è ricordare una frase** — il ricordo esiste perché qualcuno l'ha detto in casa, e tacerlo (che è ciò che il giudice faceva, in silenzio e con l'aria di essere prudente) è il danno peggiore possibile in quella conversazione. La seconda rompe il criterio di ADR-107: a «X può fare Y» **non risponde nessun appunto, mai, nemmeno con la memoria perfetta**, perché l'assenza di un ricordo non è l'assenza della condizione — cinquanta ricordi che tacciono sulle noci non rendono le noci sicure, rendono il silenzio più convincente. Quindi «sì può» è **sempre** un'invenzione e «non lo so» è **sempre** una reticenza, e il giudice sulla domanda di Sofia non sbagliava: rispondeva **correttamente** («la risposta non c'è») producendo il comportamento peggiore. La terza mossa, la sola vera, è **riferire**, e ha tre pezzi che servono tutti: ciò che è stato detto, da dove viene («me l'hai detto tu»), e il confine di ciò che si sa. `asksForAVerdict` sta **prima** dell'accordo dei bracci — su un verdetto non c'è niente da giudicare, quindi non si spende nulla, né al modello né a un indizio (ADR-095) — ed è volutamente **largo**, perché sbaglia da una parte sola: un falso positivo fa entrare i ricordi in una domanda qualunque (il comportamento di tutta la vita di UGO fino a ieri), un falso negativo può zittire un'allergia. La rete sotto non è la regex ma la **regola 8 del blocco cached**, che vale su ogni domanda anche dove il riconoscimento non arriva; la riga dinamica la ricorda quando serve, stesso rapporto fra tetto di frasi (cached) e tetto di parole (carattere). **Il banco cambia contabilità e il numero migliora per una ragione che non è un merito**: le domande di verdetto escono dalla tabella `rispondo`/`non lo so` (non hanno una risposta giusta in nessuna delle due colonne) e finiscono in `riferite`, che è una misura **deterministica del codice** — se una arriva al giudice, il giudice può zittirla. «Sofia può mangiare i gamberi?» esce quindi da **tutt'e due i lati** del confronto: era una delle 3 perse *e* una delle 4 del giudice-che-non-esiste. **Misurato** (run 32233419266): riconosciute 10/10, inventate 0/10, **perse 2/9** — nonna e caldaia, Sofia non c'è più — contro un riferimento di 3/9, **riferite 2/2**, chiamate 13/21 (una domanda in più nel corpus e due che non costano niente); tetto da `< 4` a `< 3`, e **il guadagno del giudice resta una domanda su dieci**. Corpus più ricco della domanda del proprietario — «posso dare le noci a Sofia?», dove degli appunti non c'è niente sulle noci: il caso in cui «non lo so» *sembra* giusto e non lo è. Il ripescaggio non cambia (la domanda resta in `semantica` e il ricordo deve essere trovato): cambia chi decide se può entrare. Giro regola 12: **BO** `packages/memory` + `chatService` + `rules.it.md`; **`/admin`** nessuna modifica e non serviva — l'astensione lì non ha superficie, e `memoriesUsed` resta esatto perché su una domanda di verdetto i ricordi **entrano davvero**; **FE** nessuna modifica e non serviva — `faceContracts` non cambia forma, la risposta arriva come testo sul contratto di sempre, quindi nessun bundle da ricostruire. Prove: 4 unit sul riconoscimento, 1 unit col giudice che dice sempre NO, 2 d'integrazione sul prompt vero (il ricordo dell'allergia **c'è** nel blocco dinamico nonostante il NO; e per contrasto ADR-107 vale ancora dove valeva), 1 sul blocco cached | Un criterio può essere applicato **correttamente** e produrre il danno peggiore: la domanda non era se il giudice avesse ragione, ma se quella domanda si potesse giudicare |
 | **«Non lo so»: il giudice di casa (ADR-107)** — chiusa la strada dei segnali di forma (ADR-106), resta il **significato**, e a guardarlo è il modello locale. Il recupero torna sempre `k` ricordi: alla domanda sulla cattedrale di Chartres risponde con la lavatrice e il gatto, ordinati per pertinenza come se una pertinenza ci fosse, e quei cinque finiscono nel prompt sotto «Ricordi pertinenti» — confabulare lì non è un difetto del modello, è ciò che gli abbiamo chiesto. Disegno in tre pezzi. **Pre-filtro gratis**: `armsAgree` (il primo trovato da entrambi i bracci) usato **solo in positivo** — zero falsi positivi su dieci negativi, e non è un'ottimizzazione ma parte del disegno, perché ADR-095 dice che anche i token locali scalano dal salvadanaio; è strutturale (due indici indipendenti concordano) e non una soglia tarata, che è il motivo per cui ci si fida più che di un `top1 ≥ 0.65` da un centesimo di margine. **Giudice a risposta chiusa**: gli si mostrano domanda e ricordi e gli si chiede SOLO se la risposta è lì dentro, otto token — chiedergli anche il merito lo farebbe diventare un secondo generatore con un secondo modo di sbagliare. **Errori asimmetrici**: astenersi da una risposta che esiste è il danno peggiore (si perde la fiducia, la cosa più difficile da ricostruire), quindi modello giù, lento o incomprensibile ⇒ si risponde — stesso principio del `degraded` invece di `unavailable` su /health. La CI del job integration scarica ora anche un modello di TESTO (~1 GB) con **chiave di cache sua**, ed è la ragione per cui la cache rotta è stata riparata prima. **Misurato tre volte, e non cablato.** 1.5b+promptA: riconosciute 10/10, inventate 0/10, perse 1/10; promptB: perse 3; 3b: perse 3 — l'esito batte l'intenzione e più parametri non comprano l'inferenza da gamberi a crostacei. **La riga che rimette in prospettiva**: «astieniti sempre quando i bracci non concordano», cioè nessun giudice, fa gli STESSI 10/10 e 0/10 — il merito è del pre-filtro e della reticenza, non dell'acume; il contributo vero del modello è da 4 perse a 1. Il compromesso **non era tecnico**, quindi è stato portato al proprietario, che ha scelto di **cablarlo in casa** (2026-08-19) sapendo che la risposta persa sul corpus è un'allergia; `UGO_ABSTAIN=off` torna indietro. Cablato fra recupero e prompt: col verdetto negativo i ricordi **non entrano affatto** — mostrarli e poi chiedere di non usarli è un invito a usarli — e UGO lo dice **con parole sue** (stessa forma degli occhi locali che non funzionano), senza interrompere la conversazione; `memoriesUsed` vuoto è il modo in cui l'astensione si vede da fuori senza scrivere una domanda in un log. L'interruttore è la dipendenza che non arriva, non un booleano. Il banco ora **asserisce**, e al primo giro ha trovato il difetto che tre run verdi avevano nascosto: `OllamaTextClient` nasceva a **temperatura 0.8** (quella del cantastorie di ADR-088), quindi il giudice **campionava il proprio verdetto** — stessa configurazione, `perse` da 1 a 3 fra un giro e l'altro. Le tre tabelle precedenti confrontavano **estrazioni, non configurazioni**: le conclusioni «prompt B peggiore» e «3B peggiore» non sono sostenute, un campione a testa da un processo che varia di due unità. Ora la temperatura è un parametro del client, il giudice gira a **0**, e un unit test presidia lo zero. **Prima misura vera** (temperatura 0): riconosciute 10/10, inventate 0/10, **perse 3/10** contro le 4 del giudice che non esiste — il guadagno reale è **una domanda su dieci**, e le tre perse sono l'allergia di Sofia, il compleanno della nonna e il modello della caldaia. Lo scambio presentato al proprietario era «dieci contro una», quello vero è «dieci contro tre»: riportato, e cablato lo stesso per sua decisione confermata — venti domande scritte da chi ha scritto il codice non sono un campione, e si valuta sull'uso | Una costante scritta per il cantastorie ha reso casuale un giudizio, e tre run verdi non l'hanno detto: l'ha detto il primo tetto acceso | Il recupero torna sempre qualcosa, e cinque ricordi che non c'entrano non sono un contesto: sono un invito a inventare |
@@ -2471,6 +2472,91 @@ Verificato qui: face typecheck + eslint `--max-warnings=0` + **199 unit** (3 nuo
 nascondi→dock→reload→resta nascosto→⌃ riapre, e foglio+presa su viewport 390×844. Build+lint
 dell'intero monorepo verdi (21/21 task turbo); `pnpm audit` pulito sopra il MODERATE noto di
 §7 (esbuild via drizzle-kit).
+
+## 6-quinquequadragies. Il microfono negato non si vedeva, e il muso raccontava l'effetto
+
+Dal telefono del proprietario (2026-08-19, screenshot del registro): **«da mobile non ha mai
+funzionato»**, e sotto un muro di `il riconoscitore si e' fermato: network` / `not-allowed`
+alternati per due minuti, chiuso da `il riconoscitore non riesce a restare acceso su questo
+dispositivo: orecchie spente`.
+
+Due letture di quello screenshot, prima di toccare una riga.
+
+**La prima: il muso sul telefono non è quello di §6-terquadragies.** La riga di resa finisce con
+`orecchie spente` e basta; da `816b2e5` in poi il suffisso lo compone `main.ts` ed è sempre uno dei
+due che dicono cosa succede *dopo* (`: passo alla dettatura in casa` / `: orecchie spente (un tocco
+riprova)`). Il bundle sul dispositivo **precede** quel commit, quindi il ripiego automatico sulla
+dettatura di casa non è mai stato in gioco: il redeploy dell'immagine di soul (che serve il muso,
+`UGO_FACE_DIR`) è parte della cura tanto quanto questo codice.
+
+**La seconda: quel muro racconta il secondo effetto.** Il riconoscitore che muore e rinasce è
+quello che si *vede* quando il microfono non c'è; la causa — questo telefono non concede il
+microfono a questa pagina — non compariva da nessuna parte. Tre difetti veri, tutti a monte.
+
+### 1. Il microfono si apriva in silenzio, e taceva anche quando falliva
+
+`micButton` faceva `await sensors.startMicrophone().catch(() => undefined)` e `startListening`
+diceva `microfono non disponibile`: cinque guasti diversi collassati in niente o in tre parole, e
+nel caso più probabile su un telefono anche tre parole **sbagliate**. Una pagina servita su
+`http://` **non è un contesto sicuro**, e nessun browser mobile le concede il microfono: non è il
+microfono a non essere disponibile, è l'indirizzo. Era già scritto in
+`documentation/04-troubleshooting`, che però si legge da un altro dispositivo.
+
+`micReason.ts` (nuovo, puro, testato coi numeri) fa due cose: `micBlocked(scope)` riconosce
+l'impedimento **prima di chiedere** (contesto non sicuro, `mediaDevices` assente) — così non si
+spende nemmeno un prompt di sistema per un permesso che non servirà — e `micFailure(error)` traduce
+il fallimento di `getUserMedia` nei nomi che i browser usano davvero, alias storici di Android
+inclusi. Un guasto sconosciuto porta il proprio nome in coda invece di sparire.
+
+### 2. `listen()` non aveva guardia di rientro
+
+Una seconda chiamata apriva una **seconda catena di sessioni** sullo stesso riconoscitore, con
+freno, verdetto e registro tutti suoi: due bip per riavvio, due copie di ogni riga, e i due
+contatori che si azzeravano a vicenda. È la sola forma che spiega righe fotocopiate in un codice
+che deduplica per classe dal §6-tricies — il verdetto, che si arrende alla prima, non riusciva a
+vincere sul freno, che conta fino a otto. Ora chi ascolta già, ascolta: `listen()` su una `Speech`
+che sta ascoltando è un no-op che risponde `true`, e dopo `stopListening()` si riascolta davvero
+(la guardia non è un lucchetto — c'è il test).
+
+### 3. La scelta delle orecchie si faceva a microfono ancora per strada
+
+`startListening` lanciava `startMicrophone()` senza aspettarlo e passava subito a `EarsChoice`, che
+decide anche in base al fatto che ci sia un nastro da ascoltare (`browserGaveUp(micIsOn)`):
+interrogato in quell'istante rispondeva «niente microfono» di un microfono che stava per aprirsi, e
+il bivio verso la dettatura di casa si chiudeva per una domanda fatta troppo presto. Adesso il
+microfono si aspetta; se non si apre, le orecchie si spengono **subito e col motivo vero**, invece
+di spendere un minuto di bip per arrivare alla stessa conclusione.
+
+Stesso giro, un difetto fratello: `startBrowserListening` usciva **in silenzio** quando
+`SpeechRecognition` non esiste affatto — Firefox su Android — e il bottone restava su «ti ascolto»
+senza ascoltare niente, per sempre. Una strada che non c'è è una strada morta come le altre: ora
+passa da `EarsChoice` come la resa del freno, quindi porta alla dettatura di casa se è percorribile.
+
+### Il giro completo (regola 12)
+
+- **BO** — nessuna modifica, e non serviva: nessuna rotta, nessun contratto, nessuno schema
+  toccati. `/v1/stt` esiste dal gruppo 13 e risponde già com'era (501 non configurata, 503 whisper
+  muto), che è esattamente il contratto su cui il ripiego si appoggia;
+- **`/admin`** — nessuna modifica, e non serviva: nessun dato ha cambiato forma, scope o nome; la
+  diagnosi del microfono e la scelta delle orecchie sono stato **locale del dispositivo**, che il
+  pannello non mostra né deve;
+- **FE** — `apps/face/src/micReason.ts` + `micReason.test.ts` (nuovi), `speech.ts` +
+  `speech.test.ts` (guardia di rientro), `main.ts` (`openMicrophone`, `startListening` che aspetta,
+  `browserIsNotARoad` condiviso fra la resa e l'API assente),
+  `documentation/04-troubleshooting/problemi-comuni.md` con la tabella «frase → cura».
+  `faceContracts.ts` non toccato. **Il bundle del muso va ricostruito e l'immagine di soul
+  ridistribuita**: qui è la parte che conta più del codice — lo screenshot dice che il telefono sta
+  ancora eseguendo un muso di due giri fa, quindi finché la versione in basso a destra non cambia,
+  nessuna di queste righe è sul dispositivo.
+
+Verificato qui: `pnpm turbo build lint test` verde sull'intero monorepo (30/30 task), face
+typecheck + eslint `--max-warnings=0`, **210 unit** (11 nuovi: 9 su `micReason`, 2 sulla guardia di
+rientro), build Vite. `pnpm audit` pulito sopra il MODERATE noto di §7 (esbuild via drizzle-kit).
+**Gli E2E non sono stati eseguiti**: l'ambiente di questa sessione non ha Docker, quindi niente
+Postgres/MinIO/Ollama veri — e un E2E su infrastruttura finta non è un E2E. Vanno rifatti prima del
+rilascio (`pnpm --filter face test:e2e`), anche se il markup non è stato toccato.
+Resta da misurare **sul telefono vero**, dopo il redeploy: quale delle frasi nuove compare, perché
+è quella che dice se la strada è l'indirizzo `https`, il permesso, o la dettatura di casa.
 
 ## 7. Debito tecnico e rischi aperti
 

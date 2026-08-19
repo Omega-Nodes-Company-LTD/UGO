@@ -1,8 +1,8 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.37.0"
-last_updated: "2026-08-18"
+version: "0.38.0"
+last_updated: "2026-08-19"
 author: "ThinkPink Studio"
 ---
 
@@ -18,9 +18,9 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
 1. Controlla che nella barra in alto ci sia scritto **connesso**.
 2. Guarda se il pulsante **Attiva sensi** è ancora visibile nei comandi. Se c'è, il microfono non è mai stato
    autorizzato: toccalo e concedi i permessi.
-   - Se lo tocchi e **non succede niente**, guarda l'indirizzo: se comincia per `http://` invece che
-     `https://`, è il telefono a negare il microfono, non UGO. Usa l'indirizzo `https://…ts.net`
-     (chi gestisce il server lo trova nel runbook, §10) e reinstalla l'icona da lì.
+   - Se lo tocchi e **non succede niente**, apri il registro (**Cosa è stato detto**): adesso UGO
+     dice sempre perché il microfono non si è aperto. Le frasi che puoi leggere sono queste, e
+     ognuna ha una cura diversa — vedi [Il microfono non si apre, e UGO lo dice](#il-microfono-non-si-apre-e-ugo-lo-dice).
 3. Tocca il muso: se il grugno si muove, ti sta ascoltando e il problema è il riconoscimento vocale.
    Parla più vicino, in un ambiente meno rumoroso.
 4. Se dice `oggi ho finito le parole` (o una frase simile), non è rotto: ha esaurito il budget
@@ -34,6 +34,25 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
 6. Se il bottone è passato da solo a **orecchie spente**, nemmeno la dettatura di casa era
    disponibile (il server non la offre, o non risponde). Un tocco sul bottone riprova; tutto il
    resto (rumori, luce, camera) continua a funzionare.
+
+## Il microfono non si apre, e UGO lo dice
+
+Fino alla versione 0.37 un microfono negato era invisibile: non succedeva niente, e l'unica traccia
+era il riconoscimento vocale che si spegneva e riaccendeva (righe `il riconoscitore si e' fermato:
+not-allowed` / `network` nel registro). Quelle righe raccontavano l'**effetto**; adesso il registro
+porta la **causa**, in una riga sola. Cercala nel registro e applica la cura corrispondente.
+
+| Quello che UGO scrive | Cosa sta succedendo | Cosa fare |
+|---|---|---|
+| `questa pagina non è su una connessione sicura (https://)…` | L'indirizzo comincia per `http://`. Nessun telefono concede il microfono a una pagina in chiaro: non è una scelta di UGO e nessun tocco sul bottone la cambia. | Apri UGO dall'indirizzo `https://…ts.net` (chi gestisce il server lo trova nel runbook, §10) e reinstalla l'icona da lì. |
+| `il microfono è negato a questa pagina…` | Il permesso è stato rifiutato, una volta o per sempre. | Apri le impostazioni del sito nel browser (il lucchetto accanto all'indirizzo), concedi il microfono e ricarica. |
+| `nessun microfono su questo dispositivo` | Il dispositivo non ne ha uno, o è disattivato dal sistema. | Collega un microfono o una cuffia e ricarica. |
+| `il microfono è già in mano a un'altra applicazione` | Un'altra app lo tiene occupato (una videochiamata, un registratore). | Chiudi l'altra applicazione e tocca di nuovo il pulsante delle orecchie. |
+| `questo browser non ha il riconoscitore vocale` | Il browser non fa dettatura (succede su Firefox per Android). | Non serve fare niente: UGO passa da solo alla **dettatura di casa**, che trascrive sul server. Se leggi anche `orecchie spente`, la dettatura di casa non è disponibile: vedi il punto 6 qui sopra. |
+
+Senza microfono nessuna delle due strade esiste, quindi le orecchie si spengono **subito** e col
+motivo vero, invece di spendere un minuto di bip per arrivare alla stessa conclusione. Gli altri
+sensi (rumore, luce, camera) non c'entrano e continuano a funzionare.
 
 ## Fa il suono del microfono a ripetizione, o non riesco ad attivare la camera
 

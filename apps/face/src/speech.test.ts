@@ -173,3 +173,38 @@ describe("i verdetti e il registro (il telefono del proprietario, secondo giro)"
     expect(speech.isListening()).toBe(false);
   });
 });
+
+describe("una sola catena di sessioni (il muro di righe fotocopiate)", () => {
+  it("chiamare `listen` due volte non raddoppia i riavvii, i bip e il registro", () => {
+    const speech = new Speech();
+    const troubles: string[] = [];
+    const report = (what: string): void => {
+      troubles.push(what);
+    };
+    speech.listen(() => undefined, undefined, report);
+    // il secondo giro arriva da un tocco sul bottone, o da un ripiego che
+    // rientra: chi ascolta gia' ascolta, e la seconda chiamata lo conferma
+    expect(speech.listen(() => undefined, undefined, report)).toBe(true);
+    expect(FakeRecognition.born.length).toBe(1);
+
+    // una morte in culla = UN riavvio, non due catene che si rincorrono
+    last().onerror?.({ error: "network" });
+    last().onend?.();
+    vi.advanceTimersByTime(3000);
+    expect(FakeRecognition.born.length).toBe(2);
+    // e una riga per classe di errore, non una per catena: e' esattamente il
+    // muro di `network`/`not-allowed` fotocopiati letto sul telefono
+    expect(troubles).toHaveLength(1);
+
+    speech.stopListening();
+  });
+
+  it("dopo `stopListening` si riascolta davvero: la guardia non e' un lucchetto", () => {
+    const speech = new Speech();
+    speech.listen(() => undefined);
+    speech.stopListening();
+    expect(speech.listen(() => undefined)).toBe(true);
+    expect(FakeRecognition.born.length).toBe(2);
+    speech.stopListening();
+  });
+});
