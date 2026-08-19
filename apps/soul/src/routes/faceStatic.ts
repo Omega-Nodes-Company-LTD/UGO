@@ -16,7 +16,7 @@ import type { FastifyInstance } from "fastify";
  * di deploy per essere smentita. Il corpo confronta questo con il proprio e si
  * ricarica da solo.
  */
-function servedBuildId(root: string): string {
+export function servedBuildId(root: string): string {
   try {
     const assets = readdirSync(join(root, "assets"));
     const main = assets.find((name) => /^index-[A-Za-z0-9_-]+\.js$/.test(name));

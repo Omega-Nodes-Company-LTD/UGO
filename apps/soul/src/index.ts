@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { createDbClient, createScopedDbClient, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
+import { createDbClient, createScopedDbClient, events, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
@@ -40,6 +40,8 @@ import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
 import { buildServer } from "./server.js";
+import { TurnLog } from "./services/diagnostics/turnLog.js";
+import { servedBuildId } from "./routes/faceStatic.js";
 import { createAccount } from "./services/accountService.js";
 import type { Capability } from "./routes/capabilities.js";
 
@@ -237,9 +239,19 @@ let registryRef: GosinoRegistry | undefined = undefined;
 const nudges = new NudgeService({ dbFor, registry: () => registryRef });
 
 // l'annotazione esplicita spezza il cerchio dell'inferenza: chat → lettore →
+/**
+ * Il cronometro dei turni e i contatori delle frasi, uno per processo.
+ *
+ * Uno solo, come l'audit e il `SceneHub`: la domanda a cui risponde è «quanto
+ * ci mette QUESTA casa», e tenerne uno per esemplare vorrebbe dire non poter
+ * rispondere finché non si sa già di chi è la colpa.
+ */
+const turnLog = new TurnLog();
+
 // gateway → chat (il lettore guarda il corpo solo al momento del gesto)
 const chat: ChatService = new ChatService({
   db: dbFor(bootstrapAccountId),
+  turnLog,
   embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
   llm,
   psyche,
@@ -378,6 +390,7 @@ const registry = await GosinoRegistry.load({
   db,
   dbFor,
   embedder,
+  turnLog,
   llm: llmFor,
   local: localText,
   dataKey,
@@ -490,6 +503,43 @@ const app = buildServer({
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
+  /**
+   * La diagnostica di tutti i container.
+   *
+   * Riceve gli stessi indirizzi che riceve il resto del server, e apposta: una
+   * pagina che sonda indirizzi propri direbbe che il registro risponde mentre
+   * soul sta chiamando un altro registro. Si sonda ciò che si usa.
+   */
+  diagnostics: {
+    mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
+    ollama: { url: env.OLLAMA_URL, embedModel: env.OLLAMA_EMBED_MODEL },
+    ...(env.UGO_RECOGNITION_URL !== undefined && { perceptionUrl: env.UGO_RECOGNITION_URL }),
+    ...(env.SEARXNG_URL !== undefined && { searxngUrl: env.SEARXNG_URL }),
+    ...(env.UGO_REGISTRY_URL !== undefined &&
+      env.UGO_REGISTRY_TOKEN !== undefined && {
+        registry: { baseUrl: env.UGO_REGISTRY_URL, token: env.UGO_REGISTRY_TOKEN },
+      }),
+    ...(env.UGO_RECEPTION_URL !== undefined && { receptionUrl: env.UGO_RECEPTION_URL }),
+    // la chiave è obbligatoria per soul (`config/env.ts`): qui il modello c'è
+    // sempre, e la riga «spenta» del provider resta per chi costruisce il
+    // server senza — i test, e una casa di sole risposte locali
+    chatModel: env.UGO_CHAT_MODEL,
+    // letto sulla connessione di processo: «il sogno è passato stanotte?» è
+    // una domanda sul container, non su una casa, e non deve dipendere da
+    // quale casa sta guardando chi apre il pannello
+    lastDream: async () => {
+      const [row] = await db
+        .select({ ts: events.ts })
+        .from(events)
+        .where(eq(events.type, "dream_step_completed"))
+        .orderBy(desc(events.ts))
+        .limit(1);
+      return row?.ts ?? null;
+    },
+    turnLog,
+    faceVersion: () => (env.UGO_FACE_DIR === undefined ? "dev" : servedBuildId(resolve(env.UGO_FACE_DIR))),
+    startedAt: new Date(),
+  },
   // ADR-101: volto e voce dipendono dalla percezione, e /health non la guardava
   ...(env.UGO_RECOGNITION_URL !== undefined && { perceptionUrl: env.UGO_RECOGNITION_URL }),
   features: {

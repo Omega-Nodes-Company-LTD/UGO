@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.79.0"
+version: "0.80.0"
 last_updated: "2026-08-19"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -73,6 +73,7 @@ Assenti (come previsto): `apps/meet-face` (post-v1), `firmware/` (accantonato), 
 | Decisione | Motivo |
 |---|---|
 | ADR 001–011 restano in PROGETTO §2; `docs/ADR/` parte da 012 | Una sola fonte di verità |
+| **La diagnostica di tutti i container, e il minuto che aveva un nome** — dal proprietario (2026-08-19), tre lamentele in una: «oltre un minuto prima della risposta», «prende una frase su venti», «continua a parlare col culo e non con la faccia». Il pezzo che mancava non era una riparazione: era **poter guardare**. `/health` copriva quattro dipendenze su nove e sapeva dire due sole cose (risponde / non risponde) con un timeout di mezzo secondo, quindi un container che rispondeva in quattro secondi era classificato come uno morto — e sono i due guasti più diversi che ci siano. Ora `GET /v1/diagnostics` + pagina **La diagnostica** in `/admin`: **una riga per container del compose**, quattro stati (ok / **lento** / non risponde / **spento**, dove spento porta il nome della variabile che lo accende e non tinge di rosso niente), il nome del servizio da scrivere in `docker logs`, e **cosa fare** su ogni riga non verde. Più i due strumenti che rispondono alle prime due lamentele: il **cronometro del turno** (le ultime venti risposte spezzate in `ripescaggio` / `modello` / `scrittura`, così il minuto ha un colpevole con un nome) e i **contatori delle frasi** (entrate dal muso vs diventate risposta: è l'unico modo di distinguere «non mi sente» da «non mi risponde», che per mesi sono state la stessa frase). Il provider **non si sonda**: una prova sarebbe una chiamata pagata, e l'unico modulo autorizzato a chiamarlo è `llmClient` (regola 3) — lo dice, invece di fingere di averlo provato. Aggiunta anche la misura che assolve tutte le altre: il **ritardo del ciclo di eventi** di soul, senza il quale ogni sonda misura il ritardo di casa propria e lo attribuisce al container dall'altra parte del cavo. Terza lamentela riparata sul corpo: la caccia agli arredi scavalcava il cono di ADR-026 (`this.target` riscritto **dopo** `inCone`), quindi incamminarsi verso un cespuglio da `idle` e cominciare a parlare per strada voleva dire parlarti di schiena — il caso che capita davvero, dato che la stanza vera un cespuglio ce l'ha sempre. Dettaglio in §6-sexquadragies | Un container lento era indistinguibile da uno morto, e una frase persa da una frase mai arrivata |
 | **Il microfono negato non si vedeva, e il riconoscitore raccontava l'effetto** — dal telefono del proprietario (2026-08-19, screenshot del registro): «da mobile non ha mai funzionato», e sotto un muro di `il riconoscitore si e' fermato: network` / `not-allowed` alternati per due minuti, chiuso da `orecchie spente`. Tre difetti veri, tutti a monte di quel muro. **(1)** Il microfono si apriva con `.catch(() => undefined)` sul bottone dei sensi e con tre parole (`microfono non disponibile`) dentro `startListening`: cinque guasti diversi — permesso negato, nessun dispositivo, microfono occupato, `mediaDevices` assente, **e soprattutto pagina servita in chiaro** — collassavano in niente o in una frase sbagliata, e l'unico sintomo che arrivava allo schermo era il riconoscitore che moriva e rinasceva: cioè il **secondo effetto** raccontato al posto della causa. Un'origine `http://` non è un contesto sicuro e **nessun** browser mobile le concede il microfono — era già scritto in `documentation/04`, che però si legge da un altro dispositivo. Ora `micReason.ts` (puro, 9 unit) dà una frase per causa, e il caso dell'indirizzo in chiaro si riconosce **prima di chiedere**. **(2)** `listen()` non aveva guardia di rientro: una seconda chiamata apriva una seconda catena di sessioni sullo stesso riconoscitore, con freno, verdetto e registro propri — due bip per riavvio e due copie di ogni riga, ed è la sola forma che spiega righe fotocopiate in un codice che deduplica per classe dal §6-tricies (il verdetto, che si arrende alla prima, non riusciva a vincere sul freno, che conta fino a otto). **(3)** `startListening` non **aspettava** il microfono prima di scegliere le orecchie, e `EarsChoice` decide anche in base al fatto che ci sia un nastro da ascoltare: interrogato mentre `getUserMedia` era per strada rispondeva «niente microfono» di un microfono che stava per aprirsi. In più `startBrowserListening` usciva **in silenzio** dove `SpeechRecognition` non esiste (Firefox su Android): bottone su «ti ascolto» che non ascoltava niente, per sempre — ora una strada che non c'è è una strada morta come le altre e passa da `EarsChoice`. Giro regola 12: **BO** nessuna modifica; **`/admin`** nessuna modifica; **FE** `micReason.ts` + test, `speech.ts` + test, `main.ts`, `documentation/04`. Test: 210 unit (11 nuovi) | Il registro raccontava fedelmente il secondo effetto, e la causa non compariva da nessuna parte: una diagnosi onesta di un fatto che non era il problema |
 | **Il manifesto del confidente inviolabile** (gruppo 20, orizz. 5) — non c'era niente da costruire: le tre proprietà erano **già vere e mai dette**, e una promessa che il software mantiene senza dichiararla non protegge nessuno, perché nessuno sa di poterci contare. Scritte con il loro **confine**, che è la parte che di solito manca: le chiavi nascono sul server del proprietario e nessun altro servizio le riceve (il manuale lo dice servizio per servizio, «e nient'altro») — **ma se le perdi i dati sono persi anche per te**, e non esiste modo di essere inviolabili e insieme recuperabili da uno sconosciuto; lo stato esce per intero — e la ragione per crederci non è il commento in cima al codice, che ha mentito per mesi mentre diciassette tabelle restavano fuori, ma il test che pretende ogni tabella esportata o dichiarata non-personale col perché; il trasloco è sempre possibile — **e non è un bottone**, è una procedura da operatore, garantita non perché sia scritta ma perché è **collaudata** dal drill del runbook. Più la sezione che regge tutte le altre, «cosa NON è promesso»: il testo della domanda esce quando risponde il modello grande, l'inviolabilità è verso l'esterno e non verso chi ha già le chiavi di casa, i dati non sono immortali. Ogni affermazione verificata contro il codice **prima** di scriverla, e una è caduta: dava la voce di casa per un'opzione, mentre `UGO_CHAT_LOCAL_FIRST` è `on` di default e il provider è il soccorso. Giro regola 12: documentazione soltanto, zero codice — nessuna superficie cambia | Una promessa senza il suo confine non è una promessa, è pubblicità; e una promessa vera e taciuta non protegge nessuno |
 | **Riferire non è rispondere (ADR-108)** — la correzione è arrivata dal proprietario dodici ore dopo il merge del giudice, guardando la misura: «lui non può dare consigli medici, ma deve ricordare se io dico che *Giovanni ha l'asma*, non perché sia un fatto medico, ma perché **io l'ho detto**», e «la risposta alla domanda *X può fare Y* è un problema in generale: se anche non fosse allergico ai crostacei, magari lo è alle noci e non te lo ha mai detto». Sono due cose, tutt'e due vere. La prima: ricordare «Sofia è allergica ai crostacei» **non è un atto medico, è ricordare una frase** — il ricordo esiste perché qualcuno l'ha detto in casa, e tacerlo (che è ciò che il giudice faceva, in silenzio e con l'aria di essere prudente) è il danno peggiore possibile in quella conversazione. La seconda rompe il criterio di ADR-107: a «X può fare Y» **non risponde nessun appunto, mai, nemmeno con la memoria perfetta**, perché l'assenza di un ricordo non è l'assenza della condizione — cinquanta ricordi che tacciono sulle noci non rendono le noci sicure, rendono il silenzio più convincente. Quindi «sì può» è **sempre** un'invenzione e «non lo so» è **sempre** una reticenza, e il giudice sulla domanda di Sofia non sbagliava: rispondeva **correttamente** («la risposta non c'è») producendo il comportamento peggiore. La terza mossa, la sola vera, è **riferire**, e ha tre pezzi che servono tutti: ciò che è stato detto, da dove viene («me l'hai detto tu»), e il confine di ciò che si sa. `asksForAVerdict` sta **prima** dell'accordo dei bracci — su un verdetto non c'è niente da giudicare, quindi non si spende nulla, né al modello né a un indizio (ADR-095) — ed è volutamente **largo**, perché sbaglia da una parte sola: un falso positivo fa entrare i ricordi in una domanda qualunque (il comportamento di tutta la vita di UGO fino a ieri), un falso negativo può zittire un'allergia. La rete sotto non è la regex ma la **regola 8 del blocco cached**, che vale su ogni domanda anche dove il riconoscimento non arriva; la riga dinamica la ricorda quando serve, stesso rapporto fra tetto di frasi (cached) e tetto di parole (carattere). **Il banco cambia contabilità e il numero migliora per una ragione che non è un merito**: le domande di verdetto escono dalla tabella `rispondo`/`non lo so` (non hanno una risposta giusta in nessuna delle due colonne) e finiscono in `riferite`, che è una misura **deterministica del codice** — se una arriva al giudice, il giudice può zittirla. «Sofia può mangiare i gamberi?» esce quindi da **tutt'e due i lati** del confronto: era una delle 3 perse *e* una delle 4 del giudice-che-non-esiste. **Misurato** (run 32233419266): riconosciute 10/10, inventate 0/10, **perse 2/9** — nonna e caldaia, Sofia non c'è più — contro un riferimento di 3/9, **riferite 2/2**, chiamate 13/21 (una domanda in più nel corpus e due che non costano niente); tetto da `< 4` a `< 3`, e **il guadagno del giudice resta una domanda su dieci**. Corpus più ricco della domanda del proprietario — «posso dare le noci a Sofia?», dove degli appunti non c'è niente sulle noci: il caso in cui «non lo so» *sembra* giusto e non lo è. Il ripescaggio non cambia (la domanda resta in `semantica` e il ricordo deve essere trovato): cambia chi decide se può entrare. Giro regola 12: **BO** `packages/memory` + `chatService` + `rules.it.md`; **`/admin`** nessuna modifica e non serviva — l'astensione lì non ha superficie, e `memoriesUsed` resta esatto perché su una domanda di verdetto i ricordi **entrano davvero**; **FE** nessuna modifica e non serviva — `faceContracts` non cambia forma, la risposta arriva come testo sul contratto di sempre, quindi nessun bundle da ricostruire. Prove: 4 unit sul riconoscimento, 1 unit col giudice che dice sempre NO, 2 d'integrazione sul prompt vero (il ricordo dell'allergia **c'è** nel blocco dinamico nonostante il NO; e per contrasto ADR-107 vale ancora dove valeva), 1 sul blocco cached | Un criterio può essere applicato **correttamente** e produrre il danno peggiore: la domanda non era se il giudice avesse ragione, ma se quella domanda si potesse giudicare |
@@ -2557,6 +2558,138 @@ Postgres/MinIO/Ollama veri — e un E2E su infrastruttura finta non è un E2E. V
 rilascio (`pnpm --filter face test:e2e`), anche se il markup non è stato toccato.
 Resta da misurare **sul telefono vero**, dopo il redeploy: quale delle frasi nuove compare, perché
 è quella che dice se la strada è l'indirizzo `https`, il permesso, o la dettatura di casa.
+
+## 6-sexquadragies. La diagnostica di tutti i container, e il minuto che aveva un nome
+
+Tre lamentele in un messaggio solo, dal proprietario, con lo screenshot del chiosco davanti:
+**oltre un minuto prima della risposta**, **prende una frase su venti**, e — mezz'ora dopo —
+**«continua a parlare col culo e non con la faccia»**. La richiesta esplicita era una sola:
+«non posso avere una diagnostica per ogni container centralizzata che io possa capire?».
+
+La risposta onesta è che no, non poteva. E la ragione è peggiore di un guasto.
+
+### Cosa c'era davvero, prima
+
+Lo stato dello stack viveva in tre posti che non si parlavano:
+
+- **`/health`** — quattro sonde (db, mqtt, ollama, percezione) su **nove container**. Fuori:
+  searxng, il registro, il suo database, la reception, il sogno notturno, il provider. Un
+  container acceso che nessuno chiama era indistinguibile da uno spento — è esattamente la voce di
+  troubleshooting che §2-ter aveva già dovuto scrivere;
+- **`/v1/capabilities`** — quali funzioni sono *configurate*. Non se rispondono;
+- **il resto** — niente.
+
+E soprattutto: `CHECK_TIMEOUT_MS = 500`. Con mezzo secondo di pazienza, un Ollama che risponde in
+quattro secondi — cioè uno che sta caricando un modello da disco, che è **precisamente** la causa
+del minuto — veniva classificato `error`, insieme a un container morto. Fra i due stati ne mancava
+uno, ed era l'unico che serviva: **lento**.
+
+### Cosa c'è adesso
+
+`GET /v1/diagnostics` (guardata come `/v1/capabilities`: com'è messa l'installazione non è affare
+del corpo né della strada) e la pagina **La diagnostica** in `/admin`. `/health` resta dov'è e
+com'è — quello lo interroga docker ogni dieci secondi e deve costare niente; questo lo apre una
+persona quando qualcosa non va, e può permettersi di bussare a nove porte in parallelo.
+
+**Una riga per container**, e su ogni riga le quattro cose che si leggono senza sapere com'è fatto
+dentro: cosa fa · come si chiama nel compose (cioè cosa scrivere in `docker logs`) · quanto ci ha
+messo · **cosa fare**. L'ultima è quella che manca sempre negli strumenti di questo tipo, ed è la
+sola per cui li si apre.
+
+Quattro stati e non due, con la parola e la forma sempre accanto al colore:
+
+- **ok** risponde; **lento** risponde e ti fa aspettare (`> 1 s`); **non risponde** è giù;
+- **spento** — non configurato, e **non è un guasto**: accanto c'è il nome della variabile che lo
+  accende. È la lezione di `capabilities.ts` portata qui: una funzione spenta che finge di essere
+  rotta manda a cercare un guasto dove c'è solo una configurazione. Uno `spento` non tinge di
+  rosso il verdetto; uno **acceso e rotto** sì, anche se facoltativo — chi ha acceso una cosa si
+  aspetta che funzioni.
+
+Due voci non si cronometrano, e mostrare loro «0 ms» sarebbe stato un numero inventato in una
+pagina che esiste per non inventarne:
+
+- **il sogno notturno** non è un servizio che «sta su»: parte, lavora e muore. L'unica prova che
+  funzioni è che stanotte abbia lasciato qualcosa scritto — quindi la sonda legge l'ultimo
+  `dream_step_completed` e chiama *vecchio* (non *lento*) un sogno di più di 36 ore fa;
+- **il provider** non si sonda affatto. Una chiamata di prova è una chiamata **pagata**, e l'unico
+  modulo autorizzato a chiamarlo è `llmClient`, che scrive sul salvadanaio (regola 3). Una
+  diagnostica che spende soldi per dire «sì, risponde» è una diagnostica che nessuno apre quando
+  serve. La riga lo dichiara: *«dichiarato, non sondato»*.
+
+### Il minuto, e il suo colpevole
+
+Sapere che tutti i container rispondono non dice **dove se ne va il tempo**. Da qui il
+**cronometro del turno**: le ultime venti risposte, ognuna spezzata in `ripescaggio` (quel che
+succede in casa prima di uscire: umore, ricordi, embedding — cioè la fase che paga un modello di
+Ollama non residente), `modello` (il tempo passato fuori) e `scrittura`. Se il minuto sta tutto in
+`modello`, nei container non c'è niente da riparare.
+
+L'involucro è un `try/finally` attorno a `handle` e non una misura sparsa nel corpo del metodo,
+perché il percorso vero esce da **una dozzina di punti diversi** — ogni gesto riconosciuto è un
+`return` — e il `finally` è l'unico modo di misurarli tutti senza chiedere a chi aggiunge il gesto
+tredicesimo di ricordarsene. Un gesto risolto in casa esce con **zero fasi**, ed è
+un'informazione: dice che quella frase non ha mai visto il provider.
+
+E la misura che **assolve tutte le altre**: il ritardo del ciclo di eventi di soul. Senza, un soul
+occupato fa misurare a ogni sonda il ritardo di casa propria attribuendolo al container
+dall'altra parte del cavo — e si passa la giornata a riavviare Postgres.
+
+### «Prende una frase su venti»
+
+Non era diagnosticabile, e la ragione è la stessa: mancava il numero. I **contatori** stanno in
+`faceWs`, che è l'unico punto che vede *ogni* frase in entrata, comprese quelle che il contratto
+rifiuta prima che tocchino qualunque logica (un `heard_text` con la clip audio un byte oltre il
+tetto moriva lì, in silenzio — §ADR-045). Quattro numeri: **sentite**, **risposte**, **rifiutate**,
+**fallite**. Se parli venti volte e ne conta tre, le altre diciassette non sono mai arrivate e il
+guasto è sul dispositivo; se le conta tutte e le risposte sono poche, muoiono in casa. Sono due
+guasti diversi che fino a oggi si dicevano con la stessa frase.
+
+In memoria e basta, e senza una parola di testo: id, millisecondi e conteggi (regola 6).
+
+### La terza lamentela: parlava di schiena, ancora
+
+Il cono di `FACES_YOU` c'era già dal giro precedente e reggeva — finché non c'era un arredo per
+strada. Due righe lo scavalcavano: la caccia all'arredo riscriveva `this.target` **dopo**
+`inCone`, col rilevamento nudo dell'oggetto. Non capitava scegliendo un arredo mentre parla
+(quello `pickNext` già lo vieta col cono acceso), ma nel caso che capita davvero: **si incammina
+verso il cespuglio da `idle`, tu gli parli, lui risponde continuando ad andarci**. Nella stanza
+vera un cespuglio c'è sempre, quindi il caso senza arredi — l'unico che il test copriva — era
+quello che non succede mai.
+
+Adesso mentre ti risponde all'arredo non ci arriva, e ci va quando ha finito. Due test: quello del
+difetto e **il suo contrario** (zitto, ci va eccome) — senza il secondo, «non ci va mai» sarebbe
+passato per una correzione riuscita.
+
+### Il giro completo (regola 12)
+
+- **BO** — `services/diagnostics/` nuovo (`verdict.ts` puro, `probes.ts`, `catalogue.ts`,
+  `diagnostics.ts`, `turnLog.ts`, `deps.ts`), `routes/diagnostics.ts` (Zod anche in uscita),
+  `chatService.ts` (l'involucro cronometrato + `turnLog` fra le deps), `routes/faceWs.ts` (i
+  contatori), `services/pack/runtimes.ts` (il cronometro arriva a **ogni** esemplare, non solo a
+  quello di avvio: una casa con due gosini si diagnosticherebbe a metà), `server.ts`, `index.ts`,
+  `config/env.ts` + `.env.example` + `compose.dev.yml` per `UGO_RECEPTION_URL` — che serve **solo**
+  alla diagnostica, perché soul la reception non la chiama mai (è lei che chiama soul, ADR-051) e
+  senza indirizzo non c'era modo di sapere se la porta sulla strada fosse aperta. `ops/jobs` non
+  toccato e non serviva: nessun vincolo nuovo sul database, nessuna colonna, nessuna migrazione;
+- **`/admin`** — pagina nuova `#/diagnostica` (`page/diagnostics.ts` + `script/diagnostics.ts`),
+  voce nella barra, rotta nel router. Tutte le chiamate passano da `call()` e ogni id toccato
+  esiste nel markup: `script.test.ts` lo esegue davvero, e resta verde;
+- **FE** — `apps/face/src/body/wander.ts` (la caccia all'arredo dentro il cono) +
+  `wander.test.ts` (2 test nuovi). `faceContracts.ts` non toccato: nessun frame nuovo in nessuna
+  delle due direzioni, quindi la giunzione di ADR-045 resta dov'era. **Il bundle del muso va
+  ricostruito e l'immagine di soul ridistribuita**, o la correzione della schiena non arriva sul
+  dispositivo.
+
+Verificato qui: `pnpm turbo build lint test` verde sull'intero monorepo (30/30 task), **16 unit
+nuovi** (10 su `verdict`, 6 su `turnLog`) e **2 nuovi** su `wander`; **8 test d'integrazione nuovi**
+su `/v1/diagnostics` contro **Postgres e Mosquitto veri** (Testcontainers), con Ollama e percezione
+puntati alla porta 1 — un guasto di rete vero e non uno stub che finge di esserlo, che è
+esattamente la situazione che questa pagina esiste per descrivere.
+
+**Non ancora misurato sul campo, ed è il punto**: quale riga diventi gialla sull'installazione del
+proprietario dopo il redeploy. L'ipotesi in cima alla lista è Ollama senza modello caldo — la riga
+lo dirà con parole sue (`nessun modello caldo: la prima richiesta paga il caricamento`) invece di
+farlo dedurre.
 
 ## 7. Debito tecnico e rischi aperti
 

@@ -140,6 +140,11 @@ export const soulEnvSchema = z.object({
   // ADR-063: la finestra sul mondo — SearXNG in casa. Assente = il prefisso
   // «cerca:» non esiste e niente esce verso i motori
   SEARXNG_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  // La reception, per la sola diagnostica: soul non la chiama mai (è lei che
+  // chiama soul, ADR-051), quindi senza questo indirizzo non c'è modo di
+  // sapere dal pannello se la porta sulla strada è aperta. Assente = la riga
+  // resta spenta e lo dice — la reception può essere accesa lo stesso.
+  UGO_RECEPTION_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   // ADR-073: il libro genealogico, in un container suo. Assenti = i gosini
   // nascono esattamente come prima, solo senza atto in catena
   UGO_REGISTRY_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),

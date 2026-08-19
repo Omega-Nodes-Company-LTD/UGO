@@ -149,6 +149,10 @@ async function openPage(page) {
     await section(loadJobReports, "jobs-msg");
     await section(loadKeys, "key-msg");
     await section(loadCorrections, "corr-msg");
+  } else if (page === "diagnostica") {
+    // una sola chiamata, che sonda nove porte in parallelo: la pagina che si
+    // apre quando qualcosa è rotto non deve essere la più lenta del pannello
+    await section(loadDiagnostics, "diag-msg");
   } else if (page === "clienti") {
     await section(loadCustomers, "cust-msg");
   } else if (page === "arredi") {

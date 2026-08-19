@@ -61,6 +61,10 @@ export const ACCOUNT_PAGES = `
     <div class="tiles" id="tiles" data-testid="stats"></div>
     <h3>Sta rispondendo tutto?</h3>
     <div class="pills" id="health" data-testid="health"></div>
+    <p class="lede">Questi sono i quattro pezzi vitali, e dicono solo s&igrave; o no. Se qualcosa
+       &egrave; lento invece che rotto &mdash; o se il pezzo che ti serve non &egrave; fra questi
+       quattro &mdash; la risposta sta in <a href="#/diagnostica">La diagnostica</a>: tutti i
+       container, coi millisecondi e con cosa fare.</p>
     <div class="row" style="margin-top:.9rem">
       <button id="dream" class="ghost" data-testid="dream">Fallo sognare adesso</button>
     </div>
