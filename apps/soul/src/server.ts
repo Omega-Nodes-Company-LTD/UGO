@@ -18,6 +18,7 @@ import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceStatic } from "./routes/faceStatic.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerCouncilRoutes } from "./routes/council.js";
+import { registerDeskRoutes } from "./routes/desk.js";
 import { registerGosiniRoutes } from "./routes/gosini.js";
 import { DEFAULT_LITTER_COST_USD } from "./services/litterCost.js";
 import { registerLitterRoutes } from "./routes/litters.js";
@@ -38,6 +39,7 @@ import { RegistryClient } from "./services/registryClient.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
+import { registerMeetingArchiveRoutes } from "./routes/meetingArchive.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerCustomersRoutes } from "./routes/customers.js";
 import { registerCustomerSourcesRoutes } from "./routes/customerSources.js";
@@ -343,6 +345,17 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // ADR-090: e i conti sempre, anche senza i due servizi — dire cosa si
     // tiene è il gradino prima di ogni diritto
     registerDataSummaryRoute(app, { db: options.db, guard });
+    /**
+     * ADR-104 — la scrivania: i gesti che si facevano solo in psql. Sta qui e
+     * non dentro `if (gosini)` perché ritirare un esemplare e scrivergli un
+     * ricordo sono azioni del titolare, non del sottosistema genetico.
+     */
+    registerDeskRoutes(app, {
+      db: options.db,
+      guard,
+      audit,
+      ...(registry !== undefined && { registry }),
+    });
     // the archive is about memories and meetings, and had no business being
     // gated on the species map: it was registered there only because both
     // arrived in the same afternoon
@@ -350,11 +363,26 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       db: options.db,
       chat: v1.chat,
       guard,
+      audit,
+      // ADR-104: senza embedder il ricordo scritto a mano nasce senza vettore
+      ...(gosini?.embedder !== undefined && { embedder: gosini.embedder }),
       // ADR-086: senza la chiave il pannello mostrava il lascito in base64
       ...(gosini?.dataKey !== undefined && { dataKey: gosini.dataKey }),
       ...(registry !== undefined && { registry }),
     });
     registerMemoryGraphRoutes(app, { db: options.db, guard });
+    /**
+     * ADR-104: le riunioni hanno il loro archivio — elencarle, rileggerle,
+     * buttarle. Registrato qui accanto ai ricordi perché è la stessa pagina
+     * del pannello, ma in un modulo suo: una trascrizione non è un ricordo di
+     * UGO, sono le parole di qualcun altro.
+     */
+    registerMeetingArchiveRoutes(app, {
+      db: options.db,
+      guard,
+      audit,
+      ...(gosini?.dataKey !== undefined && { dataKey: gosini.dataKey }),
+    });
     // ADR-056: gli arredi. L'hub e' condiviso fra le rotte che li spostano e i
     // socket che li mostrano — e' l'unica cosa che i due hanno in comune, ed e'
     // il motivo per cui il pannello si vede sul chiosco senza ricaricare.

@@ -84,6 +84,14 @@ export const AUDIT_VERBS = [
   "tie_revoked",
   /** ADR-099: una cartolina spedita — l'id della pratica, mai il testo */
   "parcel_sent",
+  /** ADR-104: un esemplare messo a riposo — resta, non risponde più */
+  "gosino_retired",
+  /** ADR-104: e rimesso in servizio, perché ritirare non è cancellare */
+  "gosino_restored",
+  /** ADR-104: un ricordo scritto a mano dal titolare — l'id, mai il testo */
+  "memory_written",
+  /** ADR-104: una riunione buttata, segmenti compresi (cancellazione vera) */
+  "meeting_deleted",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

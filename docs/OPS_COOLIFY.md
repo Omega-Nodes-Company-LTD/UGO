@@ -681,8 +681,27 @@ cache dei prompt, quanti ricordi ha e quando ha sognato l'ultima volta. Se *risp
 zero dopo diverse conversazioni, il prefisso cached si sta invalidando: è la cosa da indagare prima
 di qualunque altra, perché è la differenza tra pochi euro al mese e un ordine di grandezza in più.
 
-Sotto, i semafori di **db**, **mqtt** e **ollama**: verde tutto a posto, giallo degrada ma vive, rosso
-guarda i log della risorsa. Sono gli stessi controlli di `/health`, senza doverli interrogare a mano.
+Sotto, i semafori di **db**, **mqtt**, **ollama** e **percezione**: verde tutto a posto, giallo degrada
+ma vive, rosso guarda i log della risorsa. «Non configurato» non è un guasto — è una scelta. Sono gli
+stessi controlli di `/health`, senza doverli interrogare a mano.
+
+### 5.6-bis La scrivania: i gesti che prima volevano psql (ADR-104)
+
+Sei cose che fino a oggi si facevano solo con una query sul database, e adesso hanno un bottone. Vale
+la pena saperle prima di averne bisogno di corsa.
+
+| Dove | Gesto | Cosa succede davvero |
+|---|---|---|
+| pagina del gosino → **Come sta** | **Mettilo a riposo** | smette di rispondere e sparisce dal branco attivo; ricordi, pedigree e figli **restano**. Si torna indietro con lo stesso bottone |
+| pagina del gosino → **Cosa ricorda** | **Diglielo tu** | scrive un ricordo a mano. Se il pannello dice «lo ritroverà solo per parole esatte», manca il modello degli embedding (§2.3) |
+| pagina del gosino → **Volontà** | **Aggiungi / annulla** un promemoria | annullare non cancella: smette di essere in sospeso e resta nella sua biografia |
+| **I conti** → Riunioni | **rileggi / butta** | «butta» **cancella davvero**, trascrizione compresa: dentro ci sono le parole di persone che non hanno chiesto niente a nessuno |
+| **I conti** → Facce senza nome | **Passa la scadenza adesso** | esegue subito la retention che altrimenti gira di notte |
+| pagina del gosino → **Volontà** | **Fermalo / Lascialo cominciare** | da ADR-104 la scelta è **di quell'account**, è scritta e sopravvive al riavvio. `UGO_INITIATIVE` (§2.4) decide solo per le case che non hanno mai scelto; **Lascia decidere al server** le restituisce la parola |
+
+L'ultima riga è un cambio di comportamento rispetto a prima: fino a ieri l'interruttore tornava al
+valore dell'ambiente a ogni riavvio **e valeva per tutte le case insieme**. Se hai un'installazione con
+più di un account e ti aspettavi il vecchio comportamento, adesso ogni casa decide per sé.
 
 ### 5.7 Il primo cliente (solo se hai fatto la §2.7)
 

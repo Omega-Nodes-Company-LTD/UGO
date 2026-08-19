@@ -482,6 +482,149 @@ describe("lotto 3: privacy e volontà come ugo_app", () => {
 });
 
 /**
+ * Lotto 5 (ADR-104): la scrivania sotto il muro.
+ *
+ * Sono tutte scritture, e due di loro scrivono **anche sul giornale dentro la
+ * stessa transazione**: è il punto in cui ADR-062 morde più forte — una riga
+ * di audit attribuita a una casa passa il `WITH CHECK` soltanto dentro la
+ * transazione che quella casa l'ha dichiarata, e fuori sparisce in silenzio.
+ */
+describe("lotto 5: la scrivania come ugo_app (ADR-104)", () => {
+  it("ritirare scrive lo stato E il giornale dentro la casa dichiarata", async () => {
+    const done = await app.inject({
+      method: "POST",
+      url: `/v1/gosini/${mine.gosinoId}/retire`,
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { retired: true },
+    });
+    expect(done.statusCode).toBe(200);
+
+    const [row] = await owner
+      .select({ retiredAt: gosini.retiredAt })
+      .from(gosini)
+      .where(sql`${gosini.id} = ${mine.gosinoId}`);
+    expect(row?.retiredAt).not.toBeNull();
+
+    // la riga di giornale c'è davvero: fuori dalla transazione sarebbe sparita
+    const journal = await owner
+      .select({ verb: auditLog.verb, accountId: auditLog.accountId })
+      .from(auditLog)
+      .where(sql`${auditLog.verb} = 'gosino_retired'`);
+    expect(journal.map((r) => r.accountId)).toContain(mine.id);
+
+    // e si torna indietro
+    await app.inject({
+      method: "POST",
+      url: `/v1/gosini/${mine.gosinoId}/retire`,
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { retired: false },
+    });
+  });
+
+  it("il vicino non ritira il mio, e la riga non si muove", async () => {
+    const denied = await app.inject({
+      method: "POST",
+      url: `/v1/gosini/${mine.gosinoId}/retire`,
+      headers: { authorization: `Bearer ${theirToken}` },
+      payload: { retired: true },
+    });
+    expect(denied.statusCode).toBe(404);
+    const [row] = await owner
+      .select({ retiredAt: gosini.retiredAt })
+      .from(gosini)
+      .where(sql`${gosini.id} = ${mine.gosinoId}`);
+    expect(row?.retiredAt).toBeNull();
+  });
+
+  it("un ricordo scritto a mano nasce nella mia casa, col suo verbo sul giornale", async () => {
+    const written = await app.inject({
+      method: "POST",
+      url: "/v1/memories",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { gosinoId: mine.gosinoId, kind: "fact", text: "il contatore sta in cantina" },
+    });
+    expect(written.statusCode).toBe(201);
+    const id = written.json<{ id: string }>().id;
+    const [row] = await owner
+      .select({ gosinoId: memories.gosinoId })
+      .from(memories)
+      .where(sql`${memories.id} = ${id}`);
+    expect(row?.gosinoId).toBe(mine.gosinoId);
+
+    const journal = await owner
+      .select({ accountId: auditLog.accountId })
+      .from(auditLog)
+      .where(sql`${auditLog.verb} = 'memory_written'`);
+    expect(journal.map((r) => r.accountId)).toContain(mine.id);
+  });
+
+  it("non si scrive un ricordo nella testa del gosino del vicino", async () => {
+    const denied = await app.inject({
+      method: "POST",
+      url: "/v1/memories",
+      headers: { authorization: `Bearer ${theirToken}` },
+      payload: { gosinoId: mine.gosinoId, kind: "fact", text: "non deve entrare qui" },
+    });
+    expect(denied.statusCode).toBe(404);
+  });
+
+  it("un promemoria si aggiunge e si annulla, e quello del vicino resta intoccabile", async () => {
+    const made = await app.inject({
+      method: "POST",
+      url: "/v1/volition/desires",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { gosinoId: mine.gosinoId, text: "chiamare il fabbro" },
+    });
+    expect(made.statusCode).toBe(201);
+    const id = made.json<{ id: string }>().id;
+
+    const denied = await app.inject({
+      method: "DELETE",
+      url: `/v1/volition/desires/${id}`,
+      headers: { authorization: `Bearer ${theirToken}` },
+    });
+    expect(denied.statusCode).toBe(404);
+
+    const done = await app.inject({
+      method: "DELETE",
+      url: `/v1/volition/desires/${id}`,
+      headers: { authorization: `Bearer ${myToken}` },
+    });
+    expect(done.statusCode).toBe(200);
+    const [row] = await owner
+      .select({ status: desires.status })
+      .from(desires)
+      .where(sql`${desires.id} = ${id}`);
+    expect(row?.status).toBe("expired");
+  });
+
+  it("l'interruttore dell'iniziativa si scrive sulla MIA riga, non su quella del vicino", async () => {
+    const off = await app.inject({
+      method: "POST",
+      url: "/v1/volition/enabled",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { enabled: false },
+    });
+    expect(off.statusCode).toBe(200);
+    const rows = await owner
+      .select({ id: accounts.id, initiative: accounts.initiative })
+      .from(accounts)
+      .where(sql`${accounts.id} in (${mine.id}, ${theirs.id})`);
+    const byId = new Map(rows.map((r) => [r.id, r.initiative]));
+    expect(byId.get(mine.id)).toBe(false);
+    expect(byId.get(theirs.id)).toBeNull();
+
+    // e si restituisce la parola al server
+    await app.inject({
+      method: "POST",
+      url: "/v1/volition/enabled",
+      headers: { authorization: `Bearer ${myToken}` },
+      payload: { enabled: null },
+    });
+  });
+});
+
+/**
  * Lotto 4: la reception — i clienti sono della casa che li ha.
  */
 describe("lotto 4: i clienti come ugo_app", () => {

@@ -115,4 +115,22 @@ $("faces-list").addEventListener("click", async (event) => {
     await loadPrints();
   } catch (error) { say("faces-msg", error.message, "err"); }
 });
+
+/**
+ * ADR-104: far passare la scadenza adesso.
+ *
+ * La rotta POST /v1/prints/expire esisteva dalla retention e la chiamava solo il
+ * sogno. Una persona che dice «toglietemi da lì» non deve aspettare il cron
+ * della notte, e finora l'unica alternativa era una curl.
+ */
+$("print-expire").addEventListener("click", async () => {
+  if (!confirm("Cancellare adesso tutte le impronte ignote oltre la retention?")) return;
+  $("print-expire").disabled = true;
+  try {
+    const gone = await call("/v1/prints/expire", { method: "POST", body: JSON.stringify({}) });
+    say("prints-msg", "Passata la scadenza: " + (gone.destroyed ?? 0) + " impronte via.", "ok");
+    await loadPrints();
+  } catch (error) { say("prints-msg", error.message, "err"); }
+  finally { $("print-expire").disabled = false; }
+});
 `;

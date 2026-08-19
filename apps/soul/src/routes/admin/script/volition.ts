@@ -58,14 +58,21 @@ async function loadVolition() {
 
   const state = data.initiative;
   $("init-toggle").textContent = state.enabled ? "Fermalo" : "Lascialo cominciare";
+  // ADR-104: la scelta è di QUESTO account e resta scritta. Prima diceva «torna
+  // al prossimo riavvio», che era vero e adesso sarebbe una bugia — e il
+  // «deciso da qui» valeva per tutte le case insieme
   $("init-state").textContent = state.enabled
     ? "Adesso può cominciare lui."
     : "Adesso risponde soltanto, non comincia mai."
     ;
-  if (state.overridden) {
-    $("init-state").textContent += " Deciso da qui, quindi torna a «"
-      + (state.fromEnv ? "può" : "non può") + "» al prossimo riavvio.";
-  }
+  $("init-state").textContent += state.overridden
+    ? " Deciso per questo account, e resta così anche dopo un riavvio."
+    : " Nessuna scelta fatta qui: decide il server, che oggi dice «"
+      + (state.fromEnv ? "può" : "non può") + "»."
+    ;
+  // il terzo stato esiste e va potuto raggiungere: senza, «lascia decidere al
+  // server» si otterrebbe solo con una query
+  $("init-default").hidden = !state.overridden;
 
   // ADR-078: tre cose diverse nella stessa lista, e si vedono. Un timer che
   // sembrasse un desiderio del sogno farebbe pensare che «fra 10 minuti»
@@ -80,7 +87,11 @@ async function loadVolition() {
           (d.dueAt ? "per " + when(d.dueAt) : escape(d.dueHint ?? "quando capita")) +
           '</span><div class="act">' +
           escape(d.text === "" ? (d.kind === "timer" ? "un timer" : "una sveglia") : d.text) +
-          "</div></div>";
+          "</div>" +
+          // ADR-104: annullarne uno si faceva con una UPDATE a mano
+          '<button class="link danger" data-desire="' + escape(d.id) +
+          '" data-testid="desire-drop">annulla</button>' +
+          "</div>";
       }).join("");
 
   // what actually moves him, ranked. One line of arithmetic answers a question
@@ -115,6 +126,39 @@ async function loadVolition() {
       }).join("");
 }
 
+/**
+ * ADR-104: dargli un promemoria, e toglierglielo.
+ *
+ * La tabella desires aveva due scrittori (il sogno e i timer a voce) e
+ * nessuna porta per il titolare: «ricordamelo tu» si poteva dire a voce e non
+ * si poteva scrivere, e una sveglia sbagliata si toglieva solo in psql.
+ */
+$("desire-add").addEventListener("click", async () => {
+  const text = $("desire-new").value.trim();
+  if (text === "") { say("volition-msg", "Serve una frase.", "info"); return; }
+  const hint = $("desire-when").value.trim();
+  try {
+    await call(forWho("/v1/volition/desires"), {
+      method: "POST",
+      body: JSON.stringify({ text, kind: "promemoria", ...(hint ? { dueHint: hint } : {}) }),
+    });
+    $("desire-new").value = ""; $("desire-when").value = "";
+    await loadVolition();
+    say("volition-msg", "Se lo ricorda, e te lo dir\u00e0 quando \u00e8 il momento.", "ok");
+  } catch (error) { say("volition-msg", error.message, "err"); }
+});
+
+$("desire-list").addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-desire]");
+  if (!button) return;
+  try {
+    await call("/v1/volition/desires/" + button.dataset.desire, { method: "DELETE" });
+    await loadVolition();
+    // non si cancella: smette di essere in sospeso, e resta nella sua biografia
+    say("volition-msg", "Annullato. Non te lo dir\u00e0 pi\u00f9.", "ok");
+  } catch (error) { say("volition-msg", error.message, "err"); }
+});
+
 $("init-toggle").addEventListener("click", async () => {
   try {
     const now = $("init-toggle").textContent === "Fermalo";
@@ -122,7 +166,18 @@ $("init-toggle").addEventListener("click", async () => {
       method: "POST", body: JSON.stringify({ enabled: !now }),
     });
     await loadVolition();
-    say("volition-msg", now ? "Adesso sta zitto finché non gli parli." : "Adesso può cominciare lui.", "ok");
+    say("volition-msg", now
+      ? "Adesso sta zitto finché non gli parli, e resta così finché non cambi idea."
+      : "Adesso può cominciare lui.", "ok");
+  } catch (error) { say("volition-msg", error.message, "err"); }
+});
+
+/** ADR-104: restituire la parola al server è un gesto, non una query. */
+$("init-default").addEventListener("click", async () => {
+  try {
+    await call("/v1/volition/enabled", { method: "POST", body: JSON.stringify({ enabled: null }) });
+    await loadVolition();
+    say("volition-msg", "Deciso dal server, come prima che scegliessi tu.", "ok");
   } catch (error) { say("volition-msg", error.message, "err"); }
 });
 `;

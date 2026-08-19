@@ -10,9 +10,44 @@ const PSYCHE_ORDER = Object.keys(PSYCHE_LABEL);
 // his own: the adaptive baselines of ADR-012 are per exemplar
 const PSYCHE_BASELINE = { umore: 0.55, affetto: 0.5, noia: 0.4, stress: 0.3, curiosita: 0.5 };
 
+/**
+ * ADR-104 — il ritiro, dalla pagina invece che da psql.
+ *
+ * Lo stato lo dice il roster GOSINI, che da oggi porta retiredAt: senza,
+ * il bottone non poteva sapere in che verso girare, e il pannello mostrava
+ * come attivo qualcuno che non risponde più.
+ */
+function drawRetire() {
+  const who = GOSINI.find((g) => g.id === WHO);
+  const resting = who?.retiredAt != null;
+  $("retire-go").textContent = resting ? "Rimettilo in servizio" : "Mettilo a riposo";
+  $("retire-state").textContent = resting
+    ? "È a riposo: non risponde e non compare nel branco attivo. C'è ancora, tutto suo compreso."
+    : "È in servizio.";
+}
+
+$("retire-go").addEventListener("click", async () => {
+  if (WHO === "") return;
+  const who = GOSINI.find((g) => g.id === WHO);
+  const resting = who?.retiredAt != null;
+  if (!resting && !confirm("Metterlo a riposo? Smette di rispondere. Non si cancella niente, " +
+    "e si torna indietro con lo stesso bottone.")) return;
+  $("retire-go").disabled = true;
+  try {
+    await call("/v1/gosini/" + WHO + "/retire", {
+      method: "POST", body: JSON.stringify({ retired: !resting }),
+    });
+    await loadGosini();
+    drawRetire();
+    say("retire-msg", resting ? "È tornato in servizio." : "È a riposo. Resta tutto dov'è.", "ok");
+  } catch (error) { say("retire-msg", error.message, "err"); }
+  finally { $("retire-go").disabled = false; }
+});
+
 async function loadPsyche() {
   const psyche = await call(forWho("/v1/psyche"), {});
   // the name is already the eyebrow above: the headline is the mood alone
+  drawRetire();
   $("mood-label").textContent = psyche.label;
   $("mood-phrase").textContent = psyche.phrase;
   // the adaptive baseline (ADR-012) wins over the species constant: the tick on

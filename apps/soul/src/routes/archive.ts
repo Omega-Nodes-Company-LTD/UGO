@@ -1,8 +1,9 @@
-import { gosini, meetings, memories, type DbClient } from "@ugo/db";
+import { gosini, memories, type DbClient } from "@ugo/db";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { decryptText, MEMORY_KINDS } from "@ugo/shared";
+import type { AuditLogger } from "../services/auditLog.js";
 import type { ChatService } from "../services/chatService.js";
 import type { PreHandler } from "./guard.js";
 import { exemplarsOf, accountScope, inAccount } from "./scope.js";
@@ -21,6 +22,16 @@ import { withAccount } from "@ugo/db";
  */
 
 const RECENT_LIMIT = 30;
+
+/** ADR-104: un ricordo dato a mano dal titolare. */
+const writeSchema = z.object({
+  gosinoId: z.uuid().optional(),
+  kind: z.enum(MEMORY_KINDS),
+  text: z.string().min(1).max(2000),
+  importance: z.number().min(0).max(1).optional(),
+  /** da quando vale: un fatto si può registrare tardi (ADR-022) */
+  validFrom: z.iso.datetime().optional(),
+});
 
 /** `valid: false` retires a memory; `true` brings it back. */
 const invalidateSchema = z.object({
@@ -43,6 +54,14 @@ export interface ArchiveDeps {
   db: DbClient;
   chat: ChatService;
   guard: PreHandler;
+  /** ADR-104: scrivere un ricordo e buttare una riunione sono atti, e vanno sul giornale */
+  audit: AuditLogger;
+  /**
+   * ADR-104: senza, un ricordo scritto a mano nasce **senza vettore** — e si
+   * ripesca solo per parole. La risposta lo dichiara invece di lasciarlo
+   * credere (la lezione di ADR-091).
+   */
+  embedder?: { embed: (texts: string[]) => Promise<number[][]> } | undefined;
   /**
    * ADR-086: senza, questa rotta restituiva il **ciphertext**.
    *
@@ -221,26 +240,74 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
     return reply.send({ destroyed: gone.length > 0 });
   });
 
-  app.get("/v1/meetings", { preHandler: deps.guard }, async (request, reply) => {
-    const rows = await inAccount(deps.db, request, reply, {}, (db, accountId) =>
-      db
-        .select({
-        id: meetings.id,
-        platform: meetings.platform,
-        title: meetings.title,
-        startedAt: meetings.startedAt,
-        endedAt: meetings.endedAt,
-        status: meetings.status,
-        // chi ci è andato: senza, l'elenco del pannello non poteva dirlo
-        who: gosini.name,
-      })
-        .from(meetings)
-        .leftJoin(gosini, eq(meetings.gosinoId, gosini.id))
-        .where(inArray(meetings.gosinoId, exemplarsOf(db, accountId)))
-        .orderBy(desc(meetings.startedAt))
-        .limit(RECENT_LIMIT),
+  /**
+   * Un ricordo scritto a mano (ADR-104).
+   *
+   * `archive.ts` sapeva **correggere** e **buttare** un ricordo da mesi, e non
+   * sapeva scriverne uno: l'unico modo di dire a UGO una cosa che deve sapere
+   * era parlargliene e sperare che il sogno la distillasse. Il vettore si
+   * calcola qui quando c'è un embedder, **fuori dalla transazione**: una
+   * chiamata di rete non tiene aperta la transazione che ha dichiarato la casa
+   * (ADR-062).
+   */
+  app.post("/v1/memories", { preHandler: deps.guard }, async (request, reply) => {
+    const parsed = writeSchema.safeParse(request.body);
+    if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
+    const body = parsed.data;
+
+    let vector: number[] | undefined;
+    if (deps.embedder !== undefined) {
+      try {
+        vector = (await deps.embedder.embed([body.text]))[0];
+      } catch (error) {
+        request.log.warn(error, "memory embedding failed: the memory is written anyway");
+      }
+    }
+
+    const written = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) => {
+        const who = body.gosinoId ?? deps.registry?.resolve(undefined, accountId)?.id;
+        if (who === undefined) return "no-gosino" as const;
+        const [owned] = await db
+          .select({ id: gosini.id })
+          .from(gosini)
+          .where(and(eq(gosini.id, who), eq(gosini.accountId, accountId)));
+        if (owned === undefined) return "no-gosino" as const;
+        const [row] = await db
+          .insert(memories)
+          .values({
+            gosinoId: who,
+            kind: body.kind,
+            // ADR-091: in chiaro come ogni altro ricordo. Cifrarlo qui lo
+            // renderebbe non ripescabile e invisibile alla redazione dell'oblio
+            text: body.text,
+            ...(body.importance !== undefined && { importance: body.importance }),
+            ...(body.validFrom !== undefined && { validFrom: new Date(body.validFrom) }),
+            ...(vector !== undefined && { embedding: vector }),
+            sourceRefs: { by: "owner" },
+          })
+          .returning({ id: memories.id });
+        if (row === undefined) return "not-created" as const;
+        await deps.audit.record(
+          {
+            verb: "memory_written",
+            outcome: "ok",
+            accountId,
+            resourceType: "memory",
+            resourceId: row.id,
+          },
+          db,
+        );
+        return row;
+      },
     );
-    if (rows === undefined) return reply;
-    return reply.send({ meetings: rows });
+    if (written === undefined) return reply;
+    if (written === "no-gosino") return reply.status(404).send({ error: "non esiste" });
+    if (written === "not-created") return reply.status(500).send({ error: "not created" });
+    return reply.status(201).send({ id: written.id, embedded: vector !== undefined });
   });
 }
