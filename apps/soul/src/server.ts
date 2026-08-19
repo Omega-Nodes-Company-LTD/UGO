@@ -40,6 +40,8 @@ import { RegistryClient } from "./services/registryClient.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
+import { registerDiagnosticsRoute } from "./routes/diagnostics.js";
+import type { DiagnosticsDeps } from "./services/diagnostics/deps.js";
 import { registerMeetingArchiveRoutes } from "./routes/meetingArchive.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerCustomersRoutes } from "./routes/customers.js";
@@ -81,6 +83,14 @@ export interface ServerOptions extends HealthDeps {
    * stanotte si vede stamattina senza riavviare per guardare.
    */
   capabilities?: () => Capability[];
+  /**
+   * La diagnostica di tutti i container (`/v1/diagnostics`).
+   *
+   * Il database non si passa: è già `options.db`, ed è lo stesso. Assente =
+   * la rotta non esiste e il pannello mostra la sezione vuota dicendo perché,
+   * che è il comportamento di ogni altra funzione facoltativa qui dentro.
+   */
+  diagnostics?: Omit<DiagnosticsDeps, "db">;
   /**
    * ADR-061: far nascere una casa dal pannello.
    *
@@ -308,6 +318,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     // un guasto dove c'è solo una variabile non impostata
     if (options.capabilities !== undefined) {
       registerCapabilitiesRoute(app, { guard, snapshot: options.capabilities });
+    }
+    // e come stanno i container che quelle funzioni le fanno girare: una riga
+    // per servizio, coi millisecondi accanto. `/health` resta un battito per
+    // docker; questa è la pagina che apre una persona
+    if (options.diagnostics !== undefined) {
+      registerDiagnosticsRoute(app, { ...options.diagnostics, db: options.db, guard });
     }
     // gruppo 12: il tempo che fa, per il cielo del recinto. Aperta come
     // /v1/rooms — il corpo non porta un token — e muta senza coordinate
@@ -596,10 +612,16 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (face !== undefined) {
       app.register(async (instance) => {
-        await registerFaceWs(instance, face, options.db, registry, {
-          hub: scenes,
-          props: (accountId, room) => props.inRoom(accountId, room),
-        });
+        await registerFaceWs(
+          instance,
+          face,
+          options.db,
+          registry,
+          { hub: scenes, props: (accountId, room) => props.inRoom(accountId, room) },
+          // i contatori: quante frasi entrano, quante escono. È il punto in cui
+          // si distingue «non mi sente» da «non mi risponde»
+          options.diagnostics?.turnLog,
+        );
       });
     }
   }

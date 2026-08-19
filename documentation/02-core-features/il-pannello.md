@@ -1,8 +1,8 @@
 ---
 title: "Il pannello"
 description: "Come sta, cosa ha deciso da solo, e come chiedere a tutti quanti insieme. Tutto da /admin, senza toccare un terminale."
-version: "0.39.0"
-last_updated: "2026-08-18"
+version: "0.40.0"
+last_updated: "2026-08-19"
 author: "ThinkPink Studio"
 ---
 
@@ -133,6 +133,45 @@ Tre cose da sapere:
   perché non c'era niente che valesse la pena dirti;
 - l'incrocio con i clienti **resta in casa**: in reception non se ne parla mai;
 - ogni feed mostra l'ultimo giro e gli eventuali errori — un feed rotto non ferma gli altri.
+
+## La diagnostica
+
+È la pagina che apri quando **qualcosa non va e non sai cosa**. Prima esisteva solo una fila di
+pallini in fondo al sommario, che dicevano due cose sole: risponde, non risponde. Un pezzo che
+rispondeva *dopo quattro secondi* finiva insieme a uno spento, e sono due guasti opposti.
+
+Adesso ci sono quattro blocchi, nell'ordine in cui uno se li chiede davvero.
+
+**Il verdetto.** Una riga. Se qui è verde e la creatura ti sembra lenta lo stesso, la risposta è
+nel terzo blocco.
+
+**I container.** Uno per riga: il database, il broker dei sensori, i modelli di casa, la
+percezione (volto, voce, dettatura), la finestra sul mondo, il libro genealogico, la reception,
+il sogno notturno e il provider della chat. Per ognuno: **cosa fa**, **come si chiama nel
+compose** (cioè cosa scrivere in `docker logs`), **quanto ci ha messo a rispondere**, e — quando
+non è verde — **cosa fare**. Quattro stati, non due:
+
+| | vuol dire |
+| --- | --- |
+| ● risponde | tutto a posto |
+| ▲ lento | risponde, e ti fa aspettare. È quasi sempre qui che si nasconde il minuto |
+| ■ non risponde | è giù, o non è raggiungibile |
+| ○ spento | nessuno l'ha configurato. **Non è un guasto**: accanto c'è il nome della variabile che lo accende |
+
+**Dove se ne va il tempo.** Gli ultimi venti turni, ognuno spezzato in fasi: *ripescaggio* è quel
+che succede in casa prima di uscire (umore, ricordi, embedding), *modello* è il tempo passato
+fuori dal provider, *scrittura* è la biografia. Se il minuto sta tutto in «modello», nei container
+non c'è niente da riparare. Un turno **senza fasi** è una frase risolta in casa, che non ha mai
+visto il provider — e infatti non è costata niente.
+
+**Quante frasi ha sentito.** Da quando il server è acceso: quante ne sono **arrivate** dal muso e
+quante sono **diventate una risposta**. È la differenza fra due guasti che si somigliano e non
+sono lo stesso: se parli venti volte e ne conta tre, le altre diciassette non sono mai arrivate e
+il problema è sul dispositivo (microfono, cancello degli enunciati, rete); se le conta tutte e le
+risposte sono poche, muoiono in casa e la riga rossa qui sopra dice dove.
+
+Il bottone **Risonda adesso** ribussa a tutte le porte. Una chiamata sola: le sonde partono
+insieme, così la pagina che si apre quando qualcosa è rotto non è anche la più lenta.
 
 ## Correggerlo
 

@@ -4,6 +4,7 @@ import type { DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { FaceGateway } from "../services/faceGateway.js";
 import type { SceneHub } from "../services/sceneHub.js";
+import type { TurnLog } from "../services/diagnostics/turnLog.js";
 import { whoAnswers, type Candidate } from "../services/whoAnswers.js";
 import { resolveAccount } from "./scope.js";
 
@@ -86,6 +87,16 @@ export async function registerFaceWs(
     hub: SceneHub;
     props: (accountId: string, roomSlug: string) => Promise<SceneProp[]>;
   },
+  /**
+   * I contatori della diagnostica.
+   *
+   * Qui e non altrove perché questo è l'unico punto che vede **ogni** frase
+   * che entra, comprese quelle che il contratto rifiuta prima che tocchino
+   * qualsiasi logica. Senza, «ne prende una su venti» resta una sensazione:
+   * con, si sa se le altre diciannove non sono mai arrivate (e allora il
+   * guasto è nel browser) o se sono arrivate e sono morte qui.
+   */
+  turnLog?: TurnLog,
 ): Promise<void> {
   await app.register(websocket);
   app.get("/v1/face", { websocket: true }, (socket, request) => {
@@ -211,6 +222,10 @@ export async function registerFaceWs(
 
       deliver = (text: string): void => {
         const targets = forFrame(text, senders);
+        // una frase, non un frame qualunque: i sensori passano di qui a decine
+        // al minuto e conteggiarli tutti renderebbe il rapporto illeggibile
+        const spoken = frameKind(text) === "heard_text";
+        if (spoken) turnLog?.heard();
         for (const { member, send } of targets) {
           void member.gateway
             .handleRaw(text, send)
@@ -221,14 +236,18 @@ export async function registerFaceWs(
               // the only visible effect was UGO never answering. A refusal is
               // as much a fault as a throw, and now says so.
               if (!accepted) {
+                turnLog?.refused();
                 app.log.warn(
                   { gosino: member.id, bytes: text.length },
                   "face frame refused by the contract",
                 );
+              } else if (spoken) {
+                turnLog?.answered();
               }
             })
             .catch(() => {
               // never let a single bad frame take the socket down; IDs-only logging
+              if (spoken) turnLog?.failed();
               app.log.warn({ gosino: member.id }, "face frame handling failed");
             });
         }
@@ -330,4 +349,19 @@ export function forFrame<T extends Candidate>(text: string, senders: T[], roll?:
   }
   if (typeof frame.type === "string" && SENSED_BY_THE_ROOM.has(frame.type)) return senders;
   return one();
+}
+
+/**
+ * Che tipo di frame è, senza fidarsi di niente.
+ *
+ * Solo per contare: un frame illeggibile non è un tipo, e non deve poter
+ * sollevare — è già il caso che i contatori esistono per misurare.
+ */
+function frameKind(text: string): string | undefined {
+  try {
+    const kind = (JSON.parse(text) as { type?: unknown }).type;
+    return typeof kind === "string" ? kind : undefined;
+  } catch {
+    return undefined;
+  }
 }

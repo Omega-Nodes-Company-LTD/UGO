@@ -296,6 +296,11 @@ services:
       UGO_JOBS_TRIGGER_URL: ${UGO_JOBS_TRIGGER_URL:-}
       # ADR-051/055 — la reception (facoltativa: senza segreto resta chiusa)
       UGO_RECEPTION_TOKEN: ${UGO_RECEPTION_TOKEN:-}
+      # e il suo indirizzo, per la sola diagnostica: soul non la chiama mai —
+      # è lei che chiama soul — quindi senza questa riga il pannello non può
+      # dire se la porta sulla strada è aperta. Sta sulla stessa rete
+      # (`reception-net`), quindi il nome del servizio basta.
+      UGO_RECEPTION_URL: ${UGO_RECEPTION_URL:-http://reception:3001}
       UGO_CUSTOMER_HOURLY_MESSAGES: ${UGO_CUSTOMER_HOURLY_MESSAGES:-20}
       UGO_CUSTOMER_DAILY_BUDGET_USD: ${UGO_CUSTOMER_DAILY_BUDGET_USD:-0.25}
       S3_BUCKET_DOCS: ${S3_BUCKET_DOCS:-}

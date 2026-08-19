@@ -1,8 +1,8 @@
 ---
 title: "Runbook — Deploy di UGO su Coolify"
 description: "Procedura completa per portare l'anima di UGO in produzione sul server Coolify: prerequisiti, risorse una per una, bucket S3, smoke test, troubleshooting e aggiornamenti."
-version: "0.43.0"
-last_updated: "2026-08-17"
+version: "0.44.0"
+last_updated: "2026-08-19"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -519,10 +519,15 @@ si aggiunge la sua sezione a §2 con lo stesso ordine.
    chiama è indistinguibile da un container spento: `WebWindow`, `RecognitionClient` e gli
    altri nascono **solo se la loro variabile c'è**. Questa è la riga che si dimentica sempre —
    è successo con la percezione e con searxng, entrambe già costruite e mai raggiunte.
-6. **Il controllo di salute.** Se il servizio è vitale per una funzione visibile, aggiungilo a
-   `/health` di soul con la regola di ADR-101: **`off` quando non è configurato** (non averlo è
-   una scelta), `error` quando è configurato e non risponde. Mai `unavailable`: un pezzo giù
-   degrada, non spegne la casa.
+6. **Il controllo di salute, in due posti.** Se il servizio è vitale per una funzione visibile,
+   aggiungilo a `/health` di soul con la regola di ADR-101: **`off` quando non è configurato**
+   (non averlo è una scelta), `error` quando è configurato e non risponde. Mai `unavailable`: un
+   pezzo giù degrada, non spegne la casa. **E in ogni caso**, vitale o no, aggiungi la sua voce
+   al catalogo della diagnostica (`apps/soul/src/services/diagnostics/catalogue.ts`): è una voce
+   dichiarativa — nome umano, nome del container, cosa fa, come si bussa, perché è spento, cosa
+   fare — e senza di lei il container nuovo ripete la storia di percezione e searxng, acceso e
+   mai guardato. È anche il modo in cui il punto 5 smette di essere una riga da ricordare: un
+   cablaggio dimenticato si vede in pannello come «spento», col nome della variabile accanto.
 7. **La prova che è vivo**, in una riga di `curl` dalla shell di soul, e scritta nella sezione:
    chi rilegge il runbook fra sei mesi deve poter distinguere «non l'ho acceso» da «non
    funziona» senza aprire il codice.
@@ -898,7 +903,15 @@ e `WebWindow` nascono solo se la loro variabile c'è (`UGO_RECOGNITION_URL`, `SE
 senza restano `undefined` — il codice non prova nemmeno a chiamarli, quindi nei log non c'è
 nessun errore da cercare.
 
-Come si distingue in dieci secondi:
+Come si distingue in dieci secondi — **la strada corta, da oggi**: apri `/admin` →
+**La diagnostica**. C'è una riga per ogni container del compose, e dice da sola quale dei tre
+casi è: `spento` (col nome della variabile che manca scritto accanto), `non risponde` (c'è ed è
+giù), `lento` (risponde e ti fa aspettare). Su ogni riga non verde c'è anche cosa fare. Se la
+riga di soul in cima dice che il **ritardo interno** supera qualche decina di millisecondi, non
+cercare oltre: è soul a essere occupato, e ogni altro numero della pagina è gonfiato di
+altrettanto.
+
+La strada lunga, che resta valida da una shell senza pannello:
 
 1. `curl -s http://<TAILSCALE_IP>:3000/health` — se la percezione è cablata leggi `"perception"`:
    `"off"` = **la variabile manca**; `"error"` = c'è e il container non risponde; `"ok"` = tutto

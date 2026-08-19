@@ -1,7 +1,7 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.38.0"
+version: "0.40.0"
 last_updated: "2026-08-19"
 author: "ThinkPink Studio"
 ---
@@ -203,3 +203,51 @@ Se continua a sussultare per niente anche dopo un minuto, la causa è quasi semp
 microfono: qualcosa lo sta amplificando (una cuffia con riduzione rumore, un mixer, un
 altro programma che tiene il microfono aperto). Chiudi gli altri programmi che usano il
 microfono e ricarica la pagina.
+
+## Ci mette un minuto a rispondere
+
+Non tirare a indovinare: apri `/admin` → **La diagnostica**. La pagina risponde alla domanda
+esatta, in due blocchi.
+
+1. **I container** — se una riga è ▲ *lento*, il ritardo è suo e accanto c'è cosa fare. Il caso
+   più frequente ha un nome: i modelli di casa (Ollama) non tengono il modello **caldo**, e la
+   prima richiesta se lo carica da disco. Sono decine di secondi che sembrano lentezza della
+   creatura e non lo sono. La riga te lo dice in chiaro: `nessun modello caldo: la prima
+   richiesta paga il caricamento`.
+2. **Dove se ne va il tempo** — gli ultimi turni spezzati in fasi. Se il minuto sta tutto in
+   *modello*, il ritardo è fuori casa (il provider, o la rete per arrivarci) e nei container non
+   c'è niente da riparare. Se sta in *ripescaggio*, è la macchina di casa.
+
+C'è anche una terza possibilità, ed è scritta nella riga sotto il verdetto: se il **ritardo
+interno** di soul supera qualche decina di millisecondi, il server è occupato e **ogni** altra
+misura della pagina è gonfiata di altrettanto. Allora il problema non è nessuno dei container: è
+che il server ha troppo da fare.
+
+## Parlo dieci volte e mi risponde una
+
+Prima di cambiare qualsiasi cosa, guarda **quante frasi ha sentito** in `/admin` → *La
+diagnostica*. Ci sono due numeri, e dicono due guasti diversi:
+
+- **sentite** è basso (parli venti volte, ne conta tre) → le frasi **non arrivano**. Il problema è
+  sul dispositivo: microfono, riconoscimento vocale del telefono, o rete. Vai a
+  [UGO non risponde quando parlo](#ugo-non-risponde-quando-parlo).
+- **sentite** è giusto ma **risposte** è molto più basso → le frasi arrivano e muoiono in casa.
+  Guarda **rifiutate** (il contratto le ha respinte: quasi sempre un allegato audio oltre il
+  limite) e **fallite** (morte in un errore), e poi la riga rossa fra i container.
+
+Finché quei due numeri non li guardi, «non mi sente» e «non mi risponde» sono la stessa frase — e
+non sono lo stesso problema.
+
+## Ti parla dandoti le spalle
+
+Corretto. Mentre ti parla resta rivolto verso di te dentro un cono di una cinquantina di gradi:
+si muove, grufola, si gira un po', ma il muso ce l'ha da questa parte.
+
+Era rimasta una strada per cui girava lo stesso: se si era **incamminato verso un arredo** (un
+cespuglio, il cuscino) mentre era tranquillo e tu gli parlavi per strada, continuava ad andarci —
+e se l'arredo gli stava dietro, tu vedevi il sedere. Adesso mentre ti risponde all'arredo non ci
+arriva: ci va quando ha finito.
+
+Se lo vedi ancora di schiena **mentre parla**, il dispositivo sta mostrando un muso vecchio:
+controlla in `/admin`, nella barra a sinistra in basso, che il numero del **muso** sia quello
+scritto in basso a destra sul chiosco. Se non lo è, ricarica la pagina del chiosco.

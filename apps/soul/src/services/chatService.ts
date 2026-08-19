@@ -58,6 +58,7 @@ import {
 import type { ParcelService } from "./parcelService.js";
 import type { TieService } from "./tieService.js";
 import { searchQueryOf } from "./webSearch.js";
+import type { TurnClock, TurnLog } from "./diagnostics/turnLog.js";
 
 /** top-k per channel (PROGETTO §5.4: k=6 casa, k=10 riunioni) */
 // `ticket` is listed for totality over MessageChannel: customer conversations
@@ -92,6 +93,11 @@ export interface ChatServiceDeps {
   llm: ChatLlm;
   psyche: PsycheService;
   dataKey: Buffer;
+  /**
+   * Il cronometro della diagnostica. Assente = si risponde esattamente come
+   * prima, senza misurare: un turno non deve dipendere da chi lo guarda.
+   */
+  turnLog?: TurnLog;
   /** the pack block of the prompt (ADR-014); absent = no pack context */
   pack?: PackService;
   /**
@@ -611,7 +617,31 @@ export class ChatService {
     }
   }
 
+  /**
+   * Una risposta, cronometrata.
+   *
+   * L'involucro esiste per una ragione sola: il percorso vero esce da una
+   * dozzina di punti diversi — ogni gesto riconosciuto è un `return` — e
+   * cronometrare in un `finally` è l'unico modo di misurarli **tutti** senza
+   * chiedere a chi aggiunge il gesto tredicesimo di ricordarsi di niente.
+   *
+   * Un gesto risolto in casa esce con zero fasi e dodici millisecondi, ed è
+   * un'informazione: dice che quella frase non ha mai visto il provider.
+   */
   public async handle(request: ChatRequest, at: Date = new Date()): Promise<ChatResponse> {
+    const clock = this.deps.turnLog?.start(this.deps.gosinoId, request.channel);
+    try {
+      return await this.reply(request, at, clock);
+    } finally {
+      clock?.done();
+    }
+  }
+
+  private async reply(
+    request: ChatRequest,
+    at: Date,
+    clock: TurnClock | undefined,
+  ): Promise<ChatResponse> {
     const { db, embedder, llm, psyche, dataKey } = this.deps;
 
     // ADR-028: «ricordami di buttare l'acqua alle 13» is a fixed shape in a
@@ -874,6 +904,10 @@ export class ChatService {
       .limit(1);
 
     const history = await this.loadHistory(request.channel, request.beingId, at);
+    // tutto quello che è successo in casa prima di uscire: umore, ripescaggio
+    // dei ricordi (che passa da Ollama, ed è la fase che paga un modello di
+    // embedding non residente), trascrizioni, diario, storia del filo
+    clock?.lap("ripescaggio");
     const result = await llm.chat(
       {
         channel: request.channel,
@@ -893,6 +927,9 @@ export class ChatService {
       },
       at,
     );
+    // il tempo passato fuori casa. Quando questa fase è il minuto, non c'è
+    // niente da riparare nei container: è il provider, o la rete per arrivarci
+    clock?.lap("modello");
 
     // biography is append-only and encrypted at rest (CLAUDE.md rule 6)
     const owner = { gosinoId: this.deps.gosinoId };
@@ -919,6 +956,7 @@ export class ChatService {
         costUsd: (result.costUsd ?? 0).toFixed(6),
       },
     ]);
+    clock?.lap("scrittura");
 
     return {
       reply: result.text,
