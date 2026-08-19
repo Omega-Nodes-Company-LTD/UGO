@@ -319,7 +319,7 @@ describe("banco di prova della memoria", () => {
    * rispondere a vuoto (`inventata`) resta una conversazione fastidiosa.
    * Il floor si alzerà solo dopo aver letto questi numeri, e solo a quelli.
    */
-  it("misura il giudice locale sulle venti domande (ADR-107)", async () => {
+  it("misura il giudice locale sulle venti domande, e non scende sotto il misurato (ADR-107)", async () => {
     const rows: Record<string, unknown>[] = [];
     let riconosciute = 0;
     let perse = 0;
@@ -369,6 +369,21 @@ describe("banco di prova della memoria", () => {
         ),
     );
     expect(rows).toHaveLength(corpus.questions.length);
+
+    /**
+     * I floor, **ai valori misurati** e non a quelli desiderati (run
+     * 32218211586, `qwen2.5:1.5b` + prompt A). Salgono e non scendono, come
+     * quelli delle famiglie.
+     *
+     * `perse` ha un TETTO invece di un pavimento perché è l'errore che pesa di
+     * più: se una modifica ne facesse perdere due, il banco deve diventare
+     * rosso anche se tutto il resto migliora. È già successo due volte — col
+     * prompt riscritto e col modello raddoppiato — e ogni volta la CI l'ha
+     * detto solo perché qualcuno andava a leggere i log. Adesso lo dice da sé.
+     */
+    expect(riconosciute, "riconosciute sotto il misurato").toBeGreaterThanOrEqual(senza);
+    expect(inventate, "ha risposto a vuoto: non era mai successo").toBe(0);
+    expect(perse, "perse oltre il misurato — e perse pesa più di inventate").toBeLessThanOrEqual(1);
   }, 180_000);
 
   it("still cannot abstain: the similarity bands overlap (ADR-022)", async () => {

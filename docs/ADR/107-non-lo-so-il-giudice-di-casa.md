@@ -167,13 +167,38 @@ Le due cose non sono commensurabili, e la scelta non è tecnica. Un compagno che
 un'allergia è un danno di natura diversa da un compagno che dice una sciocchezza sulle cattedrali
 gotiche — e nessuna delle due misure qui sopra sa pesarla.
 
-Quindi il meccanismo resta **misurato e non cablato**, e la decisione va al proprietario. Le tre
-strade, dichiarate:
+Le tre strade erano: cablare così, non cablare, restringere il campo alla sola reception.
 
-1. **Cablare così**: meno invenzioni, e un «non lo so» ogni dieci risposte vere.
-2. **Non cablare**: UGO continua a rispondere sempre, anche a vuoto — il comportamento di oggi.
-3. **Restringere il campo**: il giudice solo dove inventare costa di più che tacere (la reception
-   coi clienti, per dire) e mai nella chat di casa. Non è ancora misurato.
+**Il proprietario ha scelto di cablarlo in casa** (2026-08-19), preso lo scambio con gli occhi
+aperti — allergia compresa. È quindi acceso di default, e `UGO_ABSTAIN=off` torna al comportamento
+di prima.
+
+### Com'è cablato
+
+Fra il recupero e il prompt, che è il punto in cui cinque ricordi qualunque diventano «Ricordi
+pertinenti» e quindi un invito a inventare.
+
+Quando il giudice dice no, **i ricordi non entrano affatto**: mostrarli e poi chiedere di non
+usarli sarebbe un invito a usarli lo stesso. Al loro posto va una riga che dice a UGO che lì dentro
+non c'è, e che **lo dica con parole sue** — la stessa forma già usata quando gli occhi locali non
+funzionano. Un «non lo so» stampato sarebbe la voce del sistema, non la sua; e la conversazione non
+si interrompe, perché la frase invita anche a farsi raccontare la cosa.
+
+L'astensione si vede da fuori senza aggiungere log con dentro una domanda: `memoriesUsed` torna
+**vuoto**, che è la verità — nessun ricordo è stato usato.
+
+L'interruttore è **la dipendenza che non arriva**, non un booleano dentro un `if`: una dipendenza
+che manca è più difficile da dimenticare accesa.
+
+### I floor, e uno è un tetto
+
+Il banco adesso asserisce, ai valori misurati: riconosciute ≥ 10/10, inventate = 0, e **perse ≤ 1**.
+
+Quello sulle perse è un **tetto**, non un pavimento, perché è l'errore che pesa di più: se una
+modifica ne facesse perdere due, il banco deve diventare rosso anche se tutto il resto migliora.
+È già successo due volte — col prompt riscritto e col modello raddoppiato — e in entrambi i casi
+la CI è rimasta verde: il difetto si è visto solo perché qualcuno è andato a leggere i log. Adesso
+lo dice da sé.
 
 ## Conseguenze
 

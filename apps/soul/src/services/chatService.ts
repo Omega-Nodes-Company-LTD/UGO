@@ -8,6 +8,7 @@ import {
   type DbClient,
 } from "@ugo/db";
 import {
+  canAnswer,
   searchMemories,
   searchTranscripts,
   type EmbeddingsClient,
@@ -131,6 +132,19 @@ export interface ChatServiceDeps {
    * gesto non esiste e la frase va al modello come una qualunque.
    */
   storyteller?: { generate: (prompt: string, maxTokens?: number) => Promise<string | undefined> };
+  /**
+   * ADR-107: il giudice dell'astensione, sul modello di CASA.
+   *
+   * Assente = spento, e UGO risponde sempre com'è sempre stato: è
+   * l'interruttore, e sta qui invece che in un `if` perché una dipendenza che
+   * manca è più difficile da dimenticare accesa di un booleano.
+   *
+   * Misurato (ADR-107): evita dieci confabulazioni su dieci e costa un «non lo
+   * so» ogni dieci risposte vere. Il proprietario ha scelto lo scambio il
+   * 2026-08-19, sapendo che la risposta persa sul corpus di prova è
+   * un'allergia.
+   */
+  abstain?: { generate: (prompt: string, maxTokens?: number) => Promise<string | undefined> };
   /** the account's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
@@ -178,6 +192,8 @@ function buildDynamicSystem(
   recordings: readonly string[],
   pack: string | undefined,
   character: Character,
+  /** ADR-107: false quando il giudice di casa dice che lì dentro non c'è */
+  answerable = true,
 ): string {
   // the clock goes in the DYNAMIC block and nowhere else: interpolating a time
   // into a cached block would break the cache on every single call (§5.5)
@@ -198,12 +214,25 @@ function buildDynamicSystem(
   if (diary !== undefined) {
     lines.push(`Dal diario (${diary.date}): ${diary.text.slice(0, DIARY_EXCERPT_CHARS)}`);
   }
+  /**
+   * ADR-107. Quando il giudice di casa dice che la risposta lì dentro non c'è,
+   * i ricordi **non entrano**: mostrarli e poi chiedere di non usarli è un
+   * invito a usarli lo stesso.
+   *
+   * E non si risponde con una frase fissa. Si dice a UGO che non ce l'ha e lo
+   * dice **con parole sue**, dentro la conversazione che continua — come già
+   * si fa quando gli occhi locali non funzionano. Un «non lo so» stampato
+   * sarebbe la voce del sistema, non la sua.
+   */
   lines.push(
-    retrieved.length > 0
-      ? `Ricordi pertinenti:\n${retrieved
-          .map((memory) => `- (${memory.createdAt.toISOString().slice(0, 10)}) ${memory.text}`)
-          .join("\n")}`
-      : "Nessun ricordo pertinente.",
+    !answerable
+      ? "Fra i tuoi ricordi non c'è di che rispondere a questo. Dillo con parole tue, " +
+          "senza inventare e senza fartene un cruccio: puoi sempre chiedere di raccontartelo."
+      : retrieved.length > 0
+        ? `Ricordi pertinenti:\n${retrieved
+            .map((memory) => `- (${memory.createdAt.toISOString().slice(0, 10)}) ${memory.text}`)
+            .join("\n")}`
+        : "Nessun ricordo pertinente.",
   );
   if (recordings.length > 0) {
     lines.push(`Dalle registrazioni:\n${recordings.map((text) => `- ${text}`).join("\n")}`);
@@ -788,6 +817,19 @@ export class ChatService {
       at,
       this.deps.gosinoId,
     );
+    /**
+     * ADR-107: i ricordi ripescati rispondono davvero alla domanda?
+     *
+     * Sta qui, fra il recupero e il prompt, perché è lì che cinque ricordi
+     * qualunque diventano «Ricordi pertinenti» e quindi un invito a inventare.
+     * `canAnswer` non chiede niente a nessuno quando i due bracci della
+     * ricerca concordano — che è il 60% delle domande con risposta — e ogni
+     * incertezza cade dalla parte del rispondere.
+     */
+    const verdict =
+      this.deps.abstain === undefined
+        ? { answerable: true, asked: false }
+        : await canAnswer({ local: this.deps.abstain }, request.text, retrieved);
     // recordings made "in giro" are interrogable through chat (§4.2) — of this
     // house, and only of this house
     const transcripts = await searchTranscripts(
@@ -824,6 +866,7 @@ export class ChatService {
           recordings,
           await this.packBlock(request.beingId, request.channel),
           this.deps.character,
+          verdict.answerable,
         ),
         history,
         userText: modelText,
@@ -860,7 +903,11 @@ export class ChatService {
     return {
       reply: result.text,
       moodLabel: view.label,
-      memoriesUsed: retrieved.map((memory) => memory.id),
+      // ADR-107: astenersi vuol dire che **nessun** ricordo è stato usato, e
+      // il resoconto lo dice invece di elencare cinque righe che non sono
+      // entrate nel prompt. È anche il modo in cui l'astensione si vede da
+      // fuori, senza aggiungere una riga di log con dentro una domanda
+      memoriesUsed: verdict.answerable ? retrieved.map((memory) => memory.id) : [],
     };
   }
 

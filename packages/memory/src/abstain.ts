@@ -107,7 +107,12 @@ export function readVerdict(said: string | undefined): boolean {
 }
 
 export interface CanAnswerDeps {
-  local: LocalTextClient;
+  /**
+   * Basta `generate`: il giudice non ha bisogno di `available`, e chiedere
+   * l'interfaccia intera costringerebbe ogni chiamante a portarsi dietro un
+   * metodo che qui non serve.
+   */
+  local: Pick<LocalTextClient, "generate">;
   /** quanti ricordi mostrare al giudice: gli stessi che finirebbero nel prompt */
   limit?: number;
 }
