@@ -1,5 +1,5 @@
 import { cropFace } from "./faceCrop.js";
-import type { GazeTarget } from "./renderer.js";
+import type { GazeTarget } from "@ugo/face-body";
 
 type GazeCallback = (target: GazeTarget | null) => void;
 

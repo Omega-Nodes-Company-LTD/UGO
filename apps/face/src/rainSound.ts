@@ -1,4 +1,4 @@
-import type { SkyState } from "./body/room3d.js";
+import type { SkyState } from "@ugo/face-body";
 
 /**
  * Il suono della pioggia (gruppo 13): quando fuori piove, nel recinto si

@@ -1,6 +1,6 @@
 import type { FaceState } from "@ugo/shared/face";
-import type { FaceRenderer } from "./body/faceRenderer.js";
-import type { PsycheVars } from "./body/pose.js";
+import type { FaceRenderer } from "./faceRenderer.js";
+import type { PsycheVars } from "./pose.js";
 
 interface MoodView {
   label: string;

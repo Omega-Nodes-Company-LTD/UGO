@@ -7,7 +7,7 @@ import { openFaceLocator } from "./faceLocator.js";
 import { GlyphDriver } from "./glyph.js";
 import { PortableController } from "./portable.js";
 import { ScreenAwake } from "./wakelock.js";
-import { createFace } from "./body/createFace.js";
+import { createFace } from "@ugo/face-body";
 import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { myBuildId, shouldReload } from "./version.js";
