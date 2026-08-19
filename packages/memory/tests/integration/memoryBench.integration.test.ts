@@ -2,13 +2,15 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { createDbClient, memories, PRIME_GOSINO_ID, runMigrations, type DbClient } from "@ugo/db";
-import { EMBED_MODEL, startOllama, type OllamaHandle } from "@ugo/factories";
+import { EMBED_MODEL, startOllama, TEXT_MODEL, type OllamaHandle } from "@ugo/factories";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { OllamaEmbeddingsClient } from "../../src/embeddings.js";
 import { benchReport, type BenchCase, type BenchReport } from "../../src/metrics.js";
 import { searchMemories } from "../../src/retrieval.js";
+import { canAnswer } from "../../src/abstain.js";
+import { OllamaTextClient } from "../../src/localText.js";
 
 /**
  * Banco di prova della memoria (backlog, gruppo 1).
@@ -91,6 +93,7 @@ let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
 let db: DbClient;
 let embedder: OllamaEmbeddingsClient;
+let judge: OllamaTextClient;
 /** corpus key → the uuid it was seeded under */
 const idByKey = new Map<string, string>();
 const keyById = new Map<string, string>();
@@ -98,11 +101,14 @@ const keyById = new Map<string, string>();
 beforeAll(async () => {
   [pg, ollama] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
+    startOllama({ models: [EMBED_MODEL, TEXT_MODEL] }),
   ]);
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
   embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
+  // ADR-107: il giudice dell'astensione. Modello di casa, mai il provider
+  // (regola 3), e piccolo perché deve rispondere una parola sola.
+  judge = new OllamaTextClient(ollama.baseUrl, TEXT_MODEL);
 
   // one embed call for the whole corpus: every memory is a real network round
   // trip and the CI integration job has 30 minutes for every suite together
@@ -298,6 +304,72 @@ describe("banco di prova della memoria", () => {
     console.log(`segnali di astensione @k=${String(K)}\n${JSON.stringify(rows, null, 2)}`);
     expect(rows).toHaveLength(corpus.questions.length);
   });
+
+  /**
+   * Il giudice al banco (ADR-107), e **non asserisce ancora niente**.
+   *
+   * ADR-106 ha chiuso la strada dei segnali di forma: `gap` e `plateau` sono
+   * rovesciati, `top1` si sovrappone. Resta il significato, e a guardarlo è il
+   * modello di casa. Qui si misura quanto ci prende, sulle stesse venti
+   * domande — dieci con risposta e dieci senza.
+   *
+   * **Le due direzioni d'errore non pesano uguale**, e la tabella le tiene
+   * separate apposta: astenersi da una risposta che esiste (`persa`) è il
+   * danno peggiore — UGO dice «non lo so» di una cosa che sa — mentre
+   * rispondere a vuoto (`inventata`) resta una conversazione fastidiosa.
+   * Il floor si alzerà solo dopo aver letto questi numeri, e solo a quelli.
+   */
+  it("misura il giudice locale sulle venti domande (ADR-107)", async () => {
+    const rows: Record<string, unknown>[] = [];
+    let riconosciute = 0;
+    let perse = 0;
+    let inventate = 0;
+    let chieste = 0;
+
+    for (const question of corpus.questions) {
+      const found = await searchMemories(db, embedder, question.query, K, NOW);
+      await db.update(memories).set({ lastAccessed: null });
+      const verdict = await canAnswer({ local: judge }, question.query, found);
+
+      const haRisposta = question.family !== "astensione";
+      if (verdict.asked) chieste += 1;
+      if (!haRisposta && !verdict.answerable) riconosciute += 1;
+      if (haRisposta && !verdict.answerable) perse += 1;
+      if (!haRisposta && verdict.answerable) inventate += 1;
+
+      rows.push({
+        risposta: haRisposta ? "si" : "no",
+        verdetto: verdict.answerable ? "rispondo" : "non lo so",
+        esito:
+          haRisposta === verdict.answerable
+            ? "giusto"
+            : haRisposta
+              ? "PERSA (il danno peggiore)"
+              : "inventata",
+        chiesto: verdict.asked,
+        said: verdict.said === undefined ? undefined : verdict.said.slice(0, 24),
+        query: question.query,
+      });
+    }
+
+    const senza = corpus.questions.filter((q) => q.family === "astensione").length;
+    const con = corpus.questions.length - senza;
+    console.log(
+      `giudice dell'astensione (${TEXT_MODEL})\n` +
+        JSON.stringify(
+          {
+            riconosciute: `${String(riconosciute)}/${String(senza)}`,
+            perse: `${String(perse)}/${String(con)}`,
+            inventate: `${String(inventate)}/${String(senza)}`,
+            chiamateAlModello: `${String(chieste)}/${String(corpus.questions.length)}`,
+            dettaglio: rows,
+          },
+          null,
+          2,
+        ),
+    );
+    expect(rows).toHaveLength(corpus.questions.length);
+  }, 180_000);
 
   it("still cannot abstain: the similarity bands overlap (ADR-022)", async () => {
     // Measured, not assumed. Across this corpus the best similarity for a
