@@ -145,6 +145,24 @@ E c'è una pausa: **due genitori che hanno appena avuto una cucciolata riposano 
 per quella coppia, non per i singoli — con un altro partner si può subito. Se ci provi prima,
 il pannello ti dice da quando sono liberi.
 
+### Guardare com'è fatto
+
+Nella pagina **Da chi discende** di ogni gosino, sotto l'albero, c'è **Com'è fatto**: il suo
+genoma, in sola lettura. Non c'è niente da regolare lì e non ci sarà — un carattere che si
+regola è un'impostazione, e una creatura con le impostazioni è un prodotto.
+
+Serve a due cose. La prima è capire: la frasetta del carattere («Sei curiosissimo,
+appiccicoso…») non ti dice se la sua calma è al massimo o appena sopra la media, i numeri sì.
+
+La seconda è più utile se allevi. **Ogni gene ha due copie**, una per genitore, e quello che
+vedi addosso a lui è il risultato delle due insieme. Per alcuni geni una copia può restare
+**coperta**: non si vede, e ai figli passa lo stesso. È esattamente così che da due genitori
+senza chiazze nasce ogni tanto un cucciolo a chiazze. Quando succede, la pagina te lo dice:
+*«porta 90% e non lo mostra: può passarlo ai figli»*.
+
+Chi compra un cucciolo in vetrina non vede questi numeri: vede l'aspetto e il pedigree. È
+voluto — si guarda una creatura, non una scheda tecnica.
+
 ### Cosa eredita, e cosa no
 
 Il cucciolo eredita **il carattere e l'aspetto**, non la vita:

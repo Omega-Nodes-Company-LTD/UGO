@@ -181,6 +181,8 @@ async function openPage(page) {
   } else if (page === "pedigree") {
     // ADR-070: da chi discende, e se le firme dei genitori reggono
     await section(loadPedigree, "pedigree-msg");
+    // ADR-105: e com'è fatto — il genoma, in sola lettura
+    await section(loadGenome, "genome-msg");
     // ADR-082/083: e — se è nato e questo account alleva — la vetrina e la cessione
     drawVetrina();
     drawCede();

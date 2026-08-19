@@ -31,6 +31,8 @@ export {
   CEPPI,
   TALKATIVENESS_EPISTASIS,
   expressGene,
+  hiddenAllele,
+  HIDDEN_ALLELE_GAP,
   expressedTraits,
   toTraitSet,
   founderGenome,

@@ -122,3 +122,34 @@ export function founderGenome(
   }
   return { ceppo, alleles };
 }
+
+/**
+ * Quanto un genoma **porta e non mostra** (ADR-105).
+ *
+ * Un allele recessivo coperto da uno dominante non si vede addosso alla
+ * creatura e passa ai figli lo stesso: è il motivo per cui da due genitori
+ * senza chiazze può nascere un cucciolo a chiazze, e finora era una cosa che
+ * il sistema sapeva e non diceva a nessuno.
+ *
+ * Torna il valore nascosto quando c'è, `undefined` quando la creatura mostra
+ * tutto quello che ha. Per i geni `blend` non c'è mai niente di nascosto —
+ * contribuiscono entrambi — e la distanza fra i due alleli si legge dagli
+ * alleli stessi.
+ */
+export const HIDDEN_ALLELE_GAP = 0.15;
+
+export function hiddenAllele(key: GeneKey, allele: Allele): number | undefined {
+  const [a, b] = allele;
+  const gap = Math.abs(a - b);
+  if (gap < HIDDEN_ALLELE_GAP) return undefined;
+  switch (GENE_CATALOG[key].expression) {
+    // si esprime il minore: il maggiore viaggia coperto
+    case "recessive":
+      return Math.max(a, b);
+    // si esprime il maggiore: il minore viaggia coperto
+    case "dominant":
+      return Math.min(a, b);
+    case "blend":
+      return undefined;
+  }
+}
