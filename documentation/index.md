@@ -41,5 +41,6 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 - [In giro](./02-core-features/in-giro.md) — registrare a vista, privacy, biglietto da visita.
 - [Le facce](./02-core-features/le-facce.md) — come impara a riconoscerti, cosa conserva di chi non conosce, come si cancella.
 - [I tuoi dati](./02-core-features/i-tuoi-dati.md) — esportare tutto, far dimenticare una persona.
+- [Il confidente inviolabile](./02-core-features/il-confidente-inviolabile.md) — le tre promesse: le chiavi sono tue, lo stato esce per intero, il trasloco è sempre possibile.
 - [La reception](./02-core-features/la-reception.md) — UGO coi tuoi clienti: token, ticket, fonti, costi.
 - [Problemi comuni](./04-troubleshooting/problemi-comuni.md)
