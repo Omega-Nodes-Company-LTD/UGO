@@ -93,8 +93,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # Un mirror apt che non risponde ha bloccato questo passo due volte di
+      # fila (19/08/2026), bruciando ogni volta i 30 minuti del job e tenendo
+      # rossa una PR che non c'entrava niente. Il passo non aveva un tetto suo:
+      # ora fallisce in fretta e riprova, invece di stare appeso.
       - name: espeak-ng provides the synthetic voice for the ingest fixture
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends espeak-ng
+        timeout-minutes: 5
+        run: |
+          for attempt in 1 2 3; do
+            if sudo apt-get update -o Acquire::Retries=3 \
+              && sudo apt-get install -y --no-install-recommends \
+                 -o Acquire::Retries=3 espeak-ng; then
+              exit 0
+            fi
+            echo "apt non ha risposto (tentativo $attempt/3), riprovo fra 15s"
+            sleep 15
+          done
+          echo "::error::apt non risponde dopo tre tentativi: e infrastruttura, non il diff"
+          exit 1
       - uses: actions/cache@v4
         with:
           path: |

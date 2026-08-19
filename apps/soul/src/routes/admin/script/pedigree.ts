@@ -149,4 +149,54 @@ $("vetrina-toggle").addEventListener("click", async () => {
     say("vetrina-msg", error.message, "err");
   }
 });
+
+
+/**
+ * ADR-105 — com'e fatto, in sola lettura.
+ *
+ * Le due copie di ogni gene disegnate come due tacche sulla stessa riga, e
+ * sotto il valore che si vede addosso a lui. Quando una copia resta coperta lo
+ * diciamo a parole: e la cosa che il pannello non poteva dire, e la ragione
+ * per cui da due genitori senza chiazze nasce ogni tanto un cucciolo a
+ * chiazze.
+ */
+const GENE_LABEL = {
+  chonk: "stazza", ear: "orecchie", snout: "grugno", eye: "occhi", leg: "zampe",
+  hue: "tinta", spots: "chiazze", tail: "coda", curiosity: "curiosita",
+  boldness: "sfacciataggine", affection: "affetto", calm: "calma",
+  talkativeness: "parlantina", longevity: "longevita",
+};
+const EXPRESSION_WORD = {
+  blend: "si mescolano", dominant: "vince la piu alta", recessive: "vince la piu bassa",
+};
+
+async function loadGenome() {
+  let data;
+  try { data = await call(forWho("/v1/gosini/" + WHO + "/genome"), {}); }
+  catch (error) {
+    say("genome-msg", error.status === 404
+      ? "Di questa creatura non e stato scritto nessun genoma."
+      : error.message, "info");
+    $("genome-list").innerHTML = "";
+    return;
+  }
+
+  const pct = (value) => (value * 100).toFixed(0) + "%";
+  $("genome-list").innerHTML =
+    '<p class="lede">Ceppo ' + data.ceppo + " \u00b7 versione " + data.version +
+    (data.versions > 1 ? " di " + data.versions : "") +
+    (data.note ? " \u00b7 " + escape(data.note) : "") + "</p>" +
+    data.genes.map((gene) => {
+      const covered = gene.hidden === undefined ? "" :
+        '<div class="because">porta ' + pct(gene.hidden) +
+        " e non lo mostra: puo passarlo ai figli</div>";
+      return '<div class="gene"><span class="name">' +
+        escape(GENE_LABEL[gene.key] ?? gene.key) + "</span>" +
+        '<span class="copies">' + gene.alleles.map(pct).join(" \u00b7 ") + "</span>" +
+        '<span class="shown">' + pct(gene.expressed) + "</span>" +
+        '<span class="flags">' + escape(EXPRESSION_WORD[gene.expression] ?? gene.expression) +
+        "</span>" + covered + "</div>";
+    }).join("");
+  say("genome-msg", "Si legge, non si tocca.", "info");
+}
 `;

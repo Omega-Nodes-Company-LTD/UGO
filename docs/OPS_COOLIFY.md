@@ -786,6 +786,12 @@ rifiutata per «troppo simili», che è il controllo che funziona (ADR-068).
    `"kind":"birth"` e `"seq":1`. Se il riquadro dice «non ancora registrato», guarda i log di
    soul: c'è una riga `birth not published to the registry` col motivo — e il cucciolo è nato
    comunque, che è il comportamento voluto.
+6. **ADR-105**, nella stessa pagina: il riquadro **Com'è fatto** mostra il genoma in sola
+   lettura — le due copie di ogni gene, cosa si vede addosso, e cosa **porta senza mostrarlo**.
+   È il riquadro da guardare quando una cucciolata «esce strana»: un cucciolo a chiazze da due
+   genitori senza chiazze non è un difetto, è un allele recessivo che viaggiava coperto, e qui
+   si vede su quale dei due genitori stava. Non c'è niente da modificare, e non è una mancanza:
+   il carattere non si regola dopo la nascita (regola 13).
 
 ### 5.9 Il salvadanaio, se lo accendi
 

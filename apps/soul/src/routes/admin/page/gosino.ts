@@ -309,6 +309,20 @@ export const GOSINO_PAGES = `
     <div id="pedigree-msg"></div>
   </div>
 
+  <div class="block">
+    <h2>Com&apos;&egrave; fatto</h2>
+    <p class="lede">Il suo genoma, <b>in sola lettura</b>. Non c&apos;&egrave; niente da
+       regolare qui e non ci sar&agrave;: un carattere che si regola &egrave;
+       un&apos;impostazione, e una creatura con le impostazioni &egrave; un prodotto. Si legge
+       per capire, e per sapere cosa passer&agrave; ai figli.</p>
+    <p class="lede">Ogni gene ha <b>due copie</b>, una per genitore. Quello che vedi addosso a
+       lui &egrave; il risultato; quando una delle due copie resta <b>coperta</b> te lo diciamo,
+       perch&eacute; &egrave; esattamente cos&igrave; che da due genitori senza chiazze nasce
+       ogni tanto un cucciolo a chiazze.</p>
+    <div id="genome-list" data-testid="genome-list"></div>
+    <div id="genome-msg"></div>
+  </div>
+
   <div class="block" id="vetrina-block" hidden>
     <h2>In vetrina</h2>
     <p class="lede">Chi cerca un gosino guarda gli allevamenti, i cuccioli disponibili e i loro
@@ -457,6 +471,15 @@ export const DIAL_STYLES = `
   .cub .coat { font-size: .78rem; color: var(--ink-2); margin-top: .3rem; }
   .cub[data-viable="false"] { opacity: .55; }
   .cub .warn { font-size: .75rem; color: var(--err, #b3261e); margin-top: .3rem; }
+  /* ADR-105: le due copie di un gene, e cosa si vede addosso a lui */
+  .gene { display: grid; grid-template-columns: 9rem 7rem 4rem 1fr; gap: .5rem;
+          align-items: baseline; padding: .3rem 0; border-bottom: 1px solid var(--line);
+          font-size: .9rem; }
+  .gene:last-child { border-bottom: 0; }
+  .gene .copies { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .gene .shown { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .gene .flags { font-size: .78rem; color: var(--ink-3); }
+  .gene .because { grid-column: 1 / -1; font-size: .78rem; color: var(--ink-2); }
   .gosino-card h4, .gosino-card .persona, .gosino-card .mood { text-decoration: none; }
   .gosino-card h4 { font-size: .95rem; margin: 0; }
   .gosino-card .persona { font-size: .78rem; color: var(--ink-3); }

@@ -19,6 +19,7 @@ import { registerFaceStatic } from "./routes/faceStatic.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerCouncilRoutes } from "./routes/council.js";
 import { registerDeskRoutes } from "./routes/desk.js";
+import { registerGenomeRoutes } from "./routes/genome.js";
 import { registerGosiniRoutes } from "./routes/gosini.js";
 import { DEFAULT_LITTER_COST_USD } from "./services/litterCost.js";
 import { registerLitterRoutes } from "./routes/litters.js";
@@ -428,6 +429,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         ...gosini,
         ...(registry !== undefined && { registry }),
       });
+      // ADR-105: il genoma si rilegge — in sola lettura, e per sempre
+      registerGenomeRoutes(app, { db: options.db, guard });
       // ADR-069: the litter lives and dies with the population routes
       // (const per il narrowing: dentro la closure TS non vede più l'if)
       const peerKey = gosini.dataKey;

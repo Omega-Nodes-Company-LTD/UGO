@@ -55,6 +55,9 @@ const M1 = "0000000b-0000-4000-8000-00000000000b"; // ceppo 3, come Placida
 const M2 = "0000000c-0000-4000-8000-00000000000c"; // ceppo 4, come Ciarla
 const X1 = "00000014-0000-4000-8000-000000000014"; // ceppo 4, come Placida
 const X2 = "00000015-0000-4000-8000-000000000015"; // ceppo 5, come Ciarla
+/** ADR-105: il genoma riletto vuole un nato suo — il riposo vale anche qui */
+const Y1 = "00000016-0000-4000-8000-000000000016"; // ceppo 6, come Placida
+const Y2 = "00000017-0000-4000-8000-000000000017"; // ceppo 7, come Ciarla
 /** due capostipiti veri: i loro figli sono di seconda generazione, e gratis */
 const K1 = "0000000d-0000-4000-8000-00000000000d"; // ceppo 5, come Placida
 const K2 = "0000000e-0000-4000-8000-00000000000e"; // ceppo 6, come Ciarla
@@ -156,6 +159,8 @@ beforeAll(async () => {
   await seedParent(M2, "Ciarla IV", CIARLA, 3);
   await seedParent(X1, "Placida V", PLACIDA);
   await seedParent(X2, "Ciarla V", CIARLA, 3);
+  await seedParent(Y1, "Placida VI", PLACIDA);
+  await seedParent(Y2, "Ciarla VI", CIARLA, 3);
   await seedParent(K1, "Adamo", PLACIDA);
   await seedParent(K2, "Eva", CIARLA);
   await seedParent(T1, "Riposa", PLACIDA, 3);
@@ -562,4 +567,79 @@ interface PedigreeShape {
   id: string;
   genomeHash?: string;
   parents: { id: string; name: string; verdict: string }[];
+}
+
+/**
+ * Il genoma riletto (ADR-105). La cosa che questa vista aggiunge non è
+ * «mostra i numeri»: è **quello che una creatura porta e non mostra**, cioè
+ * la spiegazione di come da due genitori senza chiazze nasca un cucciolo a
+ * chiazze. Se un giorno smettesse di uscire, l'allevamento tornerebbe a essere
+ * una scatola nera.
+ */
+describe("GET /v1/gosini/:id/genome", () => {
+  const genomeOf = (id: string, token: string) =>
+    app.inject({
+      method: "GET",
+      url: `/v1/gosini/${id}/genome`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+  it("rilegge il genoma di un fondatore: alleli, espressione, ceppo e versione", async () => {
+    const response = await genomeOf(P1, tokenA);
+    expect(response.statusCode).toBe(200);
+    const body = response.json<GenomeShape>();
+    expect(body.gosino.name).toBe("Placida");
+    expect(body.version).toBe(1);
+    expect(body.versions).toBe(1);
+    expect(body.ceppo).toBeGreaterThanOrEqual(0);
+    // ogni gene del catalogo c'è, coi suoi due alleli e come si esprime
+    expect(body.genes).toHaveLength(14);
+    const calm = body.genes.find((gene) => gene.key === "calm");
+    expect(calm?.alleles).toHaveLength(2);
+    expect(calm?.expressed).toBeCloseTo(0.9, 5);
+    // un fondatore è omozigote: non porta niente di nascosto
+    expect(body.genes.every((gene) => gene.hidden === undefined)).toBe(true);
+  });
+
+  it("su un nato dice cosa porta senza mostrarlo, e da quale cucciolata viene", async () => {
+    const born = await post("/v1/gosini/births", tokenA, {
+      parentIds: [Y1, Y2],
+      seed: 2026,
+      names: Array.from({ length: 5 }, (_, at) => `Portatore ${String(at)}`),
+    });
+    expect(born.statusCode).toBe(201);
+    const child = born.json<{ born: { id: string }[] }>().born[0];
+
+    const response = await genomeOf(child?.id ?? "", tokenA);
+    expect(response.statusCode).toBe(200);
+    const body = response.json<GenomeShape>();
+    // la provenienza è scritta: da quale cucciolata e quale cucciolo
+    expect(body.note).toContain("seed=2026");
+    // e i geni recessivi/dominanti dicono cosa c'è sotto, quando c'è
+    const carried = body.genes.filter((gene) => gene.hidden !== undefined);
+    for (const gene of carried) {
+      expect(["recessive", "dominant"]).toContain(gene.expression);
+      expect(gene.hidden).not.toBeCloseTo(gene.expressed, 3);
+    }
+  });
+
+  it("il genoma del vicino non esiste, come la creatura", async () => {
+    const response = await genomeOf(P1, tokenB);
+    expect(response.statusCode).toBe(404);
+  });
+});
+
+interface GenomeShape {
+  gosino: { id: string; name: string; generation: number };
+  ceppo: number;
+  version: number;
+  versions: number;
+  note?: string;
+  genes: {
+    key: string;
+    expression: string;
+    alleles: number[];
+    expressed: number;
+    hidden?: number;
+  }[];
 }
