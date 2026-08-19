@@ -44,6 +44,28 @@ I ricordi che non tornano mai utili sbiadiscono: dopo un mese senza essere richi
 e i doppioni vengono fusi in uno solo. È voluto. Un ricordo che non usi mai non è un ricordo, è
 zavorra. Se una cosa ti sta a cuore, nominala ogni tanto: torna a pesare.
 
+### Quando dice che non lo sa
+
+A volte gli chiedi una cosa e ti risponde che non ce l'ha. **È voluto, ed è una funzione, non un
+guasto.**
+
+Prima, davanti a una domanda di cui non sapeva niente, UGO riceveva lo stesso i cinque ricordi più
+somiglianti — la lavatrice, il gatto, la caldaia — e provava a rispondere con quelli. Il risultato
+erano risposte inventate dette col tono di chi sa. Adesso, prima di guardare i ricordi, se li
+rilegge e si chiede se rispondono davvero: se non rispondono, te lo dice.
+
+Due cose da sapere, dette com'è giusto dirle:
+
+- **capita anche quando la risposta ce l'aveva.** Su dieci domande che una risposta hanno, circa una
+  riceve un «non lo so» di troppo. Se ti succede su una cosa che sei sicuro di avergli detto,
+  ridigliela: la sa da subito, e la prossima volta la ritrova;
+- **la conversazione non si ferma.** Non è un errore né un muro: puoi raccontargliela lì per lì, e
+  da quel momento è sua.
+
+Chi gestisce il server può spegnere questo comportamento (`UGO_ABSTAIN=off`) e tornare a un UGO che
+prova sempre a rispondere. È uno scambio, e conviene saperlo in entrambe le direzioni: meno risposte
+inventate da una parte, qualche «non lo so» di troppo dall'altra.
+
 ## Le parole che sono gesti
 
 Alcune forme fisse fanno qualcosa di preciso, subito e gratis — le risponde lui, senza scomodare

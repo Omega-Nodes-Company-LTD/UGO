@@ -285,6 +285,12 @@ container più economico dell'installazione.
    `S3_ACCESS_KEY_ID=<S3_ACCESS_KEY>` · `S3_SECRET_ACCESS_KEY=<S3_SECRET_KEY>` · `S3_BUCKET_AUDIO=ugo-audio` ·
    `S3_REGION=<S3_REGION>` (Hetzner la pretende, es. `fsn1`) ·
    `VEXA_API_URL=<VEXA_API_URL>` · `VEXA_API_KEY=<VEXA_API_KEY>` · `UGO_OWNER_NAME=<OWNER_NAME>` ·
+   `TZ=Europe/Rome`. Facoltativa (ADR-107): `UGO_ABSTAIN` (`on` di default) — prima di mettere i
+   ricordi ripescati nel prompt, il **modello di casa** guarda se rispondono davvero alla domanda;
+   se no UGO dice che non lo sa con parole sue, invece di ricevere cinque ricordi che non c'entrano
+   e inventare. Misurato: evita dieci confabulazioni su dieci e costa un «non lo so» ogni dieci
+   risposte vere. `off` torna al comportamento di prima. **Serve un modello di testo su Ollama**
+   (`OLLAMA_CHAT_MODEL` o `OLLAMA_TEXT_MODEL`): senza, il giudice non si accende e non è un errore.
    `TZ=Europe/Rome`. Facoltativa (ADR-103): `UGO_LITTER_COST_USD` (quanto costa **un cucciolo**,
    default `0.25`; si paga dal salvadanaio dei genitori e solo dalla terza generazione in poi —
    `0` dichiara «da questa casa si nasce gratis»). Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori

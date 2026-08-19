@@ -57,6 +57,20 @@ export const soulEnvSchema = z.object({
   // the right one for a machine that just learned to speak first.
   UGO_INITIATIVE: z
     .preprocess((value) => (value === "" ? undefined : value), z.enum(["on", "off"]).default("on")),
+  /**
+   * ADR-107 — il giudice dell'astensione: prima di comporre «Ricordi
+   * pertinenti», il modello di CASA guarda se i ricordi ripescati rispondono
+   * davvero alla domanda. Se no, UGO dice che non lo sa **con parole sue**.
+   *
+   * Acceso di default per scelta del proprietario (2026-08-19), preso lo
+   * scambio con gli occhi aperti: dieci confabulazioni evitate su dieci, e un
+   * «non lo so» ogni dieci risposte che una risposta ce l'avevano. `off` torna
+   * al comportamento di prima — risponde sempre, anche a vuoto.
+   */
+  UGO_ABSTAIN: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.enum(["on", "off"]).default("on"),
+  ),
   UGO_INITIATIVE_TICK_MINUTES: z.preprocess(
     (value) => (value === "" ? undefined : value),
     z.coerce.number().int().min(1).default(4),

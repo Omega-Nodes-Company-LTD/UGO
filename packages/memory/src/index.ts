@@ -11,6 +11,14 @@ export {
   type RankedMemory,
 } from "./rerank.js";
 export { writeMemory, searchMemories, type WriteMemoryInput } from "./retrieval.js";
+export {
+  armsAgree,
+  canAnswer,
+  judgePrompt,
+  readVerdict,
+  type AnswerableVerdict,
+  type CanAnswerDeps,
+} from "./abstain.js";
 export { searchTranscripts, type RetrievedTranscript } from "./transcripts.js";
 export { searchCustomerChunks, type RetrievedCustomerChunk } from "./customerChunks.js";
 export { computeCostUsd, pricingFor, type ModelPricing, type TokenUsage } from "./pricing.js";

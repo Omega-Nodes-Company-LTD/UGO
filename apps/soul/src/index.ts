@@ -385,6 +385,8 @@ const registry = await GosinoRegistry.load({
   speciesMap,
   localModelUp: () => localTextUp,
   initiativeEnabled: (accountId: string) => initiative.on(accountId),
+  // ADR-107: il giudice dell'astensione, sul modello di casa
+  abstain: env.UGO_ABSTAIN === "on",
   hourOf,
   ...(recognition !== undefined && { recognition }),
   // ADR-057: senza bucket niente `voice_sample`, dal chiosco come dal pannello

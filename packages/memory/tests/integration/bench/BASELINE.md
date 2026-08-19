@@ -184,3 +184,21 @@ Le soglie di non regressione stanno in `FLOORS`, dentro `memoryBench.integration
 fissate **ai valori misurati**, non a valori desiderati. Salgono e non scendono; ogni volta che si
 alzano, il commento accanto dice cosa le ha mosse. Una soglia a 0 non asserisce nulla, ed è voluto:
 registra un fatto invece di fingere di sorvegliarlo.
+
+## Il giudice dell'astensione (ADR-107) — misura deterministica
+
+Run 32226212120, `qwen2.5:1.5b`, **temperatura 0**. Le misure precedenti giravano a 0.8 e
+campionavano il verdetto: erano estrazioni, non misure, e non vanno confrontate con questa.
+
+| | giudice | nessun giudice (astieniti sempre) |
+|---|---|---|
+| riconosciute | 10 / 10 | 10 / 10 |
+| inventate | 0 / 10 | 0 / 10 |
+| **perse** | **3 / 10** | 4 / 10 |
+| chiamate al modello | 14 / 20 | 0 |
+
+Il guadagno reale è **una domanda su dieci**. Le tre perse sono l'allergia di Sofia, il compleanno
+della nonna e il modello della caldaia; l'unica recuperata è la riunione settimanale.
+
+Il tetto nel banco è `perse < 4`: sotto quel numero il giudice guadagna qualcosa, sopra sta facendo
+peggio del non averlo.

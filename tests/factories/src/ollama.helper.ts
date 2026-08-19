@@ -8,13 +8,30 @@ import { GenericContainer, type StartedTestContainer } from "testcontainers";
  */
 
 export const EMBED_MODEL = "nomic-embed-text";
+/**
+ * ADR-107: il modello di TESTO per il giudice dell'astensione.
+ *
+ * Piccolo apposta (~1 GB): il giudice risponde una parola, non scrive un
+ * racconto. **Ed è stato provato a raddoppiarlo**: `qwen2.5:3b`, stesso prompt
+ * e stesso corpus, ha fatto **peggio** — perse da 1 a 3 su dieci (ADR-107, run
+ * 32221620314). Più parametri non comprano il passaggio da gamberi a
+ * crostacei; comprano solo due giga di download per ogni run che non trova la
+ * cache. Non è il modello di casa in produzione — lì decide
+ * `OLLAMA_CHAT_MODEL`.
+ */
+export const TEXT_MODEL = "qwen2.5:1.5b";
 
 export interface OllamaHandle {
   container: StartedTestContainer;
   baseUrl: string;
 }
 
-export async function startOllama(): Promise<OllamaHandle> {
+export interface OllamaOptions {
+  /** quali modelli servono. Di default solo l'embedder, com'era prima. */
+  models?: readonly string[];
+}
+
+export async function startOllama(options: OllamaOptions = {}): Promise<OllamaHandle> {
   let builder = new GenericContainer("ollama/ollama").withExposedPorts(11434);
   const modelsDir = process.env.UGO_TEST_OLLAMA_MODELS;
   if (modelsDir !== undefined && modelsDir !== "") {
@@ -23,19 +40,23 @@ export async function startOllama(): Promise<OllamaHandle> {
   const container = await builder.start();
   const baseUrl = `http://${container.getHost()}:${String(container.getMappedPort(11434))}`;
 
-  const hasModel = async (): Promise<boolean> => {
+  const hasModel = async (wanted: string): Promise<boolean> => {
     const response = await fetch(new URL("/api/tags", baseUrl));
     if (!response.ok) return false;
     const body = (await response.json()) as { models?: { name: string }[] };
-    return (body.models ?? []).some((model) => model.name.startsWith(EMBED_MODEL));
+    // `startsWith` sul nome intero: `qwen2.5:1.5b` e `qwen2.5:3b` cominciano
+    // uguali fino ai due punti, e confrontare solo la famiglia direbbe di sì
+    // per il modello sbagliato
+    return (body.models ?? []).some((model) => model.name.startsWith(wanted));
   };
 
-  if (!(await hasModel())) {
-    const pull = await container.exec(["ollama", "pull", EMBED_MODEL]);
-    if (pull.exitCode !== 0 || !(await hasModel())) {
+  for (const wanted of options.models ?? [EMBED_MODEL]) {
+    if (await hasModel(wanted)) continue;
+    const pull = await container.exec(["ollama", "pull", wanted]);
+    if (pull.exitCode !== 0 || !(await hasModel(wanted))) {
       await container.stop();
       throw new Error(
-        `ollama pull ${EMBED_MODEL} failed (exit ${String(pull.exitCode)}); ` +
+        `ollama pull ${wanted} failed (exit ${String(pull.exitCode)}); ` +
           "set UGO_TEST_OLLAMA_MODELS to a cache dir or allow network access",
       );
     }

@@ -115,6 +115,8 @@ export interface RuntimeDeps {
    * spegnere l'iniziativa da una casa la spegneva anche al vicino.
    */
   initiativeEnabled: (accountId: string) => boolean;
+  /** ADR-107: se il giudice dell'astensione è acceso (`UGO_ABSTAIN`) */
+  abstain?: boolean;
   hourOf: (at: Date) => number;
   /**
    * ADR-045: chi sta parlando. Assente = UGO risponde senza sapere chi hai
@@ -237,6 +239,9 @@ async function buildRuntime(
     // ADR-088: la storia della buonanotte la scrive il modello di casa, lo
     // stesso che l'iniziativa usa per le sue domande. Mai il provider.
     storyteller: deps.local,
+    // ADR-107: lo stesso modello di casa fa anche il giudice dell'astensione.
+    // Assente = spento: l'interruttore è la dipendenza che non arriva.
+    ...(deps.abstain === true && { abstain: deps.local }),
     ...(recognition !== undefined && {
       reader: new SceneReader({
         gateway: () => body.gateway,
