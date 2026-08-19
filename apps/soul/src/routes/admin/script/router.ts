@@ -141,6 +141,9 @@ async function openPage(page) {
     await section(() => loadAudit(false), "audit-msg");
     await section(() => loadHouseMessages(false), "msg-msg");
     await section(() => loadPerception(false), "perc-msg");
+    // ADR-100: chi può entrare, e cosa gli è stato detto di correggere
+    await section(loadKeys, "key-msg");
+    await section(loadCorrections, "corr-msg");
   } else if (page === "clienti") {
     await section(loadCustomers, "cust-msg");
   } else if (page === "arredi") {

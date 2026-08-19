@@ -10,6 +10,7 @@ import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerArchiveRoutes } from "./routes/archive.js";
 import { registerMemoryGraphRoutes } from "./routes/memoryGraph.js";
 import { registerJournalRoutes } from "./routes/journal.js";
+import { registerKeysRoutes } from "./routes/keys.js";
 import { registerPackRoutes } from "./routes/pack/index.js";
 import { registerDataSummaryRoute, registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerStatsRoute } from "./routes/stats.js";
@@ -265,6 +266,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     const scenes = new SceneHub();
     const props = new PropService(options.db);
     const guard = createAuthGuard(audit);
+    // ADR-100: le chiavi di casa, le correzioni, il nome della stanza
+    registerKeysRoutes(app, { db: options.db, guard, audit });
     registerV1Routes(app, {
       db: options.db,
       ...v1,

@@ -26,6 +26,25 @@ const DRIVER_LABEL = {
 const when = (iso) => new Date(iso).toLocaleString("it-IT",
   { weekday: "short", hour: "2-digit", minute: "2-digit" });
 
+/**
+ * La mela dal pannello: premia il gesto della riga, non «il servizio».
+ *
+ * Delegato sul contenitore e armato UNA volta (il modulo si carica una volta
+ * sola): agganciarlo dentro il loader avrebbe accumulato un listener per ogni
+ * apertura della pagina, e alla quinta una mela ne avrebbe date cinque.
+ */
+$("initiative-list").addEventListener("click", (event) => {
+    const act = event.target.dataset ? event.target.dataset.rewardAct : undefined;
+    if (!act || WHO === "") return;
+    void section(async () => {
+      await call("/v1/gosini/" + WHO + "/reward", {
+        method: "POST",
+        body: JSON.stringify({ act }),
+      });
+      await loadVolition();
+    }, "volition-msg");
+});
+
 async function loadVolition() {
   let data;
   try { data = await call(forWho("/v1/volition"), {}); }
@@ -86,6 +105,12 @@ async function loadVolition() {
           (p.act ? ' <span class="deed-act">' + escape(ACT_LABEL_IT[p.act] ?? p.act) + "</span>" : "") + "</div>" +
           (p.because ? '<div class="because">« ' + escape(p.because) + " »</div>" : "") +
           (driver ? '<div class="because">spinto da: ' + escape(driver) + "</div>" : "") +
+          // ADR-100: la mela su QUESTA riga. Il campo act esisteva nel
+          // contratto da ADR-058 e arrivava sempre vuoto: senza un bottone
+          // che sappia cosa sta premiando, l'apprendimento riceveva «bravo
+          // in generale», che non insegna quale gesto è piaciuto
+          (p.act ? '<button class="ghost" data-reward-act="' + escape(p.act) +
+            '" title="premia questo gesto">🍎</button>' : "") +
           "</div>";
       }).join("");
 }

@@ -71,6 +71,73 @@ function fillMessageWho() {
     GOSINI.map((g) => '<option value="' + g.id + '">' + escape(g.name) + '</option>').join("");
 }
 
+const ROLE_LABEL = { owner: "proprietario", member: "membro", operator: "operatore" };
+const SIGNAL_LABEL = { too_loud: "parla troppo forte", leave_alone: "lasciami stare",
+  good: "così va bene", wrong_name: "hai sbagliato nome" };
+
+async function loadKeys() {
+  const rows = (await call("/v1/tokens")).chiavi ?? [];
+  $("key-rows").innerHTML = rows.length === 0
+    ? '<p class="lede">Nessuna chiave: questa casa si apre solo dal token di servizio.</p>'
+    : rows.map((row) => {
+        const dead = row.revokedAt !== null;
+        const seen = row.lastUsedAt ? "vista " + whenLabel(row.lastUsedAt) : "mai usata";
+        return '<div class="line"><span class="when">' + whenLabel(row.createdAt) + '</span>' +
+          '<b>' + escape(row.label) + '</b> ' +
+          '<span class="tag">' + (ROLE_LABEL[row.role] ?? row.role) + '</span> ' +
+          '<span class="lede">' + seen + '</span>' +
+          (dead ? ' <span class="tag warn">revocata</span>'
+                : ' <button class="ghost" data-burn="' + row.id + '">Revoca</button>') +
+          '</div>';
+      }).join("");
+}
+
+async function loadCorrections() {
+  const rows = (await call("/v1/corrections")).correzioni ?? [];
+  $("corr-rows").innerHTML = rows.length === 0
+    ? '<p class="lede">Nessuna correzione: nessuno gli ha ancora detto di cambiare qualcosa.</p>'
+    : rows.map((row) =>
+        '<div class="line"><span class="when">' + whenLabel(row.createdAt) + '</span>' +
+        '<b>' + escape(row.name) + '</b> ' +
+        '<span class="tag">' + (SIGNAL_LABEL[row.signal] ?? row.signal) + '</span>' +
+        ' <button class="ghost" data-undo-corr="' + row.id + '">Ritira</button></div>').join("");
+}
+
+$("key-new").addEventListener("click", () => {
+  void section(async () => {
+    const label = $("key-label").value.trim();
+    if (label === "") throw new Error("dì a cosa serve, o fra un mese non lo saprai");
+    const made = await call("/v1/tokens", {
+      method: "POST",
+      body: JSON.stringify({ label, role: $("key-role").value }),
+    });
+    // in chiaro una volta sola, e la pagina lo dice a chiare lettere
+    $("key-fresh").hidden = false;
+    $("key-fresh").className = "msg ok";
+    $("key-fresh").textContent = "Copiala adesso, non si rivede: " + made.token;
+    $("key-label").value = "";
+    await loadKeys();
+  }, "key-msg");
+});
+
+$("key-rows").addEventListener("click", (event) => {
+  const id = event.target.dataset ? event.target.dataset.burn : undefined;
+  if (!id) return;
+  void section(async () => {
+    await call("/v1/tokens/" + id, { method: "DELETE" });
+    await loadKeys();
+  }, "key-msg");
+});
+
+$("corr-rows").addEventListener("click", (event) => {
+  const id = event.target.dataset ? event.target.dataset.undoCorr : undefined;
+  if (!id) return;
+  void section(async () => {
+    await call("/v1/corrections/" + id, { method: "DELETE" });
+    await loadCorrections();
+  }, "corr-msg");
+});
+
 $("audit-more").addEventListener("click", () => { void section(() => loadAudit(true), "audit-msg"); });
 $("msg-more").addEventListener("click", () => { void section(() => loadHouseMessages(true), "msg-msg"); });
 $("perc-more").addEventListener("click", () => { void section(() => loadPerception(true), "perc-msg"); });

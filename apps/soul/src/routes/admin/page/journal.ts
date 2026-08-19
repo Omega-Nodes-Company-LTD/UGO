@@ -53,6 +53,34 @@ export const JOURNAL_PAGES = `
   </div>
 
   <div class="block">
+    <h2>Le chiavi di casa</h2>
+    <p class="lede">Chi può entrare, e con che ruolo. Il valore in chiaro si vede
+       <b>una volta sola</b>: in database c'è solo l'impronta, e se si perde si riemette.</p>
+    <div class="row">
+      <div><label for="key-label">A cosa serve</label>
+        <input id="key-label" data-testid="key-label" placeholder="dock cucina" autocomplete="off"></div>
+      <div><label for="key-role">Ruolo</label>
+        <select id="key-role" data-testid="key-role">
+          <option value="member">membro — legge e parla</option>
+          <option value="owner">proprietario — amministra</option>
+        </select></div>
+      <button id="key-new" data-testid="key-new">Emetti</button>
+    </div>
+    <p class="msg" id="key-fresh" hidden></p>
+    <div id="key-rows" data-testid="key-rows"></div>
+    <p class="msg" id="key-msg"></p>
+  </div>
+
+  <div class="block">
+    <h2>Cosa gli è stato detto di correggere</h2>
+    <p class="lede">Le correzioni restano nel suo prompt finché non le si ritira.
+       Si scrivevano e non si vedevano: una cosa che cambia il carattere e non si
+       può guardare è una manopola entrata dalla finestra.</p>
+    <div id="corr-rows" data-testid="corr-rows"></div>
+    <p class="msg" id="corr-msg"></p>
+  </div>
+
+  <div class="block">
     <h2>Chi ha visto, e cosa</h2>
     <p class="lede">Gli incontri del riconoscitore e le occhiate alla stanza.
        Mai l'impronta: quella resta cifrata dov'è.</p>

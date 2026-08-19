@@ -40,6 +40,8 @@ export const AUDIT_VERBS = [
   "account_created",
   /** un token emesso: nel giornale il suo id, mai il segreto */
   "token_issued",
+  /** ADR-100: una chiave di casa bruciata dal pannello, non da psql */
+  "token_revoked",
   /** un cliente nuovo della casa (ADR-057) */
   "customer_created",
   /** un cliente archiviato: la reception gli si chiude */
