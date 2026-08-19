@@ -61,3 +61,37 @@ describe("SceneHub", () => {
     }).not.toThrow();
   });
 });
+
+/**
+ * ADR-101: `connected()` — chi è collegato adesso, stanza per stanza.
+ *
+ * Il caso che conta è il **prefisso**: le chiavi sono `"<account> <stanza>"`,
+ * e un account il cui id fosse prefisso di un altro avrebbe risposto anche
+ * per il vicino. Lo spazio nel mezzo lo impedisce, e questo test lo prova
+ * invece di fidarsi.
+ */
+describe("SceneHub.connected (ADR-101)", () => {
+  it("elenca le stanze vive della SOLA casa che chiede", () => {
+    const hub = new SceneHub();
+    const noop = (): void => undefined;
+    hub.watch("casa", "cucina", noop);
+    hub.watch("casa", "cucina", () => undefined);
+    hub.watch("casa", "studio", noop);
+    hub.watch("casa-lunga", "salotto", noop);
+
+    expect(hub.connected("casa")).toEqual([
+      { room: "cucina", screens: 2 },
+      { room: "studio", screens: 1 },
+    ]);
+    expect(hub.connected("casa-lunga")).toEqual([{ room: "salotto", screens: 1 }]);
+    expect(hub.connected("nessuno")).toEqual([]);
+  });
+
+  it("una stanza che si svuota sparisce dall'elenco", () => {
+    const hub = new SceneHub();
+    const stop = hub.watch("casa", "cucina", () => undefined);
+    expect(hub.connected("casa")).toHaveLength(1);
+    stop();
+    expect(hub.connected("casa")).toEqual([]);
+  });
+});

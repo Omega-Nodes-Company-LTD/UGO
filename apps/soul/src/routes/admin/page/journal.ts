@@ -53,6 +53,16 @@ export const JOURNAL_PAGES = `
   </div>
 
   <div class="block">
+    <h2>Cosa gira di notte, e chi è collegato</h2>
+    <p class="lede">L'ultima volta che ogni passo del sogno è andato a buon fine, e
+       quali schermi sono vivi adesso. Prima si leggeva nei log del container,
+       che è dove le domande vanno a morire.</p>
+    <div id="jobs-rows" data-testid="jobs-rows"></div>
+    <div id="kiosk-rows" data-testid="kiosk-rows"></div>
+    <p class="msg" id="jobs-msg"></p>
+  </div>
+
+  <div class="block">
     <h2>Le chiavi di casa</h2>
     <p class="lede">Chi può entrare, e con che ruolo. Il valore in chiaro si vede
        <b>una volta sola</b>: in database c'è solo l'impronta, e se si perde si riemette.</p>

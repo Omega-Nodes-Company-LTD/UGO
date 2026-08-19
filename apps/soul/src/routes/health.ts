@@ -14,7 +14,18 @@ type CheckResult = z.infer<typeof checkResult>;
 // construction carries no connection details, credentials or PII.
 const healthResponseSchema = z.object({
   status: z.enum(["ok", "degraded", "unavailable"]),
-  checks: z.object({ db: checkResult, mqtt: checkResult, ollama: checkResult }),
+  checks: z.object({
+    db: checkResult,
+    mqtt: checkResult,
+    ollama: checkResult,
+    /**
+     * ADR-101: la percezione. Da lei dipendono volto e voce — cioè metà di
+     * quello che rende UGO un compagno e non una chat — e `/health` non la
+     * guardava: un container di percezione morto era un riconoscimento che
+     * smetteva di funzionare senza che niente diventasse rosso.
+     */
+    perception: checkResult,
+  }),
 });
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 
@@ -22,6 +33,8 @@ export interface HealthDeps {
   db: DbClient;
   mqtt: { url?: string | undefined; username?: string | undefined; password?: string | undefined };
   ollamaUrl: string;
+  /** ADR-101: il servizio di percezione; assente = "off", come il broker */
+  perceptionUrl?: string | undefined;
 }
 
 async function checkDb(db: DbClient): Promise<CheckResult> {
@@ -67,19 +80,38 @@ async function checkOllama(baseUrl: string): Promise<CheckResult> {
   }
 }
 
-/** Liveness + readiness (PROGETTO §5.7): db is vital, mqtt/ollama degrade. */
+/**
+ * Il servizio di percezione risponde? Stessa forma del controllo di Ollama:
+ * una GET con timeout corto, e "off" quando non è configurato — perché una
+ * casa senza riconoscimento è una scelta, non un guasto.
+ */
+async function checkPerception(baseUrl: string | undefined): Promise<CheckResult> {
+  if (baseUrl === undefined) return "off";
+  try {
+    const response = await fetch(new URL("/health", baseUrl), {
+      signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+    });
+    return response.ok ? "ok" : "error";
+  } catch {
+    return "error";
+  }
+}
+
+/** Liveness + readiness (PROGETTO §5.7): db is vital, mqtt/ollama/percezione degradano. */
 export function registerHealthRoute(app: FastifyInstance, deps: HealthDeps): void {
   app.get("/health", async (_request, reply) => {
-    const [db, broker, ollama] = await Promise.all([
+    const [db, broker, ollama, perception] = await Promise.all([
       checkDb(deps.db),
       checkMqtt(deps.mqtt),
       checkOllama(deps.ollamaUrl),
+      checkPerception(deps.perceptionUrl),
     ]);
-    const checks = { db, mqtt: broker, ollama };
+    const checks = { db, mqtt: broker, ollama, perception };
+    const off = (result: CheckResult): boolean => result === "ok" || result === "off";
     const status: HealthResponse["status"] =
       db === "error"
         ? "unavailable"
-        : (broker === "ok" || broker === "off") && ollama === "ok"
+        : off(broker) && ollama === "ok" && off(perception)
           ? "ok"
           : "degraded";
     const body = healthResponseSchema.parse({ status, checks });

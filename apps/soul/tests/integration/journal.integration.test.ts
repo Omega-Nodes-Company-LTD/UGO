@@ -3,6 +3,7 @@ import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   auditLog,
   beings,
+  events,
   createDbClient,
   type DbClient,
   messages,
@@ -177,5 +178,62 @@ describe("chi ha visto, e cosa (ADR-099)", () => {
     expect((await get("/v1/audit", guest)).statusCode).toBe(403);
     expect((await get("/v1/messages", guest)).statusCode).toBe(403);
     expect((await get("/v1/perception", guest)).statusCode).toBe(403);
+  });
+});
+
+/**
+ * ADR-101: i rapporti dei job e i chioschi collegati.
+ */
+describe("i rapporti dei job (ADR-101)", () => {
+  it("dice l'ULTIMA volta per ogni passo, non le ultime duecento righe", async () => {
+    const older = new Date(Date.now() - 86_400_000);
+    await db.insert(events).values([
+      {
+        gosinoId: mine.gosinoId,
+        ts: older,
+        source: "system",
+        type: "dream_step_completed",
+        payload: { step: "backup", date: "2026-08-17", mode: "full" },
+      },
+      {
+        gosinoId: mine.gosinoId,
+        source: "system",
+        type: "dream_step_completed",
+        payload: { step: "backup", date: "2026-08-18", mode: "full" },
+      },
+      {
+        gosinoId: mine.gosinoId,
+        source: "system",
+        type: "dream_step_completed",
+        payload: { step: "hygiene", date: "2026-08-18", mode: "light" },
+      },
+    ]);
+
+    const view = await get("/v1/jobs/reports", myToken);
+    expect(view.statusCode).toBe(200);
+    const steps = view.json<{ passi: { step: string; date: string }[] }>().passi;
+    // un passo, una riga: la domanda è «gira ancora?»
+    expect(steps.filter((p) => p.step === "backup")).toHaveLength(1);
+    expect(steps.find((p) => p.step === "backup")?.date).toBe("2026-08-18");
+    expect(steps.map((p) => p.step)).toContain("hygiene");
+  });
+
+  it("e i passi del vicino non finiscono nel mio rapporto", async () => {
+    await db.insert(events).values({
+      gosinoId: theirs.gosinoId,
+      source: "system",
+      type: "dream_step_completed",
+      payload: { step: "solo-del-vicino", date: "2026-08-18" },
+    });
+    const view = await get("/v1/jobs/reports", myToken);
+    expect(view.json<{ passi: { step: string }[] }>().passi.map((p) => p.step)).not.toContain(
+      "solo-del-vicino",
+    );
+  });
+
+  it("i chioschi: senza registro dei socket la lista è vuota, non un errore", async () => {
+    const view = await get("/v1/kiosks", myToken);
+    expect(view.statusCode).toBe(200);
+    expect(view.json<{ chioschi: unknown[] }>().chioschi).toEqual([]);
   });
 });

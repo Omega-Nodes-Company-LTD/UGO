@@ -103,6 +103,30 @@ async function loadCorrections() {
         ' <button class="ghost" data-undo-corr="' + row.id + '">Ritira</button></div>').join("");
 }
 
+const STEP_LABEL = { backup: "il backup", hygiene: "la pulizia", compaction: "il compattamento",
+  contradictions: "le contraddizioni", reflect: "la riflessione", entities: "le entità",
+  embeddings: "gli embedding", feeds: "i feed" };
+
+async function loadJobReports() {
+  const steps = (await call("/v1/jobs/reports")).passi ?? [];
+  $("jobs-rows").innerHTML = steps.length === 0
+    ? '<p class="lede">Nessun passo ancora registrato: il sogno non ha mai girato.</p>'
+    : steps.map((row) =>
+        '<div class="line"><span class="when">' + whenLabel(row.at) + '</span>' +
+        '<b>' + escape(STEP_LABEL[row.step] ?? row.step) + '</b> ' +
+        '<span class="lede">notte del ' + escape(row.date) + '</span>' +
+        (row.mode === "light" ? ' <span class="tag">leggero</span>' : "")
+        + '</div>').join("");
+
+  const kiosks = (await call("/v1/kiosks")).chioschi ?? [];
+  $("kiosk-rows").innerHTML = kiosks.length === 0
+    ? '<p class="lede">Nessuno schermo collegato in questo momento.</p>'
+    : kiosks.map((row) =>
+        '<div class="line"><span class="when">adesso</span><b>' + escape(row.room) + '</b> ' +
+        '<span class="tag ok">' + row.screens + (row.screens === 1 ? " schermo" : " schermi") +
+        '</span></div>').join("");
+}
+
 $("key-new").addEventListener("click", () => {
   void section(async () => {
     const label = $("key-label").value.trim();

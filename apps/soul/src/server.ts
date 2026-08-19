@@ -424,7 +424,13 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         // ADR-076: le liste si vedono e si spuntano anche dal pannello
         registerListRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
         // ADR-099: il giornale, le conversazioni di casa, chi è stato visto
-        registerJournalRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
+        registerJournalRoutes(app, {
+          db: options.db,
+          guard,
+          dataKey: gosini.dataKey,
+          // ADR-101: chi è collegato adesso, dal registro dei socket
+          kiosks: (accountId: string) => scenes.connected(accountId),
+        });
         // ADR-079: il libro della vita, che nessuno aveva mai potuto leggere
         registerDiaryRoutes(app, {
           db: options.db,

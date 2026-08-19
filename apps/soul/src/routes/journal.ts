@@ -1,6 +1,7 @@
 import {
   auditLog,
   beings,
+  events,
   messages,
   perceptionEvents,
   type DbClient,
@@ -45,6 +46,12 @@ export interface JournalDeps {
   guard: PreHandler;
   /** la chiave della casa: le conversazioni sono ciphertext a riposo */
   dataKey: Buffer;
+  /**
+   * ADR-101: chi è collegato adesso. Lo sa `SceneHub` in RAM e non lo
+   * esponeva a nessuno: il pannello non poteva dire se un chiosco è vivo,
+   * quindi «UGO non risponde in cucina» si diagnosticava andando in cucina.
+   */
+  kiosks?: (accountId: string) => { room: string; screens: number }[];
 }
 
 /** Un testo leggibile, o il perché non lo è — mai un'eccezione in faccia. */
@@ -159,6 +166,63 @@ export function registerJournalRoutes(app: FastifyInstance, deps: JournalDeps): 
         text: readable(row.text, deps.dataKey),
       })),
     });
+  });
+
+  /**
+   * `GET /v1/jobs/reports` — cosa hanno fatto i job, l'ultima volta.
+   *
+   * I marcatori del sogno (`dream_step_completed`, ADR-025) sono già il
+   * registro di ciò che è girato: ogni passo lascia data, nome e modalità.
+   * Non servivano righe nuove — serviva **guardarle**: senza, «il backup di
+   * stanotte è andato?» si rispondeva leggendo i log del container, che è
+   * dove le domande vanno a morire.
+   */
+  app.get("/v1/jobs/reports", { preHandler: deps.guard }, async (request, reply) => {
+    const rows = await inAccount(deps.db, request, reply, { requireAdmin: true }, (db, accountId) =>
+      db
+        .select({
+          ts: events.ts,
+          payload: events.payload,
+          gosinoId: events.gosinoId,
+        })
+        .from(events)
+        .where(
+          and(
+            eq(events.type, "dream_step_completed"),
+            inArray(events.gosinoId, exemplarsOf(db, accountId)),
+          ),
+        )
+        .orderBy(desc(events.ts))
+        .limit(200),
+    );
+    if (rows === undefined) return reply;
+
+    /**
+     * L'ULTIMA volta per ogni passo, non le ultime duecento righe: la domanda
+     * è «gira ancora?», e a quella risponde la riga più recente di ognuno.
+     */
+    const latest = new Map<string, { step: string; at: string; date: string; mode: string }>();
+    for (const row of rows) {
+      const payload = row.payload as { step?: string; date?: string; mode?: string };
+      const step = payload.step ?? "?";
+      if (latest.has(step)) continue;
+      latest.set(step, {
+        step,
+        at: row.ts.toISOString(),
+        date: payload.date ?? "?",
+        mode: payload.mode ?? "full",
+      });
+    }
+    return reply.send({ passi: [...latest.values()] });
+  });
+
+  /**
+   * `GET /v1/kiosks` — quali schermi sono collegati adesso, e a quale stanza.
+   */
+  app.get("/v1/kiosks", { preHandler: deps.guard }, async (request, reply) => {
+    const accountId = await inAccount(deps.db, request, reply, {}, (_db, id) => Promise.resolve(id));
+    if (accountId === undefined) return reply;
+    return reply.send({ chioschi: deps.kiosks?.(accountId) ?? [] });
   });
 
   /**

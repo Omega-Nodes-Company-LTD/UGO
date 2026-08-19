@@ -16,6 +16,12 @@ const CAUSE_LABEL = {
   shake: "urti", meeting_completed: "una riunione", new_topic: "argomenti nuovi",
   peer_met: "ha conosciuto un simile", peer_greeted: "ha rivisto un simile",
   solitude_hour: "solitudine", went_out: "è uscito", came_home: "è tornato",
+  // ADR-101: le sei che mancavano. Una causa senza etichetta si mostra col
+  // suo id inglese — loud_noise_muffled in mezzo a «rumore» e «solitudine» —
+  // e chi legge il pannello non deve imparare il nostro vocabolario interno
+  reward: "una mela", used_prop: "è andato a un arredo", napped: "ha schiacciato un pisolino",
+  loud_noise_muffled: "un rumore attutito", calm_voice: "una voce calma",
+  excited_voice: "una voce su di giri",
 };
 const causeName = (cause) => cause == null ? "da prima del riavvio" : (CAUSE_LABEL[cause] ?? cause);
 const signed = (n) => (n > 0 ? "+" : "−") + Math.abs(n).toFixed(2);

@@ -479,6 +479,8 @@ const app = buildServer({
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
+  // ADR-101: volto e voce dipendono dalla percezione, e /health non la guardava
+  ...(env.UGO_RECOGNITION_URL !== undefined && { perceptionUrl: env.UGO_RECOGNITION_URL }),
   features: {
     chat,
     // ADR-031: more than one exemplar, and a way to ask them all at once.

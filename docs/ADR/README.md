@@ -106,4 +106,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [098](./098-la-connessione-della-casa.md) | La connessione della casa: la superficie 2 entra nel muro | Accettata |
 | [099](./099-il-giornale-e-la-cronaca.md) | Il giornale e la cronaca: ciò che il pannello non poteva vedere | Accettata |
 | [100](./100-le-chiavi-e-le-correzioni.md) | Le chiavi di casa, le correzioni, e la mela che sa cosa premia | Accettata |
-| 101 | *(prossimo numero disponibile)* | — |
+| [101](./101-le-cose-che-nessuno-guardava.md) | Le sei cause, la percezione, i rapporti, e le rotte senza consumatore | Accettata |
+| 102 | *(prossimo numero disponibile)* | — |
