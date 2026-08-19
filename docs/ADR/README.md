@@ -114,4 +114,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [106](./106-l-astensione-il-criterio-relativo-non-regge.md) | L'astensione: il criterio relativo non regge, e il banco non poteva accorgersene | Accettata |
 | [107](./107-non-lo-so-il-giudice-di-casa.md) | «Non lo so»: a guardare il significato è il modello di casa | Accettata |
 | [108](./108-riferire-non-e-rispondere.md) | Riferire non è rispondere: «X può fare Y» non si giudica | Accettata |
-| 109 | *(prossimo numero disponibile)* | — |
+| [109](./109-un-gene-nuovo-non-azzera-i-pedigree.md) | Un gene nuovo non deve azzerare i pedigree (e le setole) | Accettata |
+| 110 | *(prossimo numero disponibile)* | — |

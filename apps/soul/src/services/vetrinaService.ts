@@ -45,7 +45,7 @@ export interface ShowcaseKennel {
  * inviterebbero a confrontare due creature come due lavatrici. La longevità
  * poi non c'è per costruzione (ADR-077: è un gene nascosto).
  */
-const VISIBLE = ["chonk", "ear", "snout", "eye", "leg", "hue", "tail", "spots"] as const;
+const VISIBLE = ["chonk", "ear", "snout", "eye", "leg", "hue", "tail", "spots", "bristle"] as const;
 
 export class VetrinaService {
   public constructor(private readonly db: DbClient) {}

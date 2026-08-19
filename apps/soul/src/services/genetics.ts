@@ -5,6 +5,7 @@ import {
   drawLitterSize,
   expressedTraits,
   founderGenome,
+  GENE_CATALOG,
   GENE_KEYS,
   mate,
   mulberry32,
@@ -34,6 +35,8 @@ export function deriveCeppo(gosinoId: string): number {
   return Number.isFinite(parsed) ? Math.abs(parsed) % CEPPI : 0;
 }
 
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+
 const isAllele = (value: unknown): value is [number, number] =>
   Array.isArray(value) &&
   value.length === 2 &&
@@ -50,13 +53,44 @@ export function genomeFromStoredTraits(stored: unknown, gosinoId: string): Genom
       ? rawCeppo
       : deriveCeppo(gosinoId);
 
+  /**
+   * ADR-109: si legge **locus per locus**, e il locus che manca non è un
+   * genoma da buttare.
+   *
+   * Qui c'era un `every`: la mappa degli alleli valeva solo se c'erano tutti,
+   * e un gene in meno la faceva scartare intera — il genoma veniva ricostruito
+   * omozigote dai valori **espressi**, cioè da quello che si vede addosso.
+   * Finché il catalogo non cambia non succede niente; ma i geni si aggiungono
+   * (ADR-068 ne ha messi due, ADR-071 uno), e ogni aggiunta rendeva di colpo
+   * incompleto **ogni genoma già scritto**. Il risultato non era un errore: era
+   * un allele portato e non mostrato — lo `spots` recessivo, cioè precisamente
+   * la rarità che ADR-068 voleva far emergere — che spariva in silenzio, e alla
+   * prima riscrittura di `trait_sets` spariva per sempre.
+   *
+   * Adesso ogni locus valido si tiene com'è, e solo quelli assenti o malformati
+   * si riempiono dal catalogo, omozigoti. Un locus rotto non contagia i vicini:
+   * non hanno colpe.
+   *
+   * Resta intatta la strada di prima per i trait set scritti **prima** di
+   * ADR-068, che di `alleles` non ne hanno affatto: lì la ricostruzione
+   * omozigote dagli scalari è giusta, perché non c'è nessun genotipo da perdere.
+   */
   const rawAlleles = record.alleles;
   if (typeof rawAlleles === "object" && rawAlleles !== null) {
     const candidate = rawAlleles as Record<string, unknown>;
-    if (GENE_KEYS.every((key) => isAllele(candidate[key]))) {
+    if (GENE_KEYS.some((key) => isAllele(candidate[key]))) {
       const alleles = {} as Record<GeneKey, Allele>;
       for (const key of GENE_KEYS) {
-        alleles[key] = candidate[key] as [number, number];
+        const stored = candidate[key];
+        if (isAllele(stored)) {
+          alleles[key] = stored;
+          continue;
+        }
+        const scalar = record[key];
+        const fallback = clamp01(
+          typeof scalar === "number" && Number.isFinite(scalar) ? scalar : GENE_CATALOG[key].default,
+        );
+        alleles[key] = [fallback, fallback];
       }
       return { ceppo, alleles };
     }

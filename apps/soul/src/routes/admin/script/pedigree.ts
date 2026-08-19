@@ -161,7 +161,7 @@ $("vetrina-toggle").addEventListener("click", async () => {
  * chiazze.
  */
 const GENE_LABEL = {
-  chonk: "stazza", ear: "orecchie", snout: "grugno", eye: "occhi", leg: "zampe",
+  chonk: "stazza", ear: "orecchie", snout: "grugno", eye: "occhi", leg: "zampe", bristle: "setole",
   hue: "tinta", spots: "chiazze", tail: "coda", curiosity: "curiosita",
   boldness: "sfacciataggine", affection: "affetto", calm: "calma",
   talkativeness: "parlantina", longevity: "longevita",
