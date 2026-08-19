@@ -3,7 +3,6 @@ import {
   desires,
   diaryEntries,
   gosini,
-  listItems,
   messages,
   type DbClient,
 } from "@ugo/db";
@@ -17,9 +16,10 @@ import {
   type LlmHistoryTurn,
   type RankedMemory,
 } from "@ugo/memory";
-import { decryptText, encryptText, type ChatRequest, type ChatResponse } from "@ugo/shared";
+import { decryptText, type ChatRequest, type ChatResponse } from "@ugo/shared";
 import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import { recordExchange } from "./chat/biography.js";
+import { ChatCommands } from "./chat/commands.js";
 import { GameService } from "./gameService.js";
 import type { Character } from "./council/character.js";
 import type { PackService } from "./packService.js";
@@ -30,12 +30,8 @@ import { DiaryService } from "./diaryService.js";
 import { houseClock } from "./houseClock.js";
 import { NewsService } from "./newsService.js";
 import {
-  confirmCheckin,
   parseCheckin,
-  tellCheckins,
-  type CheckinCommand,
 } from "./volition/checkins.js";
-import { addCheckin, MAX_CHECKINS, silenceCheckins, standingCheckins } from "./checkinService.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
 import { dateFor, parseDiaryAsk, tellDiary } from "./volition/diaryAsk.js";
 import {
@@ -49,20 +45,11 @@ import { parseStoryAsk, storyPrompt, tellNoStory } from "./volition/story.js";
 import { MemoryBook } from "./memoryBook.js";
 import { parseNewsAsk, tellNews } from "./volition/news.js";
 import {
-  answerTimer,
-  confirmCancel,
-  confirmTimer,
   parseTimerCommand,
-  type TimerCommand,
 } from "./volition/timers.js";
-import { confirmList, parseListCommand, type ListCommand } from "./volition/lists.js";
+import { parseListCommand } from "./volition/lists.js";
 import {
-  confirmPostcard,
   parsePostcard,
-  tellNoTie,
-  tellSendFailed,
-  tellTieNotAccepted,
-  type PostcardCommand,
 } from "./volition/postcards.js";
 import type { ParcelService } from "./parcelService.js";
 import type { TieService } from "./tieService.js";
@@ -433,164 +420,6 @@ export class ChatService {
    * precisamente il punto — i comandi ricorrenti costano zero e restano in
    * casa.
    */
-  private async applyList(
-    command: ListCommand,
-    request: ChatRequest,
-    at: Date,
-  ): Promise<ChatResponse> {
-    const { db, dataKey } = this.deps;
-    const accountId = this.deps.accountId;
-    let reply: string;
-
-    if (command.action === "read") {
-      const rows = await db
-        .select({ text: listItems.text })
-        .from(listItems)
-        .where(
-          and(
-            eq(listItems.accountId, accountId),
-            eq(listItems.list, command.list),
-            eq(listItems.done, false),
-          ),
-        )
-        .orderBy(listItems.at);
-      reply = confirmList(
-        command,
-        rows.map((row) => this.readable(row.text)).filter((text) => text !== ""),
-      );
-    } else if (command.action === "add") {
-      await db.insert(listItems).values({
-        accountId,
-        list: command.list,
-        text: encryptText(command.item ?? "", dataKey),
-        ...(request.beingId !== undefined && { beingId: request.beingId }),
-      });
-      reply = confirmList(command);
-    } else {
-      // spuntare: si cerca fra le righe aperte quella che combacia, e il
-      // confronto avviene in chiaro perché il testo è cifrato a riposo
-      const rows = await db
-        .select({ id: listItems.id, text: listItems.text })
-        .from(listItems)
-        .where(
-          and(
-            eq(listItems.accountId, accountId),
-            eq(listItems.list, command.list),
-            eq(listItems.done, false),
-          ),
-        );
-      const wanted = (command.item ?? "").toLowerCase();
-      const hit = rows.find((row) => this.readable(row.text).toLowerCase().includes(wanted));
-      if (hit !== undefined) {
-        await db
-          .update(listItems)
-          .set({ done: true, doneAt: at })
-          .where(eq(listItems.id, hit.id));
-        reply = confirmList(command);
-      } else {
-        reply = `Non trovo ${command.item ?? ""} nella lista ${command.list}.`;
-      }
-    }
-
-    return this.answered(reply, request, at);
-  }
-
-  /**
-   * ADR-085: mettere, spegnere, elencare le domande che tornano.
-   *
-   * Non tocca `desires`: qui si scrive la **regola**, e il desiderio lo
-   * scriverà la sentinella quando sarà l'ora. Metterlo subito vorrebbe dire
-   * che «ogni sera alle nove» comincia adesso, alle tre del pomeriggio.
-   */
-  private async applyCheckin(command: CheckinCommand): Promise<string> {
-    const { db, gosinoId } = this.deps;
-    if (command.action === "cancel") {
-      const off = await silenceCheckins(db, gosinoId);
-      return off === 0
-        ? "Non ti stavo chiedendo niente, comunque."
-        : `Va bene, non te lo chiedo più. (${String(off)} ${off === 1 ? "domanda spenta" : "domande spente"})`;
-    }
-    if (command.action === "list") {
-      return tellCheckins(await standingCheckins(db, gosinoId));
-    }
-    const added = await addCheckin(db, gosinoId, {
-      question: command.question,
-      hour: command.hour,
-      minute: command.minute,
-      weekday: command.weekday,
-    });
-    // il rifiuto dice il numero: «troppe» senza un numero è un muro senza
-    // porta, e chi ascolta non sa cosa togliere
-    return added === "troppe"
-      ? `Ne ho già ${String(MAX_CHECKINS)} di cose da chiederti: se ne aggiungo altre divento una sveglia. Dimmi «non chiedermelo più» e ricominciamo.`
-      : confirmCheckin(command);
-  }
-
-  /**
-   * ADR-078: mettere, spegnere, chiedere. Un timer È un desiderio con un'ora
-   * sopra — la tabella c'era già (ADR-028) — e quello che cambia è chi lo
-   * legge: la sentinella del timer, che suona in orario, invece
-   * dell'iniziativa, che sceglie il momento buono.
-   */
-  private async applyTimer(command: TimerCommand, at: Date): Promise<string> {
-    const { db } = this.deps;
-    const mine = and(
-      eq(desires.gosinoId, this.deps.gosinoId),
-      eq(desires.kind, command.kind),
-      eq(desires.status, "pending"),
-    );
-
-    if (command.action === "set") {
-      // uno per volta, come una sveglia vera: metterne una seconda sostituisce
-      // la prima invece di farne suonare due
-      await db.update(desires).set({ status: "expired" }).where(mine);
-      /**
-       * Una sveglia «alle 7» suona alle 7:00:00. Contando dall'istante in cui
-       * l'hai chiesta si portava dietro i suoi secondi e suonava alle 7:00:40:
-       * un timer si conta da adesso, un'ora si legge sull'orologio.
-       */
-      const anchor =
-        command.anchor === "orologio" ? new Date(Math.floor(at.getTime() / 60_000) * 60_000) : at;
-      await db.insert(desires).values({
-        gosinoId: this.deps.gosinoId,
-        kind: command.kind,
-        status: "pending",
-        text: command.label,
-        dueAt: new Date(anchor.getTime() + command.inSeconds * 1000),
-      });
-      return confirmTimer(command);
-    }
-
-    const [pending] = await db
-      .select({ id: desires.id, text: desires.text, dueAt: desires.dueAt })
-      .from(desires)
-      .where(mine)
-      .orderBy(asc(desires.dueAt))
-      .limit(1);
-
-    if (command.action === "cancel") {
-      // `expired` e non `done`: un timer spento non è un timer che ha suonato
-      if (pending !== undefined) {
-        await db.update(desires).set({ status: "expired" }).where(eq(desires.id, pending.id));
-      }
-      return confirmCancel(command.kind, pending !== undefined);
-    }
-
-    const left =
-      pending?.dueAt === undefined || pending.dueAt === null
-        ? undefined
-        : Math.max(0, (pending.dueAt.getTime() - at.getTime()) / 1000);
-    return answerTimer(command.kind, left, pending?.text ?? "");
-  }
-
-  /**
-   * Un gesto risolto in casa: la risposta è già decisa, e quello che resta è
-   * la parte che non cambia mai — **lo scambio va in biografia cifrato come
-   * ogni altro**. Era copiata cinque volte, una per gesto, e ogni gesto nuovo
-   * ne avrebbe aggiunta una sesta: una scorciatoia sul costo non è una
-   * scorciatoia sulla memoria, e questo metodo è dove quella promessa smette
-   * di dipendere da chi copia bene.
-   */
   private async answered(reply: string, request: ChatRequest, at: Date): Promise<ChatResponse> {
     const { db, dataKey, psyche } = this.deps;
     await recordExchange(
@@ -613,25 +442,22 @@ export class ChatService {
    * una parentela ACCETTATA: tutto il resto è una risposta che spiega, mai
    * un invio a metà.
    */
-  private async applyPostcard(command: PostcardCommand): Promise<string> {
-    const post = this.deps.postcards;
-    if (post === undefined) return tellSendFailed();
-    const tie = await post.ties.tieByName(this.deps.accountId, command.recipient);
-    if (tie === undefined) return tellNoTie(command.recipient);
-    if (tie.status !== "accettata") return tellTieNotAccepted(command.recipient);
-    const sent = await post.parcels.send(this.deps.accountId, {
-      tieId: tie.id,
-      fromGosinoId: this.deps.gosinoId,
-      kind: command.kind,
-      text: command.text,
+  /**
+   * I comandi che scrivono (regola 10), in un servizio loro.
+   *
+   * Si costruisce al volo e non si conserva: non ha stato, e tenerlo come
+   * campo vorrebbe dire una seconda copia delle dipendenze da tenere allineata.
+   */
+  private commands(): ChatCommands {
+    return new ChatCommands({
+      db: this.deps.db,
+      dataKey: this.deps.dataKey,
+      accountId: this.deps.accountId,
+      gosinoId: this.deps.gosinoId,
+      ...(this.deps.postcards !== undefined && { postcards: this.deps.postcards }),
     });
-    if (typeof sent === "string") {
-      return sent === "non-accettata" ? tellTieNotAccepted(command.recipient) : tellSendFailed();
-    }
-    return confirmPostcard(command, tie.otherName);
   }
 
-  /** Il testo di una riga, o stringa vuota se la chiave non la apre. */
   private readable(value: string): string {
     try {
       return decryptText(value, this.deps.dataKey);
@@ -780,7 +606,7 @@ export class ChatService {
      */
     const listCommand = parseListCommand(request.text);
     if (listCommand !== undefined) {
-      return this.applyList(listCommand, request, at);
+      return this.answered(await this.commands().list(listCommand, request.beingId, at), request, at);
     }
 
     /**
@@ -796,7 +622,7 @@ export class ChatService {
      */
     const checkin = parseCheckin(request.text);
     if (checkin !== undefined) {
-      return this.answered(await this.applyCheckin(checkin), request, at);
+      return this.answered(await this.commands().checkin(checkin), request, at);
     }
 
     /**
@@ -808,7 +634,7 @@ export class ChatService {
      */
     const timer = parseTimerCommand(request.text, wall.hour, wall.minute);
     if (timer !== undefined) {
-      return this.answered(await this.applyTimer(timer, at), request, at);
+      return this.answered(await this.commands().timer(timer, at), request, at);
     }
 
     const reminder = parseReminder(request.text, wall.hour, wall.minute);
@@ -837,7 +663,7 @@ export class ChatService {
     if (this.deps.postcards !== undefined) {
       const postcard = parsePostcard(request.text);
       if (postcard !== undefined) {
-        return this.answered(await this.applyPostcard(postcard), request, at);
+        return this.answered(await this.commands().postcard(postcard), request, at);
       }
     }
 
