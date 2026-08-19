@@ -46,6 +46,18 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Questa cache non ha MAI funzionato: `Cache not found` in ingresso a ogni
+      # run, e in uscita `tar: Cannot open: Permission denied` su due file che
+      # il container di Ollama crea con l'uid suo — `id_ed25519` e
+      # `cache/model-recommendations.json`. Un file solo illeggibile fa uscire
+      # tar con 2, e actions/cache scarta l'intero archivio: risultato, ogni
+      # run riscaricava i pesi da capo e nessuno se ne accorgeva, perché il
+      # fallimento è un `warning` in fondo al job.
+      #
+      # I due file non sono pesi e non servono a niente qui (uno è per giunta
+      # una chiave privata, che in una cache non ci deve stare): si buttano
+      # prima del passo di salvataggio, e resta solo ciò che vale la pena
+      # tenere. Lo stesso passo sta nei tre job che condividono la cache.
       - name: cache the embedding model between runs
         uses: actions/cache@v4
         with:
@@ -55,6 +67,9 @@ jobs:
       - run: pnpm test:integration
         env:
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
+      - name: lascia nella cache solo i pesi, e leggibili
+        if: always()
+        run: sudo rm -rf ~/.ugo-ollama/cache ~/.ugo-ollama/id_ed25519 ~/.ugo-ollama/id_ed25519.pub
 
   e2e:
     name: e2e (real browser vs real soul)
@@ -77,6 +92,9 @@ jobs:
       - run: pnpm test:e2e
         env:
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
+      - name: lascia nella cache solo i pesi, e leggibili
+        if: always()
+        run: sudo rm -rf ~/.ugo-ollama/cache ~/.ugo-ollama/id_ed25519 ~/.ugo-ollama/id_ed25519.pub
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -125,6 +143,9 @@ jobs:
         env:
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
           UGO_TEST_WHISPER_MODELS: /home/runner/.ugo-whisper
+      - name: lascia nella cache solo i pesi, e leggibili
+        if: always()
+        run: sudo rm -rf ~/.ugo-ollama/cache ~/.ugo-ollama/id_ed25519 ~/.ugo-ollama/id_ed25519.pub
 
   images:
     # The pipeline validated the source but never the artefacts, so a
