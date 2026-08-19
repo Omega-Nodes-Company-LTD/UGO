@@ -90,7 +90,7 @@ export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoute
 
       return {
         who: who === undefined ? undefined : { id: who.id, name: who.name, where: who.where },
-        initiative: deps.initiative.state(),
+        initiative: await deps.initiative.stateOf(db, accountId),
         journal,
         desires: wants,
       };
@@ -120,10 +120,20 @@ export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoute
     return reply.send({ efficacy: rows });
   });
 
+  /**
+   * ADR-104: la scelta è **della casa e scritta**.
+   *
+   * Prima toccava un campo in RAM: sopravviveva al pannello e non al riavvio,
+   * e con due case ne zittiva due. Ora la riga della casa la ricorda, e `null`
+   * restituisce la parola a `UGO_INITIATIVE`.
+   */
   app.post("/v1/volition/enabled", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = switchSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    deps.initiative.set(parsed.data.enabled ?? undefined);
-    return reply.send(deps.initiative.state());
+    const state = await inAccount(deps.db, request, reply, { requireAdmin: true }, (db, accountId) =>
+      deps.initiative.choose(db, accountId, parsed.data.enabled),
+    );
+    if (state === undefined) return reply;
+    return reply.send(state);
   });
 }

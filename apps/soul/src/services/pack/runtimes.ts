@@ -110,7 +110,11 @@ export interface RuntimeDeps {
    */
   speciesMap?: SpeciesMap;
   localModelUp: () => boolean;
-  initiativeEnabled: () => boolean;
+  /**
+   * ADR-104: **della casa**. Era `() => boolean` per tutto il processo, quindi
+   * spegnere l'iniziativa da una casa la spegneva anche al vicino.
+   */
+  initiativeEnabled: (accountId: string) => boolean;
   hourOf: (at: Date) => number;
   /**
    * ADR-045: chi sta parlando. Assente = UGO risponde senza sapere chi hai
@@ -290,7 +294,7 @@ async function buildRuntime(
     }),
     efficacy,
     localModelUp: deps.localModelUp,
-    enabled: deps.initiativeEnabled,
+    enabled: () => deps.initiativeEnabled(row.accountId),
     hourOf: deps.hourOf,
   });
 

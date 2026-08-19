@@ -109,4 +109,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [101](./101-le-cose-che-nessuno-guardava.md) | Le sei cause, la percezione, i rapporti, e le rotte senza consumatore | Accettata |
 | [102](./102-il-giornale-e-la-cronaca.md) | Il giornale e la cronaca: ciò che il pannello non poteva vedere | Accettata |
 | [103](./103-la-cucciolata.md) | La cucciolata: quanti li decide il dado, nascono tutti, e dalla terza generazione si paga | Accettata |
-| 104 | *(prossimo numero disponibile)* | — |
+| [104](./104-la-scrivania.md) | La scrivania: le cose che si facevano solo in psql | Accettata |
+| 105 | *(prossimo numero disponibile)* | — |

@@ -351,9 +351,11 @@ const hourOf = (at: Date): number =>
 
 // ADR-032: one runtime per exemplar. Everything that makes him himself — mood,
 // memories, thread, initiative — is his; the house is shared.
-// ADR-034: the durable setting is UGO_INITIATIVE; this only holds the
-// runtime override /admin can flip, and it is lost on restart on purpose.
+// ADR-104: `UGO_INITIATIVE` resta il default del server, ma la scelta di una
+// casa sta sulla riga della casa e sopravvive al riavvio. La mappa si carica
+// qui, una volta: senza, ogni casa che aveva detto «basta» ricomincerebbe.
 const initiative = new InitiativeSwitch(() => env.UGO_INITIATIVE === "on");
+await initiative.load(db);
 
 // ADR-045: il servizio di percezione, se c'è. Senza, tutto continua come
 // prima — UGO risponde senza sapere chi ha davanti, che è il comportamento di
@@ -382,7 +384,7 @@ const registry = await GosinoRegistry.load({
   timezone: env.TZ,
   speciesMap,
   localModelUp: () => localTextUp,
-  initiativeEnabled: () => initiative.on(),
+  initiativeEnabled: (accountId: string) => initiative.on(accountId),
   hourOf,
   ...(recognition !== undefined && { recognition }),
   // ADR-057: senza bucket niente `voice_sample`, dal chiosco come dal pannello

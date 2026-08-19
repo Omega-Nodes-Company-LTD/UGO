@@ -45,6 +45,21 @@ export const accounts = pgTable(
    */
   metabolism: boolean("metabolism").notNull().default(false),
   /**
+   * ADR-104 — l'iniziativa (ADR-027), **di questa casa e scritta**.
+   *
+   * Viveva in un campo di un oggetto in RAM: si spegneva dal pannello e
+   * tornava accesa al riavvio, e — da quando le case sono più di una — la
+   * spegneva **per tutte**, perché l'oggetto era uno per processo. Due
+   * difetti con la stessa causa: uno stato della casa tenuto fuori dalla
+   * casa.
+   *
+   * `null` non è «spento»: è «non deciso qui», e lascia l'ultima parola a
+   * `UGO_INITIATIVE`. È la differenza fra una casa che non si è mai espressa
+   * e una che ha detto di no, e serve perché il default d'ambiente resti
+   * governabile dal server senza sovrascrivere una scelta.
+   */
+  initiative: boolean("initiative"),
+  /**
    * ADR-081 — le due autorizzazioni della specie, e sono due cose diverse.
    *
    * `is_foundry`: questa casa può **coniare capostipiti**, cioè far esistere un

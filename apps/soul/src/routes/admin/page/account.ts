@@ -235,6 +235,9 @@ export const ACCOUNT_PAGES = `
       <div><label for="print-who">Chi è</label><select id="print-who" data-testid="print-who"></select></div>
       <button id="print-claim" data-testid="print-claim" disabled>È lui</button>
       <button id="print-del" class="ghost" data-testid="print-del" disabled>Cancella l'impronta</button>
+      <!-- ADR-104: la retention girava di notte e non si poteva chiedere. Una
+           persona che dice «toglietemi da l&igrave;» non aspetta il cron -->
+      <button id="print-expire" class="ghost" data-testid="print-expire">Passa la scadenza adesso</button>
     </div>
     <div id="prints-msg"></div>
   </div>
@@ -366,6 +369,9 @@ export const ACCOUNT_PAGES = `
       <button id="meet-join" data-testid="meet-join">Mandalo in call</button>
     </div>
     <ul class="plain" id="meet-list" data-testid="meet-list"></ul>
+    <!-- ADR-104: c'era scritto che una riunione era stata trascritta, e non
+         c'era modo di rileggerla se non scaricando tutta la casa -->
+    <div id="meet-transcript" data-testid="meet-transcript" class="transcript"></div>
     <div id="meet-msg"></div>
   </div>
 

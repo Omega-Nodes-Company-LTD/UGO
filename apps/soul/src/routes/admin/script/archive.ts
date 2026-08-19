@@ -34,6 +34,32 @@ $("mem-go").addEventListener("click", async () => {
   try { await loadMemories(); } catch (error) { say("mem-msg", error.message, "err"); }
 });
 
+/**
+ * ADR-104: dirgli una cosa che deve sapere.
+ *
+ * Correggere e cancellare c'erano da mesi; SCRIVERE no, e l'unico modo era
+ * parlargliene sperando che il sogno la distillasse.
+ */
+$("mem-write").addEventListener("click", async () => {
+  const text = $("mem-new").value.trim();
+  if (text === "") { say("mem-msg", "Serve una frase.", "info"); return; }
+  $("mem-write").disabled = true;
+  try {
+    const written = await call(forWho("/v1/memories"), {
+      method: "POST",
+      body: JSON.stringify({ kind: $("mem-new-kind").value, text }),
+    });
+    $("mem-new").value = "";
+    // se non ha il vettore lo diciamo: si ripescherà solo per parole, e
+    // scoprirlo mesi dopo perché «non se lo ricorda mai» è peggio
+    say("mem-msg", written.embedded
+      ? "Se lo ricorda, e lo ripescherà quando serve."
+      : "Se lo ricorda. Senza il modello degli embedding lo ritroverà solo per parole esatte.", "ok");
+    await loadMemories();
+  } catch (error) { say("mem-msg", error.message, "err"); }
+  finally { $("mem-write").disabled = false; }
+});
+
 // one listener on the list instead of one per row: the rows are rewritten on
 // every search, and per-row listeners would leak with them
 $("mem-list").addEventListener("click", async (event) => {
@@ -74,9 +100,41 @@ async function loadMeetings() {
   $("meet-list").innerHTML = meetings.map((m) =>
     '<li data-testid="meet-item">' + escape(m.title ?? "(senza titolo)") + " — " + m.platform +
     (m.who ? " — " + escape(m.who) : "") +
-    ' <span class="flags">' + m.status + "</span></li>").join("") ||
+    ' <span class="flags">' + m.status + "</span>" +
+    // ADR-104: c'era scritto che una riunione era stata trascritta e non
+    // c'era modo di rileggerla se non scaricando tutta la casa
+    ' <button class="link" data-meet="' + m.id + '" data-act="read" ' +
+    'data-testid="meet-read">rileggi</button>' +
+    ' <button class="link danger" data-meet="' + m.id + '" data-act="drop" ' +
+    'data-testid="meet-drop">butta</button></li>').join("") ||
     "<li>Nessuna riunione, ancora.</li>";
 }
+
+/** Un ascoltatore sul contenitore: le righe si riscrivono a ogni ricarico. */
+$("meet-list").addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-meet]");
+  if (!button) return;
+  const id = button.dataset.meet;
+  try {
+    if (button.dataset.act === "drop") {
+      if (!confirm("Buttare la riunione e la sua trascrizione? Questa si cancella davvero: " +
+        "dentro ci sono le parole di persone che non hanno chiesto niente a nessuno.")) return;
+      await call("/v1/meetings/" + id, { method: "DELETE" });
+      $("meet-transcript").innerHTML = "";
+      say("meet-msg", "Buttata, segmenti compresi.", "ok");
+      await loadMeetings();
+      return;
+    }
+    const data = await call("/v1/meetings/" + id + "/transcript", {});
+    $("meet-transcript").innerHTML = data.segments.length === 0
+      ? '<p class="lede">Nessun segmento: la trascrizione non è (ancora) arrivata.</p>'
+      : '<h4>' + escape(data.meeting.title ?? "(senza titolo)") + "</h4>" +
+        data.segments.map((seg) =>
+          '<div class="line"><span class="when">' + seg.t0.toFixed(1) + "s · " +
+          escape(seg.speaker ?? "?") + "</span> " + escape(seg.text) + "</div>").join("");
+    say("meet-msg", "Ecco cosa si sono detti.", "info");
+  } catch (error) { say("meet-msg", error.message, "err"); }
+});
 
 $("meet-join").addEventListener("click", async () => {
   const url = $("meet-url").value.trim();

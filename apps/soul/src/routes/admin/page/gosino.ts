@@ -31,6 +31,20 @@ export const GOSINO_PAGES = `
       <div class="plot" id="mood-chart" data-testid="mood-chart"></div>
     </div>
   </div>
+
+  <div class="block">
+    <h2>Metterlo a riposo</h2>
+    <p class="lede">Un esemplare a riposo <b>non risponde pi&ugrave;</b> e sparisce dal branco
+       attivo &mdash; ma resta: i suoi ricordi, il suo pedigree e i figli che ha avuto non si
+       toccano. <b>Ritirare non &egrave; cancellare</b>, e infatti si torna indietro con lo
+       stesso bottone. Fino a oggi si faceva solo con una query sul database.</p>
+    <div class="row">
+      <button id="retire-go" class="ghost" data-testid="retire-go">&mdash;</button>
+      <span id="retire-state" data-testid="retire-state" class="lede"
+            style="margin:0;flex:1 1 14rem"></span>
+    </div>
+    <div id="retire-msg"></div>
+  </div>
 </section>
 
 <section class="page" data-page="volonta">
@@ -44,6 +58,7 @@ export const GOSINO_PAGES = `
   <div class="block">
     <div class="row" style="align-items:center">
       <button id="init-toggle" class="ghost" data-testid="init-toggle">—</button>
+      <button id="init-default" class="ghost" data-testid="init-default" hidden>Lascia decidere al server</button>
       <span id="init-state" data-testid="init-state" class="lede" style="margin:0;flex:1 1 14rem"></span>
     </div>
     <div id="volition-msg"></div>
@@ -76,8 +91,16 @@ export const GOSINO_PAGES = `
   <div class="grid-2">
     <div class="block">
       <h2>Desideri in sospeso</h2>
-      <p class="lede">Quello che si è ripromesso di dirti, e i promemoria che gli hai chiesto.</p>
+      <p class="lede">Quello che si &egrave; ripromesso di dirti, e i promemoria che gli hai
+         chiesto. Puoi aggiungerne uno tu, e annullare quelli che non servono pi&ugrave;.</p>
       <div id="desire-list" data-testid="desire-list"></div>
+      <div class="row" style="margin-top:.8rem">
+        <div style="flex:1 1 16rem"><label for="desire-new">Ricordagli di&hellip;</label>
+          <input id="desire-new" data-testid="desire-new" placeholder="annaffiare le piante"></div>
+        <div><label for="desire-when">Quando</label>
+          <input id="desire-when" data-testid="desire-when" placeholder="domani mattina"></div>
+        <button id="desire-add" data-testid="desire-add">Aggiungi</button>
+      </div>
     </div>
     <div class="block">
       <h2>Cosa lo muove</h2>
@@ -112,6 +135,24 @@ export const GOSINO_PAGES = `
     </div>
     <ul class="plain" id="mem-list" data-testid="mem-list"></ul>
     <div id="mem-msg"></div>
+  </div>
+
+  <div class="block">
+    <h2>Diglielo tu</h2>
+    <p class="lede">Correggere e cancellare un ricordo si poteva da sempre; <b>scriverne uno</b>
+       no, e l&apos;unico modo era parlargliene sperando che il sogno lo distillasse. Quello che
+       scrivi qui lo sa da subito. Non &egrave; una manopola sul carattere: &egrave; una cosa
+       che gli dici, come gliela diresti a voce.</p>
+    <div class="row">
+      <div style="flex:1 1 22rem"><label for="mem-new">Cosa deve sapere</label>
+        <input id="mem-new" data-testid="mem-new"
+               placeholder="la caldaia si accende girando la manopola azzurra"></div>
+      <div><label for="mem-new-kind">Tipo</label><select id="mem-new-kind" data-testid="mem-new-kind">
+        <option value="fact">fatto</option><option value="preference">preferenza</option>
+        <option value="episode">episodio</option><option value="insight">intuizione</option>
+        </select></div>
+      <button id="mem-write" data-testid="mem-write">Diglielo</button>
+    </div>
   </div>
 
   <div class="block">

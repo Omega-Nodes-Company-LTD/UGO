@@ -20,6 +20,12 @@ export const JOURNAL_STYLES = `
                border: 1px solid var(--line); color: var(--muted); }
   .line .tag.ok { color: var(--good); }
   .line .tag.warn { color: var(--critical); }
+  /* ADR-104: la trascrizione riusa la riga del giornale — stessa forma, stesso
+     modo di scorrerla — dentro un riquadro che non fa crescere la pagina */
+  .transcript:not(:empty) { margin-top: .8rem; max-height: 22rem; overflow-y: auto;
+                            border: 1px solid var(--line); border-radius: var(--r);
+                            padding: .4rem .7rem; }
+  .transcript h4 { margin: .3rem 0 .5rem; font-size: .92rem; }
 `;
 
 export const JOURNAL_PAGES = `

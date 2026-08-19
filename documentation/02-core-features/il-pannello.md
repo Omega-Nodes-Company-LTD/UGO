@@ -100,8 +100,24 @@ Chi ha imparato a riconoscere, e chi ha visto senza sapere chi fosse. **Non c'è
 arruolamento**: il volto glielo insegni perché te lo chiede lui. Quello che c'è qui è la revisione
 — quali facce senza nome ha in casa, da quanto, e il bottone per cancellarne una.
 
+Le facce senza nome si cancellano da sole dopo un po'; **Passa la scadenza adesso** esegue
+quella pulizia subito, senza aspettare la notte — serve quando qualcuno ti chiede di essere
+tolto e non vuoi rispondergli «domani».
+
 È la pagina più delicata del pannello, e la spiegazione sta tutta in
 [le facce](./le-facce.md).
+
+## Le riunioni
+
+Se il tuo server ha lo stack delle riunioni, qui c'è l'elenco di quelle a cui il gosino è
+andato, e per ognuna due gesti:
+
+- **rileggi** apre la trascrizione, in chiaro, dentro la pagina;
+- **butta** la cancella **davvero**, trascrizione compresa, e non si torna indietro.
+
+Il secondo è volutamente definitivo: in una trascrizione ci sono le parole di persone che non
+hanno chiesto niente a nessuno, e una riunione registrata per sbaglio non deve restare sul
+disco solo perché è comodo.
 
 ## I feed
 
@@ -147,6 +163,21 @@ tutti c'è [il consiglio](#il-consiglio), che usa i modelli locali e non tocca i
 ## Un altro gosino
 
 Da **+ Fanne nascere uno** — e quello che ci trovi dipende da **cosa è la tua casa**.
+
+### Metterlo a riposo
+
+Nella pagina **Come sta** di ogni gosino, in fondo, c'è **Mettilo a riposo**. Un
+gosino a riposo smette di rispondere e sparisce dal branco attivo — ma non
+sparisce: i suoi ricordi, il suo pedigree e i figli che ha avuto restano dove
+sono. **Ritirare non è cancellare**, e infatti si torna indietro con lo stesso
+bottone.
+
+### Dirgli una cosa che deve sapere
+
+Nella pagina **Cosa ricorda**, sotto la ricerca, c'è **Diglielo tu**: scrivi una
+frase e la sa da subito, senza aspettare la notte. Se il pannello ti risponde che
+«lo ritroverà solo per parole esatte» vuol dire che sul server manca il modello
+degli embedding: il ricordo c'è lo stesso, ma lo ripescherà meno bene.
 
 Se la tua casa non è un allevamento (il caso normale), la pagina non ha nessun pulsante per
 creare: dice che **un gosino non si crea, si sceglie fra quelli nati**. È la regola, non un
@@ -209,9 +240,16 @@ voglia di chiedertelo, e lo dice quando ha senso — se lo hai fermato col
 bottone qui sopra, tace.
 
 Il bottone in cima lo ferma. **Fermalo** e smette di cominciare: risponde
-soltanto, come farebbe un programma normale. Il pannello ti dice anche che la
-decisione **torna com'era al prossimo riavvio** — se lo vuoi zitto per sempre si
-cambia `UGO_INITIATIVE` nella configurazione.
+soltanto, come farebbe un programma normale. La decisione **resta**: vale per il
+tuo account, non per gli altri che vivessero sullo stesso server, e sopravvive a
+un riavvio. Quando hai scelto tu compare un secondo bottone, **Lascia decidere al
+server**, che restituisce l'ultima parola alla configurazione — la riga sotto ai
+bottoni dice sempre in che stato sei e chi l'ha deciso.
+
+Puoi anche **aggiungere un promemoria** tu, qui sotto ai desideri in sospeso, e
+**annullarne** uno che non serve più. Annullare non lo cancella: smette di essere
+in sospeso e resta nella sua storia, così fra un mese si capisce ancora perché
+quella sera non ha detto niente.
 
 Più in basso, **Cosa gli è piaciuto fare**: quali dei suoi gesti sta preferendo, e quanto.
 Cresce quando gli dai una mela (un dito sul muso) e quando una sua iniziativa ha davvero

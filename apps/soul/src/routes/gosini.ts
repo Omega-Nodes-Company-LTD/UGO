@@ -208,6 +208,10 @@ export function registerGosiniRoutes(app: FastifyInstance, deps: GosiniRoutesDep
         origin: gosini.origin,
         // ADR-083: e se è in vetrina, che è una cosa che si spegne e si accende
         listedAt: gosini.listedAt,
+        // ADR-104: e se è a riposo. Senza, il pannello mostrava come attivo
+        // qualcuno che non risponde più — e il bottone del ritiro non poteva
+        // nemmeno sapere in che verso girare
+        retiredAt: gosini.retiredAt,
         noticedAt: gosini.deathNoticeAt,
       })
       .from(gosini)
