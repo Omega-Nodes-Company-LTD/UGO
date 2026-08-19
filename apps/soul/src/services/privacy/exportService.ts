@@ -55,6 +55,14 @@ export interface ExportBundle {
   customerMailAccounts: unknown[];
   customerChunks: unknown[];
   customerAnswerCache: unknown[];
+  /**
+   * ADR-111: i documenti di casa. Il file vero sta nel bucket e nell'export
+   * non ci può stare (è un JSON), ma **i frammenti sì**: sono la sola copia
+   * del contenuto che il database tiene, e un export che li lasciasse fuori
+   * direbbe di nuovo di essere completo senza esserlo.
+   */
+  houseDocuments: unknown[];
+  houseChunks: unknown[];
   /** ADR-089: la casa stessa, e tutto ciò che nessuno aveva mai portato fuori */
   account: unknown[];
   rooms: unknown[];
@@ -154,6 +162,8 @@ export class ExportService {
       customerMailAccounts,
       customerChunks,
       customerAnswerCache,
+      houseDocuments,
+      houseChunks,
     ] =
       await Promise.all([
         rows(sql`select id, display_name, aliases, notes, created_at from beings
@@ -234,6 +244,13 @@ export class ExportService {
                         knowledge_epoch, created_at, expires_at
                  from customer_answer_cache
                  where account_id = ${accountId} order by created_at`),
+        // ADR-111: i documenti di casa. L'embedding non esce, come per ogni
+        // altro vettore: è derivato, non è un dato della famiglia
+        rows(sql`select id, s3_key, filename, mime, size_bytes, uploaded_at,
+                        indexed_at, status
+                 from house_documents where account_id = ${accountId} order by uploaded_at`),
+        rows(sql`select id, document_id, ref, text, created_at
+                 from house_chunks where account_id = ${accountId} order by created_at`),
       ]);
 
     /**
@@ -364,6 +381,8 @@ export class ExportService {
         "question_text",
         "answer_text",
       ]),
+      houseDocuments: this.decryptColumn(houseDocuments, ["filename"]),
+      houseChunks: this.decryptColumn(houseChunks),
       account,
       rooms,
       placedProps,

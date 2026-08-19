@@ -41,6 +41,26 @@ database senza la chiave si porterebbe a casa dei caratteri illeggibili.
 Nei registri tecnici non compaiono mai né nomi né contenuti: solo codici. Chi assiste il sistema può
 vedere che una conversazione è avvenuta, non cosa vi è stato detto.
 
+## Quello che gli dai da leggere
+
+UGO conosce solo quello che ha **sentito**. Il libretto della caldaia, il contratto della luce,
+il referto del veterinario esistono, ma per lui no — finché non glieli si dà da leggere.
+
+Dal pannello, in **I documenti**, si carica un file (testo, markdown, csv o PDF). Da lì in poi:
+
+1. il file va **direttamente nel vostro archivio privato**, senza passare da UGO;
+2. quella notte lui lo legge e se ne fa un indice — cifrato come i ricordi;
+3. dal giorno dopo, se gli chiedete una cosa che sta lì dentro, risponde **citando da quale
+   documento** l'ha presa, così potete andare a controllare.
+
+Tre cose, dette com'è giusto dirle:
+
+- **lo legge di notte, non subito.** Un PDF lungo sono centinaia di calcoli, e farvi aspettare
+  davanti a una rotellina sarebbe peggio che dirvi «domani»;
+- **non esce di casa.** A leggerlo è il modello che gira sul vostro server;
+- **se buttate un documento, butta anche quello che ne ha imparato** — prima il file, poi
+  l'indice.
+
 ## Ti riconosce, e come
 
 UGO può riconoscerti **dalla voce** mentre parli e **dal volto** se guardi lo schermo. Sono

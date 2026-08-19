@@ -10,6 +10,7 @@ import {
 import {
   canAnswer,
   searchMemories,
+  searchHouseChunks,
   searchTranscripts,
   type EmbeddingsClient,
   type ChatLlm,
@@ -93,6 +94,13 @@ const STORY_TOKENS = 320;
 
 /** Tre frasi di riassunto: il template ne chiede tre, e tre bastano. */
 const WEEK_MAX_TOKENS = 160;
+
+/**
+ * Quanti frammenti di documento al massimo (ADR-111). Pochi di proposito: un
+ * documento lungo può riempire il prompt da solo, e la conversazione di casa
+ * non deve diventare una lettura del manuale.
+ */
+const DOCUMENT_K = 3;
 
 export class BeingNotFoundError extends Error {}
 
@@ -200,6 +208,7 @@ function buildDynamicSystem(
   diary: { date: string; text: string } | undefined,
   retrieved: readonly RankedMemory[],
   recordings: readonly string[],
+  documents: readonly { ref: string; text: string }[],
   pack: string | undefined,
   character: Character,
   /** ADR-107: false quando il giudice di casa dice che lì dentro non c'è */
@@ -265,6 +274,22 @@ function buildDynamicSystem(
   }
   if (recordings.length > 0) {
     lines.push(`Dalle registrazioni:\n${recordings.map((text) => `- ${text}`).join("\n")}`);
+  }
+  /**
+   * ADR-111: i documenti di casa.
+   *
+   * Entrano **con il nome del file**, e non è un dettaglio: un ricordo è una
+   * cosa che UGO ha sentito e può dire con parole sue, un documento è una cosa
+   * che qualcuno ha scritto — poterla attribuire è la differenza fra «me
+   * l'hai detto tu» e «c'è scritto nel libretto della caldaia». È anche
+   * l'unico modo perché tu possa andare a controllare.
+   */
+  if (documents.length > 0) {
+    lines.push(
+      `Dai documenti di casa (cita da quale, se rispondi con questi):\n${documents
+        .map((piece) => `- [${piece.ref}] ${piece.text}`)
+        .join("\n")}`,
+    );
   }
   // Restringe, non contraddice: `rules.it.md` fissa il massimo di frasi ed è
   // cached, quindi vale per tutti. Questo è l'asse che il genoma può muovere
@@ -888,6 +913,31 @@ export class ChatService {
         // undecryptable segment (rotated key?): skip, never break the chat
       }
     }
+    /**
+     * ADR-111: i documenti di casa. Cercati solo qui, dove si sta per parlare
+     * col modello — i verbi deterministici di sopra hanno già risposto e non
+     * devono pagare un embedding per una domanda a cui non serve.
+     *
+     * Soglia più alta dei ricordi (0,5 contro 0,35): un ricordo che entra a
+     * sproposito è una stranezza, un pezzo di contratto che entra a sproposito
+     * è UGO che cita un documento che non c'entra — e citare un documento
+     * suona autorevole anche quando è sbagliato.
+     */
+    const documents: { ref: string; text: string }[] = [];
+    for (const piece of await searchHouseChunks(
+      db,
+      embedder,
+      request.text,
+      DOCUMENT_K,
+      this.deps.accountId,
+    )) {
+      try {
+        documents.push({ ref: piece.ref, text: decryptText(piece.text, dataKey) });
+      } catch {
+        // frammento non decifrabile (chiave ruotata?): si salta, mai si rompe la chat
+      }
+    }
+
     const diaryRows = await db
       .select({ date: diaryEntries.date, text: diaryEntries.text })
       .from(diaryEntries)
@@ -905,6 +955,7 @@ export class ChatService {
           diaryRows[0],
           retrieved,
           recordings,
+          documents,
           await this.packBlock(request.beingId, request.channel),
           this.deps.character,
           verdict.answerable,

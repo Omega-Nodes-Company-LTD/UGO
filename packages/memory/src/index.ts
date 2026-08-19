@@ -22,6 +22,7 @@ export {
 export { asksForAVerdict } from "./reporting.js";
 export { searchTranscripts, type RetrievedTranscript } from "./transcripts.js";
 export { searchCustomerChunks, type RetrievedCustomerChunk } from "./customerChunks.js";
+export { searchHouseChunks, type RetrievedHouseChunk } from "./houseChunks.js";
 export { computeCostUsd, pricingFor, type ModelPricing, type TokenUsage } from "./pricing.js";
 export {
   LlmClient,

@@ -21,6 +21,7 @@ from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
 from .contradictions import run_contradictions
 from .customer_digest import run_digest
+from .house_docs import run_house_docs
 from .enroll_step import run_enroll
 from .entities import run_entities
 from .family_backup import run_family_backup
@@ -42,6 +43,7 @@ STEPS = (
     "advise",
     "review",
     "digest",
+    "documenti",
     "anniversaries",
     "contradictions",
     "entities",
@@ -60,7 +62,17 @@ STEPS = (
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
 PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene")
-PER_HOUSEHOLD = ("ingest", "enroll", "advise", "review", "digest", "anniversaries", "backup", "family")
+PER_HOUSEHOLD = (
+    "ingest",
+    "enroll",
+    "advise",
+    "review",
+    "digest",
+    "documenti",
+    "anniversaries",
+    "backup",
+    "family",
+)
 GLOBAL = ("compaction",)
 
 #: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
@@ -193,6 +205,11 @@ def _run_step(
         # backlog gruppo 8: «a che punto siamo» pre-calcolato per cliente —
         # la reception lo usa quando lo stato vivo di GitHub non c'è
         step_report[step] = run_digest(conn, cfg)
+    elif step == "documenti":
+        # backlog gruppo 7 (ADR-111): i documenti che la casa ha caricato
+        # diventano frammenti cercabili. Di notte perche un PDF di duecento
+        # pagine e centinaia di embedding, e nessuno deve aspettarli
+        step_report[step] = run_house_docs(conn, cfg, cfg.account_id)
     elif step == "review":
         # gruppo 13: la rassegna del mattino — i titoli nuovi dei feed, detti
         # a voce; la metà generalista del consiglio ai clienti

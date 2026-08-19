@@ -35,6 +35,7 @@ import { registerTransferRoutes } from "./routes/transfer.js";
 import { registerVetrinaRoutes } from "./routes/vetrina.js";
 import { registerAdoptionRoutes } from "./routes/adoptions.js";
 import { registerListRoutes } from "./routes/lists.js";
+import { registerHouseDocRoutes, type HouseDocsStorage } from "./routes/houseDocs.js";
 import { PeerService } from "./services/peerService.js";
 import { RegistryClient } from "./services/registryClient.js";
 import type { CouncilService } from "./services/council/councilService.js";
@@ -142,6 +143,12 @@ export interface ServerOptions extends HealthDeps {
        * Assente = `DEFAULT_LITTER_COST_USD`.
        */
       litterCostUsd?: number;
+      /**
+       * ADR-111: il bucket privato dei documenti di casa. Assente = il
+       * caricamento risponde 503 e lo dice, invece di accettare un file che
+       * non ha dove andare.
+       */
+      houseDocsStorage?: HouseDocsStorage;
     };
     /** ADR-032: the per-exemplar runtimes a socket can ask to be */
     registry?: GosinoRegistry;
@@ -462,6 +469,13 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         });
         // ADR-076: le liste si vedono e si spuntano anche dal pannello
         registerListRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
+        // ADR-111: i documenti di casa — «UGO conosce solo ciò che ha sentito»
+        registerHouseDocRoutes(app, {
+          db: options.db,
+          guard,
+          dataKey: gosini.dataKey,
+          ...(gosini.houseDocsStorage !== undefined && { storage: gosini.houseDocsStorage }),
+        });
         // ADR-102: il giornale, le conversazioni di casa, chi è stato visto
         registerJournalRoutes(app, {
           db: options.db,

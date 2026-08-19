@@ -128,6 +128,9 @@ async function openPage(page) {
   } else if (page === "liste") {
     // ADR-076: la spesa e le cose da fare, riempite parlando
     await section(loadLists, "list-msg");
+  } else if (page === "documenti") {
+    // ADR-111: quello che UGO ha da leggere, e cosa ha già letto
+    await section(loadDocuments, "doc-msg");
   } else if (page === "adozioni") {
     // ADR-084: le pratiche, dai due lati
     await section(loadAdoptions, "adozioni-msg");
