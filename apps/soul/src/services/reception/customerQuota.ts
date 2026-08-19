@@ -30,10 +30,18 @@ export class CustomerQuota {
   public constructor(
     private readonly db: DbClient,
     private readonly defaults: QuotaDefaults,
+    /** ADR-098: la connessione della casa del cliente; assente = `db` */
+    private readonly dbFor?: (accountId: string) => DbClient,
   ) {}
 
-  public async check(customerId: string, at: Date = new Date()): Promise<QuotaVerdict> {
-    const [customer] = await this.db
+  public async check(
+    customerId: string,
+    at: Date = new Date(),
+    accountId?: string,
+  ): Promise<QuotaVerdict> {
+    const db =
+      accountId !== undefined && this.dbFor !== undefined ? this.dbFor(accountId) : this.db;
+    const [customer] = await db
       .select({
         hourlyMessageLimit: customers.hourlyMessageLimit,
         dailyBudgetUsd: customers.dailyBudgetUsd,
@@ -49,7 +57,7 @@ export class CustomerQuota {
 
     // wall 1: the hourly quota, a count over the (customer_id, ts) index
     const hourAgo = new Date(at.getTime() - 60 * 60_000);
-    const [hourly] = await this.db
+    const [hourly] = await db
       .select({ count: sql<string>`count(*)` })
       .from(customerMessages)
       .where(
@@ -66,7 +74,7 @@ export class CustomerQuota {
 
     // wall 2: the daily cap, summed in the house's own day (ADR-050)
     const today = localDate(this.defaults.timezone, at);
-    const [spent] = await this.db
+    const [spent] = await db
       .select({ total: sql<string>`coalesce(sum(${customerMessages.costUsd}), 0)` })
       .from(customerMessages)
       .where(

@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { GosinoRegistry } from "../services/pack/runtimes.js";
 import type { InitiativeSwitch } from "../services/volition/initiativeSwitch.js";
 import type { PreHandler } from "./guard.js";
-import { exemplarsOf, householdScope } from "./scope.js";
+import { exemplarsOf, inAccount } from "./scope.js";
 
 /**
  * What he decided, and why (ADR-034).
@@ -52,47 +52,51 @@ function mine(
   db: DbClient,
   column: PgColumn,
   id: string | undefined,
-  householdId: string,
+  accountId: string,
 ): SQL | undefined {
-  return id === undefined ? inArray(column, exemplarsOf(db, householdId)) : eq(column, id);
+  return id === undefined ? inArray(column, exemplarsOf(db, accountId)) : eq(column, id);
 }
 
 export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoutesDeps): void {
   app.get("/v1/volition", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
     const asked = (request.query as { gosino?: string }).gosino;
-    const who = deps.registry?.resolve(asked, householdId);
+    const body = await inAccount(deps.db, request, reply, {}, async (db, accountId) => {
+      const who = deps.registry?.resolve(asked, accountId);
 
-    const journal = await deps.db
-      .select({ ts: events.ts, type: events.type, payload: events.payload })
-      .from(events)
-      .where(and(inArray(events.type, [...INITIATIVE_TYPES]), mine(deps.db, events.gosinoId, who?.id, householdId)))
-      .orderBy(desc(events.ts))
-      .limit(20);
+      const journal = await db
+        .select({ ts: events.ts, type: events.type, payload: events.payload })
+        .from(events)
+        .where(
+          and(inArray(events.type, [...INITIATIVE_TYPES]), mine(db, events.gosinoId, who?.id, accountId)),
+        )
+        .orderBy(desc(events.ts))
+        .limit(20);
 
-    const wants = await deps.db
-      .select({
-        id: desires.id,
-        text: desires.text,
-        status: desires.status,
-        // ADR-078: un timer non è un desiderio, e il pannello lo deve dire
-        kind: desires.kind,
-        dueAt: desires.dueAt,
-        dueHint: desires.dueHint,
-        createdAt: desires.createdAt,
-      })
-      .from(desires)
-      .where(and(eq(desires.status, "pending"), mine(deps.db, desires.gosinoId, who?.id, householdId)))
-      .orderBy(desc(desires.createdAt))
-      .limit(20);
+      const wants = await db
+        .select({
+          id: desires.id,
+          text: desires.text,
+          status: desires.status,
+          // ADR-078: un timer non è un desiderio, e il pannello lo deve dire
+          kind: desires.kind,
+          dueAt: desires.dueAt,
+          dueHint: desires.dueHint,
+          createdAt: desires.createdAt,
+        })
+        .from(desires)
+        .where(and(eq(desires.status, "pending"), mine(db, desires.gosinoId, who?.id, accountId)))
+        .orderBy(desc(desires.createdAt))
+        .limit(20);
 
-    return reply.send({
-      who: who === undefined ? undefined : { id: who.id, name: who.name, where: who.where },
-      initiative: deps.initiative.state(),
-      journal,
-      desires: wants,
+      return {
+        who: who === undefined ? undefined : { id: who.id, name: who.name, where: who.where },
+        initiative: deps.initiative.state(),
+        journal,
+        desires: wants,
+      };
     });
+    if (body === undefined) return reply;
+    return reply.send(body);
   });
 
   /**
@@ -104,14 +108,15 @@ export function registerVolitionRoutes(app: FastifyInstance, deps: VolitionRoute
    * l'unica cosa che potrà dire è «mi sembra che ultimamente…».
    */
   app.get("/v1/volition/efficacy", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
     const asked = (request.query as { gosino?: string }).gosino;
-    const who = deps.registry?.resolve(asked, householdId);
-    const rows = await deps.db
-      .select({ act: actEfficacy.act, weight: actEfficacy.weight })
-      .from(actEfficacy)
-      .where(mine(deps.db, actEfficacy.gosinoId, who?.id, householdId));
+    const rows = await inAccount(deps.db, request, reply, {}, (db, accountId) => {
+      const who = deps.registry?.resolve(asked, accountId);
+      return db
+        .select({ act: actEfficacy.act, weight: actEfficacy.weight })
+        .from(actEfficacy)
+        .where(mine(db, actEfficacy.gosinoId, who?.id, accountId));
+    });
+    if (rows === undefined) return reply;
     return reply.send({ efficacy: rows });
   });
 

@@ -29,7 +29,7 @@ beforeAll(async () => {
   await runMigrations(pg.url);
   db = createDbClient(pg.url);
   house = await createHouse(db, "casa-dettatura");
-  token = (await issueToken(db, { householdId: house.id, role: "owner", label: "stt" })).token;
+  token = (await issueToken(db, { accountId: house.id, role: "owner", label: "stt" })).token;
 
   const base = {
     db,
@@ -42,9 +42,9 @@ beforeAll(async () => {
     features: {
       chat: undefined as never,
       psyche: undefined as never,
-      stt: (householdId: string) => ({
+      stt: (accountId: string) => ({
         transcribe: (audio: string) => {
-          heard.push(`${householdId.slice(0, 8)}:${String(audio.length)}`);
+          heard.push(`${accountId.slice(0, 8)}:${String(audio.length)}`);
           return Promise.resolve(answer);
         },
       }),

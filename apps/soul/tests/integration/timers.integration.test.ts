@@ -14,7 +14,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
 import { characterFrom } from "../../src/services/council/character.js";
-import { createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { TimerWatch } from "../../src/services/volition/timerWatch.js";
 
@@ -53,7 +53,7 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-timer",
     name: "Timer",
     gosinoName: "Ugo",
@@ -74,13 +74,13 @@ beforeAll(async () => {
     embedder: { embed: () => Promise.reject(new Error("mai")) },
     llm: {
       chat: () => Promise.reject(new Error("il provider non deve essere chiamato")),
-    } as never,
+    },
     psyche,
     dataKey: DATA_KEY,
     timezone: "UTC",
     locale: "it-IT",
     gosinoId: who,
-    householdId: house.householdId,
+    accountId: house.accountId,
     character: characterFrom({}),
   });
 

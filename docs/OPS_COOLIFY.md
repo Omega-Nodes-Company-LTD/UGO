@@ -250,7 +250,17 @@ dire *di quanto* invece di litigare a impressioni.
    `S3_REGION=<S3_REGION>` (Hetzner la pretende, es. `fsn1`) ·
    `VEXA_API_URL=<VEXA_API_URL>` · `VEXA_API_KEY=<VEXA_API_KEY>` · `UGO_OWNER_NAME=<OWNER_NAME>` ·
    `TZ=Europe/Rome`. Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
-   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
+   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. Facoltative
+   (ADR-094 — la voce di casa parla per prima): `UGO_CHAT_LOCAL_FIRST` (`on` di default: la
+   chat prova PRIMA il modello locale su Ollama e usa Anthropic come soccorso; `off` per
+   tornare al solo provider) e `OLLAMA_CHAT_MODEL` (il modello locale della chat; assente,
+   scala su `OLLAMA_TEXT_MODEL` e poi su `OLLAMA_BATCH_MODEL`). Con ADR-095 la catena ha
+   tre anelli — casa (Ollama), poi OpenRouter se imposti `OPENROUTER_API_KEY` +
+   `OPENROUTER_CHAT_MODEL` (la chiave senza modello blocca il boot), poi Anthropic —
+   e **chi risponde paga**: ogni anello scrive la sua riga su `budget_ledger` col suo
+   listino (casa a listino nominale ~1% di haiku), quindi i totali dei conti nel
+   pannello includono anche la spesa nominale locale. A salvadanaio vuoto non parla
+   nessun anello: la fame vale anche per la voce di casa. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
    nella pagina di ogni risorsa.)
    **Se farai il libro genealogico (§2.6-bis)**, aggiungi qui anche:
    `UGO_REGISTRY_URL=http://<HOST_REGISTRY>:3100` · `UGO_REGISTRY_TOKEN=<UGO_REGISTRY_TOKEN>`
@@ -630,14 +640,16 @@ buona fede.
 - **archivia il cliente** — tutti i suoi token smettono di valere insieme, e lui non entra più. I
   dati restano.
 
-**La cancellazione vera non ha ancora un bottone**, ed è giusto saperlo prima di prometterla a un
-cliente: la riga `customers` cascata su tutto ciò che era suo (ticket, messaggi, token, fonti,
-indice, cache), ma oggi quel `delete` si esegue solo sul database, a mano, in una finestra
-dedicata — non c'è né una rotta né un comando di pannello, e `Far dimenticare qualcuno` (§5.4)
-riguarda le persone del branco, non le organizzazioni. Per una richiesta di cancellazione di un
-cliente: archivialo subito (l'accesso finisce lì), poi esegui la riga sul database. L'**export**
-della casa invece li conosce già — clienti, ticket, conversazioni e fonti sono dentro il JSON: a
-un cliente che chiede i propri dati si risponde da lì, senza lavoro manuale.
+**La cancellazione vera** (ADR-093) sta nella stessa pagina, sotto «Archivia»: **Dimentica il
+cliente**. Chiede di scrivere il suo nome per intero — è irreversibile, e cancella anche i
+documenti dal bucket, che il cascade del database da solo non tocca. Se il pannello risponde con
+un rifiuto che parla di «bucket non configurato», è la protezione che lavora: ci sono documenti
+nello storage e mancano le variabili S3 (§2.7) — un oblio a metà non parte. Ogni cancellazione
+lascia una riga di audit (`customer_forgotten`), che è ciò che ti permette di dire «cancellato
+il giorno X» a chi l'ha chiesto. Per una richiesta GDPR: **archivia subito** (l'accesso finisce
+lì), raccogli l'eventuale conferma scritta, poi **Dimentica**. L'**export** della casa invece li
+conosce già — clienti, ticket, conversazioni e fonti sono dentro il JSON: a un cliente che
+chiede i propri dati si risponde da lì, senza lavoro manuale.
 
 ### 5.8 Il branco che cresce: una cucciolata, e il suo pedigree
 
@@ -1010,7 +1022,7 @@ lo dice. Vale la pena eseguirlo lo stesso: costa un attimo e la risposta è un n
 
 ```bash
 docker compose exec soul pnpm --filter soul ugo ricordi in-chiaro          # una casa sola
-docker compose exec soul pnpm --filter soul ugo ricordi in-chiaro --casa <slug>
+docker compose exec soul pnpm --filter soul ugo ricordi in-chiaro --account <slug>
 ```
 
 Risposta attesa: `{"ricordi_in_chiaro":{"found":N,"converted":N,"unreadable":0}}`. È idempotente
@@ -1035,6 +1047,35 @@ prima di decidere cosa farne.
    è `UGO_INTERNAL_TOKEN`.
 4. Il codice legge tutto dalle env: nessun file da toccare, nessun rebuild necessario oltre al
    redeploy.
+
+## 8-bis. Il flip di RLS: l'utenza applicativa (ADR-062 tempo 2b)
+
+Fin qui soul e i job parlano col database come **owner** delle tabelle, a cui le politiche
+Row Level Security non si applicano: il muro fra le case esiste ed è **inerte**. Il flip lo
+accende, e si fa in tre mosse — reversibili togliendo la variabile:
+
+1. **La password dell'utenza applicativa** (una volta sola, da psql come owner):
+
+   ```sql
+   ALTER ROLE ugo_app LOGIN PASSWORD '<password-diversa-dall-owner>';
+   ```
+
+2. **`DATABASE_URL_APP`** su soul E sul container dei job (stesso host e database, utente
+   `ugo_app`):
+
+   ```
+   DATABASE_URL_APP=postgres://ugo_app:<password-app>@<HOST_POSTGRES>:5432/ugo
+   ```
+
+   `DATABASE_URL` **resta com'è**: le migrazioni girano sull'owner, ed è il punto — i
+   privilegi non si applicano al proprietario delle tabelle (ADR-048 §7).
+
+3. **Il giro di fumo**, che con una casa sola dice poco e con due dice tutto: chat dal muso,
+   pannello (`/admin`), un sogno manuale (`POST /v1/jobs/dream`), e — se c'è la reception —
+   un messaggio da un token cliente. Una rotta rimasta fuori dal muro non risponde dati
+   sbagliati: risponde **zero righe**, che si vede subito.
+
+   Per tornare indietro: togli `DATABASE_URL_APP` e riavvia. Nessun dato è cambiato.
 
 ## 9. Il foglio dei valori
 

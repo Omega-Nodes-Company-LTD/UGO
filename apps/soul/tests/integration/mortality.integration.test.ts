@@ -15,7 +15,7 @@ import { encryptText } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FarewellService } from "../../src/services/farewellService.js";
-import { createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { MortalityWatch } from "../../src/services/mortalityWatch.js";
 
 /**
@@ -56,7 +56,7 @@ const exemplar = async (
   const [row] = await db
     .insert(gosini)
     .values({
-      householdId: houseId,
+      accountId: houseId,
       name,
       bornAt: BORN,
       mortalFrom: BORN,
@@ -65,7 +65,7 @@ const exemplar = async (
     .returning({ id: gosini.id });
   if (row === undefined) throw new Error("no exemplar");
   await db.insert(traitSets).values({
-    householdId: houseId,
+    accountId: houseId,
     gosinoId: row.id,
     version: 1,
     traits: { calm: 0.5, longevity },
@@ -81,15 +81,15 @@ beforeAll(async () => {
 
   // la casa nasce con la sua creatura, che qui fa da allievo: è il più
   // giovane della casa, ed è a lui che l'anziano racconterà
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-arco",
     name: "Arco",
     gosinoName: "Nipote",
   });
-  houseId = house.householdId;
+  houseId = house.accountId;
   giovane = house.gosinoId;
   farewells = new FarewellService(db, DATA_KEY);
-  watch = new MortalityWatch({ db, dataKey: DATA_KEY });
+  watch = new MortalityWatch({ db, dbFor: () => db, dataKey: DATA_KEY });
 }, 240_000);
 
 afterAll(async () => {
@@ -123,7 +123,7 @@ describe("il dado dell'esemplare", () => {
   it("un capostipite che non ha accettato non ha nessuna scadenza, per quanto vecchio", async () => {
     const [row] = await db
       .insert(gosini)
-      .values({ householdId: houseId, name: "Capostipite", bornAt: BORN })
+      .values({ accountId: houseId, name: "Capostipite", bornAt: BORN })
       .returning({ id: gosini.id });
     if (row === undefined) throw new Error("no exemplar");
 

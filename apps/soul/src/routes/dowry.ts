@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { DowryService, type DowryOptions } from "../services/dowryService.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 
 /**
  * La dote (ADR-074): guardarla, farla, adottarla.
@@ -39,17 +39,21 @@ const cleaned = (input: z.infer<typeof optionsSchema>): DowryOptions => ({
 });
 
 export function registerDowryRoutes(app: FastifyInstance, deps: DowryRoutesDeps): void {
-  const dowries = new DowryService(deps.db, deps.dataKey);
-
   app.post("/v1/gosini/:id/dowry/preview", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = optionsSchema.safeParse(request.body ?? {});
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-
-    const preview = await dowries.preview(householdId, id, cleaned(parsed.data));
-    if (preview === undefined) return reply.status(404).send({ error: "non esiste" });
+    const preview = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) =>
+        (await new DowryService(db, deps.dataKey).preview(accountId, id, cleaned(parsed.data))) ??
+        ("missing" as const),
+    );
+    if (preview === undefined) return reply;
+    if (preview === "missing") return reply.status(404).send({ error: "non esiste" });
     return reply.send(preview);
   });
 
@@ -57,11 +61,17 @@ export function registerDowryRoutes(app: FastifyInstance, deps: DowryRoutesDeps)
     const parsed = optionsSchema.safeParse(request.body ?? {});
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-
-    const made = await dowries.create(householdId, id, cleaned(parsed.data));
-    if (made === undefined) return reply.status(404).send({ error: "non esiste" });
+    const made = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) =>
+        (await new DowryService(db, deps.dataKey).create(accountId, id, cleaned(parsed.data))) ??
+        ("missing" as const),
+    );
+    if (made === undefined) return reply;
+    if (made === "missing") return reply.status(404).send({ error: "non esiste" });
     // la chiave si vede UNA VOLTA SOLA: non è conservata da nessuna parte
     return reply.status(201).send(made);
   });
@@ -69,17 +79,25 @@ export function registerDowryRoutes(app: FastifyInstance, deps: DowryRoutesDeps)
   app.post("/v1/dowries/adopt", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = adoptSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-
-    const adopted = await dowries.adopt(
-      householdId,
-      parsed.data.sealed,
-      parsed.data.key,
-      parsed.data.name,
-      deps.embedder,
+    // l'embedder chiama Ollama: sta DENTRO adopt, quindi la transazione lo
+    // attraversa — accettato per ora: è una chiamata locale con timeout, e
+    // spezzarla vorrebbe dire spezzare l'atomicita' dell'adozione
+    const adopted = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) =>
+        (await new DowryService(db, deps.dataKey).adopt(
+          accountId,
+          parsed.data.sealed,
+          parsed.data.key,
+          parsed.data.name,
+          deps.embedder,
+        )) ?? ("unreadable" as const),
     );
-    if (adopted === undefined) {
+    if (adopted === undefined) return reply;
+    if (adopted === "unreadable") {
       return reply.status(400).send({ error: "dote illeggibile: chiave sbagliata o file rotto" });
     }
     await deps.registry?.reload();

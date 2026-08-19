@@ -47,7 +47,7 @@ async function replying(
 }
 
 const client = (baseUrl: string, timeoutMs = 1_000): RecognitionClient =>
-  new RecognitionClient({ baseUrl, token: "t", householdId: "h", timeoutMs });
+  new RecognitionClient({ baseUrl, token: "t", accountId: "h", timeoutMs });
 
 afterEach(async () => {
   await Promise.all(

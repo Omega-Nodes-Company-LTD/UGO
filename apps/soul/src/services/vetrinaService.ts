@@ -1,4 +1,4 @@
-import { gosini, households, traitSets, type DbClient } from "@ugo/db";
+import { gosini, accounts, traitSets, type DbClient } from "@ugo/db";
 import { lifeAt } from "@ugo/psyche";
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { characterFrom } from "./council/character.js";
@@ -54,8 +54,8 @@ export class VetrinaService {
   public async browse(): Promise<ShowcaseKennel[]> {
     const rows = await this.db
       .select({
-        slug: households.slug,
-        house: households.name,
+        slug: accounts.slug,
+        house: accounts.name,
         gosinoId: gosini.id,
         name: gosini.name,
         generation: gosini.generation,
@@ -65,18 +65,18 @@ export class VetrinaService {
         traits: traitSets.traits,
       })
       .from(gosini)
-      .innerJoin(households, eq(gosini.householdId, households.id))
+      .innerJoin(accounts, eq(gosini.accountId, accounts.id))
       .leftJoin(traitSets, eq(traitSets.gosinoId, gosini.id))
       .where(
         and(
           isNotNull(gosini.listedAt),
           isNull(gosini.retiredAt),
-          isNull(households.closedAt),
+          isNull(accounts.closedAt),
           // ADR-081: in vetrina ci va solo un nato di un allevamento
           eq(gosini.origin, "nato"),
         ),
       )
-      .orderBy(asc(households.name), asc(gosini.bornAt));
+      .orderBy(asc(accounts.name), asc(gosini.bornAt));
 
     const now = new Date();
     const byKennel = new Map<string, ShowcaseKennel>();
@@ -112,7 +112,7 @@ export class VetrinaService {
    * un capostipite in vendita sarebbe una linea che comincia due volte.
    */
   public async show(
-    householdId: string,
+    accountId: string,
     gosinoId: string,
     listed: boolean,
     priceCents?: number,
@@ -126,7 +126,7 @@ export class VetrinaService {
       .where(
         and(
           eq(gosini.id, gosinoId),
-          eq(gosini.householdId, householdId),
+          eq(gosini.accountId, accountId),
           eq(gosini.origin, "nato"),
           isNull(gosini.retiredAt),
         ),

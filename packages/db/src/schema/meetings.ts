@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { index, pgTable, jsonb, real, text, timestamp, uuid, vector } from "drizzle-orm/pg-core";
 import { EMBEDDING_DIMENSIONS } from "@ugo/shared";
 import { beings } from "./beings.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 import { gosinoId } from "./self.js";
 
 export const meetings = pgTable("meetings", {
@@ -38,7 +38,7 @@ export const transcriptSegments = pgTable(
      * Security policy with a two-level subquery stops being obviously correct.
      * Written in the same statement as the segment, always from its meeting.
      */
-    householdId: householdId(),
+    accountId: accountId(),
     /** diarization's own label ("SPEAKER_01"): who, before we know who */
     speaker: text("speaker"),
     /**
@@ -56,10 +56,10 @@ export const transcriptSegments = pgTable(
   (table) => [
     index("transcript_segments_meeting_idx").on(table.meetingId),
     index("transcript_segments_being_idx").on(table.beingId),
-    // ADR-048 ha messo `household_id` sulla riga perché la politica RLS lo
+    // ADR-048 ha messo `account_id` sulla riga perché la politica RLS lo
     // confrontasse senza sottoquery — ma senza indice quel confronto si paga
     // su ogni riga letta, e da oggi ci passa anche `searchTranscripts`
-    index("transcript_segments_household_idx").on(table.householdId),
+    index("transcript_segments_account_idx").on(table.accountId),
     index("transcript_segments_embedding_hnsw_idx").using(
       "hnsw",
       table.embedding.op("vector_cosine_ops"),

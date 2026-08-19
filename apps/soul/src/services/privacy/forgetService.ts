@@ -84,23 +84,23 @@ export class ForgetService {
   public constructor(private readonly deps: ForgetDeps) {}
 
   /** The exemplars of one house: the bridge to every table keyed by `gosino_id`. */
-  private exemplars(householdId: string) {
+  private exemplars(accountId: string) {
     return this.deps.db
       .select({ id: gosini.id })
       .from(gosini)
-      .where(eq(gosini.householdId, householdId));
+      .where(eq(gosini.accountId, accountId));
   }
 
   public async forgetBeing(
     beingId: string,
-    householdId: string,
+    accountId: string,
     at: Date = new Date(),
   ): Promise<ForgetReport> {
     const { db } = this.deps;
     const [being] = await db
       .select()
       .from(beings)
-      .where(and(eq(beings.id, beingId), eq(beings.householdId, householdId)));
+      .where(and(eq(beings.id, beingId), eq(beings.accountId, accountId)));
     // not found, on purpose, for a being that exists in another house
     if (being === undefined) throw new BeingNotFoundError(beingId);
 
@@ -121,11 +121,11 @@ export class ForgetService {
       unknownPrintsDestroyed: 0,
     };
 
-    await this.redactMessages(redact, report, beingId, householdId);
-    await this.redactSegments(redact, report, householdId);
-    await this.redactMemories(redact, report, householdId);
-    await this.redactDiaryAndEvents(redact, report, householdId);
-    await this.redactReception(redact, report, householdId);
+    await this.redactMessages(redact, report, beingId, accountId);
+    await this.redactSegments(redact, report, accountId);
+    await this.redactMemories(redact, report, accountId);
+    await this.redactDiaryAndEvents(redact, report, accountId);
+    await this.redactReception(redact, report, accountId);
 
     // The biometric profiles are the point of no return: a voiceprint is the
     // one datum that stays usable forever. They cascade with the being, but we
@@ -151,7 +151,7 @@ export class ForgetService {
     // promessa.
     const strangers = await db
       .delete(unknownPrints)
-      .where(eq(unknownPrints.householdId, householdId))
+      .where(eq(unknownPrints.accountId, accountId))
       .returning({ id: unknownPrints.id });
     report.unknownPrintsDestroyed = strangers.length;
 
@@ -159,8 +159,8 @@ export class ForgetService {
     // `events` is keyed by exemplar and an erasure is an act of the *house*, so
     // it lands on the house's oldest exemplar rather than on whichever one the
     // DEFAULT would have picked. Its proper home is `audit_log` (ADR-049).
-    const [eldest] = await this.exemplars(householdId).orderBy(asc(gosini.bornAt)).limit(1);
-    if (eldest === undefined) throw new Error(`household ${householdId} has no exemplar`);
+    const [eldest] = await this.exemplars(accountId).orderBy(asc(gosini.bornAt)).limit(1);
+    if (eldest === undefined) throw new Error(`account ${accountId} has no exemplar`);
     await db.insert(events).values({
       gosinoId: eldest.id,
       ts: at,
@@ -185,13 +185,13 @@ export class ForgetService {
    */
   public async forgetCustomer(
     customerId: string,
-    householdId: string,
+    accountId: string,
   ): Promise<ForgetCustomerReport> {
     const { db } = this.deps;
     const [customer] = await db
       .select({ id: customers.id })
       .from(customers)
-      .where(and(eq(customers.id, customerId), eq(customers.householdId, householdId)));
+      .where(and(eq(customers.id, customerId), eq(customers.accountId, accountId)));
     if (customer === undefined) throw new CustomerNotFoundError(customerId);
 
     // counted before the cascade, so the report can prove what left with it
@@ -219,13 +219,13 @@ export class ForgetService {
   private async redactReception(
     redact: (value: string) => string,
     report: ForgetReport,
-    householdId: string,
+    accountId: string,
   ): Promise<void> {
     const { db, dataKey } = this.deps;
     const messageRows = await db
       .select({ id: customerMessages.id, text: customerMessages.text })
       .from(customerMessages)
-      .where(eq(customerMessages.householdId, householdId));
+      .where(eq(customerMessages.accountId, accountId));
     for (const row of messageRows) {
       let plain: string;
       try {
@@ -245,7 +245,7 @@ export class ForgetService {
     const ticketRows = await db
       .select({ id: tickets.id, title: tickets.title, body: tickets.body })
       .from(tickets)
-      .where(eq(tickets.householdId, householdId));
+      .where(eq(tickets.accountId, accountId));
     for (const row of ticketRows) {
       const update: { title?: string; body?: string } = {};
       try {
@@ -267,13 +267,13 @@ export class ForgetService {
     redact: (value: string) => string,
     report: ForgetReport,
     beingId: string,
-    householdId: string,
+    accountId: string,
   ): Promise<void> {
     const { db, dataKey } = this.deps;
     const rows = await db
       .select({ id: messages.id, text: messages.text, beingId: messages.beingId })
       .from(messages)
-      .where(inArray(messages.gosinoId, this.exemplars(householdId)));
+      .where(inArray(messages.gosinoId, this.exemplars(accountId)));
     for (const row of rows) {
       if (row.beingId === beingId) report.messagesUnlinked += 1;
       let plain: string;
@@ -296,7 +296,7 @@ export class ForgetService {
   private async redactSegments(
     redact: (value: string) => string,
     report: ForgetReport,
-    householdId: string,
+    accountId: string,
   ): Promise<void> {
     const { db, dataKey } = this.deps;
     // transcript_segments has no tenant column of its own: it reaches the
@@ -314,7 +314,7 @@ export class ForgetService {
           db
             .select({ id: meetings.id })
             .from(meetings)
-            .where(inArray(meetings.gosinoId, this.exemplars(householdId))),
+            .where(inArray(meetings.gosinoId, this.exemplars(accountId))),
         ),
       );
     for (const row of rows) {
@@ -351,13 +351,13 @@ export class ForgetService {
   private async redactMemories(
     redact: (value: string) => string,
     report: ForgetReport,
-    householdId: string,
+    accountId: string,
   ): Promise<void> {
     const { db, dataKey, embedder } = this.deps;
     const rows = await db
       .select({ id: memories.id, text: memories.text })
       .from(memories)
-      .where(inArray(memories.gosinoId, this.exemplars(householdId)));
+      .where(inArray(memories.gosinoId, this.exemplars(accountId)));
     const toReEmbed: { id: string; text: string }[] = [];
     for (const row of rows) {
       /**
@@ -395,13 +395,13 @@ export class ForgetService {
   private async redactDiaryAndEvents(
     redact: (value: string) => string,
     report: ForgetReport,
-    householdId: string,
+    accountId: string,
   ): Promise<void> {
     const { db } = this.deps;
     const diaryRows = await db
       .select({ id: diaryEntries.id, text: diaryEntries.text })
       .from(diaryEntries)
-      .where(inArray(diaryEntries.gosinoId, this.exemplars(householdId)));
+      .where(inArray(diaryEntries.gosinoId, this.exemplars(accountId)));
     for (const row of diaryRows) {
       const redacted = redact(row.text);
       if (redacted !== row.text) {
@@ -412,7 +412,7 @@ export class ForgetService {
     const eventRows = await db
       .select({ id: events.id, payload: events.payload })
       .from(events)
-      .where(inArray(events.gosinoId, this.exemplars(householdId)));
+      .where(inArray(events.gosinoId, this.exemplars(accountId)));
     for (const row of eventRows) {
       const redacted = redactJson(row.payload, redact);
       if (JSON.stringify(redacted) !== JSON.stringify(row.payload)) {

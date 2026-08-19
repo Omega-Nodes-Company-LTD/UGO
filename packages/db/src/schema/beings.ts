@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { EMBEDDING_DIMENSIONS } from "@ugo/shared";
 import { beingKind } from "./enums.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 
 /**
  * The pack (ADR-014): every being of the house, whatever the species. Not
@@ -35,7 +35,7 @@ export const beings = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     displayName: text("display_name").notNull(),
     // deliberately text, not an enum: adding a species must not need a migration
     species: text("species").notNull().default("human"),
@@ -46,7 +46,7 @@ export const beings = pgTable(
     isMinor: boolean("is_minor").notNull().default(false),
     noVision: boolean("no_vision").notNull().default(false),
     noAudio: boolean("no_audio").notNull().default(false),
-    /** the human this house belongs to; at most one per household */
+    /** the human this house belongs to; at most one per account */
     isOwner: boolean("is_owner").notNull().default(false),
     aliases: text("aliases").array().notNull().default([]),
     notes: text("notes"),
@@ -57,12 +57,12 @@ export const beings = pgTable(
   (table) => [
     index("beings_embedding_hnsw_idx").using("hnsw", table.embedding.op("vector_cosine_ops")),
     index("beings_species_idx").on(table.species),
-    index("beings_household_idx").on(table.householdId),
+    index("beings_account_idx").on(table.accountId),
     // the target of the composite foreign keys that make a cross-house bond
     // or relation structurally impossible (ADR-019)
-    unique("beings_household_id_uq").on(table.householdId, table.id),
-    uniqueIndex("beings_one_owner_per_household_uq")
-      .on(table.householdId)
+    unique("beings_account_id_uq").on(table.accountId, table.id),
+    uniqueIndex("beings_one_owner_per_account_uq")
+      .on(table.accountId)
       .where(sql`${table.isOwner}`),
   ],
 );

@@ -7,13 +7,13 @@ import { createDbClient, type DbClient } from "../../src/client.js";
 import { runMigrations } from "../../src/migrate.js";
 import {
   PRIME_GOSINO_ID,
-  PRIME_HOUSEHOLD_ID,
+  PRIME_ACCOUNT_ID,
   beings,
   bonds,
   corrections,
   diaryEntries,
   gosini,
-  households,
+  accounts,
   memories,
   memoryBeings,
   perceptionEvents,
@@ -58,14 +58,14 @@ const insertBeing = async (
 ) => {
   // ADR-048 tempo 2: la casa non ha piu' un default, quindi la si dice. Qui e'
   // sempre quella seminata, che e' l'unica che questi test conoscono.
-  const input = BeingFactory.create({ householdId: PRIME_HOUSEHOLD_ID, ...overrides });
+  const input = BeingFactory.create({ accountId: PRIME_ACCOUNT_ID, ...overrides });
   const [row] = await db.insert(beings).values(input).returning({ id: beings.id });
   if (row === undefined) throw new Error("insert failed");
   return { id: row.id, input };
 };
 
 describe("the pack", () => {
-  it("holds a mixed household without a table per species", async () => {
+  it("holds a mixed account without a table per species", async () => {
     const pack = await Promise.all([
       insertBeing({ species: "human", displayName: "Ivan" }),
       insertBeing({ species: "human", displayName: "Sofia", isMinor: true }),
@@ -92,7 +92,7 @@ describe("the pack", () => {
     const [other] = await db
       .insert(gosini)
       .values({
-        householdId: PRIME_HOUSEHOLD_ID,
+        accountId: PRIME_ACCOUNT_ID,
         name: "ugo-officina",
         locationLabel: "officina",
         generation: 0,
@@ -102,7 +102,7 @@ describe("the pack", () => {
     if (other === undefined) throw new Error("second exemplar not created");
 
     // due esemplari, una casa sola: e' esattamente la promessa di ADR-014
-    const house = { householdId: PRIME_HOUSEHOLD_ID };
+    const house = { accountId: PRIME_ACCOUNT_ID };
     await db.insert(bonds).values([
       { ...house, gosinoId: PRIME_GOSINO_ID, beingId: ivan.id, familiarity: 0.9, affinity: 0.8 },
       { ...house, gosinoId: other.id, beingId: ivan.id, familiarity: 0.1, affinity: -0.4 },
@@ -133,7 +133,7 @@ describe("the pack", () => {
     const paola = await insertBeing({ displayName: "Paola" });
     const sofia = await insertBeing({ displayName: "Sofia", isMinor: true });
 
-    const house = { householdId: PRIME_HOUSEHOLD_ID };
+    const house = { accountId: PRIME_ACCOUNT_ID };
 
     // asymmetric: direction carries the meaning
     await db.insert(relations).values({ ...house, beingA: ivan.id, beingB: sofia.id, type: "parent_of" });
@@ -157,7 +157,7 @@ describe("the pack", () => {
     const [first] = await db
       .insert(traitSets)
       .values({
-        householdId: PRIME_HOUSEHOLD_ID,
+        accountId: PRIME_ACCOUNT_ID,
         gosinoId: PRIME_GOSINO_ID,
         version: 1,
         traits: { curiosita: 0.6 },
@@ -165,7 +165,7 @@ describe("the pack", () => {
       .returning({ id: traitSets.id });
     if (first === undefined) throw new Error("no trait set");
     await db.insert(traitSets).values({
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       gosinoId: PRIME_GOSINO_ID,
       version: 2,
       traits: { curiosita: 0.62 },
@@ -175,7 +175,7 @@ describe("the pack", () => {
 
     await expect(
       db.insert(traitSets).values({
-        householdId: PRIME_HOUSEHOLD_ID,
+        accountId: PRIME_ACCOUNT_ID,
         gosinoId: PRIME_GOSINO_ID,
         version: 2,
         traits: {},
@@ -217,7 +217,7 @@ describe("the pack", () => {
     const ivan = await insertBeing({ displayName: "Ivan" });
     const centroid = [0.1, -0.25, 0.5, 0.75];
     await db.insert(recognitionProfiles).values({
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
       beingId: ivan.id,
       modality: "voice",
       model: "mfcc-stats-v1",
@@ -253,7 +253,7 @@ describe("the pack", () => {
       .returning({ id: memories.id });
     if (memory === undefined) throw new Error("no memory");
 
-    const link = { householdId: PRIME_HOUSEHOLD_ID, memoryId: memory.id, beingId: ivan.id };
+    const link = { accountId: PRIME_ACCOUNT_ID, memoryId: memory.id, beingId: ivan.id };
     await db.insert(memoryBeings).values(link);
     await expect(db.insert(memoryBeings).values(link)).rejects.toThrow();
 
@@ -288,15 +288,15 @@ describe("the pack", () => {
 describe("le colonne che rendono possibile RLS", () => {
   it("refuses a genome that claims a house its creature does not live in", async () => {
     const [altra] = await db
-      .insert(households)
+      .insert(accounts)
       .values({ slug: "casa-altrove", name: "altrove" })
-      .returning({ id: households.id });
-    if (altra === undefined) throw new Error("no household");
+      .returning({ id: accounts.id });
+    if (altra === undefined) throw new Error("no account");
 
     await expect(
       db.insert(traitSets).values({
         gosinoId: PRIME_GOSINO_ID,
-        householdId: altra.id,
+        accountId: altra.id,
         version: 99,
         traits: {},
       }),
@@ -306,7 +306,7 @@ describe("le colonne che rendono possibile RLS", () => {
     await expect(
       db.insert(traitSets).values({
         gosinoId: PRIME_GOSINO_ID,
-        householdId: PRIME_HOUSEHOLD_ID,
+        accountId: PRIME_ACCOUNT_ID,
         version: 98,
         traits: {},
       }),
@@ -316,16 +316,16 @@ describe("le colonne che rendono possibile RLS", () => {
   it("refuses a voiceprint filed under the wrong house", async () => {
     const ivan = await insertBeing({ displayName: "Ivan Profilo" });
     const [altra] = await db
-      .select({ id: households.id })
-      .from(households)
-      .where(ne(households.id, PRIME_HOUSEHOLD_ID))
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(ne(accounts.id, PRIME_ACCOUNT_ID))
       .limit(1);
-    if (altra === undefined) throw new Error("no second household");
+    if (altra === undefined) throw new Error("no second account");
 
     await expect(
       db.insert(recognitionProfiles).values({
         beingId: ivan.id,
-        householdId: altra.id,
+        accountId: altra.id,
         modality: "voice",
         model: "ecapa-voxceleb-v1",
         dimensions: 4,
@@ -338,7 +338,7 @@ describe("le colonne che rendono possibile RLS", () => {
   it("lets two exemplars keep a diary of the same day", async () => {
     const [studio] = await db
       .insert(gosini)
-      .values({ householdId: PRIME_HOUSEHOLD_ID, name: "ugo-diario" })
+      .values({ accountId: PRIME_ACCOUNT_ID, name: "ugo-diario" })
       .returning({ id: gosini.id });
     if (studio === undefined) throw new Error("no exemplar");
 

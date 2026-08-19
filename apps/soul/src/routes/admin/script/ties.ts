@@ -1,5 +1,5 @@
 /**
- * Le parentele e le cartoline nel pannello (ADR-092).
+ * Le parentele e le cartoline nel pannello (ADR-099).
  *
  * L'avvertenza sta nel markup, sopra ogni bottone: il consenso si dà avendo
  * letto cosa apre. E la cartolina chiede QUALE esemplare la spedisce — mai
@@ -63,14 +63,14 @@ async function loadParcels() {
 }
 
 $("tie-propose").addEventListener("click", async () => {
-  const toHousehold = $("tie-house").value.trim();
+  const toAccount = $("tie-house").value.trim();
   const label = $("tie-label").value.trim();
-  if (toHousehold === "" || label === "") {
+  if (toAccount === "" || label === "") {
     say("tie-msg", "Serve lo slug della loro casa e un nome per il legame.", "info");
     return;
   }
   try {
-    await call("/v1/ties", { method: "POST", body: JSON.stringify({ toHousehold, label }) });
+    await call("/v1/ties", { method: "POST", body: JSON.stringify({ toAccount, label }) });
     $("tie-house").value = ""; $("tie-label").value = "";
     say("tie-msg", "Proposta mandata: ora tocca a loro.", "ok");
     await loadTies();

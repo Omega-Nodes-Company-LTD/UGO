@@ -5,7 +5,7 @@ import {
   createDbClient,
   type DbClient,
   desires,
-  households,
+  accounts,
   memories,
   parcels,
   runMigrations,
@@ -16,13 +16,13 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
 import { characterFrom } from "../../src/services/council/character.js";
-import { createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { ParcelService } from "../../src/services/parcelService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { TieService } from "../../src/services/tieService.js";
 
 /**
- * ADR-092 sul giro vero: tre case su un Postgres migrato, DEK avvolte come
+ * ADR-099 sul giro vero: tre case su un Postgres migrato, DEK avvolte come
  * in produzione. Le promesse che solo l'integrazione prova: il consenso
  * bilaterale apre la porta e la revoca la chiude; il testo a riposo è
  * cifrato con la chiave della casa DESTINATARIA (il mittente non lo riapre);
@@ -36,16 +36,16 @@ let pg: StartedPostgreSqlContainer;
 let db: DbClient;
 let ties: TieService;
 let posta: ParcelService;
-let nostra: { householdId: string; gosinoId: string };
-let parenti: { householdId: string; gosinoId: string };
-let vicini: { householdId: string; gosinoId: string };
+let nostra: { accountId: string; gosinoId: string };
+let parenti: { accountId: string; gosinoId: string };
+let vicini: { accountId: string; gosinoId: string };
 let tieId: string;
 
-const houseKey = async (householdId: string): Promise<Buffer> => {
+const houseKey = async (accountId: string): Promise<Buffer> => {
   const [row] = await db
-    .select({ wrapped: households.wrappedDataKey })
-    .from(households)
-    .where(eq(households.id, householdId));
+    .select({ wrapped: accounts.wrappedDataKey })
+    .from(accounts)
+    .where(eq(accounts.id, accountId));
   if (row?.wrapped == null) throw new Error("la casa non ha una DEK");
   return unwrapDataKey(row.wrapped, MASTER_KEY);
 };
@@ -56,17 +56,17 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  nostra = await createHouseholdWithFounder(db, MASTER_KEY, {
+  nostra = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-nostra",
     name: "Casa Nostra",
     gosinoName: "Ugo",
   });
-  parenti = await createHouseholdWithFounder(db, MASTER_KEY, {
+  parenti = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-nonni",
     name: "I Nonni",
     gosinoName: "Nonnino",
   });
-  vicini = await createHouseholdWithFounder(db, MASTER_KEY, {
+  vicini = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-vicini",
     name: "I Vicini",
     gosinoName: "Estraneo",
@@ -83,14 +83,14 @@ afterAll(async () => {
 
 describe("la parentela: proposta, consenso, revoca", () => {
   it("si propone per slug, e nasce proposta", async () => {
-    const done = await ties.propose(nostra.householdId, {
-      toHousehold: "casa-nonni",
+    const done = await ties.propose(nostra.accountId, {
+      toAccount: "casa-nonni",
       label: "i nonni",
     });
     if (typeof done === "string") throw new Error(done);
     tieId = done.id;
 
-    const loro = await ties.listFor(parenti.householdId);
+    const loro = await ties.listFor(parenti.accountId);
     expect(loro).toHaveLength(1);
     expect(loro[0]?.status).toBe("proposta");
     expect(loro[0]?.proposedByUs).toBe(false);
@@ -98,7 +98,7 @@ describe("la parentela: proposta, consenso, revoca", () => {
   });
 
   it("senza il sì dell'altra casa non parte NIENTE", async () => {
-    const refused = await posta.send(nostra.householdId, {
+    const refused = await posta.send(nostra.accountId, {
       tieId,
       fromGosinoId: nostra.gosinoId,
       kind: "messaggio",
@@ -108,22 +108,22 @@ describe("la parentela: proposta, consenso, revoca", () => {
   });
 
   it("accettare tocca solo alla casa che ha ricevuto la proposta", async () => {
-    expect(await ties.accept(vicini.householdId, tieId)).toBe("non-tua");
-    expect(await ties.accept(nostra.householdId, tieId)).toBe("non-tua");
-    const done = await ties.accept(parenti.householdId, tieId);
+    expect(await ties.accept(vicini.accountId, tieId)).toBe("non-tua");
+    expect(await ties.accept(nostra.accountId, tieId)).toBe("non-tua");
+    const done = await ties.accept(parenti.accountId, tieId);
     expect(done).toEqual({ id: tieId });
-    expect(await ties.accept(parenti.householdId, tieId)).toBe("non-in-proposta");
+    expect(await ties.accept(parenti.accountId, tieId)).toBe("non-in-proposta");
   });
 
   it("il gesto la trova per etichetta, per slug o per nome", async () => {
     for (const name of ["i nonni", "casa-nonni", "I Nonni"]) {
-      const found = await ties.acceptedTieByName(nostra.householdId, name);
+      const found = await ties.acceptedTieByName(nostra.accountId, name);
       expect(found?.id).toBe(tieId);
-      expect(found?.otherHouseholdId).toBe(parenti.householdId);
+      expect(found?.otherAccountId).toBe(parenti.accountId);
     }
-    expect(await ties.acceptedTieByName(nostra.householdId, "gli zii")).toBeUndefined();
+    expect(await ties.acceptedTieByName(nostra.accountId, "gli zii")).toBeUndefined();
     // i vicini non hanno parentele: per loro «i nonni» non è nessuno
-    expect(await ties.acceptedTieByName(vicini.householdId, "i nonni")).toBeUndefined();
+    expect(await ties.acceptedTieByName(vicini.accountId, "i nonni")).toBeUndefined();
   });
 });
 
@@ -131,7 +131,7 @@ describe("la cartolina: cifratura, consegna, cassetta", () => {
   let parcelId: string;
 
   it("parte, e a riposo è della casa destinataria", async () => {
-    const done = await posta.send(nostra.householdId, {
+    const done = await posta.send(nostra.accountId, {
       tieId,
       fromGosinoId: nostra.gosinoId,
       toGosinoId: parenti.gosinoId,
@@ -147,7 +147,7 @@ describe("la cartolina: cifratura, consegna, cassetta", () => {
     expect(row.text).not.toContain("parco");
     // si apre con la chiave dei NONNI, non con la nostra: il mittente,
     // spedita che l'ha, non ha più un canale di lettura
-    expect(decryptText(row.text, await houseKey(parenti.householdId))).toBe(
+    expect(decryptText(row.text, await houseKey(parenti.accountId))).toBe(
       "oggi siamo stati al parco!",
     );
     expect(() => decryptText(row.text, MASTER_KEY)).toThrow();
@@ -167,22 +167,22 @@ describe("la cartolina: cifratura, consegna, cassetta", () => {
   });
 
   it("la cassetta della posta è in chiaro per chi riceve, muta per chi spedisce", async () => {
-    const inbox = await posta.inbox(parenti.householdId);
+    const inbox = await posta.inbox(parenti.accountId);
     expect(inbox).toHaveLength(1);
     expect(inbox[0]?.text).toBe("oggi siamo stati al parco!");
     expect(inbox[0]?.otherSlug).toBe("casa-nostra");
 
-    const outbox = await posta.outbox(nostra.householdId);
+    const outbox = await posta.outbox(nostra.accountId);
     expect(outbox).toHaveLength(1);
     expect(outbox[0]?.text).toBeUndefined();
 
     // i vicini non vedono la posta degli altri
-    expect(await posta.inbox(vicini.householdId)).toHaveLength(0);
-    expect(await posta.outbox(vicini.householdId)).toHaveLength(0);
+    expect(await posta.inbox(vicini.accountId)).toHaveLength(0);
+    expect(await posta.outbox(vicini.accountId)).toHaveLength(0);
   });
 
   it("un messaggio si legge, non si tiene", async () => {
-    expect(await posta.keep(parenti.householdId, parcelId)).toBe("non-un-ricordo");
+    expect(await posta.keep(parenti.accountId, parcelId)).toBe("non-un-ricordo");
   });
 });
 
@@ -190,7 +190,7 @@ describe("il ricordo che si tiene", () => {
   let ricordoId: string;
 
   it("arriva, si tiene una volta, e diventa un ricordo IN CHIARO con l'origine", async () => {
-    const sent = await posta.send(nostra.householdId, {
+    const sent = await posta.send(nostra.accountId, {
       tieId,
       fromGosinoId: nostra.gosinoId,
       toGosinoId: parenti.gosinoId,
@@ -201,9 +201,9 @@ describe("il ricordo che si tiene", () => {
     ricordoId = sent.id;
 
     // tenerla non è del mittente
-    expect(await posta.keep(nostra.householdId, ricordoId)).toBe("non-tua");
+    expect(await posta.keep(nostra.accountId, ricordoId)).toBe("non-tua");
 
-    const kept = await posta.keep(parenti.householdId, ricordoId);
+    const kept = await posta.keep(parenti.accountId, ricordoId);
     if (typeof kept === "string") throw new Error(kept);
     const [memory] = await db.select().from(memories).where(eq(memories.id, kept.memoryId));
     expect(memory?.gosinoId).toBe(parenti.gosinoId);
@@ -212,18 +212,18 @@ describe("il ricordo che si tiene", () => {
     expect(memory?.text).toContain("bici");
     expect(memory?.text).toContain("Casa Nostra");
 
-    expect(await posta.keep(parenti.householdId, ricordoId)).toBe("gia-tenuta");
+    expect(await posta.keep(parenti.accountId, ricordoId)).toBe("gia-tenuta");
   });
 });
 
 describe("la revoca chiude la porta", () => {
   it("dopo la revoca non parte più niente, da nessuna delle due parti", async () => {
-    const done = await ties.revoke(nostra.householdId, tieId);
+    const done = await ties.revoke(nostra.accountId, tieId);
     expect(done).toEqual({ id: tieId });
 
     for (const [from, gosino] of [
-      [nostra.householdId, nostra.gosinoId],
-      [parenti.householdId, parenti.gosinoId],
+      [nostra.accountId, nostra.gosinoId],
+      [parenti.accountId, parenti.gosinoId],
     ] as const) {
       const refused = await posta.send(from, {
         tieId,
@@ -242,12 +242,12 @@ describe("il gesto a voce: «manda ai nonni: …»", () => {
 
   beforeAll(async () => {
     // la parentela di prima è revocata: se ne stringe una nuova, accettata
-    const proposed = await ties.propose(nostra.householdId, {
-      toHousehold: "casa-nonni",
+    const proposed = await ties.propose(nostra.accountId, {
+      toAccount: "casa-nonni",
       label: "i nonni",
     });
     if (typeof proposed === "string") throw new Error(proposed);
-    await ties.accept(parenti.householdId, proposed.id);
+    await ties.accept(parenti.accountId, proposed.id);
 
     chat = new ChatService({
       db,
@@ -255,13 +255,13 @@ describe("il gesto a voce: «manda ai nonni: …»", () => {
       embedder: { embed: () => Promise.reject(new Error("mai")) },
       llm: {
         chat: () => Promise.reject(new Error("il provider non deve essere chiamato")),
-      } as never,
+      },
       psyche: await PsycheService.restore(db, new Date(), nostra.gosinoId),
       dataKey: MASTER_KEY,
       timezone: "Europe/Rome",
       locale: "it-IT",
       gosinoId: nostra.gosinoId,
-      householdId: nostra.householdId,
+      accountId: nostra.accountId,
       character: characterFrom({}),
       postcards: { ties, parcels: posta },
     });
@@ -272,7 +272,7 @@ describe("il gesto a voce: «manda ai nonni: …»", () => {
     expect(response.reply).toContain("I Nonni");
     expect(response.reply).toContain("partita");
 
-    const inbox = await posta.inbox(parenti.householdId);
+    const inbox = await posta.inbox(parenti.accountId);
     // la punteggiatura in coda la toglie il parser, come in ogni gesto
     expect(inbox[0]?.text).toBe("stasera grigliata, venite");
   });
@@ -283,8 +283,8 @@ describe("il gesto a voce: «manda ai nonni: …»", () => {
   });
 
   it("una proposta non ancora accettata si dice com'è", async () => {
-    const proposed = await ties.propose(nostra.householdId, {
-      toHousehold: "casa-vicini",
+    const proposed = await ties.propose(nostra.accountId, {
+      toAccount: "casa-vicini",
       label: "gli zii",
     });
     if (typeof proposed === "string") throw new Error(proposed);

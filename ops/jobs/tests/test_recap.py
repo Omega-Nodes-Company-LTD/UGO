@@ -53,7 +53,7 @@ def test_il_diario_diventa_un_desiderio_per_stamattina(
     )
     conn.commit()
 
-    cfg = db_only_config(pg_url, household_id=house, gosino_id=gosino)
+    cfg = db_only_config(pg_url, account_id=house, gosino_id=gosino)
     assert run_recap(conn, cfg, "2026-08-15") == {"written": 1}
 
     wishes = desires_of(conn, gosino)
@@ -70,7 +70,7 @@ def test_senza_diario_niente_segnaposto(conn: psycopg.Connection, pg_url: str) -
     gosino = make_gosino(conn, house, "ugo")
     conn.commit()
 
-    cfg = db_only_config(pg_url, household_id=house, gosino_id=gosino)
+    cfg = db_only_config(pg_url, account_id=house, gosino_id=gosino)
     assert run_recap(conn, cfg, "2026-08-15") == {"written": 0}
     assert desires_of(conn, gosino) == []
 
@@ -83,7 +83,7 @@ def test_il_recap_e_dell_esemplare_non_della_casa(conn: psycopg.Connection, pg_u
     conn.commit()
 
     # il passo gira con la cfg di Silvio: il diario di Ugo non è affar suo
-    cfg = db_only_config(pg_url, household_id=house, gosino_id=silvio)
+    cfg = db_only_config(pg_url, account_id=house, gosino_id=silvio)
     assert run_recap(conn, cfg, "2026-08-15") == {"written": 0}
     assert desires_of(conn, silvio) == []
 

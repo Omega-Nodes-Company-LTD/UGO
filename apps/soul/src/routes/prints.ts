@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { AuditLogger } from "../services/auditLog.js";
 import { openVoiceAsk } from "../services/voiceEnrolment.js";
 import type { PreHandler } from "./guard.js";
-import { eldestExemplarOf, inHousehold } from "./scope.js";
+import { eldestExemplarOf, inAccount } from "./scope.js";
 
 /**
  * Le facce che non sappiamo di chi siano (ADR-057).
@@ -22,16 +22,16 @@ import { eldestExemplarOf, inHousehold } from "./scope.js";
  * scaricasse embedding sarebbe un modo per farli uscire di casa.
  *
  * ADR-062: queste rotte sono la **prima superficie convertita** a
- * `inHousehold` — ogni lavoro di database gira dentro la transazione che ha
+ * `inAccount` — ogni lavoro di database gira dentro la transazione che ha
  * dichiarato la casa, che è l'unica cosa che le politiche RLS leggono. Il
- * `where household_id` resta: RLS è la rete sotto il funambolo, non il
+ * `where account_id` resta: RLS è la rete sotto il funambolo, non il
  * funambolo. Le chiamate esterne (il riconoscitore) restano fuori dalla
  * transazione: una connessione tenuta aperta attraverso una HTTP è il costo
  * che ADR-062 §1 rifiuta.
  *
  * E una regola che questa superficie ha insegnato: **la risposta parte DOPO
  * il COMMIT, mai dentro la transazione.** Un `reply.send` nel callback esce
- * prima che `withHousehold` committi: chi agisce sul 200 da un'altra
+ * prima che `withAccount` committi: chi agisce sul 200 da un'altra
  * connessione — il pannello che ricarica la lista, la CI che interroga il
  * giornale — può leggere lo stato di prima. E se il COMMIT poi fallisse, il
  * 200 sarebbe una bugia. Visto due volte in CI come «flake» di rlsRoutes
@@ -46,7 +46,7 @@ export interface PrintRoutesDeps {
   guard: PreHandler;
   audit: AuditLogger;
   /** il servizio di percezione, per casa: è lui che tiene gli encoder */
-  recognition?: (householdId: string) => {
+  recognition?: (accountId: string) => {
     claimPrint: (input: {
       printId: string;
       beingId: string;
@@ -58,7 +58,7 @@ export interface PrintRoutesDeps {
    * la voce» che parte quando il volto è appena stato imparato. Facoltativa —
    * senza registro il claim funziona uguale, solo senza invito sul chiosco.
    */
-  faces?: (householdId: string) => { askVoice: (beingId: string, name: string) => void };
+  faces?: (accountId: string) => { askVoice: (beingId: string, name: string) => void };
 }
 
 function problem(reply: FastifyReply, status: number, title: string, detail?: string): void {
@@ -70,12 +70,12 @@ function problem(reply: FastifyReply, status: number, title: string, detail?: st
 
 export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps): void {
   app.get("/v1/prints/unknown", { preHandler: deps.guard }, async (request, reply) => {
-    const rows = await inHousehold(
+    const rows = await inAccount(
       deps.db,
       request,
       reply,
       { requireAdmin: true },
-      async (db, householdId) =>
+      async (db, accountId) =>
         db
           .select({
             id: unknownPrints.id,
@@ -87,7 +87,7 @@ export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps)
             askedAt: unknownPrints.askedAt,
           })
           .from(unknownPrints)
-          .where(eq(unknownPrints.householdId, householdId))
+          .where(eq(unknownPrints.accountId, accountId))
           .orderBy(desc(unknownPrints.lastSeenAt)),
     );
     if (rows === undefined) return reply;
@@ -104,21 +104,21 @@ export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps)
     }
     // primo tratto in casa: l'impronta è davvero mia? Poi si esce per parlare
     // col riconoscitore — la transazione non attraversa mai una chiamata HTTP
-    const scoped = await inHousehold(
+    const scoped = await inAccount(
       deps.db,
       request,
       reply,
       { requireAdmin: true },
-      async (db, householdId) => {
+      async (db, accountId) => {
         const [mine] = await db
           .select({ id: unknownPrints.id })
           .from(unknownPrints)
-          .where(and(eq(unknownPrints.id, id), eq(unknownPrints.householdId, householdId)));
-        return { householdId, mine: mine !== undefined, gosinoId: await eldestExemplarOf(db, householdId) };
+          .where(and(eq(unknownPrints.id, id), eq(unknownPrints.accountId, accountId)));
+        return { accountId, mine: mine !== undefined, gosinoId: await eldestExemplarOf(db, accountId) };
       },
     );
     if (scoped === undefined) return reply;
-    const recognition = deps.recognition?.(scoped.householdId);
+    const recognition = deps.recognition?.(scoped.accountId);
     if (recognition === undefined) {
       problem(reply, 503, "Recognition unavailable", "il servizio di percezione non è configurato");
       return reply;
@@ -136,17 +136,17 @@ export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps)
     // secondo tratto in casa: il giornale, e l'apertura della voce.
     // ADR-049: chi ha insegnato quale volto è esattamente il genere di atto
     // che un giornale deve poter mostrare. Id e verbi, mai il vettore.
-    const ask = await inHousehold(
+    const ask = await inAccount(
       deps.db,
       request,
       reply,
       { requireAdmin: true },
-      async (db, householdId) => {
+      async (db, accountId) => {
         await deps.audit.record(
           {
             verb: "face_claimed",
             outcome: outcome === "learned" ? "ok" : "denied",
-            householdId,
+            accountId,
             resourceType: "print",
             resourceId: id,
           },
@@ -157,7 +157,7 @@ export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps)
         // chiede anche la voce — desiderio + finestra aperta + invito sul
         // chiosco. Minore, opt-out audio o profilo già esistente: non si apre
         // niente e il claim resta solo un claim.
-        return openVoiceAsk(db, { householdId, beingId: parsed.data.beingId });
+        return openVoiceAsk(db, { accountId, beingId: parsed.data.beingId });
       },
     );
     if (outcome === "refused") {
@@ -176,29 +176,29 @@ export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps)
       problem(reply, 502, "Recognition unavailable");
       return reply;
     }
-    if (ask !== undefined) deps.faces?.(scoped.householdId).askVoice(parsed.data.beingId, ask.name);
+    if (ask !== undefined) deps.faces?.(scoped.accountId).askVoice(parsed.data.beingId, ask.name);
     return reply.send({ learned: true, voiceAsked: ask !== undefined });
   });
 
   /** Cancellarne una. Il gesto che rende vera tutta la pagina. */
   app.delete("/v1/prints/:id", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const destroyed = await inHousehold(
+    const destroyed = await inAccount(
       deps.db,
       request,
       reply,
       { requireAdmin: true },
-      async (db, householdId) => {
+      async (db, accountId) => {
         const gone = await db
           .delete(unknownPrints)
-          .where(and(eq(unknownPrints.id, id), eq(unknownPrints.householdId, householdId)))
+          .where(and(eq(unknownPrints.id, id), eq(unknownPrints.accountId, accountId)))
           .returning({ id: unknownPrints.id });
         if (gone.length === 0) return 0;
         await deps.audit.record(
           {
             verb: "print_destroyed",
             outcome: "ok",
-            householdId,
+            accountId,
             resourceType: "print",
             resourceId: id,
           },
@@ -224,17 +224,17 @@ export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps)
    * in cui la si dimostra.
    */
   app.post("/v1/prints/expire", { preHandler: deps.guard }, async (request, reply) => {
-    const destroyed = await inHousehold(
+    const destroyed = await inAccount(
       deps.db,
       request,
       reply,
       { requireAdmin: true },
-      async (db, householdId) => {
+      async (db, accountId) => {
         const gone = await db
           .delete(unknownPrints)
           .where(
             and(
-              eq(unknownPrints.householdId, householdId),
+              eq(unknownPrints.accountId, accountId),
               sql`${unknownPrints.lastSeenAt} < now() - make_interval(days => ${UNKNOWN_PRINT_RETENTION_DAYS})`,
             ),
           )
@@ -244,7 +244,7 @@ export function registerPrintRoutes(app: FastifyInstance, deps: PrintRoutesDeps)
             {
               verb: "prints_expired",
               outcome: "ok",
-              householdId,
+              accountId,
               resourceType: "print",
               resourceId: String(gone.length),
             },

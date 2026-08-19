@@ -14,7 +14,7 @@ import {
 import { startPostgres } from "@ugo/factories";
 import { encryptText } from "@ugo/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { ExportService } from "../../src/services/privacy/exportService.js";
 
 /**
@@ -45,17 +45,17 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-export",
     name: "Export",
     gosinoName: "Ugo",
   });
-  houseId = house.householdId;
+  houseId = house.accountId;
   who = house.gosinoId;
 
-  await db.insert(rooms).values({ householdId: houseId, name: "Cucina", slug: "cucina" });
+  await db.insert(rooms).values({ accountId: houseId, name: "Cucina", slug: "cucina" });
   await db.insert(listItems).values({
-    householdId: houseId,
+    accountId: houseId,
     list: "spesa",
     text: encryptText("il latte", DATA_KEY),
   });
@@ -93,7 +93,7 @@ afterAll(async () => {
 describe("cosa esce", () => {
   it("la casa, le stanze, la spesa, le domande, il genoma e chi è passato", async () => {
     const bundle = await new ExportService(db, DATA_KEY).exportAll(houseId);
-    expect(bundle.household).toHaveLength(1);
+    expect(bundle.account).toHaveLength(1);
     expect(bundle.rooms).toHaveLength(1);
     expect(bundle.checkins).toHaveLength(1);
     expect(bundle.perceptionEvents).toHaveLength(1);
@@ -135,19 +135,19 @@ describe("cosa NON esce", () => {
   });
 
   it("e resta di UNA casa: il vicino non compare", async () => {
-    const vicina = await createHouseholdWithFounder(db, MASTER_KEY, {
+    const vicina = await createAccountWithFounder(db, MASTER_KEY, {
       slug: "vicina-export",
       name: "Vicina",
       gosinoName: "Altro",
     });
     await db.insert(rooms).values({
-      householdId: vicina.householdId,
+      accountId: vicina.accountId,
       name: "SalottoDelVicino",
       slug: "salotto-vicino",
     });
     const bundle = await new ExportService(db, DATA_KEY).exportAll(houseId);
     expect(JSON.stringify(bundle)).not.toContain("SalottoDelVicino");
-    expect(JSON.stringify(bundle)).not.toContain(vicina.householdId);
+    expect(JSON.stringify(bundle)).not.toContain(vicina.accountId);
   });
 });
 

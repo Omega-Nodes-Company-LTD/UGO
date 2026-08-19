@@ -72,13 +72,13 @@ export function nameMatches(typed: string, chosen: string): boolean {
 
 /** Cosa si dice quando manca il token: non «errore», ma cosa fare. */
 export function needTokenMessage(): string {
-  return "Serve il token di casa: questo schermo lo vedono tutti, e portare via i dati o cancellare qualcuno non può dipendere da chi ci passa davanti.";
+  return "Serve il token dell'account: questo schermo lo vedono tutti, e portare via i dati o cancellare qualcuno non può dipendere da chi ci passa davanti.";
 }
 
 /** Le parole del rifiuto, distinte l'una dall'altra perché sono cose diverse. */
 export function refusalMessage(status: number): string {
   if (status === 401 || status === 403) {
-    return "Quel token non basta per questa cosa. Serve quello di casa.";
+    return "Quel token non basta per questa cosa. Serve quello dell'account.";
   }
   if (status === 404) return "Non l'ho trovato: forse è già stato cancellato.";
   return `Non ci sono riuscito (${String(status)}). Riprova, o fallo dal pannello.`;

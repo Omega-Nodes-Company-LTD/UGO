@@ -1,7 +1,8 @@
-# ADR-092 — Le parentele fra le case: il confine si apre a mano, mai da solo
+# ADR-099 — Le parentele fra le case: il confine si apre a mano, mai da solo
 
 **Stato: ACCETTATA** (decisione del proprietario, 2026-08-18). Riapre **parzialmente** ADR-019 e
-ADR-020, e ne conferma tutto il resto.
+ADR-020, e ne conferma tutto il resto. Si appoggia ad **ADR-097** per il meccanismo con cui un
+atto attraversa le case sotto RLS.
 
 ## Contesto
 
@@ -82,6 +83,44 @@ cartolina vera, quello che hai spedito non è più in mano tua.
 nasconderlo (il precedente è ADR-084): le vedono le due parti, e nessun altro. `parcels` è
 append-only per REVOKE (come `births`), con il solo passaggio di stato della consegna concesso.
 
+### 6. La porta sotto il muro: il ruolo `ugo_post`
+
+Questa decisione è stata scritta quando RLS era presente e **inerte** — soul girava come
+proprietario delle tabelle, e le politiche non lo toccavano. Nel frattempo è arrivato il flip di
+`DATABASE_URL_APP` (ADR-062 tempo 2b), e con esso il fatto che cambia tutto: **una cartolina, per
+esistere, deve leggere cose dell'altra casa.** Lo slug a cui è indirizzata, la chiave con cui va
+cifrata (è di chi la riceve, §4), l'esemplare destinatario. Dallo scope del mittente quelle righe
+non esistono — e non con un errore: con **zero righe**, in silenzio. La feature sarebbe rimasta
+verde in ogni test (che si collega come owner) e muta in produzione: il difetto di ADR-045,
+esattamente, in un posto nuovo.
+
+Le parentele sono dunque la **quinta superficie cross-account**, accanto alle quattro che ADR-097
+elenca. E prendono la stessa risposta, che è già stata pensata bene una volta:
+
+- **`ugo_post`**, ruolo `NOLOGIN` concesso a `ugo_app` con `WITH INHERIT FALSE` — si **assume**
+  con `SET LOCAL ROLE` e si perde al commit, non si porta addosso per sbaglio;
+- **`withPost(db, work)`** in `packages/db/src/client.ts`, fratello di `withMarket`: l'unico punto
+  del codice che lo assume. Le letture che attraversano entrano da lì; **le scritture no** — chi
+  propone e chi spedisce firma nel proprio scope, e la policy pretende che sia lui. Due difese,
+  non una spostata;
+- i grants sono l'inventario di cosa la posta è: `account_ties` e `parcels` (leggere, proporre,
+  spedire, consegnare), `accounts` e `gosini` **in sola lettura e colonna per colonna**, `desires`
+  e `memories` in solo inserimento — il desiderio con cui il gosino dirà che è arrivata una
+  cartolina, e il ricordo che nasce se quella casa decide di tenerla. Nient'altro: né messaggi, né
+  diario, né psiche. Una casa amica non scrive dentro la vita di un'altra.
+
+**La riga più delicata è `GRANT SELECT (…, wrapped_data_key) ON accounts`**, e va detta invece che
+nascosta: il ruolo può leggere la chiave avvolta della casa destinataria, perché è ciò che permette
+di cifrare la cartolina per lei (§4). È la chiave **avvolta**: senza la KEK di processo non apre
+niente, quindi quello che il ruolo consegna è una busta chiusa, non un segreto. Le colonne restano
+enumerate — mai `GRANT SELECT ON accounts` — perché il resto della riga (budget, metabolismo,
+autorizzazioni d'allevamento) non ha niente a che vedere con la posta, e un giorno qualcuno ne
+aggiungerà una più delicata di tutte quelle di oggi.
+
+La prova non è un ragionamento: `tiesUnderRls.integration.test.ts` si collega **come `ugo_app`**,
+come la produzione, e cammina il giro intero. Verificato **rosso** togliendo `withPost` — cinque
+test su sei, «casa sconosciuta» al primo passo — e verde rimettendolo.
+
 ## Perimetro — dichiarato, non implicito
 
 - **Stessa installazione.** La parentela vive nel vicinato di ADR-019: due case sullo stesso
@@ -114,7 +153,7 @@ append-only per REVOKE (come `births`), con il solo passaggio di stato della con
 
 ## Conseguenze
 
-- ADR-019 e ADR-020 guadagnano una riga di testa: «parzialmente riaperta da ADR-092». Tutto il
+- ADR-019 e ADR-020 guadagnano una riga di testa: «parzialmente riaperta da ADR-099». Tutto il
   resto delle due decisioni resta in vigore — in particolare il divieto di federazione, che questo
   ADR **conferma**: una cartolina esplicita è il contrario di una sincronizzazione.
 - Il pannello guadagna la pagina «Le parentele»; il muso **non cambia** (la consegna passa dalla

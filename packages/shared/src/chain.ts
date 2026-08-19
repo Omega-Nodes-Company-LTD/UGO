@@ -50,8 +50,8 @@ export interface Act {
  * l'id può verificare che quell'atto parla di lui, chiunque altro vede
  * sessantaquattro caratteri esadecimali.
  */
-export function holderHash(householdId: string): string {
-  return createHash("sha256").update(`ugo-holder:${householdId}`, "utf8").digest("hex");
+export function holderHash(accountId: string): string {
+  return createHash("sha256").update(`ugo-holder:${accountId}`, "utf8").digest("hex");
 }
 
 export interface ChainEntry {

@@ -39,7 +39,7 @@ export const DEFAULT_DAYS = 14;
 export class PackMood {
   public constructor(private readonly db: DbClient) {}
 
-  public async series(householdId: string, days = DEFAULT_DAYS): Promise<PackSeries[]> {
+  public async series(accountId: string, days = DEFAULT_DAYS): Promise<PackSeries[]> {
     const window = Math.min(Math.max(1, Math.trunc(days)), MAX_DAYS);
     const from = new Date(Date.now() - window * 86_400_000);
 
@@ -68,7 +68,7 @@ export class PackMood {
       .innerJoin(gosini, eq(gosini.id, psycheSnapshots.gosinoId))
       .where(
         and(
-          eq(gosini.householdId, householdId),
+          eq(gosini.accountId, accountId),
           // chi se n'è andato non ha un umore: ha una biografia (ADR-075)
           isNull(gosini.retiredAt),
           gte(psycheSnapshots.ts, from),

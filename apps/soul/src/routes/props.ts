@@ -10,7 +10,7 @@ import {
 } from "../services/propService.js";
 import type { SceneHub } from "../services/sceneHub.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 
 /**
  * Gli arredi: metterli, spostarli, toglierli, e quanti ne restano (ADR-056).
@@ -53,14 +53,9 @@ function problem(reply: FastifyReply, status: number, title: string, detail?: st
 }
 
 export function registerPropRoutes(app: FastifyInstance, deps: PropRoutesDeps): void {
-  const props = new PropService(deps.db);
-
   /** Ripete al muso quel che c'è adesso, su ogni schermo di quella stanza. */
-  const push = async (householdId: string, room: string): Promise<void> => {
-    deps.hub.broadcast(householdId, room, {
-      type: "scene",
-      props: await props.inRoom(householdId, room),
-    });
+  const push = (accountId: string, room: string, scene: Awaited<ReturnType<PropService["inRoom"]>>): void => {
+    deps.hub.broadcast(accountId, room, { type: "scene", props: scene });
   };
 
   app.get("/v1/props", async (request, reply) => {
@@ -69,9 +64,12 @@ export function registerPropRoutes(app: FastifyInstance, deps: PropRoutesDeps): 
       problem(reply, 400, "Invalid request", "serve ?stanza=");
       return reply;
     }
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    return reply.send({ props: await props.inRoom(householdId, room) });
+    // ADR-062: il servizio nasce sulla transazione che dichiara la casa
+    const body = await inAccount(deps.db, request, reply, {}, async (db, accountId) => ({
+      props: await new PropService(db).inRoom(accountId, room),
+    }));
+    if (body === undefined) return reply;
+    return reply.send(body);
   });
 
   app.post("/v1/props", { preHandler: deps.guard }, async (request, reply) => {
@@ -81,12 +79,21 @@ export function registerPropRoutes(app: FastifyInstance, deps: PropRoutesDeps): 
       problem(reply, 400, "Invalid request", parsed.success ? "serve ?stanza=" : "corpo non valido");
       return reply;
     }
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
     try {
-      const made = await props.place(householdId, room, parsed.data);
-      await push(householdId, room);
-      return await reply.status(201).send(made);
+      const made = await inAccount(
+        deps.db,
+        request,
+        reply,
+        { requireAdmin: true },
+        async (db, accountId) => {
+          const svc = new PropService(db);
+          const placed = await svc.place(accountId, room, parsed.data);
+          return { accountId, placed, scene: await svc.inRoom(accountId, room) };
+        },
+      );
+      if (made === undefined) return await reply;
+      push(made.accountId, room, made.scene);
+      return await reply.status(201).send(made.placed);
     } catch (error) {
       // tre rifiuti diversi che meritano tre risposte diverse: «quella stanza
       // non c'è», «questa è piena» e «non ne hai più» sono tre cose che il
@@ -114,39 +121,65 @@ export function registerPropRoutes(app: FastifyInstance, deps: PropRoutesDeps): 
       problem(reply, 400, "Invalid request", z.prettifyError(parsed.error));
       return reply;
     }
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    const moved = await props.move(householdId, id, parsed.data);
-    if (moved === undefined) {
+    const done = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) => {
+        const svc = new PropService(db);
+        const moved = await svc.move(accountId, id, parsed.data);
+        if (moved === undefined) return "missing" as const;
+        return { accountId, moved, scene: await svc.inRoom(accountId, moved.roomSlug) };
+      },
+    );
+    if (done === undefined) return reply;
+    if (done === "missing") {
       problem(reply, 404, "Prop not found");
       return reply;
     }
     // la stanza viene dall'arredo, non da chi chiama: `?stanza=` poteva
     // mancare o essere sbagliata, e allora il chiosco della stanza giusta non
     // riceveva mai lo `scene` — spostamento fatto nel database e invisibile
-    await push(householdId, moved.roomSlug);
-    return reply.send(moved);
+    push(done.accountId, done.moved.roomSlug, done.scene);
+    return reply.send(done.moved);
   });
 
   app.delete("/v1/props/:id", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    const gone = await props.remove(householdId, id);
-    if (gone === undefined) {
+    const done = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) => {
+        const svc = new PropService(db);
+        const gone = await svc.remove(accountId, id);
+        if (gone === undefined) return "missing" as const;
+        return { accountId, gone, scene: await svc.inRoom(accountId, gone.roomSlug) };
+      },
+    );
+    if (done === undefined) return reply;
+    if (done === "missing") {
       problem(reply, 404, "Prop not found");
       return reply;
     }
     // idem: la stanza è quella in cui l'arredo stava, e la sa `remove`
-    await push(householdId, gone.roomSlug);
-    return reply.send(gone);
+    push(done.accountId, done.gone.roomSlug, done.scene);
+    return reply.send(done.gone);
   });
 
   /** Le scorte: cosa può ancora posare questa casa, e quanto ne torna. */
   app.get("/v1/props/stock", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    return reply.send({ stock: await props.stock(householdId) });
+    const body = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) => ({ stock: await new PropService(db).stock(accountId) }),
+    );
+    if (body === undefined) return reply;
+    return reply.send(body);
   });
 
   app.put("/v1/props/stock", { preHandler: deps.guard }, async (request, reply) => {
@@ -155,10 +188,19 @@ export function registerPropRoutes(app: FastifyInstance, deps: PropRoutesDeps): 
       problem(reply, 400, "Invalid request", z.prettifyError(parsed.error));
       return reply;
     }
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
     const { kind, remaining, refillPerWeek } = parsed.data;
-    await props.setStock(householdId, kind, remaining, refillPerWeek);
-    return reply.send({ stock: await props.stock(householdId) });
+    const body = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) => {
+        const svc = new PropService(db);
+        await svc.setStock(accountId, kind, remaining, refillPerWeek);
+        return { stock: await svc.stock(accountId) };
+      },
+    );
+    if (body === undefined) return reply;
+    return reply.send(body);
   });
 }

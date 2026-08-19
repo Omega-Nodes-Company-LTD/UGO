@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { budgetLedger, households } from "@ugo/db";
+import { budgetLedger, accounts } from "@ugo/db";
 import type { DbClient } from "@ugo/db";
 
 /**
@@ -25,14 +25,16 @@ import type { DbClient } from "@ugo/db";
 const ESTIMATED_USD_PER_CHAR = 12e-6;
 
 export interface TtsSpender {
-  householdId: string;
+  accountId: string;
   gosinoId: string;
 }
 
 export interface TtsClientOptions {
   db: DbClient;
+  /** ADR-098: la connessione della casa che spende; assente = `db` */
+  dbFor?: (accountId: string) => DbClient;
   apiKey: string;
-  /** fallback ceiling; a house that sets its own in `households` overrides it */
+  /** fallback ceiling; a house that sets its own in `accounts` overrides it */
   dailyBudgetUsd: number;
   model?: string;
   voice?: string;
@@ -58,21 +60,26 @@ export class OpenAiTtsClient implements LocalTtsClient {
     });
   }
 
+  /** ADR-098: la connessione della casa che spende; assente = `db` */
+  private dbOf(accountId: string): DbClient {
+    return this.options.dbFor?.(accountId) ?? this.options.db;
+  }
+
   private async budgetLeft(spender: TtsSpender, at: Date): Promise<boolean> {
-    const { db } = this.options;
+    const db = this.dbOf(spender.accountId);
     const [row] = await db
       .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
       .from(budgetLedger)
       .where(
         and(
-          eq(budgetLedger.householdId, spender.householdId),
+          eq(budgetLedger.accountId, spender.accountId),
           eq(budgetLedger.date, this.today(at)),
         ),
       );
     const [house] = await db
-      .select({ limit: households.dailyBudgetUsd })
-      .from(households)
-      .where(eq(households.id, spender.householdId));
+      .select({ limit: accounts.dailyBudgetUsd })
+      .from(accounts)
+      .where(eq(accounts.id, spender.accountId));
     const ceiling =
       house?.limit === null || house?.limit === undefined
         ? this.options.dailyBudgetUsd
@@ -113,7 +120,7 @@ export class OpenAiTtsClient implements LocalTtsClient {
         // la classe dell'errore, mai il corpo (regola 6): un 401 e un 429 si
         // curano in modi opposti, e senza questa riga erano lo stesso silenzio
         this.options.logger?.warn(
-          { status: response.status, householdId: spender.householdId },
+          { status: response.status, accountId: spender.accountId },
           "tts provider refused: falling back to the system voice",
         );
         return undefined;
@@ -131,14 +138,14 @@ export class OpenAiTtsClient implements LocalTtsClient {
     // riga in silenzio, che è il modo esatto in cui un tetto smette di essere
     // un tetto. Qui un guasto del registro risale, invece di sparire.
     const cost = text.length * ESTIMATED_USD_PER_CHAR;
-    await this.options.db.insert(budgetLedger).values({
+    await this.dbOf(spender.accountId).insert(budgetLedger).values({
       date: this.today(at),
       provider: "openai",
       model: this.options.model ?? "gpt-4o-mini-tts",
       tokensIn: text.length,
       tokensOut: text.length,
       costUsd: cost.toFixed(6),
-      householdId: spender.householdId,
+      accountId: spender.accountId,
       gosinoId: spender.gosinoId,
     });
     return audio;

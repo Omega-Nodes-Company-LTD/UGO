@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { customerAccessTokens, customers, type DbClient } from "@ugo/db";
+import { customerAccessTokens, customers, withAccount, type DbClient } from "@ugo/db";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 
 /**
@@ -12,7 +12,7 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
  */
 
 export interface CustomerContext {
-  householdId: string;
+  accountId: string;
   customerId: string;
   tokenId: string;
 }
@@ -32,13 +32,13 @@ export interface IssuedCustomerToken {
 
 export async function issueCustomerToken(
   db: DbClient,
-  input: { householdId: string; customerId: string; label: string; expiresAt?: Date },
+  input: { accountId: string; customerId: string; label: string; expiresAt?: Date },
 ): Promise<IssuedCustomerToken> {
   const token = randomBytes(TOKEN_BYTES).toString("base64url");
   const [row] = await db
     .insert(customerAccessTokens)
     .values({
-      householdId: input.householdId,
+      accountId: input.accountId,
       customerId: input.customerId,
       tokenHash: hashCustomerToken(token),
       label: input.label,
@@ -73,15 +73,21 @@ export class CustomerResolver {
     now: Date = new Date(),
   ): Promise<CustomerContext | undefined> {
     if (token === "") return undefined;
+    /**
+     * ADR-062 tempo 2b: DUE letture e non un join. Risolvere il token viene
+     * PRIMA di sapere la casa (policy `customer_access_tokens_resolve`,
+     * migrazione 0050); `customers` invece resta scopata — si legge DENTRO la
+     * casa che il token ha appena nominato. Il join di prima, sotto l'utenza
+     * applicativa, non trovava nessuno: token buono, cliente invisibile.
+     */
     const [row] = await this.db
       .select({
         id: customerAccessTokens.id,
-        householdId: customerAccessTokens.householdId,
+        accountId: customerAccessTokens.accountId,
         customerId: customerAccessTokens.customerId,
         lastUsedAt: customerAccessTokens.lastUsedAt,
       })
       .from(customerAccessTokens)
-      .innerJoin(customers, eq(customers.id, customerAccessTokens.customerId))
       .where(
         and(
           eq(customerAccessTokens.tokenHash, hashCustomerToken(token)),
@@ -90,12 +96,18 @@ export class CustomerResolver {
             isNull(customerAccessTokens.expiresAt),
             gt(customerAccessTokens.expiresAt, now),
           ),
-          isNull(customers.archivedAt),
         ),
       );
     if (row === undefined) return undefined;
+    const [alive] = await withAccount(this.db, row.accountId, (tx) =>
+      tx
+        .select({ id: customers.id })
+        .from(customers)
+        .where(and(eq(customers.id, row.customerId), isNull(customers.archivedAt))),
+    );
+    if (alive === undefined) return undefined;
     await this.touch(row.id, row.lastUsedAt, now);
-    return { householdId: row.householdId, customerId: row.customerId, tokenId: row.id };
+    return { accountId: row.accountId, customerId: row.customerId, tokenId: row.id };
   }
 
   private async touch(id: string, lastUsedAt: Date | null, now: Date): Promise<void> {

@@ -1,7 +1,7 @@
 import { budgetLedger, events, memories, messages, psycheSnapshots, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
-import { exemplarsOf, householdScope } from "./scope.js";
+import { exemplarsOf, inAccount } from "./scope.js";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 /**
@@ -13,8 +13,8 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
  * is actually paying: cached input tokens over total input tokens.
  *
  * ADR-019 phase 2: every number here is one house's. The money was the loudest
- * of the misses — `budget_ledger` has carried `household_id` and the index
- * `budget_ledger_household_date_idx` since phase 1, and this route filtered on
+ * of the misses — `budget_ledger` has carried `account_id` and the index
+ * `budget_ledger_account_date_idx` since phase 1, and this route filtered on
  * the date alone, so the panel showed the neighbourhood's spending and called
  * it yours.
  */
@@ -26,21 +26,21 @@ export interface StatsDeps {
   guard: PreHandler;
   /**
    * ADR-034: the mood series belongs to one creature. Spend, counts and dreams
-   * do not — they are the household's (ADR-019) — so only the series narrows.
+   * do not — they are the account's (ADR-019) — so only the series narrows.
    */
-  registry?: { resolve: (query: string | undefined, householdId: string) => { id: string } | undefined };
+  registry?: { resolve: (query: string | undefined, accountId: string) => { id: string } | undefined };
 }
 
 export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void {
   // guarded: spend, counts and dream activity together describe when the
   // house is awake and how much it talks — operational, but nobody else's
   app.get("/v1/stats", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const mine = exemplarsOf(deps.db, householdId);
+    // ADR-062: tutto il giro di letture in UNA transazione che dichiara la casa
+    const body = await inAccount(deps.db, request, reply, {}, async (db, accountId) => {
+    const mine = exemplarsOf(db, accountId);
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: deps.timezone }).format(new Date());
 
-    const [spend] = await deps.db
+    const [spend] = await db
       .select({
         costUsd: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)`,
         calls: sql<string>`count(*)`,
@@ -50,19 +50,19 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
         cacheWrite: sql<string>`coalesce(sum(${budgetLedger.tokensCacheWrite}), 0)`,
       })
       .from(budgetLedger)
-      .where(and(eq(budgetLedger.householdId, householdId), eq(budgetLedger.date, today)));
+      .where(and(eq(budgetLedger.accountId, accountId), eq(budgetLedger.date, today)));
 
-    const [lifetime] = await deps.db
+    const [lifetime] = await db
       .select({
         cacheRead: sql<string>`coalesce(sum(${budgetLedger.tokensCacheRead}), 0)`,
         tokensIn: sql<string>`coalesce(sum(${budgetLedger.tokensIn}), 0)`,
       })
       .from(budgetLedger)
-      .where(eq(budgetLedger.householdId, householdId));
+      .where(eq(budgetLedger.accountId, accountId));
 
     // one round trip, as before, with the scope inside each subquery
-    const ours = sql`(select id from gosini where household_id = ${householdId})`;
-    const [counts] = await deps.db
+    const ours = sql`(select id from gosini where account_id = ${accountId})`;
+    const [counts] = await db
       .select({
         memories: sql<string>`(select count(*) from ${memories} where ${memories.gosinoId} in ${ours})`,
         messages: sql<string>`(select count(*) from ${messages} where ${messages.gosinoId} in ${ours})`,
@@ -72,7 +72,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
 
     // Two weeks of spend, so the panel can show a trend instead of a number
     // that means nothing without yesterday next to it.
-    const history = await deps.db
+    const history = await db
       .select({
         date: budgetLedger.date,
         costUsd: sql<string>`sum(${budgetLedger.costUsd})`,
@@ -81,7 +81,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
       .from(budgetLedger)
       .where(
         and(
-          eq(budgetLedger.householdId, householdId),
+          eq(budgetLedger.accountId, accountId),
           sql`${budgetLedger.date} >= current_date - interval '13 days'`,
         ),
       )
@@ -101,8 +101,8 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
     const who =
       asked === undefined || asked === ""
         ? undefined
-        : deps.registry?.resolve(asked, householdId);
-    const mood = await deps.db
+        : deps.registry?.resolve(asked, accountId);
+    const mood = await db
       .select({ ts: psycheSnapshots.ts, vars: psycheSnapshots.vars, label: psycheSnapshots.label })
       .from(psycheSnapshots)
       .where(
@@ -115,7 +115,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
       )
       .orderBy(psycheSnapshots.ts);
 
-    const [lastDream] = await deps.db
+    const [lastDream] = await db
       .select({ ts: events.ts, payload: events.payload })
       .from(events)
       .where(and(eq(events.type, "dream_step_completed"), inArray(events.gosinoId, mine)))
@@ -126,7 +126,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
     const totalIn = Number(lifetime?.tokensIn ?? 0);
     const cacheRatio = totalIn === 0 ? null : Number(lifetime?.cacheRead ?? 0) / totalIn;
 
-    return reply.send({
+    return {
       date: today,
       budget: {
         spentUsd: Number(spentToday.toFixed(6)),
@@ -162,6 +162,9 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
         lastDream === undefined
           ? null
           : { at: lastDream.ts.toISOString(), step: lastDream.payload },
+    };
     });
+    if (body === undefined) return reply;
+    return reply.send(body);
   });
 }

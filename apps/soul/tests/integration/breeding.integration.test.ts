@@ -1,14 +1,14 @@
 import { randomBytes } from "node:crypto";
 import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, type DbClient, gosini, households, runMigrations } from "@ugo/db";
+import { createDbClient, type DbClient, gosini, accounts, runMigrations } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  createHousehold,
-  createHouseholdWithFounder,
-} from "../../src/services/householdService.js";
+  createAccount,
+  createAccountWithFounder,
+} from "../../src/services/accountService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -53,7 +53,7 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const foundry = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const foundry = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "fonderia",
     name: "Allevamento fondatore",
     gosinoName: "Zero",
@@ -61,7 +61,7 @@ beforeAll(async () => {
   });
   fonderia = foundry.ownerToken;
 
-  const kennel = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const kennel = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "allevamento",
     name: "Allevamento autorizzato",
     gosinoName: "Prima",
@@ -69,13 +69,13 @@ beforeAll(async () => {
   });
   allevamento = kennel.ownerToken;
 
-  const home = await createHousehold(db, MASTER_KEY, { slug: "famiglia", name: "Famiglia" });
+  const home = await createAccount(db, MASTER_KEY, { slug: "famiglia", name: "Famiglia" });
   famiglia = home.ownerToken;
 
   // l'allevamento ha bisogno di due genitori per una cucciolata
   const [seconda] = await db
     .insert(gosini)
-    .values({ householdId: kennel.householdId, name: "Seconda" })
+    .values({ accountId: kennel.accountId, name: "Seconda" })
     .returning({ id: gosini.id });
   if (seconda === undefined) throw new Error("no exemplar");
   genitori = [kennel.gosinoId, seconda.id];
@@ -143,9 +143,9 @@ describe("allevare", () => {
 
   it("il fondatore alleva senza che glielo si dica: chi conia fa nascere", async () => {
     const [row] = await db
-      .select({ breed: households.canBreed, foundry: households.isFoundry })
-      .from(households)
-      .where(eq(households.slug, "fonderia"));
+      .select({ breed: accounts.canBreed, foundry: accounts.isFoundry })
+      .from(accounts)
+      .where(eq(accounts.slug, "fonderia"));
     // la colonna dice `false`, e l'autorizzazione vale lo stesso: un
     // allevamento fondatore che non potesse far nascere sarebbe una fabbrica
     // di creature senza discendenza
@@ -157,19 +157,19 @@ describe("allevare", () => {
 describe("le case nuove", () => {
   it("nascono senza nessuna delle due autorizzazioni", async () => {
     const [row] = await db
-      .select({ foundry: households.isFoundry, breed: households.canBreed })
-      .from(households)
-      .where(eq(households.slug, "famiglia"));
+      .select({ foundry: accounts.isFoundry, breed: accounts.canBreed })
+      .from(accounts)
+      .where(eq(accounts.slug, "famiglia"));
     expect(row).toEqual({ foundry: false, breed: false });
   });
 
   it("e il pannello lo sa, perché la rotta delle case lo dice", async () => {
     const response = await app.inject({
       method: "GET",
-      url: "/v1/households",
+      url: "/v1/accounts",
       headers: { authorization: `Bearer ${famiglia}` },
     });
-    const houses = response.json<{ households: { slug: string; isFoundry: boolean }[] }>();
-    expect(houses.households.some((house) => house.isFoundry)).toBe(false);
+    const houses = response.json<{ accounts: { slug: string; isFoundry: boolean }[] }>();
+    expect(houses.accounts.some((house) => house.isFoundry)).toBe(false);
   });
 });

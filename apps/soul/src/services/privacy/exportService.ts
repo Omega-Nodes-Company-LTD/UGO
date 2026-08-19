@@ -15,7 +15,7 @@ import { sql } from "drizzle-orm";
  * integration test asserts that not one neighbour's id reaches the file.
  *
  * Two shapes of scope, because ADR-019 puts things in two places: what belongs
- * to the *house* filters on `household_id` directly, and what belongs to an
+ * to the *house* filters on `account_id` directly, and what belongs to an
  * *exemplar* (memories, messages, mood — `gosino_id`) filters through the
  * house's exemplars.
  */
@@ -56,7 +56,7 @@ export interface ExportBundle {
   customerChunks: unknown[];
   customerAnswerCache: unknown[];
   /** ADR-089: la casa stessa, e tutto ciò che nessuno aveva mai portato fuori */
-  household: unknown[];
+  account: unknown[];
   rooms: unknown[];
   placedProps: unknown[];
   propStock: unknown[];
@@ -68,10 +68,10 @@ export interface ExportBundle {
   births: unknown[];
   feedings: unknown[];
   adoptions: unknown[];
-  /** ADR-092: i legami fra le case — le due parti, mai il vicinato intero */
-  householdTies: unknown[];
+  /** ADR-099: i legami fra le case — le due parti, mai il vicinato intero */
+  accountTies: unknown[];
   /**
-   * ADR-092: le cartoline. Le RICEVUTE escono in chiaro (sono della casa);
+   * ADR-099: le cartoline. Le RICEVUTE escono in chiaro (sono della casa);
    * delle SPEDITE esce la busta — il testo è cifrato con la chiave della
    * casa destinataria, e un export che potesse riaprirlo smentirebbe la
    * promessa fatta al momento dell'invio.
@@ -117,14 +117,14 @@ export class ExportService {
     });
   }
 
-  /** @param householdId the one house this file is about — never "everything" */
-  public async exportAll(householdId: string, at: Date = new Date()): Promise<ExportBundle> {
+  /** @param accountId the one house this file is about — never "everything" */
+  public async exportAll(accountId: string, at: Date = new Date()): Promise<ExportBundle> {
     const rows = async (query: ReturnType<typeof sql>): Promise<Record<string, unknown>[]> =>
       this.db.execute(query);
 
     // the bridge for every table that carries only `gosino_id` (ADR-019: the
     // memories are the exemplar's, the pack is the house's)
-    const exemplars = sql`select id from gosini where household_id = ${householdId}`;
+    const exemplars = sql`select id from gosini where account_id = ${accountId}`;
 
     const [
       beings,
@@ -157,7 +157,7 @@ export class ExportService {
     ] =
       await Promise.all([
         rows(sql`select id, display_name, aliases, notes, created_at from beings
-                 where household_id = ${householdId} order by created_at`),
+                 where account_id = ${accountId} order by created_at`),
         rows(sql`select id, ts, channel, role, being_id, text, tokens_in, tokens_out, cost_usd
                  from messages where gosino_id in (${exemplars}) order by ts`),
         rows(sql`select id, kind, text, importance, last_accessed, source_refs, created_at
@@ -176,15 +176,15 @@ export class ExportService {
         rows(sql`select id, ts, source, type, payload from events
                  where gosino_id in (${exemplars}) order by ts`),
         rows(sql`select id, date, provider, model, tokens_in, tokens_out, cost_usd
-                 from budget_ledger where household_id = ${householdId} order by date`),
+                 from budget_ledger where account_id = ${accountId} order by date`),
         rows(sql`select id, ts, vars, label from psyche_snapshots
                  where gosino_id in (${exemplars}) order by ts`),
         rows(sql`select b.being_id, n.display_name, b.familiarity, b.affinity, b.last_seen_at,
                         b.interaction_count
                  from bonds b join beings n on n.id = b.being_id
-                 where b.household_id = ${householdId} order by n.display_name`),
+                 where b.account_id = ${accountId} order by n.display_name`),
         rows(sql`select being_a, being_b, type, strength from relations
-                 where household_id = ${householdId} order by type`),
+                 where account_id = ${accountId} order by type`),
         rows(sql`select id, being_id, about_being, signal, payload, created_at
                  from corrections where gosino_id in (${exemplars}) order by created_at`),
         // biometric payloads are deliberately NOT exported: a portability file
@@ -193,47 +193,47 @@ export class ExportService {
         // exists and can be erased; the centroid itself stays encrypted.
         rows(sql`select being_id, modality, model, dimensions, sample_count, updated_at
                  from recognition_profiles
-                 where being_id in (select id from beings where household_id = ${householdId})
+                 where being_id in (select id from beings where account_id = ${accountId})
                  order by being_id`),
         rows(sql`select id, name, slug, notes, daily_budget_usd, hourly_message_limit,
                         weekly_reward_limit, knowledge_epoch, created_at, archived_at
-                 from customers where household_id = ${householdId} order by created_at`),
+                 from customers where account_id = ${accountId} order by created_at`),
         rows(sql`select customer_id, gosino_id, created_at from customer_gosini
-                 where household_id = ${householdId} order by created_at`),
+                 where account_id = ${accountId} order by created_at`),
         rows(sql`select id, customer_id, gosino_id, message_id, ts from customer_rewards
-                 where household_id = ${householdId} order by ts`),
+                 where account_id = ${accountId} order by ts`),
         rows(sql`select id, url, label, enabled, last_fetched_at, created_at from rss_feeds
-                 where household_id = ${householdId} order by created_at`),
+                 where account_id = ${accountId} order by created_at`),
         rows(sql`select id, feed_id, guid, title, link, published_at, advised_at from feed_items
-                 where household_id = ${householdId} order by created_at`),
+                 where account_id = ${accountId} order by created_at`),
         rows(sql`select id, customer_id, label, created_at, last_used_at, expires_at, revoked_at
                  from customer_access_tokens
-                 where household_id = ${householdId} order by created_at`),
+                 where account_id = ${accountId} order by created_at`),
         rows(sql`select id, customer_id, gosino_id, status, title, body,
                         created_at, updated_at, closed_at
-                 from tickets where household_id = ${householdId} order by created_at`),
+                 from tickets where account_id = ${accountId} order by created_at`),
         rows(sql`select id, customer_id, gosino_id, ticket_id, ts, role, text,
                         tokens_in, tokens_out, cost_usd, cached
                  from customer_messages
-                 where household_id = ${householdId} order by ts`),
+                 where account_id = ${accountId} order by ts`),
         // credentials (pat) are deliberately NOT selected: a portability file
         // is plaintext, and a live credential has no business in one
         rows(sql`select id, customer_id, remote_url, default_branch, last_commit_sha,
                         last_indexed_at, status, created_at
-                 from customer_repos where household_id = ${householdId} order by created_at`),
+                 from customer_repos where account_id = ${accountId} order by created_at`),
         rows(sql`select id, customer_id, s3_key, filename, mime, size_bytes, uploaded_at,
                         indexed_at, status
-                 from customer_documents where household_id = ${householdId} order by uploaded_at`),
+                 from customer_documents where account_id = ${accountId} order by uploaded_at`),
         rows(sql`select id, customer_id, imap_host, imap_port, username, folder,
                         last_uid, last_synced_at, status, created_at
                  from customer_mail_accounts
-                 where household_id = ${householdId} order by created_at`),
+                 where account_id = ${accountId} order by created_at`),
         rows(sql`select id, customer_id, source_type, source_id, ref, text, created_at
-                 from customer_chunks where household_id = ${householdId} order by created_at`),
+                 from customer_chunks where account_id = ${accountId} order by created_at`),
         rows(sql`select id, customer_id, gosino_id, question_text, answer_text,
                         knowledge_epoch, created_at, expires_at
                  from customer_answer_cache
-                 where household_id = ${householdId} order by created_at`),
+                 where account_id = ${accountId} order by created_at`),
       ]);
 
     /**
@@ -248,7 +248,7 @@ export class ExportService {
      * posto loro.
      */
     const [
-      household,
+      account,
       rooms,
       placedProps,
       propStock,
@@ -260,7 +260,7 @@ export class ExportService {
       births,
       feedings,
       adoptions,
-      householdTies,
+      accountTies,
       parcels,
       houseKeyRow,
       perceptionEvents,
@@ -270,49 +270,49 @@ export class ExportService {
     ] = await Promise.all([
       rows(sql`select id, slug, name, kind, timezone, locale, daily_budget_usd, metabolism,
                       created_at
-               from households where id = ${householdId}`),
+               from accounts where id = ${accountId}`),
       rows(sql`select id, name, slug, created_at from rooms
-               where household_id = ${householdId} order by created_at`),
+               where account_id = ${accountId} order by created_at`),
       rows(sql`select id, room_slug, kind, x, z, rot, created_at from placed_props
-               where household_id = ${householdId} order by created_at`),
+               where account_id = ${accountId} order by created_at`),
       rows(sql`select id, kind, remaining, refill_per_week, refilled_at from prop_stock
-               where household_id = ${householdId} order by kind`),
+               where account_id = ${accountId} order by kind`),
       rows(sql`select id, list, text, done, being_id, at, done_at from list_items
-               where household_id = ${householdId} order by at`),
+               where account_id = ${accountId} order by at`),
       rows(sql`select id, gosino_id, question, hour, minute, weekday, enabled, last_asked_on,
                       created_at
                from checkins where gosino_id in (${exemplars}) order by created_at`),
       rows(sql`select id, gosino_id, version, traits, parent_trait_set_id, mutation_note,
                       created_at
-               from trait_sets where household_id = ${householdId} order by created_at`),
+               from trait_sets where account_id = ${accountId} order by created_at`),
       rows(sql`select gosino_id, variable, baseline, updated_at from psyche_baselines
                where gosino_id in (${exemplars}) order by gosino_id, variable`),
       rows(sql`select gosino_id, act, weight, updated_at from act_efficacy
                where gosino_id in (${exemplars}) order by gosino_id, act`),
       rows(sql`select id, child_gosino_id, parent_gosino_id, weight, born_at from births
-               where household_id = ${householdId} order by born_at`),
+               where account_id = ${accountId} order by born_at`),
       rows(sql`select id, gosino_id, kind, amount_usd, note, at from feedings
-               where household_id = ${householdId} order by at`),
-      rows(sql`select id, gosino_id, kennel_household_id, buyer_household_id, status,
+               where account_id = ${accountId} order by at`),
+      rows(sql`select id, gosino_id, kennel_account_id, buyer_account_id, status,
                       price_cents, currency, chain_seq, reserved_at, paid_at, delivered_at,
                       cancelled_at
                from adoptions
-               where kennel_household_id = ${householdId}
-                  or buyer_household_id = ${householdId}
+               where kennel_account_id = ${accountId}
+                  or buyer_account_id = ${accountId}
                order by reserved_at`),
-      rows(sql`select id, from_household_id, to_household_id, label, from_being_id, to_being_id,
+      rows(sql`select id, from_account_id, to_account_id, label, from_being_id, to_being_id,
                       status, proposed_at, accepted_at, revoked_at
-               from household_ties
-               where from_household_id = ${householdId} or to_household_id = ${householdId}
+               from account_ties
+               where from_account_id = ${accountId} or to_account_id = ${accountId}
                order by proposed_at`),
-      rows(sql`select id, tie_id, from_household_id, to_household_id, from_gosino_id,
+      rows(sql`select id, tie_id, from_account_id, to_account_id, from_gosino_id,
                       to_gosino_id, kind, text, status, created_at, delivered_at, kept_at
                from parcels
-               where from_household_id = ${householdId} or to_household_id = ${householdId}
+               where from_account_id = ${accountId} or to_account_id = ${accountId}
                order by created_at`),
-      // la DEK della casa: le cartoline ricevute sono cifrate con LEI (ADR-092
+      // la DEK della casa: le cartoline ricevute sono cifrate con LEI (ADR-099
       // §4), non con la chiave di processo che apre il resto dell'export
-      rows(sql`select wrapped_data_key from households where id = ${householdId}`),
+      rows(sql`select wrapped_data_key from accounts where id = ${accountId}`),
       /**
        * Chi è stato visto o sentito, e quando. Senza il vettore: un embedding
        * biometrico è la cosa che ADR-016 tiene cifrata in `bytea`, e
@@ -325,11 +325,11 @@ export class ExportService {
                from perception_events where gosino_id in (${exemplars}) order by occurred_at`),
       rows(sql`select id, modality, model, dimensions, seen_count, first_seen_at, last_seen_at,
                       asked_at
-               from unknown_prints where household_id = ${householdId} order by first_seen_at`),
+               from unknown_prints where account_id = ${accountId} order by first_seen_at`),
       rows(sql`select memory_id, being_id from memory_beings
-               where household_id = ${householdId} order by memory_id`),
+               where account_id = ${accountId} order by memory_id`),
       rows(sql`select id, at, role, verb, resource_type, resource_id, outcome from audit_log
-               where household_id = ${householdId} order by at`),
+               where account_id = ${accountId} order by at`),
     ]);
 
     return {
@@ -364,7 +364,7 @@ export class ExportService {
         "question_text",
         "answer_text",
       ]),
-      household,
+      account,
       rooms,
       placedProps,
       propStock,
@@ -376,8 +376,8 @@ export class ExportService {
       births,
       feedings,
       adoptions,
-      householdTies,
-      parcels: this.openParcels(parcels, householdId, houseKeyRow),
+      accountTies,
+      parcels: this.openParcels(parcels, accountId, houseKeyRow),
       perceptionEvents,
       unknownPrints,
       memoryBeings,
@@ -386,13 +386,13 @@ export class ExportService {
   }
 
   /**
-   * ADR-092: le cartoline ricevute si aprono con la DEK della casa; delle
+   * ADR-099: le cartoline ricevute si aprono con la DEK della casa; delle
    * spedite esce solo la busta — il testo appartiene alla casa destinataria,
    * e questo file non ha (né deve avere) la chiave per riaprirlo.
    */
   private openParcels(
     parcels: Record<string, unknown>[],
-    householdId: string,
+    accountId: string,
     houseKeyRow: Record<string, unknown>[],
   ): Record<string, unknown>[] {
     let houseKey: Buffer | undefined;
@@ -405,7 +405,7 @@ export class ExportService {
       }
     }
     return parcels.map((row) => {
-      if (row.to_household_id !== householdId) {
+      if (row.to_account_id !== accountId) {
         return { ...row, text: "[spedita: il testo è della casa destinataria]" };
       }
       const value = row.text;

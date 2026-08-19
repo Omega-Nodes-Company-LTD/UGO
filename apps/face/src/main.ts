@@ -1,3 +1,6 @@
+import "@fontsource/atkinson-hyperlegible/400.css";
+import "@fontsource/atkinson-hyperlegible/700.css";
+import "./hud.css";
 import type { FaceState, FaceToServerMessage, ServerToFaceMessage } from "@ugo/shared/face";
 import { startCameraGaze, startPointerGaze } from "./gaze.js";
 import { openFaceLocator } from "./faceLocator.js";
@@ -9,6 +12,7 @@ import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { myBuildId, shouldReload } from "./version.js";
 import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noiseGate.js";
+import { CHROME_STORE_KEY, mountHudChrome, type ChromeState } from "./hudChrome.js";
 import { mountLogPanel } from "./logPanel.js";
 import { mountMyData } from "./myData.js";
 import { startObjectSpotter } from "./objectSpotter.js";
@@ -133,7 +137,7 @@ const { remember } = mountLogPanel(
  * ADR-090: i due diritti, dove vive chi li ha.
  *
  * Il token del chiosco basta per **contare** — quanto tiene, non cosa — e non
- * basta per i due atti: quelli chiedono il token di casa lì per lì, e non lo
+ * basta per i due atti: quelli chiedono il token dell'account lì per lì, e non lo
  * tengono. Su uno schermo che vedono tutti è la differenza fra una porta e un
  * buco nel muro.
  */
@@ -152,6 +156,32 @@ mountMyData(
   },
   { soulHttp, kioskToken: params.get("token") ?? undefined },
 );
+
+// ADR-096: il chiosco nascondibile. La veste la fa il CSS su `data-chrome`;
+// qui solo i due gesti e la memoria per dispositivo. Uno storage rotto (Safari
+// privato, quota piena) non deve rompere il muso: si degrada a "solo per
+// questa visita".
+mountHudChrome({
+  app,
+  hide: [requireElement("#btn-hide"), requireElement("#sheet-grip")],
+  expand: requireElement("#btn-expand"),
+  store: {
+    read: (): string | null => {
+      try {
+        return localStorage.getItem(CHROME_STORE_KEY);
+      } catch {
+        return null;
+      }
+    },
+    write: (state: ChromeState): void => {
+      try {
+        localStorage.setItem(CHROME_STORE_KEY, state);
+      } catch {
+        // senza storage lo stato vive quanto la pagina, ed è già abbastanza
+      }
+    },
+  },
+});
 
 /**
  * Qualcosa nel corpo non ha funzionato, e lo si vede senza un portatile.
@@ -647,7 +677,7 @@ let localEarsTapWired = false;
 function earsOff(): void {
   app.dataset.ears = "off";
   setLocalState("idle");
-  earsButton.textContent = "🔇 orecchie spente";
+  earsButton.textContent = "orecchie spente";
 }
 
 function startLocalEars(): void {
@@ -861,10 +891,10 @@ earsButton.addEventListener("click", () => {
   // percorsi, ed è quello che l'utente vede scritto sul bottone.
   if (app.dataset.ears === "on") {
     stopListening();
-    earsButton.textContent = "🔇 orecchie spente";
+    earsButton.textContent = "orecchie spente";
   } else {
     startListening();
-    earsButton.textContent = "👂 ti ascolto";
+    earsButton.textContent = "ti ascolto";
   }
   // la pioggia segue l'interruttore dei sensi: uno solo, quello che c'è già
   rain.update(lastSky, app.dataset.ears === "on");

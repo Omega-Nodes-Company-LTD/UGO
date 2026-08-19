@@ -1,4 +1,4 @@
-import { beings, gosini, households, type DbClient } from "@ugo/db";
+import { beings, gosini, accounts, type DbClient } from "@ugo/db";
 import { generateDataKey, wrapDataKey } from "@ugo/shared";
 
 /**
@@ -40,7 +40,7 @@ export async function createHouse(
 ): Promise<TestHouse> {
   const dataKey = generateDataKey();
   const [house] = await db
-    .insert(households)
+    .insert(accounts)
     .values({
       slug,
       name: options.name ?? slug,
@@ -48,12 +48,12 @@ export async function createHouse(
         ? {}
         : { wrappedDataKey: wrapDataKey(dataKey, options.masterKey) }),
     })
-    .returning({ id: households.id });
-  if (house === undefined) throw new Error(`household ${slug} was not created`);
+    .returning({ id: accounts.id });
+  if (house === undefined) throw new Error(`account ${slug} was not created`);
 
   const [exemplar] = await db
     .insert(gosini)
-    .values({ householdId: house.id, name: `ugo-${slug}`, generation: 0 })
+    .values({ accountId: house.id, name: `ugo-${slug}`, generation: 0 })
     .returning({ id: gosini.id });
   if (exemplar === undefined) throw new Error(`exemplar for ${slug} was not created`);
 
@@ -64,7 +64,7 @@ export async function createHouse(
 export async function addGosino(db: DbClient, house: TestHouse, name: string): Promise<string> {
   const [exemplar] = await db
     .insert(gosini)
-    .values({ householdId: house.id, name, generation: 0 })
+    .values({ accountId: house.id, name, generation: 0 })
     .returning({ id: gosini.id });
   if (exemplar === undefined) throw new Error(`exemplar ${name} was not created`);
   return exemplar.id;
@@ -77,7 +77,7 @@ export async function addBeing(
 ): Promise<string> {
   const [being] = await db
     .insert(beings)
-    .values({ householdId: house.id, displayName })
+    .values({ accountId: house.id, displayName })
     .returning({ id: beings.id });
   if (being === undefined) throw new Error(`being ${displayName} was not created`);
   return being.id;

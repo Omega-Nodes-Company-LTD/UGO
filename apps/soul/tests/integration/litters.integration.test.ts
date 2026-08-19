@@ -12,7 +12,7 @@ import { startPostgres } from "@ugo/factories";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createHousehold } from "../../src/services/householdService.js";
+import { createAccount } from "../../src/services/accountService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -64,17 +64,17 @@ beforeAll(async () => {
   // ADR-081: fare cucciolate è un mestiere autorizzato. Queste due case sono
   // allevamenti, e va detto qui — una casa qualunque riceverebbe 403, che è
   // esattamente ciò che deve succedere
-  const a = await createHousehold(db, MASTER_KEY, {
+  const a = await createAccount(db, MASTER_KEY, {
     slug: "casa-a",
     name: "A",
     breeder: true,
   });
-  const b = await createHousehold(db, MASTER_KEY, {
+  const b = await createAccount(db, MASTER_KEY, {
     slug: "casa-b",
     name: "B",
     breeder: true,
   });
-  houseA = a.householdId;
+  houseA = a.accountId;
   tokenA = a.ownerToken;
   tokenB = b.ownerToken;
 
@@ -84,8 +84,8 @@ beforeAll(async () => {
     traits: Record<string, number>,
     generation = 0,
   ): Promise<void> => {
-    await db.insert(gosini).values({ id, householdId: houseA, name, generation });
-    await db.insert(traitSets).values({ householdId: houseA, gosinoId: id, version: 1, traits });
+    await db.insert(gosini).values({ id, accountId: houseA, name, generation });
+    await db.insert(traitSets).values({ accountId: houseA, gosinoId: id, version: 1, traits });
   };
   await seedParent(P1, "Placida", { calm: 0.9, curiosity: 0.2, talkativeness: 0.25 });
   await seedParent(P2, "Ciarla", { calm: 0.3, curiosity: 0.8, boldness: 0.7 }, 3);

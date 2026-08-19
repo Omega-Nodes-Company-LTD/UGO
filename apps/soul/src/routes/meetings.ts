@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { MeetingsService } from "../services/meetingsService.js";
 import type { PreHandler } from "./guard.js";
-import { eldestExemplarOf, householdScope } from "./scope.js";
+import { eldestExemplarOf, inAccount } from "./scope.js";
 
 const joinRequestSchema = z.object({
   url: z.url(),
@@ -40,35 +40,40 @@ export function registerMeetingsRoutes(app: FastifyInstance, deps: MeetingsRoute
       problem(reply, 400, "Invalid meeting request", z.prettifyError(parsed.error));
       return;
     }
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-
-    let gosinoId: string;
-    if (parsed.data.gosino === undefined) {
-      try {
-        gosinoId = await eldestExemplarOf(deps.db, householdId);
-      } catch {
-        problem(reply, 409, "Nobody to send", "questa casa non ha ancora nessun esemplare");
-        return;
+    // ADR-062: chi va in call si risolve dentro il muro; la chiamata a Vexa
+    // (HTTP, secondi) resta fuori — il servizio scrive col suo giro, che si
+    // converte col lotto del gateway
+    const scoped = await inAccount(deps.db, request, reply, {}, async (db, accountId) => {
+      if (parsed.data.gosino === undefined) {
+        try {
+          return { accountId, gosinoId: await eldestExemplarOf(db, accountId) };
+        } catch {
+          return "empty-house" as const;
+        }
       }
-    } else {
       // il gosino di un'altra casa risponde 404, come ovunque (anti-BOLA)
-      const [mine] = await deps.db
+      const [mine] = await db
         .select({ id: gosini.id })
         .from(gosini)
-        .where(and(eq(gosini.householdId, householdId), eq(gosini.id, parsed.data.gosino)))
+        .where(and(eq(gosini.accountId, accountId), eq(gosini.id, parsed.data.gosino)))
         .limit(1);
-      if (mine === undefined) {
-        problem(reply, 404, "Not Found");
-        return;
-      }
-      gosinoId = mine.id;
+      if (mine === undefined) return "not-mine" as const;
+      return { accountId, gosinoId: mine.id };
+    });
+    if (scoped === undefined) return reply;
+    if (scoped === "empty-house") {
+      problem(reply, 409, "Nobody to send", "questa casa non ha ancora nessun esemplare");
+      return;
+    }
+    if (scoped === "not-mine") {
+      problem(reply, 404, "Not Found");
+      return;
     }
 
     try {
       const ref = await deps.service.join(parsed.data.url, parsed.data.title, {
-        gosinoId,
-        householdId,
+        gosinoId: scoped.gosinoId,
+        accountId: scoped.accountId,
       });
       return await reply.code(201).send(ref);
     } catch (error) {

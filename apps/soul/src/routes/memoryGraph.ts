@@ -2,7 +2,7 @@ import { beings, memories, memoryBeings, relations, type DbClient } from "@ugo/d
 import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { PreHandler } from "./guard.js";
-import { exemplarsOf, householdScope } from "./scope.js";
+import { exemplarsOf, inAccount } from "./scope.js";
 
 /**
  * How the memories hang together, for the panel to draw (backlog gruppo 1).
@@ -51,11 +51,11 @@ function shorten(text: string): string {
 
 export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGraphDeps): void {
   app.get("/v1/memories/graph", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const mine = exemplarsOf(deps.db, householdId);
+    // ADR-062: l'intero grafo si legge nella transazione che dichiara la casa
+    const body = await inAccount(deps.db, request, reply, {}, async (db, accountId) => {
+    const mine = exemplarsOf(db, accountId);
 
-    const memoryRows = await deps.db
+    const memoryRows = await db
       .select({
         id: memories.id,
         text: memories.text,
@@ -68,10 +68,10 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
       .orderBy(desc(memories.createdAt))
       .limit(NODE_CAP);
 
-    const beingRows = await deps.db
+    const beingRows = await db
       .select({ id: beings.id, name: beings.displayName, species: beings.species })
       .from(beings)
-      .where(eq(beings.householdId, householdId));
+      .where(eq(beings.accountId, accountId));
 
     const nodes: GraphNode[] = [
       ...memoryRows.map((row) => ({
@@ -96,12 +96,12 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
     const aboutRows =
       memoryIds.length === 0
         ? []
-        : await deps.db
+        : await db
             .select({ memoryId: memoryBeings.memoryId, beingId: memoryBeings.beingId })
             .from(memoryBeings)
             .where(inArray(memoryBeings.memoryId, memoryIds));
 
-    const relationRows = await deps.db
+    const relationRows = await db
       .select({
         a: relations.beingA,
         b: relations.beingB,
@@ -109,7 +109,7 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
         source: relations.source,
       })
       .from(relations)
-      .where(eq(relations.householdId, householdId));
+      .where(eq(relations.accountId, accountId));
 
     const edges: GraphEdge[] = [
       ...aboutRows.map((row) => ({
@@ -139,38 +139,43 @@ export function registerMemoryGraphRoutes(app: FastifyInstance, deps: MemoryGrap
       ),
     ].filter((edge) => present.has(edge.from) && present.has(edge.to));
 
-    return reply.send({ nodes, edges, truncated: memoryRows.length === NODE_CAP });
+    return { nodes, edges, truncated: memoryRows.length === NODE_CAP };
+    });
+    if (body === undefined) return reply;
+    return reply.send(body);
   });
 
   /** How many edges exist at all — the panel decides whether to offer the tab. */
   app.get("/v1/memories/graph/size", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const mine = exemplarsOf(deps.db, householdId);
+    const body = await inAccount(deps.db, request, reply, {}, async (db, accountId) => {
+    const mine = exemplarsOf(db, accountId);
 
     // memory_beings has no tenant column of its own: it reaches the house
     // through its memory (ADR-048 gives it one directly)
-    const [links] = await deps.db
+    const [links] = await db
       .select({ total: sql<number>`count(*)::int` })
       .from(memoryBeings)
       .where(
         inArray(
           memoryBeings.memoryId,
-          deps.db.select({ id: memories.id }).from(memories).where(inArray(memories.gosinoId, mine)),
+          db.select({ id: memories.id }).from(memories).where(inArray(memories.gosinoId, mine)),
         ),
       );
-    const [supersessions] = await deps.db
+    const [supersessions] = await db
       .select({ total: sql<number>`count(*)::int` })
       .from(memories)
       .where(and(isNotNull(memories.supersededBy), inArray(memories.gosinoId, mine)));
-    const [inferred] = await deps.db
+    const [inferred] = await db
       .select({ total: sql<number>`count(*)::int` })
       .from(relations)
-      .where(and(eq(relations.source, "dream"), eq(relations.householdId, householdId)));
-    return reply.send({
+      .where(and(eq(relations.source, "dream"), eq(relations.accountId, accountId)));
+    return {
       about: links?.total ?? 0,
       superseded: supersessions?.total ?? 0,
       inferredRelations: inferred?.total ?? 0,
+    };
     });
+    if (body === undefined) return reply;
+    return reply.send(body);
   });
 }

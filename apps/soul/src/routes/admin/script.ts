@@ -27,7 +27,7 @@ import { ROOMS_JS } from "./script/rooms.js";
 import { ROUTER_JS } from "./script/router.js";
 import { TIES_JS } from "./script/ties.js";
 import { CAPABILITIES_JS } from "./script/capabilities.js";
-import { HOUSES_JS } from "./script/houses.js";
+import { ACCOUNTS_JS } from "./script/accounts.js";
 import { PLACE_JS } from "./script/place.js";
 import { STATUS_JS } from "./script/status.js";
 import { VOICE_JS } from "./script/voice.js";
@@ -59,7 +59,7 @@ export const ADMIN_SCRIPT = [
   STATUS_JS,
   PLACE_JS,
   CAPABILITIES_JS,
-  HOUSES_JS,
+  ACCOUNTS_JS,
   EXEMPLARS_JS,
   VOLITION_JS,
   CHECKINS_JS,

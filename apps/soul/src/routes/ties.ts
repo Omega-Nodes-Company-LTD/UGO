@@ -5,17 +5,17 @@ import type { AuditLogger } from "../services/auditLog.js";
 import { ParcelService, type ParcelRefusal } from "../services/parcelService.js";
 import { TieService, type TieRefusal } from "../services/tieService.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
- * Le parentele e le cartoline (ADR-092). Tutte le rotte sono della casa:
+ * Le parentele e le cartoline (ADR-099). Tutte le rotte sono della casa:
  * guard + scope, e il servizio rifiuta con la ragione in italiano (il pattern
  * di ADR-081) — mai un 404 che finge che la rotta non esista quando il
  * problema è un consenso che manca.
  */
 
 /**
- * L'avvertenza di ADR-092 §2: è parte del consenso, quindi vive in UN posto
+ * L'avvertenza di ADR-099 §2: è parte del consenso, quindi vive in UN posto
  * e il pannello la mostra PRIMA del click. Il test del pannello la pretende.
  */
 export const TIE_WARNING =
@@ -24,7 +24,7 @@ export const TIE_WARNING =
 
 const proposeSchema = z.object({
   /** id o slug, come la cessione (ADR-082): non si sfogliano le case altrui */
-  toHousehold: z.string().min(1).max(120),
+  toAccount: z.string().min(1).max(120),
   label: z.string().min(1).max(80),
   fromBeingId: z.uuid().optional(),
 });
@@ -81,18 +81,18 @@ export function registerTieRoutes(app: FastifyInstance, deps: TieRoutesDeps): vo
   const parcelService = new ParcelService(deps.db, deps.dataKey);
 
   app.get("/v1/ties", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    return reply.send({ warning: TIE_WARNING, ties: await ties.listFor(householdId) });
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
+    return reply.send({ warning: TIE_WARNING, ties: await ties.listFor(accountId) });
   });
 
   app.post("/v1/ties", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = proposeSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
 
-    const done = await ties.propose(householdId, parsed.data);
+    const done = await ties.propose(accountId, parsed.data);
     if (typeof done === "string") {
       const refusal = TIE_REFUSALS[done];
       return reply.status(refusal.status).send({ error: done, detail: refusal.detail });
@@ -100,9 +100,9 @@ export function registerTieRoutes(app: FastifyInstance, deps: TieRoutesDeps): vo
     await deps.audit?.record({
       verb: "tie_proposed",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
-      resourceType: "household_tie",
+      resourceType: "account_tie",
       resourceId: done.id,
     });
     return reply.status(201).send(done);
@@ -112,10 +112,10 @@ export function registerTieRoutes(app: FastifyInstance, deps: TieRoutesDeps): vo
     const parsed = acceptSchema.safeParse(request.body ?? {});
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
 
-    const done = await ties.accept(householdId, id, parsed.data.toBeingId);
+    const done = await ties.accept(accountId, id, parsed.data.toBeingId);
     if (typeof done === "string") {
       const refusal = TIE_REFUSALS[done];
       return reply.status(refusal.status).send({ error: done, detail: refusal.detail });
@@ -123,9 +123,9 @@ export function registerTieRoutes(app: FastifyInstance, deps: TieRoutesDeps): vo
     await deps.audit?.record({
       verb: "tie_accepted",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
-      resourceType: "household_tie",
+      resourceType: "account_tie",
       resourceId: id,
     });
     return reply.send(done);
@@ -133,10 +133,10 @@ export function registerTieRoutes(app: FastifyInstance, deps: TieRoutesDeps): vo
 
   app.post("/v1/ties/:id/revoke", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
 
-    const done = await ties.revoke(householdId, id);
+    const done = await ties.revoke(accountId, id);
     if (typeof done === "string") {
       const refusal = TIE_REFUSALS[done];
       return reply.status(refusal.status).send({ error: done, detail: refusal.detail });
@@ -144,30 +144,30 @@ export function registerTieRoutes(app: FastifyInstance, deps: TieRoutesDeps): vo
     await deps.audit?.record({
       verb: "tie_revoked",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
-      resourceType: "household_tie",
+      resourceType: "account_tie",
       resourceId: id,
     });
     return reply.send(done);
   });
 
   app.get("/v1/parcels", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
     return reply.send({
-      inbox: await parcelService.inbox(householdId),
-      outbox: await parcelService.outbox(householdId),
+      inbox: await parcelService.inbox(accountId),
+      outbox: await parcelService.outbox(accountId),
     });
   });
 
   app.post("/v1/parcels", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = sendSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
 
-    const done = await parcelService.send(householdId, parsed.data);
+    const done = await parcelService.send(accountId, parsed.data);
     if (typeof done === "string") {
       const refusal = PARCEL_REFUSALS[done];
       return reply.status(refusal.status).send({ error: done, detail: refusal.detail });
@@ -175,7 +175,7 @@ export function registerTieRoutes(app: FastifyInstance, deps: TieRoutesDeps): vo
     await deps.audit?.record({
       verb: "parcel_sent",
       outcome: "ok",
-      householdId,
+      accountId,
       actor: request.tenant,
       resourceType: "parcel",
       resourceId: done.id,
@@ -185,10 +185,10 @@ export function registerTieRoutes(app: FastifyInstance, deps: TieRoutesDeps): vo
 
   app.post("/v1/parcels/:id/keep", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
 
-    const done = await parcelService.keep(householdId, id);
+    const done = await parcelService.keep(accountId, id);
     if (typeof done === "string") {
       const refusal = PARCEL_REFUSALS[done];
       return reply.status(refusal.status).send({ error: done, detail: refusal.detail });

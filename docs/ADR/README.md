@@ -97,4 +97,11 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [089](./089-l-export-che-manteneva-meta-promessa.md) | L'export che manteneva metà promessa | Accettata |
 | [090](./090-i-diritti-dal-chiosco.md) | I diritti dove vive chi li ha | Accettata |
 | [091](./091-i-ricordi-si-scrivono-in-chiaro.md) | I ricordi si scrivono in chiaro, e cinque difetti erano uno solo | Accettata |
-| 092 | *(prossimo numero disponibile)* | — |
+| [092](./092-da-casa-ad-account.md) | «Casa» diventa «account»: una parola per lavoro | Accettata |
+| [093](./093-l-oblio-del-cliente.md) | L'oblio di un cliente: la rotta che ADR-052 prometteva | Accettata |
+| [094](./094-la-voce-di-casa-parla-per-prima.md) | La voce di casa parla per prima: il provider è il soccorso | Accettata |
+| [095](./095-la-catena-a-piu-anelli.md) | La catena a più anelli: chi risponde paga, anche casa | Accettata |
+| [096](./096-il-chiosco-nascondibile.md) | Il chiosco nascondibile: redesign dell'HUD del muso | Accettata |
+| [097](./097-il-mercato-sotto-rls.md) | Il mercato sotto RLS: un ruolo per l'atto, non un buco nel muro | Accettata |
+| [098](./098-la-connessione-della-casa.md) | La connessione della casa: la superficie 2 entra nel muro | Accettata |
+| 099 | *(prossimo numero disponibile)* | — |

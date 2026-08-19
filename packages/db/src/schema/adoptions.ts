@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { adoptionStatus } from "./enums.js";
 import { gosini } from "./gosini.js";
-import { households } from "./households.js";
+import { accounts } from "./accounts.js";
 
 /**
  * L'adozione (ADR-084): il filo che lega la vetrina alla consegna.
@@ -27,13 +27,13 @@ export const adoptions = pgTable(
       .notNull()
       .references(() => gosini.id, { onDelete: "cascade" }),
     /** chi cede: l'allevamento */
-    kennelHouseholdId: uuid("kennel_household_id")
+    kennelAccountId: uuid("kennel_account_id")
       .notNull()
-      .references(() => households.id, { onDelete: "cascade" }),
+      .references(() => accounts.id, { onDelete: "cascade" }),
     /** chi riceve: la casa nata al momento della prenotazione */
-    buyerHouseholdId: uuid("buyer_household_id")
+    buyerAccountId: uuid("buyer_account_id")
       .notNull()
-      .references(() => households.id, { onDelete: "cascade" }),
+      .references(() => accounts.id, { onDelete: "cascade" }),
     status: adoptionStatus("status").notNull().default("prenotata"),
     /** congelato alla prenotazione: un prezzo che cambia dopo non è un prezzo */
     priceCents: integer("price_cents"),
@@ -52,8 +52,8 @@ export const adoptions = pgTable(
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   },
   (table) => [
-    index("adoptions_kennel_idx").on(table.kennelHouseholdId),
-    index("adoptions_buyer_idx").on(table.buyerHouseholdId),
+    index("adoptions_kennel_idx").on(table.kennelAccountId),
+    index("adoptions_buyer_idx").on(table.buyerAccountId),
     index("adoptions_gosino_idx").on(table.gosinoId),
   ],
 );

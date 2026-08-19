@@ -38,12 +38,15 @@ const SHORT_ENOUGH = 300;
 
 export interface Ruminator {
   id: string;
+  /** ADR-098: chi rumina lo fa nella SUA casa, e sulla sua connessione */
+  accountId: string;
   name: string;
   psyche: PsycheService;
 }
 
 export interface RuminationDeps {
-  db: DbClient;
+  /** ADR-098: la connessione della casa del ruminante */
+  dbFor: (accountId: string) => DbClient;
   local: LocalTextClient;
   /** la sonda di `index.ts`: il modello locale c'è ed è vivo */
   localUp: () => boolean;
@@ -83,22 +86,23 @@ export class RuminationService {
     if (!this.deps.enabled() || !this.deps.localUp()) return { did: "nothing" };
     const hour = this.deps.hourOf(at);
     if (hour < AWAKE_FROM || hour >= AWAKE_UNTIL) return { did: "nothing" };
-    if (await this.busy(self.id, at)) return { did: "nothing" };
-    if (await this.mulledRecently(self.id, at)) return { did: "nothing" };
+    const db = this.deps.dbFor(self.accountId);
+    if (await this.busy(db, self.id, at)) return { did: "nothing" };
+    if (await this.mulledRecently(db, self.id, at)) return { did: "nothing" };
 
     const roll = this.dice();
     if (mates.length > 0 && roll < 0.2) {
       const mate = mates[Math.floor(this.dice() * mates.length)];
-      if (mate !== undefined) return this.chat(self, mate, at);
+      if (mate !== undefined) return this.chat(db, self, mate, at);
     }
-    if (roll < 0.6) return this.associate(self, at);
-    return this.wonder(self, at);
+    if (roll < 0.6) return this.associate(db, self, at);
+    return this.wonder(db, self, at);
   }
 
   /** Sta vivendo (un messaggio recente): la ruminazione è il tempo vuoto. */
-  private async busy(gosinoId: string, at: Date): Promise<boolean> {
+  private async busy(db: DbClient, gosinoId: string, at: Date): Promise<boolean> {
     const since = new Date(at.getTime() - IDLE_MIN * 60_000);
-    const [row] = await this.deps.db
+    const [row] = await db
       .select({ id: messages.id })
       .from(messages)
       .where(and(eq(messages.gosinoId, gosinoId), gte(messages.ts, since)))
@@ -111,10 +115,10 @@ export class RuminationService {
    * vuoto lascia la sua riga, o un modello locale svogliato verrebbe
    * martellato a ogni tick.
    */
-  private async mulledRecently(gosinoId: string, at: Date): Promise<boolean> {
+  private async mulledRecently(db: DbClient, gosinoId: string, at: Date): Promise<boolean> {
     const gap = this.deps.gapMin ?? DEFAULT_GAP_MIN;
     const since = new Date(at.getTime() - gap * 60_000);
-    const [row] = await this.deps.db
+    const [row] = await db
       .select({ id: events.id })
       .from(events)
       .where(
@@ -130,15 +134,16 @@ export class RuminationService {
 
   /** Due ricordi vivi: uno fresco, uno che pesa. Meno di due = niente testa. */
   private async pickMemories(
+    db: DbClient,
     gosinoId: string,
   ): Promise<{ id: string; text: string }[]> {
-    const fresh = await this.deps.db
+    const fresh = await db
       .select({ id: memories.id, text: memories.text })
       .from(memories)
       .where(and(eq(memories.gosinoId, gosinoId), isNull(memories.invalidatedAt)))
       .orderBy(desc(memories.createdAt))
       .limit(20);
-    const heavy = await this.deps.db
+    const heavy = await db
       .select({ id: memories.id, text: memories.text })
       .from(memories)
       .where(and(eq(memories.gosinoId, gosinoId), isNull(memories.invalidatedAt)))
@@ -156,8 +161,8 @@ export class RuminationService {
    * — riga che il sogno legge già — e in memoria ci arriva SOLO se il sogno
    * lo distilla. Anche il buco nell'acqua lascia la riga: è il distanziatore.
    */
-  private async associate(self: Ruminator, at: Date): Promise<RuminationReport> {
-    const picked = await this.pickMemories(self.id);
+  private async associate(db: DbClient, self: Ruminator, at: Date): Promise<RuminationReport> {
+    const picked = await this.pickMemories(db, self.id);
     if (picked.length < 2) return { did: "nothing" };
     const [a, b] = picked;
     if (a === undefined || b === undefined) return { did: "nothing" };
@@ -168,7 +173,7 @@ export class RuminationService {
       `in prima persona. Se non c'è, rispondi solo: NIENTE.`;
     const out = (await this.deps.local.generate(prompt, 120))?.trim();
     const worthless = out === undefined || out === "" || /^niente\b/i.test(out) || out.length > SHORT_ENOUGH;
-    await this.deps.db.insert(events).values({
+    await db.insert(events).values({
       gosinoId: self.id,
       ts: at,
       source: "system",
@@ -183,8 +188,8 @@ export class RuminationService {
    * `pending`. Non viene detta ADESSO — la dirà `sayDesire` quando le
    * pressioni lo decidono, che è come UGO tira fuori tutto il resto.
    */
-  private async wonder(self: Ruminator, at: Date): Promise<RuminationReport> {
-    const picked = await this.pickMemories(self.id);
+  private async wonder(db: DbClient, self: Ruminator, at: Date): Promise<RuminationReport> {
+    const picked = await this.pickMemories(db, self.id);
     const seed = picked[0];
     if (seed === undefined) return { did: "nothing" };
     const prompt =
@@ -193,7 +198,7 @@ export class RuminationService {
       `Scrivi solo la domanda. Se non te ne viene nessuna, rispondi solo: NIENTE.`;
     const out = (await this.deps.local.generate(prompt, 80))?.trim();
     const worthless = out === undefined || out === "" || /^niente\b/i.test(out) || out.length > SHORT_ENOUGH;
-    await this.deps.db.insert(events).values({
+    await db.insert(events).values({
       gosinoId: self.id,
       ts: at,
       source: "system",
@@ -201,7 +206,7 @@ export class RuminationService {
       payload: worthless ? { about: [seed.id] } : { about: [seed.id], asked: true },
     });
     if (worthless) return { did: "nothing" };
-    await this.deps.db.insert(desires).values({
+    await db.insert(desires).values({
       gosinoId: self.id,
       text: out,
       dueHint: "quando c'è occasione",
@@ -215,8 +220,8 @@ export class RuminationService {
    * nella giornata di ENTRAMBI — il sogno lo vede, e rivedersi scalda come
    * un saluto (`peer_greeted`, coi suoi tetti).
    */
-  private async chat(self: Ruminator, mate: Ruminator, at: Date): Promise<RuminationReport> {
-    const picked = await this.pickMemories(self.id);
+  private async chat(db: DbClient, self: Ruminator, mate: Ruminator, at: Date): Promise<RuminationReport> {
+    const picked = await this.pickMemories(db, self.id);
     const topic = picked[0];
     if (topic === undefined) return { did: "nothing" };
     const opening = (
@@ -237,7 +242,7 @@ export class RuminationService {
       )
     )?.trim();
     const heard = reply === undefined || reply === "" || reply.length > SHORT_ENOUGH ? undefined : reply;
-    await this.deps.db.insert(events).values([
+    await db.insert(events).values([
       {
         gosinoId: self.id,
         ts: at,

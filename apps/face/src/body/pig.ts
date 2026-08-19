@@ -9,7 +9,7 @@ import { box } from "./solid.js";
  * Two parameter groups kept deliberately apart:
  *  - `Traits` is the SHAPE. It is the hook for `trait_sets` (ADR-015), which
  *    exists in the schema since birth and drives nothing: two gosini in the
- *    same household can differ in body, not only in memories.
+ *    same account can differ in body, not only in memories.
  *  - `Pose` is the MOVEMENT, and comes from the psyche.
  */
 

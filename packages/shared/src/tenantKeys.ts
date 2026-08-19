@@ -22,7 +22,7 @@ export function generateDataKey(): Buffer {
   return randomBytes(DATA_KEY_BYTES);
 }
 
-/** Wrap a house's data key with the master key, for storage in `households`. */
+/** Wrap a house's data key with the master key, for storage in `accounts`. */
 export function wrapDataKey(dataKey: Buffer, masterKey: Buffer): Buffer {
   if (dataKey.length !== DATA_KEY_BYTES) {
     throw new Error(`a data key must be ${String(DATA_KEY_BYTES)} bytes (AES-256)`);

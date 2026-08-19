@@ -10,7 +10,7 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 
 /**
  * Gli arredi: cosa c'è nella stanza, e quanti ne restano da mettere (ADR-056).
@@ -46,7 +46,7 @@ export const placedProps = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     /**
      * Lo slug della stanza, non il suo id.
      *
@@ -64,7 +64,7 @@ export const placedProps = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("placed_props_household_room_idx").on(table.householdId, table.roomSlug),
+    index("placed_props_account_room_idx").on(table.accountId, table.roomSlug),
     check("placed_props_kind", sql`${table.kind} in ('cushion','grass','bush','ball','trough')`),
     check("placed_props_x_range", sql`${table.x} between -1 and 1`),
     check("placed_props_z_range", sql`${table.z} between -1 and 1`),
@@ -91,7 +91,7 @@ export const propStock = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     kind: text("kind").notNull(),
     remaining: integer("remaining").notNull(),
     /** quanti ne tornano ogni settimana; 0 = quel che c'è è quel che c'è */
@@ -99,7 +99,7 @@ export const propStock = pgTable(
     refilledAt: timestamp("refilled_at", { withTimezone: true }),
   },
   (table) => [
-    unique("prop_stock_household_kind_uq").on(table.householdId, table.kind),
+    unique("prop_stock_account_kind_uq").on(table.accountId, table.kind),
     check("prop_stock_kind", sql`${table.kind} in ('cushion','grass','bush','ball','trough')`),
     check("prop_stock_remaining_positive", sql`${table.remaining} >= 0`),
     check("prop_stock_refill_positive", sql`${table.refillPerWeek} >= 0`),

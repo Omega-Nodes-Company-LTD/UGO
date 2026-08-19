@@ -12,7 +12,7 @@ import { startPostgres } from "@ugo/factories";
 import { loadSpeciesMap } from "@ugo/shared";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createHousehold, createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccount, createAccountWithFounder } from "../../src/services/accountService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -45,18 +45,18 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-diritti",
     name: "Diritti",
     gosinoName: "Ugo",
   });
   ownerToken = house.ownerToken;
-  houseId = house.householdId;
+  houseId = house.accountId;
   who = house.gosinoId;
 
   await db.insert(beings).values([
-    { householdId: houseId, displayName: "Monika", species: "human", kind: "resident" },
-    { householdId: houseId, displayName: "Piccolo", species: "human", kind: "resident", isMinor: true },
+    { accountId: houseId, displayName: "Monika", species: "human", kind: "resident" },
+    { accountId: houseId, displayName: "Piccolo", species: "human", kind: "resident", isMinor: true },
   ]);
   await db.insert(memories).values({
     gosinoId: who,
@@ -113,7 +113,7 @@ describe("«cosa sai di me»", () => {
   });
 
   it("conta la casa di chi chiede, non il server", async () => {
-    const other = await createHousehold(db, MASTER_KEY, { slug: "vicina-diritti", name: "Vicina" });
+    const other = await createAccount(db, MASTER_KEY, { slug: "vicina-diritti", name: "Vicina" });
     const response = await get("/v1/privacy/summary", other.ownerToken);
     expect(response.json<{ beings: number; memories: number }>().beings).toBe(0);
     expect(response.json<{ memories: number }>().memories).toBe(0);

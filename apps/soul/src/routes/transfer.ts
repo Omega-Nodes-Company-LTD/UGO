@@ -1,4 +1,4 @@
-import { gosini, households, traitSets, type DbClient } from "@ugo/db";
+import { gosini, accounts, traitSets, withMarket, type DbClient } from "@ugo/db";
 import { genomeHash, holderHash } from "@ugo/shared";
 import { and, eq, isNull, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -7,7 +7,7 @@ import type { RegistryClient } from "../services/registryClient.js";
 import { TransferService, type TransferRefusal } from "../services/transferService.js";
 import { guardBreeding } from "./breeding.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { accountScope } from "./scope.js";
 
 /**
  * La cessione (ADR-082): il gesto con cui un allevamento consegna un nato.
@@ -24,7 +24,7 @@ const cedeSchema = z.object({
    * elencare le case degli altri — e non deve poterlo fare: la destinazione la
    * sa perché gliel'ha detta chi compra, non perché sfoglia un elenco.
    */
-  toHousehold: z.string().min(1).max(120),
+  toAccount: z.string().min(1).max(120),
   /** deve combaciare col nome: è la conferma */
   confirmName: z.string().min(1).max(40),
 });
@@ -52,54 +52,63 @@ export interface TransferRoutesDeps {
 }
 
 export function registerTransferRoutes(app: FastifyInstance, deps: TransferRoutesDeps): void {
-  const transfers = new TransferService(deps.db);
-
   app.post("/v1/gosini/:id/cede", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = cedeSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
+    const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
+    if (accountId === undefined) return reply;
     // cedere è un atto d'allevamento: chi non alleva non ha nati da cedere
-    if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
+    if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
 
-    const [creature] = await deps.db
-      .select({ name: gosini.name })
-      .from(gosini)
-      .where(and(eq(gosini.id, id), eq(gosini.householdId, householdId)));
-    if (creature === undefined) return reply.status(404).send({ error: "non esiste" });
-    if (creature.name !== parsed.data.confirmName) {
+    // ADR-097: la cessione attraversa due case per disegno — il WITH CHECK
+    // della policy di casa rifiuterebbe la riga che passa di mano. Tutto
+    // l'atto gira nel ruolo del mercato; la catena resta fuori
+    const ceded = await withMarket(deps.db, async (db) => {
+      const [creature] = await db
+        .select({ name: gosini.name })
+        .from(gosini)
+        .where(and(eq(gosini.id, id), eq(gosini.accountId, accountId)));
+      if (creature === undefined) return "missing" as const;
+      if (creature.name !== parsed.data.confirmName) return "wrong-name" as const;
+
+      // uno slug è una parola, un id è un uuid: si accettano tutti e due, e si
+      // confronta l'id solo quando quello che è arrivato *è* un uuid
+      const asked = parsed.data.toAccount.trim();
+      const byId = z.uuid().safeParse(asked).success ? eq(accounts.id, asked) : undefined;
+      const [destination] = await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(and(isNull(accounts.closedAt), or(eq(accounts.slug, asked.toLowerCase()), byId)));
+      if (destination === undefined) return "no-destination" as const;
+
+      // l'impronta del genoma si legge PRIMA: dopo la cessione quel genoma è di
+      // un'altra casa, e questa non ha più titolo per leggerlo
+      const [genome] = await db
+        .select({ traits: traitSets.traits })
+        .from(traitSets)
+        .where(eq(traitSets.gosinoId, id))
+        .orderBy(traitSets.version)
+        .limit(1);
+
+      const done = await new TransferService(db).cede(accountId, id, destination.id);
+      if (typeof done === "string") return { refused: done };
+      return { done, genome, destination };
+    });
+    if (ceded === "missing") return reply.status(404).send({ error: "non esiste" });
+    if (ceded === "wrong-name") {
       return reply
         .status(400)
         .send({ error: "il nome non combacia", detail: "scrivi il suo nome per confermare" });
     }
-
-    // uno slug è una parola, un id è un uuid: si accettano tutti e due, e si
-    // confronta l'id solo quando quello che è arrivato *è* un uuid
-    const asked = parsed.data.toHousehold.trim();
-    const byId = z.uuid().safeParse(asked).success ? eq(households.id, asked) : undefined;
-    const [destination] = await deps.db
-      .select({ id: households.id })
-      .from(households)
-      .where(and(isNull(households.closedAt), or(eq(households.slug, asked.toLowerCase()), byId)));
-    if (destination === undefined) {
+    if (ceded === "no-destination") {
       return reply.status(404).send({ error: "casa sconosciuta", detail: "quella casa non esiste" });
     }
-
-    // l'impronta del genoma si legge PRIMA: dopo la cessione quel genoma è di
-    // un'altra casa, e questa non ha più titolo per leggerlo
-    const [genome] = await deps.db
-      .select({ traits: traitSets.traits })
-      .from(traitSets)
-      .where(eq(traitSets.gosinoId, id))
-      .orderBy(traitSets.version)
-      .limit(1);
-
-    const done = await transfers.cede(householdId, id, destination.id);
-    if (typeof done === "string") {
-      const refusal = REFUSALS[done];
-      return reply.status(refusal.status).send({ error: done, detail: refusal.detail });
+    if ("refused" in ceded) {
+      const refusal = REFUSALS[ceded.refused];
+      return reply.status(refusal.status).send({ error: ceded.refused, detail: refusal.detail });
     }
+    const { done, genome, destination } = ceded;
 
     /**
      * L'atto in catena. Se il registro è giù **la cessione è avvenuta lo
@@ -113,7 +122,7 @@ export function registerTransferRoutes(app: FastifyInstance, deps: TransferRoute
         gosinoId: id,
         genomeHash: genomeHash(genome?.traits ?? {}),
         at: new Date().toISOString(),
-        fromHash: holderHash(householdId),
+        fromHash: holderHash(accountId),
         toHash: holderHash(destination.id),
       });
       if (!outcome.published) {

@@ -25,7 +25,7 @@ export function questionHash(text: string): string {
 }
 
 export interface CacheKey {
-  householdId: string;
+  accountId: string;
   customerId: string;
   gosinoId: string;
 }
@@ -35,10 +35,16 @@ export class AnswerCache {
     private readonly db: DbClient,
     private readonly dataKey: Buffer,
     private readonly embedder?: EmbeddingsClient,
+    /** ADR-098: la connessione della casa del cliente; assente = `db` */
+    private readonly dbFor?: (accountId: string) => DbClient,
   ) {}
 
-  private async epochOf(customerId: string): Promise<number> {
-    const [row] = await this.db
+  private dbOf(accountId: string): DbClient {
+    return this.dbFor?.(accountId) ?? this.db;
+  }
+
+  private async epochOf(db: DbClient, customerId: string): Promise<number> {
+    const [row] = await db
       .select({ epoch: customers.knowledgeEpoch })
       .from(customers)
       .where(eq(customers.id, customerId));
@@ -47,7 +53,8 @@ export class AnswerCache {
 
   /** The cached reply, or undefined when the question deserves the provider. */
   public async lookup(key: CacheKey, question: string, at: Date = new Date()): Promise<string | undefined> {
-    const epoch = await this.epochOf(key.customerId);
+    const db = this.dbOf(key.accountId);
+    const epoch = await this.epochOf(db, key.customerId);
     const valid = and(
       eq(customerAnswerCache.customerId, key.customerId),
       eq(customerAnswerCache.gosinoId, key.gosinoId),
@@ -55,7 +62,7 @@ export class AnswerCache {
       gt(customerAnswerCache.expiresAt, at),
     );
 
-    const [exact] = await this.db
+    const [exact] = await db
       .select({ answer: customerAnswerCache.answerText })
       .from(customerAnswerCache)
       .where(and(valid, eq(customerAnswerCache.questionHash, questionHash(question))));
@@ -65,7 +72,7 @@ export class AnswerCache {
     const [embedding] = await this.embedder.embed([normalizeQuestion(question)]);
     if (embedding === undefined) return undefined;
     const distance = cosineDistance(customerAnswerCache.questionEmbedding, embedding);
-    const [near] = await this.db
+    const [near] = await db
       .select({
         answer: customerAnswerCache.answerText,
         similarity: sql<number>`1 - (${distance})`,
@@ -90,11 +97,12 @@ export class AnswerCache {
     if (this.embedder === undefined) return;
     const [embedding] = await this.embedder.embed([normalizeQuestion(question)]);
     if (embedding === undefined) return;
-    const epoch = await this.epochOf(key.customerId);
-    await this.db
+    const db = this.dbOf(key.accountId);
+    const epoch = await this.epochOf(db, key.customerId);
+    await db
       .insert(customerAnswerCache)
       .values({
-        householdId: key.householdId,
+        accountId: key.accountId,
         customerId: key.customerId,
         gosinoId: key.gosinoId,
         questionHash: questionHash(question),

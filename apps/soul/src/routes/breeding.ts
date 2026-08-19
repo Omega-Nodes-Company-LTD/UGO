@@ -1,4 +1,4 @@
-import { households, type DbClient } from "@ugo/db";
+import { accounts, type DbClient } from "@ugo/db";
 import { eq } from "drizzle-orm";
 import type { FastifyReply } from "fastify";
 
@@ -25,13 +25,13 @@ const REFUSALS: Readonly<Record<BreedingPermission, string>> = {
 
 export async function allowedTo(
   db: DbClient,
-  householdId: string,
+  accountId: string,
   permission: BreedingPermission,
 ): Promise<boolean> {
   const [house] = await db
-    .select({ foundry: households.isFoundry, breed: households.canBreed })
-    .from(households)
-    .where(eq(households.id, householdId));
+    .select({ foundry: accounts.isFoundry, breed: accounts.canBreed })
+    .from(accounts)
+    .where(eq(accounts.id, accountId));
   if (house === undefined) return false;
   // chi conia alleva per forza: un allevamento fondatore che non potesse fare
   // cucciolate potrebbe creare creature e non farne nascere nessuna
@@ -45,11 +45,11 @@ export async function allowedTo(
  */
 export async function guardBreeding(
   db: DbClient,
-  householdId: string,
+  accountId: string,
   permission: BreedingPermission,
   reply: FastifyReply,
 ): Promise<boolean> {
-  if (await allowedTo(db, householdId, permission)) return true;
+  if (await allowedTo(db, accountId, permission)) return true;
   await reply.status(403).send({ error: "non autorizzato", detail: REFUSALS[permission] });
   return false;
 }

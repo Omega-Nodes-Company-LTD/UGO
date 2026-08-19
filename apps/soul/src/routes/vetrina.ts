@@ -1,4 +1,4 @@
-import type { DbClient } from "@ugo/db";
+import { withMarket, type DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { PedigreeService } from "../services/pedigreeService.js";
@@ -7,7 +7,7 @@ import { AdoptionService } from "../services/adoptionService.js";
 import { VetrinaService } from "../services/vetrinaService.js";
 import { guardBreeding } from "./breeding.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 
 /**
  * La vetrina (ADR-083).
@@ -31,9 +31,6 @@ export interface VetrinaRoutesDeps {
 }
 
 export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesDeps): void {
-  const vetrina = new VetrinaService(deps.db);
-  const adoptions = new AdoptionService(deps.db);
-  const pedigrees = new PedigreeService(deps.db);
 
   /**
    * **Senza token**: è una vetrina. Quello che si vede è quello che si vede in
@@ -41,10 +38,15 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
    * niente delle case: nessuna persona, nessun ricordo, nessun conto.
    */
   app.get("/v1/vetrina", async (_request, reply) => {
-    // ADR-084: le prenotazioni scadute tornano in vetrina proprio adesso, che
-    // è il momento in cui qualcuno sta guardando — l'unico in cui la cosa conta
-    await adoptions.releaseExpired();
-    return reply.send({ allevamenti: await vetrina.browse() });
+    // ADR-097: chi guarda non ha una casa — la vetrina attraversa gli
+    // allevamenti per disegno, e sotto RLS passa dal ruolo del mercato
+    const allevamenti = await withMarket(deps.db, async (db) => {
+      // ADR-084: le prenotazioni scadute tornano in vetrina proprio adesso, che
+      // è il momento in cui qualcuno sta guardando — l'unico in cui la cosa conta
+      await new AdoptionService(db).releaseExpired();
+      return new VetrinaService(db).browse();
+    });
+    return reply.send({ allevamenti });
   });
 
   /**
@@ -55,13 +57,15 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
    */
   app.get("/v1/vetrina/:id/pedigree", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const listed = (await vetrina.browse()).flatMap((kennel) => kennel.cubs);
-    const cub = listed.find((one) => one.gosinoId === id);
-    if (cub === undefined) return reply.status(404).send({ error: "non è in vetrina" });
-    const tree = await pedigrees.ofListed(id);
+    const tree = await withMarket(deps.db, async (db) => {
+      const listed = (await new VetrinaService(db).browse()).flatMap((kennel) => kennel.cubs);
+      if (listed.find((one) => one.gosinoId === id) === undefined) return undefined;
+      return (await new PedigreeService(db).ofListed(id)) ?? [];
+    });
+    if (tree === undefined) return reply.status(404).send({ error: "non è in vetrina" });
     const registered = await deps.chain?.actsFor(id);
     return reply.send({
-      pedigree: tree ?? [],
+      pedigree: tree,
       ...(registered !== undefined && { registered }),
     });
   });
@@ -71,17 +75,25 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
     const parsed = showSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    if (!(await guardBreeding(deps.db, householdId, "alleva", reply))) return reply;
-
-    const done = await vetrina.show(
-      householdId,
-      id,
-      parsed.data.listed,
-      parsed.data.priceCents,
+    const done = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) => {
+        if (!(await guardBreeding(db, accountId, "alleva", reply))) return "denied" as const;
+        const shown = await new VetrinaService(db).show(
+          accountId,
+          id,
+          parsed.data.listed,
+          parsed.data.priceCents,
+        );
+        return shown ?? ("unfit" as const);
+      },
     );
-    if (done === undefined) {
+    if (done === undefined) return reply;
+    if (done === "denied") return reply;
+    if (done === "unfit") {
       return reply.status(422).send({
         error: "non si può mettere in vetrina",
         detail: "in vetrina ci va un nato di questa casa, e un capostipite non si vende",

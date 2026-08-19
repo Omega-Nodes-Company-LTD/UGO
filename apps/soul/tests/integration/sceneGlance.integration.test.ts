@@ -47,7 +47,7 @@ beforeAll(async () => {
   const psyche = await PsycheService.restore(db, new Date(), house.gosinoId);
   const chat = new ChatService({
     gosinoId: house.gosinoId,
-    householdId: house.id,
+    accountId: house.id,
     character: characterFrom({}),
     db,
     embedder: undefined as never,
@@ -65,7 +65,7 @@ afterAll(async () => {
 
 function glance(overrides: Partial<ConstructorParameters<typeof SceneGlance>[0]> = {}): SceneGlance {
   return new SceneGlance({
-    db,
+    dbFor: () => db,
     vision,
     visionUp: () => true,
     hourOf: () => 10,
@@ -96,14 +96,14 @@ describe("l'occhiata", () => {
     gateway.registerSender(sender);
 
     // primo battito: niente sguardo in mano → si chiede
-    expect(await glance().maybe({ id: house.gosinoId, gateway }, DAY, 0.01)).toBe("asked");
+    expect(await glance().maybe({ id: house.gosinoId, accountId: house.id, gateway }, DAY, 0.01)).toBe("asked");
     expect(asked).toContain("glimpse_ask");
 
     // il corpo risponde sul socket, come farà davvero
     expect(await gateway.handleRaw(JSON.stringify({ type: "glimpse", image: JPEG }), sender as never)).toBe(true);
 
     // secondo battito: lo sguardo c'è → frase nel canale della ruminazione
-    expect(await glance().maybe({ id: house.gosinoId, gateway }, DAY, 0.9)).toBe("thought");
+    expect(await glance().maybe({ id: house.gosinoId, accountId: house.id, gateway }, DAY, 0.9)).toBe("thought");
     expect(vision.seen).toEqual([JPEG]);
     const written = await thoughts();
     expect(written).toHaveLength(1);
@@ -122,16 +122,16 @@ describe("l'occhiata", () => {
   });
 
   it("il distanziatore: dopo un pensiero recente non si richiede", async () => {
-    expect(await glance().maybe({ id: house.gosinoId, gateway }, DAY, 0.01)).toBe("nothing");
+    expect(await glance().maybe({ id: house.gosinoId, accountId: house.id, gateway }, DAY, 0.01)).toBe("nothing");
   });
 
   it("di notte, a corpo scollegato o a modello spento: niente", async () => {
     const night = glance({ hourOf: () => 2 });
-    expect(await night.maybe({ id: house.gosinoId, gateway }, DAY, 0.01)).toBe("nothing");
+    expect(await night.maybe({ id: house.gosinoId, accountId: house.id, gateway }, DAY, 0.01)).toBe("nothing");
     const blind = glance({ visionUp: () => false });
-    expect(await blind.maybe({ id: house.gosinoId, gateway }, DAY, 0.01)).toBe("nothing");
+    expect(await blind.maybe({ id: house.gosinoId, accountId: house.id, gateway }, DAY, 0.01)).toBe("nothing");
     // nessun sender registrato = nessun corpo
-    expect(await glance().maybe({ id: house.gosinoId, gateway }, DAY, 0.01)).toBe("nothing");
+    expect(await glance().maybe({ id: house.gosinoId, accountId: house.id, gateway }, DAY, 0.01)).toBe("nothing");
   });
 
   it("uno sguardo vecchio non vale una frase: takeGlimpse lo scarta, consumandolo", async () => {

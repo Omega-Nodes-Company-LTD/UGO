@@ -5,7 +5,8 @@ import { z } from "zod";
 import { decryptText, MEMORY_KINDS } from "@ugo/shared";
 import type { ChatService } from "../services/chatService.js";
 import type { PreHandler } from "./guard.js";
-import { exemplarsOf, householdScope } from "./scope.js";
+import { exemplarsOf, accountScope, inAccount } from "./scope.js";
+import { withAccount } from "@ugo/db";
 
 /**
  * Windows onto what UGO has accumulated, and the two corrections a person
@@ -64,7 +65,7 @@ export interface ArchiveDeps {
   registry?: {
     resolve: (
       query: string | undefined,
-      householdId: string,
+      accountId: string,
     ) => { chat: ChatService; id: string } | undefined;
   };
 }
@@ -90,9 +91,11 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         detail: z.prettifyError(parsed.error),
       });
     }
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const mine = exemplarsOf(deps.db, householdId);
+    // NB (ADR-062): il ramo di ricerca semantica passa dal runtime della
+    // creatura (superficie 2) e si converte col lotto del gateway; qui si
+    // risolve la casa e basta, e il ramo «recenti» entra nel muro da solo
+    const accountId = await accountScope(deps.db, request, reply);
+    if (accountId === undefined) return reply;
     const { kind, q, limit } = parsed.data;
     // absent means the whole house (ADR-032); `resolve` would otherwise fall
     // back to the eldest and quietly answer as him
@@ -100,7 +103,7 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
     const who =
       asked === undefined || asked === ""
         ? undefined
-        : deps.registry?.resolve(asked, householdId);
+        : deps.registry?.resolve(asked, accountId);
     const chat = who?.chat ?? deps.chat;
 
     // with a query it is a semantic search — the same re-ranking the chat
@@ -119,26 +122,32 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
       });
     }
 
-    const rows = await deps.db
-      .select({
-        id: memories.id,
-        text: memories.text,
-        kind: memories.kind,
-        importance: memories.importance,
-        lastAccessed: memories.lastAccessed,
-        createdAt: memories.createdAt,
-        validFrom: memories.validFrom,
-        invalidatedAt: memories.invalidatedAt,
-        invalidatedReason: memories.invalidatedReason,
-      })
-      .from(memories)
-      .where(and(
-        kind === undefined ? undefined : eq(memories.kind, kind),
-        // absent narrows to the house, never to "everything"
-        who === undefined ? inArray(memories.gosinoId, mine) : eq(memories.gosinoId, who.id),
-      ))
-      .orderBy(desc(memories.createdAt))
-      .limit(limit);
+    const rows = await withAccount(deps.db, accountId, (db) =>
+      db
+        .select({
+          id: memories.id,
+          text: memories.text,
+          kind: memories.kind,
+          importance: memories.importance,
+          lastAccessed: memories.lastAccessed,
+          createdAt: memories.createdAt,
+          validFrom: memories.validFrom,
+          invalidatedAt: memories.invalidatedAt,
+          invalidatedReason: memories.invalidatedReason,
+        })
+        .from(memories)
+        .where(
+          and(
+            kind === undefined ? undefined : eq(memories.kind, kind),
+            // absent narrows to the house, never to "everything"
+            who === undefined
+              ? inArray(memories.gosinoId, exemplarsOf(db, accountId))
+              : eq(memories.gosinoId, who.id),
+          ),
+        )
+        .orderBy(desc(memories.createdAt))
+        .limit(limit),
+    );
     return reply.send({
       mode: "recent",
       memories: rows.map((row) => ({ ...row, text: readable(row.text) })),
@@ -162,10 +171,9 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         .type("application/problem+json")
         .send({ type: "about:blank", title: "Invalid correction", status: 400 });
     }
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const [updated] = await deps.db
-      .update(memories)
+    const updatedRows = await inAccount(deps.db, request, reply, {}, (db, accountId) =>
+      db
+        .update(memories)
       .set(
         parsed.data.valid
           ? // `supersededBy` goes too, or a memory the owner brought back keeps
@@ -177,9 +185,12 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
               ...(parsed.data.reason !== undefined && { invalidatedReason: parsed.data.reason }),
             },
       )
-      // a memory of another house answers 404, like one that does not exist
-      .where(and(eq(memories.id, id), inArray(memories.gosinoId, exemplarsOf(deps.db, householdId))))
-      .returning({ id: memories.id, invalidatedAt: memories.invalidatedAt });
+        // a memory of another house answers 404, like one that does not exist
+        .where(and(eq(memories.id, id), inArray(memories.gosinoId, exemplarsOf(db, accountId))))
+        .returning({ id: memories.id, invalidatedAt: memories.invalidatedAt }),
+    );
+    if (updatedRows === undefined) return reply;
+    const [updated] = updatedRows;
     if (updated === undefined) {
       return reply
         .code(404)
@@ -199,21 +210,21 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         .type("application/problem+json")
         .send({ type: "about:blank", title: "Invalid memory id", status: 400 });
     }
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const gone = await deps.db
-      .delete(memories)
-      .where(and(eq(memories.id, id), inArray(memories.gosinoId, exemplarsOf(deps.db, householdId))))
-      .returning({ id: memories.id });
+    const gone = await inAccount(deps.db, request, reply, {}, (db, accountId) =>
+      db
+        .delete(memories)
+        .where(and(eq(memories.id, id), inArray(memories.gosinoId, exemplarsOf(db, accountId))))
+        .returning({ id: memories.id }),
+    );
+    if (gone === undefined) return reply;
     request.log.info({ memoryId: id, existed: gone.length > 0 }, "memory destroyed");
     return reply.send({ destroyed: gone.length > 0 });
   });
 
   app.get("/v1/meetings", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply);
-    if (householdId === undefined) return reply;
-    const rows = await deps.db
-      .select({
+    const rows = await inAccount(deps.db, request, reply, {}, (db, accountId) =>
+      db
+        .select({
         id: meetings.id,
         platform: meetings.platform,
         title: meetings.title,
@@ -223,11 +234,13 @@ export function registerArchiveRoutes(app: FastifyInstance, deps: ArchiveDeps): 
         // chi ci è andato: senza, l'elenco del pannello non poteva dirlo
         who: gosini.name,
       })
-      .from(meetings)
-      .leftJoin(gosini, eq(meetings.gosinoId, gosini.id))
-      .where(inArray(meetings.gosinoId, exemplarsOf(deps.db, householdId)))
-      .orderBy(desc(meetings.startedAt))
-      .limit(RECENT_LIMIT);
+        .from(meetings)
+        .leftJoin(gosini, eq(meetings.gosinoId, gosini.id))
+        .where(inArray(meetings.gosinoId, exemplarsOf(db, accountId)))
+        .orderBy(desc(meetings.startedAt))
+        .limit(RECENT_LIMIT),
+    );
+    if (rows === undefined) return reply;
     return reply.send({ meetings: rows });
   });
 }

@@ -43,7 +43,7 @@ def cfg(pg_url, minio, ollama_url, batch_stub):
 
 def _being(conn: psycopg.Connection, name: str, aliases: list[str] | None = None) -> str:
     row = conn.execute(
-        "insert into beings (household_id, display_name, aliases) values (%s, %s, %s) returning id",
+        "insert into beings (account_id, display_name, aliases) values (%s, %s, %s) returning id",
         (HOUSEHOLD, name, aliases or []),
     ).fetchone()
     conn.commit()

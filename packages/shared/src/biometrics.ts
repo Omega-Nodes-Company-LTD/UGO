@@ -5,7 +5,7 @@ import { decryptBytes, encryptBytes } from "./crypto.js";
  * holds readable floats, and a voiceprint in the clear is exactly the datum
  * the encryption requirement exists to protect. They travel as float32
  * little-endian, sealed with AES-256-GCM, and are compared in memory after
- * decryption — on a household-sized set that costs microseconds.
+ * decryption — on a account-sized set that costs microseconds.
  *
  * Byte layout is shared with ops/jobs (numpy `<f4`), so a profile written by
  * the Python enrollment job is readable by soul and vice versa.

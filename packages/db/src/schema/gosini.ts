@@ -13,13 +13,13 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { gosinoOrigin } from "./enums.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 import { bytea } from "./types.js";
 
 /**
  * The population (ADR-015): the exemplars themselves. A gosino is a character
  * — memories, mood, genome. What belongs to the *house* rather than to the
- * creature (clock, language, money, data key) lives in `households` (ADR-019),
+ * creature (clock, language, money, data key) lives in `accounts` (ADR-019),
  * because one house may hold more than one exemplar.
  */
 export const gosini = pgTable(
@@ -28,7 +28,7 @@ export const gosini = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     name: text("name").notNull(),
     /** 'cucina', 'officina', 'camera' — where this exemplar lives */
     locationLabel: text("location_label"),
@@ -49,7 +49,7 @@ export const gosini = pgTable(
     /**
      * The creature's cryptographic identity (ADR-020). The public key is what
      * another gosino verifies; the private key and the rotation secret are
-     * ciphertext under the household's data key, like every other secret.
+     * ciphertext under the account's data key, like every other secret.
      */
     signingPublicKey: bytea("signing_public_key"),
     signingPrivateKey: bytea("signing_private_key"),
@@ -58,7 +58,7 @@ export const gosini = pgTable(
     peerEncounters: boolean("peer_encounters").notNull().default(false),
     /**
      * La chiave della SUA interiorità (ADR-075), avvolta nella chiave dati
-     * della casa — lo stesso schema di `households.wrapped_data_key`.
+     * della casa — lo stesso schema di `accounts.wrapped_data_key`.
      *
      * Alla morte questo involucro viene azzerato, e da quel momento ciò che
      * era cifrato con quella chiave non è più leggibile **da nessuno**:
@@ -120,9 +120,9 @@ export const gosini = pgTable(
     retiredAt: timestamp("retired_at", { withTimezone: true }),
   },
   (table) => [
-    index("gosini_household_idx").on(table.householdId),
+    index("gosini_account_idx").on(table.accountId),
     // the target of the composite keys that pin a bond to one house
-    unique("gosini_household_id_uq").on(table.householdId, table.id),
+    unique("gosini_account_id_uq").on(table.accountId, table.id),
   ],
 );
 
@@ -146,7 +146,7 @@ export const traitSets = pgTable(
      * without a join — and the composite key below makes the pair impossible
      * to get wrong.
      */
-    householdId: householdId(),
+    accountId: accountId(),
     version: integer("version").notNull(),
     // jsonb precisely because this is the field meant to change shape:
     // typed columns would mean a migration per new trait
@@ -158,9 +158,9 @@ export const traitSets = pgTable(
   (table) => [
     unique("trait_sets_gosino_version_uq").on(table.gosinoId, table.version),
     foreignKey({
-      columns: [table.householdId, table.gosinoId],
-      foreignColumns: [gosini.householdId, gosini.id],
-      name: "trait_sets_household_gosino_fk",
+      columns: [table.accountId, table.gosinoId],
+      foreignColumns: [gosini.accountId, gosini.id],
+      name: "trait_sets_account_gosino_fk",
     }).onDelete("cascade"),
   ],
 );

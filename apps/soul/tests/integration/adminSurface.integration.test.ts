@@ -8,7 +8,7 @@ import {
   desires,
   events,
   gosini,
-  households,
+  accounts,
   memories,
   PRIME_GOSINO_ID,
   relations,
@@ -47,7 +47,7 @@ let app: FastifyInstance;
 let registry: GosinoRegistry;
 let ugo: string;
 let nino: string;
-let householdId: string;
+let accountId: string;
 
 const idleEmbedder: EmbeddingsClient = {
   embed: (texts) => Promise.resolve(texts.map(() => Array.from({ length: 768 }, () => 0))),
@@ -66,15 +66,15 @@ beforeAll(async () => {
   await runMigrations(postgres.url);
   db = createDbClient(postgres.url);
 
-  const houses = await db.select({ id: households.id }).from(households).limit(1);
+  const houses = await db.select({ id: accounts.id }).from(accounts).limit(1);
   const found = houses[0]?.id;
-  if (found === undefined) throw new Error("the migrations seed one household");
-  householdId = found;
+  if (found === undefined) throw new Error("the migrations seed one account");
+  accountId = found;
   const born = await db
     .insert(gosini)
     .values([
-      { householdId: found, name: "Ugo", locationLabel: "cucina" },
-      { householdId: found, name: "Nino", locationLabel: "studio" },
+      { accountId: found, name: "Ugo", locationLabel: "cucina" },
+      { accountId: found, name: "Nino", locationLabel: "studio" },
     ])
     .returning({ id: gosini.id });
   ugo = born[0]?.id ?? "";
@@ -82,12 +82,15 @@ beforeAll(async () => {
   // ADR-039: a label only means something if the room is in the catalogue —
   // which is the state the backfill migration leaves an existing house in
   await db.insert(rooms).values([
-    { householdId: found, name: "cucina", slug: "cucina" },
-    { householdId: found, name: "studio", slug: "studio" },
+    { accountId: found, name: "cucina", slug: "cucina" },
+    { accountId: found, name: "studio", slug: "studio" },
   ]);
 
   registry = await GosinoRegistry.load({
     db,
+    // ADR-098: nei test la connessione di processo e' l'owner, quindi la
+    // "connessione della casa" puo' essere la stessa — il muro qui non morde
+    dbFor: () => db,
     embedder: idleEmbedder,
     // ADR-019 fase 2: `llm` e' una fabbrica per esemplare, non un client.
     // Qui era `undefined as never`, che compilava finche' il client veniva solo
@@ -109,7 +112,7 @@ beforeAll(async () => {
     logger: false,
     features: {
       chat: undefined as never,
-      psyche: registry.resolve(undefined, householdId)?.psyche as never,
+      psyche: registry.resolve(undefined, accountId)?.psyche as never,
       registry,
       initiative: new InitiativeSwitch(() => true),
       stats: { dailyBudgetUsd: 0.5, timezone: "Europe/Rome" },
@@ -277,10 +280,10 @@ describe("what the panel can see", () => {
     expect(moved.statusCode).toBe(200);
 
     // the registry knows, so the kitchen dock now shows two
-    expect(registry.inRoom("cucina", householdId).map((r) => r.name).sort()).toEqual(["Nino", "Ugo"]);
-    expect(registry.inRoom("studio", householdId)).toHaveLength(0);
+    expect(registry.inRoom("cucina", accountId).map((r) => r.name).sort()).toEqual(["Nino", "Ugo"]);
+    expect(registry.inRoom("studio", accountId)).toHaveLength(0);
     // matching is forgiving: the label is typed by a person twice
-    expect(registry.inRoom("  CUCINA ", householdId)).toHaveLength(2);
+    expect(registry.inRoom("  CUCINA ", accountId)).toHaveLength(2);
 
     // and he is the same creature: same object, same stress, nothing rebuilt
     const after = registry.everywhere().find((r) => r.id === nino)?.psyche;
@@ -295,8 +298,8 @@ describe("what the panel can see", () => {
       headers: { authorization: `Bearer ${TOKEN}` },
       payload: { locationLabel: "" },
     });
-    expect(registry.inRoom("cucina", householdId).map((r) => r.name)).toEqual(["Ugo"]);
-    expect(registry.rooms(householdId).flatMap((r) => r.gosini.map((g) => g.name))).not.toContain("Nino");
+    expect(registry.inRoom("cucina", accountId).map((r) => r.name)).toEqual(["Ugo"]);
+    expect(registry.rooms(accountId).flatMap((r) => r.gosini.map((g) => g.name))).not.toContain("Nino");
   });
 
   it("refuses to show any of it without the token", async () => {
@@ -319,21 +322,21 @@ describe("il pannello guarda una casa sola", () => {
   let vicini: TestHouse;
   let loroBeing: string;
   const mine = (url: string) =>
-    get(url.includes("?") ? `${url}&casa=${householdId}` : `${url}?casa=${householdId}`);
+    get(url.includes("?") ? `${url}&casa=${accountId}` : `${url}?account=${accountId}`);
   const theirs = (url: string) =>
-    get(url.includes("?") ? `${url}&casa=${vicini.id}` : `${url}?casa=${vicini.id}`);
+    get(url.includes("?") ? `${url}&casa=${vicini.id}` : `${url}?account=${vicini.id}`);
 
   beforeAll(async () => {
     vicini = await createHouse(db, "casa-vicini-pannello", { name: "i vicini" });
     loroBeing = await addBeing(db, vicini, "Persona Dei Vicini");
-    await db.insert(beings).values({ householdId, displayName: "Persona Nostra" });
+    await db.insert(beings).values({ accountId, displayName: "Persona Nostra" });
     await db.insert(memories).values([
       { gosinoId: vicini.gosinoId, kind: "fact", text: "i vicini hanno un gatto", importance: 0.5 },
       { gosinoId: ugo, kind: "fact", text: "noi abbiamo una lavatrice rotta", importance: 0.5 },
     ]);
     await db.insert(budgetLedger).values([
       {
-        householdId: vicini.id,
+        accountId: vicini.id,
         gosinoId: vicini.gosinoId,
         date: "2026-01-20",
         provider: "anthropic",
@@ -342,7 +345,7 @@ describe("il pannello guarda una casa sola", () => {
       },
     ]);
     await db.insert(relations).values({
-      householdId: vicini.id,
+      accountId: vicini.id,
       beingA: loroBeing,
       beingB: await addBeing(db, vicini, "Altro Vicino"),
       type: "cares_for",
@@ -384,6 +387,6 @@ describe("il pannello guarda una casa sola", () => {
   it("stops guessing once there is more than one house", async () => {
     // the same request answered 200 while a single family lived here
     expect((await get("/v1/stats")).statusCode).toBe(400);
-    expect((await get(`/v1/stats?casa=${crypto.randomUUID()}`)).statusCode).toBe(404);
+    expect((await get(`/v1/stats?account=${crypto.randomUUID()}`)).statusCode).toBe(404);
   });
 });

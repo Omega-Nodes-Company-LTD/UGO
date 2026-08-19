@@ -13,8 +13,8 @@ import { bytea } from "./types.js";
  * So the house holds the pack, the exemplars and the money; the gosino holds
  * the character, the memories and the mood.
  */
-export const households = pgTable(
-  "households",
+export const accounts = pgTable(
+  "accounts",
   {
   id: uuid("id")
     .primaryKey()
@@ -24,7 +24,7 @@ export const households = pgTable(
   name: text("name").notNull(),
   /**
    * ADR-061: la natura del tenant — una casa (PET, ricordi, affetto) o
-   * un'azienda (reception, clienti, ticket). Il nome tecnico `households`
+   * un'azienda (reception, clienti, ticket). Il nome tecnico `accounts`
    * resta; la lingua cambia dove la vedono le persone. Oggi descrive, non
    * vieta: è il posto dove il futuro gating vive, non un regolamento
    * retroattivo. `text` + check, non enum Postgres (la trappola di
@@ -86,34 +86,34 @@ export const households = pgTable(
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   closedAt: timestamp("closed_at", { withTimezone: true }),
   },
-  (table) => [check("households_kind", sql`${table.kind} in ('home', 'business')`)],
+  (table) => [check("accounts_kind", sql`${table.kind} in ('home', 'business')`)],
 );
 
 /** The bootstrap house, seeded alongside `ugo-prime` (ADR-015, ADR-019). */
-export const PRIME_HOUSEHOLD_ID = "00000000-0000-4000-8000-000000000002";
+export const PRIME_ACCOUNT_ID = "00000000-0000-4000-8000-000000000002";
 
 /**
- * The `household_id` column every tenant-scoped table carries.
+ * The `account_id` column every tenant-scoped table carries.
  *
  * The two-function shape exists to keep the column's *type*. Annotated
  * `PgColumnBuilderBase` — as this was — every table built with the helper got a
- * `household_id` of type `unknown`, so `eq(beings.householdId, x)` compiled
+ * `account_id` of type `unknown`, so `eq(beings.accountId, x)` compiled
  * against anything and a missing tenant filter was invisible to the compiler.
  * That is a fair part of why ADR-019 phase 1 shipped with the columns in place
  * and almost nothing filtering on them. The inner function keeps the precise
  * builder type; the outer one satisfies `explicit-module-boundary-types`
  * without throwing it away.
  */
-function buildHouseholdId() {
+function buildAccountId() {
   // ADR-048 tempo 2: niente `.default()`. Finché c'era, una scrittura che
   // dimenticava lo scope finiva nella casa seminata **invece di fallire** —
   // silenziosamente, e nella casa sbagliata. Ora il tipo la rifiuta a
   // compilazione e Postgres a runtime.
-  return uuid("household_id")
+  return uuid("account_id")
     .notNull()
-    .references(() => households.id);
+    .references(() => accounts.id);
 }
 
-export function householdId(): ReturnType<typeof buildHouseholdId> {
-  return buildHouseholdId();
+export function accountId(): ReturnType<typeof buildAccountId> {
+  return buildAccountId();
 }

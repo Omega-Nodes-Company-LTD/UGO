@@ -42,6 +42,8 @@ interface CommitSummary {
 
 export interface GithubLiveOptions {
   db: DbClient;
+  /** ADR-098: la connessione della casa del cliente; assente = `db` */
+  dbFor?: (accountId: string) => DbClient;
   dataKey: Buffer;
   /** override for network-level test stubs */
   baseUrl?: string;
@@ -60,8 +62,16 @@ export class GithubLiveService {
    * customer has no GitHub repos. Unreachable repos are named as such —
    * saying nothing would read as "nothing is happening", which is false.
    */
-  public async liveBlock(customerId: string, at: Date = new Date()): Promise<string | undefined> {
-    const repos = await this.options.db
+  public async liveBlock(
+    customerId: string,
+    at: Date = new Date(),
+    accountId?: string,
+  ): Promise<string | undefined> {
+    const db =
+      accountId !== undefined && this.options.dbFor !== undefined
+        ? this.options.dbFor(accountId)
+        : this.options.db;
+    const repos = await db
       .select({
         id: customerRepos.id,
         remoteUrl: customerRepos.remoteUrl,

@@ -119,7 +119,7 @@ def sync_mail_account(conn: psycopg.Connection, cfg: JobsConfig, account: dict) 
                     indexed += replace_chunks(
                         conn,
                         cfg,
-                        household_id=str(account["household_id"]),
+                        account_id=str(account["account_id"]),
                         customer_id=str(account["customer_id"]),
                         source_type="email",
                         source_id=str(account["id"]),
@@ -147,21 +147,21 @@ def sync_mail_account(conn: psycopg.Connection, cfg: JobsConfig, account: dict) 
         return {"account": str(account["id"]), "error": type(error).__name__}
 
 
-def run_mail(conn: psycopg.Connection, cfg: JobsConfig, household_id: str) -> list[dict]:
+def run_mail(conn: psycopg.Connection, cfg: JobsConfig, account_id: str) -> list[dict]:
     rows = conn.execute(
         """
-        select m.id, m.household_id, m.customer_id, m.imap_host, m.imap_port,
+        select m.id, m.account_id, m.customer_id, m.imap_host, m.imap_port,
                m.username, m.password, m.folder, m.senders, m.last_uid
         from customer_mail_accounts m
         join customers c on c.id = m.customer_id
-        where m.household_id = %s and c.archived_at is null
+        where m.account_id = %s and c.archived_at is null
         order by m.created_at
         """,
-        (household_id,),
+        (account_id,),
     ).fetchall()
     columns = [
         "id",
-        "household_id",
+        "account_id",
         "customer_id",
         "imap_host",
         "imap_port",

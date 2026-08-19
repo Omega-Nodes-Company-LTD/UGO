@@ -81,9 +81,9 @@ describe("migrations on a pristine postgres", () => {
   });
 
   // ADR-051/052: the reception's tables are tenant tables like the others —
-  // RLS enabled, one household policy each, declared in the hand-written tail
+  // RLS enabled, one account policy each, declared in the hand-written tail
   // of 0016. A table with RLS on and no policy would be mute, not isolated.
-  it("gives every reception table its household policy", async () => {
+  it("gives every reception table its account policy", async () => {
     const receptionTables = [
       "customers",
       "customer_gosini",
@@ -101,7 +101,7 @@ describe("migrations on a pristine postgres", () => {
     `);
     for (const table of receptionTables) {
       expect(
-        rows.some((row) => row.tablename === table && row.policyname === `${table}_household`),
+        rows.some((row) => row.tablename === table && row.policyname === `${table}_account`),
         `missing policy on ${table}`,
       ).toBe(true);
     }
@@ -115,13 +115,13 @@ describe("migrations on a pristine postgres", () => {
     }
   });
 
-  // ADR-069: the lineage is a household fact behind the wall, and an act, not
+  // ADR-069: the lineage is a account fact behind the wall, and an act, not
   // a record to correct — UPDATE and DELETE are not granted, like the audit log
-  it("puts the lineage behind the household wall, append-only for ugo_app", async () => {
+  it("puts the lineage behind the account wall, append-only for ugo_app", async () => {
     const policies = await db.execute<{ policyname: string }>(sql`
       select policyname from pg_policies where schemaname = 'public' and tablename = 'births'
     `);
-    expect(policies.some((row) => row.policyname === "births_household")).toBe(true);
+    expect(policies.some((row) => row.policyname === "births_account")).toBe(true);
 
     const grants = await db.execute<{ privilege_type: string }>(sql`
       select privilege_type from information_schema.role_table_grants
@@ -131,11 +131,11 @@ describe("migrations on a pristine postgres", () => {
   });
 
   // ADR-072: il cibo è un fatto della casa e un atto, come il lignaggio
-  it("puts the meals behind the household wall, append-only for ugo_app", async () => {
+  it("puts the meals behind the account wall, append-only for ugo_app", async () => {
     const policies = await db.execute<{ policyname: string }>(sql`
       select policyname from pg_policies where schemaname = 'public' and tablename = 'feedings'
     `);
-    expect(policies.some((row) => row.policyname === "feedings_household")).toBe(true);
+    expect(policies.some((row) => row.policyname === "feedings_account")).toBe(true);
 
     const grants = await db.execute<{ privilege_type: string }>(sql`
       select privilege_type from information_schema.role_table_grants

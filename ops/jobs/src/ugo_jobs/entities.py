@@ -71,8 +71,8 @@ class EntitiesResult:
 
 def _pack(conn: psycopg.Connection, cfg: JobsConfig) -> list[tuple[str, str, list[str]]]:
     rows = conn.execute(
-        "select id, display_name, aliases from beings where household_id = %s",
-        (cfg.household_id,),
+        "select id, display_name, aliases from beings where account_id = %s",
+        (cfg.account_id,),
     ).fetchall()
     return [(str(r[0]), r[1], list(r[2] or [])) for r in rows]
 
@@ -125,8 +125,8 @@ def run_entities(
         for being_id, _ in hits:
             written = conn.execute(
                 """
-                insert into memory_beings (memory_id, being_id, household_id)
-                values (%s, %s, (select household_id from beings where id = %s))
+                insert into memory_beings (memory_id, being_id, account_id)
+                values (%s, %s, (select account_id from beings where id = %s))
                 on conflict do nothing
                 """,
                 (memory_id, being_id, being_id),
@@ -176,11 +176,11 @@ def _infer_relations(
             a_id, b_id = b_id, a_id
         written += conn.execute(
             """
-            insert into relations (household_id, being_a, being_b, type, source)
+            insert into relations (account_id, being_a, being_b, type, source)
             values (%s, %s, %s, %s, 'dream')
             on conflict (being_a, being_b, type) do nothing
             """,
-            (cfg.household_id, a_id, b_id, link.type),
+            (cfg.account_id, a_id, b_id, link.type),
         ).rowcount
 
     if written:

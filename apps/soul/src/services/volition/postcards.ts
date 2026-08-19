@@ -1,5 +1,5 @@
 /**
- * La cartolina a voce (ADR-092) — PURA, e deliberatamente non una chiamata al
+ * La cartolina a voce (ADR-099) — PURA, e deliberatamente non una chiamata al
  * modello: «manda ai nonni: siamo stati al parco» è un atto, non una
  * conversazione, e l'atto esplicito è l'UNICA strada da cui una cartolina
  * può partire.

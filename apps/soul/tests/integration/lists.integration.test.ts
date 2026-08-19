@@ -14,7 +14,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
 import { characterFrom } from "../../src/services/council/character.js";
-import { createHouseholdWithFounder } from "../../src/services/householdService.js";
+import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 
 /**
@@ -43,12 +43,12 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-liste",
     name: "Liste",
     gosinoName: "Segna",
   });
-  houseId = house.householdId;
+  houseId = house.accountId;
   who = house.gosinoId;
 
   chat = new ChatService({
@@ -57,13 +57,13 @@ beforeAll(async () => {
     embedder: { embed: () => Promise.reject(new Error("mai")) },
     llm: {
       chat: () => Promise.reject(new Error("il provider non deve essere chiamato")),
-    } as never,
+    },
     psyche: await PsycheService.restore(db, new Date(), who),
     dataKey: DATA_KEY,
     timezone: "Europe/Rome",
     locale: "it-IT",
     gosinoId: who,
-    householdId: houseId,
+    accountId: houseId,
     character: characterFrom({}),
   });
 }, 240_000);
@@ -77,7 +77,7 @@ const openItems = async (list: string): Promise<string[]> => {
   const rows = await db
     .select({ text: listItems.text, done: listItems.done })
     .from(listItems)
-    .where(eq(listItems.householdId, houseId));
+    .where(eq(listItems.accountId, houseId));
   return rows
     .filter((row) => !row.done)
     .map((row) => decryptText(row.text, DATA_KEY))
@@ -89,7 +89,7 @@ describe("i gesti di lista", () => {
     const response = await say("aggiungi il latte alla spesa");
     expect(response.reply).toContain("latte");
 
-    const rows = await db.select().from(listItems).where(eq(listItems.householdId, houseId));
+    const rows = await db.select().from(listItems).where(eq(listItems.accountId, houseId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.list).toBe("spesa");
     expect(decryptText(rows[0]?.text ?? "", DATA_KEY)).toBe("latte");
@@ -110,7 +110,7 @@ describe("i gesti di lista", () => {
     const open = await openItems("spesa");
     expect(open).toEqual(["latte"]);
     // la riga c'è ancora, spuntata: una lista è una storia, non un contatore
-    const all = await db.select().from(listItems).where(eq(listItems.householdId, houseId));
+    const all = await db.select().from(listItems).where(eq(listItems.accountId, houseId));
     expect(all).toHaveLength(2);
     expect(all.filter((row) => row.done)).toHaveLength(1);
   });
@@ -120,7 +120,7 @@ describe("i gesti di lista", () => {
     const rows = await db
       .select({ list: listItems.list })
       .from(listItems)
-      .where(eq(listItems.householdId, houseId));
+      .where(eq(listItems.accountId, houseId));
     expect(rows.map((row) => row.list)).toContain("ferramenta");
   });
 

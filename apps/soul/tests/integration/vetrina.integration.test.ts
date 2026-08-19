@@ -5,9 +5,9 @@ import { startPostgres } from "@ugo/factories";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  createHousehold,
-  createHouseholdWithFounder,
-} from "../../src/services/householdService.js";
+  createAccount,
+  createAccountWithFounder,
+} from "../../src/services/accountService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -58,7 +58,7 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const kennel = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const kennel = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "allevamento",
     name: "Allevamento del Gosino",
     gosinoName: "Zero",
@@ -67,7 +67,7 @@ beforeAll(async () => {
   allevamento = kennel.ownerToken;
   capostipite = kennel.gosinoId;
 
-  const home = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const home = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "famiglia",
     name: "Famiglia",
     gosinoName: "Pippo",
@@ -78,7 +78,7 @@ beforeAll(async () => {
   const [born] = await db
     .insert(gosini)
     .values({
-      householdId: kennel.householdId,
+      accountId: kennel.accountId,
       name: "Nino",
       origin: "nato",
       generation: 1,
@@ -89,7 +89,7 @@ beforeAll(async () => {
   if (born === undefined) throw new Error("no cub");
   cucciolo = born.id;
   await db.insert(traitSets).values({
-    householdId: kennel.householdId,
+    accountId: kennel.accountId,
     gosinoId: cucciolo,
     version: 1,
     traits: { calm: 0.5, spots: 0.9, tail: 0.8, longevity: 0.9 },
@@ -172,9 +172,9 @@ describe("guardare, senza avere ancora una casa", () => {
 
 describe("la casa nasce vuota (ADR-082)", () => {
   it("senza chiedere un capostipite, non nasce nessuno", async () => {
-    const empty = await createHousehold(db, MASTER_KEY, { slug: "vuota", name: "Vuota" });
+    const empty = await createAccount(db, MASTER_KEY, { slug: "vuota", name: "Vuota" });
     expect(empty.gosinoId).toBeUndefined();
     const rows = await db.select().from(gosini);
-    expect(rows.filter((row) => row.householdId === empty.householdId)).toHaveLength(0);
+    expect(rows.filter((row) => row.accountId === empty.accountId)).toHaveLength(0);
   });
 });

@@ -1,7 +1,7 @@
-import { households, type DbClient } from "@ugo/db";
+import { accounts, type DbClient } from "@ugo/db";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
-import { resolveHousehold } from "./scope.js";
+import { resolveAccount } from "./scope.js";
 
 /**
  * Il meteo vero, per il cielo del recinto (gruppo 12).
@@ -39,7 +39,7 @@ export interface WeatherDeps {
    *
    * Resta solo per non spegnere il cielo alle installazioni che l'hanno già
    * configurato così, ed è **deprecato**: le coordinate sono della CASA
-   * (`households.lat/lon`, dal pannello), perché con quelle nell'ambiente del
+   * (`accounts.lat/lon`, dal pannello), perché con quelle nell'ambiente del
    * processo servire due famiglie significa due server — cioè il contrario di
    * ADR-019. Quando la casa ha il suo posto, questo non viene nemmeno letto.
    */
@@ -69,15 +69,15 @@ export function registerWeatherRoute(app: FastifyInstance, deps: WeatherDeps): v
 
   app.get("/v1/weather", async (request, reply) => {
     // la casa prima dell'ambiente: il corpo non porta un token, e
-    // `resolveHousehold` sa già rispondere «l'unica che c'è» in quel caso
+    // `resolveAccount` sa già rispondere «l'unica che c'è» in quel caso
     const db = deps.db;
     let home = deps.home;
-    const scope = db === undefined ? undefined : await resolveHousehold(db, request);
+    const scope = db === undefined ? undefined : await resolveAccount(db, request);
     if (db !== undefined && scope?.ok === true) {
       const [row] = await db
-        .select({ lat: households.lat, lon: households.lon })
-        .from(households)
-        .where(eq(households.id, scope.householdId));
+        .select({ lat: accounts.lat, lon: accounts.lon })
+        .from(accounts)
+        .where(eq(accounts.id, scope.accountId));
       if (row?.lat != null && row.lon != null) {
         home = { lat: Number(row.lat), lon: Number(row.lon) };
       }

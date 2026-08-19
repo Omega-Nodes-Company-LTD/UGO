@@ -57,14 +57,14 @@ async function addCustomer(
 ): Promise<{ id: string; token: string }> {
   const [row] = await db
     .insert(customers)
-    .values({ householdId: house.id, name: slug, slug, ...overrides })
+    .values({ accountId: house.id, name: slug, slug, ...overrides })
     .returning({ id: customers.id });
   if (row === undefined) throw new Error("customer not created");
   await db
     .insert(customerGosini)
-    .values({ householdId: house.id, customerId: row.id, gosinoId: house.gosinoId });
+    .values({ accountId: house.id, customerId: row.id, gosinoId: house.gosinoId });
   const issued = await issueCustomerToken(db, {
-    householdId: house.id,
+    accountId: house.id,
     customerId: row.id,
     label: `portale ${slug}`,
   });
@@ -91,7 +91,7 @@ beforeAll(async () => {
   customerB = await addCustomer(houseB, "bianchi-spa");
 
   const llmFor = (
-    householdId: string,
+    accountId: string,
     gosinoId: string,
     clock?: { timezone: string; locale: string },
   ): LlmClient =>
@@ -100,7 +100,7 @@ beforeAll(async () => {
       apiKey: "stub-key",
       model: "claude-haiku-4-5",
       dailyBudgetUsd: 10,
-      householdId,
+      accountId,
       gosinoId,
       baseUrl: stub.baseUrl,
       timezone: clock?.timezone ?? "Europe/Rome",
@@ -171,7 +171,7 @@ describe("the reception's double credential", () => {
 
   it("a revoked customer token stops working", async () => {
     const revocable = await issueCustomerToken(db, {
-      householdId: houseA.id,
+      accountId: houseA.id,
       customerId: customerA.id,
       label: "da revocare",
     });
@@ -529,7 +529,7 @@ describe("la mela del cliente (ADR-058)", () => {
       .from(customerRewards)
       .where(eq(customerRewards.customerId, customerA.id));
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.householdId).toBe(houseA.id);
+    expect(rows[0]?.accountId).toBe(houseA.id);
 
     // la riga in `events`: source reception, solo ID nel payload (regola 6)
     const remembered = await db

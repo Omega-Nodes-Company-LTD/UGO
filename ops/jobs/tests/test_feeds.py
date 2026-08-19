@@ -71,29 +71,29 @@ def test_parse_guid_ripiega_su_link_poi_titolo() -> None:
 def house(pg_url: str):
     with psycopg.connect(pg_url) as conn:
         # uno slug per test: la casa del test precedente resta nel database
-        household_id = make_house(conn, f"casa-feed-{uuid4().hex[:8]}")
-        gosino_id = make_gosino(conn, household_id, "Ugo")
+        account_id = make_house(conn, f"casa-feed-{uuid4().hex[:8]}")
+        gosino_id = make_gosino(conn, account_id, "Ugo")
         conn.commit()
-        yield conn, household_id, gosino_id
+        yield conn, account_id, gosino_id
         conn.rollback()
-        conn.execute("delete from rss_feeds where household_id = %s", (household_id,))
-        conn.execute("delete from customers where household_id = %s", (household_id,))
+        conn.execute("delete from rss_feeds where account_id = %s", (account_id,))
+        conn.execute("delete from customers where account_id = %s", (account_id,))
         conn.commit()
 
 
-def subscribe(conn: psycopg.Connection, household_id: str, url: str) -> str:
+def subscribe(conn: psycopg.Connection, account_id: str, url: str) -> str:
     return str(
         conn.execute(
-            "insert into rss_feeds (household_id, url, label) values (%s, %s, %s) returning id",
-            (household_id, url, url),
+            "insert into rss_feeds (account_id, url, label) values (%s, %s, %s) returning id",
+            (account_id, url, url),
         ).fetchone()[0]
     )
 
 
 def test_run_feeds_scarica_deduplica_ed_embedda(pg_url: str, house) -> None:
-    conn, household_id, _ = house
-    cfg = db_only_config(pg_url, household_id=household_id)
-    subscribe(conn, household_id, "https://blog.example.com/feed.xml")
+    conn, account_id, _ = house
+    cfg = db_only_config(pg_url, account_id=account_id)
+    subscribe(conn, account_id, "https://blog.example.com/feed.xml")
     conn.commit()
 
     calls: list[str] = []
@@ -108,8 +108,8 @@ def test_run_feeds_scarica_deduplica_ed_embedda(pg_url: str, house) -> None:
     first = run_feeds(cfg, conn, download=download, vectorize=vectorize)
     assert first["embedded"] == 2
     rows = conn.execute(
-        "select guid, embedding is not null from feed_items where household_id = %s order by guid",
-        (household_id,),
+        "select guid, embedding is not null from feed_items where account_id = %s order by guid",
+        (account_id,),
     ).fetchall()
     assert [(g, e) for g, e in rows] == [("x-1", True), ("x-2", True)]
 
@@ -118,16 +118,16 @@ def test_run_feeds_scarica_deduplica_ed_embedda(pg_url: str, house) -> None:
     values = [v for k, v in second.items() if k != "embedded"]
     assert all(v.get("new") == 0 for v in values)
     (status,) = conn.execute(
-        "select last_status from rss_feeds where household_id = %s", (household_id,)
+        "select last_status from rss_feeds where account_id = %s", (account_id,)
     ).fetchone()
     assert status == "ok"
 
 
 def test_un_feed_rotto_non_ferma_gli_altri(pg_url: str, house) -> None:
-    conn, household_id, _ = house
-    cfg = db_only_config(pg_url, household_id=household_id)
-    subscribe(conn, household_id, "https://rotto.example.com/feed.xml")
-    subscribe(conn, household_id, "https://sano.example.com/feed.xml")
+    conn, account_id, _ = house
+    cfg = db_only_config(pg_url, account_id=account_id)
+    subscribe(conn, account_id, "https://rotto.example.com/feed.xml")
+    subscribe(conn, account_id, "https://sano.example.com/feed.xml")
     conn.commit()
 
     def download(url: str) -> str:
@@ -138,49 +138,49 @@ def test_un_feed_rotto_non_ferma_gli_altri(pg_url: str, house) -> None:
     run_feeds(cfg, conn, download=download, vectorize=lambda _c, t: [seed_vector(1)] * len(t))
     statuses = dict(
         conn.execute(
-            "select url, last_status from rss_feeds where household_id = %s", (household_id,)
+            "select url, last_status from rss_feeds where account_id = %s", (account_id,)
         ).fetchall()
     )
     # la CLASSE dell'errore, mai il corpo della risposta
     assert statuses["https://rotto.example.com/feed.xml"] == "TimeoutError"
     assert statuses["https://sano.example.com/feed.xml"] == "ok"
     (count,) = conn.execute(
-        "select count(*) from feed_items where household_id = %s", (household_id,)
+        "select count(*) from feed_items where account_id = %s", (account_id,)
     ).fetchone()
     assert count == 1
 
 
 def plant_item(
-    conn: psycopg.Connection, household_id: str, feed_id: str, guid: str, vector: list[float]
+    conn: psycopg.Connection, account_id: str, feed_id: str, guid: str, vector: list[float]
 ) -> None:
     conn.execute(
         """
-        insert into feed_items (household_id, feed_id, guid, title, link, embedding)
+        insert into feed_items (account_id, feed_id, guid, title, link, embedding)
         values (%s, %s, %s, %s, %s, %s::vector)
         """,
-        (household_id, feed_id, guid, f"Novità {guid}", f"https://example.com/{guid}", json.dumps(vector)),
+        (account_id, feed_id, guid, f"Novità {guid}", f"https://example.com/{guid}", json.dumps(vector)),
     )
 
 
 def plant_customer(
-    conn: psycopg.Connection, household_id: str, gosino_id: str, slug: str, vector: list[float]
+    conn: psycopg.Connection, account_id: str, gosino_id: str, slug: str, vector: list[float]
 ) -> str:
     customer_id = str(
         conn.execute(
-            "insert into customers (household_id, name, slug) values (%s, %s, %s) returning id",
-            (household_id, slug, slug),
+            "insert into customers (account_id, name, slug) values (%s, %s, %s) returning id",
+            (account_id, slug, slug),
         ).fetchone()[0]
     )
     conn.execute(
-        "insert into customer_gosini (household_id, customer_id, gosino_id) values (%s, %s, %s)",
-        (household_id, customer_id, gosino_id),
+        "insert into customer_gosini (account_id, customer_id, gosino_id) values (%s, %s, %s)",
+        (account_id, customer_id, gosino_id),
     )
     conn.execute(
         """
-        insert into customer_chunks (household_id, customer_id, source_type, source_id, ref, text, embedding)
+        insert into customer_chunks (account_id, customer_id, source_type, source_id, ref, text, embedding)
         values (%s, %s, 'repo', gen_random_uuid(), 'README.md', %s, %s::vector)
         """,
-        (household_id, customer_id, "vt:testo-cifrato", json.dumps(vector)),
+        (account_id, customer_id, "vt:testo-cifrato", json.dumps(vector)),
     )
     return customer_id
 
@@ -188,14 +188,14 @@ def plant_customer(
 def test_advise_consiglia_solo_sopra_soglia_e_al_massimo_uno_al_giorno(
     pg_url: str, house
 ) -> None:
-    conn, household_id, gosino_id = house
-    cfg = db_only_config(pg_url, household_id=household_id)
-    feed_id = subscribe(conn, household_id, "https://blog.example.com/feed.xml")
+    conn, account_id, gosino_id = house
+    cfg = db_only_config(pg_url, account_id=account_id)
+    feed_id = subscribe(conn, account_id, "https://blog.example.com/feed.xml")
     # il cliente lavora "vicino" al vettore 5; la novità affine è quasi identica,
     # quella lontana è tutto un altro discorso
-    plant_customer(conn, household_id, gosino_id, "rossi-srl", seed_vector(5))
-    plant_item(conn, household_id, feed_id, "affine", seed_vector(5, lean=0.02))
-    plant_item(conn, household_id, feed_id, "lontana", seed_vector(60, lean=9.0))
+    plant_customer(conn, account_id, gosino_id, "rossi-srl", seed_vector(5))
+    plant_item(conn, account_id, feed_id, "affine", seed_vector(5, lean=0.02))
+    plant_item(conn, account_id, feed_id, "lontana", seed_vector(60, lean=9.0))
     conn.commit()
 
     report = run_advise(conn, cfg)
@@ -211,18 +211,18 @@ def test_advise_consiglia_solo_sopra_soglia_e_al_massimo_uno_al_giorno(
     assert queued[0][1] == "stamattina"
 
     # il tetto: il secondo giro dello stesso giorno tace, anche con item validi
-    plant_item(conn, household_id, feed_id, "affine-2", seed_vector(5, lean=0.03))
+    plant_item(conn, account_id, feed_id, "affine-2", seed_vector(5, lean=0.03))
     conn.commit()
     again = run_advise(conn, cfg)
     assert again == {"advised": 0, "reason": "daily cap"}
 
 
 def test_advise_tace_quando_niente_somiglia(pg_url: str, house) -> None:
-    conn, household_id, gosino_id = house
-    cfg = db_only_config(pg_url, household_id=household_id)
-    feed_id = subscribe(conn, household_id, "https://blog.example.com/feed.xml")
-    plant_customer(conn, household_id, gosino_id, "verdi-sas", seed_vector(5))
-    plant_item(conn, household_id, feed_id, "fuori-tema", seed_vector(70, lean=9.0))
+    conn, account_id, gosino_id = house
+    cfg = db_only_config(pg_url, account_id=account_id)
+    feed_id = subscribe(conn, account_id, "https://blog.example.com/feed.xml")
+    plant_customer(conn, account_id, gosino_id, "verdi-sas", seed_vector(5))
+    plant_item(conn, account_id, feed_id, "fuori-tema", seed_vector(70, lean=9.0))
     conn.commit()
 
     report = run_advise(conn, cfg)

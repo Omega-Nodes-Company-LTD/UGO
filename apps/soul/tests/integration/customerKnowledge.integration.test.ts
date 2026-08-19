@@ -51,14 +51,14 @@ let customerB: { id: string; token: string };
 async function addCustomer(slug: string): Promise<{ id: string; token: string }> {
   const [row] = await db
     .insert(customers)
-    .values({ householdId: house.id, name: slug, slug })
+    .values({ accountId: house.id, name: slug, slug })
     .returning({ id: customers.id });
   if (row === undefined) throw new Error("customer not created");
   await db
     .insert(customerGosini)
-    .values({ householdId: house.id, customerId: row.id, gosinoId: house.gosinoId });
+    .values({ accountId: house.id, customerId: row.id, gosinoId: house.gosinoId });
   const issued = await issueCustomerToken(db, {
-    householdId: house.id,
+    accountId: house.id,
     customerId: row.id,
     label: slug,
   });
@@ -69,7 +69,7 @@ async function seedChunk(customerId: string, ref: string, text: string): Promise
   const [embedding] = await embedder.embed([`${ref}\n${text}`]);
   if (embedding === undefined) throw new Error("no embedding");
   await db.insert(customerChunks).values({
-    householdId: house.id,
+    accountId: house.id,
     customerId,
     sourceType: "repo",
     sourceId: crypto.randomUUID(),
@@ -116,17 +116,17 @@ beforeAll(async () => {
   githubUrl = `http://127.0.0.1:${String((github.address() as AddressInfo).port)}`;
 
   house = await createHouse(db, "casa-conoscenza");
-  ownerToken = (await issueToken(db, { householdId: house.id, role: "owner", label: "t" })).token;
+  ownerToken = (await issueToken(db, { accountId: house.id, role: "owner", label: "t" })).token;
   customerA = await addCustomer("rossi-know");
   customerB = await addCustomer("bianchi-know");
 
-  const llmFor = (householdId: string, gosinoId: string): LlmClient =>
+  const llmFor = (accountId: string, gosinoId: string): LlmClient =>
     new LlmClient({
       db,
       apiKey: "stub",
       model: "claude-haiku-4-5",
       dailyBudgetUsd: 10,
-      householdId,
+      accountId,
       gosinoId,
       baseUrl: stub.baseUrl,
       timezone: "Europe/Rome",
@@ -207,7 +207,7 @@ describe("the sources from the panel", () => {
     const { id: repoId } = created.json<{ id: string }>();
     const [embedding] = await embedder.embed(["orphan"]);
     await db.insert(customerChunks).values({
-      householdId: house.id,
+      accountId: house.id,
       customerId: customerA.id,
       sourceType: "repo",
       sourceId: repoId,

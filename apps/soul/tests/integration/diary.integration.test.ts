@@ -14,9 +14,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
 import { characterFrom } from "../../src/services/council/character.js";
 import {
-  createHousehold,
-  createHouseholdWithFounder,
-} from "../../src/services/householdService.js";
+  createAccount,
+  createAccountWithFounder,
+} from "../../src/services/accountService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
 
@@ -53,7 +53,7 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-diario",
     name: "Diario",
     gosinoName: "Ugo",
@@ -83,13 +83,13 @@ beforeAll(async () => {
     embedder: { embed: () => Promise.reject(new Error("mai")) },
     llm: {
       chat: () => Promise.reject(new Error("il provider non deve essere chiamato")),
-    } as never,
+    },
     psyche: await PsycheService.restore(db, TODAY, who),
     dataKey: DATA_KEY,
     timezone: "UTC",
     locale: "it-IT",
     gosinoId: who,
-    householdId: house.householdId,
+    accountId: house.accountId,
     character: characterFrom({}),
   });
 
@@ -150,7 +150,7 @@ describe("GET /v1/diary — il libro esce", () => {
   });
 
   it("il vicino non legge il diario di casa nostra", async () => {
-    const other = await createHousehold(db, MASTER_KEY, { slug: "vicina", name: "Vicina" });
+    const other = await createAccount(db, MASTER_KEY, { slug: "vicina", name: "Vicina" });
     const response = await app.inject({
       method: "GET",
       url: "/v1/diary",

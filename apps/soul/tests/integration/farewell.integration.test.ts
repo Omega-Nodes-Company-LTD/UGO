@@ -15,9 +15,9 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FarewellService } from "../../src/services/farewellService.js";
 import {
-  createHousehold,
-  createHouseholdWithFounder,
-} from "../../src/services/householdService.js";
+  createAccount,
+  createAccountWithFounder,
+} from "../../src/services/accountService.js";
 import { buildServer } from "../../src/server.js";
 
 /**
@@ -52,7 +52,7 @@ beforeAll(async () => {
   await runMigrations(started.url);
   db = createDbClient(started.url);
 
-  const house = await createHouseholdWithFounder(db, MASTER_KEY, {
+  const house = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-congedo",
     name: "Congedo",
     gosinoName: "Vecchio",
@@ -81,7 +81,7 @@ beforeAll(async () => {
       importance: 0.8,
     },
   ]);
-  // il diario è scopato per esemplare, non per casa: `household_id` qui non
+  // il diario è scopato per esemplare, non per casa: `account_id` qui non
   // esiste, e passarlo era un campo di troppo che nessun tipo controllava
   await db.insert(diaryEntries).values({
     gosinoId: who,
@@ -150,7 +150,7 @@ describe("l'anteprima del congedo", () => {
   });
 
   it("il vicino non guarda i congedi altrui", async () => {
-    const other = await createHousehold(db, MASTER_KEY, { slug: "vicina", name: "Vicina" });
+    const other = await createAccount(db, MASTER_KEY, { slug: "vicina", name: "Vicina" });
     const response = await post(`/v1/gosini/${who}/farewell/preview`, {}, other.ownerToken);
     expect(response.statusCode).toBe(404);
   });

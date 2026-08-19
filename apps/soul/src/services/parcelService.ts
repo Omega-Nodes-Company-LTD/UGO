@@ -1,18 +1,19 @@
 import {
   desires,
   gosini,
-  householdTies,
-  households,
+  accountTies,
+  accounts,
   memories,
   parcels,
-  withHousehold,
+  withAccount,
+  withPost,
   type DbClient,
 } from "@ugo/db";
 import { decryptText, encryptText, unwrapDataKey } from "@ugo/shared";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 /**
- * La cartolina (ADR-092): un messaggio o un ricordo, testo, da una casa
+ * La cartolina (ADR-099): un messaggio o un ricordo, testo, da una casa
  * all'altra — e SOLO su azione esplicita di una persona.
  *
  * **`send()` è l'unico punto d'invio del sistema.** Le rotte del pannello e il
@@ -56,11 +57,16 @@ export class ParcelService {
   ) {}
 
   /** La chiave con cui una casa custodisce ciò che è suo (ADR-019/075). */
-  private async houseKeyFor(householdId: string): Promise<Buffer> {
-    const [row] = await this.db
-      .select({ wrapped: households.wrappedDataKey })
-      .from(households)
-      .where(eq(households.id, householdId));
+  private async houseKeyFor(accountId: string): Promise<Buffer> {
+    // ADR-099 §4: la chiave è di CHI RICEVE, quindi quasi sempre di un'altra
+    // casa — `withPost` è l'unica ragione per cui questa riga trova qualcosa.
+    // Ed è la chiave AVVOLTA: senza la KEK di processo non apre niente.
+    const [row] = await withPost(this.db, (tx) =>
+      tx
+        .select({ wrapped: accounts.wrappedDataKey })
+        .from(accounts)
+        .where(eq(accounts.id, accountId)),
+    );
     if (row?.wrapped == null) return this.masterKey;
     try {
       return unwrapDataKey(row.wrapped, this.masterKey);
@@ -69,18 +75,18 @@ export class ParcelService {
     }
   }
 
-  private async eldestOf(tx: DbClient, householdId: string): Promise<string | undefined> {
+  private async eldestOf(tx: DbClient, accountId: string): Promise<string | undefined> {
     const [eldest] = await tx
       .select({ id: gosini.id })
       .from(gosini)
-      .where(and(eq(gosini.householdId, householdId), isNull(gosini.retiredAt)))
+      .where(and(eq(gosini.accountId, accountId), isNull(gosini.retiredAt)))
       .orderBy(asc(gosini.bornAt))
       .limit(1);
     return eldest?.id;
   }
 
   public async send(
-    fromHouseholdId: string,
+    fromAccountId: string,
     input: {
       tieId: string;
       fromGosinoId: string;
@@ -89,42 +95,51 @@ export class ParcelService {
       text: string;
     },
   ): Promise<{ id: string } | ParcelRefusal> {
-    const [tie] = await this.db
-      .select({
-        from: householdTies.fromHouseholdId,
-        to: householdTies.toHouseholdId,
-        status: householdTies.status,
-        label: householdTies.label,
-      })
-      .from(householdTies)
-      .where(eq(householdTies.id, input.tieId));
+    const [tie] = await withPost(this.db, (tx) =>
+      tx
+        .select({
+          from: accountTies.fromAccountId,
+          to: accountTies.toAccountId,
+          status: accountTies.status,
+          label: accountTies.label,
+        })
+        .from(accountTies)
+        .where(eq(accountTies.id, input.tieId)),
+    );
     if (tie === undefined) return "parentela-sconosciuta";
-    if (tie.from !== fromHouseholdId && tie.to !== fromHouseholdId) return "parentela-sconosciuta";
+    if (tie.from !== fromAccountId && tie.to !== fromAccountId) return "parentela-sconosciuta";
     // la porta si apre solo su un consenso dato, mai su una proposta pendente
     if (tie.status !== "accettata") return "non-accettata";
-    const toHouseholdId = tie.from === fromHouseholdId ? tie.to : tie.from;
+    const toAccountId = tie.from === fromAccountId ? tie.to : tie.from;
 
-    const [sender] = await this.db
-      .select({ id: gosini.id })
-      .from(gosini)
-      .where(and(eq(gosini.id, input.fromGosinoId), eq(gosini.householdId, fromHouseholdId)));
-    if (sender === undefined) return "esemplare-sconosciuto";
-    if (input.toGosinoId !== undefined) {
-      const [recipient] = await this.db
+    const [sender] = await withPost(this.db, (tx) =>
+      tx
         .select({ id: gosini.id })
         .from(gosini)
-        .where(and(eq(gosini.id, input.toGosinoId), eq(gosini.householdId, toHouseholdId)));
+        .where(and(eq(gosini.id, input.fromGosinoId), eq(gosini.accountId, fromAccountId))),
+    );
+    if (sender === undefined) return "esemplare-sconosciuto";
+    const named = input.toGosinoId;
+    if (named !== undefined) {
+      // l'esemplare a cui è indirizzata vive nell'altra casa: senza la porta
+      // ogni destinatario nominato risulterebbe inesistente
+      const [recipient] = await withPost(this.db, (tx) =>
+        tx
+          .select({ id: gosini.id })
+          .from(gosini)
+          .where(and(eq(gosini.id, named), eq(gosini.accountId, toAccountId))),
+      );
       if (recipient === undefined) return "destinatario-sconosciuto";
     }
 
-    const cipher = encryptText(input.text.trim(), await this.houseKeyFor(toHouseholdId));
-    const sent = await withHousehold(this.db, fromHouseholdId, async (tx) => {
+    const cipher = encryptText(input.text.trim(), await this.houseKeyFor(toAccountId));
+    const sent = await withAccount(this.db, fromAccountId, async (tx) => {
       const [row] = await tx
         .insert(parcels)
         .values({
           tieId: input.tieId,
-          fromHouseholdId,
-          toHouseholdId,
+          fromAccountId,
+          toAccountId,
           fromGosinoId: input.fromGosinoId,
           ...(input.toGosinoId !== undefined && { toGosinoId: input.toGosinoId }),
           kind: input.kind,
@@ -135,7 +150,7 @@ export class ParcelService {
     });
     if (sent === undefined) throw new Error("la cartolina non è stata scritta");
 
-    await this.deliver(sent.id, toHouseholdId, input.toGosinoId, fromHouseholdId);
+    await this.deliver(sent.id, toAccountId, input.toGosinoId, fromAccountId);
     return { id: sent.id };
   }
 
@@ -147,16 +162,15 @@ export class ParcelService {
    */
   private async deliver(
     parcelId: string,
-    toHouseholdId: string,
+    toAccountId: string,
     toGosinoId: string | undefined,
-    fromHouseholdId: string,
+    fromAccountId: string,
   ): Promise<void> {
-    const [sender] = await this.db
-      .select({ name: households.name })
-      .from(households)
-      .where(eq(households.id, fromHouseholdId));
-    await withHousehold(this.db, toHouseholdId, async (tx) => {
-      const recipient = toGosinoId ?? (await this.eldestOf(tx, toHouseholdId));
+    const [sender] = await withPost(this.db, (tx) =>
+      tx.select({ name: accounts.name }).from(accounts).where(eq(accounts.id, fromAccountId)),
+    );
+    await withAccount(this.db, toAccountId, async (tx) => {
+      const recipient = toGosinoId ?? (await this.eldestOf(tx, toAccountId));
       if (recipient === undefined) return;
       await tx.insert(desires).values({
         gosinoId: recipient,
@@ -170,23 +184,25 @@ export class ParcelService {
   }
 
   /** La cassetta della posta: in chiaro, perché è di chi la riceve. */
-  public async inbox(householdId: string): Promise<ParcelView[]> {
-    const key = await this.houseKeyFor(householdId);
-    const rows = await this.db
-      .select({
+  public async inbox(accountId: string): Promise<ParcelView[]> {
+    const key = await this.houseKeyFor(accountId);
+    const rows = await withPost(this.db, (tx) =>
+      tx
+        .select({
         id: parcels.id,
         kind: parcels.kind,
         text: parcels.text,
         status: parcels.status,
         createdAt: parcels.createdAt,
         keptAt: parcels.keptAt,
-        otherSlug: households.slug,
-        otherName: households.name,
+        otherSlug: accounts.slug,
+        otherName: accounts.name,
       })
-      .from(parcels)
-      .innerJoin(households, eq(households.id, parcels.fromHouseholdId))
-      .where(eq(parcels.toHouseholdId, householdId))
-      .orderBy(desc(parcels.createdAt));
+        .from(parcels)
+        .innerJoin(accounts, eq(accounts.id, parcels.fromAccountId))
+        .where(eq(parcels.toAccountId, accountId))
+        .orderBy(desc(parcels.createdAt)),
+    );
     return rows.map((row) => ({
       ...row,
       text: this.open(row.text, key),
@@ -194,21 +210,23 @@ export class ParcelService {
   }
 
   /** Le spedite: metadati e basta — il testo non è più in mano al mittente. */
-  public async outbox(householdId: string): Promise<ParcelView[]> {
-    const rows = await this.db
-      .select({
+  public async outbox(accountId: string): Promise<ParcelView[]> {
+    const rows = await withPost(this.db, (tx) =>
+      tx
+        .select({
         id: parcels.id,
         kind: parcels.kind,
         status: parcels.status,
         createdAt: parcels.createdAt,
         keptAt: parcels.keptAt,
-        otherSlug: households.slug,
-        otherName: households.name,
+        otherSlug: accounts.slug,
+        otherName: accounts.name,
       })
-      .from(parcels)
-      .innerJoin(households, eq(households.id, parcels.toHouseholdId))
-      .where(eq(parcels.fromHouseholdId, householdId))
-      .orderBy(desc(parcels.createdAt));
+        .from(parcels)
+        .innerJoin(accounts, eq(accounts.id, parcels.toAccountId))
+        .where(eq(parcels.fromAccountId, accountId))
+        .orderBy(desc(parcels.createdAt)),
+    );
     return rows;
   }
 
@@ -222,41 +240,41 @@ export class ParcelService {
   }
 
   /**
-   * «Tenere» un ricordo ricevuto (ADR-092 §3): diventa una riga `memories`
+   * «Tenere» un ricordo ricevuto (ADR-099 §3): diventa una riga `memories`
    * del gosino destinatario, IN CHIARO (ADR-091), con l'origine dichiarata
    * nel testo — un ricordo arrivato da fuori casa non deve sembrare nato in
    * casa. Senza embedder: lo ripesca il braccio lessicale (ADR-022), come il
    * sapere della dote.
    */
   public async keep(
-    householdId: string,
+    accountId: string,
     parcelId: string,
   ): Promise<{ memoryId: string } | ParcelRefusal> {
-    const [parcel] = await this.db
-      .select({
-        to: parcels.toHouseholdId,
+    const [parcel] = await withPost(this.db, (tx) =>
+      tx.select({
+        to: parcels.toAccountId,
         toGosinoId: parcels.toGosinoId,
         kind: parcels.kind,
         text: parcels.text,
         keptAt: parcels.keptAt,
-        from: parcels.fromHouseholdId,
+        from: parcels.fromAccountId,
       })
-      .from(parcels)
-      .where(eq(parcels.id, parcelId));
+        .from(parcels)
+        .where(eq(parcels.id, parcelId)),
+    );
     if (parcel === undefined) return "non-esiste";
-    if (parcel.to !== householdId) return "non-tua";
+    if (parcel.to !== accountId) return "non-tua";
     if (parcel.kind !== "ricordo") return "non-un-ricordo";
     if (parcel.keptAt !== null) return "gia-tenuta";
 
-    const opened = this.open(parcel.text, await this.houseKeyFor(householdId));
+    const opened = this.open(parcel.text, await this.houseKeyFor(accountId));
     if (opened === "") return "illeggibile";
-    const [sender] = await this.db
-      .select({ name: households.name })
-      .from(households)
-      .where(eq(households.id, parcel.from));
+    const [sender] = await withPost(this.db, (tx) =>
+      tx.select({ name: accounts.name }).from(accounts).where(eq(accounts.id, parcel.from)),
+    );
 
-    const kept = await withHousehold(this.db, householdId, async (tx) => {
-      const gosinoId = parcel.toGosinoId ?? (await this.eldestOf(tx, householdId));
+    const kept = await withAccount(this.db, accountId, async (tx) => {
+      const gosinoId = parcel.toGosinoId ?? (await this.eldestOf(tx, accountId));
       if (gosinoId === undefined) return undefined;
       const [memory] = await tx
         .insert(memories)

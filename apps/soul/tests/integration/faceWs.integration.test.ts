@@ -6,7 +6,7 @@ import {
   desires,
   events,
   PRIME_GOSINO_ID,
-  PRIME_HOUSEHOLD_ID,
+  PRIME_ACCOUNT_ID,
   runMigrations,
 } from "@ugo/db";
 import { EMBED_MODEL, startLlmStub, startOllama, type LlmStub, type OllamaHandle } from "@ugo/factories";
@@ -44,7 +44,7 @@ async function startSoul(fakeHour: number): Promise<{ url: string; gateway: Face
   const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const chat = new ChatService({
     gosinoId: PRIME_GOSINO_ID,
-    householdId: PRIME_HOUSEHOLD_ID,
+    accountId: PRIME_ACCOUNT_ID,
     character: characterFrom({}),
     db,
     embedder: new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL),

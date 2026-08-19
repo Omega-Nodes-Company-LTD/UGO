@@ -1,10 +1,10 @@
-import { households, type DbClient } from "@ugo/db";
+import { accounts, withMarket, type DbClient } from "@ugo/db";
 import { asc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { PreHandler } from "./guard.js";
 import type { AuditLogger } from "../services/auditLog.js";
-import { householdScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 import { canAdminister } from "../services/tenantAuth.js";
 
 /**
@@ -54,7 +54,7 @@ const newHouseSchema = z.object({
   slug: z.string().min(1).max(60),
   name: z.string().min(1).max(120),
   // ADR-061: in italiano dove lo leggono le persone, home/business nel database
-  kind: z.enum(["casa", "azienda"]).optional(),
+  kind: z.enum(["famiglia", "azienda"]).optional(),
   timezone: z.string().min(1).max(60).optional(),
   /**
    * ADR-082: **niente più `gosinoName` da qui.** Coniare un capostipite è un
@@ -81,7 +81,7 @@ const placeSchema = z.object({
 });
 
 /**
- * `GET /v1/households` — quali case posso vedere (ADR-019 fase 3).
+ * `GET /v1/accounts` — quali case posso vedere (ADR-019 fase 3).
  *
  * Serve al selettore del pannello, e la regola è la stessa del resto del
  * vicinato: **un token vede la propria casa e basta**. Solo un `operator` — che
@@ -95,19 +95,22 @@ const placeSchema = z.object({
  * Le case chiuse non compaiono. `closedAt` è la chiusura logica di una
  * famiglia, e continuare a offrirla in un menu sarebbe invitare a scriverci.
  */
-export function registerHouseholdRoutes(
+export function registerAccountRoutes(
   app: FastifyInstance,
   deps: {
     db: DbClient;
     guard: PreHandler;
     findPlace?: (query: string) => Promise<FoundPlace[]>;
     /** ADR-061: far nascere una casa dal pannello; assente = solo da CLI */
-    createHouse?: (input: {
-      slug: string;
-      name: string;
-      kind?: "casa" | "azienda" | undefined;
-      timezone?: string | undefined;
-    }) => Promise<{ householdId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
+    createHouse?: (
+      db: DbClient,
+      input: {
+        slug: string;
+        name: string;
+        kind?: "famiglia" | "azienda" | undefined;
+        timezone?: string | undefined;
+      },
+    ) => Promise<{ accountId: string; slug: string; persona: string; ownerToken: string; tokenId: string }>;
     audit?: AuditLogger;
   },
 ): void {
@@ -137,7 +140,7 @@ export function registerHouseholdRoutes(
   });
 
   /**
-   * `POST /v1/households` — nasce una casa.
+   * `POST /v1/accounts` — nasce una casa.
    *
    * Esisteva solo come `ugo casa nuova` sulla riga di comando, cioè non
    * esisteva per chi il pannello lo usa: ADR-061 dice che una persona può
@@ -147,10 +150,13 @@ export function registerHouseholdRoutes(
    * Il token del proprietario torna UNA VOLTA SOLA, come dal CLI: in database
    * esiste solo come SHA-256, e se si perde si riemette — non si recupera.
    */
-  app.post("/v1/households", { preHandler: deps.guard }, async (request, reply) => {
+  // ADR-062: QUESTA resta fuori da inAccount per costruzione — crea una casa
+  // che ancora non esiste, quindi non c'è una casa da dichiarare. Sotto RLS
+  // vera passa dal lotto della fondazione (stesso giro del mercato)
+  app.post("/v1/accounts", { preHandler: deps.guard }, async (request, reply) => {
     const tenant = request.tenant ?? null;
     // solo un operatore: creare una casa non è amministrare la propria
-    if (tenant === null || !canAdminister(tenant) || tenant.householdId !== null) {
+    if (tenant === null || !canAdminister(tenant) || tenant.accountId !== null) {
       return reply
         .code(403)
         .type("application/problem+json")
@@ -160,7 +166,7 @@ export function registerHouseholdRoutes(
     if (!parsed.success) {
       return reply.code(400).type("application/problem+json").send({
         type: "about:blank",
-        title: "Invalid household",
+        title: "Invalid account",
         status: 400,
         detail: z.prettifyError(parsed.error),
       });
@@ -169,21 +175,24 @@ export function registerHouseholdRoutes(
       return reply
         .code(501)
         .type("application/problem+json")
-        .send({ type: "about:blank", title: "Household creation not configured", status: 501 });
+        .send({ type: "about:blank", title: "Account creation not configured", status: 501 });
     }
     try {
-      const born = await deps.createHouse(parsed.data);
+      // ADR-097: fondare scrive una casa che un momento prima non esisteva —
+      // l'atto passa dal ruolo del mercato
+      const createHouse = deps.createHouse;
+      const born = await withMarket(deps.db, (db) => createHouse(db, parsed.data));
       await deps.audit?.record({
-        verb: "household_created",
+        verb: "account_created",
         outcome: "ok",
-        householdId: born.householdId,
-        resourceType: "household",
-        resourceId: born.householdId,
+        accountId: born.accountId,
+        resourceType: "account",
+        resourceId: born.accountId,
       });
       await deps.audit?.record({
         verb: "token_issued",
         outcome: "ok",
-        householdId: born.householdId,
+        accountId: born.accountId,
         resourceType: "token",
         resourceId: born.tokenId,
       });
@@ -191,15 +200,15 @@ export function registerHouseholdRoutes(
     } catch (error) {
       return reply.code(409).type("application/problem+json").send({
         type: "about:blank",
-        title: "Household not created",
+        title: "Account not created",
         status: 409,
         detail: error instanceof Error ? error.message : "slug già in uso",
       });
     }
   });
 
-  /** `PATCH /v1/household` — nome, natura, fuso, lingua, tetto di spesa. */
-  app.patch("/v1/household", { preHandler: deps.guard }, async (request, reply) => {
+  /** `PATCH /v1/account` — nome, natura, fuso, lingua, tetto di spesa. */
+  app.patch("/v1/account", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = houseSettingsSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).type("application/problem+json").send({
@@ -209,27 +218,40 @@ export function registerHouseholdRoutes(
         detail: z.prettifyError(parsed.error),
       });
     }
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
     const { dailyBudgetUsd, ...rest } = parsed.data;
-    await deps.db
-      .update(households)
-      .set({
-        ...rest,
-        ...(dailyBudgetUsd !== undefined && { dailyBudgetUsd: dailyBudgetUsd.toFixed(4) }),
-      })
-      .where(eq(households.id, householdId));
+    const done = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      (db, accountId) =>
+        db
+          .update(accounts)
+          .set({
+            ...rest,
+            ...(dailyBudgetUsd !== undefined && { dailyBudgetUsd: dailyBudgetUsd.toFixed(4) }),
+          })
+          .where(eq(accounts.id, accountId)),
+    );
+    if (done === undefined) return reply;
     return reply.send({ ok: true });
   });
 
-  /** `GET /v1/household/place` — dove sta, per rimostrarlo nel pannello. */
-  app.get("/v1/household/place", { preHandler: deps.guard }, async (request, reply) => {
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    const [row] = await deps.db
-      .select({ place: households.place, lat: households.lat, lon: households.lon })
-      .from(households)
-      .where(eq(households.id, householdId));
+  /** `GET /v1/account/place` — dove sta, per rimostrarlo nel pannello. */
+  app.get("/v1/account/place", { preHandler: deps.guard }, async (request, reply) => {
+    const rows = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      (db, accountId) =>
+        db
+          .select({ place: accounts.place, lat: accounts.lat, lon: accounts.lon })
+          .from(accounts)
+          .where(eq(accounts.id, accountId)),
+    );
+    if (rows === undefined) return reply;
+    const [row] = rows;
     return reply.send({
       place: row?.place ?? null,
       lat: row?.lat == null ? null : Number(row.lat),
@@ -238,13 +260,13 @@ export function registerHouseholdRoutes(
   });
 
   /**
-   * `PUT /v1/household/place` — dove sta questa casa.
+   * `PUT /v1/account/place` — dove sta questa casa.
    *
    * Sostituisce `UGO_HOME_LAT`/`UGO_HOME_LON`, che erano dell'ambiente del
    * processo: con quelle, servire due famiglie voleva dire due server. Qui il
    * posto è della casa, come il fuso e la lingua.
    */
-  app.put("/v1/household/place", { preHandler: deps.guard }, async (request, reply) => {
+  app.put("/v1/account/place", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = placeSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply
@@ -252,20 +274,26 @@ export function registerHouseholdRoutes(
         .type("application/problem+json")
         .send({ type: "about:blank", title: "Invalid place", status: 400, detail: z.prettifyError(parsed.error) });
     }
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    await deps.db
-      .update(households)
-      .set({
-        place: parsed.data.place,
-        lat: parsed.data.lat.toFixed(5),
-        lon: parsed.data.lon.toFixed(5),
-      })
-      .where(eq(households.id, householdId));
+    const done = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      (db, accountId) =>
+        db
+          .update(accounts)
+          .set({
+            place: parsed.data.place,
+            lat: parsed.data.lat.toFixed(5),
+            lon: parsed.data.lon.toFixed(5),
+          })
+          .where(eq(accounts.id, accountId)),
+    );
+    if (done === undefined) return reply;
     return reply.send({ place: parsed.data.place, lat: parsed.data.lat, lon: parsed.data.lon });
   });
 
-  app.get("/v1/households", async (request, reply) => {
+  app.get("/v1/accounts", async (request, reply) => {
     const tenant = request.tenant ?? null;
     if (tenant === null) {
       return reply
@@ -276,36 +304,36 @@ export function registerHouseholdRoutes(
 
     const all = deps.db
       .select({
-        id: households.id,
-        slug: households.slug,
-        name: households.name,
+        id: accounts.id,
+        slug: accounts.slug,
+        name: accounts.name,
         // ADR-061: casa o azienda — il selettore lo mostra, perché chi
         // possiede entrambe deve vedere in quale mondo sta scrivendo
-        kind: households.kind,
-        timezone: households.timezone,
-        locale: households.locale,
+        kind: accounts.kind,
+        timezone: accounts.timezone,
+        locale: accounts.locale,
         // il posto, per mostrarlo nell'elenco senza una seconda chiamata
-        place: households.place,
-        dailyBudgetUsd: households.dailyBudgetUsd,
+        place: accounts.place,
+        dailyBudgetUsd: accounts.dailyBudgetUsd,
         // ADR-081: cosa può fare questa casa. Il pannello deve **non offrire**
         // le porte che risponderebbero 403: un pulsante che rifiuta sempre è
         // peggio di un pulsante che non c'è
-        isFoundry: households.isFoundry,
-        canBreed: households.canBreed,
+        isFoundry: accounts.isFoundry,
+        canBreed: accounts.canBreed,
       })
-      .from(households)
-      .where(isNull(households.closedAt))
-      .orderBy(asc(households.createdAt));
+      .from(accounts)
+      .where(isNull(accounts.closedAt))
+      .orderBy(asc(accounts.createdAt));
 
     // niente `?casa=` qui, ed è voluto: questa è la rotta che *risponde* a
     // «quali case», quindi non può chiederne una in ingresso
-    if (canAdminister(tenant) && tenant.householdId === null) {
-      return reply.send({ households: await all });
+    if (canAdminister(tenant) && tenant.accountId === null) {
+      return reply.send({ accounts: await all });
     }
-    const mine = tenant.householdId;
-    if (mine === null) return reply.send({ households: [] });
+    const mine = tenant.accountId;
+    if (mine === null) return reply.send({ accounts: [] });
     return reply.send({
-      households: (await all).filter((house) => house.id === mine),
+      accounts: (await all).filter((house) => house.id === mine),
     });
   });
 }

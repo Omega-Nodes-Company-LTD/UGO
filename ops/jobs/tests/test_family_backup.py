@@ -26,7 +26,7 @@ def two_houses(pg_url: str):
         their_pig = make_gosino(conn, theirs, "vicino")
         make_being(conn, ours, "Paola")
         make_being(conn, theirs, "Estraneo")
-        # una tabella scopata per esemplare (gosino_id, senza household_id)
+        # una tabella scopata per esemplare (gosino_id, senza account_id)
         conn.execute(
             "insert into desires (text, status, gosino_id) values (%s, 'pending', %s)",
             ("il desiderio di casa nostra", our_pig),
@@ -66,17 +66,17 @@ def test_family_backup_exports_one_house_only(pg_url, minio, two_houses) -> None
         s3_endpoint=minio["endpoint"],
         s3_access_key=minio["access_key"],
         s3_secret_key=minio["secret_key"],
-        household_id=two_houses["ours"],
+        account_id=two_houses["ours"],
     )
     with psycopg.connect(pg_url) as conn:
         result = run_family_backup(conn, cfg, "2026-08-16")
 
     assert result.object_key == f"families/{two_houses['ours']}/2026-08-16.tar.enc"
-    assert result.tables >= 3  # households, gosini, beings, desires almeno
+    assert result.tables >= 3  # accounts, gosini, beings, desires almeno
     tables = _read_archive(minio, cfg, result.object_key)
 
     # la riga della casa è la NOSTRA, e una sola
-    assert [row["id"] for row in tables["households"]] == [two_houses["ours"]]
+    assert [row["id"] for row in tables["accounts"]] == [two_houses["ours"]]
     # le creature e le persone sono solo di casa nostra
     assert {row["name"] for row in tables["gosini"]} == {"nostro"}
     assert {row["display_name"] for row in tables["beings"]} == {"Paola"}
@@ -91,8 +91,8 @@ def test_scoped_tables_covers_schema_without_a_hand_list(pg_url) -> None:
     with psycopg.connect(pg_url) as conn:
         scoped = dict(_scoped_tables(conn))
     # le ancore: la casa stessa, una tabella per casa, una per esemplare
-    assert scoped["households"] == "self"
-    assert scoped["beings"] == "household"
+    assert scoped["accounts"] == "self"
+    assert scoped["beings"] == "account"
     assert scoped["desires"] == "gosino"
     # e le migrazioni di drizzle restano fuori
     assert "__drizzle_migrations" not in scoped

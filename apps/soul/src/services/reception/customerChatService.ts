@@ -3,14 +3,14 @@ import {
   customerMessages,
   customers,
   gosini,
-  households,
+  accounts,
   tickets,
   type DbClient,
 } from "@ugo/db";
 import {
   searchCustomerChunks,
   type EmbeddingsClient,
-  type LlmClient,
+  type ChatLlm,
   type LlmHistoryTurn,
 } from "@ugo/memory";
 import { decryptText, encryptText } from "@ugo/shared";
@@ -91,9 +91,11 @@ export interface HouseClock {
 
 export interface CustomerChatDeps {
   db: DbClient;
+  /** ADR-098: la connessione della casa del cliente; assente = `db` */
+  dbFor?: (accountId: string) => DbClient;
   dataKey: Buffer;
   quota: CustomerQuota;
-  llmFor: (householdId: string, gosinoId: string, clock?: HouseClock) => LlmClient;
+  llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => ChatLlm;
   audit?: AuditLogger;
   /** ADR-054: without it the gosino answers from tickets and history alone */
   embedder?: EmbeddingsClient;
@@ -124,11 +126,16 @@ export interface CustomerChatRequest {
 export class CustomerChatService {
   public constructor(private readonly deps: CustomerChatDeps) {}
 
+  /** ADR-098/tempo 2b: la connessione della casa del cliente; assente = `db` */
+  private dbOf(accountId: string): DbClient {
+    return this.deps.dbFor?.(accountId) ?? this.deps.db;
+  }
+
   /** The gosini this customer may talk to — the picker's list. */
   public async assignedGosini(
     context: CustomerContext,
   ): Promise<{ id: string; name: string; locationLabel: string | null }[]> {
-    return this.deps.db
+    return this.dbOf(context.accountId)
       .select({ id: gosini.id, name: gosini.name, locationLabel: gosini.locationLabel })
       .from(customerGosini)
       .innerJoin(gosini, eq(gosini.id, customerGosini.gosinoId))
@@ -140,8 +147,9 @@ export class CustomerChatService {
     request: CustomerChatRequest,
     at: Date = new Date(),
   ): Promise<CustomerChatResult> {
-    const { db, quota } = this.deps;
+    const { quota } = this.deps;
     const { context, gosinoId } = request;
+    const db = this.dbOf(context.accountId);
 
     // 404 for a gosino that is not assigned — including one of another house
     const [assignment] = await db
@@ -155,7 +163,7 @@ export class CustomerChatService {
       );
     if (assignment === undefined) throw new GosinoNotAssignedError(gosinoId);
 
-    const verdict = await quota.check(context.customerId, at);
+    const verdict = await quota.check(context.customerId, at, context.accountId);
     if (!verdict.allowed && verdict.wall === "hourly") {
       // nothing is persisted: a refused knock must not tighten the quota
       return { kind: "rate_limited", retryAfterSeconds: verdict.retryAfterSeconds };
@@ -183,7 +191,7 @@ export class CustomerChatService {
     // wall 3 (ADR-055): never for live-state questions — those are true only
     // in the moment they are asked
     const live = isLiveStateQuestion(request.text);
-    const cacheKey = { householdId: context.householdId, customerId: context.customerId, gosinoId };
+    const cacheKey = { accountId: context.accountId, customerId: context.customerId, gosinoId };
     if (!live) {
       const remembered = await this.deps.cache?.lookup(cacheKey, request.text, at);
       if (remembered !== undefined) {
@@ -193,13 +201,13 @@ export class CustomerChatService {
     }
 
     const [house] = await db
-      .select({ timezone: households.timezone, locale: households.locale })
-      .from(households)
-      .where(eq(households.id, context.householdId));
+      .select({ timezone: accounts.timezone, locale: accounts.locale })
+      .from(accounts)
+      .where(eq(accounts.id, context.accountId));
     const clock: HouseClock | undefined =
       house === undefined ? undefined : { timezone: house.timezone, locale: house.locale };
 
-    const llm = this.deps.llmFor(context.householdId, gosinoId, clock);
+    const llm = this.deps.llmFor(context.accountId, gosinoId, clock);
     const dynamicSystem = await this.buildDynamicSystem(request, at);
     const result = await llm.chat(
       {
@@ -240,13 +248,14 @@ export class CustomerChatService {
     text: string,
     at: Date,
   ): Promise<string> {
-    const { db, dataKey, audit } = this.deps;
+    const { dataKey, audit } = this.deps;
+    const db = this.dbOf(request.context.accountId);
     const [firstLine = ""] = text.split("\n", 1);
     const title = firstLine.slice(0, 200) || "Richiesta dalla reception";
     const [row] = await db
       .insert(tickets)
       .values({
-        householdId: request.context.householdId,
+        accountId: request.context.accountId,
         customerId: request.context.customerId,
         gosinoId: request.gosinoId,
         title: encryptText(title, dataKey),
@@ -259,7 +268,7 @@ export class CustomerChatService {
     await audit?.record({
       verb: "ticket_created",
       outcome: "ok",
-      householdId: request.context.householdId,
+      accountId: request.context.accountId,
       resourceType: "ticket",
       resourceId: row.id,
     });
@@ -268,7 +277,8 @@ export class CustomerChatService {
 
   /** blocks 3+ of the prompt: the customer's world, never cached (rule 2) */
   private async buildDynamicSystem(request: CustomerChatRequest, at: Date): Promise<string> {
-    const { db, dataKey, embedder, github } = this.deps;
+    const { dataKey, embedder, github } = this.deps;
+    const db = this.dbOf(request.context.accountId);
     const [customer] = await db
       .select({ name: customers.name, digest: customers.digest, digestAt: customers.digestAt })
       .from(customers)
@@ -283,7 +293,7 @@ export class CustomerChatService {
         request.text,
         CHUNKS_K,
         request.context.customerId,
-        request.context.householdId,
+        request.context.accountId,
       );
       for (const chunk of chunks) {
         try {
@@ -296,7 +306,7 @@ export class CustomerChatService {
     // the live state only when the question is about the live state
     const live =
       github !== undefined && isLiveStateQuestion(request.text)
-        ? await github.liveBlock(request.context.customerId, at)
+        ? await github.liveBlock(request.context.customerId, at, request.context.accountId)
         : undefined;
     const openTickets = await db
       .select({ id: tickets.id, title: tickets.title, status: tickets.status })
@@ -348,7 +358,8 @@ export class CustomerChatService {
     request: CustomerChatRequest,
     at: Date,
   ): Promise<LlmHistoryTurn[]> {
-    const { db, dataKey } = this.deps;
+    const { dataKey } = this.deps;
+    const db = this.dbOf(request.context.accountId);
     const windowStart = new Date(at.getTime() - HISTORY_WINDOW_HOURS * 3_600_000);
     const rows = await db
       .select({ role: customerMessages.role, text: customerMessages.text })
@@ -387,9 +398,10 @@ export class CustomerChatService {
       costUsd?: number;
     } = {},
   ): Promise<void> {
-    const { db, dataKey } = this.deps;
+    const { dataKey } = this.deps;
+    const db = this.dbOf(request.context.accountId);
     const base = {
-      householdId: request.context.householdId,
+      accountId: request.context.accountId,
       customerId: request.context.customerId,
       gosinoId: request.gosinoId,
       ...(extra.ticketId !== undefined && { ticketId: extra.ticketId }),

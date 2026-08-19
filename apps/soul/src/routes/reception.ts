@@ -6,6 +6,7 @@ import {
   customers,
   customerMessages,
   tickets,
+  withAccount,
   type DbClient,
 } from "@ugo/db";
 import {
@@ -81,6 +82,12 @@ function problem(reply: FastifyReply, status: number, title: string): FastifyRep
 }
 
 export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDeps): void {
+  /** ADR-062 tempo 2b: il lavoro di database gira nella casa del cliente */
+  const inHouse = <T>(
+    context: { accountId: string },
+    work: (tx: DbClient) => Promise<T>,
+  ): Promise<T> => withAccount(deps.db, context.accountId, work);
+
   const resolver = new CustomerResolver(deps.db);
 
   app.decorateRequest("receptionCustomer", null);
@@ -112,16 +119,18 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
   app.get("/v1/reception/me", { preHandler: gate }, async (request, reply) => {
     const context = request.receptionCustomer;
     if (context === null) return problem(reply, 401, "Unauthorized");
-    const [customer] = await deps.db
-      .select({ id: customers.id, name: customers.name, slug: customers.slug })
-      .from(customers)
-      .where(eq(customers.id, context.customerId));
+    const [customer] = await inHouse(context, (tx) =>
+      tx
+        .select({ id: customers.id, name: customers.name, slug: customers.slug })
+        .from(customers)
+        .where(eq(customers.id, context.customerId)),
+    );
     return {
       customer,
       gosini: await deps.chat.assignedGosini(context),
       // le mele residue arrivano con l'identità: la reception le mostra
       // accanto al bottone senza una chiamata in più
-      rewards: await deps.reward.allowance(context.customerId),
+      rewards: await deps.reward.allowance(context.customerId, new Date(), context.accountId),
     };
   });
 
@@ -141,7 +150,7 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
       await deps.audit?.record({
         verb: "customer_reward_given",
         outcome: "ok",
-        householdId: context.householdId,
+        accountId: context.accountId,
         resourceType: "gosino",
         resourceId: parsed.data.gosinoId,
       });
@@ -211,10 +220,12 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
     if (context === null) return problem(reply, 401, "Unauthorized");
     const parsed = receptionGuidePdfRequestSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
-    const [customer] = await deps.db
-      .select({ name: customers.name })
-      .from(customers)
-      .where(eq(customers.id, context.customerId));
+    const [customer] = await inHouse(context, (tx) =>
+      tx
+        .select({ name: customers.name })
+        .from(customers)
+        .where(eq(customers.id, context.customerId)),
+    );
     const pdf = await renderGuidePdf({
       text: parsed.data.text,
       customerName: customer?.name ?? "il cliente",
@@ -229,8 +240,9 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
   app.get("/v1/reception/works", { preHandler: gate }, async (request, reply) => {
     const context = request.receptionCustomer;
     if (context === null) return problem(reply, 401, "Unauthorized");
-    const [repos, documents, mail] = await Promise.all([
-      deps.db
+    const [repos, documents, mail] = await inHouse(context, (tx) =>
+      Promise.all([
+      tx
         .select({
           remoteUrl: customerRepos.remoteUrl,
           defaultBranch: customerRepos.defaultBranch,
@@ -241,16 +253,17 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
         .from(customerRepos)
         .where(eq(customerRepos.customerId, context.customerId))
         .orderBy(asc(customerRepos.createdAt)),
-      deps.db
+      tx
         .select({ count: sql<string>`count(*)` })
         .from(customerDocuments)
         .where(eq(customerDocuments.customerId, context.customerId)),
-      deps.db
+      tx
         .select({ count: sql<string>`count(*)` })
         .from(customerMailAccounts)
         .where(eq(customerMailAccounts.customerId, context.customerId)),
-    ]);
-    const live = await deps.github?.liveBlock(context.customerId);
+      ]),
+    );
+    const live = await deps.github?.liveBlock(context.customerId, new Date(), context.accountId);
     return {
       repos: repos.map((repo) => ({
         ...repo,
@@ -274,9 +287,10 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
       const before = new Date(query.before);
       if (!Number.isNaN(before.getTime())) filters.push(lt(customerMessages.ts, before));
     }
-    const rows = await deps.db
-      .select({
-        id: customerMessages.id,
+    const rows = await inHouse(context, (tx) =>
+      tx
+        .select({
+          id: customerMessages.id,
         gosinoId: customerMessages.gosinoId,
         ticketId: customerMessages.ticketId,
         ts: customerMessages.ts,
@@ -284,10 +298,11 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
         text: customerMessages.text,
         cached: customerMessages.cached,
       })
-      .from(customerMessages)
-      .where(and(...filters))
-      .orderBy(desc(customerMessages.ts))
-      .limit(limit);
+        .from(customerMessages)
+        .where(and(...filters))
+        .orderBy(desc(customerMessages.ts))
+        .limit(limit),
+    );
     return {
       messages: rows.reverse().map((row) => ({
         id: row.id,
@@ -305,18 +320,20 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
   app.get("/v1/reception/tickets", { preHandler: gate }, async (request, reply) => {
     const context = request.receptionCustomer;
     if (context === null) return problem(reply, 401, "Unauthorized");
-    const rows = await deps.db
-      .select({
-        id: tickets.id,
-        gosinoId: tickets.gosinoId,
-        status: tickets.status,
-        title: tickets.title,
-        createdAt: tickets.createdAt,
-        updatedAt: tickets.updatedAt,
-      })
-      .from(tickets)
-      .where(eq(tickets.customerId, context.customerId))
-      .orderBy(asc(tickets.createdAt));
+    const rows = await inHouse(context, (tx) =>
+      tx
+        .select({
+          id: tickets.id,
+          gosinoId: tickets.gosinoId,
+          status: tickets.status,
+          title: tickets.title,
+          createdAt: tickets.createdAt,
+          updatedAt: tickets.updatedAt,
+        })
+        .from(tickets)
+        .where(eq(tickets.customerId, context.customerId))
+        .orderBy(asc(tickets.createdAt)),
+    );
     return {
       tickets: rows.map((row) => ({
         ...row,
@@ -349,20 +366,25 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
     const context = request.receptionCustomer;
     if (context === null) return problem(reply, 401, "Unauthorized");
     const { id } = request.params as { id: string };
-    const [ticket] = await deps.db
-      .select()
-      .from(tickets)
-      .where(and(eq(tickets.id, id), eq(tickets.customerId, context.customerId)));
-    if (ticket === undefined) return problem(reply, 404, "Not Found");
-    const conversation = await deps.db
-      .select({
-        role: customerMessages.role,
-        text: customerMessages.text,
-        ts: customerMessages.ts,
-      })
-      .from(customerMessages)
-      .where(eq(customerMessages.ticketId, ticket.id))
-      .orderBy(asc(customerMessages.ts));
+    const found = await inHouse(context, async (tx) => {
+      const [ticket] = await tx
+        .select()
+        .from(tickets)
+        .where(and(eq(tickets.id, id), eq(tickets.customerId, context.customerId)));
+      if (ticket === undefined) return undefined;
+      const conversation = await tx
+        .select({
+          role: customerMessages.role,
+          text: customerMessages.text,
+          ts: customerMessages.ts,
+        })
+        .from(customerMessages)
+        .where(eq(customerMessages.ticketId, ticket.id))
+        .orderBy(asc(customerMessages.ts));
+      return { ticket, conversation };
+    });
+    if (found === undefined) return problem(reply, 404, "Not Found");
+    const { ticket, conversation } = found;
     return {
       id: ticket.id,
       gosinoId: ticket.gosinoId,
@@ -386,29 +408,33 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
     const { id } = request.params as { id: string };
     const parsed = receptionTicketReplySchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
-    const [ticket] = await deps.db
-      .select({ id: tickets.id, gosinoId: tickets.gosinoId, status: tickets.status })
-      .from(tickets)
-      .where(and(eq(tickets.id, id), eq(tickets.customerId, context.customerId)));
-    if (ticket === undefined) return problem(reply, 404, "Not Found");
-    const at = new Date();
-    await deps.db.insert(customerMessages).values({
-      householdId: context.householdId,
-      customerId: context.customerId,
-      gosinoId: ticket.gosinoId,
-      ticketId: ticket.id,
-      ts: at,
-      role: "user",
-      text: encryptText(parsed.data.text, deps.dataKey),
+    const done = await inHouse(context, async (tx) => {
+      const [ticket] = await tx
+        .select({ id: tickets.id, gosinoId: tickets.gosinoId, status: tickets.status })
+        .from(tickets)
+        .where(and(eq(tickets.id, id), eq(tickets.customerId, context.customerId)));
+      if (ticket === undefined) return false;
+      const at = new Date();
+      await tx.insert(customerMessages).values({
+        accountId: context.accountId,
+        customerId: context.customerId,
+        gosinoId: ticket.gosinoId,
+        ticketId: ticket.id,
+        ts: at,
+        role: "user",
+        text: encryptText(parsed.data.text, deps.dataKey),
+      });
+      if (ticket.status === "closed") {
+        await tx
+          .update(tickets)
+          .set({ status: "waiting", updatedAt: at, closedAt: null })
+          .where(eq(tickets.id, ticket.id));
+      } else {
+        await tx.update(tickets).set({ updatedAt: at }).where(eq(tickets.id, ticket.id));
+      }
+      return true;
     });
-    if (ticket.status === "closed") {
-      await deps.db
-        .update(tickets)
-        .set({ status: "waiting", updatedAt: at, closedAt: null })
-        .where(eq(tickets.id, ticket.id));
-    } else {
-      await deps.db.update(tickets).set({ updatedAt: at }).where(eq(tickets.id, ticket.id));
-    }
+    if (!done) return problem(reply, 404, "Not Found");
     return reply.code(204).send();
   });
 }

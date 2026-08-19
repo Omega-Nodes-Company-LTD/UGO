@@ -11,10 +11,11 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <title>UGO</title>
     <style>
-      /* `hidden` has to win. Every panel here sets its own display on an id
-         selector, which outranks the browser's `[hidden] { display: none }`
-         and leaves a "closed" panel sitting on screen. This has now bitten
-         the gate and the scroll: one rule instead of one per panel. */
+      /* Solo il critico sta qui: il resto della veste vive in `src/hud.css`
+         (ADR-096) e arriva col bundle. `hidden` ha da vincere sempre: ogni
+         pannello imposta il proprio display su un selettore id, che batte il
+         `[hidden] { display: none }` del browser e lascerebbe un pannello
+         «chiuso» piantato sullo schermo. */
       [hidden] {
         display: none !important;
       }
@@ -36,175 +37,16 @@
         width: 100%;
         height: 100%;
       }
-      #hud {
+      .overlay {
         position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        padding: 0.6rem 1rem calc(0.6rem + env(safe-area-inset-bottom));
-        color: #cfcfe0;
-        /* Il velo sotto il testo. Serve da quando la stanza ha un cielo e un
-           prato: prima sotto la barra c'era il nero della pagina e un grigio
-           chiaro bastava, adesso c'è dell'erba illuminata e il contrasto
-           scendeva a ~2.5:1 — leggibile con gli occhi buoni e col sole no.
-           Una sfumatura invece di un colore pieno, così non si legge come una
-           barra appiccicata sopra il mondo. */
-        background: linear-gradient(to top, rgba(10, 12, 16, 0.62), rgba(10, 12, 16, 0));
+        inset: 0;
+        background: rgba(5, 5, 10, 0.92);
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
         align-items: center;
+        justify-content: center;
         gap: 1rem;
-        font-size: 0.9rem;
-        /* la barra si piega invece di traboccare: su un telefono i controlli
-           sono più larghi dello schermo, e un bottone tagliato a metà fuori
-           dal bordo è un bottone che non esiste */
-        flex-wrap: wrap;
-        row-gap: 0.35rem;
-      }
-      /* Telefono: l'umore su una riga sua, i controlli centrati sotto.
-         Senza, l'etichetta lunga («spaventato dal fracasso») si impilava in
-         colonna a sinistra e spingeva il selettore della stanza oltre il
-         bordo destro — l'interfaccia era letteralmente inutilizzabile. */
-      @media (max-width: 700px) {
-        #hud {
-          justify-content: center;
-          gap: 0.4rem;
-          font-size: 0.8rem;
-        }
-        #mood-label {
-          flex-basis: 100%;
-          text-align: center;
-        }
-      }
-      #speak-text {
-        position: absolute;
-        left: 50%;
-        bottom: 18%;
-        transform: translateX(-50%);
-        max-width: 80%;
-        color: #ffe9ef;
-        background: rgba(20, 20, 30, 0.7);
-        border-radius: 1rem;
-        padding: 0.5rem 1rem;
-        text-align: center;
-        opacity: 0;
-        transition: opacity 0.2s;
-      }
-      #speak-text.visible {
-        opacity: 1;
-      }
-      /* ADR-090: stessa scatola del registro — un pannello che si apre sul
-         muso deve somigliare all'altro, o sembra una pagina di un altro
-         programma finita lì per sbaglio. */
-      #mydata {
-        position: absolute; right: 1rem; bottom: 4.5rem; width: min(26rem, calc(100% - 2rem));
-        max-height: min(72vh, 36rem); display: flex; flex-direction: column; gap: .5rem;
-        background: #14141ae6; backdrop-filter: blur(10px); border: 1px solid #ffffff1f;
-        border-radius: .8rem; color: #f2f0ec; font-size: .9rem; overflow-y: auto;
-        padding: 0 0 .9rem;
-      }
-      #mydata header {
-        display: flex; align-items: center; gap: .5rem; padding: .6rem .8rem;
-        border-bottom: 1px solid #ffffff14; position: sticky; top: 0; background: #14141af2;
-      }
-      #mydata header b { flex: 1; font-size: .85rem; font-weight: 600; }
-      #mydata header button, #mydata .mydata-act button {
-        background: #ffffff14; border: 0; color: inherit; border-radius: .5rem;
-        padding: .3rem .7rem; font: inherit; cursor: pointer;
-      }
-      #mydata .lede { color: #ffffff8c; font-size: .78rem; margin: .2rem .9rem; line-height: 1.4; }
-      #mydata ul { margin: 0; padding: 0 .9rem; list-style: none; }
-      #mydata li {
-        display: flex; align-items: baseline; gap: .5rem; padding: .28rem 0;
-        border-bottom: 1px solid #ffffff0f;
-      }
-      #mydata li b { min-width: 3rem; text-align: right; font-variant-numeric: tabular-nums; }
-      /* le righe che parlano di corpi si guardano diversamente dalle altre */
-      #mydata li[data-body="yes"] { color: #ffd9a8; }
-      #mydata .mydata-act {
-        display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;
-        padding: .5rem .9rem 0; border-top: 1px solid #ffffff0f;
-      }
-      #mydata .mydata-act label { font-size: .78rem; color: #ffffffb3; width: 100%; }
-      #mydata .mydata-act input, #mydata .mydata-act select {
-        flex: 1 1 8rem; background: #ffffff0f; border: 1px solid #ffffff1f; color: inherit;
-        border-radius: .5rem; padding: .35rem .5rem; font: inherit;
-      }
-      #mydata .mydata-act .lede { width: 100%; margin: .2rem 0 0; }
-      #log {
-        position: absolute; right: 1rem; bottom: 4.5rem; width: min(26rem, calc(100% - 2rem));
-        max-height: min(60vh, 30rem); display: flex; flex-direction: column;
-        background: #14141ae6; backdrop-filter: blur(10px); border: 1px solid #ffffff1f;
-        border-radius: .8rem; color: #f2f0ec; font-size: .9rem; overflow: hidden;
-      }
-      #log header {
-        display: flex; align-items: center; gap: .5rem; padding: .6rem .8rem;
-        border-bottom: 1px solid #ffffff14;
-      }
-      #log header b { flex: 1; font-size: .85rem; font-weight: 600; }
-      #log header button {
-        font-size: .75rem; padding: .25rem .6rem; font-family: inherit;
-        background: #21212e; color: #cfcfe0; border: 1px solid #3a3a4c;
-        border-radius: 999px; cursor: pointer;
-      }
-      #log ol { margin: 0; padding: .5rem .8rem 1rem; list-style: none; overflow-y: auto; }
-      #log li { padding: .3rem 0; border-bottom: 1px solid #ffffff0f; line-height: 1.4; }
-      #log li:last-child { border-bottom: 0; }
-      #log .when { color: #ffffff66; font-size: .72rem; margin-right: .4rem;
-                   font-variant-numeric: tabular-nums; }
-      #log .who { font-weight: 600; }
-      #log li.mine .who { color: #b9c7ff; }
-      #log .empty { color: #ffffff66; padding: .6rem 0; }
-      /* the bubble is the same sentence, six seconds of it, and the scroll
-         sits right on top of it. With the scroll open the line is already
-         there and arrives live: showing it twice only hid half of each. */
-      #app[data-log="on"] #speak-text { opacity: 0; }
-
-      #room-pick,
-      #ear-pick {
-        background: #21212e;
         color: #cfcfe0;
-        border: 1px solid #3a3a4c;
-        border-radius: 999px;
-        padding: 0.4rem 0.7rem;
-        font: inherit;
-        font-size: 0.8rem;
-        max-width: 12rem;
-      }
-      #btn-mic,
-      #btn-log,
-      #btn-photo,
-      #btn-ears {
-        background: #21212e;
-        color: #cfcfe0;
-        border: 1px solid #3a3a4c;
-        border-radius: 999px;
-        padding: 0.4rem 0.9rem;
-      }
-      /* while the ears are on, the button says so without being shouted at */
-      #app[data-ears="on"] #btn-ears {
-        border-color: #6a6a8c;
-        color: #eaeaf5;
-      }
-      /* ADR-057: l'invito «fatti sentire la voce». Un colore suo perché non è
-         un controllo del chiosco: è UGO che chiede una cosa, e sparisce. */
-      #btn-voice-invite {
-        background: #2e2138;
-        color: #f0d9ff;
-        border: 1px solid #6a4a8c;
-        border-radius: 999px;
-        padding: 0.4rem 0.9rem;
-        font: inherit;
-        font-size: 0.8rem;
-      }
-      #conn,
-      #version {
-        font-size: 0.75rem;
-        opacity: 0.7;
-      }
-      #version {
-        font-family: ui-monospace, SFMono-Regular, monospace;
-        opacity: 0.45;
       }
       #rec-banner {
         position: absolute;
@@ -224,23 +66,6 @@
           opacity: 0.55;
         }
       }
-      .overlay[hidden] {
-        display: none;
-      }
-      .overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(5, 5, 10, 0.92);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 1rem;
-        color: #cfcfe0;
-      }
-      [data-mode="portable"] #hud button.home-only {
-        display: none;
-      }
     </style>
   </head>
   <body>
@@ -249,13 +74,15 @@
       <p id="speak-text" data-testid="speak-text"></p>
       <div id="rec-banner" data-testid="rec-banner" hidden>● REC</div>
       <div id="privacy-overlay" data-testid="privacy-overlay" class="overlay" hidden>
-        <div style="font-size: 3rem">😴 z z z</div>
-        <p>Privacy mode: microfono e registrazione spenti davvero.</p>
+        <svg width="56" height="56" viewBox="0 0 20 20" fill="none" stroke="#9db4e8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 12.5A7 7 0 0 1 7.5 4a7 7 0 1 0 8.5 8.5z"></path></svg>
+        <b>UGO riposa</b>
+        <p>Modalità privacy: microfono e registrazione spenti davvero. Nessun senso è acceso finché non lo risvegli.</p>
         <button id="btn-privacy-off" data-testid="btn-privacy-off" type="button">Risveglia UGO</button>
       </div>
       <div id="qr-overlay" data-testid="qr-overlay" class="overlay" hidden>
-        <p>Piacere, UGO 🐷 — inquadra per i contatti</p>
-        <canvas id="qr-canvas" data-testid="qr-canvas" width="240" height="240"></canvas>
+        <b>Piacere, UGO</b>
+        <p>Inquadra per i contatti.</p>
+        <div class="qr-card"><canvas id="qr-canvas" data-testid="qr-canvas" width="240" height="240"></canvas></div>
         <button id="btn-qr-close" data-testid="btn-qr-close" type="button">Chiudi</button>
       </div>
       <aside id="log" data-testid="log" hidden>
@@ -273,11 +100,11 @@
           <b>I tuoi dati</b>
           <button id="mydata-close" data-testid="mydata-close" type="button">chiudi</button>
         </header>
-        <p class="lede">Quello che UGO tiene su questa casa, in numeri. Non mostra cosa
+        <p class="lede">Quello che UGO tiene di questa casa, in numeri. Non mostra cosa
            c'è scritto: questo schermo lo vede chiunque passi di qui.</p>
         <ul id="mydata-lines" data-testid="mydata-lines"></ul>
         <div class="mydata-act">
-          <label for="mydata-token">Token di casa</label>
+          <label for="mydata-token">Token dell'account</label>
           <input id="mydata-token" data-testid="mydata-token" type="password"
                  autocomplete="off" placeholder="serve per le due cose qui sotto">
           <p class="lede">Non lo teniamo: appena chiudi questa scheda sparisce.</p>
@@ -299,43 +126,77 @@
         </div>
         <p id="mydata-msg" data-testid="mydata-msg" class="lede"></p>
       </aside>
+      <!-- ADR-096: il chiosco nascondibile. Barra + comandi quando è esteso,
+           dock di vetro quando `data-chrome="nascosto"`; è sempre lo stesso
+           markup, cambia solo la veste (src/hud.css). -->
       <div id="hud">
-        <span id="mood-label" data-testid="mood-label"></span>
-        <button id="btn-mic" data-testid="btn-mic" class="home-only" type="button">🎤 attiva sensi</button>
-        <button id="btn-ears" data-testid="btn-ears" class="home-only" type="button" hidden>
-          👂 ti ascolto
-        </button>
-        <button id="btn-rec" data-testid="btn-rec" type="button" hidden>● REC</button>
-        <button id="btn-privacy" data-testid="btn-privacy" type="button" hidden>😴 privacy</button>
-        <button id="btn-card" data-testid="btn-card" type="button" hidden>🪪 QR</button>
-        <!-- ADR-041: quanto facilmente si spaventa. Sta qui e non nel pannello
-             perché è una proprietà della STANZA, non della creatura: la stessa
-             creatura in cucina e in studio ha bisogno di due soglie. -->
-        <select id="ear-pick" data-testid="ear-pick" title="quanto forte deve essere per spaventarlo">
-          <option value="alta">👂 sensibile</option>
-          <option value="media">👂 normale</option>
-          <option value="bassa">👂 stanza rumorosa</option>
-          <option value="spenta">👂 non si spaventa</option>
-        </select>
-        <!-- ADR-037: which room this device is. Hidden until there is more
-             than one to choose from — a picker with one option is furniture. -->
-        <select id="room-pick" data-testid="room-pick" title="che stanza è questo schermo" hidden></select>
-        <!-- gruppo 4 — input immagini: fagli vedere una foto. La guarda il
-             modello di casa: i pixel non escono e non si salvano. -->
-        <button id="btn-photo" data-testid="btn-photo" type="button" title="fagli vedere una foto">📷</button>
-        <input id="photo-file" data-testid="photo-file" type="file" accept="image/*" hidden>
-        <!-- ADR-038: la nuvoletta dura sei secondi; questo resta. -->
-        <button id="btn-mydata" data-testid="btn-mydata" type="button" title="cosa tiene su di te">
-          🔒 i tuoi dati
-        </button>
-        <button id="btn-log" data-testid="btn-log" type="button" title="cosa è stato detto">
-          💬 detto
-        </button>
-        <span id="conn" data-testid="conn-status">disconnesso</span>
-        <!-- quale muso stai guardando. Sta accanto alla creatura e non in una
-             pagina di diagnostica perché la domanda «è aggiornato?» arriva
-             mentre sei davanti al chiosco, non davanti a un portatile. -->
-        <span id="version" data-testid="version" title="versione del muso"></span>
+        <header id="topbar">
+          <div id="topbar-ident">
+            <b>UGO</b>
+            <span id="mood-label" data-testid="mood-label"></span>
+          </div>
+          <div id="topbar-status">
+            <span id="conn" data-testid="conn-status">disconnesso</span>
+            <!-- quale muso stai guardando: la domanda «è aggiornato?» arriva
+                 davanti al chiosco, non davanti a un portatile -->
+            <span id="version" data-testid="version" title="versione del muso"></span>
+            <button id="btn-hide" data-testid="btn-hide" type="button" title="nascondi i comandi">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5l-5 5 5 5"></path><path d="M16 5l-5 5 5 5"></path></svg>
+              <span class="lbl">Nascondi</span>
+            </button>
+          </div>
+        </header>
+        <div id="controls">
+          <button id="sheet-grip" data-testid="sheet-grip" type="button" title="nascondi i comandi"></button>
+          <span class="section">Sensi</span>
+          <button id="btn-mic" data-testid="btn-mic" class="home-only" type="button">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7.2" y="2.2" width="5.6" height="9.6" rx="2.8"></rect><path d="M4.5 9.5a5.5 5.5 0 0 0 11 0"></path><path d="M10 15v2.6"></path></svg>
+            <span class="lbl">Attiva sensi</span>
+          </button>
+          <button id="btn-ears" data-testid="btn-ears" class="home-only" type="button" hidden>
+            ti ascolto
+          </button>
+          <!-- ADR-041: quanto facilmente si spaventa. Sta qui e non nel pannello
+               perché è una proprietà della STANZA, non della creatura. -->
+          <select id="ear-pick" data-testid="ear-pick" title="quanto forte deve essere per spaventarlo">
+            <option value="alta">orecchie: sensibile</option>
+            <option value="media">orecchie: normale</option>
+            <option value="bassa">orecchie: stanza rumorosa</option>
+            <option value="spenta">orecchie: non si spaventa</option>
+          </select>
+          <!-- gruppo 4 — input immagini. La guarda il modello di casa: i pixel
+               non escono e non si salvano. -->
+          <button id="btn-photo" data-testid="btn-photo" type="button" title="fagli vedere una foto">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="15" height="11" rx="2"></rect><circle cx="10" cy="10.5" r="3"></circle><path d="M7.5 5l1.1-1.8h2.8L12.5 5"></path></svg>
+            <span class="lbl">Fagli vedere una foto</span>
+          </button>
+          <span class="section">Casa</span>
+          <button id="btn-rec" data-testid="btn-rec" type="button" hidden>● REC</button>
+          <button id="btn-privacy" data-testid="btn-privacy" type="button" hidden>
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 12.5A7 7 0 0 1 7.5 4a7 7 0 1 0 8.5 8.5z"></path></svg>
+            <span class="lbl">Metti in privacy</span>
+          </button>
+          <!-- ADR-038: la nuvoletta dura sei secondi; questo resta. -->
+          <button id="btn-log" data-testid="btn-log" type="button" title="cosa è stato detto">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h9A2.5 2.5 0 0 1 17 5.5v6a2.5 2.5 0 0 1-2.5 2.5H8.2L4.8 17v-3H5.5A2.5 2.5 0 0 1 3 11.5z"></path></svg>
+            <span class="lbl">Cosa è stato detto</span>
+          </button>
+          <button id="btn-mydata" data-testid="btn-mydata" type="button" title="cosa tiene su di te">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="9" width="11" height="8" rx="1.8"></rect><path d="M7 9V6.5a3 3 0 0 1 6 0V9"></path></svg>
+            <span class="lbl">I tuoi dati</span>
+          </button>
+          <!-- ADR-037: which room this device is. Hidden until there is more
+               than one to choose from — a picker with one option is furniture. -->
+          <select id="room-pick" data-testid="room-pick" title="che stanza è questo schermo" hidden></select>
+          <button id="btn-card" data-testid="btn-card" type="button" hidden>
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="5.5" height="5.5" rx="1"></rect><rect x="11.5" y="3" width="5.5" height="5.5" rx="1"></rect><rect x="3" y="11.5" width="5.5" height="5.5" rx="1"></rect><path d="M11.5 11.5h2.4v2.4h-2.4z"></path><path d="M14.6 14.6H17V17h-2.4z"></path></svg>
+            <span class="lbl">Biglietto QR</span>
+          </button>
+          <input id="photo-file" data-testid="photo-file" type="file" accept="image/*" hidden>
+          <button id="btn-expand" data-testid="btn-expand" type="button" title="apri i comandi">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5-5 5 5"></path></svg>
+          </button>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

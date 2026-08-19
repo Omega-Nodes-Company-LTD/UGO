@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { households } from "./households.js";
+import { accounts } from "./accounts.js";
 
 /**
  * Chi ha fatto cosa (ADR-049).
@@ -37,7 +37,7 @@ export const auditLog = pgTable(
      * sappia di che casa si tratti. Renderla obbligatoria vorrebbe dire non
      * poter registrare esattamente l'evento per cui un audit log esiste.
      */
-    householdId: uuid("household_id").references(() => households.id),
+    accountId: uuid("account_id").references(() => accounts.id),
     /**
      * Quale token, non quale segreto. Deliberatamente **senza** foreign key:
      * un token revocato o cancellato non deve portarsi via la propria scia, che
@@ -48,7 +48,7 @@ export const auditLog = pgTable(
     role: text("role"),
     /** l'atto: `export`, `forget`, `token_issued`, `dream_requested`, `denied` */
     verb: text("verb").notNull(),
-    /** su cosa: `household`, `being`, `token`, `route` */
+    /** su cosa: `account`, `being`, `token`, `route` */
     resourceType: text("resource_type"),
     /** l'id della risorsa, o la rotta per un rifiuto. Mai un nome, mai un testo. */
     resourceId: text("resource_id"),
@@ -58,7 +58,7 @@ export const auditLog = pgTable(
   (table) => [
     // le due letture reali: «cosa è successo in questa casa» e «cosa ha fatto
     // questo token», entrambe sempre in ordine di tempo
-    index("audit_log_household_at_idx").on(table.householdId, table.at),
+    index("audit_log_account_at_idx").on(table.accountId, table.at),
     index("audit_log_at_idx").on(table.at),
   ],
 );

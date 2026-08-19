@@ -8,7 +8,7 @@ import {
   desires,
   events,
   gosini,
-  households,
+  accounts,
   perceptionEvents,
   recognitionProfiles,
   runMigrations,
@@ -62,7 +62,7 @@ let storage: { endpoint: string; accessKey: string; secretKey: string; bucket: s
 async function newBeing(fields: Record<string, unknown> = {}): Promise<string> {
   const [born] = await db
     .insert(beings)
-    .values({ householdId: house, displayName: "Marco", ...fields })
+    .values({ accountId: house, displayName: "Marco", ...fields })
     .returning({ id: beings.id });
   if (born === undefined) throw new Error("being insert failed");
   return born.id;
@@ -95,20 +95,20 @@ beforeAll(async () => {
   };
 
   const [born] = await db
-    .insert(households)
+    .insert(accounts)
     .values({ slug: "casa-voce", name: "Voce" })
-    .returning({ id: households.id });
+    .returning({ id: accounts.id });
   house = born?.id ?? "";
   const [creature] = await db
     .insert(gosini)
-    .values({ householdId: house, name: "ugo" })
+    .values({ accountId: house, name: "ugo" })
     .returning({ id: gosini.id });
   gosinoId = creature?.id ?? "";
 
   const psyche = await PsycheService.restore(db, new Date(), gosinoId);
   const chat = new ChatService({
     gosinoId,
-    householdId: house,
+    accountId: house,
     character: characterFrom({}),
     db,
     // il percorso sotto test non li sfiora; se un giorno lo farà, questo cast
@@ -123,7 +123,7 @@ beforeAll(async () => {
     db,
     chat,
     psyche,
-    voiceSample: (input) => storeVoiceSample({ db, storage }, { householdId: house, ...input }),
+    voiceSample: (input) => storeVoiceSample({ db, storage }, { accountId: house, ...input }),
   });
   app = buildServer({
     db,
@@ -140,7 +140,7 @@ beforeAll(async () => {
       prints: () => ({ claimPrint: () => Promise.resolve("learned" as const) }),
     },
   });
-  token = (await issueToken(db, { householdId: house, role: "owner", label: "prova" })).token;
+  token = (await issueToken(db, { accountId: house, role: "owner", label: "prova" })).token;
 }, 180_000);
 
 afterAll(async () => {
@@ -152,7 +152,7 @@ afterAll(async () => {
 describe("openVoiceAsk: il claim apre la richiesta", () => {
   it("per un adulto senza profilo: desiderio scritto e finestra aperta", async () => {
     const beingId = await newBeing({ displayName: "Francesco" });
-    const opened = await openVoiceAsk(db, { householdId: house, beingId });
+    const opened = await openVoiceAsk(db, { accountId: house, beingId });
     expect(opened).toEqual({ name: "Francesco" });
 
     const [wish] = await db
@@ -168,7 +168,7 @@ describe("openVoiceAsk: il claim apre la richiesta", () => {
   it("MAI per un minore o un opt-out audio: nessuna riga, nessuna finestra", async () => {
     for (const fields of [{ isMinor: true }, { noAudio: true }]) {
       const beingId = await newBeing({ displayName: "Sofia", ...fields });
-      await expect(openVoiceAsk(db, { householdId: house, beingId })).resolves.toBeUndefined();
+      await expect(openVoiceAsk(db, { accountId: house, beingId })).resolves.toBeUndefined();
       await expect(voiceAskOpen(db, beingId)).resolves.toBe(false);
     }
   });
@@ -177,13 +177,13 @@ describe("openVoiceAsk: il claim apre la richiesta", () => {
     const beingId = await newBeing({ displayName: "Anna" });
     await db.insert(recognitionProfiles).values({
       beingId,
-      householdId: house,
+      accountId: house,
       modality: "voice",
       model: "ecapa",
       dimensions: 4,
       payload: randomBytes(16),
     });
-    await expect(openVoiceAsk(db, { householdId: house, beingId })).resolves.toBeUndefined();
+    await expect(openVoiceAsk(db, { accountId: house, beingId })).resolves.toBeUndefined();
   });
 });
 
@@ -195,7 +195,7 @@ describe("/v1/pack dice anche il volto (il 404 della pagina «I volti»)", () =>
     const faced = await newBeing({ displayName: "Volto Noto" });
     await db.insert(recognitionProfiles).values({
       beingId: faced,
-      householdId: house,
+      accountId: house,
       modality: "face",
       model: "arcface",
       dimensions: 4,
@@ -258,7 +258,7 @@ describe("il chiosco deposita (FaceGateway)", () => {
 
   it("dentro la finestra il clip finisce in inbox/ e l'arruolamento è in coda", async () => {
     const beingId = await newBeing({ displayName: "Ivan" });
-    await openVoiceAsk(db, { householdId: house, beingId });
+    await openVoiceAsk(db, { accountId: house, beingId });
     const before = await inboxKeys();
 
     expect(await gateway.handleRaw(frame(beingId), send)).toBe(true);
@@ -281,7 +281,7 @@ describe("il chiosco deposita (FaceGateway)", () => {
 
   it("un campione basta: il secondo trova la finestra consumata", async () => {
     const beingId = await newBeing({ displayName: "Piero" });
-    await openVoiceAsk(db, { householdId: house, beingId });
+    await openVoiceAsk(db, { accountId: house, beingId });
     expect(await gateway.handleRaw(frame(beingId), send)).toBe(true);
     const before = await inboxKeys();
     expect(await gateway.handleRaw(frame(beingId), send)).toBe(true);
@@ -307,7 +307,7 @@ describe("POST /v1/prints/:id/claim apre la voce", () => {
     const [planted] = await db
       .insert(unknownPrints)
       .values({
-        householdId: house,
+        accountId: house,
         modality: "face",
         model: "mobilefacenet",
         dimensions: 4,

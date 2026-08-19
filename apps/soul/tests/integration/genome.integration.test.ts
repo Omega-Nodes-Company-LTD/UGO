@@ -3,7 +3,7 @@ import {
   createDbClient,
   type DbClient,
   gosini,
-  households,
+  accounts,
   psycheBaselines,
   runMigrations,
   traitSets,
@@ -57,13 +57,13 @@ beforeAll(async () => {
   await runMigrations(url);
   db = createDbClient(url);
 
-  const [house] = await db.select({ id: households.id }).from(households).limit(1);
-  if (house === undefined) throw new Error("the migrations seed one household");
+  const [house] = await db.select({ id: accounts.id }).from(accounts).limit(1);
+  if (house === undefined) throw new Error("the migrations seed one account");
   const born = await db
     .insert(gosini)
     .values([
-      { householdId: house.id, name: "Placido" },
-      { householdId: house.id, name: "Ciarla" },
+      { accountId: house.id, name: "Placido" },
+      { accountId: house.id, name: "Ciarla" },
     ])
     .returning({ id: gosini.id });
   calmo = born[0]?.id ?? "";
@@ -71,13 +71,13 @@ beforeAll(async () => {
 
   await db.insert(traitSets).values([
     {
-      householdId: house.id,
+      accountId: house.id,
       gosinoId: calmo,
       version: 1,
       traits: { ...ARCHETYPES.pigrone, talkativeness: 0 },
     },
     {
-      householdId: house.id,
+      accountId: house.id,
       gosinoId: nervoso,
       version: 1,
       traits: { ...ARCHETYPES.brontolone, talkativeness: 1 },
@@ -86,6 +86,9 @@ beforeAll(async () => {
 
   await GosinoRegistry.load({
     db,
+    // ADR-098: nei test la connessione di processo e' l'owner, quindi la
+    // "connessione della casa" puo' essere la stessa — il muro qui non morde
+    dbFor: () => db,
     embedder,
     llm: () => undefined as unknown as LlmClient,
     local,
@@ -135,6 +138,7 @@ describe("il genoma arriva fino al database", () => {
 
     await GosinoRegistry.load({
       db,
+      dbFor: () => db,
       embedder,
       llm: () => undefined as unknown as LlmClient,
       local,

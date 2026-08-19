@@ -54,7 +54,7 @@ class VoiceQuery(BaseModel):
 
     #: PCM int16 little-endian a 16 kHz, mono, in base64
     audio: str = Field(min_length=1, max_length=MAX_AUDIO_B64)
-    household_id: str = Field(min_length=1)
+    account_id: str = Field(min_length=1)
     gosino_id: str | None = None
 
 
@@ -63,7 +63,7 @@ class FaceQuery(BaseModel):
 
     #: RGB uint8 112x112 in base64 — il ritaglio che ArcFace vuole
     image: str = Field(min_length=1, max_length=MAX_IMAGE_B64)
-    household_id: str = Field(min_length=1)
+    account_id: str = Field(min_length=1)
     gosino_id: str | None = None
 
 
@@ -320,7 +320,7 @@ class EnrollVoiceQuery(BaseModel):
     audio: str = Field(min_length=1)
     being_id: str = Field(min_length=1)
     gosino_id: str = Field(min_length=1)
-    household_id: str = Field(min_length=1)
+    account_id: str = Field(min_length=1)
 
 
 class Enrolled(BaseModel):
@@ -352,8 +352,8 @@ def enroll_voice_endpoint(query: EnrollVoiceQuery) -> Enrolled:
         # il confine di casa si verifica QUI: l'essere deve stare nella casa
         # dichiarata, o un chiamante potrebbe arruolare voci oltre il muro
         belongs = conn.execute(
-            "select 1 from beings where id = %s and household_id = %s",
-            (query.being_id, query.household_id),
+            "select 1 from beings where id = %s and account_id = %s",
+            (query.being_id, query.account_id),
         ).fetchone()
         if belongs is None:
             raise HTTPException(status_code=404, detail="essere non trovato in questa casa")
@@ -385,7 +385,7 @@ def identify_voice_endpoint(query: VoiceQuery) -> Recognised:
             conn,
             samples=samples,
             data_key=parse_data_key(os.environ["UGO_DATA_KEY"]),
-            household_id=query.household_id,
+            account_id=query.account_id,
             encoder=MODELS.voice,
         )
     return Recognised(
@@ -409,7 +409,7 @@ def identify_face_endpoint(query: FaceQuery) -> Recognised:
             conn,
             image=image,
             data_key=parse_data_key(os.environ["UGO_DATA_KEY"]),
-            household_id=query.household_id,
+            account_id=query.account_id,
             encoder=MODELS.face,
         )
     return Recognised(
@@ -424,7 +424,7 @@ class RememberQuery(BaseModel):
     """Un volto che non è di nessuno che conosciamo (ADR-057)."""
 
     image: str = Field(min_length=1, max_length=MAX_IMAGE_B64)
-    household_id: str = Field(min_length=1)
+    account_id: str = Field(min_length=1)
 
 
 class Remembered(BaseModel):
@@ -439,7 +439,7 @@ class ClaimQuery(BaseModel):
 
     print_id: str = Field(min_length=1)
     being_id: str = Field(min_length=1)
-    household_id: str = Field(min_length=1)
+    account_id: str = Field(min_length=1)
     gosino_id: str = Field(min_length=1)
 
 
@@ -464,7 +464,7 @@ def remember_unknown_endpoint(query: RememberQuery) -> Remembered:
     with _connect() as conn:
         print_id, seen = remember_unknown(
             conn,
-            household_id=query.household_id,
+            account_id=query.account_id,
             image=image,
             data_key=parse_data_key(os.environ["UGO_DATA_KEY"]),
             encoder=MODELS.face,
@@ -493,7 +493,7 @@ def claim_print_endpoint(query: ClaimQuery) -> Claimed:
                 print_id=query.print_id,
                 being_id=query.being_id,
                 gosino_id=query.gosino_id,
-                household_id=query.household_id,
+                account_id=query.account_id,
                 data_key=parse_data_key(os.environ["UGO_DATA_KEY"]),
             )
         except EnrollmentRefused as refused:

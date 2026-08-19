@@ -272,7 +272,7 @@ export const GOSINO_PAGES = `
     <h2>In vetrina</h2>
     <p class="lede">Chi cerca un gosino guarda gli allevamenti, i cuccioli disponibili e i loro
        pedigree — <b>prima</b> di sceglierne uno. In vetrina si vede com'è fatto e da chi
-       discende: niente delle case, nessuna persona, nessun ricordo.</p>
+       discende: niente dell'account, nessuna persona, nessun ricordo.</p>
     <div class="row" style="align-items:center">
       <div style="flex:0 1 10rem"><label for="vetrina-price">Prezzo (€)</label>
         <input id="vetrina-price" data-testid="vetrina-price" type="number" step="10" min="0"
@@ -313,7 +313,7 @@ export const GOSINO_PAGES = `
 
 <section class="page" data-page="nascita">
   <div class="page-head">
-    <p class="eyebrow">La casa</p>
+    <p class="eyebrow" data-account>—</p>
     <h1>Un altro gosino</h1>
     <p>Avrà psiche, ricordi, diario e iniziativa tutti suoi; del branco, del budget e
        dell'orologio ne condivide uno solo con gli altri. <b>Ma non si crea dal nulla</b>:

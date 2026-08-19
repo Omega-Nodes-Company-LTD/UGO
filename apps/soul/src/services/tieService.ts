@@ -1,14 +1,18 @@
-import { beings, householdTies, households, withHousehold, type DbClient } from "@ugo/db";
+import { accountTies, accounts, withAccount, withPost, type DbClient } from "@ugo/db";
 import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import { z } from "zod";
 
 /**
- * La parentela fra le case (ADR-092): proposta da una casa, vera solo quando
+ * La parentela fra le case (ADR-099): proposta da una casa, vera solo quando
  * l'altra accetta, revocabile da ciascuna delle due in silenzio.
  *
- * Ogni scrittura passa da `withHousehold` con la casa che compie l'atto: le
- * politiche di riga (migrazione 0049) sono il muro, questo servizio è la
- * porta — e i due devono dire la stessa cosa.
+ * **Due porte, e la differenza conta** (ADR-099, dopo il flip di ADR-062
+ * tempo 2b). Ogni SCRITTURA passa da `withAccount` con la casa che compie
+ * l'atto: la policy pretende che chi propone sia il mittente, e resta la
+ * difesa forte. Ogni LETTURA che attraversa il confine — lo slug della casa a
+ * cui si propone, il nome dell'altra parte — passa da `withPost`: sotto
+ * `ugo_app` quelle righe semplicemente non esistono, e senza la porta questo
+ * servizio risponderebbe «casa sconosciuta» a ogni parentela del mondo.
  */
 
 export type TieRefusal =
@@ -39,58 +43,62 @@ export class TieService {
   public constructor(private readonly db: DbClient) {}
 
   /** slug o uuid, come la cessione (ADR-082): chi propone non sfoglia elenchi */
-  private async resolveHousehold(asked: string): Promise<string | undefined> {
+  private async resolveAccount(asked: string): Promise<string | undefined> {
     const trimmed = asked.trim();
-    const byId = z.uuid().safeParse(trimmed).success ? eq(households.id, trimmed) : undefined;
-    const [row] = await this.db
-      .select({ id: households.id })
-      .from(households)
-      .where(
-        and(isNull(households.closedAt), or(eq(households.slug, trimmed.toLowerCase()), byId)),
-      );
+    const byId = z.uuid().safeParse(trimmed).success ? eq(accounts.id, trimmed) : undefined;
+    // la casa a cui si propone è di qualcun altro per definizione: senza
+    // `withPost` questa select torna sempre vuota, e sempre in silenzio
+    const [row] = await withPost(this.db, (tx) =>
+      tx
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(and(isNull(accounts.closedAt), or(eq(accounts.slug, trimmed.toLowerCase()), byId))),
+    );
     return row?.id;
   }
 
   public async propose(
-    fromHouseholdId: string,
-    input: { toHousehold: string; label: string; fromBeingId?: string | undefined },
+    fromAccountId: string,
+    input: { toAccount: string; label: string; fromBeingId?: string | undefined },
   ): Promise<{ id: string } | TieRefusal> {
-    const toHouseholdId = await this.resolveHousehold(input.toHousehold);
-    if (toHouseholdId === undefined) return "casa-sconosciuta";
-    if (toHouseholdId === fromHouseholdId) return "se-stessa";
+    const toAccountId = await this.resolveAccount(input.toAccount);
+    if (toAccountId === undefined) return "casa-sconosciuta";
+    if (toAccountId === fromAccountId) return "se-stessa";
 
     // il rifiuto parlato prima del vincolo: l'indice unico (0049) direbbe la
     // stessa cosa, ma con le parole di Postgres invece che con le nostre
-    const [alive] = await this.db
-      .select({ id: householdTies.id })
-      .from(householdTies)
+    const [alive] = await withPost(this.db, (tx) =>
+      tx
+        .select({ id: accountTies.id })
+        .from(accountTies)
       .where(
         and(
-          ne(householdTies.status, "revocata"),
+          ne(accountTies.status, "revocata"),
           or(
             and(
-              eq(householdTies.fromHouseholdId, fromHouseholdId),
-              eq(householdTies.toHouseholdId, toHouseholdId),
+              eq(accountTies.fromAccountId, fromAccountId),
+              eq(accountTies.toAccountId, toAccountId),
             ),
             and(
-              eq(householdTies.fromHouseholdId, toHouseholdId),
-              eq(householdTies.toHouseholdId, fromHouseholdId),
+              eq(accountTies.fromAccountId, toAccountId),
+              eq(accountTies.toAccountId, fromAccountId),
             ),
           ),
         ),
-      );
+      ),
+    );
     if (alive !== undefined) return "gia-legate";
 
-    const created = await withHousehold(this.db, fromHouseholdId, async (tx) => {
+    const created = await withAccount(this.db, fromAccountId, async (tx) => {
       const [row] = await tx
-        .insert(householdTies)
+        .insert(accountTies)
         .values({
-          fromHouseholdId,
-          toHouseholdId,
+          fromAccountId,
+          toAccountId,
           label: input.label.trim(),
           ...(input.fromBeingId !== undefined && { fromBeingId: input.fromBeingId }),
         })
-        .returning({ id: householdTies.id });
+        .returning({ id: accountTies.id });
       return row;
     });
     if (created === undefined) throw new Error("la parentela non è stata scritta");
@@ -98,83 +106,86 @@ export class TieService {
   }
 
   public async accept(
-    householdId: string,
+    accountId: string,
     tieId: string,
     toBeingId?: string,
   ): Promise<{ id: string } | TieRefusal> {
-    const [tie] = await this.db
-      .select({
-        to: householdTies.toHouseholdId,
-        status: householdTies.status,
-      })
-      .from(householdTies)
-      .where(eq(householdTies.id, tieId));
+    const [tie] = await withPost(this.db, (tx) =>
+      tx
+        .select({ to: accountTies.toAccountId, status: accountTies.status })
+        .from(accountTies)
+        .where(eq(accountTies.id, tieId)),
+    );
     if (tie === undefined) return "non-esiste";
     // accettare tocca SOLO al destinatario della proposta
-    if (tie.to !== householdId) return "non-tua";
+    if (tie.to !== accountId) return "non-tua";
     if (tie.status !== "proposta") return "non-in-proposta";
 
-    await withHousehold(this.db, householdId, (tx) =>
+    await withAccount(this.db, accountId, (tx) =>
       tx
-        .update(householdTies)
+        .update(accountTies)
         .set({
           status: "accettata",
           acceptedAt: new Date(),
           ...(toBeingId !== undefined && { toBeingId }),
         })
-        .where(eq(householdTies.id, tieId)),
+        .where(eq(accountTies.id, tieId)),
     );
     return { id: tieId };
   }
 
-  public async revoke(householdId: string, tieId: string): Promise<{ id: string } | TieRefusal> {
-    const [tie] = await this.db
-      .select({
-        from: householdTies.fromHouseholdId,
-        to: householdTies.toHouseholdId,
-        status: householdTies.status,
-      })
-      .from(householdTies)
-      .where(eq(householdTies.id, tieId));
+  public async revoke(accountId: string, tieId: string): Promise<{ id: string } | TieRefusal> {
+    const [tie] = await withPost(this.db, (tx) =>
+      tx
+        .select({
+          from: accountTies.fromAccountId,
+          to: accountTies.toAccountId,
+          status: accountTies.status,
+        })
+        .from(accountTies)
+        .where(eq(accountTies.id, tieId)),
+    );
     if (tie === undefined) return "non-esiste";
-    if (tie.from !== householdId && tie.to !== householdId) return "non-tua";
+    if (tie.from !== accountId && tie.to !== accountId) return "non-tua";
     if (tie.status === "revocata") return "gia-revocata";
 
-    await withHousehold(this.db, householdId, (tx) =>
+    await withAccount(this.db, accountId, (tx) =>
       tx
-        .update(householdTies)
+        .update(accountTies)
         .set({ status: "revocata", revokedAt: new Date() })
-        .where(eq(householdTies.id, tieId)),
+        .where(eq(accountTies.id, tieId)),
     );
     return { id: tieId };
   }
 
   /** Le parentele di una casa, con l'altra parte detta per nome e non per id. */
-  public async listFor(householdId: string): Promise<TieView[]> {
-    const rows = await this.db
-      .select()
-      .from(householdTies)
-      .where(
-        or(
-          eq(householdTies.fromHouseholdId, householdId),
-          eq(householdTies.toHouseholdId, householdId),
-        ),
-      )
-      .orderBy(householdTies.proposedAt);
+  public async listFor(accountId: string): Promise<TieView[]> {
+    const rows = await withPost(this.db, (tx) =>
+      tx
+        .select()
+        .from(accountTies)
+        .where(
+          or(eq(accountTies.fromAccountId, accountId), eq(accountTies.toAccountId, accountId)),
+        )
+        .orderBy(accountTies.proposedAt),
+    );
     if (rows.length === 0) return [];
 
     const otherIds = rows.map((row) =>
-      row.fromHouseholdId === householdId ? row.toHouseholdId : row.fromHouseholdId,
+      row.fromAccountId === accountId ? row.toAccountId : row.fromAccountId,
     );
-    const names = await this.db
-      .select({ id: households.id, slug: households.slug, name: households.name })
-      .from(households)
-      .where(inArray(households.id, otherIds));
+    // i nomi sono delle ALTRE case: è il motivo per cui esiste `withPost`
+    const names = await withPost(this.db, (tx) =>
+      tx
+        .select({ id: accounts.id, slug: accounts.slug, name: accounts.name })
+        .from(accounts)
+        .where(inArray(accounts.id, otherIds)),
+    );
     const byId = new Map(names.map((house) => [house.id, house]));
 
     return rows.map((row) => {
-      const proposedByUs = row.fromHouseholdId === householdId;
-      const other = byId.get(proposedByUs ? row.toHouseholdId : row.fromHouseholdId);
+      const proposedByUs = row.fromAccountId === accountId;
+      const other = byId.get(proposedByUs ? row.toAccountId : row.fromAccountId);
       return {
         id: row.id,
         otherSlug: other?.slug ?? "?",
@@ -195,10 +206,10 @@ export class TieService {
    * revocate non contano — per il gesto, quella casa è tornata un'estranea.
    */
   public async tieByName(
-    householdId: string,
+    accountId: string,
     name: string,
   ): Promise<
-    { id: string; otherHouseholdId: string; otherName: string; status: string } | undefined
+    { id: string; otherAccountId: string; otherName: string; status: string } | undefined
   > {
     // senza l'articolo davanti: il gesto dice «manda AI nonni», l'etichetta
     // dice «i nonni», e sarebbe crudele che la differenza fosse un articolo
@@ -209,7 +220,7 @@ export class TieService {
         .replace(/^(il|lo|la|i|gli|le|l')\s*/u, "");
     const wanted = plain(name);
     if (wanted === "") return undefined;
-    const ties = await this.listFor(householdId);
+    const ties = await this.listFor(accountId);
     const match = ties.find(
       (tie) =>
         tie.status !== "revocata" &&
@@ -218,17 +229,16 @@ export class TieService {
           plain(tie.label) === wanted),
     );
     if (match === undefined) return undefined;
-    const [row] = await this.db
-      .select({
-        from: householdTies.fromHouseholdId,
-        to: householdTies.toHouseholdId,
-      })
-      .from(householdTies)
-      .where(eq(householdTies.id, match.id));
+    const [row] = await withPost(this.db, (tx) =>
+      tx
+        .select({ from: accountTies.fromAccountId, to: accountTies.toAccountId })
+        .from(accountTies)
+        .where(eq(accountTies.id, match.id)),
+    );
     if (row === undefined) return undefined;
     return {
       id: match.id,
-      otherHouseholdId: row.from === householdId ? row.to : row.from,
+      otherAccountId: row.from === accountId ? row.to : row.from,
       otherName: match.otherName,
       status: match.status,
     };
@@ -236,20 +246,11 @@ export class TieService {
 
   /** Solo le accettate: la porta che una cartolina può davvero attraversare. */
   public async acceptedTieByName(
-    householdId: string,
+    accountId: string,
     name: string,
-  ): Promise<{ id: string; otherHouseholdId: string } | undefined> {
-    const tie = await this.tieByName(householdId, name);
+  ): Promise<{ id: string; otherAccountId: string } | undefined> {
+    const tie = await this.tieByName(accountId, name);
     if (tie?.status !== "accettata") return undefined;
-    return { id: tie.id, otherHouseholdId: tie.otherHouseholdId };
-  }
-
-  /** Il nome con cui parlare di un essere locale, per il pannello. */
-  public async beingNameOf(householdId: string, beingId: string): Promise<string | undefined> {
-    const [row] = await this.db
-      .select({ name: beings.displayName })
-      .from(beings)
-      .where(and(eq(beings.id, beingId), eq(beings.householdId, householdId)));
-    return row?.name;
+    return { id: tie.id, otherAccountId: tie.otherAccountId };
   }
 }

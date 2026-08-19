@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { foreignKey, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { customers } from "./customers.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 
 /**
  * The customer's personal tokens (ADR-052): a table of their own, deliberately
@@ -15,7 +15,7 @@ export const customerAccessTokens = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     customerId: uuid("customer_id").notNull(),
     /** hex SHA-256 of the bearer token; the clear value never touches the database */
     tokenHash: text("token_hash").notNull().unique(),
@@ -30,9 +30,9 @@ export const customerAccessTokens = pgTable(
   (table) => [
     index("customer_access_tokens_customer_idx").on(table.customerId),
     foreignKey({
-      columns: [table.householdId, table.customerId],
-      foreignColumns: [customers.householdId, customers.id],
-      name: "customer_access_tokens_household_customer_fk",
+      columns: [table.accountId, table.customerId],
+      foreignColumns: [customers.accountId, customers.id],
+      name: "customer_access_tokens_account_customer_fk",
     }).onDelete("cascade"),
   ],
 );

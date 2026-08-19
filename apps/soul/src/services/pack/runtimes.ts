@@ -1,9 +1,9 @@
-import { gosini, households, psycheBaselines, traitSets, type DbClient } from "@ugo/db";
+import { gosini, accounts, psycheBaselines, traitSets, type DbClient } from "@ugo/db";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { lifeAt } from "@ugo/psyche";
 import type { SpeciesMap } from "@ugo/shared";
-import type { EmbeddingsClient, LlmClient, LocalTextClient } from "@ugo/memory";
-import { desc, eq, isNull } from "drizzle-orm";
+import type { ChatLlm, EmbeddingsClient, LocalTextClient } from "@ugo/memory";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { AudioStorageConfig } from "../../routes/audio.js";
 import { ChatService } from "../chatService.js";
 import { characterFrom, type Character } from "../council/character.js";
@@ -30,7 +30,7 @@ import { VolitionService } from "../volition/volitionService.js";
  * Now each one gets his own, and the registry is what a socket asks when it
  * says which of them it wants to be.
  *
- * What is deliberately NOT per exemplar: the household. The pack, the data
+ * What is deliberately NOT per exemplar: the account. The pack, the data
  * key, the budget and the clock belong to the house (ADR-019), and two
  * creatures under one roof must agree about who lives there.
  *
@@ -45,7 +45,7 @@ import { VolitionService } from "../volition/volitionService.js";
 export interface GosinoRuntime {
   readonly id: string;
   /** the house this creature lives in (ADR-019): never crossed, only filtered */
-  readonly householdId: string;
+  readonly accountId: string;
   /** mutable: a rename or a move must not cost him his living psyche (ADR-036) */
   name: string;
   /** "cucina", "studio" — the room whose device shows him (ADR-036) */
@@ -78,6 +78,13 @@ export interface HouseClock {
 }
 
 export interface RuntimeDeps {
+  /**
+   * ADR-098: la connessione DELLA CASA — `app.account_id` dichiarato alla
+   * stretta di mano, ogni query del runtime già dentro il muro. `db` resta la
+   * connessione di processo: serve solo a elencare le case (tabella
+   * dichiarata leggibile, ADR-048 §7).
+   */
+  dbFor: (accountId: string) => DbClient;
   db: DbClient;
   embedder: EmbeddingsClient;
   /**
@@ -86,7 +93,7 @@ export interface RuntimeDeps {
    * process wrote every row against the seeded house — so a second family's
    * conversation drained the first one's day and its ceiling was never read.
    */
-  llm: (householdId: string, gosinoId: string, clock: HouseClock) => LlmClient;
+  llm: (accountId: string, gosinoId: string, clock: HouseClock) => ChatLlm;
   local: LocalTextClient;
   dataKey: Buffer;
   /**
@@ -111,7 +118,7 @@ export interface RuntimeDeps {
    * i profili biometrici sono per casa, e un riconoscitore costruito una volta
    * confronterebbe la voce di una famiglia coi centroidi di un'altra.
    */
-  recognition?: (householdId: string) => {
+  recognition?: (accountId: string) => {
     byVoice: (audioBase64: string) => Promise<{ beingId?: string | undefined } | undefined>;
     /** ADR-065: la lettura su gesto — tesseract sullo stesso servizio */
     ocr: (imageBase64: string) => Promise<string | undefined>;
@@ -156,21 +163,22 @@ async function buildRuntime(
   deps: RuntimeDeps,
   row: {
     id: string;
-    householdId: string;
+    accountId: string;
     name: string;
     where: string | null;
     mortalFrom?: Date | null;
     jitter?: number | null;
   },
 ): Promise<GosinoRuntime> {
-  const [house] = await deps.db
-    .select({ timezone: households.timezone, locale: households.locale })
-    .from(households)
-    .where(eq(households.id, row.householdId));
+  const hdb = deps.dbFor(row.accountId);
+  const [house] = await hdb
+    .select({ timezone: accounts.timezone, locale: accounts.locale })
+    .from(accounts)
+    .where(eq(accounts.id, row.accountId));
   const timezone = house?.timezone ?? deps.timezone;
   const locale = house?.locale ?? DEFAULT_LOCALE;
 
-  const traits = await deps.db
+  const traits = await hdb
     .select({ traits: traitSets.traits })
     .from(traitSets)
     .where(eq(traitSets.gosinoId, row.id))
@@ -199,27 +207,27 @@ async function buildRuntime(
   // ripiegava sui valori neutri del motore. Si seminano qui e non alla nascita
   // perche' cosi' vale anche per gli esemplari nati prima di questa riga; e
   // prima di `restore()`, o la prima vita partirebbe comunque neutra.
-  await seedBaselines(deps.db, row.id, character.baselines);
-  const psyche = await PsycheService.restore(deps.db, new Date(), row.id);
-  const recognition = deps.recognition?.(row.householdId);
+  await seedBaselines(hdb, row.id, character.baselines);
+  const psyche = await PsycheService.restore(hdb, new Date(), row.id);
+  const recognition = deps.recognition?.(row.accountId);
   const nudges = deps.nudges;
   // ADR-065: il lettore ha bisogno del gateway, che nasce DOPO la chat (il
   // gateway ha bisogno della chat). La scatola scioglie il cerchio: la chat
   // legge il corpo solo al momento del gesto, quando esiste da un pezzo.
   const body: { gateway?: FaceGateway } = {};
   const chat = new ChatService({
-    db: deps.db,
+    db: hdb,
     embedder: deps.embedder,
-    llm: deps.llm(row.householdId, row.id, { timezone, locale }),
+    llm: deps.llm(row.accountId, row.id, { timezone, locale }),
     psyche,
     dataKey: deps.dataKey,
     timezone,
     locale,
     gosinoId: row.id,
-    householdId: row.householdId,
+    accountId: row.accountId,
     character,
     ...(deps.speciesMap !== undefined && {
-      pack: new PackService(deps.db, deps.speciesMap, row.id, row.householdId),
+      pack: new PackService(hdb, deps.speciesMap, row.id, row.accountId),
     }),
     ...(deps.web !== undefined && { web: deps.web }),
     // ADR-088: la storia della buonanotte la scrive il modello di casa, lo
@@ -235,7 +243,7 @@ async function buildRuntime(
       nudges: { answer: (text: string, at: Date) => nudges.answer(row.id, text, at) },
     }),
     ...(deps.vision !== undefined && { vision: deps.vision }),
-    // ADR-092: la cartolina a voce — il gesto esiste per ogni esemplare,
+    // ADR-099: la cartolina a voce — il gesto esiste per ogni esemplare,
     // perché la porta vera è il consenso della parentela, non il cablaggio
     postcards: {
       ties: new TieService(deps.db),
@@ -244,16 +252,16 @@ async function buildRuntime(
   });
   // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.
   // Due gosini sotto lo stesso tetto imparano cose diverse, ed è il punto.
-  const efficacy = new EfficacyService(deps.db, row.id);
+  const efficacy = new EfficacyService(hdb, row.id);
   const audio = deps.audio;
   const reward = new RewardService({
-    db: deps.db,
+    db: hdb,
     gosinoId: row.id,
-    householdId: row.householdId,
+    accountId: row.accountId,
     efficacy,
   });
   const gateway = new FaceGateway({
-    db: deps.db,
+    db: hdb,
     psyche,
     chat,
     gosinoId: row.id,
@@ -263,17 +271,17 @@ async function buildRuntime(
     // controlli a monte dentro — minore e opt-out si rifiutano PRIMA del bucket
     ...(audio !== undefined && {
       voiceSample: (input: { beingId: string; audio: Buffer }) =>
-        storeVoiceSample({ db: deps.db, storage: audio }, { householdId: row.householdId, ...input }),
+        storeVoiceSample({ db: hdb, storage: audio }, { accountId: row.accountId, ...input }),
     }),
   });
   body.gateway = gateway;
   const volition = new VolitionService({
-    db: deps.db,
+    db: hdb,
     gosinoId: row.id,
     psyche,
     gateway,
     curiosity: new Curiosity({
-      db: deps.db,
+      db: hdb,
       local: deps.local,
       dataKey: deps.dataKey,
       name: row.name,
@@ -288,7 +296,7 @@ async function buildRuntime(
 
   return {
     id: row.id,
-    householdId: row.householdId,
+    accountId: row.accountId,
     name: row.name,
     where: row.where ?? undefined,
     character,
@@ -314,18 +322,42 @@ export class GosinoRegistry {
 
   /** Rebuilds from the database — called at boot and after a birth. */
   public async reload(): Promise<void> {
-    const rows = await this.deps.db
-      .select({
-        id: gosini.id,
-        householdId: gosini.householdId,
-        name: gosini.name,
-        where: gosini.locationLabel,
-        mortalFrom: gosini.mortalFrom,
-        jitter: gosini.lifeJitterDays,
-      })
-      .from(gosini)
-      .where(isNull(gosini.retiredAt))
-      .orderBy(gosini.bornAt);
+    /**
+     * ADR-098: si iterano le CASE (tabella dichiarata leggibile, ADR-048 §7)
+     * e il roster di ognuna si legge attraverso la SUA connessione. Leggere
+     * `gosini` intero dalla connessione di processo, sotto `ugo_app`, avrebbe
+     * risposto zero righe: processo in piedi e nessuna creatura, senza un
+     * errore da nessuna parte.
+     */
+    const houses = await this.deps.db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(isNull(accounts.closedAt));
+    const rows: {
+      id: string;
+      accountId: string;
+      name: string;
+      where: string | null;
+      mortalFrom: Date | null;
+      jitter: number | null;
+    }[] = [];
+    for (const house of houses) {
+      rows.push(
+        ...(await this.deps
+          .dbFor(house.id)
+          .select({
+            id: gosini.id,
+            accountId: gosini.accountId,
+            name: gosini.name,
+            where: gosini.locationLabel,
+            mortalFrom: gosini.mortalFrom,
+            jitter: gosini.lifeJitterDays,
+          })
+          .from(gosini)
+          .where(and(isNull(gosini.retiredAt), eq(gosini.accountId, house.id)))
+          .orderBy(gosini.bornAt)),
+      );
+    }
     for (const row of rows) {
       const living = this.byId.get(row.id);
       if (living === undefined) {
@@ -352,8 +384,8 @@ export class GosinoRegistry {
   }
 
   /** The creatures of one house — what every route and every socket wants. */
-  public all(householdId: string): GosinoRuntime[] {
-    return this.everywhere().filter((runtime) => runtime.householdId === householdId);
+  public all(accountId: string): GosinoRuntime[] {
+    return this.everywhere().filter((runtime) => runtime.accountId === accountId);
   }
 
   /**
@@ -368,17 +400,17 @@ export class GosinoRegistry {
    * showing the wrong creature is worse than showing an empty room, which at
    * least tells the truth about what is there.
    */
-  public inRoom(room: string, householdId: string): GosinoRuntime[] {
+  public inRoom(room: string, accountId: string): GosinoRuntime[] {
     const wanted = room.trim().toLowerCase();
-    return this.all(householdId).filter(
+    return this.all(accountId).filter(
       (runtime) => runtime.where?.trim().toLowerCase() === wanted,
     );
   }
 
   /** The rooms that have somebody in them, in the order they were settled. */
-  public rooms(householdId: string): { room: string; gosini: GosinoRuntime[] }[] {
+  public rooms(accountId: string): { room: string; gosini: GosinoRuntime[] }[] {
     const byRoom = new Map<string, GosinoRuntime[]>();
-    for (const runtime of this.all(householdId)) {
+    for (const runtime of this.all(accountId)) {
       const room = runtime.where?.trim();
       if (room === undefined || room === "") continue;
       const key = room.toLowerCase();
@@ -396,8 +428,8 @@ export class GosinoRegistry {
    * to the default rather than refusing to show anything: a mistyped query
    * string must not leave a dock with a blank screen.
    */
-  public resolve(query: string | undefined, householdId: string): GosinoRuntime | undefined {
-    const here = this.all(householdId);
+  public resolve(query: string | undefined, accountId: string): GosinoRuntime | undefined {
+    const here = this.all(accountId);
     if (query !== undefined && query !== "") {
       const wanted = query.trim().toLowerCase();
       const found = here.find(

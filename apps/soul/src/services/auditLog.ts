@@ -37,13 +37,17 @@ export const AUDIT_VERBS = [
   /** un sogno chiesto fuori dall'orario in cui sarebbe partito da solo */
   "dream_requested",
   /** una famiglia nuova sotto lo stesso server (`ugo casa nuova`) */
-  "household_created",
+  "account_created",
   /** un token emesso: nel giornale il suo id, mai il segreto */
   "token_issued",
   /** un cliente nuovo della casa (ADR-057) */
   "customer_created",
   /** un cliente archiviato: la reception gli si chiude */
   "customer_archived",
+  // ADR-093: la cancellazione GDPR di un cliente — cascade + bucket. La riga
+  // di audit è metà del senso dell'operazione: senza, «abbiamo cancellato X
+  // il giorno Y» non si può più dire
+  "customer_forgotten",
   /** un token cliente emesso: nel giornale il suo id, mai il segreto */
   "customer_token_issued",
   /** un token cliente revocato */
@@ -70,13 +74,13 @@ export const AUDIT_VERBS = [
   // riga di una casa. Se una cosa del genere non lascia traccia, non è mai
   // successa per chi legge il giornale dopo
   "memories_plaintext",
-  /** ADR-092: una parentela proposta a un'altra casa — gli id, mai l'etichetta */
+  /** ADR-099: una parentela proposta a un'altra casa — gli id, mai l'etichetta */
   "tie_proposed",
-  /** ADR-092: il consenso dell'altra casa, che è ciò che apre la porta */
+  /** ADR-099: il consenso dell'altra casa, che è ciò che apre la porta */
   "tie_accepted",
-  /** ADR-092: la revoca, di una parte o dell'altra */
+  /** ADR-099: la revoca, di una parte o dell'altra */
   "tie_revoked",
-  /** ADR-092: una cartolina spedita — l'id della pratica, mai il testo */
+  /** ADR-099: una cartolina spedita — l'id della pratica, mai il testo */
   "parcel_sent",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
@@ -85,7 +89,7 @@ export interface AuditEntry {
   verb: AuditVerb;
   outcome: AuditOutcome;
   /** assente su un rifiuto: non si sa ancora di che casa si parli */
-  householdId?: string | undefined;
+  accountId?: string | undefined;
   /** chi ha chiesto, se il token diceva qualcosa */
   actor?: TenantContext | null | undefined;
   resourceType?: string | undefined;
@@ -102,7 +106,7 @@ export interface AuditEntry {
 
 export interface AuditLogger {
   /**
-   * ADR-062: `on` è la transazione di `inHousehold`, quando c'è. Il giornale
+   * ADR-062: `on` è la transazione di `inAccount`, quando c'è. Il giornale
    * resta UN punto di scrittura — cambia solo su quale connessione scrive:
    * sotto `ugo_app` una riga attribuita a una casa passa il `WITH CHECK`
    * soltanto dentro la transazione che ha dichiarato quella casa.
@@ -120,7 +124,7 @@ export function createAuditLog(
         await (on ?? db).insert(auditLog).values({
           verb: entry.verb,
           outcome: entry.outcome,
-          householdId: entry.householdId ?? entry.actor?.householdId ?? null,
+          accountId: entry.accountId ?? entry.actor?.accountId ?? null,
           tokenId: entry.actor?.tokenId ?? null,
           role: entry.actor?.role ?? null,
           resourceType: entry.resourceType ?? null,

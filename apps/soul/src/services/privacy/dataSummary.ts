@@ -48,8 +48,8 @@ export interface DataSummary {
 
 const count = sql<number>`count(*)::int`;
 
-export async function dataSummary(db: DbClient, householdId: string): Promise<DataSummary> {
-  const mine = exemplarsOf(db, householdId);
+export async function dataSummary(db: DbClient, accountId: string): Promise<DataSummary> {
+  const mine = exemplarsOf(db, accountId);
   const one = async (query: Promise<{ n: number }[]>): Promise<number> => (await query)[0]?.n ?? 0;
 
   const [
@@ -63,14 +63,14 @@ export async function dataSummary(db: DbClient, householdId: string): Promise<Da
     sightingCount,
     strangerCount,
   ] = await Promise.all([
-    one(db.select({ n: count }).from(beings).where(eq(beings.householdId, householdId))),
+    one(db.select({ n: count }).from(beings).where(eq(beings.accountId, accountId))),
     one(
       db
         .select({ n: count })
         .from(beings)
         .where(
           and(
-            eq(beings.householdId, householdId),
+            eq(beings.accountId, accountId),
             sql`(${beings.isMinor} or ${beings.noAudio} or ${beings.noVision})`,
           ),
         ),
@@ -83,19 +83,19 @@ export async function dataSummary(db: DbClient, householdId: string): Promise<Da
       db
         .select({ n: count })
         .from(transcriptSegments)
-        .where(eq(transcriptSegments.householdId, householdId)),
+        .where(eq(transcriptSegments.accountId, accountId)),
     ),
     one(
       db
         .select({ n: count })
         .from(recognitionProfiles)
-        .where(eq(recognitionProfiles.householdId, householdId)),
+        .where(eq(recognitionProfiles.accountId, accountId)),
     ),
     one(
       db.select({ n: count }).from(perceptionEvents).where(inArray(perceptionEvents.gosinoId, mine)),
     ),
     one(
-      db.select({ n: count }).from(unknownPrints).where(eq(unknownPrints.householdId, householdId)),
+      db.select({ n: count }).from(unknownPrints).where(eq(unknownPrints.accountId, accountId)),
     ),
   ]);
 

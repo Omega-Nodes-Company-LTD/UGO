@@ -65,9 +65,9 @@ beforeAll(async () => {
   db = createDbClient(pg.url);
   mine = await createHouse(db, "casa-mcp");
   theirs = await createHouse(db, "casa-mcp-vicina");
-  myToken = (await issueToken(db, { householdId: mine.id, role: "owner", label: "mcp" })).token;
+  myToken = (await issueToken(db, { accountId: mine.id, role: "owner", label: "mcp" })).token;
   theirToken = (
-    await issueToken(db, { householdId: theirs.id, role: "owner", label: "mcp-vicini" })
+    await issueToken(db, { accountId: theirs.id, role: "owner", label: "mcp-vicini" })
   ).token;
 
   await db.insert(diaryEntries).values({

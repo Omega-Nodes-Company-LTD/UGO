@@ -25,11 +25,11 @@ def _years_text(years: int) -> str:
     return "un anno" if years == 1 else f"{years} anni"
 
 
-def eldest_of(conn: psycopg.Connection, household_id: str) -> str | None:
+def eldest_of(conn: psycopg.Connection, account_id: str) -> str | None:
     row = conn.execute(
-        "select id from gosini where household_id = %s and retired_at is null "
+        "select id from gosini where account_id = %s and retired_at is null "
         "order by born_at limit 1",
-        (household_id,),
+        (account_id,),
     ).fetchone()
     return None if row is None else str(row[0])
 
@@ -47,14 +47,14 @@ def run_anniversaries(
     rows = conn.execute(
         """
         select display_name, arrival_at from beings
-        where household_id = %s and arrival_at is not null
+        where account_id = %s and arrival_at is not null
           and extract(month from arrival_at) = %s
           and extract(day from arrival_at) = %s
           and arrival_at < %s
         """,
-        (cfg.household_id, when.month, when.day, when),
+        (cfg.account_id, when.month, when.day, when),
     ).fetchall()
-    gosino_id = eldest_of(conn, cfg.household_id)
+    gosino_id = eldest_of(conn, cfg.account_id)
     if gosino_id is None:
         return {"written": 0}
     written = 0
@@ -79,12 +79,12 @@ def run_anniversaries(
     birthdays = conn.execute(
         """
         select id, name, born_at from gosini
-        where household_id = %s and retired_at is null
+        where account_id = %s and retired_at is null
           and extract(month from born_at) = %s
           and extract(day from born_at) = %s
           and born_at::date < %s
         """,
-        (cfg.household_id, when.month, when.day, when),
+        (cfg.account_id, when.month, when.day, when),
     ).fetchall()
     for born_id, name, born_at in birthdays:
         years = when.year - born_at.year

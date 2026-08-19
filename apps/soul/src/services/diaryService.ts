@@ -36,13 +36,13 @@ export class DiaryService {
    * (ADR-019 fase 2): «tutti» non ha mai voluto dire «tutto il database».
    */
   public async pages(
-    householdId: string,
+    accountId: string,
     gosinoId: string | undefined,
     options: { limit?: number; until?: string } = {},
   ): Promise<DiaryPage[]> {
     const filters: (SQL | undefined)[] = [
       gosinoId === undefined
-        ? inArray(diaryEntries.gosinoId, exemplarsOf(this.db, householdId))
+        ? inArray(diaryEntries.gosinoId, exemplarsOf(this.db, accountId))
         : eq(diaryEntries.gosinoId, gosinoId),
     ];
     if (options.until !== undefined) filters.push(lte(diaryEntries.date, options.until));
@@ -67,11 +67,11 @@ export class DiaryService {
 
   /** Una pagina precisa, se quella notte ha sognato. */
   public async page(
-    householdId: string,
+    accountId: string,
     gosinoId: string | undefined,
     date: string,
   ): Promise<DiaryPage | undefined> {
-    const [found] = await this.pages(householdId, gosinoId, { limit: 1, until: date });
+    const [found] = await this.pages(accountId, gosinoId, { limit: 1, until: date });
     return found?.date === date ? found : undefined;
   }
 

@@ -3,7 +3,7 @@ import {
   beings,
   createDbClient,
   gosini,
-  households,
+  accounts,
   messages,
   runMigrations,
   type DbClient,
@@ -30,7 +30,7 @@ const flatEmbedder: EmbeddingsClient = {
 let pg: StartedPostgreSqlContainer;
 let db: DbClient;
 let gosinoId = "";
-let householdId = "";
+let accountId = "";
 let ivan = "";
 let paola = "";
 const dataKey = randomBytes(32);
@@ -48,18 +48,18 @@ beforeAll(async () => {
   const url = pg.getConnectionUri();
   await runMigrations(url);
   db = createDbClient(url);
-  const [house] = await db.select({ id: households.id }).from(households).limit(1);
-  householdId = house?.id ?? "";
+  const [house] = await db.select({ id: accounts.id }).from(accounts).limit(1);
+  accountId = house?.id ?? "";
   const [pig] = await db
     .insert(gosini)
-    .values({ householdId, name: "ugo-gruppo" })
+    .values({ accountId, name: "ugo-gruppo" })
     .returning({ id: gosini.id });
   gosinoId = pig?.id ?? "";
   const two = await db
     .insert(beings)
     .values([
-      { householdId, displayName: "Ivan" },
-      { householdId, displayName: "Paola" },
+      { accountId, displayName: "Ivan" },
+      { accountId, displayName: "Paola" },
     ])
     .returning({ id: beings.id });
   ivan = two[0]?.id ?? "";
@@ -116,7 +116,7 @@ async function chat(): Promise<ChatService> {
     psyche: await PsycheService.restore(db, new Date(), gosinoId),
     dataKey,
     gosinoId,
-    householdId,
+    accountId,
     character: characterFrom({}),
   });
 }

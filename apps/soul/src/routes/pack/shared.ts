@@ -20,7 +20,7 @@ export interface PackRouteDeps {
    * senza, la correzione finiva sempre sul più anziano della casa, e con due
    * gosini dire a Silvio che urla correggeva Ugo.
    */
-  registry?: { resolve: (query: string | undefined, householdId: string) => { id: string } | undefined };
+  registry?: { resolve: (query: string | undefined, accountId: string) => { id: string } | undefined };
 }
 
 export const createBeingSchema = z.object({

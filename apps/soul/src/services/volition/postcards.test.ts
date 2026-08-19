@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parsePostcard } from "./postcards.js";
 
 /**
- * ADR-092: la forma è chiusa, e il confine sono i due punti. Una cartolina
+ * ADR-099: la forma è chiusa, e il confine sono i due punti. Una cartolina
  * spedita per sbaglio è peggio di un gesto non capito, quindi qui si prova
  * soprattutto cosa NON è il gesto.
  */

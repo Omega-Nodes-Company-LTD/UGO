@@ -10,7 +10,7 @@ import {
   memories,
   messages,
   PRIME_GOSINO_ID,
-  PRIME_HOUSEHOLD_ID,
+  PRIME_ACCOUNT_ID,
   runMigrations,
   transcriptSegments,
 } from "@ugo/db";
@@ -46,11 +46,11 @@ beforeAll(async () => {
 
   const [ivan] = await db
     .insert(beings)
-    .values({ householdId: PRIME_HOUSEHOLD_ID, displayName: "Ivan Bianchi", aliases: ["Ivan", "Vanni"], notes: "corriere DHL" })
+    .values({ accountId: PRIME_ACCOUNT_ID, displayName: "Ivan Bianchi", aliases: ["Ivan", "Vanni"], notes: "corriere DHL" })
     .returning({ id: beings.id });
   const [paola] = await db
     .insert(beings)
-    .values({ householdId: PRIME_HOUSEHOLD_ID, displayName: "Paola Verdi", aliases: ["Paola"] })
+    .values({ accountId: PRIME_ACCOUNT_ID, displayName: "Paola Verdi", aliases: ["Paola"] })
     .returning({ id: beings.id });
   if (ivan === undefined || paola === undefined) throw new Error("beings insert failed");
   beingId = ivan.id;
@@ -70,7 +70,7 @@ beforeAll(async () => {
     .returning({ id: meetings.id });
   if (meeting === undefined) throw new Error("meeting insert failed");
   await db.insert(transcriptSegments).values({
-    householdId: PRIME_HOUSEHOLD_ID,
+    accountId: PRIME_ACCOUNT_ID,
     meetingId: meeting.id,
     speaker: "Ivan",
     t0: 0,
@@ -111,7 +111,7 @@ afterAll(async () => {
 describe("forgetBeing — anonimizzazione irreversibile (§7)", () => {
   it("erases the person and every trace of the name, keeping the experience", async () => {
     const service = new ForgetService({ db, dataKey, embedder });
-    const report = await service.forgetBeing(beingId, PRIME_HOUSEHOLD_ID);
+    const report = await service.forgetBeing(beingId, PRIME_ACCOUNT_ID);
 
     expect(report.messagesRedacted).toBe(3); // includes the stranger's turn
     expect(report.segmentsRedacted).toBe(1);
@@ -168,14 +168,14 @@ describe("forgetBeing — anonimizzazione irreversibile (§7)", () => {
   it("rejects an unknown being id", async () => {
     const service = new ForgetService({ db, dataKey });
     await expect(
-      service.forgetBeing(crypto.randomUUID(), PRIME_HOUSEHOLD_ID),
+      service.forgetBeing(crypto.randomUUID(), PRIME_ACCOUNT_ID),
     ).rejects.toThrow(BeingNotFoundError);
   });
 });
 
 describe("exportAll — portabilità (SECURITY §3)", () => {
   it("returns every table with message bodies decrypted", async () => {
-    const bundle = await new ExportService(db, dataKey).exportAll(PRIME_HOUSEHOLD_ID);
+    const bundle = await new ExportService(db, dataKey).exportAll(PRIME_ACCOUNT_ID);
     expect(bundle.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(bundle.beings).toHaveLength(1); // only the surviving being
     expect(bundle.messages).toHaveLength(4);
@@ -189,7 +189,7 @@ describe("exportAll — portabilità (SECURITY §3)", () => {
   });
 
   it("degrades gracefully when a row cannot be decrypted", async () => {
-    const bundle = await new ExportService(db, randomBytes(32)).exportAll(PRIME_HOUSEHOLD_ID);
+    const bundle = await new ExportService(db, randomBytes(32)).exportAll(PRIME_ACCOUNT_ID);
     expect(JSON.stringify(bundle.messages)).toContain("non decifrabile");
   });
 });
@@ -224,7 +224,7 @@ describe("il confine di casa", () => {
     // and one of ours, with a name that collides on purpose
     const [ours] = await db
       .insert(beings)
-      .values({ householdId: PRIME_HOUSEHOLD_ID, displayName: "Ivan Neri", aliases: ["Ivan"] })
+      .values({ accountId: PRIME_ACCOUNT_ID, displayName: "Ivan Neri", aliases: ["Ivan"] })
       .returning({ id: beings.id });
     if (ours === undefined) throw new Error("our being was not created");
     nostroIvan = ours.id;
@@ -232,14 +232,14 @@ describe("il confine di casa", () => {
 
   it("refuses to erase a being of another house, and does not admit it exists", async () => {
     const service = new ForgetService({ db, dataKey });
-    await expect(service.forgetBeing(loroIvan, PRIME_HOUSEHOLD_ID)).rejects.toThrow(
+    await expect(service.forgetBeing(loroIvan, PRIME_ACCOUNT_ID)).rejects.toThrow(
       BeingNotFoundError,
     );
   });
 
   it("erases our namesake without touching a word of theirs", async () => {
     const service = new ForgetService({ db, dataKey });
-    await service.forgetBeing(nostroIvan, PRIME_HOUSEHOLD_ID);
+    await service.forgetBeing(nostroIvan, PRIME_ACCOUNT_ID);
 
     const [theirMessage] = await db
       .select({ text: messages.text })
@@ -256,7 +256,7 @@ describe("il confine di casa", () => {
 
   it("exports one house and not a single id of the other", async () => {
     const exporter = new ExportService(db, dataKey);
-    const ours = JSON.stringify(await exporter.exportAll(PRIME_HOUSEHOLD_ID));
+    const ours = JSON.stringify(await exporter.exportAll(PRIME_ACCOUNT_ID));
     expect(ours).not.toContain(vicini.gosinoId);
     expect(ours).not.toContain(loroIvan);
     expect(ours).not.toContain(LORO_FRASE);

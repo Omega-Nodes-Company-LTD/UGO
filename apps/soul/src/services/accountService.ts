@@ -1,4 +1,4 @@
-import { gosini, households, traitSets, type DbClient } from "@ugo/db";
+import { gosini, accounts, traitSets, type DbClient } from "@ugo/db";
 import { generateDataKey, wrapDataKey } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { ARCHETYPES, characterFrom } from "./council/character.js";
@@ -13,7 +13,7 @@ import { issueToken } from "./tenantAuth.js";
  * vicinato è rimasto a lungo una cosa che lo schema sapeva fare e il sistema no.
  *
  * Cinque atti in **una transazione**, perché una casa a metà è peggio di nessuna
- * casa: una `households` senza DEK non può cifrare niente, un esemplare senza
+ * casa: una `accounts` senza DEK non può cifrare niente, un esemplare senza
  * genoma è un default silenzioso, e un proprietario senza token non entra in
  * casa propria. Se salta un pezzo non deve restarne nessuno.
  *
@@ -22,7 +22,7 @@ import { issueToken } from "./tenantAuth.js";
  * è la proprietà che si vuole — un segreto recuperabile non è un segreto.
  */
 
-export interface NewHouseholdInput {
+export interface NewAccountInput {
   /** maneggevole e stabile: finisce negli URL, nei log e nel pannello */
   slug: string;
   name: string;
@@ -57,8 +57,8 @@ export interface NewHouseholdInput {
   breeder?: boolean;
 }
 
-export interface NewHousehold {
-  householdId: string;
+export interface NewAccount {
+  accountId: string;
   /** presente solo se è stato coniato un capostipite (v. `gosinoName`) */
   gosinoId?: string;
   slug: string;
@@ -68,27 +68,27 @@ export interface NewHousehold {
   tokenId: string;
 }
 
-export class HouseholdSlugTakenError extends Error {
+export class AccountSlugTakenError extends Error {
   public constructor(slug: string) {
     super(`la casa "${slug}" esiste già`);
-    this.name = "HouseholdSlugTakenError";
+    this.name = "AccountSlugTakenError";
   }
 }
 
-export async function createHousehold(
+export async function createAccount(
   db: DbClient,
   masterKey: Buffer,
-  input: NewHouseholdInput,
-): Promise<NewHousehold> {
+  input: NewAccountInput,
+): Promise<NewAccount> {
   const slug = input.slug.trim().toLowerCase();
   if (slug === "") throw new Error("lo slug non può essere vuoto");
 
   const [taken] = await db
-    .select({ id: households.id })
-    .from(households)
-    .where(eq(households.slug, slug))
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.slug, slug))
     .limit(1);
-  if (taken !== undefined) throw new HouseholdSlugTakenError(slug);
+  if (taken !== undefined) throw new AccountSlugTakenError(slug);
 
   const character = characterFrom(
     input.archetype === undefined ? {} : (ARCHETYPES[input.archetype] ?? {}),
@@ -98,7 +98,7 @@ export async function createHousehold(
 
   return db.transaction(async (tx) => {
     const [house] = await tx
-      .insert(households)
+      .insert(accounts)
       .values({
         slug,
         name: input.name.trim(),
@@ -111,18 +111,18 @@ export async function createHousehold(
         ...(input.foundry === true && { isFoundry: true }),
         ...(input.breeder === true && { canBreed: true }),
       })
-      .returning({ id: households.id });
+      .returning({ id: accounts.id });
     if (house === undefined) throw new Error("la casa non è stata creata");
 
     // ADR-082: la casa nasce vuota se nessuno ha chiesto un capostipite
     if (founderName === undefined || founderName === "") {
       const issuedAlone = await issueToken(tx as unknown as DbClient, {
-        householdId: house.id,
+        accountId: house.id,
         role: "owner",
         label: `proprietario di ${slug}`,
       });
       return {
-        householdId: house.id,
+        accountId: house.id,
         slug,
         persona: character.persona,
         ownerToken: issuedAlone.token,
@@ -133,7 +133,7 @@ export async function createHousehold(
     const [born] = await tx
       .insert(gosini)
       .values({
-        householdId: house.id,
+        accountId: house.id,
         name: founderName,
         // ADR-077: anche il primo di una casa nuova nasce mortale. `mortal_from`
         // nullo resta soltanto per chi c'era prima dell'arco — una porta di
@@ -158,7 +158,7 @@ export async function createHousehold(
     // proposito: due strade per nascere che scrivono righe diverse sono il
     // difetto che il gruppo 5 è andato a togliere altrove.
     await tx.insert(traitSets).values({
-      householdId: house.id,
+      accountId: house.id,
       gosinoId: born.id,
       version: 1,
       traits: character.traits,
@@ -169,13 +169,13 @@ export async function createHousehold(
     });
 
     const issued = await issueToken(tx as unknown as DbClient, {
-      householdId: house.id,
+      accountId: house.id,
       role: "owner",
       label: `proprietario di ${slug}`,
     });
 
     return {
-      householdId: house.id,
+      accountId: house.id,
       gosinoId: born.id,
       slug,
       persona: character.persona,
@@ -191,12 +191,12 @@ export async function createHousehold(
  * misurano una creatura). Esiste per non spargere controlli su un
  * `gosinoId` che il chiamante ha appena chiesto esplicitamente.
  */
-export async function createHouseholdWithFounder(
+export async function createAccountWithFounder(
   db: DbClient,
   masterKey: Buffer,
-  input: NewHouseholdInput & { gosinoName: string },
-): Promise<NewHousehold & { gosinoId: string }> {
-  const born = await createHousehold(db, masterKey, input);
+  input: NewAccountInput & { gosinoName: string },
+): Promise<NewAccount & { gosinoId: string }> {
+  const born = await createAccount(db, masterKey, input);
   if (born.gosinoId === undefined) throw new Error("il capostipite non è stato coniato");
   return { ...born, gosinoId: born.gosinoId };
 }

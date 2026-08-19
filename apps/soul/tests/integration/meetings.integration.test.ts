@@ -11,7 +11,7 @@ import {
   runMigrations,
   transcriptSegments,
   PRIME_GOSINO_ID,
-  PRIME_HOUSEHOLD_ID,
+  PRIME_ACCOUNT_ID,
   type DbClient,
 } from "@ugo/db";
 import {
@@ -59,7 +59,7 @@ beforeAll(async () => {
   service = new MeetingsService({
     db,
     gosinoId: PRIME_GOSINO_ID,
-    householdId: PRIME_HOUSEHOLD_ID,
+    accountId: PRIME_ACCOUNT_ID,
     embedder,
     llm: new LlmClient({
       db,
@@ -227,13 +227,13 @@ describe("chi va in call: the chosen exemplar, not the boot one", () => {
   it("writes meeting, transcript and digest under the chosen one", async () => {
     const [second] = await db
       .insert(gosini)
-      .values({ householdId: PRIME_HOUSEHOLD_ID, name: "Silvio", locationLabel: "studio" })
+      .values({ accountId: PRIME_ACCOUNT_ID, name: "Silvio", locationLabel: "studio" })
       .returning({ id: gosini.id });
     if (second === undefined) throw new Error("second exemplar not seeded");
 
     const ref = await service.join(MEET_URL, "call di Silvio", {
       gosinoId: second.id,
-      householdId: PRIME_HOUSEHOLD_ID,
+      accountId: PRIME_ACCOUNT_ID,
     });
     const [row] = await db.select().from(meetings).where(eq(meetings.id, ref.meetingId));
     expect(row?.gosinoId).toBe(second.id);
@@ -244,7 +244,7 @@ describe("chi va in call: the chosen exemplar, not the boot one", () => {
       .select()
       .from(transcriptSegments)
       .where(eq(transcriptSegments.meetingId, ref.meetingId));
-    expect(segments[0]?.householdId).toBe(PRIME_HOUSEHOLD_ID);
+    expect(segments[0]?.accountId).toBe(PRIME_ACCOUNT_ID);
 
     llmStub.nextResponse = { text: "Un appunto per Silvio, nient'altro." };
     await service.stop(ref);

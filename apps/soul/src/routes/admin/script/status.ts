@@ -65,7 +65,7 @@ $("spark-row").addEventListener("click", (event) => {
 
 async function loadStats() {
   // forWho is the plain path on a house page and the scoped one on a
-  // creature's: the tiles and the spend are the household's either way,
+  // creature's: the tiles and the spend are the account's either way,
   // and only the 48-hour series narrows
   const s = await call(forWho("/v1/stats"), {});
   const usd = (n) => "$" + Number(n).toFixed(3);

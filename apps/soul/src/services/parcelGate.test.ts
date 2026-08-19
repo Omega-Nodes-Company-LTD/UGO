@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * ADR-092 §3: «l'unico scrittore degli invii è la rotta dell'atto».
+ * ADR-099 §3: «l'unico scrittore degli invii è la rotta dell'atto».
  *
  * Una cartolina parte SOLO da un'azione esplicita di una persona: la rotta
  * `POST /v1/parcels` e il gesto «manda a …» in chat. Il giorno in cui

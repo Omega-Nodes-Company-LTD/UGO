@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { foreignKey, index, pgTable, real, timestamp, uuid } from "drizzle-orm/pg-core";
 import { gosini } from "./gosini.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 import { bytea } from "./types.js";
 
 /**
@@ -19,7 +19,7 @@ export const births = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     childGosinoId: uuid("child_gosino_id")
       .notNull()
       .references(() => gosini.id, { onDelete: "cascade" }),
@@ -41,14 +41,14 @@ export const births = pgTable(
     bornAt: timestamp("born_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("births_household_idx").on(table.householdId),
+    index("births_account_idx").on(table.accountId),
     index("births_child_idx").on(table.childGosinoId),
     index("births_parent_idx").on(table.parentGosinoId),
     // both ends of the edge must live in the same house as the row (ADR-048)
     foreignKey({
-      columns: [table.householdId, table.childGosinoId],
-      foreignColumns: [gosini.householdId, gosini.id],
-      name: "births_household_child_fk",
+      columns: [table.accountId, table.childGosinoId],
+      foreignColumns: [gosini.accountId, gosini.id],
+      name: "births_account_child_fk",
     }).onDelete("cascade"),
     /**
      * ADR-082: il **genitore no**.

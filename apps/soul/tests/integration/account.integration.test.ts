@@ -6,7 +6,7 @@ import {
   createDbClient,
   type DbClient,
   gosini,
-  households,
+  accounts,
   runMigrations,
   traitSets,
 } from "@ugo/db";
@@ -17,10 +17,10 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuditLog } from "../../src/services/auditLog.js";
 import {
-  createHousehold,
-  createHouseholdWithFounder,
-  HouseholdSlugTakenError,
-} from "../../src/services/householdService.js";
+  createAccount,
+  createAccountWithFounder,
+  AccountSlugTakenError,
+} from "../../src/services/accountService.js";
 import { hashToken, issueToken } from "../../src/services/tenantAuth.js";
 import { buildServer } from "../../src/server.js";
 
@@ -67,7 +67,7 @@ afterAll(async () => {
 
 describe("ugo casa nuova", () => {
   it("builds the whole family in one act", async () => {
-    const born = await createHouseholdWithFounder(db, MASTER_KEY, {
+    const born = await createAccountWithFounder(db, MASTER_KEY, {
       slug: "Casa-Rossi",
       name: "  Rossi  ",
       timezone: "Europe/Lisbon",
@@ -77,8 +77,8 @@ describe("ugo casa nuova", () => {
 
     const [house] = await db
       .select()
-      .from(households)
-      .where(eq(households.id, born.householdId));
+      .from(accounts)
+      .where(eq(accounts.id, born.accountId));
     // lo slug è normalizzato perché finisce negli URL e nei log
     expect(house?.slug).toBe("casa-rossi");
     expect(house?.name).toBe("Rossi");
@@ -114,73 +114,73 @@ describe("ugo casa nuova", () => {
   });
 
   it("nasce azienda quando lo chiedi, casa quando taci, e mai una terza cosa (ADR-061)", async () => {
-    const firm = await createHousehold(db, MASTER_KEY, {
+    const firm = await createAccount(db, MASTER_KEY, {
       slug: "studio-rossi",
       name: "Studio Rossi",
       kind: "business",
     });
     const [business] = await db
-      .select({ kind: households.kind })
-      .from(households)
-      .where(eq(households.id, firm.householdId));
+      .select({ kind: accounts.kind })
+      .from(accounts)
+      .where(eq(accounts.id, firm.accountId));
     expect(business?.kind).toBe("business");
 
     // il default è la casa: ogni tenant nato prima di ADR-061 è una casa
     const [home] = await db
-      .select({ kind: households.kind })
-      .from(households)
-      .where(eq(households.slug, "casa-rossi"));
+      .select({ kind: accounts.kind })
+      .from(accounts)
+      .where(eq(accounts.slug, "casa-rossi"));
     expect(home?.kind).toBe("home");
 
     // il check del database rifiuta una natura inventata: non è convenzione
     await expect(
-      db.execute(sql`update households set kind = 'circus' where id = ${firm.householdId}`),
+      db.execute(sql`update accounts set kind = 'circus' where id = ${firm.accountId}`),
     ).rejects.toThrow();
   });
 
   it("refuses a slug that is taken, without leaving half a house behind", async () => {
-    const before = await db.select({ id: households.id }).from(households);
+    const before = await db.select({ id: accounts.id }).from(accounts);
     await expect(
-      createHousehold(db, MASTER_KEY, { slug: "casa-rossi", name: "Un'altra" }),
-    ).rejects.toBeInstanceOf(HouseholdSlugTakenError);
-    const after = await db.select({ id: households.id }).from(households);
+      createAccount(db, MASTER_KEY, { slug: "casa-rossi", name: "Un'altra" }),
+    ).rejects.toBeInstanceOf(AccountSlugTakenError);
+    const after = await db.select({ id: accounts.id }).from(accounts);
     expect(after).toHaveLength(before.length);
   });
 
   it("journals the birth and the token — the id, never the secret", async () => {
     await db.delete(auditLog);
-    const born = await createHousehold(db, MASTER_KEY, { slug: "casa-verdi", name: "Verdi" });
+    const born = await createAccount(db, MASTER_KEY, { slug: "casa-verdi", name: "Verdi" });
     const audit = createAuditLog(db);
     await audit.record({
-      verb: "household_created",
+      verb: "account_created",
       outcome: "ok",
-      householdId: born.householdId,
-      resourceType: "household",
-      resourceId: born.householdId,
+      accountId: born.accountId,
+      resourceType: "account",
+      resourceId: born.accountId,
     });
     await audit.record({
       verb: "token_issued",
       outcome: "ok",
-      householdId: born.householdId,
+      accountId: born.accountId,
       resourceType: "token",
       resourceId: born.tokenId,
     });
 
     const rows = await db.select().from(auditLog);
-    expect(rows.map((r) => r.verb).sort()).toEqual(["household_created", "token_issued"]);
+    expect(rows.map((r) => r.verb).sort()).toEqual(["account_created", "token_issued"]);
     expect(JSON.stringify(rows)).not.toContain(born.ownerToken);
   });
 });
 
-describe("GET /v1/households", () => {
+describe("GET /v1/accounts", () => {
   it("shows an operator every open house", async () => {
     const response = await app.inject({
       method: "GET",
-      url: "/v1/households",
+      url: "/v1/accounts",
       headers: { authorization: "Bearer operatore" },
     });
     expect(response.statusCode).toBe(200);
-    const listed = response.json<{ households: { slug: string; kind: string }[] }>().households;
+    const listed = response.json<{ accounts: { slug: string; kind: string }[] }>().accounts;
     const slugs = listed.map((h) => h.slug);
     expect(slugs).toContain("casa-rossi");
     expect(slugs).toContain("casa-verdi");
@@ -196,28 +196,28 @@ describe("GET /v1/households", () => {
    */
   it("shows a family its own house and nothing else", async () => {
     const [mine] = await db
-      .select({ id: households.id })
-      .from(households)
-      .where(eq(households.slug, "casa-rossi"));
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(eq(accounts.slug, "casa-rossi"));
     if (mine === undefined) throw new Error("no house");
     const issued = await issueToken(db, {
-      householdId: mine.id,
+      accountId: mine.id,
       role: "owner",
       label: "prova",
     });
 
     const response = await app.inject({
       method: "GET",
-      url: "/v1/households",
+      url: "/v1/accounts",
       headers: { authorization: `Bearer ${issued.token}` },
     });
-    const houses = response.json<{ households: { slug: string }[] }>().households;
+    const houses = response.json<{ accounts: { slug: string }[] }>().accounts;
     expect(houses).toHaveLength(1);
     expect(houses[0]?.slug).toBe("casa-rossi");
   });
 
   it("refuses a caller who said nothing at all", async () => {
-    const response = await app.inject({ method: "GET", url: "/v1/households" });
+    const response = await app.inject({ method: "GET", url: "/v1/accounts" });
     expect(response.statusCode).toBe(401);
   });
 });

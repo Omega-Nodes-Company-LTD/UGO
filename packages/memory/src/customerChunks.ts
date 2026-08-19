@@ -28,7 +28,7 @@ export async function searchCustomerChunks(
   query: string,
   k: number,
   customerId: string,
-  householdId: string,
+  accountId: string,
 ): Promise<RetrievedCustomerChunk[]> {
   const [queryEmbedding] = await embedder.embed([query]);
   if (queryEmbedding === undefined) throw new Error("query embedding returned nothing");
@@ -45,7 +45,7 @@ export async function searchCustomerChunks(
     .where(
       and(
         eq(customerChunks.customerId, customerId),
-        eq(customerChunks.householdId, householdId),
+        eq(customerChunks.accountId, accountId),
       ),
     )
     .orderBy(distance)

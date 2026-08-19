@@ -1,5 +1,5 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, gosini, households, runMigrations, type DbClient } from "@ugo/db";
+import { createDbClient, gosini, accounts, runMigrations, type DbClient } from "@ugo/db";
 import type { EmbeddingsClient, LlmClient } from "@ugo/memory";
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -21,7 +21,7 @@ const flatEmbedder: EmbeddingsClient = {
 let pg: StartedPostgreSqlContainer;
 let db: DbClient;
 let gosinoId = "";
-let householdId = "";
+let accountId = "";
 // UNA chiave per tutto il file: la cronologia scritta da un test si rilegge
 // nel successivo, come in produzione
 const dataKey = randomBytes(32);
@@ -45,7 +45,7 @@ async function chatWith(
     psyche: await PsycheService.restore(db, new Date(), gosinoId),
     dataKey,
     gosinoId,
-    householdId,
+    accountId,
     character: characterFrom({}),
     ...(vision !== undefined && { vision }),
   });
@@ -56,11 +56,11 @@ beforeAll(async () => {
   const url = pg.getConnectionUri();
   await runMigrations(url);
   db = createDbClient(url);
-  const [house] = await db.select({ id: households.id }).from(households).limit(1);
-  householdId = house?.id ?? "";
+  const [house] = await db.select({ id: accounts.id }).from(accounts).limit(1);
+  accountId = house?.id ?? "";
   const [pig] = await db
     .insert(gosini)
-    .values({ householdId, name: "ugo-foto" })
+    .values({ accountId, name: "ugo-foto" })
     .returning({ id: gosini.id });
   gosinoId = pig?.id ?? "";
 }, 240_000);

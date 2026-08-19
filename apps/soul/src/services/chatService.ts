@@ -11,7 +11,7 @@ import {
   searchMemories,
   searchTranscripts,
   type EmbeddingsClient,
-  type LlmClient,
+  type ChatLlm,
   type LlmHistoryTurn,
   type RankedMemory,
 } from "@ugo/memory";
@@ -88,7 +88,7 @@ export class BeingNotFoundError extends Error {}
 export interface ChatServiceDeps {
   db: DbClient;
   embedder: EmbeddingsClient;
-  llm: LlmClient;
+  llm: ChatLlm;
   psyche: PsycheService;
   dataKey: Buffer;
   /** the pack block of the prompt (ADR-014); absent = no pack context */
@@ -106,7 +106,7 @@ export interface ChatServiceDeps {
    */
   reader?: { read: () => Promise<ReadOutcome> };
   /**
-   * ADR-092: «manda ai nonni: …» — la cartolina a voce. L'atto esplicito è
+   * ADR-099: «manda ai nonni: …» — la cartolina a voce. L'atto esplicito è
    * l'UNICA strada da cui una cartolina parte; assente = il gesto non esiste
    * e la frase va al modello come una qualunque.
    */
@@ -131,7 +131,7 @@ export interface ChatServiceDeps {
    * gesto non esiste e la frase va al modello come una qualunque.
    */
   storyteller?: { generate: (prompt: string, maxTokens?: number) => Promise<string | undefined> };
-  /** the household's clock (ADR-019); defaults to the project timezone */
+  /** the account's clock (ADR-019); defaults to the project timezone */
   timezone?: string;
   /**
    * La lingua della casa (ADR-050). Governa come si scrive la data e l'ora che
@@ -156,7 +156,7 @@ export interface ChatServiceDeps {
    * girato senza scope, e senza scope quella query attraversava il confine fra
    * famiglie invece di fermarsi al tetto.
    */
-  householdId: string;
+  accountId: string;
   /**
    * Chi è questo, dal genoma (ADR-015/031).
    *
@@ -231,7 +231,7 @@ export class ChatService {
   }
 
   /**
-   * The wall clock in the household's timezone (ADR-028).
+   * The wall clock in the account's timezone (ADR-028).
    *
    * Until now UGO did not know what time it was — not a small gap for someone
    * who is asked "ricordami fra dieci minuti" and who goes to sleep when it
@@ -355,7 +355,7 @@ export class ChatService {
     at: Date,
   ): Promise<ChatResponse> {
     const { db, dataKey } = this.deps;
-    const householdId = this.deps.householdId;
+    const accountId = this.deps.accountId;
     let reply: string;
 
     if (command.action === "read") {
@@ -364,7 +364,7 @@ export class ChatService {
         .from(listItems)
         .where(
           and(
-            eq(listItems.householdId, householdId),
+            eq(listItems.accountId, accountId),
             eq(listItems.list, command.list),
             eq(listItems.done, false),
           ),
@@ -376,7 +376,7 @@ export class ChatService {
       );
     } else if (command.action === "add") {
       await db.insert(listItems).values({
-        householdId,
+        accountId,
         list: command.list,
         text: encryptText(command.item ?? "", dataKey),
         ...(request.beingId !== undefined && { beingId: request.beingId }),
@@ -390,7 +390,7 @@ export class ChatService {
         .from(listItems)
         .where(
           and(
-            eq(listItems.householdId, householdId),
+            eq(listItems.accountId, accountId),
             eq(listItems.list, command.list),
             eq(listItems.done, false),
           ),
@@ -531,7 +531,7 @@ export class ChatService {
   }
 
   /**
-   * La cartolina (ADR-092). Il destinatario è un nome detto a voce — slug,
+   * La cartolina (ADR-099). Il destinatario è un nome detto a voce — slug,
    * nome della casa o etichetta della parentela — e la porta si apre solo su
    * una parentela ACCETTATA: tutto il resto è una risposta che spiega, mai
    * un invio a metà.
@@ -539,10 +539,10 @@ export class ChatService {
   private async applyPostcard(command: PostcardCommand): Promise<string> {
     const post = this.deps.postcards;
     if (post === undefined) return tellSendFailed();
-    const tie = await post.ties.tieByName(this.deps.householdId, command.recipient);
+    const tie = await post.ties.tieByName(this.deps.accountId, command.recipient);
     if (tie === undefined) return tellNoTie(command.recipient);
     if (tie.status !== "accettata") return tellTieNotAccepted(command.recipient);
-    const sent = await post.parcels.send(this.deps.householdId, {
+    const sent = await post.parcels.send(this.deps.accountId, {
       tieId: tie.id,
       fromGosinoId: this.deps.gosinoId,
       kind: command.kind,
@@ -583,9 +583,9 @@ export class ChatService {
       const diary = new DiaryService(db, dataKey);
       const today = this.localDate(at);
       const pages = diaryAsk.book
-        ? await diary.pages(this.deps.householdId, this.deps.gosinoId, { limit: 5 })
+        ? await diary.pages(this.deps.accountId, this.deps.gosinoId, { limit: 5 })
         : await diary
-            .page(this.deps.householdId, this.deps.gosinoId, dateFor(today, diaryAsk.daysAgo))
+            .page(this.deps.accountId, this.deps.gosinoId, dateFor(today, diaryAsk.daysAgo))
             .then((page) => (page === undefined ? [] : [page]));
       return this.answered(tellDiary(pages, diaryAsk), request, at);
     }
@@ -605,7 +605,7 @@ export class ChatService {
     if (memoryAsk !== undefined) {
       const period = monthOf(memoryAsk, this.localDate(at));
       const book = new MemoryBook(db, this.deps.dataKey);
-      const lines = await book.page(this.deps.householdId, this.deps.gosinoId, period, {
+      const lines = await book.page(this.deps.accountId, this.deps.gosinoId, period, {
         limit: RECALL_ALOUD,
         // a voce non si rileggono i ricordi smentiti: nel pannello si vedono
         // perché spiegano cosa credeva, detti a voce sarebbero una bugia
@@ -625,7 +625,7 @@ export class ChatService {
       const storyAsk = parseStoryAsk(request.text);
       if (storyAsk !== undefined) {
         const [page] = await new DiaryService(db, this.deps.dataKey).pages(
-          this.deps.householdId,
+          this.deps.accountId,
           this.deps.gosinoId,
           { limit: 1 },
         );
@@ -644,8 +644,8 @@ export class ChatService {
     if (newsAsk !== undefined) {
       const news = new NewsService(db);
       const [items, subscribed] = await Promise.all([
-        news.latest(this.deps.householdId, newsAsk.limit),
-        news.subscribed(this.deps.householdId),
+        news.latest(this.deps.accountId, newsAsk.limit),
+        news.subscribed(this.deps.accountId),
       ]);
       return this.answered(tellNews(items, subscribed), request, at);
     }
@@ -714,7 +714,7 @@ export class ChatService {
     }
 
     /**
-     * ADR-092: «manda ai nonni: siamo stati al parco» — la cartolina, su
+     * ADR-099: «manda ai nonni: siamo stati al parco» — la cartolina, su
      * gesto esplicito e MAI altrimenti: questo è l'unico punto della
      * conversazione da cui si arriva a `ParcelService.send()`. Gli esiti sono
      * distinti e si dicono (la lezione di ADR-065): nessuna parentela ≠
@@ -795,7 +795,7 @@ export class ChatService {
       embedder,
       request.text,
       TRANSCRIPT_K,
-      this.deps.householdId,
+      this.deps.accountId,
     );
     const recordings: string[] = [];
     for (const segment of transcripts) {

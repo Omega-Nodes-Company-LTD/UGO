@@ -18,31 +18,31 @@ const PAGE_TITLE = { stato: "Come sta", volonta: "Cosa ha deciso lui", memoria: 
 let GOSINI = [];
 let WHO = "";
 /** Le case che questo token può vedere. Quasi sempre una, e allora non si vede. */
-let CASE = [];
-let HOUSE = "";
+let ACCOUNTS = [];
+let ACCOUNT = "";
 
 function route() {
   let parts = location.hash.replace(/^#\\/?/, "").split("/").filter(Boolean);
-  // '#/c/<casa>/...' avvolge tutto il resto: si toglie il prefisso e si legge
-  // quel che segue con le stesse regole di prima, cosi' ogni indirizzo che
-  // funzionava continua a funzionare senza la casa davanti
+  // '#/a/<account>/...' avvolge tutto il resto: si toglie il prefisso e si
+  // legge quel che segue con le stesse regole, cosi' un indirizzo senza
+  // account davanti continua a funzionare
   let house = undefined;
-  if (parts[0] === "c" && parts[1]) { house = parts[1]; parts = parts.slice(2); }
+  if (parts[0] === "a" && parts[1]) { house = parts[1]; parts = parts.slice(2); }
   if (parts[0] === "g") return { page: GOSINO_PAGES.includes(parts[2]) ? parts[2] : "stato", who: parts[1], house };
-  return { page: parts[0] || "casa", who: undefined, house };
+  return { page: parts[0] || "sommario", who: undefined, house };
 }
 
-/** Il prefisso da mettere davanti a ogni link, quando la casa e' scelta. */
-const at = (hash) => HOUSE === "" ? hash : "#/c/" + encodeURIComponent(HOUSE) + hash.slice(1);
+/** Il prefisso da mettere davanti a ogni link, quando l'account e' scelto. */
+const at = (hash) => ACCOUNT === "" ? hash : "#/a/" + encodeURIComponent(ACCOUNT) + hash.slice(1);
 
 /**
- * Nei link la casa puo' arrivare come slug ('#/c/casa-mare/...') o come id:
- * lo slug e' per gli umani, ma '?casa=' esige un uuid — la validazione di
- * scope.ts scarta uno slug e ricade sulla casa risolta dal token, cioe' sui
- * dati di UN'ALTRA casa senza nessun errore. Qui si normalizza sempre a id.
+ * Nei link l'account puo' arrivare come slug ('#/a/studio/...') o come id:
+ * lo slug e' per gli umani, ma '?account=' esige un uuid — la validazione di
+ * scope.ts scarta uno slug e ricade sull'account risolto dal token, cioe' sui
+ * dati di UN ALTRO account senza nessun errore. Qui si normalizza sempre a id.
  */
-const houseOf = (raw) =>
-  raw === "" ? "" : (CASE.find((c) => c.id === raw || c.slug === raw)?.id ?? raw);
+const accountIdOf = (raw) =>
+  raw === "" ? "" : (ACCOUNTS.find((c) => c.id === raw || c.slug === raw)?.id ?? raw);
 
 const withParam = (path, key, value) => value === ""
   ? path
@@ -54,7 +54,7 @@ const withParam = (path, key, value) => value === ""
  * titolo e non lo scope mostrerebbe i dati della casa sbagliata sotto il nome
  * di quella giusta, che è il peggiore dei due modi di sbagliare.
  */
-const forWho = (path) => withParam(withParam(path, "gosino", WHO), "casa", HOUSE);
+const forWho = (path) => withParam(withParam(path, "gosino", WHO), "account", ACCOUNT);
 
 /** The rail: the house always, then one entry per creature, sub-pages under the open one. */
 function drawRail(page) {
@@ -93,10 +93,21 @@ async function openPage(page) {
   for (const node of document.querySelectorAll("[data-who]")) {
     node.textContent = who === undefined ? "Il gosino" : who.name + (who.where ? " · " + who.where : "");
   }
+  /**
+   * ADR-092: e ogni pagina dice **su quale account** sta agendo.
+   *
+   * Prima i blocchi dicevano «questa casa» — e con più di un account «questa»
+   * non è un'informazione, è una domanda. È lo stesso rimedio già applicato
+   * agli esemplari con [data-who]: si nomina la cosa su cui si agisce.
+   */
+  const here = ACCOUNTS.find((a) => a.id === ACCOUNT || a.slug === ACCOUNT) ?? ACCOUNTS[0];
+  for (const node of document.querySelectorAll("[data-account]")) {
+    node.textContent = here === undefined ? "L'account" : here.name;
+  }
   document.title = "UGO — " + (PAGE_TITLE[page] ?? page);
   window.scrollTo(0, 0);
 
-  if (page === "casa") {
+  if (page === "sommario") {
     await section(loadStats, "stats-msg");
     await section(loadHealth, "stats-msg");
     await section(drawGosiniCards, "stats-msg");
@@ -104,8 +115,8 @@ async function openPage(page) {
     await section(loadPackMood, "pack-mood-msg");
     await section(showPlace, "place-msg");
     await section(loadCapabilities, "stats-msg");
-  } else if (page === "case") {
-    await section(loadHouses, "house-msg");
+  } else if (page === "account") {
+    await section(loadAccountsPage, "account-msg");
   } else if (page === "conti") {
     await section(loadStats, "stats-msg");
     // ADR-072: l'interruttore della fame vive coi conti, che è dove si guarda
@@ -121,7 +132,7 @@ async function openPage(page) {
     // ADR-084: le pratiche, dai due lati
     await section(loadAdoptions, "adozioni-msg");
   } else if (page === "parentele") {
-    // ADR-092: i legami fra le case, e la cassetta della posta
+    // ADR-099: i legami fra le case, e la cassetta della posta
     await section(loadTies, "tie-msg");
     await section(loadParcels, "parcel-msg");
   } else if (page === "feed") {
@@ -137,7 +148,7 @@ async function openPage(page) {
   } else if (page === "volti") {
     await section(loadPrints, "prints-msg");
   } else if (page === "nascita") {
-    // ADR-081: prima si guarda cosa questa casa può fare, poi si disegna
+    // ADR-081: prima si guarda cosa questo account può fare, poi si disegna
     drawBirthDoors();
     drawDials();
     await section(drawBirthRooms, "new-msg");
@@ -160,7 +171,7 @@ async function openPage(page) {
   } else if (page === "pedigree") {
     // ADR-070: da chi discende, e se le firme dei genitori reggono
     await section(loadPedigree, "pedigree-msg");
-    // ADR-082/083: e — se è nato e questa casa alleva — la vetrina e la cessione
+    // ADR-082/083: e — se è nato e questo account alleva — la vetrina e la cessione
     drawVetrina();
     drawCede();
   } else if (page === "salvadanaio") {
@@ -177,9 +188,9 @@ async function openPage(page) {
 
 async function go() {
   const { page, who, house } = route();
-  const target = house === undefined ? HOUSE : houseOf(house);
-  if (target !== HOUSE) {
-    HOUSE = target;
+  const target = house === undefined ? ACCOUNT : accountIdOf(house);
+  if (target !== ACCOUNT) {
+    ACCOUNT = target;
     // cambiare casa vuol dire cambiare popolazione: tenere il gosino di prima
     // significherebbe chiedere alla casa nuova di una creatura che non ha
     WHO = "";
@@ -200,22 +211,22 @@ window.addEventListener("hashchange", () => { void go(); });
  * di ADR-019 §107, e si spegne da sé il giorno in cui arriva la seconda
  * famiglia invece che richiedere una decisione oggi.
  */
-async function loadCase() {
-  try { CASE = (await call("/v1/households", {})).households ?? []; } catch { CASE = []; }
-  // Con UNA casa 'HOUSE' resta vuota, e non e' una svista: vuota significa
+async function loadAccounts() {
+  try { ACCOUNTS = (await call("/v1/accounts", {})).accounts ?? []; } catch { ACCOUNTS = []; }
+  // Con UNA casa 'ACCOUNT' resta vuota, e non e' una svista: vuota significa
   // indirizzi senza prefisso e chiamate senza '?casa=', cioe' esattamente il
-  // pannello di prima. Il server la risolve da se' ('soleHousehold'), e i link
+  // pannello di prima. Il server la risolve da se' ('soleAccount'), e i link
   // gia' salvati continuano a funzionare. Riempirla «tanto la casa e' quella»
   // riscriverebbe ogni indirizzo per un vicinato che non esiste — ed e'
   // precisamente cio' che ADR-019 §107 promette di non fare.
-  const box = $("rail-case");
+  const box = $("rail-accounts");
   if (!box) return;
-  box.parentElement.hidden = CASE.length < 2;
-  if (CASE.length < 2) { box.innerHTML = ""; return; }
+  box.parentElement.hidden = ACCOUNTS.length < 2;
+  if (ACCOUNTS.length < 2) { box.innerHTML = ""; return; }
   // ADR-061: casa o azienda. Chi possiede entrambe deve vedere in quale
   // mondo sta scrivendo — il glifo e' la differenza fra i due tenant
-  box.innerHTML = CASE.map((c) =>
-    '<a href="#/c/' + encodeURIComponent(c.id) + '/casa" data-nav="c:' + c.id + '">' +
+  box.innerHTML = ACCOUNTS.map((c) =>
+    '<a href="#/a/' + encodeURIComponent(c.id) + '/sommario" data-nav="a:' + c.id + '">' +
     '<span class="dot" aria-hidden="true"></span>' +
     (c.kind === "business" ? "\\u{1F3E2} " : "") + escape(c.name) +
     ' <span class="rail-where">' + escape(c.slug) +

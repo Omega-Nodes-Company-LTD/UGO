@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
-import { createDbClient, gosini, households, runMigrations, traitSets } from "@ugo/db";
+import { createDbClient, createScopedDbClient, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
-import { LlmClient, OllamaEmbeddingsClient,
+import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
   OllamaTextClient,
   OllamaVisionClient,
   OpenAiTtsClient,
@@ -40,7 +40,7 @@ import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
 import { buildServer } from "./server.js";
-import { createHousehold } from "./services/householdService.js";
+import { createAccount } from "./services/accountService.js";
 import type { Capability } from "./routes/capabilities.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -81,7 +81,29 @@ if (env.UGO_AUTO_MIGRATE) {
   }
 }
 
-const db = createDbClient(env.DATABASE_URL);
+/**
+ * ADR-062 tempo 2b: il servizio parla col database come `ugo_app` quando
+ * `DATABASE_URL_APP` è impostata — è il flip che accende RLS in produzione.
+ * Le migrazioni sopra restano sull'owner: i privilegi non si applicano al
+ * proprietario delle tabelle, ed è per questo che sono due utenze.
+ */
+const appUrl = env.DATABASE_URL_APP ?? env.DATABASE_URL;
+const db = createDbClient(appUrl);
+
+/**
+ * ADR-098: la connessione della casa. Un client per account, creato una volta
+ * e riusato: `app.account_id` è nel pacchetto di startup, quindi ogni query
+ * dei runtime è già dentro il muro — riconnessioni comprese.
+ */
+const houseClients = new Map<string, DbClient>();
+const dbFor = (accountId: string): DbClient => {
+  const cached = houseClients.get(accountId);
+  if (cached !== undefined) return cached;
+  const scoped = createScopedDbClient(appUrl, accountId);
+  houseClients.set(accountId, scoped);
+  return scoped;
+};
+
 /**
  * The house the boot-time fallback apparatus belongs to.
  *
@@ -92,38 +114,79 @@ const db = createDbClient(env.DATABASE_URL);
  * `order by`, so with two families which one you got depended on the plan.
  */
 const [bootstrapHouse] = await db
-  .select({ id: households.id })
-  .from(households)
-  .orderBy(asc(households.createdAt))
+  .select({ id: accounts.id })
+  .from(accounts)
+  .orderBy(asc(accounts.createdAt))
   .limit(1);
-if (bootstrapHouse === undefined) throw new Error("no household: run the migrations");
-const bootstrapHouseholdId = bootstrapHouse.id;
-const [bootstrapExemplar] = await db
+if (bootstrapHouse === undefined) throw new Error("no account: run the migrations");
+const bootstrapAccountId = bootstrapHouse.id;
+const [bootstrapExemplar] = await dbFor(bootstrapAccountId)
   .select({ id: gosini.id })
   .from(gosini)
-  .where(eq(gosini.householdId, bootstrapHouseholdId))
+  .where(eq(gosini.accountId, bootstrapAccountId))
   .orderBy(asc(gosini.bornAt))
   .limit(1);
 if (bootstrapExemplar === undefined) throw new Error("no exemplar: run the migrations");
-const psyche = await PsycheService.restore(db, new Date(), bootstrapExemplar.id);
+const psyche = await PsycheService.restore(dbFor(bootstrapAccountId), new Date(), bootstrapExemplar.id);
 // ADR-050: l'orologio e la lingua arrivano dalla CASA. `env.TZ` resta il
 // ripiego per l'apparato di avvio, che nasce prima che una casa sia risolta.
+/**
+ * ADR-094/095: la catena — casa (Ollama), poi OpenRouter se c'è la chiave,
+ * poi Anthropic. Ogni anello che risponde scrive la sua riga sul ledger col
+ * suo listino, e il metabolismo gira su tutti: anche la voce di casa mangia,
+ * a listino nominale. I muri (tetto, salvadanaio) stanno all'ingresso della
+ * catena. Il modello locale: `OLLAMA_CHAT_MODEL`, o quello del testo
+ * dell'iniziativa, o quello del sogno — la casa ne ha sempre almeno uno.
+ */
+const localChatModel = env.OLLAMA_CHAT_MODEL ?? env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL;
 const llmFor = (
-  householdId: string,
+  accountId: string,
   gosinoId: string,
   clock: HouseClock = { timezone: env.TZ, locale: DEFAULT_LOCALE },
-): LlmClient =>
-  new LlmClient({
-    db,
+): ChatLlm => {
+  const remote = new LlmClient({
+    // ADR-098: il muro del budget legge il ledger DELLA casa — sulla
+    // connessione nuda, sotto ugo_app, vedrebbe zero e non morderebbe mai
+    db: dbFor(accountId),
     apiKey: env.ANTHROPIC_API_KEY,
     model: env.UGO_CHAT_MODEL,
     dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
-    householdId,
+    accountId,
     gosinoId,
     ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
     timezone: clock.timezone,
     locale: clock.locale,
   });
+  if (env.UGO_CHAT_LOCAL_FIRST !== "on") return remote;
+  return new ChatChain({
+    db: dbFor(accountId),
+    accountId,
+    gosinoId,
+    timezone: clock.timezone,
+    locale: clock.locale,
+    local: { baseUrl: env.OLLAMA_URL, model: localChatModel },
+    ...(env.OPENROUTER_API_KEY !== undefined &&
+      env.OPENROUTER_CHAT_MODEL !== undefined && {
+        openRouter: {
+          apiKey: env.OPENROUTER_API_KEY,
+          model: env.OPENROUTER_CHAT_MODEL,
+          ...(env.OPENROUTER_BASE_URL !== undefined && { baseUrl: env.OPENROUTER_BASE_URL }),
+        },
+      }),
+    remote,
+    // pigro, e non e' un vezzo: llmFor gira al bootstrap, PRIMA che `app`
+    // esista — toccare app.log qui era una TDZ che uccideva il boot vero
+    // (l'ha detto l'e2e, non i test d'integrazione, che montano buildServer)
+    logger: {
+      info: (o, m) => {
+        app.log.info(o, m);
+      },
+      warn: (o, m) => {
+        app.log.warn(o, m);
+      },
+    },
+  });
+};
 const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
 
 // ADR-063: la finestra sul mondo — solo se SearXNG è configurato. Un'istanza
@@ -138,19 +201,19 @@ const web =
       });
 
 
-const pack = new PackService(db, speciesMap, bootstrapExemplar.id, bootstrapHouseholdId);
+const pack = new PackService(dbFor(bootstrapAccountId), speciesMap, bootstrapExemplar.id, bootstrapAccountId);
 // ADR-031: anche l'apparato di ripiego ha un carattere. Senza genoma in
 // `trait_sets` `characterFrom({})` risponde «un UGO senza spigoli», che e' la
 // verita' su una casa che non ha ancora scelto niente — non un valore neutro
 // messo li' per far compilare.
-const [bootstrapTraits] = await db
+const [bootstrapTraits] = await dbFor(bootstrapAccountId)
   .select({ traits: traitSets.traits })
   .from(traitSets)
   .where(eq(traitSets.gosinoId, bootstrapExemplar.id))
   .orderBy(desc(traitSets.version))
   .limit(1);
 const bootstrapCharacter = characterFrom(bootstrapTraits?.traits);
-const llm = llmFor(bootstrapHouseholdId, bootstrapExemplar.id);
+const llm = llmFor(bootstrapAccountId, bootstrapExemplar.id);
 // ADR-065: la lettura su gesto anche per l'apparato di avvio — la rotta
 // /v1/chat parla con QUESTA istanza, e «leggi» dalla PWA deve funzionare
 // come dal chiosco. `() => face` perché il gateway nasce più sotto.
@@ -160,7 +223,7 @@ const bootstrapPercezione =
     : new RecognitionClient({
         baseUrl: env.UGO_RECOGNITION_URL,
         token: env.UGO_INTERNAL_TOKEN,
-        householdId: bootstrapHouseholdId,
+        accountId: bootstrapAccountId,
       });
 // gruppo 12: gli occhi che raccontano — il modello vision locale, se c'è
 const localVision =
@@ -171,19 +234,19 @@ const localVision =
 // avvio e i runtime lo vogliono fra le dipendenze) e legge il registro al
 // momento del gesto, quando esiste da un pezzo
 let registryRef: GosinoRegistry | undefined = undefined;
-const nudges = new NudgeService({ db, registry: () => registryRef });
+const nudges = new NudgeService({ dbFor, registry: () => registryRef });
 
 // l'annotazione esplicita spezza il cerchio dell'inferenza: chat → lettore →
 // gateway → chat (il lettore guarda il corpo solo al momento del gesto)
 const chat: ChatService = new ChatService({
-  db,
+  db: dbFor(bootstrapAccountId),
   embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
   llm,
   psyche,
   dataKey: parseDataKey(env.UGO_DATA_KEY),
   pack,
   gosinoId: bootstrapExemplar.id,
-  householdId: bootstrapHouseholdId,
+  accountId: bootstrapAccountId,
   character: bootstrapCharacter,
   ...(web !== undefined && { web }),
   ...(bootstrapPercezione !== undefined && {
@@ -196,7 +259,7 @@ const chat: ChatService = new ChatService({
   ...(localVision !== undefined && {
     vision: { describe: (image: string) => localVision.describe(image) },
   }),
-  // ADR-092: la cartolina a voce anche per l'apparato di avvio
+  // ADR-099: la cartolina a voce anche per l'apparato di avvio
   postcards: {
     ties: new TieService(db),
     parcels: new ParcelService(db, parseDataKey(env.UGO_DATA_KEY)),
@@ -205,7 +268,7 @@ const chat: ChatService = new ChatService({
 
 const audio = audioStorageFromEnv(env);
 const face: FaceGateway = new FaceGateway({
-  db,
+  db: dbFor(bootstrapAccountId),
   chat,
   psyche,
   gosinoId: bootstrapExemplar.id,
@@ -220,21 +283,24 @@ const face: FaceGateway = new FaceGateway({
   // finestra la controlla il gateway, il deposito è lo stesso del pannello
   ...(audio !== undefined && {
     voiceSample: (input: { beingId: string; audio: Buffer }) =>
-      storeVoiceSample({ db, storage: audio }, { householdId: bootstrapHouseholdId, ...input }),
+      storeVoiceSample({ db: dbFor(bootstrapAccountId), storage: audio }, { accountId: bootstrapAccountId, ...input }),
   }),
 });
 const dataKey = parseDataKey(env.UGO_DATA_KEY);
 const embedder = new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL);
+// ADR-062: fabbriche — l'oblio e l'export girano sulla transazione che ha
+// dichiarato la casa, non sulla connessione nuda del processo
 const privacy = {
-  forget: new ForgetService({ db, dataKey, embedder }),
-  exporter: new ExportService(db, dataKey),
+  forget: (tx: DbClient) => new ForgetService({ db: tx, dataKey, embedder }),
+  exporter: (tx: DbClient) => new ExportService(tx, dataKey),
 };
 const meetings =
   env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined
     ? new MeetingsService({
         db,
+        dbFor,
         gosinoId: bootstrapExemplar.id,
-        householdId: bootstrapHouseholdId,
+        accountId: bootstrapAccountId,
         embedder,
         llm,
         dataKey,
@@ -299,15 +365,16 @@ const recognitionToken = env.UGO_INTERNAL_TOKEN;
 const recognition =
   recognitionUrl === undefined || recognitionToken === undefined
     ? undefined
-    : (householdId: string): RecognitionClient =>
+    : (accountId: string): RecognitionClient =>
         new RecognitionClient({
           baseUrl: recognitionUrl,
           token: recognitionToken,
-          householdId,
+          accountId,
         });
 
 const registry = await GosinoRegistry.load({
   db,
+  dbFor,
   embedder,
   llm: llmFor,
   local: localText,
@@ -406,8 +473,9 @@ const app = buildServer({
   // ADR-061: la stessa nascita di `ugo casa nuova`, ma dal pannello — perché
   // «una persona può avere più case e più negozi» finché crearne una vuol dire
   // entrare nel container è una promessa scritta e non una funzione
-  createHouse: (input) =>
-    createHousehold(db, parseDataKey(env.UGO_DATA_KEY), {
+  // ADR-097: `tx` è la transazione del mercato (withMarket), non il db nudo
+  createHouse: (tx, input) =>
+    createAccount(tx, parseDataKey(env.UGO_DATA_KEY), {
       slug: input.slug,
       name: input.name,
       ...(input.timezone !== undefined && { timezone: input.timezone }),
@@ -465,16 +533,22 @@ const app = buildServer({
       reception: {
         token: env.UGO_RECEPTION_TOKEN,
         dataKey,
-        quota: new CustomerQuota(db, {
-          hourlyMessages: env.UGO_CUSTOMER_HOURLY_MESSAGES,
-          dailyBudgetUsd: env.UGO_CUSTOMER_DAILY_BUDGET_USD,
-          timezone: env.TZ,
-        }),
+        dbFor,
+        quota: new CustomerQuota(
+          db,
+          {
+            hourlyMessages: env.UGO_CUSTOMER_HOURLY_MESSAGES,
+            dailyBudgetUsd: env.UGO_CUSTOMER_DAILY_BUDGET_USD,
+            timezone: env.TZ,
+          },
+          dbFor,
+        ),
         weeklyRewards: env.UGO_CUSTOMER_WEEKLY_REWARDS,
         llmFor,
         embedder,
         github: new GithubLiveService({
           db,
+          dbFor,
           dataKey,
           ...(env.GITHUB_API_URL !== undefined && { baseUrl: env.GITHUB_API_URL }),
         }),
@@ -500,6 +574,7 @@ const app = buildServer({
     ...(env.OPENAI_API_KEY !== undefined && {
       tts: new OpenAiTtsClient({
         db,
+        dbFor,
         apiKey: env.OPENAI_API_KEY,
         dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
         model: env.UGO_TTS_MODEL,
@@ -539,7 +614,7 @@ if (meetings !== undefined) {
 // sfalsamento, un solo posto da guardare quando ci si chiede «cosa gira».
 // gruppo 12: parla nel sonno — di notte, un frammento del diario di ieri
 // come nuvoletta senza voce. Stesso battito delle iniziative, zero token.
-const sleepTalk = new SleepTalk({ db, hourOf });
+const sleepTalk = new SleepTalk({ dbFor, hourOf });
 
 // gruppo 12, secondo taglio della visione: ogni tanto UGO dà un'occhiata —
 // lo sguardo si chiede al chiosco, il modello locale lo racconta, la frase
@@ -547,10 +622,10 @@ const sleepTalk = new SleepTalk({ db, hourOf });
 const sceneGlance =
   localVision === undefined
     ? undefined
-    : new SceneGlance({ db, vision: localVision, visionUp: () => localVisionUp, hourOf });
+    : new SceneGlance({ dbFor, vision: localVision, visionUp: () => localVisionUp, hourOf });
 
 const rumination = new RuminationService({
-  db,
+  dbFor,
   local: localText,
   localUp: () => localTextUp,
   hourOf,
@@ -596,7 +671,7 @@ const volitionTimer = setInterval(() => {
         rumination
           .maybe(
             runtime,
-            registry.all(runtime.householdId).filter((mate) => mate.id !== runtime.id),
+            registry.all(runtime.accountId).filter((mate) => mate.id !== runtime.id),
           )
           .then((report) => {
             // IDs only, never the words he thought (rule 6)
@@ -625,7 +700,7 @@ volitionTimer.unref();
 const TIMER_TICK_MS = 15_000;
 const timerTimer = setInterval(() => {
   for (const runtime of registry.everywhere()) {
-    new TimerWatch({ db, gateway: runtime.gateway, gosinoId: runtime.id })
+    new TimerWatch({ db: dbFor(runtime.accountId), gateway: runtime.gateway, gosinoId: runtime.id })
       .tick()
       .then((rang) => {
         // id e quanti, mai l'etichetta (regola 6): «per la pasta» è roba di casa
@@ -651,7 +726,7 @@ periodic.push(timerTimer);
 const CHECKIN_TICK_MS = 60_000;
 const checkinTimer = setInterval(() => {
   for (const runtime of registry.everywhere()) {
-    new CheckinWatch({ db, gosinoId: runtime.id, timezone: runtime.timezone })
+    new CheckinWatch({ db: dbFor(runtime.accountId), gosinoId: runtime.id, timezone: runtime.timezone })
       .tick()
       .then((report) => {
         // quante, mai il testo (regola 6): la domanda è roba di casa
@@ -666,7 +741,7 @@ checkinTimer.unref();
 periodic.push(checkinTimer);
 
 // §5.3: loneliness and neglect are perturbations no sensor can emit
-const solitude = new SolitudeMonitor({ db, gosinoId: bootstrapExemplar.id, psyche });
+const solitude = new SolitudeMonitor({ db: dbFor(bootstrapAccountId), gosinoId: bootstrapExemplar.id, psyche });
 const SOLITUDE_TICK_MS = 15 * 60_000;
 const solitudeTimer = setInterval(() => {
   solitude.tick().catch((error: unknown) => {
@@ -680,7 +755,7 @@ solitudeTimer.unref();
 if (env.UGO_IDLE_CONSOLIDATION_MINUTES > 0) {
   const triggerUrl = env.UGO_JOBS_TRIGGER_URL;
   const idle = new IdleConsolidation({
-    db,
+    db: dbFor(bootstrapAccountId),
     gosinoId: bootstrapExemplar.id,
     options: {
       idleMinutes: env.UGO_IDLE_CONSOLIDATION_MINUTES,
@@ -718,6 +793,7 @@ if (env.UGO_IDLE_CONSOLIDATION_MINUTES > 0) {
  */
 const mortality = new MortalityWatch({
   db,
+  dbFor,
   dataKey,
   registry,
   logger: app.log,

@@ -123,7 +123,7 @@ def sync_repo(conn: psycopg.Connection, cfg: JobsConfig, repo: dict) -> dict:
     written = replace_chunks(
         conn,
         cfg,
-        household_id=str(repo["household_id"]),
+        account_id=str(repo["account_id"]),
         customer_id=str(repo["customer_id"]),
         source_type="repo",
         source_id=str(repo["id"]),
@@ -137,21 +137,21 @@ def sync_repo(conn: psycopg.Connection, cfg: JobsConfig, repo: dict) -> dict:
     return {"repo": str(repo["id"]), "chunks": written, "head": head[:7]}
 
 
-def run_repos(conn: psycopg.Connection, cfg: JobsConfig, household_id: str) -> list[dict]:
+def run_repos(conn: psycopg.Connection, cfg: JobsConfig, account_id: str) -> list[dict]:
     rows = conn.execute(
         """
-        select r.id, r.household_id, r.customer_id, r.remote_url, r.default_branch,
+        select r.id, r.account_id, r.customer_id, r.remote_url, r.default_branch,
                r.pat, r.last_commit_sha
         from customer_repos r
         join customers c on c.id = r.customer_id
-        where r.household_id = %s and c.archived_at is null
+        where r.account_id = %s and c.archived_at is null
         order by r.created_at
         """,
-        (household_id,),
+        (account_id,),
     ).fetchall()
     columns = [
         "id",
-        "household_id",
+        "account_id",
         "customer_id",
         "remote_url",
         "default_branch",

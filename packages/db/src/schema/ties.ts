@@ -2,10 +2,10 @@ import { sql } from "drizzle-orm";
 import { check, foreignKey, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { beings } from "./beings.js";
 import { gosini } from "./gosini.js";
-import { households } from "./households.js";
+import { accounts } from "./accounts.js";
 
 /**
- * La parentela fra le case (ADR-092): un legame proposto da una casa e vero
+ * La parentela fra le case (ADR-099): un legame proposto da una casa e vero
  * solo quando l'altra accetta. Seconda tabella a due case del progetto, sul
  * precedente di `adoptions` (ADR-084): la vedono le due parti, nessun altro.
  *
@@ -18,22 +18,22 @@ import { households } from "./households.js";
  *
  * `label` è testo libero come le specie (ADR-014): «i nonni» non è un enum.
  * Lo stato è text + check e non un enum Postgres: la trappola di drizzle-kit
- * che non genera CREATE TYPE è già stata pagata due volte (v. households.kind).
+ * che non genera CREATE TYPE è già stata pagata due volte (v. accounts.kind).
  */
-export const householdTies = pgTable(
-  "household_ties",
+export const accountTies = pgTable(
+  "account_ties",
   {
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
     /** chi propone il legame */
-    fromHouseholdId: uuid("from_household_id")
+    fromAccountId: uuid("from_account_id")
       .notNull()
-      .references(() => households.id, { onDelete: "cascade" }),
+      .references(() => accounts.id, { onDelete: "cascade" }),
     /** chi lo riceve, e deve accettarlo perché esista */
-    toHouseholdId: uuid("to_household_id")
+    toAccountId: uuid("to_account_id")
       .notNull()
-      .references(() => households.id, { onDelete: "cascade" }),
+      .references(() => accounts.id, { onDelete: "cascade" }),
     label: text("label").notNull(),
     /** l'essere di casa MIA che rappresenta l'altra famiglia (facoltativo) */
     fromBeingId: uuid("from_being_id"),
@@ -45,20 +45,20 @@ export const householdTies = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
   (table) => [
-    index("household_ties_from_idx").on(table.fromHouseholdId),
-    index("household_ties_to_idx").on(table.toHouseholdId),
-    check("household_ties_status", sql`${table.status} in ('proposta', 'accettata', 'revocata')`),
-    check("household_ties_no_self", sql`${table.fromHouseholdId} <> ${table.toHouseholdId}`),
+    index("account_ties_from_idx").on(table.fromAccountId),
+    index("account_ties_to_idx").on(table.toAccountId),
+    check("account_ties_status", sql`${table.status} in ('proposta', 'accettata', 'revocata')`),
+    check("account_ties_no_self", sql`${table.fromAccountId} <> ${table.toAccountId}`),
     // ognuno indica un essere di casa PROPRIA: il puntatore non attraversa il muro
     foreignKey({
-      name: "household_ties_from_being_fk",
-      columns: [table.fromHouseholdId, table.fromBeingId],
-      foreignColumns: [beings.householdId, beings.id],
+      name: "account_ties_from_being_fk",
+      columns: [table.fromAccountId, table.fromBeingId],
+      foreignColumns: [beings.accountId, beings.id],
     }),
     foreignKey({
-      name: "household_ties_to_being_fk",
-      columns: [table.toHouseholdId, table.toBeingId],
-      foreignColumns: [beings.householdId, beings.id],
+      name: "account_ties_to_being_fk",
+      columns: [table.toAccountId, table.toBeingId],
+      foreignColumns: [beings.accountId, beings.id],
     }),
     // l'unicità della COPPIA, in qualunque verso, è un indice funzionale
     // least/greatest nella migrazione RLS scritta a mano: drizzle-kit non lo
@@ -67,7 +67,7 @@ export const householdTies = pgTable(
 );
 
 /**
- * La cartolina (ADR-092): un messaggio o un ricordo, testo, un elemento per
+ * La cartolina (ADR-099): un messaggio o un ricordo, testo, un elemento per
  * volta, da una casa all'altra — e SOLO su azione esplicita di una persona.
  * L'unico scrittore è `ParcelService.send()`; né l'iniziativa né il sogno né
  * un job hanno il diritto di imbucare qualcosa, e una guardia sui sorgenti lo
@@ -88,13 +88,13 @@ export const parcels = pgTable(
       .default(sql`gen_random_uuid()`),
     tieId: uuid("tie_id")
       .notNull()
-      .references(() => householdTies.id, { onDelete: "cascade" }),
-    fromHouseholdId: uuid("from_household_id")
+      .references(() => accountTies.id, { onDelete: "cascade" }),
+    fromAccountId: uuid("from_account_id")
       .notNull()
-      .references(() => households.id, { onDelete: "cascade" }),
-    toHouseholdId: uuid("to_household_id")
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    toAccountId: uuid("to_account_id")
       .notNull()
-      .references(() => households.id, { onDelete: "cascade" }),
+      .references(() => accounts.id, { onDelete: "cascade" }),
     /** quale esemplare l'ha spedita: il pannello lo chiede, mai «va il default» */
     fromGosinoId: uuid("from_gosino_id").notNull(),
     /** a quale esemplare è indirizzata; nullo = alla casa, deciderà lei */
@@ -106,12 +106,12 @@ export const parcels = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     /** quando il desiderio del gosino destinatario è stato scritto */
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
-    /** ADR-092 §3: un ricordo ricevuto si può «tenere» — una volta sola */
+    /** ADR-099 §3: un ricordo ricevuto si può «tenere» — una volta sola */
     keptAt: timestamp("kept_at", { withTimezone: true }),
   },
   (table) => [
-    index("parcels_from_idx").on(table.fromHouseholdId),
-    index("parcels_to_idx").on(table.toHouseholdId),
+    index("parcels_from_idx").on(table.fromAccountId),
+    index("parcels_to_idx").on(table.toAccountId),
     index("parcels_tie_idx").on(table.tieId),
     check("parcels_kind", sql`${table.kind} in ('messaggio', 'ricordo')`),
     check("parcels_status", sql`${table.status} in ('inviata', 'consegnata')`),
@@ -119,13 +119,13 @@ export const parcels = pgTable(
     // nominato, uno della destinataria — le composite FK di ADR-019
     foreignKey({
       name: "parcels_from_gosino_fk",
-      columns: [table.fromHouseholdId, table.fromGosinoId],
-      foreignColumns: [gosini.householdId, gosini.id],
+      columns: [table.fromAccountId, table.fromGosinoId],
+      foreignColumns: [gosini.accountId, gosini.id],
     }),
     foreignKey({
       name: "parcels_to_gosino_fk",
-      columns: [table.toHouseholdId, table.toGosinoId],
-      foreignColumns: [gosini.householdId, gosini.id],
+      columns: [table.toAccountId, table.toGosinoId],
+      foreignColumns: [gosini.accountId, gosini.id],
     }),
   ],
 );

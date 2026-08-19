@@ -11,7 +11,7 @@ import { BeingNotFoundError, type ChatService } from "../services/chatService.js
 import type { GosinoRegistry } from "../services/pack/runtimes.js";
 import type { PsycheService } from "../services/psycheService.js";
 import type { PreHandler } from "./guard.js";
-import { eldestExemplarOf, resolveHousehold } from "./scope.js";
+import { eldestExemplarOf, resolveAccount } from "./scope.js";
 
 export interface V1Deps {
   db: DbClient;
@@ -66,8 +66,8 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
     // this route is open to the body, which may carry no token at all: with no
     // identity there is no house to narrow to, and the single fallback psyche
     // answers exactly as it did before ADR-019
-    const scope = await resolveHousehold(deps.db, request);
-    const who = scope.ok ? deps.registry?.resolve(asked, scope.householdId) : undefined;
+    const scope = await resolveAccount(deps.db, request);
+    const who = scope.ok ? deps.registry?.resolve(asked, scope.accountId) : undefined;
     const psyche = who?.psyche ?? deps.psyche;
     const at = new Date();
     const { vars, label, phrase } = psyche.current(at);
@@ -89,16 +89,16 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
     // the body sends these, and the body may carry no token: with no identity
     // there is only one house to put an event in, and if there is more than
     // one the dock has to be configured (ADR-019 phase 2)
-    const scope = await resolveHousehold(deps.db, request);
+    const scope = await resolveAccount(deps.db, request);
     if (!scope.ok) {
       problem(reply, scope.status, scope.title, scope.detail);
       return;
     }
-    const who = deps.registry?.resolve((request.query as { gosino?: string }).gosino, scope.householdId);
+    const who = deps.registry?.resolve((request.query as { gosino?: string }).gosino, scope.accountId);
     const inserted = await deps.db
       .insert(events)
       .values({
-        gosinoId: who?.id ?? (await eldestExemplarOf(deps.db, scope.householdId)),
+        gosinoId: who?.id ?? (await eldestExemplarOf(deps.db, scope.accountId)),
         source: parsed.data.source,
         type: parsed.data.type,
         payload: parsed.data.payload,

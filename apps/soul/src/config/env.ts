@@ -9,6 +9,13 @@ const optionalNonEmpty = z.preprocess(
 /** Environment contract for soul-api (Fasi 0-4). Boot fails fast if unmet. */
 export const soulEnvSchema = z.object({
   DATABASE_URL: z.url(),
+  /**
+   * ADR-062 tempo 2b: l'utenza applicativa (`ugo_app`), su cui le politiche
+   * RLS mordono davvero. Assente = si resta sull'owner, dove il muro esiste
+   * ed è inerte — il flip è impostarla, e si può togliere per tornare
+   * indietro. Le migrazioni restano SEMPRE su DATABASE_URL (l'owner).
+   */
+  DATABASE_URL_APP: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   // MQTT exists for the Nano 33 IoT firmware only (PROGETTO §5.7). With the
   // firmware set aside, a deployment has no broker and must not be forced to
   // invent one: leave these unset and the check reports "off", not "error".
@@ -27,6 +34,25 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().min(1).optional(),
   ),
+  /**
+   * ADR-094: la voce di casa parla per prima, e il provider è il soccorso.
+   * Acceso per default su direttiva del proprietario — «local-first» senza
+   * l'asterisco. `off` esiste per il giorno in cui serve confrontare le due
+   * voci, non come scelta consigliata.
+   */
+  UGO_CHAT_LOCAL_FIRST: z
+    .preprocess((value) => (value === "" ? undefined : value), z.enum(["on", "off"]).default("on")),
+  /** il modello di casa per la CHAT; vuoto = quello del testo, poi del sogno */
+  OLLAMA_CHAT_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  // ADR-095: il secondo anello della catena, fra casa e Anthropic. Solo con
+  // la chiave; senza, la catena lo salta e non se ne accorge nessuno.
+  OPENROUTER_API_KEY: optionalNonEmpty,
+  OPENROUTER_CHAT_MODEL: optionalNonEmpty,
+  /** override per gli stub di rete nei test; vuoto = https://openrouter.ai */
+  OPENROUTER_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   // Initiative off by default is the wrong default for a companion, but it is
   // the right one for a machine that just learned to speak first.
   UGO_INITIATIVE: z
@@ -148,6 +174,15 @@ export const soulEnvSchema = z.object({
   // development, where Vite serves it on its own port
   UGO_FACE_DIR: z.preprocess((value) => (value === "" ? undefined : value), z.string().optional()),
   NODE_ENV: z.string().default("development"),
+}).superRefine((env, ctx) => {
+  // meta' configurazione non e' una configurazione: fail fast al boot (regola 4)
+  if (env.OPENROUTER_API_KEY !== undefined && env.OPENROUTER_CHAT_MODEL === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message: "OPENROUTER_API_KEY impostata senza OPENROUTER_CHAT_MODEL: serve anche il modello",
+      path: ["OPENROUTER_CHAT_MODEL"],
+    });
+  }
 });
 
 export type SoulEnv = z.infer<typeof soulEnvSchema>;

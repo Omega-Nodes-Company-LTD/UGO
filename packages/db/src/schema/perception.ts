@@ -12,7 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { beings } from "./beings.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 import { gosini } from "./gosini.js";
 import { memories } from "./memories.js";
 import { correctionSignal, recognitionModality } from "./enums.js";
@@ -25,7 +25,7 @@ import { bytea } from "./types.js";
  * pgvector column. The two are mutually exclusive: a `vector` holds readable
  * floats, and a voiceprint in the clear is exactly what the encryption
  * requirement protects. Comparison happens in memory after decryption; on a
- * household-sized set an HNSW index would buy nothing.
+ * account-sized set an HNSW index would buy nothing.
  *
  * `model` and `dimensions` are explicit because face, voice and text encoders
  * have different sizes: a fixed-width column would pin every modality to the
@@ -45,7 +45,7 @@ export const recognitionProfiles = pgTable(
      * composite key below is what makes it impossible for it to drift from the
      * being's own house — Postgres refuses the pair, we do not remember to.
      */
-    householdId: householdId(),
+    accountId: accountId(),
     modality: recognitionModality("modality").notNull(),
     model: text("model").notNull(),
     dimensions: integer("dimensions").notNull(),
@@ -56,9 +56,9 @@ export const recognitionProfiles = pgTable(
   (table) => [
     unique("recognition_profiles_being_modality_uq").on(table.beingId, table.modality),
     foreignKey({
-      columns: [table.householdId, table.beingId],
-      foreignColumns: [beings.householdId, beings.id],
-      name: "recognition_profiles_household_being_fk",
+      columns: [table.accountId, table.beingId],
+      foreignColumns: [beings.accountId, beings.id],
+      name: "recognition_profiles_account_being_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -134,16 +134,16 @@ export const memoryBeings = pgTable(
      * levels of subquery in a policy. Written by the dream in the same
      * statement as the link, and only between rows of one house (ADR-024).
      */
-    householdId: householdId(),
+    accountId: accountId(),
   },
   (table) => [
     index("memory_beings_being_idx").on(table.beingId),
     unique("memory_beings_pk").on(table.memoryId, table.beingId),
     // the being is already pinned to its house, so the pair cannot drift
     foreignKey({
-      columns: [table.householdId, table.beingId],
-      foreignColumns: [beings.householdId, beings.id],
-      name: "memory_beings_household_being_fk",
+      columns: [table.accountId, table.beingId],
+      foreignColumns: [beings.accountId, beings.id],
+      name: "memory_beings_account_being_fk",
     }).onDelete("cascade"),
   ],
 );

@@ -12,7 +12,7 @@ import {
 import { EMBEDDING_DIMENSIONS } from "@ugo/shared";
 import { customers } from "./customers.js";
 import { customerSourceStatus, customerSourceType } from "./enums.js";
-import { householdId } from "./households.js";
+import { accountId } from "./accounts.js";
 
 /**
  * What the gosino knows about a customer's work (ADR-054): three read-only
@@ -27,7 +27,7 @@ export const customerRepos = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     customerId: uuid("customer_id").notNull(),
     remoteUrl: text("remote_url").notNull(),
     defaultBranch: text("default_branch").notNull().default("main"),
@@ -43,9 +43,9 @@ export const customerRepos = pgTable(
   (table) => [
     index("customer_repos_customer_idx").on(table.customerId),
     foreignKey({
-      columns: [table.householdId, table.customerId],
-      foreignColumns: [customers.householdId, customers.id],
-      name: "customer_repos_household_customer_fk",
+      columns: [table.accountId, table.customerId],
+      foreignColumns: [customers.accountId, customers.id],
+      name: "customer_repos_account_customer_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -56,7 +56,7 @@ export const customerDocuments = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     customerId: uuid("customer_id").notNull(),
     /** opaque object key in the private docs bucket */
     s3Key: text("s3_key").notNull(),
@@ -72,9 +72,9 @@ export const customerDocuments = pgTable(
   (table) => [
     index("customer_documents_customer_idx").on(table.customerId),
     foreignKey({
-      columns: [table.householdId, table.customerId],
-      foreignColumns: [customers.householdId, customers.id],
-      name: "customer_documents_household_customer_fk",
+      columns: [table.accountId, table.customerId],
+      foreignColumns: [customers.accountId, customers.id],
+      name: "customer_documents_account_customer_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -85,7 +85,7 @@ export const customerMailAccounts = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     customerId: uuid("customer_id").notNull(),
     imapHost: text("imap_host").notNull(),
     imapPort: integer("imap_port").notNull().default(993),
@@ -111,9 +111,9 @@ export const customerMailAccounts = pgTable(
   (table) => [
     index("customer_mail_accounts_customer_idx").on(table.customerId),
     foreignKey({
-      columns: [table.householdId, table.customerId],
-      foreignColumns: [customers.householdId, customers.id],
-      name: "customer_mail_accounts_household_customer_fk",
+      columns: [table.accountId, table.customerId],
+      foreignColumns: [customers.accountId, customers.id],
+      name: "customer_mail_accounts_account_customer_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -130,7 +130,7 @@ export const customerChunks = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    householdId: householdId(),
+    accountId: accountId(),
     customerId: uuid("customer_id").notNull(),
     sourceType: customerSourceType("source_type").notNull(),
     /** the row id in the source's own table */
@@ -150,9 +150,9 @@ export const customerChunks = pgTable(
       table.embedding.op("vector_cosine_ops"),
     ),
     foreignKey({
-      columns: [table.householdId, table.customerId],
-      foreignColumns: [customers.householdId, customers.id],
-      name: "customer_chunks_household_customer_fk",
+      columns: [table.accountId, table.customerId],
+      foreignColumns: [customers.accountId, customers.id],
+      name: "customer_chunks_account_customer_fk",
     }).onDelete("cascade"),
   ],
 );

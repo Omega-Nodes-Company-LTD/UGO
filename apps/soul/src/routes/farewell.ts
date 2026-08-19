@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { DowryOptions } from "../services/dowryService.js";
 import { FarewellService } from "../services/farewellService.js";
 import type { PreHandler } from "./guard.js";
-import { householdScope } from "./scope.js";
+import { inAccount } from "./scope.js";
 
 /**
  * Il congedo (ADR-075).
@@ -40,7 +40,6 @@ export interface FarewellRoutesDeps {
 }
 
 export function registerFarewellRoutes(app: FastifyInstance, deps: FarewellRoutesDeps): void {
-  const farewells = new FarewellService(deps.db, deps.dataKey);
 
   /**
    * ADR-077: il capostipite accetta la mortalità, **e l'arco parte da oggi**.
@@ -52,9 +51,14 @@ export function registerFarewellRoutes(app: FastifyInstance, deps: FarewellRoute
    */
   app.post("/v1/gosini/:id/mortality", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-    const accepted = await farewells.acceptMortality(householdId, id);
+    const accepted = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      (db, accountId) => new FarewellService(db, deps.dataKey).acceptMortality(accountId, id),
+    );
+    if (accepted === undefined) return reply;
     if (!accepted) return reply.status(409).send({ error: "già mortale, o non esiste" });
     await deps.registry?.reload();
     return reply.send({ mortal: true });
@@ -64,13 +68,19 @@ export function registerFarewellRoutes(app: FastifyInstance, deps: FarewellRoute
     const parsed = previewSchema.safeParse(request.body ?? {});
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-
     const options: DowryOptions =
       parsed.data.includeStories === undefined ? {} : { includeStories: parsed.data.includeStories };
-    const preview = await farewells.preview(householdId, id, options);
-    if (preview === undefined) return reply.status(404).send({ error: "non esiste" });
+    const preview = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) =>
+        (await new FarewellService(db, deps.dataKey).preview(accountId, id, options)) ??
+        ("missing" as const),
+    );
+    if (preview === undefined) return reply;
+    if (preview === "missing") return reply.status(404).send({ error: "non esiste" });
     return reply.send(preview);
   });
 
@@ -78,22 +88,33 @@ export function registerFarewellRoutes(app: FastifyInstance, deps: FarewellRoute
     const parsed = farewellSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
     const { id } = request.params as { id: string };
-    const householdId = await householdScope(deps.db, request, reply, { requireAdmin: true });
-    if (householdId === undefined) return reply;
-
     const options: DowryOptions =
       parsed.data.includeStories === undefined ? {} : { includeStories: parsed.data.includeStories };
-    const preview = await farewells.preview(householdId, id, options);
-    if (preview === undefined) return reply.status(404).send({ error: "non esiste" });
-    if (preview.alreadyGone) return reply.status(409).send({ error: "se n'è già andato" });
-    if (preview.name !== parsed.data.confirmName) {
+    // un solo tratto in casa: controllo del nome E congedo nella stessa
+    // transazione, così nessuno muore fra la conferma e l'atto
+    const done = await inAccount(
+      deps.db,
+      request,
+      reply,
+      { requireAdmin: true },
+      async (db, accountId) => {
+        const farewells = new FarewellService(db, deps.dataKey);
+        const preview = await farewells.preview(accountId, id, options);
+        if (preview === undefined) return "missing" as const;
+        if (preview.alreadyGone) return "gone" as const;
+        if (preview.name !== parsed.data.confirmName) return "wrong-name" as const;
+        return (await farewells.farewell(accountId, id, options)) ?? ("gone" as const);
+      },
+    );
+    if (done === undefined) return reply;
+    if (done === "missing") return reply.status(404).send({ error: "non esiste" });
+    if (done === "gone") return reply.status(409).send({ error: "se n'è già andato" });
+    if (done === "wrong-name") {
       return reply
         .status(400)
         .send({ error: "il nome non combacia", detail: "scrivi il suo nome per confermare" });
     }
-
-    const result = await farewells.farewell(householdId, id, options);
-    if (result === undefined) return reply.status(409).send({ error: "se n'è già andato" });
+    const result = done;
 
     // ADR-073: l'atto in catena. Come per la nascita, se il registro è giù
     // il congedo è comunque avvenuto — la chiave è già distrutta.

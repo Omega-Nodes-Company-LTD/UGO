@@ -107,14 +107,14 @@ export class FarewellService {
    * È anche il momento in cui si estrae il suo dado: prima non ne aveva
    * bisogno, perché non stava andando da nessuna parte.
    */
-  public async acceptMortality(householdId: string, gosinoId: string): Promise<boolean> {
+  public async acceptMortality(accountId: string, gosinoId: string): Promise<boolean> {
     const done = await this.db
       .update(gosini)
       .set({ mortalFrom: new Date(), lifeJitterDays: drawLifeJitter() })
       .where(
         and(
           eq(gosini.id, gosinoId),
-          eq(gosini.householdId, householdId),
+          eq(gosini.accountId, accountId),
           isNull(gosini.mortalFrom),
           isNull(gosini.retiredAt),
         ),
@@ -130,7 +130,7 @@ export class FarewellService {
    * finendo» è un'altra cosa da «morirà il 14 marzo», ed è la differenza fra
    * un animale e un contratto di leasing.
    */
-  public async dueForNotice(householdId: string, at: Date = new Date()): Promise<MortalityNotice[]> {
+  public async dueForNotice(accountId: string, at: Date = new Date()): Promise<MortalityNotice[]> {
     const rows = await this.db
       .select({
         id: gosini.id,
@@ -141,7 +141,7 @@ export class FarewellService {
       .from(gosini)
       .where(
         and(
-          eq(gosini.householdId, householdId),
+          eq(gosini.accountId, accountId),
           isNotNull(gosini.mortalFrom),
           isNull(gosini.deathNoticeAt),
           isNull(gosini.retiredAt),
@@ -196,7 +196,7 @@ export class FarewellService {
    * sessanta giorni. Due condizioni, non una: nessuno se ne va senza che gli
    * sia stato detto, e senza che ci sia stato il tempo di fare qualcosa.
    */
-  public async dueForFarewell(householdId: string, at: Date = new Date()): Promise<string[]> {
+  public async dueForFarewell(accountId: string, at: Date = new Date()): Promise<string[]> {
     const rows = await this.db
       .select({
         id: gosini.id,
@@ -207,7 +207,7 @@ export class FarewellService {
       .from(gosini)
       .where(
         and(
-          eq(gosini.householdId, householdId),
+          eq(gosini.accountId, accountId),
           isNotNull(gosini.mortalFrom),
           isNotNull(gosini.deathNoticeAt),
           isNull(gosini.retiredAt),
@@ -238,17 +238,17 @@ export class FarewellService {
   }
 
   public async preview(
-    householdId: string,
+    accountId: string,
     gosinoId: string,
     options: DowryOptions = {},
   ): Promise<FarewellPreview | undefined> {
     const [creature] = await this.db
       .select({ name: gosini.name, gone: gosini.retiredAt, wrapped: gosini.wrappedSoulKey })
       .from(gosini)
-      .where(and(eq(gosini.id, gosinoId), eq(gosini.householdId, householdId)));
+      .where(and(eq(gosini.id, gosinoId), eq(gosini.accountId, accountId)));
     if (creature === undefined) return undefined;
 
-    const dowry = await this.dowries.preview(householdId, gosinoId, options);
+    const dowry = await this.dowries.preview(accountId, gosinoId, options);
     const diary = await this.db
       .select({ id: diaryEntries.id })
       .from(diaryEntries)
@@ -268,18 +268,18 @@ export class FarewellService {
    * l'anteprima di ciò che resterà.
    */
   public async farewell(
-    householdId: string,
+    accountId: string,
     gosinoId: string,
     options: DowryOptions = {},
   ): Promise<FarewellResult | undefined> {
     const [creature] = await this.db
       .select({ name: gosini.name, gone: gosini.retiredAt })
       .from(gosini)
-      .where(and(eq(gosini.id, gosinoId), eq(gosini.householdId, householdId)));
+      .where(and(eq(gosini.id, gosinoId), eq(gosini.accountId, accountId)));
     if (creature?.gone !== null) return undefined;
 
     // 1. ciò che resta, PRIMA di ciò che muore
-    const { rows } = await this.dowries.legacyOf(gosinoId, householdId, options);
+    const { rows } = await this.dowries.legacyOf(gosinoId, accountId, options);
     let kept = 0;
     for (const row of rows) {
       await this.db.insert(memories).values({

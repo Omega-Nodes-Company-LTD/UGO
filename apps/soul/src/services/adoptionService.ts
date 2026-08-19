@@ -42,12 +42,12 @@ export class AdoptionService {
    */
   public async reserve(
     gosinoId: string,
-    buyerHouseholdId: string,
+    buyerAccountId: string,
   ): Promise<{ id: string; priceCents: number | null } | undefined> {
     return this.db.transaction(async (tx) => {
       const [cub] = await tx
         .select({
-          house: gosini.householdId,
+          house: gosini.accountId,
           price: gosini.priceCents,
           listed: gosini.listedAt,
           origin: gosini.origin,
@@ -65,8 +65,8 @@ export class AdoptionService {
         .insert(adoptions)
         .values({
           gosinoId,
-          kennelHouseholdId: cub.house,
-          buyerHouseholdId,
+          kennelAccountId: cub.house,
+          buyerAccountId,
           status: "prenotata",
           ...(cub.price !== null && { priceCents: cub.price }),
         })
@@ -76,7 +76,7 @@ export class AdoptionService {
   }
 
   /** Le pratiche di una casa: quelle che cede e quelle che riceve. */
-  public async of(householdId: string): Promise<AdoptionRow[]> {
+  public async of(accountId: string): Promise<AdoptionRow[]> {
     const rows = await this.db
       .select({
         id: adoptions.id,
@@ -94,8 +94,8 @@ export class AdoptionService {
       .innerJoin(gosini, eq(adoptions.gosinoId, gosini.id))
       .where(
         or(
-          eq(adoptions.kennelHouseholdId, householdId),
-          eq(adoptions.buyerHouseholdId, householdId),
+          eq(adoptions.kennelAccountId, accountId),
+          eq(adoptions.buyerAccountId, accountId),
         ),
       )
       .orderBy(desc(adoptions.reservedAt));
@@ -104,13 +104,13 @@ export class AdoptionService {
 
   /** La pratica, vista da chi cede: le altre non sono affari suoi. */
   public async ofKennel(
-    kennelHouseholdId: string,
+    kennelAccountId: string,
     id: string,
   ): Promise<
     | {
         id: string;
         gosinoId: string;
-        buyerHouseholdId: string;
+        buyerAccountId: string;
         status: string;
       }
     | undefined
@@ -119,11 +119,11 @@ export class AdoptionService {
       .select({
         id: adoptions.id,
         gosinoId: adoptions.gosinoId,
-        buyerHouseholdId: adoptions.buyerHouseholdId,
+        buyerAccountId: adoptions.buyerAccountId,
         status: adoptions.status,
       })
       .from(adoptions)
-      .where(and(eq(adoptions.id, id), eq(adoptions.kennelHouseholdId, kennelHouseholdId)));
+      .where(and(eq(adoptions.id, id), eq(adoptions.kennelAccountId, kennelAccountId)));
     return row;
   }
 

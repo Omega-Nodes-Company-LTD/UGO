@@ -31,14 +31,20 @@ def run_customer_sync(cfg: JobsConfig, conn: psycopg.Connection | None = None) -
     connection = conn or psycopg.connect(cfg.database_url)
     try:
         houses = connection.execute(
-            "select id from households where closed_at is null order by created_at"
+            "select id from accounts where closed_at is null order by created_at"
         ).fetchall()
         report: dict = {}
-        for (household_id,) in houses:
-            report[str(household_id)] = {
-                "repos": run_repos(connection, cfg, str(household_id)),
-                "mail": run_mail(connection, cfg, str(household_id)),
-                "docs": run_docs(connection, cfg, str(household_id)),
+        for (account_id,) in houses:
+            # ADR-062/098: la casa si dichiara alla sessione prima del suo
+            # giro — la connessione serve le case in serie, e sotto l'utenza
+            # applicativa le fonti di una casa non dichiarata sono zero righe
+            connection.execute(
+                "select set_config('app.account_id', %s, false)", (str(account_id),)
+            )
+            report[str(account_id)] = {
+                "repos": run_repos(connection, cfg, str(account_id)),
+                "mail": run_mail(connection, cfg, str(account_id)),
+                "docs": run_docs(connection, cfg, str(account_id)),
             }
         connection.commit()
         return report
