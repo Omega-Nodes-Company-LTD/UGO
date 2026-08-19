@@ -19,6 +19,7 @@ import { startObjectSpotter } from "./objectSpotter.js";
 import { RainSound } from "./rainSound.js";
 import { Speech } from "./speech.js";
 import { EarsChoice } from "./earsChoice.js";
+import { micBlocked, micFailure } from "./micReason.js";
 import { worthSending } from "./heard.js";
 import { UtteranceGate } from "./utteranceGate.js";
 import { toPcm16Base64 } from "./voiceClip.js";
@@ -737,15 +738,49 @@ function startLocalEars(): void {
   });
 }
 
-function startListening(): void {
+/**
+ * Il microfono si apre, e se non si apre lo DICE (`micReason.ts`).
+ *
+ * Prima era `.catch(() => { trouble("microfono non disponibile"); })`, che
+ * sono tre parole per cinque guasti diversi — e nel caso piu' frequente sul
+ * telefono (pagina in chiaro, quindi contesto non sicuro) erano anche tre
+ * parole sbagliate: non e' il microfono a non essere disponibile, e' il
+ * browser che non lo concede a un indirizzo `http://`. L'unico sintomo che
+ * arrivava in fondo era il riconoscitore che si spegneva e riaccendeva, cioe'
+ * il secondo effetto raccontato al posto della causa.
+ */
+async function openMicrophone(): Promise<boolean> {
+  if (sensors.micIsOn()) return true;
+  const blocked = micBlocked(globalThis);
+  if (blocked !== undefined) {
+    trouble(blocked);
+    return false;
+  }
+  try {
+    await sensors.startMicrophone();
+    return true;
+  } catch (error) {
+    trouble(micFailure(error));
+    return false;
+  }
+}
+
+async function startListening(): Promise<void> {
   // Riaccendere le orecchie riapre il microfono, che ora `stopListening()`
   // spegne davvero. Il click sul bottone è il gesto dell'utente che
   // `getUserMedia` richiede, quindi il permesso non viene richiesto due volte:
   // il browser lo ricorda per l'origin.
-  if (!sensors.micIsOn()) {
-    void sensors.startMicrophone().catch(() => {
-      trouble("microfono non disponibile");
-    });
+  //
+  // E si ASPETTA che sia aperto prima di scegliere le orecchie: `EarsChoice`
+  // decide anche in base al fatto che ci sia un nastro da ascoltare
+  // (`browserGaveUp(micIsOn)`), e interrogarlo mentre `getUserMedia` e' ancora
+  // per strada gli faceva dire «niente microfono» di un microfono che stava
+  // per aprirsi. Senza microfono non c'e' nessuna delle due strade: le
+  // orecchie si spengono subito, col motivo vero, invece di spendere un
+  // minuto di bip per arrivare alla stessa conclusione.
+  if (!(await openMicrophone())) {
+    earsOff();
+    return;
   }
   if (ears.first() === "locale") {
     startLocalEars();
@@ -754,8 +789,31 @@ function startListening(): void {
   startBrowserListening();
 }
 
+/**
+ * Il riconoscitore del browser non e' una strada su questo dispositivo.
+ *
+ * Due modi di scoprirlo, stessa decisione: la resa del freno (`onGaveUp`) e
+ * l'assenza pura e semplice dell'API — Firefox su Android non ha nessuno
+ * `SpeechRecognition`, e li' `startBrowserListening` usciva in silenzio: le
+ * orecchie non partivano, il bottone diceva «ti ascolto» e non ascoltava
+ * niente, per sempre. Una strada che non c'e' e' una strada morta come le
+ * altre, e `EarsChoice` sa gia' cosa farne.
+ */
+function browserIsNotARoad(why: string): void {
+  if (ears.browserGaveUp(sensors.micIsOn()) === "locale") {
+    trouble(why + ": passo alla dettatura in casa");
+    startLocalEars();
+  } else {
+    trouble(why + ": orecchie spente (un tocco riprova)");
+    earsOff();
+  }
+}
+
 function startBrowserListening(): void {
-  if (!speech.sttAvailable()) return;
+  if (!speech.sttAvailable()) {
+    browserIsNotARoad("questo browser non ha il riconoscitore vocale");
+    return;
+  }
   const started = speech.listen(
     (text) => {
       handleHeardText(text);
@@ -786,13 +844,7 @@ function startBrowserListening(): void {
     // sensi restano accesi (rumore, luce, camera), manca solo la dettatura,
     // e un altro tocco sul bottone riprova.
     (why) => {
-      if (ears.browserGaveUp(sensors.micIsOn()) === "locale") {
-        trouble(why + ": passo alla dettatura in casa");
-        startLocalEars();
-      } else {
-        trouble(why + ": orecchie spente (un tocco riprova)");
-        earsOff();
-      }
+      browserIsNotARoad(why);
     },
   );
   if (started) app.dataset.ears = "on";
@@ -832,7 +884,12 @@ const pointerGaze = startPointerGaze(canvas, (target) => {
 micButton.addEventListener("click", () => {
   void (async () => {
     await awake.acquire();
-    await sensors.startMicrophone().catch(() => undefined);
+    // il microfono PRIMA della camera, come sempre: e' l'ordine in cui il
+    // gesto dell'utente vale ancora, ed e' l'unico senso che le orecchie
+    // usano davvero. L'esito si tiene: se non si e' aperto, il motivo l'ha
+    // gia' detto `openMicrophone`, e chiederglielo di nuovo da
+    // `startListening` sarebbe la stessa riga due volte
+    const earsPossible = await openMicrophone();
     sensors.startMotion();
     sensors.startLight();
     // ADR-044: il locator ORA viene passato. Prima non lo passava nessuno, e
@@ -876,7 +933,13 @@ micButton.addEventListener("click", () => {
         });
       }
     }
-    startListening();
+    if (earsPossible) {
+      void startListening();
+    } else {
+      earsOff();
+    }
+    // il bottone compare comunque: concedere il permesso e ritoccare e' la
+    // strada per cui la riga nel registro e' stata scritta
     micButton.hidden = true;
     earsButton.hidden = false;
   })();
@@ -893,7 +956,7 @@ earsButton.addEventListener("click", () => {
     stopListening();
     earsButton.textContent = "orecchie spente";
   } else {
-    startListening();
+    void startListening();
     earsButton.textContent = "ti ascolto";
   }
   // la pioggia segue l'interruttore dei sensi: uno solo, quello che c'è già
