@@ -13,6 +13,8 @@ import { NudgeService } from "./services/nudges.js";
 import { SceneReader } from "./services/sceneReader.js";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
+import { ParcelService } from "./services/parcelService.js";
+import { TieService } from "./services/tieService.js";
 import { characterFrom } from "./services/council/character.js";
 import type { HouseClock } from "./services/pack/runtimes.js";
 import { FaceGateway } from "./services/faceGateway.js";
@@ -257,6 +259,11 @@ const chat: ChatService = new ChatService({
   ...(localVision !== undefined && {
     vision: { describe: (image: string) => localVision.describe(image) },
   }),
+  // ADR-099: la cartolina a voce anche per l'apparato di avvio
+  postcards: {
+    ties: new TieService(db),
+    parcels: new ParcelService(db, parseDataKey(env.UGO_DATA_KEY)),
+  },
 });
 
 const audio = audioStorageFromEnv(env);

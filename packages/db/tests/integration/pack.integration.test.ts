@@ -1,5 +1,5 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { BeingFactory } from "@ugo/factories";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { BeingFactory, startPostgres } from "@ugo/factories";
 import { openEmbedding, parseDataKey, sealEmbedding } from "@ugo/shared";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -34,9 +34,10 @@ let container: StartedPostgreSqlContainer;
 let db: DbClient;
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  await runMigrations(container.getConnectionUri());
-  db = createDbClient(container.getConnectionUri());
+  const pg = await startPostgres();
+  container = pg.container;
+  await runMigrations(pg.url);
+  db = createDbClient(pg.url);
 }, 180_000);
 
 afterAll(async () => {

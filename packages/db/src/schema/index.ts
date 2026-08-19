@@ -13,6 +13,7 @@ export {
   customerSourceStatus,
 } from "./enums.js";
 export { adoptions } from "./adoptions.js";
+export { accountTies, parcels } from "./ties.js";
 export { customers, customerGosini, customerRewards } from "./customers.js";
 export { rssFeeds, feedItems } from "./feeds.js";
 export { customerAccessTokens } from "./customer-tokens.js";

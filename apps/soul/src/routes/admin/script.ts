@@ -25,6 +25,7 @@ import { SPARKS_JS } from "./script/sparks.js";
 import { RELATIONS_JS } from "./script/relations.js";
 import { ROOMS_JS } from "./script/rooms.js";
 import { ROUTER_JS } from "./script/router.js";
+import { TIES_JS } from "./script/ties.js";
 import { CAPABILITIES_JS } from "./script/capabilities.js";
 import { ACCOUNTS_JS } from "./script/accounts.js";
 import { PLACE_JS } from "./script/place.js";
@@ -73,4 +74,5 @@ export const ADMIN_SCRIPT = [
   DIARY_JS,
   ADOPTIONS_JS,
   LISTS_JS,
+  TIES_JS,
 ].join("\n");

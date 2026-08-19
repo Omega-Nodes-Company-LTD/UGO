@@ -6,6 +6,8 @@
  * about who lives here and share one purse. Everything on these pages would be
  * a lie if it were shown per exemplar.
  */
+import { TIE_WARNING } from "../../ties.js";
+
 export const ACCOUNT_PAGES = `
 <section class="page" data-page="sommario">
   <div class="page-head">
@@ -426,6 +428,66 @@ export const ACCOUNT_PAGES = `
     </div>
     <div id="lists-all" data-testid="lists-all"></div>
     <div id="list-msg"></div>
+  </div>
+</section>
+
+<section class="page" data-page="parentele">
+  <div class="page-head">
+    <p class="eyebrow" data-account>—</p>
+    <h1>Le parentele</h1>
+    <p>Le case dei parenti e degli amici veri (ADR-099): un legame si <b>propone</b>, e vive solo
+       quando l'altra casa dice <b>sì</b>. Da lì in poi si possono spedire <b>cartoline</b> —
+       un messaggio o un ricordo, uno per volta — anche a voce: «manda ai nonni: siamo stati
+       al parco».</p>
+    <!-- ADR-099 §2: l'avvertenza è parte del consenso, e sta PRIMA dei click -->
+    <p class="lede" data-testid="tie-warning"><b>${TIE_WARNING}</b></p>
+  </div>
+  <div class="block">
+    <h2>Proporre un legame</h2>
+    <p class="lede">Serve lo slug della loro casa (te lo dicono loro: non c'è un elenco da
+       sfogliare, ed è una protezione, non una mancanza).</p>
+    <div class="row">
+      <div style="flex:0 1 14rem"><label for="tie-house">La loro casa</label>
+        <input id="tie-house" data-testid="tie-house" placeholder="casa-dei-nonni"></div>
+      <div><label for="tie-label">Come li chiamate</label>
+        <input id="tie-label" data-testid="tie-label" placeholder="i nonni"></div>
+      <button id="tie-propose" data-testid="tie-propose">Proponi</button>
+    </div>
+  </div>
+  <div class="block">
+    <h2>I legami</h2>
+    <div id="ties-all" data-testid="ties-all"></div>
+    <div id="tie-msg"></div>
+  </div>
+  <div class="block">
+    <h2>Spedire una cartolina</h2>
+    <div class="row">
+      <div style="flex:0 1 12rem"><label for="parcel-tie">A chi</label>
+        <select id="parcel-tie" data-testid="parcel-tie"></select></div>
+      <div style="flex:0 1 12rem"><label for="parcel-from">Chi la spedisce</label>
+        <select id="parcel-from" data-testid="parcel-from"></select></div>
+      <div style="flex:0 1 10rem"><label for="parcel-kind">Cosa</label>
+        <select id="parcel-kind" data-testid="parcel-kind">
+          <option value="messaggio">un messaggio</option>
+          <option value="ricordo">un ricordo</option>
+        </select></div>
+    </div>
+    <div class="row">
+      <div><label for="parcel-text">Il testo</label>
+        <input id="parcel-text" data-testid="parcel-text" placeholder="siamo stati al parco!"></div>
+      <button id="parcel-send" data-testid="parcel-send">Spedisci</button>
+    </div>
+  </div>
+  <div class="block">
+    <h2>La cassetta della posta</h2>
+    <p class="lede">Quello che è arrivato si legge qui; un <b>ricordo</b> ricevuto si può
+       «tenere», e da lì entra nella memoria del gosino a cui era indirizzato.</p>
+    <div id="parcels-inbox" data-testid="parcels-inbox"></div>
+    <h2 style="margin-top:1rem">Le spedite</h2>
+    <p class="lede">Solo la busta: una cartolina spedita è di chi la riceve, e il testo non è
+       più in mano a chi l'ha mandata.</p>
+    <div id="parcels-outbox" data-testid="parcels-outbox"></div>
+    <div id="parcel-msg"></div>
   </div>
 </section>
 

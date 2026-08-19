@@ -86,3 +86,24 @@ export async function withMarket<T>(db: DbClient, work: (tx: DbClient) => Promis
     return work(tx as unknown as DbClient);
   });
 }
+
+/**
+ * ADR-099: la transazione della posta.
+ *
+ * Fratello di `withMarket` (ADR-097) e nato dalla stessa scoperta: le
+ * parentele fra le case sono la QUINTA superficie che attraversa il confine
+ * per disegno, e sotto `ugo_app` si romperebbero in silenzio — lo slug della
+ * casa destinataria, la sua chiave per ri-cifrare la cartolina, il suo
+ * esemplare: tutto invisibile dallo scope del mittente, senza un errore.
+ *
+ * `SET LOCAL ROLE ugo_post`, perso al commit, e questo è l'UNICO punto che lo
+ * assume: le parentele e le cartoline entrano da qui, tutto il resto di soul
+ * non sa che il ruolo esiste. Cosa può toccare lo elencano le politiche
+ * `TO ugo_post` della migrazione 0052, ed è tutto ciò che la posta è.
+ */
+export async function withPost<T>(db: DbClient, work: (tx: DbClient) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`set local role ugo_post`);
+    return work(tx as unknown as DbClient);
+  });
+}

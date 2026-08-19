@@ -74,6 +74,14 @@ export const AUDIT_VERBS = [
   // riga di una casa. Se una cosa del genere non lascia traccia, non è mai
   // successa per chi legge il giornale dopo
   "memories_plaintext",
+  /** ADR-099: una parentela proposta a un'altra casa — gli id, mai l'etichetta */
+  "tie_proposed",
+  /** ADR-099: il consenso dell'altra casa, che è ciò che apre la porta */
+  "tie_accepted",
+  /** ADR-099: la revoca, di una parte o dell'altra */
+  "tie_revoked",
+  /** ADR-099: una cartolina spedita — l'id della pratica, mai il testo */
+  "parcel_sent",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

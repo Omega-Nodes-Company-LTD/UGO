@@ -1,0 +1,173 @@
+# ADR-099 — Le parentele fra le case: il confine si apre a mano, mai da solo
+
+**Stato: ACCETTATA** (decisione del proprietario, 2026-08-18). Riapre **parzialmente** ADR-019 e
+ADR-020, e ne conferma tutto il resto. Si appoggia ad **ADR-097** per il meccanismo con cui un
+atto attraversa le case sotto RLS.
+
+## Contesto
+
+ADR-019 chiude la porta fra le case: «i vicini non si parlano», e il confine non è una policy ma
+struttura — `bonds` e `relations` hanno chiavi esterne composite che rendono un legame fra due
+famiglie **impossibile da scrivere**. ADR-020, aprendo l'incontro fisico al parco, ribadisce:
+«nessuna memoria condivisa, nessuna sincronizzazione, in nessuna direzione».
+
+Quelle regole nascono per proteggere da un pericolo preciso: due famiglie che si mescolano senza
+essersi scelte, un fornitore che le correla, un flusso silenzioso. Non nascono per impedire ciò che
+il proprietario ha chiesto oggi:
+
+> «già adesso possiamo mettere parentele e legami nella famiglia/branco/account, deve essere
+> possibile farlo per famiglie differenti, ovviamente avvertendo del fatto che diventa possibile
+> mandare messaggi o memorie, SOLO SU ESPLICITA AZIONE DELL'UTENTE.»
+
+I nonni non sono «i vicini». Una famiglia che vuole mandare una cartolina al gosino di nonno Sandro
+non è una federazione: è una busta, con un mittente, un destinatario e un francobollo. La differenza
+fra le due cose è **chi decide quando parte qualcosa** — ed è tutta la decisione di questo ADR.
+
+## Decisione
+
+### 1. La parentela è un legame fra case, con il consenso di entrambe
+
+Nasce `household_ties`: una casa **propone** il legame all'altra (con un'etichetta libera: «i
+nonni», «gli zii di Milano» — testo, non enum, come le specie di ADR-014), e il legame esiste solo
+quando l'altra casa **accetta**. Tre stati: `proposta`, `accettata`, `revocata`. La revoca è
+unilaterale e silenziosa, come in ADR-020: l'altra casa semplicemente smette di poter ricevere e
+inviare.
+
+`beings`, `bonds` e `relations` **non cambiano di una riga**: la stessa persona resta due righe in
+due case (la scelta di ADR-019 che impedisce a una famiglia di enumerare l'altra), e le FK composite
+restano il muro che sono. Ogni lato della parentela può — facoltativamente — indicare **il proprio
+essere locale** che rappresenta l'altra casa («nonno Sandro» com'è nel nostro branco): un puntatore
+dentro casa propria, mai un accesso a casa altrui.
+
+### 2. L'avvertenza è parte del consenso
+
+Nel momento in cui si propone e nel momento in cui si accetta, il pannello mostra — prima del
+click, non dopo — la frase:
+
+> «Collegare le case rende possibile inviare messaggi e ricordi all'altra famiglia. Ogni invio
+> parte solo da una tua azione esplicita: niente parte mai da solo.»
+
+Un consenso a una cosa che non è stata detta non è un consenso. La frase sta nel markup della
+pagina, e il test del pannello la pretende.
+
+### 3. L'invio è un atto, e l'unico scrittore è la rotta dell'atto
+
+Con una parentela `accettata` diventa possibile inviare una **cartolina** (`parcels`): un messaggio
+o un ricordo, **testo**, un elemento per volta.
+
+- **Solo su azione esplicita**: la rotta `POST /v1/parcels` (dal pannello) e il gesto in chat
+  («manda a nonno Sandro: …»), risolto prima del provider come ogni gesto (ADR-028/065/076).
+- **Mai in automatico**: né l'iniziativa, né il sogno, né la ruminazione, né un job possono
+  scrivere una cartolina. `ParcelService.send()` è l'unico punto d'invio, e una guardia sui
+  sorgenti (la famiglia di `traitsImmutable.test.ts` e della guardia di ADR-091) tiene chiusa la
+  porta.
+- Senza parentela accettata l'invio è **403 con la ragione in italiano** (il pattern di ADR-081),
+  mai un 404 che finge che la rotta non esista.
+- La consegna dall'altra parte è un **desiderio** del gosino destinatario («è arrivata una
+  cartolina da…», detto com'è scritto, pattern ADR-078) più la cassetta della posta nel pannello.
+  Un **ricordo** ricevuto si può «tenere»: diventa una riga `memories` del gosino destinatario, in
+  chiaro (ADR-091), con l'origine dichiarata nel testo — un ricordo che arriva da fuori casa non
+  deve mai sembrare nato in casa.
+
+### 4. Il testo viaggia ri-cifrato con la chiave della casa destinataria
+
+Una cartolina è **della casa che la riceve**: a riposo il suo testo è cifrato con la DEK del
+destinatario (con ricaduta sulla chiave di processo per le case senza DEK, il pattern di ADR-075).
+La ri-cifratura la fa soul all'invio — ha entrambe le chiavi perché entrambe le case vivono sul
+nostro ferro (ADR-017/019) — e il mittente, dopo l'invio, non ha più un canale di lettura: come una
+cartolina vera, quello che hai spedito non è più in mano tua.
+
+### 5. RLS bilaterale, sul precedente di `adoptions`
+
+`household_ties` e `parcels` sono tabelle **a due case**, e la politica di riga lo dice invece di
+nasconderlo (il precedente è ADR-084): le vedono le due parti, e nessun altro. `parcels` è
+append-only per REVOKE (come `births`), con il solo passaggio di stato della consegna concesso.
+
+### 6. La porta sotto il muro: il ruolo `ugo_post`
+
+Questa decisione è stata scritta quando RLS era presente e **inerte** — soul girava come
+proprietario delle tabelle, e le politiche non lo toccavano. Nel frattempo è arrivato il flip di
+`DATABASE_URL_APP` (ADR-062 tempo 2b), e con esso il fatto che cambia tutto: **una cartolina, per
+esistere, deve leggere cose dell'altra casa.** Lo slug a cui è indirizzata, la chiave con cui va
+cifrata (è di chi la riceve, §4), l'esemplare destinatario. Dallo scope del mittente quelle righe
+non esistono — e non con un errore: con **zero righe**, in silenzio. La feature sarebbe rimasta
+verde in ogni test (che si collega come owner) e muta in produzione: il difetto di ADR-045,
+esattamente, in un posto nuovo.
+
+Le parentele sono dunque la **quinta superficie cross-account**, accanto alle quattro che ADR-097
+elenca. E prendono la stessa risposta, che è già stata pensata bene una volta:
+
+- **`ugo_post`**, ruolo `NOLOGIN` concesso a `ugo_app` con `WITH INHERIT FALSE` — si **assume**
+  con `SET LOCAL ROLE` e si perde al commit, non si porta addosso per sbaglio;
+- **`withPost(db, work)`** in `packages/db/src/client.ts`, fratello di `withMarket`: l'unico punto
+  del codice che lo assume. Le letture che attraversano entrano da lì; **le scritture no** — chi
+  propone e chi spedisce firma nel proprio scope, e la policy pretende che sia lui. Due difese,
+  non una spostata;
+- i grants sono l'inventario di cosa la posta è: `account_ties` e `parcels` (leggere, proporre,
+  spedire, consegnare), `accounts` e `gosini` **in sola lettura e colonna per colonna**, `desires`
+  e `memories` in solo inserimento — il desiderio con cui il gosino dirà che è arrivata una
+  cartolina, e il ricordo che nasce se quella casa decide di tenerla. Nient'altro: né messaggi, né
+  diario, né psiche. Una casa amica non scrive dentro la vita di un'altra.
+
+**La riga più delicata è `GRANT SELECT (…, wrapped_data_key) ON accounts`**, e va detta invece che
+nascosta: il ruolo può leggere la chiave avvolta della casa destinataria, perché è ciò che permette
+di cifrare la cartolina per lei (§4). È la chiave **avvolta**: senza la KEK di processo non apre
+niente, quindi quello che il ruolo consegna è una busta chiusa, non un segreto. Le colonne restano
+enumerate — mai `GRANT SELECT ON accounts` — perché il resto della riga (budget, metabolismo,
+autorizzazioni d'allevamento) non ha niente a che vedere con la posta, e un giorno qualcuno ne
+aggiungerà una più delicata di tutte quelle di oggi.
+
+E una precisazione che il test ha imposto, perché senza di essa questo paragrafo prometterebbe più
+di quanto mantiene: su `accounts` la lettura è **già aperta a chiunque** (`accounts_read USING
+(true)`, ADR-048 — risolvere un token precede il sapere di che casa si parla, e da lì si legge
+anche la DEK avvolta). Enumerare le colonne qui non toglie a `ugo_app` niente di ciò che ha: le
+restringe **dentro la porta**, dove la posta lavora. Il muro che il ruolo attraversa davvero è
+altrove — `gosini` e le due tabelle della posta — ed è lì che il test prova `WITH INHERIT FALSE`.
+Il giorno in cui `accounts_read` venisse stretta, e sarebbe un bene, queste righe reggono già.
+
+La prova non è un ragionamento: `tiesUnderRls.integration.test.ts` si collega **come `ugo_app`**,
+come la produzione, e cammina il giro intero. Verificato **rosso** togliendo `withPost` — cinque
+test su sei, «casa sconosciuta» al primo passo — e verde rimettendolo.
+
+## Perimetro — dichiarato, non implicito
+
+- **Stessa installazione.** La parentela vive nel vicinato di ADR-019: due case sullo stesso
+  server. Fra installazioni diverse non esiste oggi alcun trasporto di cartoline; il giorno che
+  servirà, passerà dalle identità Ed25519 di ADR-020 e sarà un ADR nuovo.
+- **Solo testo.** Le foto non esistono ancora da nessuna parte (ADR-016 vincolo 1: nessun media
+  raw persistito); la cartolina con la foto dipende dall'«album di famiglia», che è una decisione
+  ancora da prendere (BACKLOG gruppo 21).
+- **Niente sincronizzazione.** La parentela non condivide branco, ricordi, diario, psiche, niente:
+  apre una buca delle lettere, non una porta di casa.
+- **GDPR**: collegare due tenant correla due famiglie — ed è esattamente ciò che il consenso
+  bilaterale, l'avvertenza prima del click e la revoca unilaterale coprono. Il contenuto inviato
+  entra nel perimetro dell'altra casa e da lì segue le sue regole (oblio compreso). Nell'audit log
+  vanno gli ID, mai il testo (regola 6).
+
+## Alternative scartate
+
+1. **Allargare `relations` alle coppie cross-casa.** Butterebbe via le FK composite che sono il
+   muro di ADR-019, per rappresentare una cosa che non è «il grafo fra gli esseri»: è un patto fra
+   case. Tabella nuova, muro intatto.
+2. **Consenso a senso unico** (basta che una casa proponga). Comodo, e vuol dire che chiunque
+   conosca il tuo slug può aprirti una buca delle lettere. Il consenso deve essere un gesto di
+   entrambe, come la presentazione di ADR-020.
+3. **Consegna push sul muso dell'altra casa** (parlare appena arriva). La cartolina arriverebbe
+   con la voce di un'altra famiglia dentro casa tua nel momento deciso da loro: è il gosino
+   destinatario che decide quando dirla, dal suo canale dei desideri.
+4. **Condividere la riga `beings`** fra le due case per «nonno Sandro». È la scelta che ADR-019
+   ha già scartato con le parole giuste: correlerebbe due vite che non hanno chiesto di essere
+   correlate in un database solo.
+
+## Conseguenze
+
+- ADR-019 e ADR-020 guadagnano una riga di testa: «parzialmente riaperta da ADR-099». Tutto il
+  resto delle due decisioni resta in vigore — in particolare il divieto di federazione, che questo
+  ADR **conferma**: una cartolina esplicita è il contrario di una sincronizzazione.
+- Il pannello guadagna la pagina «Le parentele»; il muso **non cambia** (la consegna passa dalla
+  porta dei desideri che c'è già: nessun contratto WS nuovo, nessun bundle da ricostruire).
+- Il backup per famiglia scopre le tabelle dallo schema: le due tabelle bilaterali entrano nel
+  backup di **entrambe** le case, ed è giusto così — ognuna delle due parti conserva la propria
+  copia della pratica, come per `adoptions`.
+- Le voci di visione emerse dalla stessa conversazione (lo sguardo che si ricorda, l'album di
+  famiglia, il nodo GPU) restano decisioni da cliccare, registrate nel BACKLOG gruppo 21.

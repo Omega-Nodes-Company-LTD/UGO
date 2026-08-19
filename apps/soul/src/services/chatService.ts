@@ -46,6 +46,16 @@ import {
   type TimerCommand,
 } from "./volition/timers.js";
 import { confirmList, parseListCommand, type ListCommand } from "./volition/lists.js";
+import {
+  confirmPostcard,
+  parsePostcard,
+  tellNoTie,
+  tellSendFailed,
+  tellTieNotAccepted,
+  type PostcardCommand,
+} from "./volition/postcards.js";
+import type { ParcelService } from "./parcelService.js";
+import type { TieService } from "./tieService.js";
 import { searchQueryOf } from "./webSearch.js";
 
 /** top-k per channel (PROGETTO §5.4: k=6 casa, k=10 riunioni) */
@@ -95,6 +105,12 @@ export interface ChatServiceDeps {
    * gesto non esiste e la frase va al modello come una qualunque.
    */
   reader?: { read: () => Promise<ReadOutcome> };
+  /**
+   * ADR-099: «manda ai nonni: …» — la cartolina a voce. L'atto esplicito è
+   * l'UNICA strada da cui una cartolina parte; assente = il gesto non esiste
+   * e la frase va al modello come una qualunque.
+   */
+  postcards?: { ties: TieService; parcels: ParcelService };
   /**
    * ADR-064: le spinte — «vai in cucina», «chiama Silvio». Non comandi:
    * pressioni che passano dal carattere, e possono essere rifiutate CON una
@@ -514,6 +530,30 @@ export class ChatService {
     return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
   }
 
+  /**
+   * La cartolina (ADR-099). Il destinatario è un nome detto a voce — slug,
+   * nome della casa o etichetta della parentela — e la porta si apre solo su
+   * una parentela ACCETTATA: tutto il resto è una risposta che spiega, mai
+   * un invio a metà.
+   */
+  private async applyPostcard(command: PostcardCommand): Promise<string> {
+    const post = this.deps.postcards;
+    if (post === undefined) return tellSendFailed();
+    const tie = await post.ties.tieByName(this.deps.accountId, command.recipient);
+    if (tie === undefined) return tellNoTie(command.recipient);
+    if (tie.status !== "accettata") return tellTieNotAccepted(command.recipient);
+    const sent = await post.parcels.send(this.deps.accountId, {
+      tieId: tie.id,
+      fromGosinoId: this.deps.gosinoId,
+      kind: command.kind,
+      text: command.text,
+    });
+    if (typeof sent === "string") {
+      return sent === "non-accettata" ? tellTieNotAccepted(command.recipient) : tellSendFailed();
+    }
+    return confirmPostcard(command, tie.otherName);
+  }
+
   /** Il testo di una riga, o stringa vuota se la chiave non la apre. */
   private readable(value: string): string {
     try {
@@ -671,6 +711,20 @@ export class ChatService {
       });
       // the exchange still goes into the biography, encrypted like every other
       return this.answered(confirmReminder(reminder), request, at);
+    }
+
+    /**
+     * ADR-099: «manda ai nonni: siamo stati al parco» — la cartolina, su
+     * gesto esplicito e MAI altrimenti: questo è l'unico punto della
+     * conversazione da cui si arriva a `ParcelService.send()`. Gli esiti sono
+     * distinti e si dicono (la lezione di ADR-065): nessuna parentela ≠
+     * proposta non ancora accettata ≠ partita.
+     */
+    if (this.deps.postcards !== undefined) {
+      const postcard = parsePostcard(request.text);
+      if (postcard !== undefined) {
+        return this.answered(await this.applyPostcard(postcard), request, at);
+      }
     }
 
     // ADR-063: «cerca: …» — la finestra sul mondo, aperta SOLO su gesto

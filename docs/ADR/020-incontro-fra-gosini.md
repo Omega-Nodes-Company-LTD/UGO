@@ -3,6 +3,10 @@
 **Stato: PROPOSTA** — nasce da una domanda del proprietario: se la famiglia A porta il suo gosino al
 parco e la famiglia B pure, **come si riconoscono, come si salutano, come si comportano?**
 
+> **Parzialmente riaperta da ADR-099** (2026-08-18): fra due case legate da una **parentela**
+> accettata, l'invio esplicito di un messaggio o di un ricordo è possibile. Il «nessuna memoria
+> condivisa, nessuna sincronizzazione» resta vero per tutto ciò che non è quell'atto deliberato.
+
 ## Contesto
 
 ADR-019 chiude la porta fra le case: nessuna federazione, i vicini non si parlano. Quella regola
