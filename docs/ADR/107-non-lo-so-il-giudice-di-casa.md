@@ -93,18 +93,41 @@ Il criterio con cui questa misura andava letta diceva «una persa su dieci è ac
 criterio sbagliato**, e vale la pena scriverlo: un conteggio che tratta l'allergia di Sofia come
 intercambiabile col compleanno della nonna non misura il danno, misura la frequenza.
 
-### E la causa era nel prompt, non nel modello
+### La diagnosi sbagliata, e la seconda misura che l'ha smentita
 
-La prima stesura chiudeva così: *«Rispondi NO se la risposta non c'è, anche se gli appunti parlano
-di cose vicine.»* Una spinta verso il no — dentro un meccanismo il cui codice fa cadere ogni dubbio
-dalla parte del sì. **Il testo diceva il contrario di quello che diceva la logica intorno**, e la
-misura ha presentato il conto sulla domanda peggiore possibile.
+Guardando quella sola riga, la spiegazione sembrava ovvia: il prompt chiudeva con *«Rispondi NO se
+la risposta non c'è, anche se gli appunti parlano di cose vicine»* — una spinta verso il no, dentro
+un meccanismo il cui codice fa cadere ogni dubbio verso il sì. Il testo pareva dire il contrario
+della logica intorno, e il conto sembrava arrivato sulla domanda peggiore possibile.
 
-Adesso il prompt porta la stessa asimmetria del resto: SI se la risposta si ricava dagli appunti
-**anche indirettamente**, NO **solo** se non c'è proprio. Il caso non viene nominato: insegnare al
-giudice che i gamberi sono crostacei sarebbe tarare il prompt sul banco, che è l'errore contro cui
-esiste tutto questo capitolo. Un test di unità presidia la frase, perché non torni indietro senza
-che nessuno se ne accorga.
+È stato riscritto: *SI se la risposta si ricava dagli appunti anche indirettamente, NO solo se non
+c'è proprio*. Misurato di nuovo (run 32219952282):
+
+| | prompt A (originale) | prompt B (riscritto) |
+|---|---|---|
+| riconosciute | 10 / 10 | 10 / 10 |
+| inventate | 0 / 10 | 0 / 10 |
+| **perse** | **1 / 10** | **3 / 10** |
+
+**Peggio.** Con la formulazione «più giusta» si perdono anche il compleanno della nonna e il
+modello della caldaia. Un modello da 1.5 miliardi di parametri non diventa più accurato se gli si
+danno due istruzioni invece di una: si confonde. Il prompt è tornato a quello che ha misurato
+meglio — l'esito batte l'intenzione, e la riga sui «near-miss» è quella che compra `inventate 0/10`
+su un corpus costruito apposta di near-miss.
+
+E soprattutto: **Sofia resta persa in tutte e due le versioni.** Quindi la causa non era il prompt.
+La diagnosi fatta su una misura sola era sbagliata, e la seconda misura l'ha smentita — che è
+esattamente il lavoro che deve fare una seconda misura.
+
+### La variabile vera: il modello
+
+Da gamberi a crostacei serve un passaggio di conoscenza del mondo. A 1.5B non c'è, in nessuna
+formulazione. Il giudice passa quindi a **`qwen2.5:3b`** (~2 GB), unica variabile cambiata rispetto
+al riferimento — prompt A, corpus identico — così che se Sofia si recupera si sappia **perché**.
+
+Se non basta nemmeno 3B, la strada non è ingrandire ancora: è che un giudizio binario su un
+appunto non è il posto dove chiedere un'inferenza, e servirà un giudice che veda anche la domanda
+riformulata. Ma prima si misura.
 
 ## Conseguenze
 

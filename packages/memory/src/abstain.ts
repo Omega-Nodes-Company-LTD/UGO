@@ -54,19 +54,22 @@ export interface AnswerableVerdict {
  * risposta è lì dentro. Un giudice che risponde nel merito diventa un secondo
  * generatore, con un secondo modo di sbagliare e il doppio dei token.
  *
- * **L'asimmetria degli errori sta anche qui, e la prima stesura la
- * contraddiceva.** Diceva «rispondi NO se la risposta non c'è, anche se gli
- * appunti parlano di cose vicine»: una spinta verso il no, in un meccanismo il
- * cui codice fa cadere ogni dubbio dalla parte del sì. La misura ha presentato
- * il conto sulla domanda peggiore possibile — «Sofia può mangiare i gamberi?»,
- * con in mano il ricordo «Sofia è allergica ai crostacei», giudicato `NO` —
- * cioè un'allergia taciuta perché serviva un passaggio solo, da gamberi a
- * crostacei.
+ * **L'ultima riga sembra contraddire l'asimmetria degli errori, e non la
+ * contraddice: la tiene.** Spinge verso il no, mentre il codice intorno fa
+ * cadere ogni dubbio verso il sì — ma è quella riga a comprare `inventate 0/10`
+ * su un corpus pieno di near-miss, cioè a impedire che «la password della rete
+ * wifi Cinghiale» venga risposta col nome della rete.
  *
- * Adesso il testo dice la stessa cosa che dice il codice: **NO solo se negli
- * appunti non c'è proprio**, e SI anche quando la risposta si ricava
- * indirettamente. Non si nomina il caso — insegnare al giudice che i gamberi
- * sono crostacei vorrebbe dire tarare il prompt sul banco.
+ * **È stato provato a toglierla, ed è andata peggio** (ADR-107, run 32219952282):
+ * riscritta in «SI anche indirettamente, NO solo se non c'è proprio», le perse
+ * sono passate da **1 a 3** su dieci — un modello da 1.5 miliardi di parametri
+ * non diventa più accurato se gli si danno due istruzioni invece di una, si
+ * confonde. Il testo è tornato a quello che ha misurato meglio.
+ *
+ * La domanda che resta persa in **entrambe** le versioni è «Sofia può mangiare
+ * i gamberi?» contro «Sofia è allergica ai crostacei»: serve un passaggio di
+ * conoscenza del mondo, da gamberi a crostacei, che questo modello non fa in
+ * nessuna delle due formulazioni. Quella non è una variabile del prompt.
  */
 export function judgePrompt(question: string, memories: readonly string[]): string {
   const list = memories.map((text, at) => `${String(at + 1)}. ${text}`).join("\n");
@@ -80,8 +83,7 @@ export function judgePrompt(question: string, memories: readonly string[]): stri
     "",
     "Gli appunti contengono la risposta a questa domanda?",
     "Rispondi con una sola parola: SI oppure NO.",
-    "Rispondi SI se la risposta si ricava dagli appunti, anche indirettamente.",
-    "Rispondi NO solo se negli appunti non c'e proprio.",
+    "Rispondi NO se la risposta non c'e, anche se gli appunti parlano di cose vicine.",
   ].join("\n");
 }
 

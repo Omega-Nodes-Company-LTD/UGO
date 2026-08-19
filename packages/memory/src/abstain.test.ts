@@ -74,13 +74,11 @@ describe("judgePrompt", () => {
     // il giudice non deve mai essere invitato a rispondere nel merito
     expect(prompt).not.toMatch(/rispondi alla domanda/iu);
     /**
-     * L'asimmetria degli errori vive anche nel testo, e la prima stesura la
-     * contraddiceva: spingeva verso il NO mentre il codice fa cadere ogni
-     * dubbio dalla parte del SI. È costata l'allergia di Sofia. Questa guardia
-     * esiste perché non torni indietro senza che nessuno se ne accorga.
+     * La riga sui near-miss è quella che compra `inventate 0/10`: toglierla ha
+     * portato le perse da 1 a 3 (ADR-107, run 32219952282). La guardia esiste
+     * perché non sparisca di nuovo per buone intenzioni.
      */
-    expect(prompt).toMatch(/Rispondi SI se la risposta si ricava/u);
-    expect(prompt).toMatch(/NO solo se/u);
+    expect(prompt).toMatch(/cose vicine/u);
   });
 });
 

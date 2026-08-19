@@ -66,7 +66,7 @@ jobs:
           # dell'astensione, quindi ha una chiave sua. Condividerla con e2e —
           # che il testo non lo usa — faceva correre i due job per la stessa
           # chiave, e chi arrivava secondo non salvava niente.
-          key: ollama-nomic-qwen15-v1
+          key: ollama-nomic-qwen3b-v1
       - run: mkdir -p ~/.ugo-ollama
       - run: pnpm test:integration
         env:

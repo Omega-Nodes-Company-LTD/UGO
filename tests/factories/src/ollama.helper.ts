@@ -11,12 +11,17 @@ export const EMBED_MODEL = "nomic-embed-text";
 /**
  * ADR-107: il modello di TESTO per il giudice dell'astensione.
  *
- * Piccolo apposta (~1 GB): il giudice risponde una parola, non scrive un
- * racconto, e un modello grosso in CI si paga a ogni run che non trova la
- * cache. Non è il modello di casa in produzione — lì decide
- * `OLLAMA_CHAT_MODEL` — è il più piccolo su cui la misura abbia senso.
+ * Era `qwen2.5:1.5b`, scelto piccolo perché il giudice risponde una parola e
+ * non scrive un racconto. La misura ha detto che è **troppo** piccolo per il
+ * caso che conta: «Sofia può mangiare i gamberi?» contro il ricordo «Sofia è
+ * allergica ai crostacei» resta persa in entrambe le formulazioni del prompt,
+ * perché serve un passaggio di conoscenza del mondo che a 1.5B non c'è.
+ *
+ * Da qui `3b` (~2 GB): unica variabile cambiata rispetto alla misura di
+ * riferimento, così se Sofia si recupera si sa **perché**. Non è il modello di
+ * casa in produzione — lì decide `OLLAMA_CHAT_MODEL`.
  */
-export const TEXT_MODEL = "qwen2.5:1.5b";
+export const TEXT_MODEL = "qwen2.5:3b";
 
 export interface OllamaHandle {
   container: StartedTestContainer;
