@@ -239,6 +239,66 @@ describe("banco di prova della memoria", () => {
     );
   });
 
+  /**
+   * Il tavolo delle prove per l'astensione (gruppo 1 del backlog).
+   *
+   * ADR-022 ha misurato che **nessuna soglia assoluta sul coseno** separa le
+   * domande con risposta da quelle senza: le due bande si sovrappongono. La
+   * conclusione era che serve un criterio **relativo**, e la conclusione è
+   * rimasta lì — perché scegliere quale criterio senza vedere i numeri
+   * significa tararlo sul corpus, cioè aver visto le risposte.
+   *
+   * Questo test **non asserisce niente** e non cambia il comportamento: stampa,
+   * per ognuna delle domande del corpus, i segnali che un criterio relativo
+   * potrebbe usare, separati fra domande con risposta e senza. È la misura che
+   * deve venire PRIMA della decisione — e sta qui e non in un foglio di calcolo
+   * perché l'unico posto dove gira l'embedder vero è la CI.
+   *
+   * I segnali, e cosa vorrebbero dire:
+   * - `top1` — la similarità migliore. Già misurata, già insufficiente.
+   * - `gap` — quanto il primo stacca il secondo. L'idea: una risposta vera
+   *   emerge, un plateau di mediocri no.
+   * - `gapRel` — lo stesso distacco in proporzione al primo, per non dipendere
+   *   dal livello assoluto.
+   * - `plateau` — quanto il primo stacca la MEDIA degli altri: più stabile del
+   *   solo secondo, che può essere un quasi-duplicato legittimo.
+   * - `bothArms` — se il primo è stato trovato da entrambi i bracci (vettoriale
+   *   e lessicale). Due strade che convergono sono un indizio che un coseno da
+   *   solo non ha.
+   * - `lexHits` — quanti dei k hanno un aggancio lessicale: zero significa che
+   *   nessuna parola della domanda compare da nessuna parte.
+   */
+  it("misura i segnali per un criterio relativo di astensione (gruppo 1)", async () => {
+    const rows: Record<string, unknown>[] = [];
+    for (const question of corpus.questions) {
+      const found = await searchMemories(db, embedder, question.query, K, NOW);
+      await db.update(memories).set({ lastAccessed: null });
+
+      const sims = found.map((memory) => memory.similarity);
+      const top1 = sims[0] ?? 0;
+      const rest = sims.slice(1);
+      const mean = rest.length === 0 ? 0 : rest.reduce((a, b) => a + b, 0) / rest.length;
+      const first = found[0];
+      rows.push({
+        famiglia: question.family,
+        // `astensione` è l'unica famiglia in cui la risposta giusta NON esiste
+        risposta: question.family === "astensione" ? "no" : "si",
+        query: question.query,
+        trovati: found.length,
+        top1: Number(top1.toFixed(4)),
+        gap: Number((top1 - (sims[1] ?? 0)).toFixed(4)),
+        gapRel: top1 === 0 ? 0 : Number(((top1 - (sims[1] ?? 0)) / top1).toFixed(4)),
+        plateau: Number((top1 - mean).toFixed(4)),
+        bothArms: first?.vectorRank !== undefined && first.lexicalRank !== undefined,
+        lexHits: found.filter((memory) => memory.lexicalRank !== undefined).length,
+      });
+    }
+    // l'evidenza riproducibile: si legge dai log della CI, dove l'embedder vero
+    // gira davvero, e da lì si sceglie il criterio con i numeri sotto gli occhi
+    console.log(`segnali di astensione @k=${String(K)}\n${JSON.stringify(rows, null, 2)}`);
+    expect(rows).toHaveLength(corpus.questions.length);
+  });
+
   it("still cannot abstain: the similarity bands overlap (ADR-022)", async () => {
     // Measured, not assumed. Across this corpus the best similarity for a
     // question with no answer reaches 0.604, 0.637 and 0.672, while a question
