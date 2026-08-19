@@ -41,6 +41,12 @@ describe("prompt blocks", () => {
     const rules = rulesPrompt();
     expect(rules).toMatch(/massimo 2 frasi/i);
     expect(rules).toMatch(/markdown/i);
+    /**
+     * ADR-108: la rete sotto il riconoscimento. `asksForAVerdict` può non
+     * accorgersi di una domanda, questa regola vale su tutte — e sta nel blocco
+     * cached perché non dipende dal turno.
+     */
+    expect(rules, "regola 8: si riferisce, non si sentenzia").toMatch(/verdetto/i);
   });
 
   it("contains no template placeholders (never interpolate dynamic data)", () => {

@@ -48,6 +48,12 @@ const corpusSchema = z.object({
         query: z.string().min(1),
         family: z.enum(["temporale", "contraddizione", "semantica", "lessicale", "astensione"]),
         relevant: z.array(z.string()),
+        /**
+         * ADR-108: la domanda chiede un verdetto su qualcuno («X può fare Y»).
+         * Il ripescaggio si misura come sempre — il ricordo deve arrivare — ma
+         * il giudice non la vede: né rispondere né tacere sarebbe giusto.
+         */
+        verdetto: z.boolean().optional(),
         note: z.string().optional(),
       }),
     )
@@ -325,23 +331,36 @@ describe("banco di prova della memoria", () => {
     let perse = 0;
     let inventate = 0;
     let chieste = 0;
+    let riferite = 0;
 
     for (const question of corpus.questions) {
       const found = await searchMemories(db, embedder, question.query, K, NOW);
       await db.update(memories).set({ lastAccessed: null });
       const verdict = await canAnswer({ local: judge }, question.query, found);
 
+      /**
+       * ADR-108. Le domande di verdetto **non entrano nella tabella**: non
+       * hanno una risposta giusta fra «rispondo» e «non lo so», quindi
+       * contarle in una delle due colonne falserebbe tutt'e due. Si conta che
+       * siano state riconosciute per quello che sono, e quella è una misura
+       * deterministica — nessun modello la tocca.
+       */
+      const chiedeUnVerdetto = question.verdetto === true;
       const haRisposta = question.family !== "astensione";
       if (verdict.asked) chieste += 1;
-      if (!haRisposta && !verdict.answerable) riconosciute += 1;
-      if (haRisposta && !verdict.answerable) perse += 1;
-      if (!haRisposta && verdict.answerable) inventate += 1;
+      if (chiedeUnVerdetto) riferite += 1;
+      if (!chiedeUnVerdetto && !haRisposta && !verdict.answerable) riconosciute += 1;
+      if (!chiedeUnVerdetto && haRisposta && !verdict.answerable) perse += 1;
+      if (!chiedeUnVerdetto && !haRisposta && verdict.answerable) inventate += 1;
 
       rows.push({
-        risposta: haRisposta ? "si" : "no",
-        verdetto: verdict.answerable ? "rispondo" : "non lo so",
-        esito:
-          haRisposta === verdict.answerable
+        risposta: chiedeUnVerdetto ? "verdetto" : haRisposta ? "si" : "no",
+        verdetto: verdict.reporting ? "riferisco" : verdict.answerable ? "rispondo" : "non lo so",
+        esito: chiedeUnVerdetto
+          ? verdict.reporting
+            ? "riferita"
+            : "GIUDICATA (non doveva)"
+          : haRisposta === verdict.answerable
             ? "giusto"
             : haRisposta
               ? "PERSA (il danno peggiore)"
@@ -352,8 +371,11 @@ describe("banco di prova della memoria", () => {
       });
     }
 
-    const senza = corpus.questions.filter((q) => q.family === "astensione").length;
-    const con = corpus.questions.length - senza;
+    const verdetti = corpus.questions.filter((q) => q.verdetto === true).length;
+    const senza = corpus.questions.filter(
+      (q) => q.family === "astensione" && q.verdetto !== true,
+    ).length;
+    const con = corpus.questions.length - senza - verdetti;
     console.log(
       `giudice dell'astensione (${TEXT_MODEL})\n` +
         JSON.stringify(
@@ -361,6 +383,7 @@ describe("banco di prova della memoria", () => {
             riconosciute: `${String(riconosciute)}/${String(senza)}`,
             perse: `${String(perse)}/${String(con)}`,
             inventate: `${String(inventate)}/${String(senza)}`,
+            riferite: `${String(riferite)}/${String(verdetti)}`,
             chiamateAlModello: `${String(chieste)}/${String(corpus.questions.length)}`,
             dettaglio: rows,
           },
@@ -374,21 +397,27 @@ describe("banco di prova della memoria", () => {
      * I floor, e perché quello sulle perse è dov'è.
      *
      * `perse` ha un TETTO invece di un pavimento perché è l'errore che pesa di
-     * più. Il tetto **non** è ancora al valore misurato del giudice: le prime
-     * tre misure di ADR-107 sono state fatte con il client a temperatura 0.8 —
-     * quella del cantastorie — quindi il giudice **campionava** il verdetto e
-     * quei numeri (1, 3, 3) erano estrazioni, non configurazioni. Fissare un
-     * tetto su un'estrazione sarebbe lo stesso errore dei 0.675.
+     * più. E il tetto è il **giudice che non esiste** — astenersi sempre quando
+     * i bracci non concordano — non il valore misurato: sotto quel numero il
+     * giudice guadagna qualcosa, sopra sta facendo peggio del non averlo, ed è
+     * la cosa che il banco deve poter dire da solo. Un tetto fissato sul
+     * misurato, invece, bloccherebbe il prossimo modello sul precedente.
      *
-     * Finché non c'è una misura deterministica, il tetto è il **giudice che
-     * non esiste**: astenersi sempre quando i bracci non concordano perde
-     * quattro risposte su dieci. Sotto quel numero il giudice guadagna
-     * qualcosa; sopra, sta facendo peggio del non averlo — ed è la cosa che
-     * il banco deve poter dire da solo.
+     * Il numero è sceso da 4 a 3 con ADR-108, e non perché il giudice sia
+     * migliorato: «Sofia può mangiare i gamberi?» è uscita da tutt'e due i
+     * lati del confronto — era una delle perse *e* una delle quattro del
+     * riferimento — perché a quella domanda non risponde nessun appunto. Il
+     * guadagno vero del giudice resta quello misurato: una domanda su dieci.
      */
     expect(riconosciute, "riconosciute sotto il misurato").toBeGreaterThanOrEqual(senza);
     expect(inventate, "ha risposto a vuoto: non era mai successo").toBe(0);
-    expect(perse, "il giudice fa peggio del non averlo (4/10 col solo pre-filtro)").toBeLessThan(4);
+    expect(perse, "il giudice fa peggio del non averlo (3/9 col solo pre-filtro)").toBeLessThan(3);
+    /**
+     * ADR-108, e non è una misura del modello: è una misura del codice. Se una
+     * domanda di verdetto arriva al giudice, il giudice può zittirla — ed è
+     * esattamente quello che succedeva all'allergia di Sofia.
+     */
+    expect(riferite, "una domanda di verdetto è finita in giudizio").toBe(verdetti);
   }, 180_000);
 
   it("still cannot abstain: the similarity bands overlap (ADR-022)", async () => {
