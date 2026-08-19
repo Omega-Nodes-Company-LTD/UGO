@@ -115,16 +115,18 @@ test("a minor is registered with no voice profile ever offered", async ({ page }
   // not "no voiceprint yet" but "none, by choice": there is nothing to do here
   await expect(row).toContainText("nessuna impronta, per scelta");
 
-  // and the server refuses even if the request is made anyway
+  // e il server rifiuta lo stesso, se la richiesta gliela fai comunque.
+  // ADR-101 ha tolto la variante col presign: la porta che resta è quella per
+  // cui passa il pannello — audio nostro, muro PRIMA del bucket
   const response = await page.evaluate(async (bearer) => {
     const pack = (await (await fetch("/v1/pack")).json()) as {
       beings: { id: string; displayName: string }[];
     };
     const sofia = pack.beings.find((being) => being.displayName === "Sofia");
-    const res = await fetch(`/v1/beings/${sofia?.id ?? "missing"}/enroll/voice`, {
+    const res = await fetch(`/v1/beings/${sofia?.id ?? "missing"}/enroll/voice/audio`, {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${bearer}` },
-      body: JSON.stringify({ objectKey: "inbox/whatever.webm" }),
+      headers: { "content-type": "audio/webm", authorization: `Bearer ${bearer}` },
+      body: new Uint8Array([1, 2, 3, 4]),
     });
     return { status: res.status, body: (await res.json()) as unknown };
   }, token());
@@ -337,10 +339,14 @@ test("each service says what it is doing in words, not only in colour", async ({
   await openPanel(page);
   await goHouse(page, "sommario");
   const pills = page.getByTestId("health").locator(".pill");
-  await expect(pills).toHaveCount(3);
+  // db, mqtt, ollama, percezione: il conto è qui apposta, perché un servizio
+  // che sparisce dal sommario si legge come un servizio che sta bene
+  await expect(pills).toHaveCount(4);
   await expect(pills.filter({ hasText: "db" })).toContainText("risponde");
   // mqtt is deliberately unconfigured on this deployment, and says so
   await expect(pills.filter({ hasText: "mqtt" })).toContainText("non configurato");
+  // ADR-101: e la percezione, spenta qui, lo dice con la stessa parola
+  await expect(pills.filter({ hasText: "perception" })).toContainText("non configurato");
 });
 
 /**
