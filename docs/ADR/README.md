@@ -119,4 +119,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [111](./111-i-documenti-di-casa.md) | I documenti di casa: UGO conosce solo ciò che ha sentito | Accettata |
 | [112](./112-il-gioco-e-fatto-di-turni.md) | Un gioco è fatto di turni: lo stato che non esisteva | Accettata |
 | [113](./113-i-luoghi-dell-account.md) | I luoghi dell'account: il cielo è del posto, non del titolare | Accettata |
-| 114 | *(prossimo numero disponibile)* | — |
+| [114](./114-lo-screening-in-silico-non-filtra-niente.md) | Lo screening in silico non filtra niente (risultato negativo) | Accettata |
+| 115 | *(prossimo numero disponibile)* | — |

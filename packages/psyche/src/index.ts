@@ -74,3 +74,4 @@ export {
   type Life,
   type LifeStage,
 } from "./life.js";
+export { simulateGoldenDay, type GoldenDayVerdict } from "./silico.js";
