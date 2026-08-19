@@ -273,11 +273,11 @@ e la reception stessa restano spenti anche col ferro pronto.
 
 | | Punto | Note |
 |---|---|---|
-| ⬜️ | **Procedura «onboarda un nuovo container»** | sezione riusabile in `OPS_COOLIFY.md`: Dockerfile (multi-stage, non-root, `read_only`), servizio nel compose (rete `backend`, mai porte host salvo loopback, profilo se on-demand), env nel blocco **e** in `.env.example`, healthcheck, sezione runbook sul modello di §2.3-bis |
-| ⬜️ | **Cablare `percezione` davvero** | `UGO_RECOGNITION_URL` non è passato a soul nel compose → riconoscimento spento anche col container su; renderlo di prima classe + healthcheck in soul |
-| ⬜️ | **Deployare `searxng`** | zero righe nel runbook e `SEARXNG_URL` non cablato su soul → la «finestra sul mondo» (ADR-063) non è raggiungibile in produzione |
+| ✅ | **Procedura «onboarda un nuovo container»** — FATTA: `OPS_COOLIFY.md §2-ter`, nove punti, con la riga che si dimentica sempre (il cablaggio su soul) messa al quinto posto. Vecchia nota: | sezione riusabile in `OPS_COOLIFY.md`: Dockerfile (multi-stage, non-root, `read_only`), servizio nel compose (rete `backend`, mai porte host salvo loopback, profilo se on-demand), env nel blocco **e** in `.env.example`, healthcheck, sezione runbook sul modello di §2.3-bis |
+| ✅ | **Cablare `percezione`** — già cablata nel compose (verificato 2026-08-19); ora ha anche il controllo in `/health` (ADR-101) e la voce di troubleshooting «il container c'è ma non lo usa nessuno». Vecchia nota: | `UGO_RECOGNITION_URL` non è passato a soul nel compose → riconoscimento spento anche col container su; renderlo di prima classe + healthcheck in soul |
+| ✅ | **Deployare `searxng`** — FATTO: runbook §2.3-ter (risorsa, capabilities, il `SEARXNG_URL` su soul senza cui il container gira inutilmente, la prova con `format=json`), foglio dei valori, giro di fumo §4.5, troubleshooting. Vecchia nota: | zero righe nel runbook e `SEARXNG_URL` non cablato su soul → la «finestra sul mondo» (ADR-063) non è raggiungibile in produzione |
 | ✅ | **Deployare `reception`** | **fatto il 2026-08-17** (STATE §6-novemtricies): runbook §2.7 (risorsa, dominio, DNS, HTTPS, le variabili che vanno e quelle vietate, la rete e cosa Coolify non segrega), variabili reception su soul-api §2.4 e su jobs §2.5, bucket `ugo-docs` §3, prove pubbliche §4.7, primo cliente §5.7, sei voci di troubleshooting, rotazione a due risorse §8, foglio dei valori §9. Il locale sta nel README |
-| ⬜️ | **`ANTHROPIC_API_KEY` su `jobs`** | `config.py` la legge e il fallback del sogno la richiede, ma il compose non la passa. **Chiude il bug del gruppo 19** |
+| ✅ | **`ANTHROPIC_API_KEY` su `jobs`** — già passata dal compose (riga 130, verificato 2026-08-19). Vecchia nota: | `config.py` la legge e il fallback del sogno la richiede, ma il compose non la passa. **Chiude il bug del gruppo 19** |
 
 ## Gruppo 18 — Le sgosinate dei competitor (a costo zero, senza corpo né GPU)
 

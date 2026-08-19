@@ -228,6 +228,42 @@ diventerebbe un riconoscimento che sbaglia in silenzio. Meglio un container che 
 tua vanno peggio, il banco (`python -m ugo_jobs.voice_bench --corpus <dir>`) è lo strumento per
 dire *di quanto* invece di litigare a impressioni.
 
+### 2.3-ter · searxng (la finestra sul mondo, ADR-063)
+
+Opzionale come la percezione, e per la stessa ragione: senza, UGO risponde con quello che sa —
+che è il comportamento di sempre. Con lei può **guardare fuori** quando la domanda lo richiede
+(«che tempo fa a Torino domani?», «è uscita una versione nuova di X?»), e la finestra è **una
+sola, e nostra**: le query non passano da Google, escono da un meta-motore che gira sul nostro
+ferro e non tiene profili.
+
+Nessuna chiave, nessun account, nessun costo. L'immagine è pubblica e non si costruisce.
+
+1. Tipo: **Application → Docker Image**. Immagine: `searxng/searxng:latest`.
+2. **Nessun dominio e nessuna porta pubblicata.** Parla solo con soul, sulla rete
+   `ugo-backend`. Una SearXNG raggiungibile da fuori è un proxy aperto che qualcuno userà
+   per conto suo, e il traffico uscirà dal tuo IP.
+3. Rete: `ugo-backend`. Nome della risorsa: `searxng` (è `<HOST_SEARXNG>` nel foglio).
+4. Variabili:
+   `SEARXNG_BASE_URL=http://<HOST_SEARXNG>:8080/`
+   Nient'altro: le impostazioni di default vanno bene, e ogni motore in più è una fonte in
+   più che può rispondere lentamente.
+5. **Capabilities**: `cap_drop: ALL`, e riaggiungi solo `CHOWN SETGID SETUID` — l'immagine
+   cala i privilegi all'avvio e senza quelle tre non parte. È lo stesso compromesso del
+   compose (`ops/docker/compose.dev.yml`), scritto qui perché in Coolify si imposta a mano.
+6. Su **soul**, aggiungi: `SEARXNG_URL=http://<HOST_SEARXNG>:8080`. **Senza questa riga il
+   container gira e non lo usa nessuno**: `WebWindow` nasce solo se la variabile c'è (è la
+   stessa forma della percezione, ed è lo stesso modo di restare spenti senza accorgersene).
+7. Prova che sia viva, dalla shell di soul:
+   ```bash
+   curl -s "http://<HOST_SEARXNG>:8080/search?q=ugo&format=json" | head -c 200
+   ```
+   Una risposta JSON con `results` è tutto ciò che serve. Se risponde HTML, manca
+   `format=json` fra i formati abilitati: aggiungi `search.formats: [html, json]` in
+   `settings.yml` (Coolify: *Storages → File mount* su `/etc/searxng/settings.yml`).
+
+**Quanto costa**: RAM sotto i 200 MB, CPU quasi zero fra una domanda e l'altra. È il
+container più economico dell'installazione.
+
 ### 2.4 soul-api
 
 1. Tipo: **Application → Dockerfile**. Sorgente: repo `<REPO_URL>`, branch di produzione.
@@ -451,6 +487,42 @@ rotte `/v1/reception/*` non vengono nemmeno registrate, e la superficie pubblica
    **200**, e la pagina dice «Vieni, entra» con la casella del token. La verifica vera è al §4.7,
    e il primo cliente si fa al §5.7.
 
+## 2-ter. Onboardare un container nuovo (la procedura, una volta per tutte)
+
+Le risorse qui sopra sono nate una alla volta e ognuna ha imparato le stesse cose. Questa è la
+lista che le riassume: **se un giorno arriva un container che qui non c'è**, si segue questa e
+si aggiunge la sua sezione a §2 con lo stesso ordine.
+
+1. **Il Dockerfile.** Multi-stage (build separato dal runtime), utente **non-root**, e nel
+   runtime solo quello che serve a girare. Se il servizio non scrive su disco: `read_only: true`
+   più un `tmpfs` per `/tmp`. La regola che sta dietro è di CLAUDE.md 4: **niente segreti nel
+   repository e niente porte pubblicate**.
+2. **La rete.** `ugo-backend`, e basta. Un servizio nuovo parla con soul o coi job, non col
+   mondo: **nessuna porta sull'host**, nemmeno «solo per provare» — quella prova resta accesa
+   per mesi. L'unica eccezione dell'installazione è la reception (§2.7), che ha un dominio
+   perché serve ai clienti, e vive su una rete sua.
+3. **Il nome della risorsa È l'hostname.** Coolify risolve i servizi per nome sulla rete
+   condivisa: chiamala come la userai (`percezione`, `searxng`, `registry`), perché quel nome
+   finirà in una variabile d'ambiente di soul.
+4. **Le variabili, in tre posti o in nessuno.** Nel blocco della risorsa, in `.env.example` (con
+   una riga che dice a cosa serve), e nel **foglio dei valori** di §9. Una variabile che sta in
+   uno solo dei tre è una variabile che il prossimo deploy dimentica.
+5. **Il cablaggio su soul (o sui job) è metà del lavoro.** Un container acceso che nessuno
+   chiama è indistinguibile da un container spento: `WebWindow`, `RecognitionClient` e gli
+   altri nascono **solo se la loro variabile c'è**. Questa è la riga che si dimentica sempre —
+   è successo con la percezione e con searxng, entrambe già costruite e mai raggiunte.
+6. **Il controllo di salute.** Se il servizio è vitale per una funzione visibile, aggiungilo a
+   `/health` di soul con la regola di ADR-101: **`off` quando non è configurato** (non averlo è
+   una scelta), `error` quando è configurato e non risponde. Mai `unavailable`: un pezzo giù
+   degrada, non spegne la casa.
+7. **La prova che è vivo**, in una riga di `curl` dalla shell di soul, e scritta nella sezione:
+   chi rilegge il runbook fra sei mesi deve poter distinguere «non l'ho acceso» da «non
+   funziona» senza aprire il codice.
+8. **Le risorse.** Un tetto di RAM esplicito e una nota su quanto costa davvero: il ferro è
+   quello che è, e un container senza tetto è quello che una notte prende tutto.
+9. **Il giro di fumo** in §4 e una voce in §6 (troubleshooting) col sintomo che vedrai
+   quando quel container manca — che è la cosa che cercherai davvero, e non il suo nome.
+
 ## 3. Bucket S3 esistente
 
 1. Nel pannello del tuo provider S3, verifica che il bucket sia **privato** (nessun accesso
@@ -469,8 +541,11 @@ rotte `/v1/reception/*` non vengono nemmeno registrate, e la superficie pubblica
 Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
 
 1. `curl -s http://<TAILSCALE_IP>:3000/health` → atteso:
-   `{"status":"ok","checks":{"db":"ok","mqtt":"off","ollama":"ok"}}`. `mqtt: "off"` è corretto:
-   significa non configurato, perché il Nano 33 è accantonato (§2.2).
+   `{"status":"ok","checks":{"db":"ok","mqtt":"off","ollama":"ok","perception":"off"}}`.
+   I due `"off"` sono **corretti e diversi da un guasto**: significano non configurato — il
+   Nano 33 è accantonato (§2.2) e la percezione è opzionale (§2.3-bis). Se hai fatto §2.3-bis
+   ti aspetti `"perception":"ok"`; se leggi `"error"` il container c'è e non risponde, e la
+   riga da guardare è la sua (ADR-101).
 2. Inserisci un evento:
    `curl -s -X POST http://<TAILSCALE_IP>:3000/v1/events -H 'content-type: application/json' -d '{"source":"system","type":"compliment","payload":{}}'`
    → atteso: `201` con `{"id":"…","moodLabel":"…"}`.
@@ -483,7 +558,15 @@ Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
    → attesi: `spendToday` maggiore di zero e `cacheHitRatio` **maggiore di zero**. È la verifica del
    cache-hit reale (STATE.md §6): se resta a zero dopo due chiamate, il prefisso cached si sta
    invalidando e va indagato prima di andare avanti.
-5. `GET http://<TAILSCALE_IP>:3000/debug/chat` dal browser → la mini chat risponde.
+5. **Se hai fatto searxng (§2.3-ter)**: chiedi qualcosa che UGO non può sapere —
+   `curl -s -X POST http://<TAILSCALE_IP>:3000/v1/chat -H 'content-type: application/json' -d '{"channel":"home","text":"cerca sul web che tempo fa a Torino"}'`
+   → la risposta cita qualcosa di fresco. Se dice che non lo sa, `SEARXNG_URL` non è arrivata a
+   soul: il container è acceso e non lo chiama nessuno (§2.3-ter punto 6).
+6. **Se hai fatto la percezione (§2.3-bis)**: dal pannello, «Il giornale» → *Chi ha visto, e
+   cosa*. Dopo il primo incontro davanti a un chiosco compare una riga con nome e percentuale
+   (ADR-099). Vuota per giorni con la percezione `"ok"` in `/health` significa che il muso non
+   sta mandando i frame: guarda §6.
+7. `GET http://<TAILSCALE_IP>:3000/debug/chat` dal browser → la mini chat risponde.
    Poi apri `http://<TAILSCALE_IP>:3000/admin`, incolla il token e clicca **Entra**: se vedi le
    sezioni del pannello, hai finito con la riga di comando (§5).
 6. Verifica che le rotte protette siano davvero protette:
@@ -754,6 +837,28 @@ Due cose da sapere prima di provarlo in produzione:
   fa il suo mestiere.
 
 ## 6. Troubleshooting
+
+### «Il container c'è, ma non lo usa nessuno»
+
+Il sintomo per cui esiste questa voce: hai deployato **percezione** o **searxng**, il container
+è verde in Coolify, e non cambia niente — UGO non riconosce nessuno, o continua a dire che non
+sa le cose che stanno su internet.
+
+Non è un guasto del container: è la **variabile che non è arrivata a soul**. `RecognitionClient`
+e `WebWindow` nascono solo se la loro variabile c'è (`UGO_RECOGNITION_URL`, `SEARXNG_URL`), e
+senza restano `undefined` — il codice non prova nemmeno a chiamarli, quindi nei log non c'è
+nessun errore da cercare.
+
+Come si distingue in dieci secondi:
+
+1. `curl -s http://<TAILSCALE_IP>:3000/health` — se la percezione è cablata leggi `"perception"`:
+   `"off"` = **la variabile manca**; `"error"` = c'è e il container non risponde; `"ok"` = tutto
+   a posto e il problema è altrove (il muso non manda frame, o non ci sono profili arruolati).
+2. Per searxng non c'è una riga in `/health` (non è vitale): la prova è la domanda del §4 punto
+   5. Se UGO risponde che non lo sa, aggiungi `SEARXNG_URL` su soul e **riavvia soul** — le
+   variabili si leggono all'avvio.
+3. Ricorda sempre il terzo posto: `.env.example` e il foglio dei valori (§9) servono al TE del
+   prossimo deploy, non a questo.
 
 ### UGO sente ma non risponde
 
@@ -1121,6 +1226,8 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 | `<OWNER_NAME>` | come UGO chiama casa tua |
 | `<DOMINIO_RECEPTION>` | il dominio dei tuoi clienti, es. `reception.tuostudio.it` — record A verso `<IP_HETZNER>`. **L'unico dominio pubblico dell'installazione** (§2.7); vuoto se non fai la reception |
 | `<OLLAMA_RAM_LIMIT>` | 4 GB se Ollama fa solo embeddings; **24 GB** se ci gira anche il MoE del sogno |
+| `<HOST_SEARXNG>` | il nome della risorsa searxng, se fai la finestra sul mondo (§2.3-ter); vuoto se non la fai |
+| `<HOST_PERCEZIONE>` | il nome della risorsa percezione, se accendi volto/voce (§2.3-bis) |
 | `<OLLAMA_BATCH_MODEL>` | `qwen3:30b-a3b` se hai ≥32 GB di RAM libera, altrimenti vuoto (§2.5) |
 | `<IP_LAN_IOT>` | l'IP su cui esporre MQTT, solo se userai il Nano 33 |
 
