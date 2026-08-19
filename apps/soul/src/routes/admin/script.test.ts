@@ -104,4 +104,33 @@ describe("the assembled panel script", () => {
     expect(gate).toContain('call("/v1/accounts"');
     expect(gate).not.toContain('call("/v1/stats"');
   });
+
+  /**
+   * ADR-109: gli scalini della durata esistono in due posti che devono
+   * restare veri insieme — il `check` nel database e `PHOTO_RETENTION_STEPS`.
+   * Un terzo elenco scritto a mano nel pannello sarebbe quello che diverge
+   * per primo, e diverge in silenzio: la tendina offrirebbe una durata che
+   * il database rifiuta, e il proprietario leggerebbe un errore incomprensibile
+   * al posto di una scelta.
+   */
+  it("l'album prende gli scalini dal server, non da una copia nel pannello", () => {
+    const album = /const albumStepLabel[\s\S]*?async function loadAlbum\(\)[\s\S]*?\n\}/.exec(
+      ADMIN_SCRIPT,
+    )?.[0];
+    expect(album, "il modulo dell'album è stato rinominato o spostato").toBeDefined();
+    expect(album).toContain("data.steps");
+    // nessuna lista di ore scritta a mano: 0, 6, 12, 48, 72 possono comparire
+    // solo come etichette da tradurre, mai come l'elenco di ciò che è possibile
+    expect(album).not.toMatch(/\[\s*0\s*,\s*6\s*,/u);
+  });
+
+  /**
+   * ADR-109 §1: dal pannello si guarda e si butta, **non si scatta**. Uno
+   * scatto lo chiede una persona al corpo; un bottone «scatta» qui sarebbe
+   * la casa che fotografa una stanza in cui nessuno ha chiesto niente.
+   */
+  it("il pannello non ha un modo per far scattare una foto", () => {
+    expect(ADMIN_SCRIPT).not.toMatch(/\/v1\/album\/[^"']*sca?tta/u);
+    expect(ADMIN_PAGE).not.toMatch(/id="album-shoot"/u);
+  });
 });

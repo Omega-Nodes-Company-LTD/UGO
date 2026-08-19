@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  check,
+  integer,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { bytea } from "./types.js";
 
 /**
@@ -89,6 +98,16 @@ export const accounts = pgTable(
    * si tiene per poterlo rimostrare nel pannello, perché due coordinate non
    * dicono a nessuno se ha scelto il posto giusto.
    */
+  /**
+   * ADR-109: per quante ore questa casa tiene le foto. `0` = non si tengono,
+   * ed è il default — l'album non si accende da solo.
+   *
+   * **Prima retention per-account del progetto**: le altre quattro (impronte
+   * ignote, audit, audio, backup) sono costanti di codice o env di processo,
+   * cioè decisioni nostre. Questa è una decisione della famiglia, e sta dove
+   * stanno le sue: sulla riga della casa, come il fuso e il posto.
+   */
+  photoRetentionHours: integer("photo_retention_hours").notNull().default(0),
   lat: numeric("lat", { precision: 8, scale: 5 }),
   lon: numeric("lon", { precision: 8, scale: 5 }),
   place: text("place"),
@@ -101,7 +120,14 @@ export const accounts = pgTable(
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   closedAt: timestamp("closed_at", { withTimezone: true }),
   },
-  (table) => [check("accounts_kind", sql`${table.kind} in ('home', 'business')`)],
+  (table) => [
+    // ADR-109: cinque scalini o zero, e il database è dove diventa vero
+    check(
+      "accounts_photo_retention_steps",
+      sql`${table.photoRetentionHours} in (0, 6, 12, 24, 48, 72)`,
+    ),
+    check("accounts_kind", sql`${table.kind} in ('home', 'business')`),
+  ],
 );
 
 /** The bootstrap house, seeded alongside `ugo-prime` (ADR-015, ADR-019). */

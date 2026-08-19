@@ -77,6 +77,15 @@ export interface ExportBundle {
    * promessa fatta al momento dell'invio.
    */
   parcels: unknown[];
+  /**
+   * ADR-109: l'album. Escono la didascalia, chi ha scattato e le due date —
+   * **non i pixel**: stanno cifrati nel bucket, e un bundle JSON con dentro
+   * le foto di casa in base64 sarebbe un file che nessuno può mandare per
+   * email in sicurezza. È la scelta già fatta per `customer_documents`, che
+   * esporta la chiave dell'oggetto e non il PDF. La `object_key` esce apposta:
+   * è ciò che permette di andarsele a riprendere davvero.
+   */
+  photos: unknown[];
   /** senza il vettore: il fatto che qualcuno è passato, non il suo volto */
   perceptionEvents: unknown[];
   unknownPrints: unknown[];
@@ -262,6 +271,7 @@ export class ExportService {
       adoptions,
       accountTies,
       parcels,
+      photos,
       houseKeyRow,
       perceptionEvents,
       unknownPrints,
@@ -310,6 +320,8 @@ export class ExportService {
                from parcels
                where from_account_id = ${accountId} or to_account_id = ${accountId}
                order by created_at`),
+      rows(sql`select id, gosino_id, object_key, caption, taken_at, expires_at
+               from photos where account_id = ${accountId} order by taken_at`),
       // la DEK della casa: le cartoline ricevute sono cifrate con LEI (ADR-099
       // §4), non con la chiave di processo che apre il resto dell'export
       rows(sql`select wrapped_data_key from accounts where id = ${accountId}`),
@@ -378,6 +390,7 @@ export class ExportService {
       adoptions,
       accountTies,
       parcels: this.openParcels(parcels, accountId, houseKeyRow),
+      photos,
       perceptionEvents,
       unknownPrints,
       memoryBeings,

@@ -6,6 +6,7 @@
  * about who lives here and share one purse. Everything on these pages would be
  * a lie if it were shown per exemplar.
  */
+import { ALBUM_WARNING } from "../../album.js";
 import { TIE_WARNING } from "../../ties.js";
 
 export const ACCOUNT_PAGES = `
@@ -494,6 +495,37 @@ export const ACCOUNT_PAGES = `
        più in mano a chi l'ha mandata.</p>
     <div id="parcels-outbox" data-testid="parcels-outbox"></div>
     <div id="parcel-msg"></div>
+  </div>
+</section>
+
+<section class="page" data-page="album">
+  <div class="page-head">
+    <p class="eyebrow" data-account>—</p>
+    <h1>L'album</h1>
+    <p>Le foto che questa casa ha scelto di tenere (ADR-109). Si scattano <b>solo quando le
+       chiedi tu</b> — a voce («scatta una foto») o da qui — e spariscono da sole quando
+       scade il tempo che hai deciso.</p>
+    <!-- ADR-109 §2: l'avvertenza sta PRIMA della tendina, come per le parentele -->
+    <p class="lede" data-testid="album-warning"><b>${ALBUM_WARNING}</b></p>
+  </div>
+  <div class="block">
+    <h2>Per quanto tenerle</h2>
+    <p class="lede">Di default <b>non si tengono</b>: finché è su «non si tengono», niente
+       tocca il disco. Allungare la durata non riporta indietro una foto già scaduta.</p>
+    <div class="row">
+      <div style="flex:0 1 14rem"><label for="album-hours">La durata</label>
+        <select id="album-hours" data-testid="album-hours"></select></div>
+      <button id="album-save" data-testid="album-save">Salva</button>
+      <button class="ghost" id="album-expire" data-testid="album-expire">Fai passare la scadenza adesso</button>
+    </div>
+    <div id="album-msg"></div>
+  </div>
+  <div class="block">
+    <h2>Gli scatti</h2>
+    <p class="lede">Accanto a ciascuno c'è quanto gli resta. Un click apre la foto; il
+       cestino la butta subito, senza aspettare.</p>
+    <div id="album-grid" data-testid="album-grid"></div>
+    <div id="album-shot" data-testid="album-shot"></div>
   </div>
 </section>
 

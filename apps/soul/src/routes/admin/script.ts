@@ -1,3 +1,4 @@
+import { ALBUM_JS } from "./script/album.js";
 import { ARCHIVE_JS } from "./script/archive.js";
 import { BIRTH_JS } from "./script/birth.js";
 import { CHARTS_JS } from "./script/charts.js";
@@ -49,6 +50,7 @@ export const ADMIN_SCRIPT = [
   CUSTOMERS_JS,
   PROPS_JS,
   PRINTS_JS,
+  ALBUM_JS,
   CHARTS_JS,
   SPARKS_JS,
   PACK_JS,

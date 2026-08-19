@@ -31,6 +31,7 @@ import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { CheckinWatch } from "./services/checkinService.js";
 import { TimerWatch } from "./services/volition/timerWatch.js";
 import { CouncilService } from "./services/council/councilService.js";
+import { AlbumService } from "./services/albumService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
 import { RuminationService } from "./services/rumination.js";
 import { SearxClient, WebWindow } from "./services/webSearch.js";
@@ -415,6 +416,20 @@ const registry = await GosinoRegistry.load({
   ...(localVision !== undefined && {
     vision: { describe: (image: string) => localVision.describe(image) },
   }),
+  /**
+   * ADR-109: l'album. Uno per processo e non uno per casa: i cancelli (la
+   * durata scelta, il `no_vision` del branco) li legge a ogni scatto dalla
+   * riga della casa che gli viene nominata, quindi una scelta cambiata dal
+   * pannello vale subito — senza riavviare per guardare.
+   */
+  album: new AlbumService({
+    db,
+    masterKey: dataKey,
+    ...(audio !== undefined &&
+      env.S3_BUCKET_PHOTOS !== undefined && {
+        storage: { ...audio, bucket: env.S3_BUCKET_PHOTOS },
+      }),
+  }),
 });
 registryRef = registry;
 
@@ -480,6 +495,14 @@ const capabilities = (): Capability[] => [
     }),
   },
   {
+    id: "album",
+    label: "Conservare le foto che scattate",
+    on: audio !== undefined && env.S3_BUCKET_PHOTOS !== undefined,
+    ...(!(audio !== undefined && env.S3_BUCKET_PHOTOS !== undefined) && {
+      why: "manca S3_BUCKET_PHOTOS (o il gruppo S3): senza un secchio l'album non ha dove tenerle. Le foto restano una cosa che si guarda e basta.",
+    }),
+  },
+  {
     id: "audio",
     label: "Registrazioni e arruolamento voce",
     on: audio !== undefined,
@@ -542,6 +565,13 @@ const app = buildServer({
     ...(env.UGO_INTERNAL_TOKEN !== undefined && { internalToken: env.UGO_INTERNAL_TOKEN }),
     ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),
     ...(audio !== undefined && { audio }),
+    // ADR-109: stesse credenziali, secchio diverso — una foto e una
+    // registrazione hanno durate e diritti diversi, e un secchio solo
+    // vorrebbe dire una retention che ne governa due
+    ...(audio !== undefined &&
+      env.S3_BUCKET_PHOTOS !== undefined && {
+        photos: { ...audio, bucket: env.S3_BUCKET_PHOTOS },
+      }),
     ...(meetings !== undefined && { meetings }),
     // ADR-052: the house side of the reception, in the panel
     customers: {

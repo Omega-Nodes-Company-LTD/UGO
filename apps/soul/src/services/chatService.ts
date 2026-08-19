@@ -24,6 +24,13 @@ import { buildPackPrompt, selfLine } from "./packPrompt.js";
 import type { PsycheService } from "./psycheService.js";
 import { readGestureOf, replyForReading, type ReadOutcome } from "./sceneReader.js";
 import { keepsakeGestureOf, replyForKeepsake, type KeepsakeOutcome } from "./sceneMemory.js";
+import { parseShot, parseShow } from "./volition/album.js";
+import {
+  replyForShot,
+  replyForShow,
+  type ShotOutcome,
+  type ShowOutcome,
+} from "./photographer.js";
 import { DiaryService } from "./diaryService.js";
 import { houseClock } from "./houseClock.js";
 import { NewsService } from "./newsService.js";
@@ -113,6 +120,18 @@ export interface ChatServiceDeps {
    * due occhi e scritto in memoria. Assente = il gesto non esiste.
    */
   keepsake?: { keep: (at?: Date) => Promise<KeepsakeOutcome> };
+  /**
+   * ADR-109: «scatta una foto» e «fammi vedere quelli del parco». Assente =
+   * i due gesti non esistono, e le frasi vanno al modello come qualunque
+   * altra — che è ciò che succede a una casa senza album.
+   */
+  photographer?: {
+    shoot: (at?: Date) => Promise<ShotOutcome>;
+    show: (
+      command: { kind: "show"; words: string; count: number; when?: "stamattina" | "ieri" | "oggi" | undefined },
+      at?: Date,
+    ) => Promise<ShowOutcome>;
+  };
   /**
    * ADR-099: «manda ai nonni: …» — la cartolina a voce. L'atto esplicito è
    * l'UNICA strada da cui una cartolina parte; assente = il gesto non esiste
@@ -791,6 +810,26 @@ export class ChatService {
     if (this.deps.keepsake !== undefined && keepsakeGestureOf(request.text)) {
       const reply = replyForKeepsake(await this.deps.keepsake.keep(at));
       return this.answered(reply, request, at);
+    }
+
+    /**
+     * ADR-109: l'album. Lo scatto e la rivista, sullo stesso binario di tutti
+     * i gesti — risposta prima del provider, zero token, e in biografia come
+     * ogni scambio. I cancelli (durata scelta, `no_vision`) stanno dentro il
+     * fotografo, PRIMA che al corpo venga chiesto qualcosa.
+     */
+    if (this.deps.photographer !== undefined) {
+      if (parseShot(request.text) !== undefined) {
+        return this.answered(replyForShot(await this.deps.photographer.shoot(at)), request, at);
+      }
+      const show = parseShow(request.text);
+      if (show !== undefined) {
+        return this.answered(
+          replyForShow(await this.deps.photographer.show(show, at)),
+          request,
+          at,
+        );
+      }
     }
 
     // ADR-064: le spinte — stessa famiglia deterministica, stessa strada in
