@@ -194,6 +194,8 @@ function buildDynamicSystem(
   character: Character,
   /** ADR-107: false quando il giudice di casa dice che lì dentro non c'è */
   answerable = true,
+  /** ADR-108: la domanda chiede un verdetto, e a un verdetto non si risponde */
+  reporting = false,
 ): string {
   // the clock goes in the DYNAMIC block and nowhere else: interpolating a time
   // into a cached block would break the cache on every single call (§5.5)
@@ -234,6 +236,23 @@ function buildDynamicSystem(
             .join("\n")}`
         : "Nessun ricordo pertinente.",
   );
+  /**
+   * ADR-108. «X può fare Y» non è una domanda a cui la memoria possa
+   * rispondere: l'assenza di un appunto non è l'assenza della condizione — se
+   * anche Sofia non fosse allergica ai crostacei, potrebbe esserlo alle noci
+   * senza che nessuno l'abbia mai detto. Quindi qui i ricordi entrano
+   * *insieme* al loro confine, e UGO riferisce invece di sentenziare.
+   *
+   * Restringe e non contraddice la regola 8 del blocco cached: quella vale
+   * sempre, questa la ricorda quando la domanda l'ha appena chiamata in causa.
+   */
+  if (reporting) {
+    lines.push(
+      "Ti stanno chiedendo se qualcuno può, deve o riesce a fare qualcosa: questo non lo sai, " +
+        "e non lo puoi dedurre dai tuoi ricordi. Riferisci quello che ti è stato detto e di' " +
+        "che sul resto non sai — ciò che nessuno ti ha raccontato non vuol dire che non esista.",
+    );
+  }
   if (recordings.length > 0) {
     lines.push(`Dalle registrazioni:\n${recordings.map((text) => `- ${text}`).join("\n")}`);
   }
@@ -828,7 +847,7 @@ export class ChatService {
      */
     const verdict =
       this.deps.abstain === undefined
-        ? { answerable: true, asked: false }
+        ? { answerable: true, asked: false, reporting: false }
         : await canAnswer({ local: this.deps.abstain }, request.text, retrieved);
     // recordings made "in giro" are interrogable through chat (§4.2) — of this
     // house, and only of this house
@@ -867,6 +886,7 @@ export class ChatService {
           await this.packBlock(request.beingId, request.channel),
           this.deps.character,
           verdict.answerable,
+          verdict.reporting,
         ),
         history,
         userText: modelText,

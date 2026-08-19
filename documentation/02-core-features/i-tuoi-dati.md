@@ -161,6 +161,7 @@ per te.
 
 ## Prossimi Passi
 
+- [Il confidente inviolabile](./il-confidente-inviolabile.md) — le tre promesse dietro questa pagina, e i loro confini.
 - [Parlare con UGO](./parlare-con-ugo.md) — cosa decide di ricordare e cosa lascia sbiadire.
 - [In giro](./in-giro.md) — la modalità privacy per non registrare affatto.
 - [Problemi comuni](../04-troubleshooting/problemi-comuni.md)

@@ -34,7 +34,10 @@ let db: DbClient;
 let embedder: OllamaEmbeddingsClient;
 
 /** A fresh "session": new services over the same database, like a restart. */
-async function buildSession(budgetUsd = 0.5): Promise<FastifyInstance> {
+async function buildSession(
+  budgetUsd = 0.5,
+  abstain?: { generate: (prompt: string, maxTokens?: number) => Promise<string | undefined> },
+): Promise<FastifyInstance> {
   const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const llm = new LlmClient({
     db,
@@ -53,6 +56,7 @@ async function buildSession(budgetUsd = 0.5): Promise<FastifyInstance> {
     llm,
     psyche,
     dataKey,
+    ...(abstain === undefined ? {} : { abstain }),
   });
   return buildServer({
     db,
@@ -322,6 +326,73 @@ describe("a fact that stopped being true", () => {
     // deleting something that is not there is not an error, it is a no-op
     const again = await app.inject({ method: "DELETE", url: `/v1/memories/${id}` });
     expect(again.json<{ destroyed: boolean }>().destroyed).toBe(false);
+    await app.close();
+  });
+});
+
+/**
+ * ADR-108 — «riferire non è rispondere».
+ *
+ * Il proprietario, guardando la domanda che il banco contava come persa: «lui
+ * non può dare consigli medici, ma deve ricordare se io dico che Giovanni ha
+ * l'asma, non perché sia un fatto medico, ma perché io l'ho detto». E il
+ * seguito, che è quello che rompe il criterio: «se anche non fosse allergico ai
+ * crostacei, magari lo è alle noci e non te lo ha mai detto».
+ *
+ * Qui si prova il giro intero con un giudice che dice **sempre** di no — cioè
+ * il caso peggiore, e quello che succedeva davvero su questa domanda.
+ */
+describe("il giudice non può zittire un'allergia (ADR-108)", () => {
+  it("su «X può fare Y» il ricordo entra lo stesso, e il prompt chiede di riferire", async () => {
+    await writeMemory(db, embedder, {
+      gosinoId: PRIME_GOSINO_ID,
+      kind: "fact",
+      text: "Sofia è allergica ai crostacei e porta sempre con sé l'autoiniettore.",
+      importance: 0.9,
+    });
+
+    let judged = 0;
+    const alwaysNo = {
+      generate: () => {
+        judged += 1;
+        return Promise.resolve("NO");
+      },
+    };
+
+    stub.nextResponse = { text: "Mi hai detto che è allergica ai crostacei. Del resto non so. Grunf." };
+    const app = await buildSession(0.5, alwaysNo);
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat",
+      payload: { channel: "home", text: "Sofia può mangiare i gamberi?" },
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{ memoriesUsed: string[] }>();
+
+    const dynamicBlock = stub.requests.at(-1)?.body.system[2]?.text ?? "";
+    expect(dynamicBlock, "il ricordo dell'allergia deve arrivare al prompt").toContain("crostacei");
+    expect(dynamicBlock, "e con l'obbligo di riferire invece di sentenziare").toMatch(/Riferisci/u);
+    expect(body.memoriesUsed.length, "e il resoconto deve dirlo").toBeGreaterThan(0);
+    expect(judged, "su un verdetto non c'è niente da giudicare: zero token").toBe(0);
+    await app.close();
+  });
+
+  /** L'altra metà: ADR-107 vale ancora dove valeva, cioè su tutto il resto. */
+  it("su una domanda qualunque il no del giudice toglie i ricordi dal prompt", async () => {
+    const alwaysNo = { generate: () => Promise.resolve("NO") };
+    stub.nextResponse = { text: "Questa non me l'hai mai detta. Grunf." };
+    const app = await buildSession(0.5, alwaysNo);
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat",
+      payload: { channel: "home", text: "qual è la password della rete wifi?" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ memoriesUsed: string[] }>().memoriesUsed).toHaveLength(0);
+
+    const dynamicBlock = stub.requests.at(-1)?.body.system[2]?.text ?? "";
+    expect(dynamicBlock).toContain("non c'è di che rispondere");
+    expect(dynamicBlock).not.toMatch(/Ricordi pertinenti/u);
     await app.close();
   });
 });

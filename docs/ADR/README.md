@@ -113,4 +113,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [105](./105-il-genoma-si-rilegge.md) | Il genoma si rilegge (e non si tocca) | Accettata |
 | [106](./106-l-astensione-il-criterio-relativo-non-regge.md) | L'astensione: il criterio relativo non regge, e il banco non poteva accorgersene | Accettata |
 | [107](./107-non-lo-so-il-giudice-di-casa.md) | «Non lo so»: a guardare il significato è il modello di casa | Accettata |
-| 108 | *(prossimo numero disponibile)* | — |
+| [108](./108-riferire-non-e-rispondere.md) | Riferire non è rispondere: «X può fare Y» non si giudica | Accettata |
+| 109 | *(prossimo numero disponibile)* | — |

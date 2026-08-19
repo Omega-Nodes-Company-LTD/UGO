@@ -99,6 +99,29 @@ describe("canAnswer", () => {
     expect(asked).toBe(0);
   });
 
+  /**
+   * ADR-108, ed è la prova che il proprietario ha chiesto con una frase: «deve
+   * ricordare se io dico che Giovanni ha l'asma, non perché sia un fatto
+   * medico, ma perché io l'ho detto». Un giudice che dice sempre NO — e su
+   * questa domanda diceva NO davvero, era una delle tre perse — non deve poter
+   * far sparire il ricordo dell'allergia dal prompt.
+   */
+  it("su «X può fare Y» non giudica: riferisce, e non spende un token", async () => {
+    let asked = 0;
+    const local = {
+      generate: () => {
+        asked += 1;
+        return Promise.resolve("NO");
+      },
+      available: () => Promise.resolve(true),
+    };
+    const verdict = await canAnswer({ local }, "Sofia può mangiare i gamberi?", [
+      memory({ text: "Sofia è allergica ai crostacei", vectorRank: 1 }),
+    ]);
+    expect(verdict).toMatchObject({ answerable: true, asked: false, reporting: true });
+    expect(asked, "non c'è niente da giudicare, quindi non si chiede").toBe(0);
+  });
+
   it("senza ricordi non c'è niente da giudicare e niente da dire", async () => {
     const verdict = await canAnswer({ local: never }, "q", []);
     expect(verdict).toMatchObject({ answerable: false, asked: false });

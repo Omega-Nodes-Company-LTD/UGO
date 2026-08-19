@@ -56,15 +56,35 @@ rilegge e si chiede se rispondono davvero: se non rispondono, te lo dice.
 
 Due cose da sapere, dette com'è giusto dirle:
 
-- **capita anche quando la risposta ce l'aveva.** Su dieci domande che una risposta hanno, circa una
-  riceve un «non lo so» di troppo. Se ti succede su una cosa che sei sicuro di avergli detto,
-  ridigliela: la sa da subito, e la prossima volta la ritrova;
+- **capita anche quando la risposta ce l'aveva.** Su dieci domande che una risposta hanno, due
+  ricevono un «non lo so» di troppo — misurato, non stimato. Se ti succede su una cosa che sei
+  sicuro di avergli detto, ridigliela: la sa da subito, e la prossima volta la ritrova;
 - **la conversazione non si ferma.** Non è un errore né un muro: puoi raccontargliela lì per lì, e
   da quel momento è sua.
 
 Chi gestisce il server può spegnere questo comportamento (`UGO_ABSTAIN=off`) e tornare a un UGO che
 prova sempre a rispondere. È uno scambio, e conviene saperlo in entrambe le direzioni: meno risposte
 inventate da una parte, qualche «non lo so» di troppo dall'altra.
+
+### «Sofia può mangiare i gamberi?» — la domanda a cui non risponde mai
+
+C'è una famiglia di domande su cui UGO non dice né sì né no, **anche quando in memoria ha
+qualcosa**: quelle che chiedono se una persona può, deve o riesce a fare qualcosa. Ti risponde
+riferendo.
+
+> — Sofia può mangiare i gamberi?
+> — Mi hai detto che è allergica ai crostacei. Di più non so, chiediglielo.
+
+Non è prudenza da ufficio legale, è aritmetica: **il fatto che non te l'abbia detto non vuol dire
+che non sia vero.** Se anche Sofia non fosse allergica ai crostacei, potrebbe esserlo alle noci
+senza che tu gliene abbia mai parlato — e un «sì, può» detto sul silenzio è la cosa più pericolosa
+che un compagno possa dire.
+
+Il contrario vale altrettanto, ed è la ragione per cui questa regola esiste: **quello che gli hai
+detto, te lo ridice sempre.** Se una sera racconti che Giovanni ha l'asma, quello è un ricordo come
+tutti gli altri — non perché UGO sappia di medicina, ma perché l'hai detto tu — e alla prima domanda
+che lo riguarda salta fuori. Prima di questa regola poteva succedere che si tenesse l'allergia per
+sé e rispondesse «non lo so»: era il modo peggiore possibile di essere prudenti.
 
 ## Le parole che sono gesti
 
