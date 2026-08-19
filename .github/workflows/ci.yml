@@ -127,13 +127,25 @@ jobs:
       # Il difetto: il tetto stava sul PASSO, che conteneva tre tentativi. Il
       # primo tentativo appeso se lo mangiava tutto e i retry non partivano mai
       # — una correzione che si contraddiceva da sola. Adesso il tetto è su
-      # OGNI tentativo (`timeout 90`), e il passo ha budget per usarli.
+      # ogni tentativo, e il passo ha budget per usarli.
+      #
+      # Il difetto DELLA correzione, che ha fatto rosso main: il tetto stava
+      # anche sull'`install`, e novanta secondi non bastano a scompattare
+      # espeak-ng con le sue dipendenze — apt e stato ucciso durante «Setting
+      # up», e un dpkg interrotto rende impossibili tutti i tentativi dopo.
+      # Ora il tetto sta dove il blocco e stato osservato davvero (`update`,
+      # che parla col mirror), l'installazione non si interrompe mai a meta, e
+      # ogni tentativo ripara un dpkg lasciato a meta da chiunque.
       - name: espeak-ng provides the synthetic voice for the ingest fixture
-        timeout-minutes: 8
+        timeout-minutes: 10
         run: |
           try_apt() {
-            timeout 90 sudo apt-get update -o Acquire::Retries=2 \
-              && timeout 90 sudo apt-get install -y --no-install-recommends \
+            # Un tentativo ucciso a meta lascia dpkg interrotto, e da li in poi
+            # OGNI tentativo muore con «dpkg was interrupted»: e cosi che main
+            # e diventato rosso il 2026-08-19. Si ripara prima di riprovare.
+            sudo dpkg --configure -a || true
+            timeout 120 sudo apt-get update -o Acquire::Retries=2 \
+              && sudo apt-get install -y --no-install-recommends \
                    -o Acquire::Retries=2 espeak-ng
           }
           for attempt in 1 2 3; do
