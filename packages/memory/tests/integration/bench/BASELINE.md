@@ -107,6 +107,51 @@ per ogni domanda stampa i segnali candidati, separati fra domande con risposta e
 Il test non asserisce niente e non cambia il recupero. I numeri si leggono **dai log della CI**: è
 l'unico posto dove `nomic-embed-text` gira davvero, quindi è l'unico posto dove la misura è vera.
 
+### I numeri, misurati (run CI 32211353033, 2026-08-19)
+
+Domande **senza** risposta:
+
+| query | top1 | gap | gapRel | plateau | bothArms | lexHits |
+|---|---|---|---|---|---|---|
+| codice IBAN | 0.5528 | 0.0007 | 0.0013 | −0.0023 | no | 0 |
+| abbonamento treno | 0.5966 | −0.0043 | −0.0072 | 0.0017 | no | 0 |
+| cattedrale di Chartres | 0.5556 | −0.0309 | −0.0556 | −0.0414 | no | 0 |
+
+Domande **con** risposta (le tre più scomode, per esteso):
+
+| query | top1 | gap | gapRel | plateau | bothArms | lexHits |
+|---|---|---|---|---|---|---|
+| compleanno della nonna | 0.5994 | **−0.0116** | −0.0193 | **−0.0504** | no | 0 |
+| Sofia può mangiare i gamberi | 0.6081 | **−0.0227** | −0.0373 | **−0.0220** | no | 0 |
+| modello della caldaia | 0.6362 | 0.0349 | 0.0549 | **−0.0415** | no | 0 |
+| *(le altre sette)* | 0.62–0.88 | 0.03–0.62 | 0.05–1.00 | 0.09–0.62 | 6 sì | 1 |
+
+**Il verdetto: nessuno dei segnali relativi separa.** `gap`, `gapRel` e `plateau` falliscono nel
+modo peggiore — la domanda sul compleanno della nonna, che una risposta **ce l'ha**, ha `plateau`
+−0.0504, cioè *più negativo* di tutte e tre le domande senza risposta. Un criterio su quei segnali
+si asterrebbe da una risposta che esiste.
+
+`bothArms` e `lexHits` non sono segnali di astensione: sono segnali **positivi a senso unico**. Su
+questo corpus `bothArms = sì` non capita mai su una domanda senza risposta (6 casi, zero falsi
+positivi), ma capita solo su 6 delle 10 con risposta — quindi «no» non vuol dire niente.
+
+L'unico che sembra separare è `top1`: massimo senza risposta 0.5966, minimo con risposta 0.5994.
+**Ventotto decimillesimi.** È lo stesso margine tarato sul corpus dei 0.675 di ADR-022, con un
+altro numero: non è una soluzione, è la stessa trappola.
+
+### Perché il corpus è stato allargato
+
+Tre sole domande senza risposta, e tutte **lontane dal dominio** (IBAN, treni, cattedrali gotiche):
+nessuna condivideva vocabolario con un ricordo, quindi il corpus **non poteva falsificare**
+`bothArms` né `lexHits` — i due segnali che sembravano perfetti lo sembravano per costruzione.
+
+Da qui dieci, con sette **near-miss**: domande che vivono dentro il dominio dei ricordi e la cui
+risposta però non c'è — il nome del cane del vicino (il cane c'è, il nome no), il colore della
+macchina (la targa c'è), la marca della lavatrice (la lavatrice c'è), e soprattutto **la password
+della rete wifi Cinghiale**, che aggancia il braccio lessicale su un ricordo che il nome della rete
+ce l'ha e la password no. Sono i casi in cui un compagno deve dire «non lo so» invece di inventare,
+ed erano esattamente quelli che il banco non provava.
+
 ## Le soglie
 
 Le soglie di non regressione stanno in `FLOORS`, dentro `memoryBench.integration.test.ts`, e sono
