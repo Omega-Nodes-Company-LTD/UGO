@@ -291,7 +291,8 @@ async function buildRuntime(
     // perché la porta vera è il consenso della parentela, non il cablaggio
     postcards: {
       ties: new TieService(deps.db),
-      parcels: new ParcelService(deps.db, deps.dataKey),
+      // ADR-109: e con l'album, la cartolina può portare una foto
+      parcels: new ParcelService(deps.db, deps.dataKey, deps.album),
     },
   });
   // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.

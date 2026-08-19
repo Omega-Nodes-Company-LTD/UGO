@@ -1,13 +1,14 @@
 import { randomBytes } from "node:crypto";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, type DbClient, photos, runMigrations } from "@ugo/db";
+import { accountTies, createDbClient, type DbClient, parcels, photos, runMigrations } from "@ugo/db";
 import { startMinio, startPostgres, type MinioHandle } from "@ugo/factories";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AudioStorageConfig } from "../../src/routes/audio.js";
 import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { AlbumService } from "../../src/services/albumService.js";
+import { ParcelService } from "../../src/services/parcelService.js";
 import { Photographer } from "../../src/services/photographer.js";
 
 /**
@@ -111,7 +112,13 @@ beforeAll(async () => {
     forcePathStyle: true,
   });
   const { CreateBucketCommand } = await import("@aws-sdk/client-s3");
-  await s3.send(new CreateBucketCommand({ Bucket: BUCKET }));
+  try {
+    await s3.send(new CreateBucketCommand({ Bucket: BUCKET }));
+  } catch {
+    // già nostro: succede quando l'archivio non è un container usa-e-getta
+    // ma un MinIO acceso a parte (`UGO_TEST_S3_URL`). Il bucket è comunque
+    // solo di questo file, ed è ciò che serve
+  }
 
   casa = await createAccountWithFounder(db, MASTER_KEY, {
     slug: "casa-foto",
@@ -243,5 +250,103 @@ describe("l'album di famiglia, con l'archivio vero", () => {
       new ListObjectsV2Command({ Bucket: BUCKET, Prefix: `album/${vicini.accountId}/` }),
     );
     expect(listed.Contents ?? []).toHaveLength(0);
+  });
+});
+
+/**
+ * ADR-109 × ADR-099: la cartolina che porta una foto.
+ *
+ * La regola che questo blocco esiste per dimostrare è una sola, e non si vede
+ * da nessuna parte se non qui: **la durata che vale è quella di chi riceve**.
+ * Una cartolina è di chi la riceve, e quanto si tengono le cose lo decide la
+ * casa che le ospita — non quella che le manda.
+ */
+describe("la cartolina con la foto", () => {
+  const post = () => new ParcelService(db, MASTER_KEY, album);
+
+  const tieBetween = async (): Promise<string> => {
+    const [tie] = await db
+      .insert(accountTies)
+      .values({
+        fromAccountId: casa.accountId,
+        toAccountId: vicini.accountId,
+        label: "i vicini",
+        status: "accettata",
+        acceptedAt: new Date(),
+      })
+      .returning({ id: accountTies.id });
+    if (tie === undefined) throw new Error("la parentela non è stata scritta");
+    return tie.id;
+  };
+
+  it("non parte se l'album di CHI RICEVE è spento — né la foto né le parole", async () => {
+    await album.setRetention(casa.accountId, 6);
+    await album.setRetention(vicini.accountId, 0);
+    const tieId = await tieBetween();
+    const mine = await shoot("il parco", today(9));
+    expect(mine.outcome).toBe("kept");
+    if (mine.outcome !== "kept") return;
+
+    const sent = await post().send(casa.accountId, {
+      tieId,
+      fromGosinoId: casa.gosinoId,
+      kind: "messaggio",
+      text: "guardate qui",
+      photoId: mine.photoId,
+    });
+    expect(sent).toBe("album-loro-spento");
+    // e la cartolina non esiste a metà: non è stata scritta affatto
+    expect(await db.select().from(parcels)).toHaveLength(0);
+  });
+
+  it("con il loro album acceso arriva, e con la LORO durata — non la nostra", async () => {
+    // noi teniamo le foto sei ore, loro tre giorni: la copia che ricevono
+    // deve vivere settantadue ore, non sei
+    await album.setRetention(casa.accountId, 6);
+    await album.setRetention(vicini.accountId, 72);
+    const [tie] = await db.select({ id: accountTies.id }).from(accountTies);
+    if (tie === undefined) throw new Error("manca la parentela");
+
+    const before = await rows();
+    const sent = await post().send(casa.accountId, {
+      tieId: tie.id,
+      fromGosinoId: casa.gosinoId,
+      kind: "messaggio",
+      text: "siamo al parco",
+      photoId: only(before, "la nostra foto").id,
+    });
+    expect(typeof sent).not.toBe("string");
+
+    const [parcel] = await db
+      .select({ photoId: parcels.photoId, to: parcels.toAccountId })
+      .from(parcels);
+    expect(parcel?.photoId).not.toBeNull();
+    expect(parcel?.to).toBe(vicini.accountId);
+
+    const theirs = await album.list(vicini.accountId);
+    expect(theirs).toHaveLength(1);
+    const copy = only(theirs, "la copia nel loro album");
+    // la provenienza è scritta nella didascalia: una foto arrivata da fuori
+    // non deve sembrare scattata in casa
+    expect(copy.caption).toContain("Cartolina da «Casa Foto»");
+    expect(copy.caption).toContain("siamo al parco");
+    // e la durata è la loro: settantadue ore, non le nostre sei
+    const hours = (copy.expiresAt.getTime() - copy.takenAt.getTime()) / 3600_000;
+    expect(Math.round(hours)).toBe(72);
+
+    // i pixel sono gli stessi, ma l'oggetto no: è ri-cifrato con la LORO
+    // chiave, ed è ciò che rende la copia davvero loro
+    expect(await album.open(vicini.accountId, copy.id)).toBe(PIXELS);
+    expect(await album.open(casa.accountId, copy.id)).toBeUndefined();
+  });
+
+  it("e quando la loro foto scade, la cartolina resta: il testo non muore con l'immagine", async () => {
+    const copy = only(await album.list(vicini.accountId), "la copia");
+    expect(await album.expire(vicini.accountId, new Date(copy.expiresAt.getTime() + 1000))).toBe(1);
+    const [parcel] = await db.select({ photoId: parcels.photoId }).from(parcels);
+    // `ON DELETE SET NULL (photo_id)`: senza, la scadenza si sarebbe bloccata
+    // da sola sulla chiave esterna, e la durata promessa sarebbe stata falsa
+    expect(parcel?.photoId).toBeNull();
+    expect(await db.select().from(parcels)).toHaveLength(1);
   });
 });

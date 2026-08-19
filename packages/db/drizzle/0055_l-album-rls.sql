@@ -24,22 +24,16 @@ REVOKE UPDATE ON photos FROM ugo_app;--> statement-breakpoint
 GRANT SELECT, INSERT, DELETE ON photos TO ugo_app;--> statement-breakpoint
 
 -- ============================================================================
--- La posta guadagna le foto (ADR-109 × ADR-099).
+-- La posta NON guadagna niente qui, ed è una nota che vale la riga.
 --
--- Una cartolina può portare una foto, e allora il ruolo che la spedisce deve
--- poterla leggere dalla casa mittente e scriverne una copia in quella
--- destinataria — ri-cifrata con la chiave di CHI RICEVE, come già il testo.
--- Restano le stesse due regole di ADR-099: la posta legge e imbuca, non
--- modifica; e non tocca niente che non sia posta.
-GRANT SELECT, INSERT ON photos TO ugo_post;--> statement-breakpoint
-DO $$
-BEGIN
-  EXECUTE 'DROP POLICY IF EXISTS photos_post_read ON photos';
-  EXECUTE 'CREATE POLICY photos_post_read ON photos FOR SELECT TO ugo_post USING (true)';
-  EXECUTE 'DROP POLICY IF EXISTS photos_post_write ON photos';
-  EXECUTE 'CREATE POLICY photos_post_write ON photos FOR INSERT TO ugo_post WITH CHECK (true)';
-END
-$$;--> statement-breakpoint
--- e la durata della casa destinataria, che è quella che vale per una foto
--- ricevuta: la si legge, non la si decide (ADR-109 §6)
-GRANT SELECT (photo_retention_hours) ON accounts TO ugo_post;
+-- Una cartolina può portare una foto (ADR-109 × ADR-099), e verrebbe da
+-- pensare che il ruolo `ugo_post` debba poter leggere l'album del mittente e
+-- scrivere in quello del destinatario. Non serve: i pixel passano dalla porta
+-- di casa di ognuno — `withAccount(mittente)` per aprirli, `withAccount(chi
+-- riceve)` per riscriverli — che è la stessa meccanica con cui la consegna
+-- scrive già un desiderio in casa d'altri (ADR-099 §consegna).
+--
+-- `ugo_post` esiste per ciò che una casa sola non può vedere: la riga della
+-- parentela e la busta della cartolina. Le foto non sono in quell'elenco, e
+-- un `USING (true)` in più su una tabella di immagini sarebbe una porta
+-- aperta per un passaggio che nessuno percorre.

@@ -57,10 +57,14 @@ import {
 import { confirmList, parseListCommand, type ListCommand } from "./volition/lists.js";
 import {
   confirmPostcard,
+  PHOTO_POSTCARD_DEFAULT_TEXT,
+  confirmPhotoPostcard,
+  parsePhotoPostcard,
   parsePostcard,
   tellNoTie,
   tellSendFailed,
   tellTieNotAccepted,
+  type PhotoPostcardCommand,
   type PostcardCommand,
 } from "./volition/postcards.js";
 import type { ParcelService } from "./parcelService.js";
@@ -609,6 +613,41 @@ export class ChatService {
     return confirmPostcard(command, tie.otherName);
   }
 
+  /**
+   * ADR-109 × ADR-099: «scattaci una foto e mandala ai nonni».
+   *
+   * Un gesto solo, e quindi un ordine solo: **prima la parentela, poi lo
+   * scatto**. Se la porta con quella casa non c'è, al corpo non si chiede
+   * niente — scattare per poi scoprire di non poter mandare lascerebbe in
+   * casa una foto che nessuno voleva conservare. È la stessa forma dei
+   * cancelli del fotografo, un piano più su.
+   */
+  private async applyPhotoPostcard(command: PhotoPostcardCommand, at: Date): Promise<string> {
+    const post = this.deps.postcards;
+    const shooter = this.deps.photographer;
+    if (post === undefined || shooter === undefined) return tellSendFailed();
+    const tie = await post.ties.tieByName(this.deps.accountId, command.recipient);
+    if (tie === undefined) return tellNoTie(command.recipient);
+    if (tie.status !== "accettata") return tellTieNotAccepted(command.recipient);
+
+    const shot = await shooter.shoot(at);
+    // gli esiti dello scatto si dicono come li direbbe il fotografo: qui non
+    // si traduce «la camera è spenta» in «la cartolina non è partita»
+    if (shot.outcome !== "kept") return replyForShot(shot);
+
+    const sent = await post.parcels.send(this.deps.accountId, {
+      tieId: tie.id,
+      fromGosinoId: this.deps.gosinoId,
+      kind: "messaggio",
+      text: command.text === "" ? PHOTO_POSTCARD_DEFAULT_TEXT : command.text,
+      photoId: shot.photoId,
+    });
+    if (typeof sent === "string") {
+      return sent === "non-accettata" ? tellTieNotAccepted(command.recipient) : tellSendFailed();
+    }
+    return confirmPhotoPostcard(tie.otherName);
+  }
+
   /** Il testo di una riga, o stringa vuota se la chiave non la apre. */
   private readable(value: string): string {
     try {
@@ -776,6 +815,13 @@ export class ChatService {
      * proposta non ancora accettata ≠ partita.
      */
     if (this.deps.postcards !== undefined) {
+      // ADR-109: la cartolina CON la foto va guardata per prima — «manda una
+      // foto ai nonni: …» ha la stessa forma di «manda ai nonni: …», e chi
+      // arriva secondo si prenderebbe anche quella
+      const withPhoto = parsePhotoPostcard(request.text);
+      if (withPhoto !== undefined) {
+        return this.answered(await this.applyPhotoPostcard(withPhoto, at), request, at);
+      }
       const postcard = parsePostcard(request.text);
       if (postcard !== undefined) {
         return this.answered(await this.applyPostcard(postcard), request, at);

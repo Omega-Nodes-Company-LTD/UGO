@@ -482,8 +482,13 @@ export const ACCOUNT_PAGES = `
     <div class="row">
       <div><label for="parcel-text">Il testo</label>
         <input id="parcel-text" data-testid="parcel-text" placeholder="siamo stati al parco!"></div>
+      <!-- ADR-109: e una foto, se l'album è acceso da tutte e due le parti -->
+      <div style="flex:0 1 16rem"><label for="parcel-photo">Con una foto</label>
+        <select id="parcel-photo" data-testid="parcel-photo"></select></div>
       <button id="parcel-send" data-testid="parcel-send">Spedisci</button>
     </div>
+    <p class="lede">Una foto spedita entra nel <b>loro</b> album, con la durata che hanno scelto
+       <b>loro</b>: se il loro album è spento, la cartolina non parte — né le parole né la foto.</p>
   </div>
   <div class="block">
     <h2>La cassetta della posta</h2>

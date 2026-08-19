@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { check, foreignKey, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  check,
+  foreignKey,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { accounts } from "./accounts.js";
 import { gosini } from "./gosini.js";
 
@@ -53,6 +62,10 @@ export const photos = pgTable(
     }),
     // una foto che nasce già scaduta è una foto che nessuno ha mai visto
     check("photos_expiry_after_taken", sql`${table.expiresAt} > ${table.takenAt}`),
+    // ADR-109 × ADR-099: la cartolina punta alla foto con la coppia
+    // (casa, foto), come ogni riferimento di questo schema — una chiave da
+    // sola attraverserebbe il muro delle case senza che nessuno se ne accorga
+    unique("photos_account_id_uq").on(table.accountId, table.id),
   ],
 );
 

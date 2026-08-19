@@ -19,7 +19,7 @@ export type ShotOutcome =
   | { outcome: "no_body" }
   | { outcome: "no_camera" }
   | { outcome: "refused"; why: KeepPhotoRefusal }
-  | { outcome: "kept"; caption: string; expiresAt: Date };
+  | { outcome: "kept"; photoId: string; caption: string; expiresAt: Date };
 
 export type ShowOutcome =
   | { outcome: "no_body" }
@@ -74,7 +74,7 @@ export class Photographer {
       at,
     });
     if (typeof kept === "string") return { outcome: "refused", why: kept };
-    return { outcome: "kept", caption: kept.caption, expiresAt: kept.expiresAt };
+    return { outcome: "kept", photoId: kept.id, caption: kept.caption, expiresAt: kept.expiresAt };
   }
 
   /** Le foto chieste, sullo schermo del chiosco. */

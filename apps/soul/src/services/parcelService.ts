@@ -11,6 +11,7 @@ import {
 } from "@ugo/db";
 import { decryptText, encryptText, unwrapDataKey } from "@ugo/shared";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import type { AlbumService } from "./albumService.js";
 
 /**
  * La cartolina (ADR-099): un messaggio o un ricordo, testo, da una casa
@@ -36,7 +37,11 @@ export type ParcelRefusal =
   | "non-tua"
   | "non-un-ricordo"
   | "gia-tenuta"
-  | "illeggibile";
+  | "illeggibile"
+  // ADR-109 × ADR-099: i tre modi in cui una foto non parte
+  | "foto-non-tua"
+  | "album-loro-spento"
+  | "loro-non-vogliono";
 
 export interface ParcelView {
   id: string;
@@ -48,12 +53,19 @@ export interface ParcelView {
   status: string;
   createdAt: Date;
   keptAt: Date | null;
+  /** ADR-109: la foto che accompagna, se c'è — già nell'album di chi riceve */
+  photoId?: string | null;
 }
 
 export class ParcelService {
   public constructor(
     private readonly db: DbClient,
     private readonly masterKey: Buffer,
+    /**
+     * ADR-109 × ADR-099: l'album, se questa installazione ne ha uno. Assente
+     * = le cartoline restano di sole parole, che è come sono nate.
+     */
+    private readonly album?: AlbumService | undefined,
   ) {}
 
   /** La chiave con cui una casa custodisce ciò che è suo (ADR-019/075). */
@@ -93,6 +105,8 @@ export class ParcelService {
       toGosinoId?: string | undefined;
       kind: string;
       text: string;
+      /** ADR-109: la foto di casa MIA che la cartolina porta con sé */
+      photoId?: string | undefined;
     },
   ): Promise<{ id: string } | ParcelRefusal> {
     const [tie] = await withPost(this.db, (tx) =>
@@ -132,6 +146,29 @@ export class ParcelService {
       if (recipient === undefined) return "destinatario-sconosciuto";
     }
 
+    /**
+     * ADR-109 × ADR-099: la foto, se c'è.
+     *
+     * Si guarda **prima di scrivere qualunque cosa**, e nell'ordine che la
+     * rende onesta: è mia? la loro casa conserva foto? c'è qualcuno da loro
+     * che ha chiesto di non essere guardato? Una cartolina spedita a metà —
+     * il testo sì, la foto no — sarebbe la sorpresa peggiore delle due, e
+     * la casa che riceve non ha nessun modo di accorgersene.
+     *
+     * **La durata che vale è la loro.** Una cartolina è di chi la riceve, e
+     * quanto si tengono le cose lo decide la casa che le ospita: se il loro
+     * album è spento, la foto non parte — non «parte e sparisce subito».
+     */
+    let pixels: string | undefined = undefined;
+    if (input.photoId !== undefined) {
+      if (this.album === undefined) return "foto-non-tua";
+      pixels = await this.album.open(fromAccountId, input.photoId);
+      if (pixels === undefined) return "foto-non-tua";
+      const theirs = await this.album.gate(toAccountId);
+      if (theirs.hours === 0) return "album-loro-spento";
+      if (theirs.someoneRefuses) return "loro-non-vogliono";
+    }
+
     const cipher = encryptText(input.text.trim(), await this.houseKeyFor(toAccountId));
     const sent = await withAccount(this.db, fromAccountId, async (tx) => {
       const [row] = await tx
@@ -150,7 +187,10 @@ export class ParcelService {
     });
     if (sent === undefined) throw new Error("la cartolina non è stata scritta");
 
-    await this.deliver(sent.id, toAccountId, input.toGosinoId, fromAccountId);
+    await this.deliver(sent.id, toAccountId, input.toGosinoId, fromAccountId, {
+      ...(pixels !== undefined && { pixels }),
+      ...(input.text.trim() !== "" && { caption: input.text.trim() }),
+    });
     return { id: sent.id };
   }
 
@@ -165,20 +205,52 @@ export class ParcelService {
     toAccountId: string,
     toGosinoId: string | undefined,
     fromAccountId: string,
+    photo?: { pixels?: string | undefined; caption?: string | undefined },
   ): Promise<void> {
     const [sender] = await withPost(this.db, (tx) =>
       tx.select({ name: accounts.name }).from(accounts).where(eq(accounts.id, fromAccountId)),
     );
+    const from = sender?.name ?? "una casa amica";
+
+    /**
+     * I pixel entrano nell'album di CHI RICEVE, dalla porta di casa sua: la
+     * stessa `keep()` di uno scatto, quindi ri-cifrati con la loro DEK, con
+     * la loro durata, e sotto i loro cancelli. È il motivo per cui la posta
+     * non ha bisogno di nessun permesso nuovo sulle foto (0055): non c'è
+     * nessun passaggio che una casa non potrebbe fare da sola.
+     */
+    let photoId: string | undefined = undefined;
+    if (photo?.pixels !== undefined && this.album !== undefined) {
+      const recipient = await withAccount(this.db, toAccountId, (tx) =>
+        this.eldestOf(tx, toAccountId),
+      );
+      const owner = toGosinoId ?? recipient;
+      if (owner !== undefined) {
+        const kept = await this.album.keep(toAccountId, {
+          gosinoId: owner,
+          jpegBase64: photo.pixels,
+          // la provenienza sta nella didascalia, come per il ricordo tenuto:
+          // una foto arrivata da fuori non deve sembrare scattata in casa
+          caption: `Cartolina da «${from}»${photo.caption === undefined ? "" : `: ${photo.caption}`}`,
+        });
+        if (typeof kept !== "string") photoId = kept.id;
+      }
+    }
+
     await withAccount(this.db, toAccountId, async (tx) => {
       const recipient = toGosinoId ?? (await this.eldestOf(tx, toAccountId));
       if (recipient === undefined) return;
       await tx.insert(desires).values({
         gosinoId: recipient,
-        text: `è arrivata una cartolina per me da «${sender?.name ?? "una casa amica"}»: aprite la cassetta della posta nel pannello`,
+        text: `è arrivata una cartolina per me da «${from}»: aprite la cassetta della posta nel pannello`,
       });
       await tx
         .update(parcels)
-        .set({ status: "consegnata", deliveredAt: new Date() })
+        .set({
+          status: "consegnata",
+          deliveredAt: new Date(),
+          ...(photoId !== undefined && { photoId }),
+        })
         .where(eq(parcels.id, parcelId));
     });
   }
@@ -195,6 +267,7 @@ export class ParcelService {
         status: parcels.status,
         createdAt: parcels.createdAt,
         keptAt: parcels.keptAt,
+        photoId: parcels.photoId,
         otherSlug: accounts.slug,
         otherName: accounts.name,
       })

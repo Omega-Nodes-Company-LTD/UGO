@@ -536,22 +536,25 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           ...(registry !== undefined && { registry }),
           ...(gosini.chain !== undefined && { chain: new RegistryClient(gosini.chain) }),
         });
-        // ADR-099: le parentele fra le case e le cartoline — serve la KEK,
-        // perché il testo viaggia ri-cifrato con la DEK della destinataria
-        registerTieRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey, audit });
         // ADR-109: l'album. Serve la KEK (i pixel sono cifrati con la DEK
         // della casa) e il bucket; senza bucket le rotte esistono e lo dicono,
         // invece di far credere che una foto si stia conservando
-        registerAlbumRoutes(app, {
+        const album = new AlbumService({
+          db: options.db,
+          masterKey: gosini.dataKey,
+          ...(photos !== undefined && { storage: photos }),
+        });
+        // ADR-099: le parentele fra le case e le cartoline — serve la KEK,
+        // perché il testo viaggia ri-cifrato con la DEK della destinataria.
+        // E l'album, perché una cartolina può portare una foto (ADR-109)
+        registerTieRoutes(app, {
           db: options.db,
           guard,
+          dataKey: gosini.dataKey,
           audit,
-          album: new AlbumService({
-            db: options.db,
-            masterKey: gosini.dataKey,
-            ...(photos !== undefined && { storage: photos }),
-          }),
+          album,
         });
+        registerAlbumRoutes(app, { db: options.db, guard, audit, album });
       }
     }
     if (council !== undefined) {

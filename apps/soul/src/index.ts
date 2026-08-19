@@ -253,6 +253,25 @@ const nudges = new NudgeService({ dbFor, registry: () => registryRef });
 
 // l'annotazione esplicita spezza il cerchio dell'inferenza: chat → lettore →
 // gateway → chat (il lettore guarda il corpo solo al momento del gesto)
+/**
+ * ADR-109: l'album. Uno per processo e non uno per casa: i cancelli (la
+ * durata scelta, il `no_vision` del branco) li legge a ogni scatto dalla riga
+ * della casa che gli viene nominata, quindi una scelta cambiata dal pannello
+ * vale subito — senza riavviare per guardare.
+ *
+ * Nasce qui, prima di ogni chat, perché lo vogliono in tre: il fotografo, la
+ * cartolina con la foto, e il registro degli esemplari.
+ */
+const photoStorage = audioStorageFromEnv(env);
+const albumService = new AlbumService({
+  db,
+  masterKey: parseDataKey(env.UGO_DATA_KEY),
+  ...(photoStorage !== undefined &&
+    env.S3_BUCKET_PHOTOS !== undefined && {
+      storage: { ...photoStorage, bucket: env.S3_BUCKET_PHOTOS },
+    }),
+});
+
 const chat: ChatService = new ChatService({
   db: dbFor(bootstrapAccountId),
   embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
@@ -294,7 +313,7 @@ const chat: ChatService = new ChatService({
   // ADR-099: la cartolina a voce anche per l'apparato di avvio
   postcards: {
     ties: new TieService(db),
-    parcels: new ParcelService(db, parseDataKey(env.UGO_DATA_KEY)),
+    parcels: new ParcelService(db, parseDataKey(env.UGO_DATA_KEY), albumService),
   },
 });
 
@@ -429,20 +448,7 @@ const registry = await GosinoRegistry.load({
   ...(localVision !== undefined && {
     vision: { describe: (image: string) => localVision.describe(image) },
   }),
-  /**
-   * ADR-109: l'album. Uno per processo e non uno per casa: i cancelli (la
-   * durata scelta, il `no_vision` del branco) li legge a ogni scatto dalla
-   * riga della casa che gli viene nominata, quindi una scelta cambiata dal
-   * pannello vale subito — senza riavviare per guardare.
-   */
-  album: new AlbumService({
-    db,
-    masterKey: dataKey,
-    ...(audio !== undefined &&
-      env.S3_BUCKET_PHOTOS !== undefined && {
-        storage: { ...audio, bucket: env.S3_BUCKET_PHOTOS },
-      }),
-  }),
+  album: albumService,
 });
 registryRef = registry;
 

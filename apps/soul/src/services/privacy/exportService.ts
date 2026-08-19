@@ -316,7 +316,8 @@ export class ExportService {
                where from_account_id = ${accountId} or to_account_id = ${accountId}
                order by proposed_at`),
       rows(sql`select id, tie_id, from_account_id, to_account_id, from_gosino_id,
-                      to_gosino_id, kind, text, status, created_at, delivered_at, kept_at
+                      to_gosino_id, kind, text, status, created_at, delivered_at, kept_at,
+                      photo_id
                from parcels
                where from_account_id = ${accountId} or to_account_id = ${accountId}
                order by created_at`),

@@ -32,6 +32,12 @@ import type { AudioStorageConfig } from "../routes/audio.js";
  * 3. **I pixel sono ciphertext** con la DEK della casa, in un bucket privato:
  *    distruggere la chiave cancella l'album insieme al resto (ADR-019 §2), e
  *    la riservatezza non dipende da come è configurato l'object storage.
+ *
+ * **Ogni query nomina la casa**, oltre a girare dentro `withAccount`. Non è
+ * ridondanza: RLS non si applica al proprietario delle tabelle, e da lì
+ * passano i job, le migrazioni e i test. Un `drop()` che si fidava solo del
+ * muro cancellava la foto della casa accanto — l'ha scoperto il test
+ * d'integrazione, che è connesso proprio come loro.
  */
 
 export type KeepPhotoRefusal =
@@ -181,6 +187,7 @@ export class AlbumService {
           expiresAt: photos.expiresAt,
         })
         .from(photos)
+        .where(eq(photos.accountId, accountId))
         .orderBy(desc(photos.takenAt))
         .limit(limit),
     );
@@ -208,6 +215,7 @@ export class AlbumService {
         .from(photos)
         .where(
           and(
+            eq(photos.accountId, accountId),
             words === ""
               ? undefined
               : sql`${photos.caption} ilike ${"%" + words.replace(/[%_]/gu, "") + "%"}`,
@@ -228,7 +236,7 @@ export class AlbumService {
       tx
         .select({ key: photos.objectKey })
         .from(photos)
-        .where(eq(photos.id, photoId)),
+        .where(and(eq(photos.accountId, accountId), eq(photos.id, photoId))),
     );
     if (row === undefined) return undefined;
     try {
@@ -252,7 +260,10 @@ export class AlbumService {
    */
   public async expire(accountId: string, at: Date = new Date()): Promise<number> {
     const due = await withAccount(this.deps.db, accountId, (tx) =>
-      tx.select({ id: photos.id, key: photos.objectKey }).from(photos).where(lt(photos.expiresAt, at)),
+      tx
+        .select({ id: photos.id, key: photos.objectKey })
+        .from(photos)
+        .where(and(eq(photos.accountId, accountId), lt(photos.expiresAt, at))),
     );
     if (due.length === 0) return 0;
     const storage = this.deps.storage;
@@ -263,7 +274,7 @@ export class AlbumService {
       }
     }
     await withAccount(this.deps.db, accountId, (tx) =>
-      tx.delete(photos).where(lt(photos.expiresAt, at)),
+      tx.delete(photos).where(and(eq(photos.accountId, accountId), lt(photos.expiresAt, at))),
     );
     return due.length;
   }
@@ -271,7 +282,10 @@ export class AlbumService {
   /** Una foto buttata a mano, senza aspettare la scadenza. Stesso ordine. */
   public async drop(accountId: string, photoId: string): Promise<boolean> {
     const [row] = await withAccount(this.deps.db, accountId, (tx) =>
-      tx.select({ key: photos.objectKey }).from(photos).where(eq(photos.id, photoId)),
+      tx
+        .select({ key: photos.objectKey })
+        .from(photos)
+        .where(and(eq(photos.accountId, accountId), eq(photos.id, photoId))),
     );
     if (row === undefined) return false;
     const storage = this.deps.storage;
@@ -281,7 +295,7 @@ export class AlbumService {
       );
     }
     await withAccount(this.deps.db, accountId, (tx) =>
-      tx.delete(photos).where(eq(photos.id, photoId)),
+      tx.delete(photos).where(and(eq(photos.accountId, accountId), eq(photos.id, photoId))),
     );
     return true;
   }

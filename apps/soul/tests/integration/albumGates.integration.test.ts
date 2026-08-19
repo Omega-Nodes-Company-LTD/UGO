@@ -6,6 +6,7 @@ import {
   createDbClient,
   type DbClient,
   photos,
+  recognitionProfiles,
   runMigrations,
   withAccount,
 } from "@ugo/db";
@@ -13,6 +14,7 @@ import { startPostgres } from "@ugo/factories";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AlbumService } from "../../src/services/albumService.js";
+import { BeingsService } from "../../src/services/beingsService.js";
 import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { Photographer } from "../../src/services/photographer.js";
 
@@ -145,6 +147,52 @@ describe("il secondo cancello: «non guardarmi» spegne l'album (regola 9)", () 
     const gate = await album.gate(casa.accountId);
     expect(gate.someoneRefuses).toBe(false);
     expect(gate.hours).toBe(24);
+  });
+});
+
+/**
+ * ADR-109 §3, la seconda metà: ritirare un consenso distrugge anche ciò che
+ * quel consenso aveva costruito.
+ *
+ * `noVision` mancava da `BeingsService.update()`: accendere «non guardarmi»
+ * dal pannello lasciava il centroide del volto in tabella, e
+ * `destroyRecognition(beingId, "face")` esisteva già senza che nessuno la
+ * chiamasse. Passava inosservato finché il flag serviva solo a impedire nuovi
+ * arruolamenti; con l'album diventa la frase che spegne una funzione intera.
+ */
+describe("«non guardarmi» dal pannello porta via anche l'impronta del volto", () => {
+  it("distrugge il volto e lascia in pace la voce", async () => {
+    const [person] = await db
+      .insert(beings)
+      .values({ accountId: casa.accountId, displayName: "Chi ci ripensa" })
+      .returning({ id: beings.id });
+    if (person === undefined) throw new Error("nessuna persona");
+    for (const modality of ["face", "voice"] as const) {
+      await db.insert(recognitionProfiles).values({
+        beingId: person.id,
+        accountId: casa.accountId,
+        modality,
+        model: modality === "face" ? "arcface" : "ecapa",
+        dimensions: 4,
+        payload: Buffer.from([1, 2, 3, 4]),
+      });
+    }
+
+    const report = await new BeingsService(db, casa.accountId).update(person.id, {
+      noVision: true,
+    });
+    expect(report.biometricsDestroyed).toBe(1);
+
+    const left = await db
+      .select({ modality: recognitionProfiles.modality })
+      .from(recognitionProfiles)
+      .where(eq(recognitionProfiles.beingId, person.id));
+    // il volto è sparito, la voce no: sono due consensi distinti (ADR-057)
+    expect(left.map((row) => row.modality)).toEqual(["voice"]);
+
+    // e il branco ha di nuovo qualcuno che non vuole essere guardato
+    expect((await album.gate(casa.accountId)).someoneRefuses).toBe(true);
+    await db.update(beings).set({ noVision: false }).where(eq(beings.id, person.id));
   });
 });
 
