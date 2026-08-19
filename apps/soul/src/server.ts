@@ -9,6 +9,8 @@ import { registerJobsRoutes } from "./routes/jobs.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerArchiveRoutes } from "./routes/archive.js";
 import { registerMemoryGraphRoutes } from "./routes/memoryGraph.js";
+import { registerJournalRoutes } from "./routes/journal.js";
+import { registerKeysRoutes } from "./routes/keys.js";
 import { registerPackRoutes } from "./routes/pack/index.js";
 import { registerDataSummaryRoute, registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerStatsRoute } from "./routes/stats.js";
@@ -265,6 +267,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     const scenes = new SceneHub();
     const props = new PropService(options.db);
     const guard = createAuthGuard(audit);
+    // ADR-100: le chiavi di casa, le correzioni, il nome della stanza
+    registerKeysRoutes(app, { db: options.db, guard, audit });
     registerV1Routes(app, {
       db: options.db,
       ...v1,
@@ -420,6 +424,14 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         });
         // ADR-076: le liste si vedono e si spuntano anche dal pannello
         registerListRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
+        // ADR-099: il giornale, le conversazioni di casa, chi è stato visto
+        registerJournalRoutes(app, {
+          db: options.db,
+          guard,
+          dataKey: gosini.dataKey,
+          // ADR-101: chi è collegato adesso, dal registro dei socket
+          kiosks: (accountId: string) => scenes.connected(accountId),
+        });
         // ADR-079: il libro della vita, che nessuno aveva mai potuto leggere
         registerDiaryRoutes(app, {
           db: options.db,

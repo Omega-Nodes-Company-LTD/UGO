@@ -1,4 +1,4 @@
-import { beings, bonds, perceptionEvents, recognitionProfiles, type DbClient } from "@ugo/db";
+import { beings, bonds, recognitionProfiles, type DbClient } from "@ugo/db";
 import { KNOWN_SPECIES, profileFor } from "@ugo/shared";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -7,7 +7,6 @@ import { z } from "zod";
 import { BeingNotFoundError, type BeingsService } from "../../services/beingsService.js";
 import {
   createBeingSchema,
-  enrollSchema,
   patchBeingSchema,
   problem,
   uuidParam,
@@ -195,46 +194,17 @@ export function registerBeingRoutes(
     });
   });
 
-  app.post("/v1/beings/:id/enroll/voice", { preHandler: deps.guard }, async (request, reply) => {
-    const id = uuidParam(request.params);
-    const parsed = enrollSchema.safeParse(request.body);
-    if (id === undefined || !parsed.success) {
-      return reply
-        .code(400)
-        .type("application/problem+json")
-        .send(problem("Invalid enrollment request", 400));
-    }
-    const accountId = await accountScope(db, request, reply, { requireAdmin: true });
-    if (accountId === undefined) return reply;
-    const [being] = await db
-      .select({ isMinor: beings.isMinor, noAudio: beings.noAudio })
-      .from(beings)
-      .where(and(eq(beings.id, id), eq(beings.accountId, accountId)));
-    if (being === undefined) {
-      return reply.code(404).type("application/problem+json").send(problem("Being not found", 404));
-    }
-    // refused here as well as in the job: the request must not even be filed
-    // for someone whose voice we have promised never to model (ADR-016)
-    if (being.isMinor || being.noAudio) {
-      return reply
-        .code(403)
-        .type("application/problem+json")
-        .send(
-          problem(
-            "Biometric enrollment refused",
-            403,
-            being.isMinor ? "minor_biometrics_forbidden" : "opted_out_of_audio",
-          ),
-        );
-    }
-    await db.insert(perceptionEvents).values({
-      gosinoId: await eldestExemplarOf(db, accountId),
-      modality: "audio_speech",
-      beingId: id,
-      observed: { kind: "enrollment_requested", object_key: parsed.data.objectKey, channel: "home" },
-    });
-    return reply.code(202).send({ status: "queued" });
-  });
+  /**
+   * ADR-101: **la variante col presign non c'è più.**
+   *
+   * Prendeva una `objectKey` già caricata sul bucket e la metteva in coda per
+   * il job. Il pannello l'aveva abbandonata per il CORS (vedi sotto) e non
+   * l'ha mai sostituita nessuno: era una porta senza consumatori, senza test,
+   * che accettava un riferimento a un oggetto e lo attribuiva a una persona —
+   * cioè esattamente il tipo di codice che non si tiene «per ogni evenienza»
+   * quando tocca la biometria. Se un giorno un client mobile caricherà da
+   * solo, questa rotta si riscrive in venti righe, **con i suoi test**.
+   */
 
   /**
    * The same enrolment, with the audio sent to us instead of to the bucket.

@@ -39,11 +39,6 @@ export const createBeingSchema = z.object({
 
 export const patchBeingSchema = createBeingSchema.partial();
 
-export const enrollSchema = z.object({
-  /** object key of a clip already uploaded through /v1/audio/presign */
-  objectKey: z.string().min(1).max(300),
-});
-
 export const relationSchema = z.object({
   beingA: z.uuid(),
   beingB: z.uuid(),

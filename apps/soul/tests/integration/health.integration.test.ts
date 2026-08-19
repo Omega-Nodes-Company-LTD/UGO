@@ -181,3 +181,45 @@ describe("the face bundle served by soul", () => {
     }
   });
 });
+
+/**
+ * ADR-101: la percezione dentro `/health`.
+ *
+ * Da lei dipendono volto e voce, e il controllo non la guardava: un container
+ * di percezione morto era un riconoscimento che smetteva di funzionare senza
+ * che niente diventasse rosso. «Assente» resta diverso da «rotto» — una casa
+ * senza riconoscimento è una scelta, non un guasto.
+ */
+describe("GET /health e la percezione (ADR-101)", () => {
+  it("non configurata è «off», e non degrada niente", async () => {
+    const app = buildServer({ db, mqtt: { url: mqttUrl }, ollamaUrl: `http://${UNREACHABLE}`, logger: false });
+    try {
+      const body = (await app.inject({ method: "GET", url: "/health" })).json<{
+        checks: Record<string, string>;
+      }>();
+      expect(body.checks.perception).toBe("off");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("configurata e irraggiungibile è «error», e il servizio si dichiara degradato", async () => {
+    const app = buildServer({
+      db,
+      mqtt: { url: mqttUrl },
+      ollamaUrl: `http://${UNREACHABLE}`,
+      perceptionUrl: `http://${UNREACHABLE}`,
+      logger: false,
+    });
+    try {
+      const response = await app.inject({ method: "GET", url: "/health" });
+      const body = response.json<{ status: string; checks: Record<string, string> }>();
+      expect(body.checks.perception).toBe("error");
+      expect(body.status).toBe("degraded");
+      // degradato, non «unavailable»: senza volto UGO parla ancora
+      expect(response.statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+});

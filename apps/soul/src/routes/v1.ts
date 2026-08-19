@@ -109,6 +109,12 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
     return reply.code(201).send({ id: inserted[0]?.id, moodLabel: view.label });
   });
 
+  /**
+   * ADR-101: il consumatore di questa rotta è la **riga di comando**, non il
+   * pannello — che cerca da `/v1/memories?q=` con lo stesso re-rank. Detto
+   * qui perché «rotta senza consumatore» era una voce del gruppo 14, e la
+   * risposta giusta non era toglierla ma dichiarare chi la usa.
+   */
   app.get("/v1/memories/search", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = memorySearchQuerySchema.safeParse(request.query);
     if (!parsed.success) {

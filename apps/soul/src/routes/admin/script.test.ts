@@ -47,6 +47,15 @@ describe("the assembled panel script", () => {
     expect(unguarded).toEqual([]);
   });
 
+  /**
+   * NB per chi scrive qui dentro: un backtick NON escapato dentro un modulo
+   * del pannello chiude il template letterale, e il resto del file diventa
+   * TypeScript rotto — capitato scrivendo il nome di un campo fra backtick in
+   * un commento (ADR-100). Non c'è un test: lo prende `tsc` in un secondo, e
+   * una guardia qui non potrebbe distinguerlo da un backtick escapato
+   * legittimo (ce ne sono, e servono). Se un giorno il file non compila e
+   * l'errore indica una riga che sembra innocua, è questo.
+   */
   it("wires every element the script reaches for", () => {
     const ids = new Set([...ADMIN_PAGE.matchAll(/id="([^"]+)"/g)].map((match) => match[1]));
     const wanted = [...ADMIN_SCRIPT.matchAll(/\$\("([^"]+)"\)/g)].map((match) => match[1]);
