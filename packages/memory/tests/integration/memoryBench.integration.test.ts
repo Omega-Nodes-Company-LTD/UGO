@@ -46,7 +46,7 @@ const corpusSchema = z.object({
     .array(
       z.object({
         query: z.string().min(1),
-        family: z.enum(["temporale", "contraddizione", "semantica", "lessicale", "astensione"]),
+        family: z.enum(["temporale", "contraddizione", "semantica", "lessicale", "episodica", "astensione"]),
         relevant: z.array(z.string()),
         /**
          * ADR-108: la domanda chiede un verdetto su qualcuno («X può fare Y»).
@@ -89,6 +89,12 @@ const FLOORS: Record<Family, { recallAtK: number; mrr: number }> = {
   contraddizione: { recallAtK: 1, mrr: 1 },
   semantica: { recallAtK: 1, mrr: 0.64 },
   lessicale: { recallAtK: 1, mrr: 0.8 },
+  /**
+   * ADR-110. Il recall è asserito — il ricordo dell'episodio DEVE stare nei
+   * primi cinque — mentre l'MRR resta a 0 finché non c'è una misura: si
+   * registra un fatto invece di fingere di sorvegliarlo, come per `astensione`.
+   */
+  episodica: { recallAtK: 1, mrr: 0 },
   astensione: { recallAtK: 0, mrr: 0 },
 };
 
@@ -280,6 +286,13 @@ describe("banco di prova della memoria", () => {
    * - `lexHits` — quanti dei k hanno un aggancio lessicale: zero significa che
    *   nessuna parola della domanda compare da nessuna parte.
    */
+  /** Quante volte il piu grande sta nel piu piccolo: l'escursione di un fattore. */
+  const spread = (values: readonly number[]): number => {
+    const low = Math.min(...values);
+    const high = Math.max(...values);
+    return low <= 0 ? 0 : Number((high / low).toFixed(2));
+  };
+
   it("misura i segnali per un criterio relativo di astensione (gruppo 1)", async () => {
     const rows: Record<string, unknown>[] = [];
     for (const question of corpus.questions) {
@@ -303,6 +316,16 @@ describe("banco di prova della memoria", () => {
         plateau: Number((top1 - mean).toFixed(4)),
         bothArms: first?.vectorRank !== undefined && first.lexicalRank !== undefined,
         lexHits: found.filter((memory) => memory.lexicalRank !== undefined).length,
+        /**
+         * ADR-110: l'escursione dei tre fattori sugli stessi k, che è il numero
+         * da cui è nata la banda. Se `impRec` torna a scavalcare `rel`, la
+         * formula è di nuovo governata dall'anagrafica del ricordo invece che
+         * dalla ricerca — e si vede qui prima che si veda in casa.
+         */
+        rel: spread(found.map((memory) => memory.relevance)),
+        imp: spread(found.map((memory) => memory.importance)),
+        rec: spread(found.map((memory) => memory.recency)),
+        tipi: found.map((memory) => memory.kind).join(","),
       });
     }
     // l'evidenza riproducibile: si legge dai log della CI, dove l'embedder vero
