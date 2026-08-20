@@ -1,8 +1,8 @@
 ---
 title: "Le facce"
 description: "UGO ricorda i volti. Come te lo chiede, cosa conserva di chi non conosce, per quanto, e come si cancella."
-version: "0.13.0"
-last_updated: "2026-08-16"
+version: "0.14.0"
+last_updated: "2026-08-20"
 author: "ThinkPink Studio"
 ---
 
@@ -47,6 +47,26 @@ di sì**. È una scelta consapevole di chi ha installato UGO, e viene con quattr
 Trenta giorni e non un anno: l'audit log tiene verbi e identificativi per dodici mesi, questo tiene
 il volto di qualcuno. Non sono la stessa cosa e non hanno la stessa scadenza.
 
+## A cosa serve, quando parli
+
+Da UGO 0.42 **il volto concorre a dire chi sta parlando**. Prima serviva a una cosa sola — non
+farsi chiedere «chi sei?» una seconda volta — e chi ti riconosceva in conversazione era
+**soltanto la voce**: potevi insegnargli la tua faccia, vederla qui fra quelle che conosce, e
+sentirti chiedere chi eri due minuti dopo.
+
+Adesso funziona così, e sono tre regole semplici:
+
+1. **La voce viene prima.** È l'unica che dice con certezza chi ha *parlato*. Se ti ha
+   riconosciuto dalla voce, il volto non serve.
+2. **Il volto riempie il buco.** Se la voce non basta — non gli hai ancora insegnato la tua, o il
+   microfono non ha mandato il campione — usa chi la camera ha visto **negli ultimi novanta
+   secondi**. Oltre, no: «era in casa poco fa» non è «sta parlando adesso».
+3. **Se in stanza ci sono due facce diverse, non indovina.** Torna a non sapere chi sei, e te lo
+   dice. È voluto: sbagliare il nome di chi ti sta parlando è peggio che non dirlo.
+
+In pratica: **insegnargli la faccia adesso basta.** È anche la strada più facile delle due — per
+la faccia basta guardare la camera, per la voce serve parlargli dieci secondi.
+
 ## Chi UGO non guarderà mai
 
 Nel **branco**, su ogni persona, ci sono tre interruttori. Due riguardano questa pagina:
@@ -66,6 +86,10 @@ produrre un dato biometrico e produrlo e poi buttarlo via: la seconda non è una
 Se provi a insegnare a UGO il volto di qualcuno che ha detto «non guardarmi», il pannello ti
 risponde di no — **e l'impronta in sospeso viene distrutta lo stesso**. Conservarla dopo un
 rifiuto sarebbe il peggiore dei due mondi.
+
+> **E vale anche per il riconoscimento di chi parla.** Chi ha detto «non guardarmi» non ha
+> un'impronta del volto, quindi non c'è niente con cui riconoscerlo: la protezione non è un
+> controllo aggiunto dopo, è il fatto che quel dato non esiste.
 
 ## Come si cancella
 
