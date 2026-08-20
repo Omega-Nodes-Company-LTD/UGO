@@ -23,6 +23,17 @@ export interface DiagnosticsDeps {
   chatModel?: string | undefined;
   /** quando ha sognato l'ultima volta; assente = questa installazione non lo sa */
   lastDream?: (() => Promise<Date | null>) | undefined;
+  /**
+   * Quante voci arruolate aspettano che un sogno le trasformi in impronta.
+   *
+   * È lo stato che non aveva un numero da nessuna parte, ed è costato due
+   * giorni. Il chiosco e il pannello lo dicono già a parole — «stanotte
+   * imparo la tua voce» — ma **una frase detta una volta non è uno stato**:
+   * il giorno dopo non sai se il sogno l'ha lavorata, se è ancora lì, o se
+   * non c'è mai arrivata. Con un numero, «fallo sognare» diventa una prova
+   * (1 → 0) invece di un gesto scaramantico.
+   */
+  pendingVoices?: (() => Promise<number>) | undefined;
   turnLog: TurnLog;
   /** quale bundle del muso sta servendo questo soul */
   faceVersion: () => string;

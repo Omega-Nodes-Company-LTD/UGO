@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { createDbClient, createScopedDbClient, events, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
   OllamaTextClient,
@@ -535,6 +535,31 @@ const app = buildServer({
         .orderBy(desc(events.ts))
         .limit(1);
       return row?.ts ?? null;
+    },
+    /**
+     * Quante voci aspettano un sogno per diventare impronte.
+     *
+     * **La stessa domanda che si fa `enroll_step._pending`**, e apposta: se
+     * questo numero e quello che il sogno andrà a lavorare divergessero, il
+     * pannello direbbe una cosa e la notte ne farebbe un'altra — che è
+     * esattamente il genere di bugia che questa pagina esiste per togliere.
+     *
+     * Sulla connessione di processo: «quante ne aspettano» è una domanda
+     * sull'installazione, e il sogno gira casa per casa.
+     */
+    pendingVoices: async () => {
+      const [row] = await db.execute<{ waiting: number }>(sql`
+        select count(*)::int as waiting
+        from perception_events r
+        where r.observed->>'kind' = 'enrollment_requested'
+          and r.being_id is not null
+          and not exists (
+            select 1 from perception_events d
+            where d.observed->>'kind' = 'enrollment'
+              and d.observed->>'request_id' = r.id::text
+          )
+      `);
+      return row?.waiting ?? 0;
     },
     turnLog,
     faceVersion: () => (env.UGO_FACE_DIR === undefined ? "dev" : servedBuildId(resolve(env.UGO_FACE_DIR))),
