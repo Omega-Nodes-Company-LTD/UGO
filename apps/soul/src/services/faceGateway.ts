@@ -13,6 +13,7 @@ import { and, asc, eq, gte, isNull } from "drizzle-orm";
 import type { ChatService } from "./chatService.js";
 import type { PsycheService } from "./psycheService.js";
 import { toneOfBase64 } from "./prosody.js";
+import { RecentFaces } from "./recentFaces.js";
 import { voiceAskOpen, type VoiceSampleResult } from "./voiceEnrolment.js";
 
 export interface FaceGatewayDeps {
@@ -86,6 +87,14 @@ const ASK_WHO = "Chiedi chi è quella persona che hai visto e non conosci.";
  */
 export class FaceGateway {
   private state: FaceState = "idle";
+  /**
+   * ADR-110: chi la camera ha visto poco fa, per riempire il buco quando la
+   * voce non basta. Per gateway, cioè per esemplare: due creature nella
+   * stessa stanza guardano lo stesso volto ma sono due corpi, e mescolare le
+   * loro finestre vorrebbe dire far rispondere l'uno con quel che ha visto
+   * l'altro.
+   */
+  private readonly faces = new RecentFaces();
   /** which shell the body is in; a change is an event, not a setting */
   private mode: "home" | "portable" = "home";
   private readonly senders = new Set<FaceSender>();
@@ -292,10 +301,18 @@ export class FaceGateway {
    */
   private async aboutThisFace(image: string, at: Date): Promise<void> {
     const recognition = this.deps.recognition;
-    if (recognition?.rememberUnknownFace === undefined) return;
+    if (recognition === undefined) return;
     try {
       const known = await recognition.byFace?.(image);
-      if (known?.beingId !== undefined) return;
+      if (known?.beingId !== undefined) {
+        // ADR-110: **si tiene**. Prima l'esito finiva qui e veniva buttato —
+        // serviva solo a decidere «questa faccia la conosco, non chiedere chi
+        // è» — quindi si poteva insegnargli un volto, vederlo in «Facce che
+        // conosce», e sentirsi chiedere «chi sei tu?» due minuti dopo.
+        this.faces.saw(known.beingId, at);
+        return;
+      }
+      if (recognition.rememberUnknownFace === undefined) return;
       const kept = await recognition.rememberUnknownFace(image);
       if (kept === undefined || kept.seenCount < ASK_AFTER_SIGHTINGS) return;
 
@@ -335,10 +352,25 @@ export class FaceGateway {
         // sempre e ha sempre ricevuto `undefined`, perché sul percorso dal vivo
         // non arrivava audio e nessuno lo identificava — quindi il prompt
         // diceva a UGO, a ogni turno, di non tirare a indovinare chi fossi.
-        const who =
+        /**
+         * ADR-110: **la voce vince, il volto riempie il buco.**
+         *
+         * La voce resta la strada principale — è l'unica che dice con
+         * certezza chi ha PARLATO — ma quando non c'è (nessun campione
+         * arruolato, clip assente, somiglianza sotto soglia) si guarda chi la
+         * camera ha visto poco fa. `only()` risponde solo se il volto nella
+         * finestra è UNO: con due presenti si torna a non saperlo, perché
+         * sbagliare il nome di chi ti sta parlando è peggio che non dirlo.
+         *
+         * Le protezioni non si ricontrollano qui e non è una svista: chi ha
+         * `no_vision` non ha un'impronta del volto, quindi non può essere
+         * l'esito di `byFace` (regola 9 — a monte, non a valle).
+         */
+        const heardWho =
           message.audio === undefined
             ? undefined
             : (await this.deps.recognition?.byVoice(message.audio))?.beingId;
+        const who = heardWho ?? this.faces.only(at);
         // gruppo 13: il TONO della frase tocca la psiche — prosodia locale,
         // zero modelli. Prima di chat.handle, così l'umore con cui risponde
         // sa già come gli hai parlato. Il neutro non è un evento.

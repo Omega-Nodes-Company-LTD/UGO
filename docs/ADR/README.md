@@ -115,4 +115,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [107](./107-non-lo-so-il-giudice-di-casa.md) | «Non lo so»: a guardare il significato è il modello di casa | Accettata |
 | [108](./108-riferire-non-e-rispondere.md) | Riferire non è rispondere: «X può fare Y» non si giudica | Accettata |
 | [109](./109-le-orecchie-di-casa-sono-la-base.md) | Le orecchie di casa sono la base, non un'opzione | Accettata |
+| [110](./110-il-volto-concorre-a-dire-chi-parla.md) | Il volto concorre a dire chi parla (la voce vince, il volto riempie) | Accettata |
 | 109 | *(prossimo numero disponibile)* | — |
