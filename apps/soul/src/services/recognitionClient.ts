@@ -12,6 +12,7 @@
  */
 
 import { z } from "zod";
+import type { SttOutcome } from "../routes/stt.js";
 
 const recognisedSchema = z.object({
   being_id: z.string().nullable().optional(),
@@ -82,7 +83,20 @@ export class RecognitionClient {
    * enunciato su CPU costa più dell'identità, e chi chiama (la rotta
    * `/v1/stt`) sta comunque fuori dal giro sincrono della conversazione.
    */
-  public async transcribe(audioBase64: string): Promise<string | undefined> {
+  /**
+   * Trascrivi questo clip — e **distingui i due no**, che è tutto il punto.
+   *
+   * Questa funzione collassava ogni esito diverso da 200 in `undefined`, e
+   * `/v1/stt` traduceva `undefined` in un 503 «servizio giù». Ma percezione
+   * risponde **422 «troppo corto»** a un clip sotto gli 0,8 s — cioè a un
+   * «sì» — e quel 422 arrivava al chiosco travestito da 503. Tre monosillabi
+   * di fila e il muso dichiarava whisper morto, tornava su Google, e se lo
+   * ricordava fra le ricariche.
+   *
+   * «Questo clip non si trascrive» e «il servizio non risponde» si riparano in
+   * due modi opposti: il primo si lascia perdere, il secondo cambia strada.
+   */
+  public async transcribe(audioBase64: string): Promise<SttOutcome> {
     try {
       const response = await this.fetchImpl(new URL("/v1/transcribe", this.deps.baseUrl), {
         method: "POST",
@@ -93,11 +107,13 @@ export class RecognitionClient {
         body: JSON.stringify({ audio: audioBase64 }),
         signal: AbortSignal.timeout(15_000),
       });
-      if (!response.ok) return undefined;
+      // 4xx = il clip. 5xx (e il 503 «modello non caricato») = il servizio.
+      if (response.status >= 400 && response.status < 500) return { kind: "unusable" };
+      if (!response.ok) return { kind: "down" };
       const body = (await response.json()) as { text?: string };
-      return typeof body.text === "string" ? body.text : undefined;
+      return typeof body.text === "string" ? { kind: "text", text: body.text } : { kind: "unusable" };
     } catch {
-      return undefined; // giù o lento: il chiosco resta sul riconoscitore che ha
+      return { kind: "down" }; // giù o lento: il chiosco resta sul riconoscitore che ha
     }
   }
 

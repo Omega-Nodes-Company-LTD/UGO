@@ -1,7 +1,7 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.40.0"
+version: "0.41.0"
 last_updated: "2026-08-19"
 author: "ThinkPink Studio"
 ---
@@ -204,6 +204,29 @@ microfono: qualcosa lo sta amplificando (una cuffia con riduzione rumore, un mix
 altro programma che tiene il microfono aperto). Chiudi gli altri programmi che usano il
 microfono e ricarica la pagina.
 
+## La mia voce arriva senza punteggiatura
+
+Vuol dire che stai usando **il riconoscitore del browser** e non la dettatura di casa. Si vede dal
+testo: maiuscole in mezzo alla frase e zero punti sono la sua firma; whisper punteggia e mette le
+maiuscole al posto giusto.
+
+Da UGO 0.42 la dettatura di casa è la **base**, non un'opzione: se ti ritrovi sul browser è perché
+su questo dispositivo la strada di casa è stata provata e non c'era — e il dispositivo se l'è
+ricordato per non farti perdere un enunciato a ogni ricarica.
+
+Due cose da controllare, in ordine:
+
+1. `/admin` → **La diagnostica** → la riga **Volto, voce, dettatura**. Adesso dice i suoi mestieri
+   uno per uno: se leggi `dettatura ✗`, whisper non è caricato sul server ed è quello il guasto.
+   Lo stato **a metà servizio** vuol dire esattamente questo — il container risponde, ma uno dei
+   lavori che fa dentro non è partito.
+2. Quando l'hai sistemato, sul chiosco apri l'indirizzo con **`?stt=locale`** una volta sola: forza
+   la strada di casa **e cancella il ricordo**, che è come si riprova dopo una riparazione. Dalla
+   volta dopo riparte da sola.
+
+Vale la pena saperlo: il riconoscitore del browser è quello di Google, quindi finché sei lì **ciò
+che dici esce di casa**. La punteggiatura è il segnale; la privacy è la ragione.
+
 ## Ci mette un minuto a rispondere
 
 Non tirare a indovinare: apri `/admin` → **La diagnostica**. La pagina risponde alla domanda
@@ -229,8 +252,9 @@ Prima di cambiare qualsiasi cosa, guarda **quante frasi ha sentito** in `/admin`
 diagnostica*. Ci sono due numeri, e dicono due guasti diversi:
 
 - **sentite** è basso (parli venti volte, ne conta tre) → le frasi **non arrivano**. Il problema è
-  sul dispositivo: microfono, riconoscimento vocale del telefono, o rete. Vai a
-  [UGO non risponde quando parlo](#ugo-non-risponde-quando-parlo).
+  sul dispositivo: microfono, dettatura, o rete. Vai a
+  [UGO non risponde quando parlo](#ugo-non-risponde-quando-parlo). Se sei sulla dettatura di casa,
+  guarda prima la riga **Volto, voce, dettatura** nella diagnostica: `dettatura ✗` spiega tutto.
 - **sentite** è giusto ma **risposte** è molto più basso → le frasi arrivano e muoiono in casa.
   Guarda **rifiutate** (il contratto le ha respinte: quasi sempre un allegato audio oltre il
   limite) e **fallite** (morte in un errore), e poi la riga rossa fra i container.
