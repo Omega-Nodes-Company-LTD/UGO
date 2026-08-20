@@ -29,6 +29,15 @@ export interface ProbeReading {
    * esiste per non inventare numeri.
    */
   state?: ProbeState;
+  /**
+   * Cosa fare, deciso dalla sonda invece che dal catalogo.
+   *
+   * Serve quando il consiglio dipende da COSA ha risposto e non dal fatto che
+   * abbia risposto: «la dettatura non è caricata» e «Piper non è caricato» si
+   * riparano in due posti diversi, e un consiglio scritto una volta per tutte
+   * nel catalogo non può dirlo.
+   */
+  hint?: string;
 }
 
 /** Cronometra qualunque promessa, e considera il rifiuto una misura. */

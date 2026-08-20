@@ -89,7 +89,11 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
       ms: configured && measured ? reading.ms : null,
       ...(detail !== undefined && { detail }),
       ...(spec.why !== undefined && state === "off" && { why: spec.why }),
-      ...(state !== "ok" && state !== "off" && { hint: spec.hint }),
+      // il consiglio della sonda vince su quello del catalogo: sa COSA ha
+      // risposto, e certi guasti si riparano in posti diversi
+      ...(reading.hint !== undefined
+        ? { hint: reading.hint }
+        : state !== "ok" && state !== "off" && { hint: spec.hint }),
     };
   });
 

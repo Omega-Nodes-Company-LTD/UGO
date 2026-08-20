@@ -59,6 +59,23 @@ describe("il verdetto della casa", () => {
     expect(verdict([{ state: "slow", weight: "vital" }])).toBe("degraded");
   });
 
+  /**
+   * «A metà servizio» è arrivato dal campo: `percezione` risponde e la
+   * dettatura dentro è morta. Deve degradare come tutto il resto — e NON
+   * deve dichiarare la casa irraggiungibile quando capita a un vitale, che
+   * comunque sta rispondendo.
+   */
+  it("il mezzo servizio degrada, come il lento", () => {
+    expect(verdict([
+      { state: "ok", weight: "vital" },
+      { state: "partial", weight: "supporting" },
+    ])).toBe("degraded");
+  });
+
+  it("un vitale a metà servizio risponde ancora: degradato, non irraggiungibile", () => {
+    expect(verdict([{ state: "partial", weight: "vital" }])).toBe("degraded");
+  });
+
   it("una funzione spenta non tinge di rosso niente", () => {
     expect(verdict([
       { state: "ok", weight: "vital" },
