@@ -10,13 +10,16 @@
  * vederla in «Facce che conosce», e sentirsi chiedere «chi sei tu?» due
  * minuti dopo — che è esattamente cosa è successo.
  *
- * La regola che questo file esiste per applicare: **il volto riempie un
- * buco, non tira a indovinare.** Se nella finestra si sono visti DUE volti
- * diversi, la risposta è «non lo so» — in una stanza con due persone
- * attribuire ogni frase all'ultima faccia inquadrata non è riconoscere:
- * è affermare a caso, e sbagliare il nome di chi ti sta parlando è peggio
- * che non dirlo. Vale anche il caso in cui la faccia vista non sia quella
- * di chi parla: due presenti, nessun nome.
+ * La regola che questo file esiste per applicare, **corretta dal proprietario
+ * poche ore dopo la prima stesura**: il volto dice **chi c'è**, la voce dice
+ * **chi parla**. Non sono la stessa domanda, e usare il primo per rispondere
+ * alla seconda produce il difetto peggiore che questo sistema possa avere —
+ * una frase attribuita a chi non l'ha detta, scritta in biografia col suo
+ * nome sopra, e ricordata per sempre.
+ *
+ * Non basta la guardia «se ne vedo due non rispondo»: anche con UN volto solo
+ * in stanza non segue che sia lui a parlare. Basta qualcuno fuori
+ * inquadratura.
  *
  * Non c'è un modo di svuotare la finestra a comando, e non serve: **si svuota
  * da sola** in {@link FACE_MEMORY_MS}. Anche dopo un oblio (`ForgetService`)
@@ -59,17 +62,24 @@ export class RecentFaces {
   }
 
   /**
-   * L'unico visto nella finestra, o `undefined`.
+   * Chi c'è adesso, tutti quanti — **e non chi sta parlando**.
    *
-   * `undefined` sia quando non c'è nessuno sia quando ce n'è più d'uno, e i
-   * due casi si somigliano apposta: da fuori sono la stessa cosa — non
-   * sappiamo chi sta parlando — e chi legge questa risposta deve comportarsi
-   * allo stesso modo in entrambi.
+   * Correzione del proprietario, poche ore dopo ADR-110: «il volto deve dire
+   * chi è PRESENTE, ma è la voce che dice chi sta PARLANDO. Altrimenti se io
+   * sono presente e qualcuno mi chiama, attribuisce a me la chiamata».
+   *
+   * Ha ragione, e il difetto era più profondo della guardia sui due volti: da
+   * un solo volto in stanza NON segue che sia lui a parlare. Basta uno fuori
+   * inquadratura, o una voce da un'altra stanza, e la creatura mette in bocca
+   * a te una frase che non hai detto — e poi se la ricorda, perché quella
+   * frase finisce in biografia col tuo nome sopra.
+   *
+   * Presenza e parola sono due domande diverse, e questa funzione risponde
+   * solo alla prima.
    */
-  public only(at: Date): string | undefined {
+  public all(at: Date): string[] {
     this.prune(at);
-    const names = new Set(this.seen.map((s) => s.beingId));
-    return names.size === 1 ? this.seen[0]?.beingId : undefined;
+    return [...new Set(this.seen.map((s) => s.beingId))];
   }
 
   /**

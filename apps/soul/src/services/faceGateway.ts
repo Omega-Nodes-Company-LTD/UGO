@@ -366,11 +366,15 @@ export class FaceGateway {
          * `no_vision` non ha un'impronta del volto, quindi non può essere
          * l'esito di `byFace` (regola 9 — a monte, non a valle).
          */
-        const heardWho =
+        // **Solo la voce dice chi ha parlato.** Il volto dice chi c'è, e va
+        // in un'altra casella (`presentBeingIds`): attribuire la frase a chi
+        // si vede è come sbagliare, ma con la sicurezza di chi crede di
+        // sapere — e la frase sbagliata resta scritta in biografia.
+        const who =
           message.audio === undefined
             ? undefined
             : (await this.deps.recognition?.byVoice(message.audio))?.beingId;
-        const who = heardWho ?? this.faces.only(at);
+        const present = this.faces.all(at);
         // gruppo 13: il TONO della frase tocca la psiche — prosodia locale,
         // zero modelli. Prima di chat.handle, così l'umore con cui risponde
         // sa già come gli hai parlato. Il neutro non è un evento.
@@ -385,7 +389,12 @@ export class FaceGateway {
           }
         }
         const response = await this.deps.chat.handle(
-          { channel: "home", text: message.text, ...(who !== undefined && { beingId: who }) },
+          {
+            channel: "home",
+            text: message.text,
+            ...(who !== undefined && { beingId: who }),
+            ...(present.length > 0 && { presentBeingIds: present }),
+          },
           at,
         );
         this.setState("talking", send);

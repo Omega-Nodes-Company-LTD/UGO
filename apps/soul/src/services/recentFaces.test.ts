@@ -3,56 +3,59 @@ import { FACE_MEMORY_MS, RecentFaces } from "./recentFaces.js";
 
 const at = (ms: number): Date => new Date(1_700_000_000_000 + ms);
 
+/**
+ * Chi c'è — **non chi parla**.
+ *
+ * La prima stesura rispondeva alla domanda sbagliata: dava un `beingId` da
+ * usare come autore della frase quando la voce non bastava, con la guardia
+ * «se ne vedo due non rispondo». Il proprietario ha corretto poche ore dopo,
+ * e la correzione è più profonda della guardia: **anche con un volto solo in
+ * stanza non segue che sia lui a parlare.** Basta qualcuno fuori
+ * inquadratura, e la creatura mette in bocca a te una frase che non hai
+ * detto — e la scrive in biografia col tuo nome sopra.
+ */
 describe("chi ho visto poco fa", () => {
-  it("un volto solo nella finestra risponde a «chi sta parlando»", () => {
-    const faces = new RecentFaces();
-    faces.saw("francesco", at(0));
-    expect(faces.only(at(1_000))).toBe("francesco");
-  });
-
-  /**
-   * La regola per cui questo file esiste: sbagliare il nome di chi ti sta
-   * parlando è peggio che non dirlo. Due presenti, nessun nome.
-   */
-  it("due volti diversi nella finestra non fanno una risposta", () => {
+  it("dice chi c'è, e con più d'uno li dice tutti", () => {
     const faces = new RecentFaces();
     faces.saw("francesco", at(0));
     faces.saw("monika", at(1_000));
-    expect(faces.only(at(2_000))).toBeUndefined();
+    expect(faces.all(at(2_000)).sort()).toEqual(["francesco", "monika"]);
   });
 
-  it("ma se il secondo è uscito dalla finestra, il primo torna a valere", () => {
+  it("un volto solo è un presente solo — e resta una presenza, non un autore", () => {
+    const faces = new RecentFaces();
+    faces.saw("francesco", at(0));
+    expect(faces.all(at(1_000))).toEqual(["francesco"]);
+  });
+
+  it("oltre la finestra un volto non è più nessuno", () => {
+    const faces = new RecentFaces();
+    faces.saw("francesco", at(0));
+    expect(faces.all(at(FACE_MEMORY_MS + 1))).toEqual([]);
+  });
+
+  it("sul bordo esatto c'è ancora: la scadenza è oltre, non a", () => {
+    const faces = new RecentFaces();
+    faces.saw("francesco", at(0));
+    expect(faces.all(at(FACE_MEMORY_MS))).toEqual(["francesco"]);
+  });
+
+  it("chi esce dalla finestra sparisce, chi resta rimane", () => {
     const faces = new RecentFaces();
     faces.saw("monika", at(0));
     faces.saw("francesco", at(FACE_MEMORY_MS));
-    // qui monika è appena scaduta: resta solo francesco
-    expect(faces.only(at(FACE_MEMORY_MS + 1))).toBe("francesco");
-  });
-
-  it("oltre la finestra un volto non è più una risposta", () => {
-    const faces = new RecentFaces();
-    faces.saw("francesco", at(0));
-    expect(faces.only(at(FACE_MEMORY_MS + 1))).toBeUndefined();
-  });
-
-  it("sul bordo esatto vale ancora: la scadenza è oltre, non a", () => {
-    const faces = new RecentFaces();
-    faces.saw("francesco", at(0));
-    expect(faces.only(at(FACE_MEMORY_MS))).toBe("francesco");
+    expect(faces.all(at(FACE_MEMORY_MS + 1))).toEqual(["francesco"]);
   });
 
   it("rivedere lo stesso volto rinfresca invece di duplicarlo", () => {
     const faces = new RecentFaces();
     faces.saw("francesco", at(0));
     faces.saw("francesco", at(FACE_MEMORY_MS - 1));
-    // se il primo avvistamento contasse ancora come riga a sé, la finestra
-    // conterebbe due volte lo stesso e il conto dei distinti reggerebbe
-    // comunque — ma la scadenza no: qui deve valere il più recente
-    expect(faces.only(at(FACE_MEMORY_MS + 10))).toBe("francesco");
+    expect(faces.all(at(FACE_MEMORY_MS + 10))).toEqual(["francesco"]);
   });
 
   it("senza nessuno visto non si inventa niente", () => {
-    expect(new RecentFaces().only(at(0))).toBeUndefined();
+    expect(new RecentFaces().all(at(0))).toEqual([]);
   });
 
   /** La garanzia è la finestra, non un metodo che qualcuno deve ricordarsi di chiamare. */
@@ -60,6 +63,6 @@ describe("chi ho visto poco fa", () => {
     const faces = new RecentFaces();
     faces.saw("francesco", at(0));
     faces.saw("monika", at(10));
-    expect(faces.only(at(FACE_MEMORY_MS + 11))).toBeUndefined();
+    expect(faces.all(at(FACE_MEMORY_MS + 11))).toEqual([]);
   });
 });

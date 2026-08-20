@@ -373,6 +373,8 @@ export class ChatService {
   private async packBlock(
     beingId: string | undefined,
     channel: ChatRequest["channel"],
+    /** ADR-110: chi il corpo VEDE. Chi parla è `beingId`, e sono due cose diverse. */
+    seen: readonly string[] | undefined,
   ): Promise<string | undefined> {
     const { pack } = this.deps;
     if (pack === undefined) {
@@ -383,7 +385,9 @@ export class ChatService {
       if (me === undefined) return undefined;
       return selfLine({ ...me, traitVersion: null });
     }
-    const present = await pack.present(beingId === undefined ? [] : [beingId]);
+    // chi parla è presente per definizione; chi si vede è presente e basta
+    const here = [...new Set([...(seen ?? []), ...(beingId === undefined ? [] : [beingId])])];
+    const present = await pack.present(here);
     const ids = present.map((being) => being.id);
     return buildPackPrompt({
       self: await pack.self(),
@@ -392,7 +396,10 @@ export class ChatService {
       speciesRules: pack.speciesRules(present),
       corrections: await pack.recentCorrections(ids),
       // only at home does an unnamed speaker mean "somebody is here and I do
-      // not know who": on the API channel it just means nobody said
+      // not know who": on the API channel it just means nobody said.
+      // ADR-110: resta vero anche vedendo qualcuno — se il volto dice che c'è
+      // Francesco ma la voce non l'ha riconosciuto, chi ha parlato NON si sa,
+      // e la regola «non tirare a indovinare» è esattamente quella che serve
       unidentifiedPresent: beingId === undefined && channel === "home",
     });
   }
@@ -917,7 +924,10 @@ export class ChatService {
           diaryRows[0],
           retrieved,
           recordings,
-          await this.packBlock(request.beingId, request.channel),
+          // ADR-110 (corretto): chi parla E chi c'è. Il secondo arriva dal
+          // volto e resta nel «Chi c'è adesso» del prompt, che è la domanda a
+          // cui il volto sa rispondere
+          await this.packBlock(request.beingId, request.channel, request.presentBeingIds),
           this.deps.character,
           verdict.answerable,
           verdict.reporting,

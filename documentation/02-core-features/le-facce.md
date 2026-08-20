@@ -1,7 +1,7 @@
 ---
 title: "Le facce"
 description: "UGO ricorda i volti. Come te lo chiede, cosa conserva di chi non conosce, per quanto, e come si cancella."
-version: "0.14.0"
+version: "0.15.0"
 last_updated: "2026-08-20"
 author: "ThinkPink Studio"
 ---
@@ -54,18 +54,22 @@ farsi chiedere «chi sei?» una seconda volta — e chi ti riconosceva in conver
 **soltanto la voce**: potevi insegnargli la tua faccia, vederla qui fra quelle che conosce, e
 sentirti chiedere chi eri due minuti dopo.
 
-Adesso funziona così, e sono tre regole semplici:
+Le due cose che sa fare sono diverse, e conviene tenerle distinte:
 
-1. **La voce viene prima.** È l'unica che dice con certezza chi ha *parlato*. Se ti ha
-   riconosciuto dalla voce, il volto non serve.
-2. **Il volto riempie il buco.** Se la voce non basta — non gli hai ancora insegnato la tua, o il
-   microfono non ha mandato il campione — usa chi la camera ha visto **negli ultimi novanta
-   secondi**. Oltre, no: «era in casa poco fa» non è «sta parlando adesso».
-3. **Se in stanza ci sono due facce diverse, non indovina.** Torna a non sapere chi sei, e te lo
-   dice. È voluto: sbagliare il nome di chi ti sta parlando è peggio che non dirlo.
+| | risponde a | come |
+| --- | --- | --- |
+| **il volto** | *chi c'è in stanza* | chi la camera ha visto negli ultimi 90 secondi |
+| **la voce** | *chi sta parlando* | l'impronta vocale, e solo quella |
 
-In pratica: **insegnargli la faccia adesso basta.** È anche la strada più facile delle due — per
-la faccia basta guardare la camera, per la voce serve parlargli dieci secondi.
+**Chi ha parlato lo dice soltanto la voce**, e non è pignoleria. Se tu sei in stanza e qualcuno
+ti chiama dal corridoio, la camera vede te: dedurre che la frase sia tua vorrebbe dire scriverla
+in biografia **col tuo nome sopra**, e ricordarsela per sempre come una cosa che hai detto tu.
+Fra tutti i modi in cui UGO può sbagliare, quello è il peggiore — e per questo non lo fa.
+
+Il volto serve comunque, e serve molto: sapendo che ci sei, UGO parla di te come di uno presente
+invece che di un assente, tiene conto del vostro rapporto, e non ti chiede chi sei ogni volta.
+Ma se la voce non ti riconosce, **non ti dà del tu per nome**: dice che c'è qualcuno e che non sa
+chi ha parlato, che è la verità.
 
 ## Chi UGO non guarderà mai
 
