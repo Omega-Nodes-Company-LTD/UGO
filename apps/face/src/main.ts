@@ -700,6 +700,20 @@ function startLocalEars(): void {
         localeFailed("la dettatura in casa non è configurata sul server");
         return;
       }
+      /**
+       * Un rifiuto DI QUESTO CLIP non è un servizio giù.
+       *
+       * Dal campo: un «sì» detto al chiosco dura meno di 0,8 s, e percezione
+       * risponde 422 «troppo corto». Qualunque codice non-ok contava fra i
+       * fallimenti, quindi TRE monosillabi di fila dichiaravano whisper
+       * morto e riportavano le orecchie su Google — scelta poi RICORDATA fra
+       * le ricariche (`earsChoice`), quindi la strada di casa non tornava
+       * più da sola. Solo il 5xx e la rete assente dicono «sono giù».
+       */
+      if (response.status >= 400 && response.status < 500) {
+        // il clip non si trascrive: si lascia perdere questo, non la strada
+        return;
+      }
       if (!response.ok) throw new Error(String(response.status));
       failures = 0;
       const body = (await response.json()) as { text?: string };

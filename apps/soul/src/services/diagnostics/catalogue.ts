@@ -87,7 +87,7 @@ export function catalogue(deps: DiagnosticsDeps): Spec[] {
         ? {
             why: "manca UGO_RECOGNITION_URL: non sa chi ha davanti, e le orecchie restano quelle del browser.",
           }
-        : { probe: () => httpProbe(perceptionUrl, "/health") }),
+        : { probe: () => perceptionProbe(perceptionUrl) }),
       hint:
         "Al primo avvio si scarica i pesi (ADR-047) e ci mette: è per progetto. Se resta lenta a regime, " +
         "ogni frase detta paga il suo ritardo prima ancora di arrivare al modello.",
@@ -178,6 +178,53 @@ export function catalogue(deps: DiagnosticsDeps): Spec[] {
         "è il tempo che passa fuori casa.",
     },
   ];
+}
+
+/**
+ * I QUATTRO mestieri di percezione, uno per uno.
+ *
+ * Il suo `/health` li dichiara già — `voice`, `face`, `stt`, `tts`, `ocr` — e
+ * la sua docstring dice testualmente «cosa sa fare davvero, invece di un 200
+ * che non dice niente». Questa sonda leggeva il 200 e buttava il resto:
+ * riga verde, dieci millisecondi, e whisper morto dentro. Dal campo, ed è
+ * costato un pomeriggio: «⚠ whisper non risponde» mentre il pannello diceva
+ * che la dettatura era accesa, in due punti diversi e tutti e due verdi.
+ *
+ * Un mestiere caricato è ✓, uno no è ✗, e basta un ✗ perché la riga smetta di
+ * dire «risponde». Non si distingue fra «non lo voglio» e «non è partito»
+ * perché il container non lo sa: chi non vuole la dettatura svuota
+ * `UGO_STT_MODEL`, e il risultato — qui dentro — è lo stesso di un
+ * caricamento fallito. Il consiglio lo dice.
+ */
+async function perceptionProbe(baseUrl: string): Promise<ProbeReading> {
+  const reading = await httpProbe(baseUrl, "/health", { read: (body) => facultyLine(body) });
+  if (!reading.reached || reading.detail === undefined) return reading;
+  return reading.detail.includes("\u2717")
+    ? {
+        ...reading,
+        state: "partial" as const,
+        hint:
+          "Il container è vivo ma un mestiere non è caricato. Se non l'hai spento tu " +
+          "(UGO_STT_MODEL vuota, o niente tesseract), il caricamento è fallito all'avvio: " +
+          "`docker compose logs percezione`. I pesi si scaricano al primo avvio (ADR-047).",
+      }
+    : reading;
+}
+
+/** `voce ✓ · volto ✓ · dettatura ✗ · Piper ✓ · OCR ✓` */
+export function facultyLine(body: unknown): string | undefined {
+  const health = body as Record<string, unknown> | null;
+  if (health === null || typeof health !== "object") return undefined;
+  const jobs: [string, string][] = [
+    ["voce", "voice"],
+    ["volto", "face"],
+    ["dettatura", "stt"],
+    ["Piper", "tts"],
+    ["OCR", "ocr"],
+  ];
+  return jobs
+    .map(([label, key]) => `${label} ${health[key] === true ? "\u2713" : "\u2717"}`)
+    .join(" \u00b7 ");
 }
 
 /** L'ultimo sogno, letto come una sonda: vecchio = giallo, mai = rosso. */

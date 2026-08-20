@@ -13,8 +13,18 @@
  * prodotto: cambiarla non deve voler dire rileggere il codice di rete.
  */
 
-/** Gli stati in cui una sonda può finire. Quattro, non due. */
-export const PROBE_STATES = ["ok", "slow", "down", "off"] as const;
+/**
+ * Gli stati in cui una sonda può finire. Cinque, non due.
+ *
+ * `partial` è arrivato dal campo, e da un caso preciso: `percezione` fa
+ * QUATTRO mestieri in un container solo (voce, volto, dettatura, Piper), il
+ * suo `/health` dice quali sono vivi — la sua docstring dice testualmente
+ * «cosa sa fare davvero, invece di un 200 che non dice niente» — e questa
+ * pagina lo riduceva a un 200. Risultato: riga verde, dieci millisecondi, e
+ * la dettatura morta dentro. Una riga che dice «risponde» mentre un mestiere
+ * su quattro è a terra è la stessa bugia che questa pagina esiste per togliere.
+ */
+export const PROBE_STATES = ["ok", "partial", "slow", "down", "off"] as const;
 export type ProbeState = (typeof PROBE_STATES)[number];
 
 /**
@@ -91,8 +101,11 @@ export type Verdict = "ok" | "degraded" | "unavailable";
  * acceso una cosa si aspetta che funzioni.
  */
 export function verdictOf(states: readonly WeighedState[]): Verdict {
-  if (states.some((s) => s.weight === "vital" && s.state !== "ok" && s.state !== "slow")) {
-    return "unavailable";
-  }
-  return states.some((s) => s.state === "down" || s.state === "slow") ? "degraded" : "ok";
+  // «unavailable» è solo per il vitale che NON risponde: uno che risponde —
+  // anche male, anche a metà — lascia il prodotto in piedi, e dirlo spento
+  // manderebbe a cercare il guasto sbagliato
+  const answering = (state: ProbeState): boolean =>
+    state === "ok" || state === "slow" || state === "partial";
+  if (states.some((s) => s.weight === "vital" && !answering(s.state))) return "unavailable";
+  return states.some((s) => s.state !== "ok" && s.state !== "off") ? "degraded" : "ok";
 }

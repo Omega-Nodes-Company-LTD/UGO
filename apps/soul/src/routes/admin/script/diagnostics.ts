@@ -13,9 +13,10 @@
  */
 export const DIAGNOSTICS_JS = `
 // --- diagnostica -----------------------------------------------------------
-const DIAG_WORD = { ok: "risponde", slow: "lento", down: "non risponde", off: "spento" };
-const DIAG_MARK = { ok: "\\u25cf", slow: "\\u25b2", down: "\\u25a0", off: "\\u25cb" };
-const DIAG_PILL = { ok: "good", slow: "warning", down: "critical", off: "good" };
+const DIAG_WORD = { ok: "risponde", partial: "a met\\u00e0 servizio", slow: "lento",
+  down: "non risponde", off: "spento" };
+const DIAG_MARK = { ok: "\\u25cf", partial: "\\u25d0", slow: "\\u25b2", down: "\\u25a0", off: "\\u25cb" };
+const DIAG_PILL = { ok: "good", partial: "warning", slow: "warning", down: "critical", off: "good" };
 const VERDICT_WORD = {
   ok: "Tutto risponde.",
   degraded: "Qualcosa arranca: le righe gialle e rosse qui sotto dicono chi.",

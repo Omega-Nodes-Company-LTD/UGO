@@ -24,8 +24,19 @@ function memoryOf(initial?: string): EarsMemory & { stored: Map<string, string> 
 }
 
 describe("la prima scelta", () => {
-  it("di default parte dal riconoscitore del browser", () => {
-    expect(new EarsChoice(null, memoryOf()).first()).toBe("browser");
+  /**
+   * ADR-109: il verso è cambiato, ed è il punto di tutta la decisione.
+   *
+   * La base è la dettatura di casa; il browser è il ripiego. Prima era il
+   * contrario, e il contrario voleva dire che per default ciò che dici in
+   * casa tua veniva mandato a Google — a ogni avvio di ogni dispositivo.
+   */
+  it("di default parte dalla dettatura in casa: la voce non esce", () => {
+    expect(new EarsChoice(null, memoryOf()).first()).toBe("locale");
+  });
+
+  it("un dispositivo che ha già scoperto che qui whisper non c'è riparte dal browser", () => {
+    expect(new EarsChoice(null, memoryOf("browser")).first()).toBe("browser");
   });
 
   it("?stt=locale forza la dettatura in casa, come sempre", () => {
@@ -34,6 +45,12 @@ describe("la prima scelta", () => {
 
   it("un dispositivo che si ricorda del browser rotto parte dalla dettatura in casa: zero bip", () => {
     expect(new EarsChoice(null, memoryOf("locale")).first()).toBe("locale");
+  });
+
+  it("?stt=locale dimentica pure: è come si riprova casa dopo che è stata dichiarata morta", () => {
+    const memory = memoryOf("browser");
+    expect(new EarsChoice("locale", memory).first()).toBe("locale");
+    expect(memory.stored.has(EARS_MEMORY_KEY)).toBe(false);
   });
 
   it("?stt=browser forza il browser E dimentica: è la via d'uscita se il ricordo è stantio", () => {
@@ -72,6 +89,20 @@ describe("quando la dettatura in casa non risponde", () => {
     expect(new EarsChoice("locale", memoryOf()).localeFailed()).toBe("browser");
   });
 
+  /**
+   * Il costo dichiarato di ADR-109: in una casa senza whisper il primo
+   * enunciato si perde. UNA volta per dispositivo, non a ogni ricarica —
+   * senza questo ricordo il nuovo default farebbe pagare quel prezzo per
+   * sempre, ed è la ragione per cui la memoria adesso tiene la strada
+   * invece di un sì/no.
+   */
+  it("il ripiego sul browser si ricorda: il prezzo si paga una volta sola", () => {
+    const memory = memoryOf();
+    expect(new EarsChoice(null, memory).localeFailed()).toBe("browser");
+    expect(memory.stored.get(EARS_MEMORY_KEY)).toBe("browser");
+    expect(new EarsChoice(null, memory).first()).toBe("browser");
+  });
+
   it("se il browser si è già arreso in questa sessione, ci si spegne invece di rimbalzare", () => {
     const choice = new EarsChoice(null, memoryOf());
     expect(choice.browserGaveUp(true)).toBe("locale");
@@ -88,7 +119,7 @@ describe("quando la dettatura in casa non risponde", () => {
 describe("una memoria che non c'è o esplode", () => {
   it("senza memoria funziona tutto, solo senza ricordo fra le ricariche", () => {
     const choice = new EarsChoice(null, undefined);
-    expect(choice.first()).toBe("browser");
+    expect(choice.first()).toBe("locale");
     expect(choice.browserGaveUp(true)).toBe("locale");
   });
 
@@ -105,7 +136,8 @@ describe("una memoria che non c'è o esplode", () => {
       },
     };
     const choice = new EarsChoice(null, broken);
-    expect(choice.first()).toBe("browser");
-    expect(choice.browserGaveUp(true)).toBe("locale");
+    // niente ricordo leggibile = si riparte dal default, che da ADR-109 è casa
+    expect(choice.first()).toBe("locale");
+    expect(choice.localeFailed()).toBe("browser");
   });
 });

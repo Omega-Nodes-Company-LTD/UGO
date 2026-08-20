@@ -39,7 +39,10 @@ export const DIAGNOSTICS_PAGE = `
     <p class="lede">Uno per riga. <b>Spento</b> non &egrave; un guasto: &egrave; una funzione che
        nessuno ha configurato, e accanto c'&egrave; il nome della variabile che la accende.
        <b>Lento</b> s&igrave;: &egrave; un pezzo che risponde e ti fa aspettare, ed &egrave;
-       quasi sempre l&igrave; che si nasconde il minuto.</p>
+       quasi sempre l&igrave; che si nasconde il minuto. <b>A met&agrave; servizio</b> &egrave;
+       il caso pi&ugrave; insidioso: il container risponde, ma uno dei mestieri che fa dentro
+       non &egrave; caricato &mdash; &egrave; cos&igrave; che una riga verde pu&ograve; convivere
+       con una dettatura morta.</p>
     <div id="diag-services" data-testid="diag-services"></div>
   </div>
 

@@ -5,6 +5,7 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { issueToken } from "../../src/services/tenantAuth.js";
 import { buildServer } from "../../src/server.js";
+import type { SttOutcome } from "../../src/routes/stt.js";
 import { createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 /**
@@ -20,7 +21,7 @@ let app: FastifyInstance;
 let muteApp: FastifyInstance;
 let house: TestHouse;
 let token = "";
-let answer: string | undefined = "ciao ugo come stai";
+let answer: SttOutcome = { kind: "text", text: "ciao ugo come stai" };
 const heard: string[] = [];
 
 beforeAll(async () => {
@@ -79,7 +80,7 @@ describe("POST /v1/stt", () => {
   });
 
   it("whisper giù = 503: esiste ma non risponde, che non è un 501", async () => {
-    answer = undefined;
+    answer = { kind: "down" };
     const response = await app.inject({
       method: "POST",
       url: "/v1/stt",
@@ -87,7 +88,28 @@ describe("POST /v1/stt", () => {
       payload: { audio: AUDIO },
     });
     expect(response.statusCode).toBe(503);
-    answer = "ciao ugo come stai";
+    answer = { kind: "text", text: "ciao ugo come stai" };
+  });
+
+  /**
+   * Il difetto costato la dettatura locale a un'installazione intera.
+   *
+   * Percezione risponde 422 «troppo corto» a un clip sotto gli 0,8 s — cioè a
+   * un «sì» — e soul lo traduceva in 503 «servizio giù». Tre monosillabi di
+   * fila e il muso dichiarava whisper morto, tornava al riconoscitore del
+   * browser (quindi la voce ricominciava a uscire di casa) e se lo ricordava
+   * fra le ricariche. I due «no» non sono lo stesso no.
+   */
+  it("un clip che non si trascrive è 422, non 503: si perde il clip, non la strada", async () => {
+    answer = { kind: "unusable" };
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/stt",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { audio: AUDIO },
+    });
+    expect(response.statusCode).toBe(422);
+    answer = { kind: "text", text: "ciao ugo come stai" };
   });
 
   it("senza dettatura configurata risponde 501: il muso resta sul browser", async () => {
