@@ -1,4 +1,5 @@
 import { createContext, Script } from "node:vm";
+import { VOICE_SAMPLE_BITRATE } from "@ugo/shared";
 import { describe, expect, it } from "vitest";
 import { ADMIN_SCRIPT } from "./script.js";
 import { ADMIN_PAGE } from "./page.js";
@@ -95,6 +96,23 @@ describe("the assembled panel script", () => {
     expect(scoped("/health")).toBe("/health");
     context.ACCOUNT = "";
     expect(scoped("/v1/rooms")).toBe("/v1/rooms");
+  });
+
+  /**
+   * Due lati registrano la stessa cosa — il pannello qui e il muso in
+   * `voiceInvite.ts` — e un tetto solo li giudica entrambi. Finché nessuno dei
+   * due dichiarava il ritmo, il tetto era una scommessa sul browser di turno:
+   * Chrome sceglieva alto, dieci secondi sforavano, e l'arruolamento della
+   * voce si rifiutava DA SOLO dopo aver fatto parlare la persona.
+   *
+   * Il pannello non può importare la costante (è una stringa servita, senza
+   * build), quindi la copia. Questo test è ciò che impedisce alla copia di
+   * andare per conto suo.
+   */
+  it("registra la voce allo stesso ritmo del muso: il tetto vale per entrambi", () => {
+    const declared = /const RECORD_BITRATE = ([\d_]+);/.exec(ADMIN_SCRIPT)?.[1];
+    expect(declared, "RECORD_BITRATE è sparito dal pannello").toBeDefined();
+    expect(Number((declared ?? "").replaceAll("_", ""))).toBe(VOICE_SAMPLE_BITRATE);
   });
 
   it("probes the token on a route that does not demand a house", () => {
