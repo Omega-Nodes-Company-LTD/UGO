@@ -14,6 +14,18 @@ export const chatRequestSchema = z.object({
    * parte. Il tetto tiene un JPEG a 640px con margine.
    */
   imageBase64: z.string().max(200_000).optional(),
+  /**
+   * ADR-110 (corretto): chi il corpo **vede** adesso, non chi sta parlando.
+   *
+   * Il volto risponde a «chi c'è», la voce a «chi parla»: sono due domande
+   * diverse, e `beingId` resta riservato alla seconda. Con un solo volto in
+   * stanza non segue che sia lui ad aver parlato — basta qualcuno fuori
+   * inquadratura — e una frase attribuita a chi non l'ha detta finisce in
+   * biografia col suo nome sopra, per sempre.
+   *
+   * Il tetto è una stanza, non una folla.
+   */
+  presentBeingIds: z.array(z.uuid()).max(8).optional(),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 

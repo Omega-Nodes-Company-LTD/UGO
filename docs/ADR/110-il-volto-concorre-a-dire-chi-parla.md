@@ -1,7 +1,12 @@
 # ADR-110 — Il volto concorre a dire chi parla
 
-**Stato: ACCETTATA** (2026-08-20). Direttiva del proprietario. Estende ADR-045 (chi sta
-parlando) e ADR-057 (l'arruolamento del volto); non tocca ADR-016 (le protezioni).
+**Stato: ACCETTATA** (2026-08-20), **corretta lo stesso giorno** — vedi §Correzione in fondo, che
+è la parte che conta. Estende ADR-045 (chi sta parlando) e ADR-057 (l'arruolamento del volto);
+non tocca ADR-016 (le protezioni).
+
+> ⚠️ **Il titolo di questa ADR è rimasto quello sbagliato, apposta.** La prima stesura faceva
+> concorrere il volto a dire chi *parla*; la correzione dice che il volto risponde a un'altra
+> domanda. Rinominarla nasconderebbe l'errore invece di lasciarlo leggere.
 
 ## Contesto
 
@@ -104,3 +109,52 @@ su chi è in casa.
 che nessuno sa più leggere quando sbaglia. La regola attuale si spiega in una riga — la voce
 vince, il volto riempie il buco, con due presenti nessuno — e una regola che si spiega è una
 regola che si può correggere.
+
+---
+
+## Correzione, 2026-08-20 (poche ore dopo)
+
+Il proprietario, guardandola funzionare:
+
+> «Ragionandoci, il volto deve dire chi è **presente**, ma è la voce che dice chi sta
+> **parlando**. Altrimenti se io sono presente e qualcuno mi chiama, attribuisce a me la
+> chiamata ed è merda.»
+
+**Ha ragione, e il difetto era più profondo della guardia sui due volti.**
+
+La guardia («se ne vedo due, non rispondo») copriva il caso di due presenti inquadrati. Non
+copriva quello vero: **da un solo volto in stanza non segue che sia lui a parlare.** Basta
+qualcuno fuori inquadratura, una voce da un'altra stanza, la televisione. E la conseguenza non è
+una risposta imprecisa: è una frase **attribuita a chi non l'ha detta**, scritta in biografia col
+suo nome sopra e ripescata per sempre come cosa che quella persona ha detto. Fra tutti i modi in
+cui questo sistema può sbagliare, è il peggiore.
+
+L'errore di progetto, detto per intero: avevo trattato «chi c'è» e «chi parla» come la stessa
+domanda con due fonti di qualità diversa, mettendo la peggiore come ripiego della migliore. Sono
+**due domande diverse**, e il volto sa rispondere solo alla prima.
+
+### Cosa cambia
+
+- `beingId` — chi ha parlato — torna a venire **solo dalla voce**;
+- nasce `presentBeingIds` sul contratto della chat: chi il corpo **vede**;
+- `RecentFaces.only()` diventa `RecentFaces.all()`: non più «l'unico, se è uno solo», ma
+  **l'elenco di chi c'è**, che è ciò che il volto sa;
+- il blocco del branco riceve *chi parla* **e** *chi c'è*. Il prompt aveva già la casella giusta —
+  dice «**Chi c'è adesso**», non «chi ha parlato» — e `unidentifiedPresent` resta vero quando la
+  voce non ha riconosciuto nessuno: **vedere Francesco non autorizza a dedurre che sia Francesco
+  a parlare**, e la regola «non tirare a indovinare» è precisamente quella che serve lì.
+
+### Cosa resta della prima stesura
+
+Tutto il resto: la finestra di novanta secondi, la memoria per esemplare, le protezioni applicate
+a monte e non ricontrollate a valle, e il fatto che niente di tutto questo tocchi il database.
+
+Cambia **dove va a finire** quello che il volto sa: nel contesto, non nell'attribuzione.
+
+### Il costo, che resta sul tavolo
+
+Con questa correzione, **una faccia insegnata non basta più a farsi chiamare per nome**: serve la
+voce. Il che riporta in primo piano il problema vero, ed è quello che il proprietario ha detto
+nella stessa frase — *«però la voce non la riconosce, MAI, e questo è male»*. Quello non si
+risolve con un ADR: si risolve facendo funzionare l'arruolamento vocale, che è un'altra storia e
+va misurata sul campo prima di dichiararla chiusa.
