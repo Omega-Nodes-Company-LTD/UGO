@@ -1,4 +1,7 @@
-# syntax=docker/dockerfile:1
+# Niente riga `# syntax=`: faceva scaricare il frontend `docker/dockerfile:1`
+# da Docker Hub A OGNI build, e il deploy del 2026-08-21 è morto su un 502 di
+# registry-1.docker.io prima ancora di cominciare. Il frontend integrato di
+# BuildKit (Docker ≥23) copre tutto quel che usiamo, `--mount=type=cache` incluso.
 # La reception (ADR-051): l'unica superficie pubblica. Il container non ha
 # database, non ha chiavi dati, non ha chiave del provider — solo il segreto
 # di servizio verso soul (UGO_RECEPTION_TOKEN) e la UI. Build context: root.

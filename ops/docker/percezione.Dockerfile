@@ -1,4 +1,7 @@
-# syntax=docker/dockerfile:1
+# Niente riga `# syntax=`: faceva scaricare il frontend `docker/dockerfile:1`
+# da Docker Hub A OGNI build, e il deploy del 2026-08-21 è morto su un 502 di
+# registry-1.docker.io prima ancora di cominciare. Il frontend integrato di
+# BuildKit (Docker ≥23) copre tutto quel che usiamo, `--mount=type=cache` incluso.
 # ADR-045 — `ugo-percezione`: chi sta parlando, e chi si è affacciato.
 #
 # Immagine separata da quella dei job notturni per una ragione precisa: torch e

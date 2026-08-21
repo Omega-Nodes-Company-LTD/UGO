@@ -116,4 +116,5 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [108](./108-riferire-non-e-rispondere.md) | Riferire non è rispondere: «X può fare Y» non si giudica | Accettata |
 | [109](./109-le-orecchie-di-casa-sono-la-base.md) | Le orecchie di casa sono la base, non un'opzione | Accettata |
 | [110](./110-il-volto-concorre-a-dire-chi-parla.md) | Il volto dice chi c'è, la voce dice chi parla (corretta il giorno stesso) | Accettata |
-| 109 | *(prossimo numero disponibile)* | — |
+| [111](./111-il-nome-e-la-parola-di-sveglia.md) | Il nome è la parola di sveglia: sente tutto, risponde a chi lo chiama | Accettata |
+| 112 | *(prossimo numero disponibile)* | — |

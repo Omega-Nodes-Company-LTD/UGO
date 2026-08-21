@@ -2699,6 +2699,87 @@ proprietario dopo il redeploy. L'ipotesi in cima alla lista è Ollama senza mode
 lo dirà con parole sue (`nessun modello caldo: la prima richiesta paga il caricamento`) invece di
 farlo dedurre.
 
+## 6-septquadragies. Il nome che sveglia, la presa sul thread giusto, e il riassunto che non trovava le notizie
+
+Tre cose dal proprietario nello stesso messaggio (2026-08-21), più un log di deploy fallito.
+
+### Il nome è la parola di sveglia (ADR-111)
+
+Con le orecchie sempre accese (§6-terquadragies) UGO rispondeva a **tutto**: conversazioni fra
+persone, telefonate, televisione. Il proprietario — che una parola di sveglia non la voleva —
+si è ricreduto guardandolo fare, e ha dettato anche la forma: non «ehi UGO» («Ehi Google mi fa
+cagare»), ma **il nome**, come ci si chiama fra persone.
+
+`addressGate.ts` nel muso, puro e testato: il nome di un abitante apre (con una lettera di
+tolleranza sui nomi lunghi, perché whisper storpia «Silvio» in «Silvia»), la conversazione
+resta aperta 60 s dall'ultimo scambio — le sue risposte la rinnovano — e un tetto di 6 giri
+senza nome la chiude: senza, una cena con ospiti dopo una sola chiamata l'avrebbe tenuto
+sveglio per sempre. Quel che è «overheard» **muore nel muso**: niente soul, niente registro,
+niente biografia, niente token. L'eco della sua voce si scarta PRIMA del cancello («sono
+Silvio!» non è una chiamata). Il nome da solo lo fa girare (`alert` + `perkUp`) anche se è
+troppo corto per un viaggio a soul. `?wake=off` è la porta di servizio. Lo stub `wakeword.ts`
+(Vosk di Fase 3, contratto mai riempito) muore con l'ADR: il posto dove cercare il nome è la
+trascrizione che già paghiamo, non un secondo ascoltatore da 40 MB.
+
+Il passo dichiarato e NON fatto: legare la finestra alla **voce** che l'ha aperta (ADR-045/110
+sanno chi parla, il muso no). Si farà quando l'arruolamento vocale reggerà sul campo (§7).
+
+### La presa migra ad AudioWorklet
+
+«Migra ad audio worklet allora, non aspettiamo.» Fatto — ed è **interno al browser, gratuito**:
+Web Audio API, zero servizi, zero licenze. Il rinvio storico («vuole un modulo separato da
+servire») è caduto senza servire niente: il sorgente del worklet vive come stringa in
+`tapWorklet.ts`, diventa modulo via Blob URL, e il bundler non ne sa nulla. I campioni si
+raccolgono ora sul **thread audio** in blocchi da 4096 (lo stesso passo di prima, trasferiti e
+non copiati), invece che sul thread che disegna il muso. Il test **esegue** la stringa con uno
+scope audio finto e le dà campioni coi numeri: accumulo, spezzatura dei blocchi anomali,
+trasferimento del buffer. Dove `audioWorklet` manca o `addModule` fallisce si ripiega sul
+vecchio `ScriptProcessorNode`, che resta come ripiego dichiarato e nient'altro.
+
+### «Non ha le notizie», col pannello che ne mostrava cinquanta
+
+Secondo bug vero: «mi fai un riassunto delle notizie del giorno?» cadeva al provider — che di
+notizie non ne ha, e onestamente lo diceva — mentre `/admin` mostrava gli articoli scaricati.
+Il matcher di ADR-080 chiedeva soggetto **e** verbo di richiesta, e «fai» non era fra i verbi
+(«fammi» sì). In più due alternative della lista (`c'è`, `ci sono novità`) erano **morte dalla
+nascita**: usavano `\b` dopo vocale accentata — la stessa trappola già documentata e corretta
+su SUBJECT, mai su ASKS. Ora ASKS usa gli stessi confini a mano, e la lista copre «fai»,
+«leggi», «aggiornami» e la famiglia «riassunto/riassumi(mi)». Il costo dichiarato: ogni tanto
+tre titoli letti a chi il riassunto lo stava solo nominando — meglio che negare una funzione
+che c'è.
+
+### Il deploy morto sul 502
+
+Il log del proprietario: BuildKit non risolveva `docker/dockerfile:1` (502 da
+registry-1.docker.io) e il deploy moriva **prima di cominciare**. La riga `# syntax=` faceva
+scaricare il frontend da Docker Hub a ogni build: tolta da tutti e cinque i Dockerfile — il
+frontend integrato di BuildKit (Docker ≥23) copre tutto quel che usiamo, `--mount=type=cache`
+incluso. Un retry sarebbe passato; adesso il retry non serve più per quel guasto.
+
+### Il giro completo (regola 12)
+
+- **BO** — `services/volition/news.ts` (il matcher) + test. Niente schema, niente migrazioni,
+  `ops/jobs` non toccato e non serviva: gli articoli erano già lì, era la domanda a non
+  trovarli. I cinque `ops/docker/*.Dockerfile` perdono la riga `# syntax=`;
+- **`/admin`** — niente da toccare, ed ecco perché: il pannello diceva il vero (gli articoli
+  ci sono, e «che notizie ci sono?» funzionava già); la promessa in `page/account.ts` resta
+  valida e ora è vera anche nella forma che il proprietario usa davvero. Il cancello del nome
+  è interamente nel corpo e il pannello non mostra lo stato delle orecchie;
+- **FE** — `sensors.ts` (worklet + ripiego), `tapWorklet.ts` (nuovo), `addressGate.ts`
+  (nuovo), `main.ts` (cablaggio del cancello: eco → nome → `worthSending`), `wakeword.ts` e
+  test **rimossi**. `faceContracts.ts` non toccato: nessun frame nuovo. **Il bundle del muso
+  va ricostruito e l'immagine di soul ridistribuita**, o sul dispositivo non arriva niente di
+  tutto questo.
+
+Documentazione: ADR-111, `parlare-con-ugo.md` (v0.12.0: si chiama per nome, e il riassunto fra
+le forme della rassegna).
+
+Verificato qui: `pnpm turbo build lint test` verde sull'intero monorepo (30/30 task) con **11
+unit nuovi** sul cancello del nome, **5** sul worklet eseguito coi numeri e **2** sul matcher
+della rassegna (la frase del campo + la trappola di `\b`); `pnpm audit` senza HIGH/CRITICAL.
+**Non ancora misurato sul campo**: la tolleranza di una lettera sul nome e il tetto dei 6 giri
+sono numeri scelti a tavolino — la cena con ospiti vera dirà se stringerli o allargarli.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |

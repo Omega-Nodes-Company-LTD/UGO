@@ -1,4 +1,7 @@
-# syntax=docker/dockerfile:1
+# Niente riga `# syntax=`: faceva scaricare il frontend `docker/dockerfile:1`
+# da Docker Hub A OGNI build, e il deploy del 2026-08-21 è morto su un 502 di
+# registry-1.docker.io prima ancora di cominciare. Il frontend integrato di
+# BuildKit (Docker ≥23) copre tutto quel che usiamo, `--mount=type=cache` incluso.
 # Il libro genealogico (ADR-073): un registrar in un container suo, con un
 # database suo. Non ha la chiave dati delle case, non ha la chiave del
 # provider, non sa niente delle anime — solo atti, impronte e firme.

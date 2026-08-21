@@ -16,6 +16,18 @@ describe("chiedere la rassegna", () => {
     }
   });
 
+  it("la frase del campo (2026-08-21): il riassunto chiesto con «fai»", () => {
+    expect(parseNewsAsk("mi fai un riassunto delle notizie del giorno?")).toEqual({ limit: 3 });
+    expect(parseNewsAsk("riassumimi le notizie")).toEqual({ limit: 3 });
+    expect(parseNewsAsk("aggiornami sulle notizie")).toEqual({ limit: 3 });
+    expect(parseNewsAsk("leggi le notizie")).toEqual({ limit: 3 });
+  });
+
+  it("la trappola di \\b: le alternative con l'accento in coda combaciano davvero", () => {
+    expect(parseNewsAsk("c'è qualche notizia?")).toEqual({ limit: 3 });
+    expect(parseNewsAsk("ci sono novità?")).toEqual({ limit: 3 });
+  });
+
   it("se dici quante ne vuoi, sono quelle", () => {
     expect(parseNewsAsk("leggimi cinque notizie")).toEqual({ limit: 5 });
     expect(parseNewsAsk("dammi 2 titoli")).toEqual({ limit: 2 });
@@ -27,6 +39,9 @@ describe("chiedere la rassegna", () => {
     expect(parseNewsAsk("ho letto una notizia interessante")).toBeUndefined();
     expect(parseNewsAsk("le notizie di ieri erano brutte")).toBeUndefined();
     expect(parseNewsAsk("come stai?")).toBeUndefined();
+    // un riassunto che non parla dei feed non è una rassegna
+    expect(parseNewsAsk("il riassunto del telegiornale non mi piace")).toBeUndefined();
+    expect(parseNewsAsk("mi fai un riassunto della giornata?")).toBeUndefined();
   });
 });
 

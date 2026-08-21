@@ -1,5 +1,6 @@
 import type { FaceToServerMessage } from "@ugo/shared/face";
 import { NoiseGate, DEFAULT_SENSITIVITY, type NoiseSensitivity } from "./noiseGate.js";
+import { TAP_WORKLET_NAME, TAP_WORKLET_SOURCE } from "./tapWorklet.js";
 import { VoiceClip } from "./voiceClip.js";
 
 /** How long after a voice a sound is still that voice, and not a bang. */
@@ -25,9 +26,10 @@ export class Sensors {
   private audioTap: ((samples: Float32Array, sampleRate: number) => void) | undefined;
   /** la sorgente viva, per poter agganciare la presa anche a microfono già acceso */
   private source: MediaStreamAudioSourceNode | undefined;
-  /** montata una volta sola, qualunque sia l'ordine di arrivo */
-  // eslint-disable-next-line @typescript-eslint/no-deprecated -- stessa scelta deliberata di `mountTap`
-  private tapNode: ScriptProcessorNode | undefined;
+  /** montata una volta sola, qualunque sia l'ordine di arrivo; `stop` smonta ciò che il montaggio ha fatto */
+  private tap: { stop: () => void } | undefined;
+  /** `addModule` è asincrono: questa bandiera evita due montaggi in corsa */
+  private tapMounting = false;
   /**
    * Le tracce vere. Senza questo riferimento «orecchie spente» spegneva solo
    * l'anello: il flusso restava `live`, e il pallino rosso del browser acceso.
@@ -83,12 +85,8 @@ export class Sensors {
     this.metering = false;
     this.clip?.forget();
     this.clip = undefined;
-    if (this.tapNode !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-deprecated -- si smonta ciò che `mountTap` ha montato
-      this.tapNode.onaudioprocess = null;
-      this.tapNode.disconnect();
-      this.tapNode = undefined;
-    }
+    this.tap?.stop();
+    this.tap = undefined;
     this.source?.disconnect();
     this.source = undefined;
     for (const track of this.stream?.getTracks() ?? []) track.stop();
@@ -114,9 +112,10 @@ export class Sensors {
    * La dettatura locale ascolta lo STESSO microfono (gruppo 4): un secondo
    * `getUserMedia` sarebbe un secondo bip di sistema e un secondo AGC da
    * domare. Il misuratore campiona a battiti (rAF, finestre che si perdono
-   * pezzi); la dettatura vuole un nastro CONTIGUO, quindi la presa è uno
-   * `ScriptProcessorNode` — deprecato ma ovunque, e senza un file worklet a
-   * parte da far digerire al bundler.
+   * pezzi); la dettatura vuole un nastro CONTIGUO, quindi la presa è un
+   * `AudioWorklet` (`tapWorklet.ts`): i campioni si raccolgono sul thread
+   * audio, non su quello che disegna il muso. Dove il worklet non c'è o non
+   * si carica, resta il vecchio `ScriptProcessorNode` come ripiego.
    */
   public tapAudio(tap: (samples: Float32Array, sampleRate: number) => void): void {
     this.audioTap = tap;
@@ -141,12 +140,77 @@ export class Sensors {
     const context = this.audioContext;
     const source = this.source;
     if (context === undefined || source === undefined) return;
-    if (this.audioTap === undefined || this.tapNode !== undefined) return;
+    if (this.audioTap === undefined || this.tap !== undefined || this.tapMounting) return;
+    // il cast è onesto: le WebView vecchie non hanno `audioWorklet`, e lì si
+    // torna al nodo deprecato invece di restare sordi
+    const worklet = (context as { audioWorklet?: AudioWorklet }).audioWorklet;
+    if (worklet === undefined) {
+      this.mountLegacyTap(context, source);
+      return;
+    }
+    this.tapMounting = true;
+    void this.mountWorkletTap(context, source, worklet).finally(() => {
+      this.tapMounting = false;
+    });
+  }
+
+  /**
+   * Il worklet non è un file servito a parte: il sorgente è una stringa nel
+   * bundle (`tapWorklet.ts`) e diventa modulo via Blob URL. Era l'unico costo
+   * che aveva tenuto in vita `ScriptProcessorNode`, e non c'è più.
+   */
+  private async mountWorkletTap(
+    context: AudioContext,
+    source: MediaStreamAudioSourceNode,
+    worklet: AudioWorklet,
+  ): Promise<void> {
+    const url = URL.createObjectURL(new Blob([TAP_WORKLET_SOURCE], { type: "text/javascript" }));
+    try {
+      await worklet.addModule(url);
+    } catch {
+      // un CSP severo o un browser bugiardo: la strada vecchia funziona ancora
+      if (this.audioContext === context && this.tap === undefined) {
+        this.mountLegacyTap(context, source);
+      }
+      return;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    // `addModule` è un giro di pista: nel frattempo le orecchie possono
+    // essersi spente (contesto nuovo o nessuno più in ascolto)
+    if (this.audioContext !== context || this.audioTap === undefined || this.tap !== undefined) {
+      return;
+    }
+    const node = new AudioWorkletNode(context, TAP_WORKLET_NAME, {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+    });
+    node.port.onmessage = (event: MessageEvent<Float32Array>) => {
+      this.audioTap?.(event.data, context.sampleRate);
+    };
+    source.connect(node);
+    // un nodo che nessuno tira a valle non viene processato; il guadagno a
+    // zero evita che il microfono esca dagli altoparlanti
+    const mute = context.createGain();
+    mute.gain.value = 0;
+    node.connect(mute);
+    mute.connect(context.destination);
+    this.tap = {
+      stop: () => {
+        node.port.onmessage = null;
+        node.port.close();
+        node.disconnect();
+        mute.disconnect();
+      },
+    };
+  }
+
+  /** Il ripiego, tale e quale a com'era quando era l'unica strada. */
+  private mountLegacyTap(context: AudioContext, source: MediaStreamAudioSourceNode): void {
     /* eslint-disable @typescript-eslint/no-deprecated -- scelta deliberata:
-       ScriptProcessorNode è deprecato ma funziona ovunque, e l'alternativa
-       (AudioWorklet) vuole un modulo separato da servire — complessità di
-       bundle per un percorso che oggi vive dietro `?stt=locale`. Quando la
-       dettatura locale diventerà il default, si migra al worklet. */
+       qui si arriva solo dove `AudioWorklet` manca o non si carica, e un
+       nodo deprecato che sente è meglio di orecchie moderne sorde. */
     const processor = context.createScriptProcessor(4096, 1, 1);
     source.connect(processor);
     // il processore emette solo se è collegato a valle; il guadagno a zero
@@ -158,8 +222,14 @@ export class Sensors {
     processor.onaudioprocess = (event) => {
       this.audioTap?.(event.inputBuffer.getChannelData(0), context.sampleRate);
     };
+    this.tap = {
+      stop: () => {
+        processor.onaudioprocess = null;
+        processor.disconnect();
+        mute.disconnect();
+      },
+    };
     /* eslint-enable @typescript-eslint/no-deprecated */
-    this.tapNode = processor;
   }
 
   /** microphone level meter → noise events, judged against the room (ADR-029) */
