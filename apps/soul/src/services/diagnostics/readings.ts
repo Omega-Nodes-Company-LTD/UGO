@@ -80,7 +80,11 @@ export async function dreamReading(
       lastDream(),
       pendingVoices === undefined ? Promise.resolve(0) : pendingVoices(),
     ]);
-    const queue = waiting === 0 ? "" : ` · ${String(waiting)} ${waiting === 1 ? "voce" : "voci"} in attesa`;
+    // la croce, come per i mestieri della percezione: è il segno che fa
+    // scattare l'etichetta, e senza di lui «a metà servizio» costringe a
+    // dedurre il perché da una riga di dettaglio — cioè a chiedere
+    const queue =
+      waiting === 0 ? "" : ` · \u2717 ${String(waiting)} ${waiting === 1 ? "voce" : "voci"} in attesa`;
     const hint =
       waiting === 0
         ? undefined
