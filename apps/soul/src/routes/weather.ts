@@ -1,5 +1,5 @@
-import { accounts, type DbClient } from "@ugo/db";
-import { eq } from "drizzle-orm";
+import { places, rooms, slugOfRoom, type DbClient } from "@ugo/db";
+import { and, asc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { resolveAccount } from "./scope.js";
 
@@ -74,12 +74,32 @@ export function registerWeatherRoute(app: FastifyInstance, deps: WeatherDeps): v
     let home = deps.home;
     const scope = db === undefined ? undefined : await resolveAccount(db, request);
     if (db !== undefined && scope?.ok === true) {
-      const [row] = await db
-        .select({ lat: accounts.lat, lon: accounts.lon })
-        .from(accounts)
-        .where(eq(accounts.id, scope.accountId));
-      if (row?.lat != null && row.lon != null) {
-        home = { lat: Number(row.lat), lon: Number(row.lon) };
+      /**
+       * ADR-113: il cielo è del **luogo**, non del titolare.
+       *
+       * Se chi chiede dice da quale stanza (`?stanza=`), si prende il luogo di
+       * quella stanza: la cucina al mare e quella in città non hanno lo stesso
+       * tempo, ed è tutta la ragione per cui i luoghi esistono. Senza stanza si
+       * prende il primo luogo dell'account — che per una famiglia con un posto
+       * solo è esattamente quello di prima.
+       */
+      const asked = (request.query as { stanza?: string } | undefined)?.stanza;
+      const rows = await db
+        .select({ lat: places.lat, lon: places.lon })
+        .from(places)
+        .where(eq(places.accountId, scope.accountId))
+        .orderBy(asc(places.createdAt));
+      let picked = rows[0];
+      if (asked !== undefined && asked.trim() !== "") {
+        const [room] = await db
+          .select({ lat: places.lat, lon: places.lon })
+          .from(rooms)
+          .innerJoin(places, eq(places.id, rooms.placeId))
+          .where(and(eq(rooms.accountId, scope.accountId), eq(rooms.slug, slugOfRoom(asked))));
+        if (room !== undefined) picked = room;
+      }
+      if (picked?.lat != null && picked.lon != null) {
+        home = { lat: Number(picked.lat), lon: Number(picked.lon) };
       }
     }
     if (home === undefined) {

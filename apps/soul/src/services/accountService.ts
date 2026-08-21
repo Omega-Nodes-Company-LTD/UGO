@@ -1,4 +1,4 @@
-import { gosini, accounts, traitSets, type DbClient } from "@ugo/db";
+import { gosini, accounts, places, traitSets, type DbClient } from "@ugo/db";
 import { generateDataKey, wrapDataKey } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { ARCHETYPES, characterFrom } from "./council/character.js";
@@ -167,6 +167,21 @@ export async function createAccount(
           ? "capostipite coniato con la casa"
           : `capostipite coniato con la casa, archetipo: ${input.archetype}`,
     });
+
+    /**
+     * ADR-113: un account nasce con **un luogo**.
+     *
+     * La migrazione aveva traghettato le case esistenti e nessuno aveva pensato
+     * a quelle nuove: nascevano senza luoghi, quindi senza cielo, e le stanze
+     * che ci si creavano dentro non stavano in nessun posto. L'hanno trovato i
+     * test d'integrazione, e la lezione è la stessa di sempre — un traghetto
+     * che riguarda solo il passato lascia scoperto il futuro.
+     *
+     * Si chiama «Casa» perché è come lo chiamerebbe chi ci vive, e il nome si
+     * cambia dal pannello: nascere senza nome sarebbe una riga che nessuno
+     * riconosce.
+     */
+    await tx.insert(places).values({ accountId: house.id, name: "Casa", slug: "casa" });
 
     const issued = await issueToken(tx as unknown as DbClient, {
       accountId: house.id,

@@ -106,6 +106,36 @@ tutti gli altri — non perché UGO sappia di medicina, ma perché l'hai detto t
 che lo riguarda salta fuori. Prima di questa regola poteva succedere che si tenesse l'allergia per
 sé e rispondesse «non lo so»: era il modo peggiore possibile di essere prudenti.
 
+### Giocare: «ho pensato un numero»
+
+Ditegli **«giochiamo?»** e pensa un numero fra 1 e 100. Da lì in poi ogni numero che dite è un
+tentativo, e vi risponde «più alto» o «più basso» finché non ci prendete. Se vi arenate,
+dopo un po' vi offre lui la via d'uscita: **«mi arrendo»** e ve lo dice.
+
+Tre cose:
+
+- **il numero non lo sa nessun modello.** Se lo tiene lui, cifrato, e a dirvi «più alto» è un
+  conto fatto in casa: il gioco non costa niente;
+- **fuori partita un numero è solo un numero.** Se dite «ho 43 anni» quando non state giocando,
+  non comincia una partita;
+- **una partita lasciata a metà scade** dopo mezza giornata, così un numero pensato stamattina
+  non trasforma le cifre di stasera in tentativi.
+
+Se esportate i vostri dati a partita aperta, dentro ci trovate anche il numero. È il vostro
+file: non vi nasconde niente, nemmeno quando sarebbe più divertente.
+
+### «Com'è andata la settimana?»
+
+Di una giornata sola te la racconta a memoria: il diario l'ha già scritto lui stanotte, e non
+costa niente. Di una **settimana** no — sette pagine in fila non sono un riassunto — e allora
+le mette in ordine e te la racconta in tre frasi.
+
+A farlo è **la voce di casa**, sempre, anche quando per il resto sta rispondendo il modello
+grande: quello che c'è scritto nel diario è la vita di chi ci abita, e non esce per farsi
+riassumere.
+
+Se di quei giorni non ha scritto niente te lo dice, invece di inventarti una settimana.
+
 ## Le parole che sono gesti
 
 Alcune forme fisse fanno qualcosa di preciso, subito e gratis — le risponde lui, senza scomodare
@@ -131,6 +161,12 @@ E due sono **richieste, non comandi** — passano dal suo carattere, e può dirt
   sullo schermo di quella stanza. Se sta dormendo o ha appena preso uno spavento te lo dice,
   e se è stanco obbedisce sbuffando. Una stanza che non esiste non lo confonde: ti risponde
   che non la conosce.
+- **`vai a dormire`** — se ha un corpo acceso, si mette a dormire. **Non c'è il comando
+  contrario**, ed è voluto: per svegliarlo basta farti vedere. Se non ha nessuno schermo
+  acceso te lo dice, invece di rispondere «va bene» al buio.
+- **`vieni qui`** — ti risponde che da lì non sa in che stanza sei, e ti elenca quelle che
+  conosce. Un messaggio scritto non porta con sé la stanza da cui l'hai scritto, e tirare a
+  indovinare la stanza giusta sarebbe peggio che chiedertelo.
 - **`chiama Silvio`** (o come si chiama l'altro gosino) — il corpo di Silvio, dovunque sia,
   drizza le orecchie e risponde. Se non ha uno schermo acceso, UGO ti dice la verità: non
   può sentirlo.

@@ -56,6 +56,36 @@ describe("il grigio dell'età", () => {
     return found;
   };
 
+  /**
+   * ADR-109. Le setole non sono un ornamento: sono il primo gene aggiunto dopo
+   * la correzione del lettore dei genomi, e vanno dove va il genoma.
+   */
+  const bristlesOf = (pig: Pig): number => {
+    let count = 0;
+    pig.object.traverse((node) => {
+      if (node.name === "bristle") count += 1;
+    });
+    return count;
+  };
+
+  it("sotto la soglia il dorso è liscio: un maiale glabro è un fenotipo", () => {
+    expect(bristlesOf(new Pig({ ...DEFAULT_TRAITS, bristle: 0 }))).toBe(0);
+    expect(bristlesOf(new Pig({ ...DEFAULT_TRAITS, bristle: 0.25 }))).toBe(0);
+  });
+
+  it("più setole nel gene, più cresta sulla schiena", () => {
+    const few = bristlesOf(new Pig({ ...DEFAULT_TRAITS, bristle: 0.55 }));
+    const many = bristlesOf(new Pig({ ...DEFAULT_TRAITS, bristle: 0.98 }));
+    expect(few).toBeGreaterThan(0);
+    expect(many).toBeGreaterThan(few);
+  });
+
+  it("stesso gene, stessa cresta: non cambia pelo a ogni ricarica", () => {
+    const a = bristlesOf(new Pig({ ...DEFAULT_TRAITS, bristle: 0.8 }));
+    const b = bristlesOf(new Pig({ ...DEFAULT_TRAITS, bristle: 0.8 }));
+    expect(a).toBe(b);
+  });
+
   it("un giovane non è grigio", () => {
     const young = skinColor(new Pig({ ...DEFAULT_TRAITS, greying: 0 }));
     expect(young.s).toBeGreaterThan(0.5);

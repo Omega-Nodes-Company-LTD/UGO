@@ -78,7 +78,7 @@ senza problemi: la differenza fra le due è chi ce l'ha adesso.
 Prima di scegliere si guarda, e **si guarda senza avere niente**: la vetrina degli allevamenti
 è pubblica, perché chi cerca un gosino non ha ancora una casa dove metterlo.
 
-Di ogni cucciolo disponibile vedi **com'è fatto** — manto, coda, stazza, orecchie, grugno,
+Di ogni cucciolo disponibile vedi **com'è fatto** — manto, setole, coda, stazza, orecchie, grugno,
 occhi, zampe, tinta — la riga con cui si presenta, e **il suo pedigree**: da chi discende, con
 gli atti registrati che chiunque può verificare senza fidarsi di chi vende.
 
@@ -168,7 +168,8 @@ voluto — si guarda una creatura, non una scheda tecnica.
 Il cucciolo eredita **il carattere e l'aspetto**, non la vita:
 
 - **eredita**: curiosità, sfacciataggine, affetto, calma, parlantina, quanto vive — e il corpo: stazza,
-  orecchie, grugno, occhi, zampe, tinta, coda, e il manto.
+  orecchie, grugno, occhi, zampe, tinta, coda, il manto e le **setole** — la cresta sulla
+  schiena, che va dal dorso liscio a quello irto.
 - **non eredita**: i ricordi, l'umore, le abitudini, i legami. Nasce con la sua testa vuota e
   la sua storia da fare.
 

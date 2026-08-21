@@ -20,6 +20,12 @@ import { GESTURE_BY_ID } from "./gestures.js";
  *
  * Il test legge i sorgenti invece di una lista, perché una lista da tenere
  * aggiornata a mano avrebbe lo stesso difetto della cosa che sta provando.
+ *
+ * **Scansiona questo package soltanto.** Quando il corpo è stato estratto dal
+ * chiosco (gruppo 15) questo scanner ha smesso di vedere `main.ts`, e la
+ * guardia qui sotto l'ha detto subito diventando rossa — che è precisamente il
+ * suo mestiere. Il chiosco ha adesso il suo test gemello (`apps/face`), perché
+ * un refuso di là è invisibile esattamente come uno di qua.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -51,7 +57,9 @@ const resolves = (id: string): boolean =>
 
 describe("gli id dei gesti", () => {
   it("finds the reflex calls at all, so an empty scan cannot pass for green", () => {
-    expect(literalReflexIds().length).toBeGreaterThanOrEqual(3);
+    // due, misurate: `renderer3d` e `inhabitant`. Il terzo chiamante viveva in
+    // `main.ts` e adesso sta nel chiosco, dove ha il suo test
+    expect(literalReflexIds().length).toBeGreaterThanOrEqual(2);
   });
 
   it("only asks for gestures that exist", () => {

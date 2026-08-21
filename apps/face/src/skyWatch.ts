@@ -1,5 +1,5 @@
-import { moonPhase, moonPosition, sunAltitude, visiblePlanets } from "./body/ephemeris.js";
-import type { SkyState, SkyWeather } from "./body/room3d.js";
+import { moonPhase, moonPosition, sunAltitude, visiblePlanets } from "@ugo/face-body";
+import type { SkyState, SkyWeather } from "@ugo/face-body";
 
 /**
  * Il cielo del recinto segue quello vero (gruppo 12).

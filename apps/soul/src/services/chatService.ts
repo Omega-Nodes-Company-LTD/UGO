@@ -3,21 +3,24 @@ import {
   desires,
   diaryEntries,
   gosini,
-  listItems,
   messages,
   type DbClient,
 } from "@ugo/db";
 import {
   canAnswer,
   searchMemories,
+  searchHouseChunks,
   searchTranscripts,
   type EmbeddingsClient,
   type ChatLlm,
   type LlmHistoryTurn,
   type RankedMemory,
 } from "@ugo/memory";
-import { decryptText, encryptText, type ChatRequest, type ChatResponse } from "@ugo/shared";
+import { decryptText, type ChatRequest, type ChatResponse } from "@ugo/shared";
 import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { recordExchange } from "./chat/biography.js";
+import { ChatCommands } from "./chat/commands.js";
+import { GameService } from "./gameService.js";
 import type { Character } from "./council/character.js";
 import type { PackService } from "./packService.js";
 import { buildPackPrompt, selfLine } from "./packPrompt.js";
@@ -27,38 +30,30 @@ import { DiaryService } from "./diaryService.js";
 import { houseClock } from "./houseClock.js";
 import { NewsService } from "./newsService.js";
 import {
-  confirmCheckin,
   parseCheckin,
-  tellCheckins,
-  type CheckinCommand,
 } from "./volition/checkins.js";
-import { addCheckin, MAX_CHECKINS, silenceCheckins, standingCheckins } from "./checkinService.js";
 import { confirmReminder, parseReminder } from "./volition/reminders.js";
 import { dateFor, parseDiaryAsk, tellDiary } from "./volition/diaryAsk.js";
+import {
+  parseWeekAsk,
+  tellNoWeek,
+  tellWeekUnavailable,
+  weekPrompt,
+} from "./volition/weekAsk.js";
 import { monthOf, parseMemoryAsk, tellMemories } from "./volition/memoryAsk.js";
 import { parseStoryAsk, storyPrompt, tellNoStory } from "./volition/story.js";
 import { MemoryBook } from "./memoryBook.js";
 import { parseNewsAsk, tellNews } from "./volition/news.js";
 import {
-  answerTimer,
-  confirmCancel,
-  confirmTimer,
   parseTimerCommand,
-  type TimerCommand,
 } from "./volition/timers.js";
-import { confirmList, parseListCommand, type ListCommand } from "./volition/lists.js";
+import { parseListCommand } from "./volition/lists.js";
 import {
-  confirmPostcard,
   parsePostcard,
-  tellNoTie,
-  tellSendFailed,
-  tellTieNotAccepted,
-  type PostcardCommand,
 } from "./volition/postcards.js";
 import type { ParcelService } from "./parcelService.js";
 import type { TieService } from "./tieService.js";
 import { searchQueryOf } from "./webSearch.js";
-import type { TurnClock, TurnLog } from "./diagnostics/turnLog.js";
 
 /** top-k per channel (PROGETTO §5.4: k=6 casa, k=10 riunioni) */
 // `ticket` is listed for totality over MessageChannel: customer conversations
@@ -85,6 +80,16 @@ const RECALL_ALOUD = 5;
  */
 const STORY_TOKENS = 320;
 
+/** Tre frasi di riassunto: il template ne chiede tre, e tre bastano. */
+const WEEK_MAX_TOKENS = 160;
+
+/**
+ * Quanti frammenti di documento al massimo (ADR-111). Pochi di proposito: un
+ * documento lungo può riempire il prompt da solo, e la conversazione di casa
+ * non deve diventare una lettura del manuale.
+ */
+const DOCUMENT_K = 3;
+
 export class BeingNotFoundError extends Error {}
 
 export interface ChatServiceDeps {
@@ -93,11 +98,6 @@ export interface ChatServiceDeps {
   llm: ChatLlm;
   psyche: PsycheService;
   dataKey: Buffer;
-  /**
-   * Il cronometro della diagnostica. Assente = si risponde esattamente come
-   * prima, senza misurare: un turno non deve dipendere da chi lo guarda.
-   */
-  turnLog?: TurnLog;
   /** the pack block of the prompt (ADR-014); absent = no pack context */
   pack?: PackService;
   /**
@@ -196,6 +196,7 @@ function buildDynamicSystem(
   diary: { date: string; text: string } | undefined,
   retrieved: readonly RankedMemory[],
   recordings: readonly string[],
+  documents: readonly { ref: string; text: string }[],
   pack: string | undefined,
   character: Character,
   /** ADR-107: false quando il giudice di casa dice che lì dentro non c'è */
@@ -261,6 +262,22 @@ function buildDynamicSystem(
   }
   if (recordings.length > 0) {
     lines.push(`Dalle registrazioni:\n${recordings.map((text) => `- ${text}`).join("\n")}`);
+  }
+  /**
+   * ADR-111: i documenti di casa.
+   *
+   * Entrano **con il nome del file**, e non è un dettaglio: un ricordo è una
+   * cosa che UGO ha sentito e può dire con parole sue, un documento è una cosa
+   * che qualcuno ha scritto — poterla attribuire è la differenza fra «me
+   * l'hai detto tu» e «c'è scritto nel libretto della caldaia». È anche
+   * l'unico modo perché tu possa andare a controllare.
+   */
+  if (documents.length > 0) {
+    lines.push(
+      `Dai documenti di casa (cita da quale, se rispondi con questi):\n${documents
+        .map((piece) => `- [${piece.ref}] ${piece.text}`)
+        .join("\n")}`,
+    );
   }
   // Restringe, non contraddice: `rules.it.md` fissa il massimo di frasi ed è
   // cached, quindi vale per tutti. Questo è l'asse che il genoma può muovere
@@ -410,184 +427,19 @@ export class ChatService {
    * precisamente il punto — i comandi ricorrenti costano zero e restano in
    * casa.
    */
-  private async applyList(
-    command: ListCommand,
-    request: ChatRequest,
-    at: Date,
-  ): Promise<ChatResponse> {
-    const { db, dataKey } = this.deps;
-    const accountId = this.deps.accountId;
-    let reply: string;
-
-    if (command.action === "read") {
-      const rows = await db
-        .select({ text: listItems.text })
-        .from(listItems)
-        .where(
-          and(
-            eq(listItems.accountId, accountId),
-            eq(listItems.list, command.list),
-            eq(listItems.done, false),
-          ),
-        )
-        .orderBy(listItems.at);
-      reply = confirmList(
-        command,
-        rows.map((row) => this.readable(row.text)).filter((text) => text !== ""),
-      );
-    } else if (command.action === "add") {
-      await db.insert(listItems).values({
-        accountId,
-        list: command.list,
-        text: encryptText(command.item ?? "", dataKey),
-        ...(request.beingId !== undefined && { beingId: request.beingId }),
-      });
-      reply = confirmList(command);
-    } else {
-      // spuntare: si cerca fra le righe aperte quella che combacia, e il
-      // confronto avviene in chiaro perché il testo è cifrato a riposo
-      const rows = await db
-        .select({ id: listItems.id, text: listItems.text })
-        .from(listItems)
-        .where(
-          and(
-            eq(listItems.accountId, accountId),
-            eq(listItems.list, command.list),
-            eq(listItems.done, false),
-          ),
-        );
-      const wanted = (command.item ?? "").toLowerCase();
-      const hit = rows.find((row) => this.readable(row.text).toLowerCase().includes(wanted));
-      if (hit !== undefined) {
-        await db
-          .update(listItems)
-          .set({ done: true, doneAt: at })
-          .where(eq(listItems.id, hit.id));
-        reply = confirmList(command);
-      } else {
-        reply = `Non trovo ${command.item ?? ""} nella lista ${command.list}.`;
-      }
-    }
-
-    return this.answered(reply, request, at);
-  }
-
-  /**
-   * ADR-085: mettere, spegnere, elencare le domande che tornano.
-   *
-   * Non tocca `desires`: qui si scrive la **regola**, e il desiderio lo
-   * scriverà la sentinella quando sarà l'ora. Metterlo subito vorrebbe dire
-   * che «ogni sera alle nove» comincia adesso, alle tre del pomeriggio.
-   */
-  private async applyCheckin(command: CheckinCommand): Promise<string> {
-    const { db, gosinoId } = this.deps;
-    if (command.action === "cancel") {
-      const off = await silenceCheckins(db, gosinoId);
-      return off === 0
-        ? "Non ti stavo chiedendo niente, comunque."
-        : `Va bene, non te lo chiedo più. (${String(off)} ${off === 1 ? "domanda spenta" : "domande spente"})`;
-    }
-    if (command.action === "list") {
-      return tellCheckins(await standingCheckins(db, gosinoId));
-    }
-    const added = await addCheckin(db, gosinoId, {
-      question: command.question,
-      hour: command.hour,
-      minute: command.minute,
-      weekday: command.weekday,
-    });
-    // il rifiuto dice il numero: «troppe» senza un numero è un muro senza
-    // porta, e chi ascolta non sa cosa togliere
-    return added === "troppe"
-      ? `Ne ho già ${String(MAX_CHECKINS)} di cose da chiederti: se ne aggiungo altre divento una sveglia. Dimmi «non chiedermelo più» e ricominciamo.`
-      : confirmCheckin(command);
-  }
-
-  /**
-   * ADR-078: mettere, spegnere, chiedere. Un timer È un desiderio con un'ora
-   * sopra — la tabella c'era già (ADR-028) — e quello che cambia è chi lo
-   * legge: la sentinella del timer, che suona in orario, invece
-   * dell'iniziativa, che sceglie il momento buono.
-   */
-  private async applyTimer(command: TimerCommand, at: Date): Promise<string> {
-    const { db } = this.deps;
-    const mine = and(
-      eq(desires.gosinoId, this.deps.gosinoId),
-      eq(desires.kind, command.kind),
-      eq(desires.status, "pending"),
-    );
-
-    if (command.action === "set") {
-      // uno per volta, come una sveglia vera: metterne una seconda sostituisce
-      // la prima invece di farne suonare due
-      await db.update(desires).set({ status: "expired" }).where(mine);
-      /**
-       * Una sveglia «alle 7» suona alle 7:00:00. Contando dall'istante in cui
-       * l'hai chiesta si portava dietro i suoi secondi e suonava alle 7:00:40:
-       * un timer si conta da adesso, un'ora si legge sull'orologio.
-       */
-      const anchor =
-        command.anchor === "orologio" ? new Date(Math.floor(at.getTime() / 60_000) * 60_000) : at;
-      await db.insert(desires).values({
-        gosinoId: this.deps.gosinoId,
-        kind: command.kind,
-        status: "pending",
-        text: command.label,
-        dueAt: new Date(anchor.getTime() + command.inSeconds * 1000),
-      });
-      return confirmTimer(command);
-    }
-
-    const [pending] = await db
-      .select({ id: desires.id, text: desires.text, dueAt: desires.dueAt })
-      .from(desires)
-      .where(mine)
-      .orderBy(asc(desires.dueAt))
-      .limit(1);
-
-    if (command.action === "cancel") {
-      // `expired` e non `done`: un timer spento non è un timer che ha suonato
-      if (pending !== undefined) {
-        await db.update(desires).set({ status: "expired" }).where(eq(desires.id, pending.id));
-      }
-      return confirmCancel(command.kind, pending !== undefined);
-    }
-
-    const left =
-      pending?.dueAt === undefined || pending.dueAt === null
-        ? undefined
-        : Math.max(0, (pending.dueAt.getTime() - at.getTime()) / 1000);
-    return answerTimer(command.kind, left, pending?.text ?? "");
-  }
-
-  /**
-   * Un gesto risolto in casa: la risposta è già decisa, e quello che resta è
-   * la parte che non cambia mai — **lo scambio va in biografia cifrato come
-   * ogni altro**. Era copiata cinque volte, una per gesto, e ogni gesto nuovo
-   * ne avrebbe aggiunta una sesta: una scorciatoia sul costo non è una
-   * scorciatoia sulla memoria, e questo metodo è dove quella promessa smette
-   * di dipendere da chi copia bene.
-   */
   private async answered(reply: string, request: ChatRequest, at: Date): Promise<ChatResponse> {
     const { db, dataKey, psyche } = this.deps;
-    const owner = { gosinoId: this.deps.gosinoId };
-    await db.insert(messages).values([
+    await recordExchange(
+      db,
+      { gosinoId: this.deps.gosinoId, dataKey },
       {
-        ...owner,
-        ts: at,
         channel: request.channel,
-        role: "user",
         beingId: request.beingId ?? null,
-        text: encryptText(request.text, dataKey),
+        at,
+        said: request.text,
+        replied: reply,
       },
-      {
-        ...owner,
-        ts: new Date(at.getTime() + 1),
-        channel: request.channel,
-        role: "assistant",
-        text: encryptText(reply, dataKey),
-      },
-    ]);
+    );
     return { reply, moodLabel: psyche.current(at).label, memoriesUsed: [] };
   }
 
@@ -597,25 +449,22 @@ export class ChatService {
    * una parentela ACCETTATA: tutto il resto è una risposta che spiega, mai
    * un invio a metà.
    */
-  private async applyPostcard(command: PostcardCommand): Promise<string> {
-    const post = this.deps.postcards;
-    if (post === undefined) return tellSendFailed();
-    const tie = await post.ties.tieByName(this.deps.accountId, command.recipient);
-    if (tie === undefined) return tellNoTie(command.recipient);
-    if (tie.status !== "accettata") return tellTieNotAccepted(command.recipient);
-    const sent = await post.parcels.send(this.deps.accountId, {
-      tieId: tie.id,
-      fromGosinoId: this.deps.gosinoId,
-      kind: command.kind,
-      text: command.text,
+  /**
+   * I comandi che scrivono (regola 10), in un servizio loro.
+   *
+   * Si costruisce al volo e non si conserva: non ha stato, e tenerlo come
+   * campo vorrebbe dire una seconda copia delle dipendenze da tenere allineata.
+   */
+  private commands(): ChatCommands {
+    return new ChatCommands({
+      db: this.deps.db,
+      dataKey: this.deps.dataKey,
+      accountId: this.deps.accountId,
+      gosinoId: this.deps.gosinoId,
+      ...(this.deps.postcards !== undefined && { postcards: this.deps.postcards }),
     });
-    if (typeof sent === "string") {
-      return sent === "non-accettata" ? tellTieNotAccepted(command.recipient) : tellSendFailed();
-    }
-    return confirmPostcard(command, tie.otherName);
   }
 
-  /** Il testo di una riga, o stringa vuota se la chiave non la apre. */
   private readable(value: string): string {
     try {
       return decryptText(value, this.deps.dataKey);
@@ -624,31 +473,7 @@ export class ChatService {
     }
   }
 
-  /**
-   * Una risposta, cronometrata.
-   *
-   * L'involucro esiste per una ragione sola: il percorso vero esce da una
-   * dozzina di punti diversi — ogni gesto riconosciuto è un `return` — e
-   * cronometrare in un `finally` è l'unico modo di misurarli **tutti** senza
-   * chiedere a chi aggiunge il gesto tredicesimo di ricordarsi di niente.
-   *
-   * Un gesto risolto in casa esce con zero fasi e dodici millisecondi, ed è
-   * un'informazione: dice che quella frase non ha mai visto il provider.
-   */
   public async handle(request: ChatRequest, at: Date = new Date()): Promise<ChatResponse> {
-    const clock = this.deps.turnLog?.start(this.deps.gosinoId, request.channel);
-    try {
-      return await this.reply(request, at, clock);
-    } finally {
-      clock?.done();
-    }
-  }
-
-  private async reply(
-    request: ChatRequest,
-    at: Date,
-    clock: TurnClock | undefined,
-  ): Promise<ChatResponse> {
     const { db, embedder, llm, psyche, dataKey } = this.deps;
 
     // ADR-028: «ricordami di buttare l'acqua alle 13» is a fixed shape in a
@@ -663,6 +488,43 @@ export class ChatService {
      * token per farsi ripetere una cosa che è in casa. Il testo è suo, parola
      * per parola: qui non si riassume il riassunto.
      */
+    /**
+     * ADR-112: il gioco. Sta fra i primi perché a partita aperta **un numero
+     * cambia significato** — «42» è un tentativo, non una frase da passare al
+     * modello — e perché il segreto non deve avvicinarsi a un prompt.
+     *
+     * Solo in casa: una partita in riunione o con un cliente non è una
+     * distrazione simpatica, è una risposta sbagliata.
+     */
+    if (request.channel === "home") {
+      const played = await new GameService({
+        db,
+        accountId: this.deps.accountId,
+        gosinoId: this.deps.gosinoId,
+        dataKey,
+      }).answer(request.text, at);
+      if (played !== undefined) return this.answered(played, request, at);
+    }
+
+    /**
+     * Backlog gruppo 2: «com'è andata la settimana?». Sta PRIMA della domanda
+     * sul diario perché è più specifica — sette pagine in fila non sono un
+     * riassunto — e la fa il **modello di casa**: il materiale è la vita
+     * privata della famiglia, farla uscire per farsela riassumere sarebbe il
+     * contrario di quello che il confidente inviolabile promette.
+     */
+    if (parseWeekAsk(request.text)) {
+      const diary = new DiaryService(db, dataKey);
+      const pages = await diary.pages(this.deps.accountId, this.deps.gosinoId, { limit: 7 });
+      if (pages.length === 0) return this.answered(tellNoWeek(), request, at);
+      if (this.deps.storyteller === undefined) {
+        return this.answered(tellWeekUnavailable(), request, at);
+      }
+      const told = await this.deps.storyteller.generate(weekPrompt(pages), WEEK_MAX_TOKENS);
+      const text = told?.trim() ?? "";
+      return this.answered(text === "" ? tellWeekUnavailable() : text, request, at);
+    }
+
     const diaryAsk = parseDiaryAsk(request.text);
     if (diaryAsk !== undefined) {
       const diary = new DiaryService(db, dataKey);
@@ -751,7 +613,7 @@ export class ChatService {
      */
     const listCommand = parseListCommand(request.text);
     if (listCommand !== undefined) {
-      return this.applyList(listCommand, request, at);
+      return this.answered(await this.commands().list(listCommand, request.beingId, at), request, at);
     }
 
     /**
@@ -767,7 +629,7 @@ export class ChatService {
      */
     const checkin = parseCheckin(request.text);
     if (checkin !== undefined) {
-      return this.answered(await this.applyCheckin(checkin), request, at);
+      return this.answered(await this.commands().checkin(checkin), request, at);
     }
 
     /**
@@ -779,7 +641,7 @@ export class ChatService {
      */
     const timer = parseTimerCommand(request.text, wall.hour, wall.minute);
     if (timer !== undefined) {
-      return this.answered(await this.applyTimer(timer, at), request, at);
+      return this.answered(await this.commands().timer(timer, at), request, at);
     }
 
     const reminder = parseReminder(request.text, wall.hour, wall.minute);
@@ -808,7 +670,7 @@ export class ChatService {
     if (this.deps.postcards !== undefined) {
       const postcard = parsePostcard(request.text);
       if (postcard !== undefined) {
-        return this.answered(await this.applyPostcard(postcard), request, at);
+        return this.answered(await this.commands().postcard(postcard), request, at);
       }
     }
 
@@ -903,6 +765,31 @@ export class ChatService {
         // undecryptable segment (rotated key?): skip, never break the chat
       }
     }
+    /**
+     * ADR-111: i documenti di casa. Cercati solo qui, dove si sta per parlare
+     * col modello — i verbi deterministici di sopra hanno già risposto e non
+     * devono pagare un embedding per una domanda a cui non serve.
+     *
+     * Soglia più alta dei ricordi (0,5 contro 0,35): un ricordo che entra a
+     * sproposito è una stranezza, un pezzo di contratto che entra a sproposito
+     * è UGO che cita un documento che non c'entra — e citare un documento
+     * suona autorevole anche quando è sbagliato.
+     */
+    const documents: { ref: string; text: string }[] = [];
+    for (const piece of await searchHouseChunks(
+      db,
+      embedder,
+      request.text,
+      DOCUMENT_K,
+      this.deps.accountId,
+    )) {
+      try {
+        documents.push({ ref: piece.ref, text: decryptText(piece.text, dataKey) });
+      } catch {
+        // frammento non decifrabile (chiave ruotata?): si salta, mai si rompe la chat
+      }
+    }
+
     const diaryRows = await db
       .select({ date: diaryEntries.date, text: diaryEntries.text })
       .from(diaryEntries)
@@ -911,10 +798,6 @@ export class ChatService {
       .limit(1);
 
     const history = await this.loadHistory(request.channel, request.beingId, at);
-    // tutto quello che è successo in casa prima di uscire: umore, ripescaggio
-    // dei ricordi (che passa da Ollama, ed è la fase che paga un modello di
-    // embedding non residente), trascrizioni, diario, storia del filo
-    clock?.lap("ripescaggio");
     const result = await llm.chat(
       {
         channel: request.channel,
@@ -924,6 +807,7 @@ export class ChatService {
           diaryRows[0],
           retrieved,
           recordings,
+          documents,
           // ADR-110 (corretto): chi parla E chi c'è. Il secondo arriva dal
           // volto e resta nel «Chi c'è adesso» del prompt, che è la domanda a
           // cui il volto sa rispondere
@@ -937,36 +821,27 @@ export class ChatService {
       },
       at,
     );
-    // il tempo passato fuori casa. Quando questa fase è il minuto, non c'è
-    // niente da riparare nei container: è il provider, o la rete per arrivarci
-    clock?.lap("modello");
 
     // biography is append-only and encrypted at rest (CLAUDE.md rule 6)
-    const owner = { gosinoId: this.deps.gosinoId };
-    await db.insert(messages).values([
+    await recordExchange(
+      db,
+      { gosinoId: this.deps.gosinoId, dataKey },
       {
-        ...owner,
-        ts: at,
         channel: request.channel,
-        role: "user",
         beingId: request.beingId ?? null,
-        text: encryptText(request.text, dataKey),
+        at,
+        said: request.text,
+        replied: result.text,
+        spent: {
+          tokensIn:
+            (result.usage?.inputTokens ?? 0) +
+            (result.usage?.cacheCreationInputTokens ?? 0) +
+            (result.usage?.cacheReadInputTokens ?? 0),
+          tokensOut: result.usage?.outputTokens ?? 0,
+          costUsd: result.costUsd ?? 0,
+        },
       },
-      {
-        ...owner,
-        ts: new Date(at.getTime() + 1),
-        channel: request.channel,
-        role: "assistant",
-        text: encryptText(result.text, dataKey),
-        tokensIn:
-          (result.usage?.inputTokens ?? 0) +
-          (result.usage?.cacheCreationInputTokens ?? 0) +
-          (result.usage?.cacheReadInputTokens ?? 0),
-        tokensOut: result.usage?.outputTokens ?? 0,
-        costUsd: (result.costUsd ?? 0).toFixed(6),
-      },
-    ]);
-    clock?.lap("scrittura");
+    );
 
     return {
       reply: result.text,

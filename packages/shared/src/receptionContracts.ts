@@ -26,6 +26,21 @@ export const receptionChatResponseSchema = z.object({
    * Derived from the QUESTION, not the answer — so a cached repeat keeps it.
    */
   guide: z.boolean().optional(),
+  /**
+   * ADR-115: come sta, adesso.
+   *
+   * La reception non ha un WebSocket e non ne avrà uno per questo: aprire un
+   * canale vivo verso il muso di casa per far muovere un disegno vorrebbe dire
+   * dare a un cliente una finestra sullo stato di una creatura anche quando non
+   * le sta parlando. Qui l'umore viaggia **attaccato alla risposta** — c'è
+   * quando c'è una risposta, e non un istante di più.
+   */
+  mood: z
+    .object({
+      label: z.string(),
+      vars: z.record(z.string(), z.number()),
+    })
+    .optional(),
 });
 export type ReceptionChatResponse = z.infer<typeof receptionChatResponseSchema>;
 
@@ -61,11 +76,35 @@ export const receptionTicketSchema = z.object({
 });
 export type ReceptionTicket = z.infer<typeof receptionTicketSchema>;
 
+/**
+ * Com'è fatto, per poterlo disegnare (backlog gruppo 15).
+ *
+ * Gli **otto geni del corpo e nient'altro**: aspetto, mai temperamento. È la
+ * stessa regola della vetrina (ADR-083) e per la stessa ragione — chi guarda
+ * deve vedere una creatura, non una scheda tecnica — con un motivo in più qui:
+ * il cliente non è di casa, e quanto è affettuoso il gosino di qualcun altro
+ * non sono affari suoi.
+ */
+export const receptionLookSchema = z.object({
+  chonk: z.number(),
+  ear: z.number(),
+  snout: z.number(),
+  eye: z.number(),
+  leg: z.number(),
+  hue: z.number(),
+  spots: z.number(),
+  tail: z.number(),
+  bristle: z.number(),
+});
+export type ReceptionLook = z.infer<typeof receptionLookSchema>;
+
 export const receptionGosinoSchema = z.object({
   id: z.uuid(),
   name: z.string(),
   /** 'cucina', 'officina' — where the exemplar lives, flavour for the picker */
   locationLabel: z.string().nullable(),
+  /** ADR-115: com'è fatto, per disegnarlo. Assente = si disegna quello medio */
+  look: receptionLookSchema.optional(),
 });
 export type ReceptionGosino = z.infer<typeof receptionGosinoSchema>;
 

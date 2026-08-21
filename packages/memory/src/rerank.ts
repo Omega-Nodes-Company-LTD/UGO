@@ -74,6 +74,40 @@ export function recencyFactor(candidate: RerankCandidate, now: Date): number {
   return Math.exp(-ageDays / tau);
 }
 
+/**
+ * Quanto pesano importanza e freschezza, e perché sono **modulatori** e non
+ * fattori pieni (ADR-110).
+ *
+ * La formula di §5.4 moltiplica tre numeri, e per anni si è dato per scontato
+ * che il primo — quanto il ricordo c'entra con la domanda — comandasse.
+ * Misurato sul corpus del banco, ai primi cinque, non è così:
+ *
+ * | fattore | escursione | da cosa dipende |
+ * |---|---|---|
+ * | `relevance` | 2,1× | quasi tutta dall'**accordo** dei bracci: fra la prima e la quinta posizione dentro lo stesso braccio c'è il 6% |
+ * | `importance` | 3,0× | dall'estrattore che l'ha scritta |
+ * | `recency` | 1,9× | dall'età, in unità del τ del suo tipo |
+ *
+ * `importance × recency` arriva a **3,2×** e scavalca la relevance: la
+ * ricerca esprime un'opinione che vale meno di quanto pesi l'anagrafica del
+ * ricordo. E siccome l'importanza degli episodi è sistematicamente più bassa
+ * di quella dei fatti (0,30–0,45 contro 0,65–0,90), a «cosa si è rotto in
+ * casa?» i primi cinque sono tutti fatti — la lavatrice che si è rotta
+ * davvero sta sotto al nome del gatto.
+ *
+ * Non è la recency a schiacciare gli episodi, come si era supposto: è
+ * l'importanza, e la recency ci mette il resto.
+ *
+ * Quindi i due termini restano — un ricordo importante e fresco **deve** poter
+ * salire — ma dentro una banda: da `FLOOR` a 1. L'ordinamento a parità di
+ * relevance non cambia di una posizione (è una trasformazione monotona), cambia
+ * **quanto** possono ribaltare la ricerca.
+ */
+const IMPORTANCE_FLOOR = 0.5;
+const RECENCY_FLOOR = 0.4;
+
+const modulate = (value: number, floor: number): number => floor + (1 - floor) * value;
+
 export function rerank(candidates: readonly RerankCandidate[], now: Date): RankedMemory[] {
   return candidates
     .map((candidate) => {
@@ -82,7 +116,11 @@ export function rerank(candidates: readonly RerankCandidate[], now: Date): Ranke
       const relevance = fused
         ? reciprocalRankFusion(candidate.vectorRank, candidate.lexicalRank)
         : candidate.similarity;
-      return { ...candidate, recency, relevance, score: relevance * candidate.importance * recency };
+      const score =
+        relevance *
+        modulate(candidate.importance, IMPORTANCE_FLOOR) *
+        modulate(recency, RECENCY_FLOOR);
+      return { ...candidate, recency, relevance, score };
     })
     .sort((a, b) => b.score - a.score);
 }

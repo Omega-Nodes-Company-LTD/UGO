@@ -78,20 +78,17 @@ export const accounts = pgTable(
   isFoundry: boolean("is_foundry").notNull().default(false),
   canBreed: boolean("can_breed").notNull().default(false),
   /**
-   * Dove sta questa casa, per il cielo del recinto (gruppo 12).
+   * Dove stava questa casa: `lat`, `lon` e `place` **sono andati via**
+   * (ADR-113), nella tabella `places`.
    *
-   * Stava in `UGO_HOME_LAT`/`UGO_HOME_LON`, cioè nell'ambiente del PROCESSO —
-   * il che vuol dire un server per famiglia, che è esattamente ciò che ADR-019
-   * esiste per non fare. Il tempo che fa è della casa come il fuso e la
-   * lingua, e sta sulla riga della casa.
+   * Erano nati per togliere le coordinate dall'ambiente del processo (gruppo
+   * 12), e quella parte era giusta. Sbagliata era la riga: un account può
+   * avere più luoghi — la casa in città, quella al mare, la bottega — e con
+   * una riga sola il cielo era per forza sbagliato in tutti tranne uno.
    *
-   * `place` è come l'ha scritto una persona («Torino», «Via Roma 1, Milano»):
-   * si tiene per poterlo rimostrare nel pannello, perché due coordinate non
-   * dicono a nessuno se ha scelto il posto giusto.
+   * Tenerle qui «per compatibilità» avrebbe creato due verità sulla stessa
+   * cosa, che è precisamente il difetto che ADR-092 è servita a togliere.
    */
-  lat: numeric("lat", { precision: 8, scale: 5 }),
-  lon: numeric("lon", { precision: 8, scale: 5 }),
-  place: text("place"),
   /**
    * This house's data key (DEK), AES-256-GCM-wrapped with the master key in
    * UGO_DATA_KEY. Destroying this column erases the family beyond recovery —

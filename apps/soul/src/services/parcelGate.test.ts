@@ -19,6 +19,10 @@ const ROOT = join(import.meta.dirname, "..");
 const ALLOWED = new Set([
   "routes/ties.ts",
   "services/chatService.ts",
+  // il gesto vive qui da quando i comandi che scrivono sono usciti da
+  // `chatService` (regola 10): la guardia se n'è accorta da sola, ed è il
+  // motivo per cui esiste — un elenco a mano invecchia col primo refactor
+  "services/chat/commands.ts",
   "services/parcelService.ts",
 ]);
 

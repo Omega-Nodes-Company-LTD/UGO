@@ -278,6 +278,14 @@
       ]
     },
     {
+      "query": "cosa si e rotto in casa?",
+      "family": "episodica",
+      "relevant": [
+        "lavatrice-rumore"
+      ],
+      "note": "ADR-110: la lavatrice si e rotta davvero, ed era sotto al nome del gatto — un episodio nasce meno importante di un fatto, e la formula lo pagava due volte"
+    },
+    {
       "query": "qual e il codice IBAN del conto corrente?",
       "family": "astensione",
       "relevant": []

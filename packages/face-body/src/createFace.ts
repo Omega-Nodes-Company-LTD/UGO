@@ -1,4 +1,4 @@
-import { Canvas2dFace } from "../renderer.js";
+import { Canvas2dFace } from "./renderer.js";
 import { type FaceRenderer, webglAvailable } from "./faceRenderer.js";
 import { Webgl3dFace } from "./renderer3d.js";
 

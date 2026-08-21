@@ -24,6 +24,9 @@ export const GENE_KEYS = [
   "hue",
   "spots",
   "tail",
+  // le setole (ADR-109): la cresta sulla schiena, primo gene aggiunto DOPO che
+  // il lettore ha imparato a non buttare un genoma per un locus che manca
+  "bristle",
   // the character
   "curiosity",
   "boldness",
@@ -61,6 +64,7 @@ export const GENE_CATALOG: Record<GeneKey, { default: number; expression: Expres
   // coat spots are recessive: the rare phenotype breeders will chase
   spots: { default: 0.1, expression: "recessive" },
   tail: { default: 0.5, expression: "blend" },
+  bristle: { default: 0.35, expression: "blend" },
   curiosity: { default: 0.5, expression: "blend" },
   // one bold allele is enough to speak up
   boldness: { default: 0.5, expression: "dominant" },

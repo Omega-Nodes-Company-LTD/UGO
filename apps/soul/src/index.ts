@@ -588,6 +588,12 @@ const app = buildServer({
         }),
       // ADR-103: il listino della cucciolata
       litterCostUsd: env.UGO_LITTER_COST_USD,
+      // ADR-111: i documenti di casa. Senza bucket il caricamento risponde 503
+      // e lo dice, invece di accettare un file che non ha dove andare
+      ...(env.S3_BUCKET_HOUSE_DOCS !== undefined &&
+        audio !== undefined && {
+          houseDocsStorage: { ...audio, bucket: env.S3_BUCKET_HOUSE_DOCS },
+        }),
     },
     psyche,
     face,
