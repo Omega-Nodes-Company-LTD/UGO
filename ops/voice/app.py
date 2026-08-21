@@ -236,6 +236,9 @@ def transcribe_endpoint(query: TranscribeQuery) -> Transcribed:
     indovinare a whisper su clip corti è il modo di ricevere trascrizioni
     in croato.
     """
+    # come gli altri prestiti da `ugo_jobs` in questo file: dentro la funzione
+    from ugo_jobs.whisper_noise import keep_segment
+
     if MODELS.stt is None:
         raise HTTPException(status_code=503, detail="modello di dettatura non caricato")
     # non `decode_pcm`: quello pretende un secondo pieno (giusto per
@@ -250,8 +253,22 @@ def transcribe_endpoint(query: TranscribeQuery) -> Transcribed:
         vad_filter=True,
         beam_size=1,
     )
-    text = " ".join(segment.text.strip() for segment in segments).strip()
-    return Transcribed(text=text)
+    # whisper ci dice quando sta inventando, e per mesi abbiamo buttato via il
+    # numero: un frammento di stanza muta diventava «Sottotitoli e revisione a
+    # cura di QTSS», che il chiosco mandava come frase detta dal proprietario
+    # e finiva in biografia col suo nome sopra (`whisper_noise`)
+    kept = [
+        segment.text.strip()
+        for segment in segments
+        if keep_segment(
+            segment.text,
+            no_speech_prob=getattr(segment, "no_speech_prob", None),
+            avg_logprob=getattr(segment, "avg_logprob", None),
+        )
+    ]
+    # vuoto è una risposta legittima: «qui non si parlava». Il chiosco lo sa
+    # già gestire — non manda niente e resta dov'è
+    return Transcribed(text=" ".join(kept).strip())
 
 
 #: lo stesso tetto del frame `glimpse` nel contratto del muso

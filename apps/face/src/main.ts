@@ -634,7 +634,12 @@ renderer.onUsedProp?.((who, kind) => {
  */
 function handleHeardText(text: string): void {
   if (!worthSending(text, { spoken: speech.spokenLast() })) return;
-  setLocalState("listening");
+  // «sta pensando», non «sta ascoltando»: da qui la frase è già in viaggio
+  // verso soul. Con la dettatura di casa eravamo già in `thinking` da quando
+  // il clip è partito, e tornare indietro a `listening` per un istante era un
+  // passo all'indietro sullo schermo — la creatura sembrava distrarsi proprio
+  // nel momento in cui si stava mettendo a rispondere.
+  setLocalState("thinking");
   // ADR-045: la voce che l'ha detta viaggia con la frase, così soul può
   // sapere CHI sta parlando. Assente se il microfono è spento: allora è
   // esattamente il messaggio di prima.
@@ -690,6 +695,21 @@ function startLocalEars(): void {
   let gateFor: { rate: number; gate: UtteranceGate } | undefined;
 
   const transcribe = async (audio: string): Promise<void> => {
+    /**
+     * «Sta pensando», detto SUBITO.
+     *
+     * Dal proprietario (2026-08-21): «deve darmi un'indicazione che ha
+     * sentito e sta pensando, altrimenti non si capisce se è arrivata la voce
+     * e sta facendo stt, o se non ha nemmeno sentito».
+     *
+     * Aveva ragione e il buco era largo: con la dettatura di casa il muso
+     * restava fermo da quando smetti di parlare a quando whisper risponde —
+     * uno, due, tre secondi — e quel silenzio è indistinguibile dall'essere
+     * sordo. Poi arrivava la risposta di soul, altri trenta secondi, e per
+     * tutto il tempo l'unico modo di sapere se ti avesse sentito era
+     * aspettare.
+     */
+    setLocalState("thinking");
     try {
       const response = await fetch(`${soulHttp}/v1/stt`, {
         method: "POST",
@@ -719,8 +739,15 @@ function startLocalEars(): void {
       const body = (await response.json()) as { text?: string };
       if (typeof body.text === "string" && body.text.trim() !== "") {
         handleHeardText(body.text.trim());
+        return;
       }
+      // whisper non ci ha trovato parlato — un colpo di tosse, una porta, o
+      // una sua allucinazione su silenzio già filtrata dal server
+      // (`whisper_noise`). Si torna com'era: restare in «sta pensando» per
+      // una frase che non c'è è la stessa bugia al contrario.
+      setLocalState("idle");
     } catch {
+      setLocalState("idle");
       failures += 1;
       if (failures >= 3) localeFailed("whisper non risponde");
     }
@@ -745,7 +772,16 @@ function startLocalEars(): void {
     // la bocca è occupata: le orecchie non devono sentire l'altoparlante
     if (speech.isSpeaking()) return;
     if (gateFor?.rate !== rate) {
-      gateFor = { rate, gate: new UtteranceGate(rate, () => { sensors.heardAVoice(); }) };
+      gateFor = {
+        rate,
+        gate: new UtteranceGate(rate, () => {
+          sensors.heardAVoice();
+          // il primo dei quattro tempi: «ti sento». Arriva mentre parli
+          // ancora, non quando hai finito, ed è l'unico che dice davvero
+          // «la voce è arrivata» invece di «forse»
+          setLocalState("listening");
+        }),
+      };
     }
     const utterance = gateFor.gate.feed(samples, performance.now());
     if (utterance !== undefined) void transcribe(toPcm16Base64(utterance, rate));
