@@ -1,8 +1,8 @@
 ---
 title: "Parlare con UGO"
 description: "Come funziona una conversazione: la voce, la memoria che resta, l'umore che cambia e il budget giornaliero."
-version: "0.11.0"
-last_updated: "2026-08-18"
+version: "0.12.0"
+last_updated: "2026-08-21"
 author: "ThinkPink Studio"
 ---
 
@@ -14,13 +14,33 @@ prima. Per questo la stessa domanda, fatta in due giorni diversi, può avere due
 
 ## Avviare una conversazione
 
-1. Tocca il muso sullo schermo. Il grugno si muove: UGO è in ascolto.
-2. Parla normalmente. Non serve una formula magica né alzare la voce.
-3. Sullo schermo compare **la sua risposta scritta** e la senti a voce.
-4. Se vuoi chiudere il discorso, smetti di parlare: dopo qualche secondo torna in attesa.
+1. Accendi i sensi col pulsante del microfono, se non sono già accesi.
+2. **Chiamalo per nome**, come faresti con chiunque: `ciao Silvio`, `ehi Silvio, ci sei?`.
+   Si gira verso di te e da lì il discorso è aperto.
+3. Parla normalmente. Non serve una formula magica, non serve alzare la voce, e non serve
+   ripetere il nome a ogni frase: finché il discorso è vivo ti segue.
+4. Sullo schermo compare **la sua risposta scritta** e la senti a voce.
+5. Se smetti di parlargli, dopo un po' il discorso si chiude da solo. Per riprenderlo,
+   richiamalo per nome.
 
 Se il telefono non ti sente, torna a [Primo avvio](../01-getting-started/primo-avvio.md) e controlla
 di avere concesso il permesso al microfono.
+
+### Perché il nome
+
+UGO ha le orecchie sempre accese, ma **risponde solo a chi si rivolge a lui**. Se parli con
+un'altra persona, o c'è la televisione accesa, non si intromette — e quelle frasi **non
+partono verso il server e non diventano sue memorie**: muoiono sul dispositivo. Il nome è
+quello che gli dice «sto parlando con te», esattamente come fra persone.
+
+Qualche dettaglio utile:
+
+- il nome vale ovunque nella frase: `Silvio, che ne pensi?` funziona come `che ne pensi, Silvio?`;
+- se il riconoscimento storpia una lettera (`Silvia` per `Silvio`), capisce lo stesso;
+- il suo nome da solo (`Silvio!`) lo fa voltare: orecchie dritte, ti ascolta;
+- appena lui ti ha risposto il discorso è aperto: replica e basta, senza nominarlo;
+- se ti metti a parlare con qualcun altro, dopo qualche frase capisce che il discorso non è
+  più con lui e torna ad aspettare il suo nome.
 
 ## Cosa ricorda (e cosa no)
 
@@ -186,8 +206,8 @@ parti fisse del suo carattere, sulla pagina di stato.
 Se hai iscritto dei feed (dal pannello, in **I feed**), UGO te ne legge i titoli quando glielo
 chiedi:
 
-- **«che notizie ci sono?»**, **«leggimi le notizie»**, **«fammi la rassegna»** — i primi tre
-  titoli, con la fonte.
+- **«che notizie ci sono?»**, **«leggimi le notizie»**, **«fammi la rassegna»**, **«mi fai un
+  riassunto delle notizie?»** — i primi tre titoli, con la fonte.
 - **«leggimi cinque notizie»** — quanti ne vuoi, fino a otto. È una rassegna, non un giornale
   letto per intero.
 
