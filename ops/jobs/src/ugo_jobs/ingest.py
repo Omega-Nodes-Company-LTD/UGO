@@ -25,6 +25,7 @@ from .config import JobsConfig
 from .crypto import encrypt_text, parse_data_key
 from .embeddings import embed
 from .enrollment import identify_voice, record_observation
+from .whisper_noise import keep_segment
 
 INBOX_PREFIX = "inbox/"
 ARCHIVE_PREFIX = "archive/"
@@ -65,7 +66,20 @@ def _transcribe(cfg: JobsConfig, path: Path) -> list[tuple[float, float, str]]:
         **({"download_root": cfg.whisper_download_root} if cfg.whisper_download_root else {}),
     )
     segments, _info = model.transcribe(str(path), vad_filter=True)
-    return [(s.start, s.end, s.text.strip()) for s in segments if s.text.strip()]
+    # stesso filtro della dettatura dal vivo, e per una ragione più seria: qui
+    # il testo non diventa una frase in chat, diventa un `transcript_segment`
+    # — cioè memoria ripescabile, con un embedding sopra, per sempre. Una coda
+    # di sottotitoli allucinata su un minuto di silenzio si sarebbe presentata
+    # mesi dopo come una cosa detta in casa (`whisper_noise`).
+    return [
+        (s.start, s.end, s.text.strip())
+        for s in segments
+        if keep_segment(
+            s.text,
+            no_speech_prob=getattr(s, "no_speech_prob", None),
+            avg_logprob=getattr(s, "avg_logprob", None),
+        )
+    ]
 
 
 def _started_at(key: str) -> datetime | None:

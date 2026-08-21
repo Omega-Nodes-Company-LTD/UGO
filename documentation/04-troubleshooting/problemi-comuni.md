@@ -1,7 +1,7 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.41.0"
+version: "0.42.0"
 last_updated: "2026-08-19"
 author: "ThinkPink Studio"
 ---
@@ -226,6 +226,43 @@ Due cose da controllare, in ordine:
 
 Vale la pena saperlo: il riconoscitore del browser è quello di Google, quindi finché sei lì **ciò
 che dici esce di casa**. La punteggiatura è il segnale; la privacy è la ragione.
+
+## Nel registro compaiono frasi che non ho detto
+
+Tipo **«Sottotitoli e revisione a cura di QTSS»**, o «Sottotitoli creati dalla comunità Amara.org»,
+attribuite a te.
+
+Non le hai dette e UGO non se le è inventate: **le ha inventate whisper**. È addestrato su
+montagne di video sottotitolati, e davanti a un frammento muto — una porta, un colpo di tosse, una
+sedia che apre il microfono per un secondo — invece di rispondere «niente» recita i titoli di coda.
+
+Da UGO 0.43 vengono filtrate in due modi: whisper dichiara per ogni pezzo quanto è probabile che
+lì non ci fosse parlato, e quel numero adesso viene guardato invece che buttato; in più c'è un
+elenco delle code di sottotitoli più note. Il filtro vale **sia per la dettatura dal vivo sia per
+le registrazioni archiviate** — quelle diventano memoria ripescabile, e una frase inventata lì
+sarebbe tornata a galla mesi dopo come una cosa detta in casa.
+
+Se te ne sfugge ancora qualcuna, mandamela: l'elenco sta stretto apposta — **meglio lasciar
+passare una frase strana che mangiarsi una frase vera.**
+
+## Non capisco se mi ha sentito
+
+Da UGO 0.43 il muso lo dice, in quattro tempi:
+
+| quando | cosa vedi |
+|---|---|
+| **mentre parli** | passa in *ascolto* — la voce è arrivata al microfono |
+| **appena smetti** | passa in *pensa* — sta trascrivendo quello che hai detto |
+| **mentre risponde soul** | resta in *pensa* |
+| **quando parla** | passa in *parla* |
+
+Prima c'era un buco fra il secondo e il terzo tempo: da quando smettevi di parlare a quando la
+trascrizione tornava passavano uno-tre secondi in cui il muso non faceva niente, e quel silenzio
+era indistinguibile dall'essere sordo.
+
+Se resti fermo in *ascolto* e non passa mai a *pensa*, l'enunciato non è stato chiuso: parla un
+po' più forte, o più vicino. Se torna a *fermo* senza rispondere, whisper non ci ha trovato
+parlato — vedi la sezione qui sopra.
 
 ## Ci mette un minuto a rispondere
 
