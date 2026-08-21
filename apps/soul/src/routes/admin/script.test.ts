@@ -1,5 +1,5 @@
 import { createContext, Script } from "node:vm";
-import { VOICE_SAMPLE_BITRATE } from "@ugo/shared";
+import { VOICE_SAMPLE_BITRATE } from "@ugo/shared/face";
 import { describe, expect, it } from "vitest";
 import { ADMIN_SCRIPT } from "./script.js";
 import { ADMIN_PAGE } from "./page.js";

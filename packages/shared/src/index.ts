@@ -88,7 +88,6 @@ export {
   NOISE_ALERT_DB,
   DARKNESS_LUX,
   NIGHT_START_HOUR,
-  VOICE_SAMPLE_BITRATE,
   type FaceState,
   type FaceToServerMessage,
   type ServerToFaceMessage,
