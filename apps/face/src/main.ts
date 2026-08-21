@@ -20,7 +20,8 @@ import { RainSound } from "./rainSound.js";
 import { Speech } from "./speech.js";
 import { EarsChoice } from "./earsChoice.js";
 import { micBlocked, micFailure } from "./micReason.js";
-import { worthSending } from "./heard.js";
+import { isEcho, worthSending } from "./heard.js";
+import { AddressGate, type AddressVerdict } from "./addressGate.js";
 import { UtteranceGate } from "./utteranceGate.js";
 import { toPcm16Base64 } from "./voiceClip.js";
 import { watchSky } from "./skyWatch.js";
@@ -107,6 +108,17 @@ const nameOf = (who: string | undefined): string | undefined =>
   residents.find((r) => r.id === who)?.name;
 /** each creature's mood, so the caption can name all of them (ADR-038) */
 const moods = new Map<string, string>();
+
+/**
+ * ADR-111: la parola di sveglia è il NOME. Il cancello legge i nomi da qui —
+ * dal roster quando c'è, dal `whoami` altrimenti — e finché non è arrivato
+ * niente non filtra: un muso appena acceso si comporta come sempre.
+ * `?wake=off` è la porta di servizio per provare il mondo di prima.
+ */
+const wakeGateOff = params.get("wake") === "off";
+const addressGate = new AddressGate(() =>
+  residents.length > 0 ? residents.map((r) => r.name) : (app.dataset.gosino?.split(", ") ?? []),
+);
 
 // gruppo 13: la voce interim — soul sintetizza col TTS emotivo (l'umore del
 // momento colora il tono), e su 204 o guasto si torna alla voce di sistema
@@ -475,6 +487,9 @@ function onServerMessage(message: ServerToFaceMessage): void {
       // registro ricorda, ma la voce NON parte e nessuno si gira a guardare:
       // un borbottio notturno che sveglia la casa è una sveglia
       if (message.murmur === true) return;
+      // ADR-111: se parla ad alta voce, la conversazione è viva — la
+      // finestra del cancello del nome riparte (un borbottio nel sonno no)
+      addressGate.spoke(performance.now());
       speech.speak(message.text, message.who);
       // and the others turn to look at whoever is talking: a room where
       // nobody reacts to anybody is two creatures in the same picture, not
@@ -633,7 +648,28 @@ renderer.onUsedProp?.((who, kind) => {
  * filtro dell'eco, stato, ritaglio della voce per l'identità, e via a soul.
  */
 function handleHeardText(text: string): void {
-  if (!worthSending(text, { spoken: speech.spokenLast() })) return;
+  const spoken = speech.spokenLast();
+  // l'eco della sua voce si butta PRIMA del cancello del nome: le sue frasi
+  // il suo nome lo contengono spesso («sono Silvio!»), e fargliele contare
+  // come chiamate aprirebbe la finestra di conversazione a ogni sua battuta
+  if (isEcho(text, spoken)) return;
+  // ADR-111: risponde a chi si rivolge a lui, non a tutta la stanza. Quello
+  // che è «overheard» muore qui: niente soul, niente registro, niente token.
+  const heardAt = performance.now();
+  const verdict: AddressVerdict = wakeGateOff ? "conversing" : addressGate.judge(text, heardAt);
+  if (verdict === "overheard") return;
+  if (!worthSending(text, { spoken })) {
+    // il nome da solo («Silvio!») è troppo corto per un viaggio a soul, ma
+    // lui si è girato lo stesso: la finestra è aperta, ora puoi parlargli
+    if (verdict === "addressed") {
+      setLocalState("alert");
+      renderer.reflex("perkUp");
+    }
+    return;
+  }
+  // una frase senza nome partita davvero è un giro di conversazione (punto 3
+  // di ADR-111): rinnova la finestra e consuma il tetto dei giri anonimi
+  if (!wakeGateOff && verdict === "conversing") addressGate.sent(heardAt);
   // «sta pensando», non «sta ascoltando»: da qui la frase è già in viaggio
   // verso soul. Con la dettatura di casa eravamo già in `thinking` da quando
   // il clip è partito, e tornare indietro a `listening` per un istante era un
