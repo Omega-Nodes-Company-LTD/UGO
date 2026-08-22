@@ -147,6 +147,61 @@ describe("Wanderer e gli arredi", () => {
    * sotto, gli arredi non esistono e lui si comporta come si è sempre
    * comportato.
    */
+  /**
+   * «Continua a parlare col culo e non con la faccia» — la seconda volta.
+   *
+   * Il cono di FACES_YOU c'era già e reggeva… finché non c'era un arredo per
+   * strada. Due righe lo scavalcavano: la caccia all'arredo riscriveva
+   * `this.target` **dopo** `inCone`, col rilevamento nudo dell'oggetto. Non
+   * capitava scegliendo un arredo mentre parla — quello è già vietato — ma nel
+   * caso vero, che è l'altro: si incammina verso il cespuglio mentre è `idle`,
+   * tu gli parli, lui risponde **continuando ad andarci**, e il cespuglio gli
+   * sta dietro. Nella stanza vera gli arredi ci sono sempre, quindi il caso
+   * senza arredi — l'unico che il test copriva — è quello che non capita mai.
+   *
+   * Mentre ti parla non ci arriva, e va bene così: un animale che ti sta
+   * dicendo qualcosa non se ne va dietro un cespuglio a metà frase. Ci arriva
+   * quando ha finito, che è esattamente quando il cono si spegne.
+   */
+  it("non continua ad andare all'arredo dandoti le spalle, se intanto ti parla", () => {
+    const BEHIND_HIM = { id: "b2", kind: "bush" as const, x: 0, z: -1.8 };
+    const w = eager();
+    w.setPen(20, 20);
+    w.setAttractions([BEHIND_HIM]);
+
+    // prima si incammina: è in `idle`, l'arredo lo attira, e gli sta dietro
+    let at = 0;
+    let out = w.step(at, "idle", 0.9, 0.8, 1, true);
+    while (Math.abs(out.heading) < 2 && at < 20_000) {
+      at += FRAME;
+      out = w.step(at, "idle", 0.9, 0.8, 1, true);
+    }
+    expect(Math.abs(out.heading)).toBeGreaterThan(2);
+
+    // poi gli parli, e lui risponde: da qui in avanti il muso torna verso di te
+    const talking = run(w, "talking", 3000, at);
+    expect(Math.abs(talking.heading)).toBeLessThanOrEqual(FACE_YOU_CONE + 0.01);
+  });
+
+  /**
+   * E il contrario, che è la metà che tiene onesta la correzione: **zitto, ci
+   * va**. Il cono è una regola sul parlare, non una gabbia — senza questo
+   * test, «non ci va mai» passerebbe per una correzione riuscita.
+   */
+  it("ci va eccome quando non ti sta parlando", () => {
+    const BEHIND_HIM = { id: "b2", kind: "bush" as const, x: 0, z: -1.8 };
+    const w = eager();
+    w.setPen(20, 20);
+    w.setAttractions([BEHIND_HIM]);
+    let closest = Infinity;
+    for (let t = 0; t <= 40_000; t += FRAME) {
+      const out = w.step(t, "idle", 0.9, 0.8, 1, true);
+      closest = Math.min(closest, Math.hypot(out.x - BEHIND_HIM.x, out.z - BEHIND_HIM.z));
+    }
+    // 1.9 è il contatto: oltre non va, perché il cespuglio è solido
+    expect(closest).toBeLessThan(2);
+  });
+
   it("ignores it entirely when it is not bored", () => {
     const w = eager();
     w.setPen(20, 20);

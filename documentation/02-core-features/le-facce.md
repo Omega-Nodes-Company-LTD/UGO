@@ -1,8 +1,8 @@
 ---
 title: "Le facce"
 description: "UGO ricorda i volti. Come te lo chiede, cosa conserva di chi non conosce, per quanto, e come si cancella."
-version: "0.13.0"
-last_updated: "2026-08-16"
+version: "0.16.0"
+last_updated: "2026-08-20"
 author: "ThinkPink Studio"
 ---
 
@@ -47,6 +47,50 @@ di sì**. È una scelta consapevole di chi ha installato UGO, e viene con quattr
 Trenta giorni e non un anno: l'audit log tiene verbi e identificativi per dodici mesi, questo tiene
 il volto di qualcuno. Non sono la stessa cosa e non hanno la stessa scadenza.
 
+## A cosa serve, quando parli
+
+Da UGO 0.42 **il volto concorre a dire chi sta parlando**. Prima serviva a una cosa sola — non
+farsi chiedere «chi sei?» una seconda volta — e chi ti riconosceva in conversazione era
+**soltanto la voce**: potevi insegnargli la tua faccia, vederla qui fra quelle che conosce, e
+sentirti chiedere chi eri due minuti dopo.
+
+Le due cose che sa fare sono diverse, e conviene tenerle distinte:
+
+| | risponde a | come |
+| --- | --- | --- |
+| **il volto** | *chi c'è in stanza* | chi la camera ha visto negli ultimi 90 secondi |
+| **la voce** | *chi sta parlando* | l'impronta vocale, e solo quella |
+
+**Chi ha parlato lo dice soltanto la voce**, e non è pignoleria. Se tu sei in stanza e qualcuno
+ti chiama dal corridoio, la camera vede te: dedurre che la frase sia tua vorrebbe dire scriverla
+in biografia **col tuo nome sopra**, e ricordarsela per sempre come una cosa che hai detto tu.
+Fra tutti i modi in cui UGO può sbagliare, quello è il peggiore — e per questo non lo fa.
+
+Il volto serve comunque, e serve molto: sapendo che ci sei, UGO parla di te come di uno presente
+invece che di un assente, tiene conto del vostro rapporto, e non ti chiede chi sei ogni volta.
+Ma se la voce non ti riconosce, **non ti dà del tu per nome**: dice che c'è qualcuno e che non sa
+chi ha parlato, che è la verità.
+
+## Quando nasce davvero l'impronta della voce (leggi questo)
+
+**Arruolare una voce non crea l'impronta.** Deposita il clip e scrive una richiesta; l'impronta la
+costruisce **il sogno notturno**, che gira alle 02:30. Vale sia dal chiosco che dal pannello, e
+tutt'e due te lo dicono al momento — *«stanotte imparo la tua voce»*.
+
+Il problema è che una frase detta una volta non è uno stato: il giorno dopo non sapevi se il sogno
+l'avesse lavorata. Adesso lo leggi: `/admin` → **La diagnostica** → riga **Il sogno notturno**,
+che dice `ultimo sogno 8 ore fa · 1 voce in attesa`.
+
+Quindi, per avere il riconoscimento vocale **subito** invece che domattina:
+
+1. arruola la voce (dal chiosco o dal pannello);
+2. **Sommario → «Fallo sognare adesso»**;
+3. ricontrolla la diagnostica: **il numero delle voci in attesa deve tornare a zero.** Se resta lì,
+   il sogno non è partito — e allora è quello il problema, non il riconoscimento.
+
+Finché quel numero non è zero, UGO non riconoscerà la voce di chi l'ha depositata. Non è rotto:
+sta aspettando.
+
 ## Chi UGO non guarderà mai
 
 Nel **branco**, su ogni persona, ci sono tre interruttori. Due riguardano questa pagina:
@@ -66,6 +110,10 @@ produrre un dato biometrico e produrlo e poi buttarlo via: la seconda non è una
 Se provi a insegnare a UGO il volto di qualcuno che ha detto «non guardarmi», il pannello ti
 risponde di no — **e l'impronta in sospeso viene distrutta lo stesso**. Conservarla dopo un
 rifiuto sarebbe il peggiore dei due mondi.
+
+> **E vale anche per il riconoscimento di chi parla.** Chi ha detto «non guardarmi» non ha
+> un'impronta del volto, quindi non c'è niente con cui riconoscerlo: la protezione non è un
+> controllo aggiunto dopo, è il fatto che quel dato non esiste.
 
 ## Come si cancella
 

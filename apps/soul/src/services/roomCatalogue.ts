@@ -1,5 +1,5 @@
-import { gosini, rooms, slugOfRoom, type DbClient } from "@ugo/db";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { gosini, places, rooms, slugOfRoom, type DbClient } from "@ugo/db";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 
 /**
  * The rooms of the house, as a catalogue (ADR-039).
@@ -90,9 +90,25 @@ export class RoomCatalogue {
     const already = existing[0];
     if (already !== undefined) return { id: already.id, room: already.name, created: false };
 
+    /**
+     * ADR-113: una stanza sta in un **luogo**, e quello di default è il primo
+     * dell'account — quello che nasce con la casa.
+     *
+     * Senza, una stanza creata dopo la migrazione resterebbe senza luogo, e
+     * quindi senza cielo: il meteo non saprebbe dove guardare e nessuno se ne
+     * accorgerebbe finché non fa freddo nella stanza sbagliata. È lo stesso
+     * difetto del traghetto che guarda solo indietro, un piano più in là.
+     */
+    const [home] = await this.db
+      .select({ id: places.id })
+      .from(places)
+      .where(eq(places.accountId, accountId))
+      .orderBy(asc(places.createdAt))
+      .limit(1);
+
     const created = await this.db
       .insert(rooms)
-      .values({ accountId, name: trimmed, slug })
+      .values({ accountId, name: trimmed, slug, ...(home !== undefined && { placeId: home.id }) })
       .returning({ id: rooms.id, name: rooms.name });
     const row = created[0];
     return row === undefined ? undefined : { id: row.id, room: row.name, created: true };

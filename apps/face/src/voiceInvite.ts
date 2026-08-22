@@ -1,4 +1,4 @@
-import type { FaceToServerMessage } from "@ugo/shared/face";
+import { VOICE_SAMPLE_BITRATE, type FaceToServerMessage } from "@ugo/shared/face";
 
 /**
  * L'invito «fatti sentire la voce» (ADR-057, la seconda metà).
@@ -18,7 +18,15 @@ import type { FaceToServerMessage } from "@ugo/shared/face";
 export const INVITE_TTL_MS = 10 * 60_000;
 /** la stessa durata della ricetta del pannello (`script/voice.ts`) */
 export const RECORD_MS = 10_000;
-/** il tetto del contratto (`faceContracts.ts`): oltre non partirebbe comunque */
+/**
+ * Il tetto del contratto (`faceContracts.ts`): oltre non partirebbe comunque.
+ *
+ * Da oggi è una rete di sicurezza e non un limite che si tocca: il ritmo di
+ * registrazione è dichiarato ({@link VOICE_SAMPLE_BITRATE}), quindi dieci
+ * secondi stanno sempre in 40 000 caratteri. Prima non lo era, e il risultato
+ * era il peggiore possibile — si chiedeva alla persona di parlare per dieci
+ * secondi, e POI si buttava via il clip.
+ */
 export const MAX_AUDIO_B64 = 120_000;
 
 function toBase64(bytes: Uint8Array): string {
@@ -78,7 +86,12 @@ export class VoiceInvite {
 async function recordClip(): Promise<Uint8Array> {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   try {
-    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+    // il ritmo si DICHIARA: senza, il browser sceglie da sé, sceglie alto, e
+    // dieci secondi sforano il tetto del contratto (`faceContracts.ts`)
+    const recorder = new MediaRecorder(stream, {
+      mimeType: "audio/webm;codecs=opus",
+      audioBitsPerSecond: VOICE_SAMPLE_BITRATE,
+    });
     const chunks: Blob[] = [];
     recorder.addEventListener("dataavailable", (event) => {
       if (event.data.size > 0) chunks.push(event.data);
@@ -129,7 +142,12 @@ export function mountVoiceInvite(deps: VoiceInviteMountDeps): {
       const made = invite.frameFor(clip);
       if ("error" in made) {
         deps.trouble(`la voce non è partita: ${made.error}`);
-        dismiss();
+        // il bottone RESTA. `frameFor` non consuma l'invito quando rifiuta
+        // (lo dice il suo test), ma qui si chiamava `dismiss()`: l'invito
+        // sopravviveva invisibile e la persona non aveva più niente da
+        // premere. Un rifiuto deve costare un tentativo, non la strada.
+        pressed.disabled = false;
+        pressed.textContent = `La voce di ${name}`;
         return;
       }
       deps.send(made.frame);

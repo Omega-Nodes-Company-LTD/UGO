@@ -1,5 +1,6 @@
 import type { LocalTextClient } from "./localText.js";
 import type { RankedMemory } from "./rerank.js";
+import { asksForAVerdict } from "./reporting.js";
 
 /**
  * «Non lo so» (ADR-107).
@@ -43,6 +44,13 @@ export interface AnswerableVerdict {
   answerable: boolean;
   /** se è stato chiesto al modello, o se è bastato l'accordo dei bracci */
   asked: boolean;
+  /**
+   * ADR-108: la domanda chiede un verdetto su qualcuno («X può fare Y»), e a
+   * quella la memoria non risponde né tace — **riferisce**. I ricordi entrano
+   * (`answerable` è vero) ma con l'obbligo di dire anche il confine di ciò che
+   * si sa.
+   */
+  reporting: boolean;
   /** la parola grezza del modello, per il banco e per i log: mai per l'utente */
   said?: string | undefined;
 }
@@ -66,10 +74,12 @@ export interface AnswerableVerdict {
  * non diventa più accurato se gli si danno due istruzioni invece di una, si
  * confonde. Il testo è tornato a quello che ha misurato meglio.
  *
- * La domanda che resta persa in **entrambe** le versioni è «Sofia può mangiare
- * i gamberi?» contro «Sofia è allergica ai crostacei»: serve un passaggio di
- * conoscenza del mondo, da gamberi a crostacei, che questo modello non fa in
- * nessuna delle due formulazioni. Quella non è una variabile del prompt.
+ * La domanda che restava persa in **entrambe** le versioni era «Sofia può
+ * mangiare i gamberi?» contro «Sofia è allergica ai crostacei». Sembrava un
+ * limite del modello — da gamberi a crostacei serve un passaggio di conoscenza
+ * del mondo — ed era invece una domanda mal posta al giudice: ADR-108 l'ha
+ * tolta di qui, perché a «X può fare Y» non risponde nessun appunto. Questo
+ * prompt vale per le domande che una risposta ce l'hanno o non ce l'hanno.
  */
 export function judgePrompt(question: string, memories: readonly string[]): string {
   const list = memories.map((text, at) => `${String(at + 1)}. ${text}`).join("\n");
@@ -126,6 +136,8 @@ export interface CanAnswerDeps {
  * fastidioso, ma resta una conversazione. Quindi ogni incertezza cade dalla
  * parte del rispondere:
  *
+ * - la domanda chiede un verdetto su qualcuno → si **riferisce** (ADR-108): non
+ *   è un caso di rispondere-o-tacere e non si giudica;
  * - i bracci concordano → si risponde, senza nemmeno chiedere (e senza spendere
  *   token: ADR-095, anche quelli locali scalano dal salvadanaio);
  * - niente ricordi → non c'è niente da giudicare, e non c'è niente da dire;
@@ -137,8 +149,15 @@ export async function canAnswer(
   question: string,
   ranked: readonly RankedMemory[],
 ): Promise<AnswerableVerdict> {
-  if (ranked.length === 0) return { answerable: false, asked: false };
-  if (armsAgree(ranked)) return { answerable: true, asked: false };
+  if (ranked.length === 0) return { answerable: false, asked: false, reporting: false };
+  /**
+   * ADR-108, e sta **prima** dell'accordo dei bracci di proposito: su una
+   * domanda che chiede un verdetto non c'è niente da giudicare, quindi non si
+   * chiede — né al modello (ADR-095: anche i token di casa costano) né a un
+   * indizio. I ricordi entrano e a UGO si dice di riferirli.
+   */
+  if (asksForAVerdict(question)) return { answerable: true, asked: false, reporting: true };
+  if (armsAgree(ranked)) return { answerable: true, asked: false, reporting: false };
 
   const shown = ranked.slice(0, deps.limit ?? ranked.length).map((memory) => memory.text);
   /**
@@ -151,5 +170,5 @@ export async function canAnswer(
    * non configurazioni. Qui si vuole la stessa risposta ogni volta.
    */
   const said = await deps.local.generate(judgePrompt(question, shown), 8, { temperature: 0 });
-  return { answerable: readVerdict(said), asked: true, said };
+  return { answerable: readVerdict(said), asked: true, reporting: false, said };
 }

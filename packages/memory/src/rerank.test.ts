@@ -37,10 +37,44 @@ describe("rerank = similarità × importanza × recency", () => {
     expect(ranked[0]?.id).toBe("alive");
   });
 
-  it("computes the score as the literal product", () => {
+  /**
+   * ADR-110: importanza e freschezza sono **modulatori**, non fattori pieni.
+   * Il prodotto è ancora letterale, ma i due termini entrano dentro la loro
+   * banda — misurato che `importance × recency` scavalcava la relevance, e che
+   * gli episodi ci perdevano sistematicamente perché nascono meno importanti.
+   */
+  it("computes the score as the literal product, with the two modulators banded", () => {
     const c = candidate({ similarity: 0.5, importance: 0.5, lastAccessed: daysAgo(0) });
     const [ranked] = rerank([c], NOW);
-    expect(ranked?.score).toBeCloseTo(0.5 * 0.5 * 1, 5);
+    // importanza 0.5 -> 0.5 + 0.5*0.5 = 0.75 ; recency 1 -> 0.4 + 0.6*1 = 1
+    expect(ranked?.score).toBeCloseTo(0.5 * 0.75 * 1, 5);
+  });
+
+  /**
+   * La prova che la banda serve a qualcosa: un episodio che la ricerca mette
+   * primo con l'accordo dei due bracci non deve perdere contro un fatto che i
+   * bracci hanno trovato una volta sola, solo perché il fatto è nato più
+   * importante e invecchia più lentamente. È esattamente «cosa si è rotto in
+   * casa?» contro il nome del gatto.
+   */
+  it("l'episodio su cui i bracci concordano batte il fatto importante e fresco", () => {
+    const episodio = candidate({
+      id: "lavatrice",
+      kind: "episode",
+      importance: 0.4,
+      createdAt: daysAgo(12),
+      vectorRank: 1,
+      lexicalRank: 1,
+    });
+    const fatto = candidate({
+      id: "gatto",
+      kind: "fact",
+      importance: 0.8,
+      createdAt: daysAgo(120),
+      vectorRank: 2,
+    });
+    const ranked = rerank([fatto, episodio], NOW);
+    expect(ranked[0]?.id).toBe("lavatrice");
   });
 
   it("recency uses last access when present, creation otherwise", () => {

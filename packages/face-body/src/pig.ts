@@ -29,6 +29,13 @@ export interface Traits {
   spots: number;
   tail: number;
   /**
+   * Le setole (ADR-109): la cresta sulla schiena, da rada a dorso irto. È il
+   * primo gene aggiunto dopo che il lettore dei genomi ha imparato a non
+   * buttare una mappa di alleli per un locus che manca — prima di quella
+   * correzione, aggiungerlo qui avrebbe azzerato ogni pedigree già scritto.
+   */
+  bristle: number;
+  /**
    * L'età che si vede (ADR-071): 0 fino a metà vita, poi le setole
    * sbiadiscono. Riflette la CONVERGENZA — ha finito di diventare sé stesso —
    * non una decrepitezza finta: niente posture curve, niente passo lento.
@@ -45,11 +52,15 @@ export const DEFAULT_TRAITS: Traits = {
   hue: 0.95,
   spots: 0.1,
   tail: 0.5,
+  bristle: 0.35,
   greying: 0,
 };
 
 /** Below this the coat is plain: carriers (one high allele) show nothing. */
 const SPOTS_VISIBLE_FROM = 0.45;
+
+/** Sotto questo il dorso è liscio: le setole sono un tratto, non un default. */
+const BRISTLES_VISIBLE_FROM = 0.3;
 
 /**
  * Fixed patch catalog, fractions of the body box. Deterministic on purpose:
@@ -67,6 +78,26 @@ const SPOT_SITES: readonly {
   { axis: "z", side: -1, y: 0.12, along: 0.22, size: 0.55 },
   { axis: "x", side: 1, y: 0.22, along: -0.3, size: 0.42 },
   { axis: "x", side: -1, y: -0.14, along: 0.34, size: 0.38 },
+];
+
+/**
+ * Dove cadono le setole lungo la schiena, in frazioni della cassa.
+ *
+ * Fisso come `SPOT_SITES` e per la stessa ragione: stesso genoma, stessa
+ * cresta. Se le posizioni venissero da un caso al montaggio, la creatura
+ * cambierebbe pelo a ogni ricarica della pagina — e ciò che non è stabile non
+ * è un tratto, è un effetto.
+ *
+ * L'inclinazione alterna di poco: un pettine perfetto legge come un oggetto,
+ * un pettine appena disordinato legge come un animale.
+ */
+const BRISTLE_SITES: readonly { along: number; lean: number; scale: number }[] = [
+  { along: 0.3, lean: -0.16, scale: 1 },
+  { along: 0.16, lean: 0.1, scale: 0.92 },
+  { along: 0.02, lean: -0.07, scale: 1.05 },
+  { along: -0.12, lean: 0.14, scale: 0.88 },
+  { along: -0.26, lean: -0.11, scale: 0.78 },
+  { along: -0.38, lean: 0.06, scale: 0.66 },
 ];
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
@@ -187,6 +218,35 @@ export class Pig {
         }
         patch.name = "spot";
         this.body.add(patch);
+      }
+    }
+
+    /**
+     * La cresta di setole (ADR-109).
+     *
+     * Il gene muove **quante** e **quanto lunghe** insieme: un dorso irto non è
+     * lo stesso pelo più fitto, sono peli anche più lunghi. Sotto la soglia non
+     * ne spunta nessuna — un maiale glabro è un fenotipo, non un errore.
+     *
+     * Figlie della cassa come le chiazze, così respirano con lei; e il colore
+     * passa da `aged`, quindi le setole sbiadiscono con l'età insieme al resto.
+     * Il commento di `greying` lo prometteva da ADR-071, quando di setole da
+     * sbiadire non ce n'era ancora una.
+     */
+    const bristling = Math.max(0, (traits.bristle - BRISTLES_VISIBLE_FROM) / (1 - BRISTLES_VISIBLE_FROM));
+    const standing = Math.round(bristling * BRISTLE_SITES.length);
+    if (standing > 0) {
+      const bristleMat = new THREE.MeshStandardMaterial({
+        color: aged(0.42, lerp(0.58, 0.4, bristling)),
+        roughness: 0.95,
+      });
+      for (const site of BRISTLE_SITES.slice(0, standing)) {
+        const len = lerp(0.12, 0.34, bristling) * site.scale;
+        const tuft = box(0.07, len, 0.09, 0.03, bristleMat);
+        tuft.position.set(0, bh / 2 + len / 2 - 0.03, site.along * bd);
+        tuft.rotation.x = site.lean;
+        tuft.name = "bristle";
+        this.body.add(tuft);
       }
     }
 

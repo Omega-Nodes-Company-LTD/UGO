@@ -1,8 +1,8 @@
-import { POSTURE_IT, POSTURES } from "./body/channels.js";
-import { GESTURES } from "./body/gestures.js";
-import { Webgl3dFace } from "./body/renderer3d.js";
-import { DEFAULT_TRAITS, type Traits } from "./body/pig.js";
-import { NEUTRAL_VARS, type PsycheVars } from "./body/pose.js";
+import { POSTURE_IT, POSTURES } from "@ugo/face-body";
+import { GESTURES } from "@ugo/face-body";
+import { Webgl3dFace } from "@ugo/face-body";
+import { DEFAULT_TRAITS, type Traits } from "@ugo/face-body";
+import { NEUTRAL_VARS, type PsycheVars } from "@ugo/face-body";
 import type { FaceState } from "@ugo/shared/face";
 import { PROP_IT, PROP_KINDS, type SceneProp } from "@ugo/shared/props";
 

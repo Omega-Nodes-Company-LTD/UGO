@@ -22,10 +22,27 @@ const MAX_STT_B64_CHARS = 520_000;
 
 const sttBodySchema = z.object({ audio: z.string().min(1).max(MAX_STT_B64_CHARS) });
 
+/**
+ * I due «no» della dettatura, che non sono lo stesso no.
+ *
+ * `unusable` è questo clip: troppo corto, o non trascrivibile. Percezione
+ * risponde 422 a un audio sotto gli 0,8 s — cioè a un «sì» — e il chiosco
+ * deve lasciar perdere IL CLIP, non la strada.
+ *
+ * `down` è il servizio: whisper non caricato, percezione giù, rete assente.
+ * Lì cambiare strada è la cosa giusta.
+ *
+ * Collassarli in uno solo è costato la dettatura locale a un'installazione
+ * intera: tre monosillabi di fila dichiaravano whisper morto, il muso tornava
+ * al riconoscitore del browser — quindi la voce ricominciava a uscire di casa
+ * — e la scelta veniva ricordata fra le ricariche.
+ */
+export type SttOutcome = { kind: "text"; text: string } | { kind: "unusable" } | { kind: "down" };
+
 export interface SttRouteDeps {
   db: DbClient;
   /** per casa, come il riconoscimento: assente = 501 */
-  transcriber?: (accountId: string) => { transcribe: (audio: string) => Promise<string | undefined> };
+  transcriber?: (accountId: string) => { transcribe: (audio: string) => Promise<SttOutcome> };
 }
 
 export function registerSttRoute(app: FastifyInstance, deps: SttRouteDeps): void {
@@ -40,10 +57,13 @@ export function registerSttRoute(app: FastifyInstance, deps: SttRouteDeps): void
     if (deps.transcriber === undefined) return reply.code(501).send();
     const scope = await resolveAccount(deps.db, request);
     if (!scope.ok) return reply.code(501).send();
-    const text = await deps.transcriber(scope.accountId).transcribe(parsed.data.audio);
+    const outcome = await deps.transcriber(scope.accountId).transcribe(parsed.data.audio);
+    // 422: questo clip non si trascrive. Il chiosco lo lascia perdere e resta
+    // dov'è — un 503 qui gli farebbe credere che whisper sia morto
+    if (outcome.kind === "unusable") return reply.code(422).send();
     // whisper giù o in ritardo: 503, e il muso decide lui se riprovare o
     // ripiegare — un 501 direbbe «non esiste», che sarebbe una bugia
-    if (text === undefined) return reply.code(503).send();
-    return reply.send({ text });
+    if (outcome.kind === "down") return reply.code(503).send();
+    return reply.send({ text: outcome.text });
   });
 }

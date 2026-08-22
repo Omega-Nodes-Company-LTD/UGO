@@ -16,6 +16,7 @@ import type { AlbumService } from "../albumService.js";
 import { Photographer } from "../photographer.js";
 import { SceneMemory } from "../sceneMemory.js";
 import { SceneReader } from "../sceneReader.js";
+import type { TurnLog } from "../diagnostics/turnLog.js";
 import { storeVoiceSample } from "../voiceEnrolment.js";
 import { Curiosity } from "../volition/curiosity.js";
 import { EfficacyService } from "../volition/efficacy.js";
@@ -99,6 +100,8 @@ export interface RuntimeDeps {
   llm: (accountId: string, gosinoId: string, clock: HouseClock) => ChatLlm;
   local: LocalTextClient;
   dataKey: Buffer;
+  /** il cronometro dei turni, per la diagnostica. Assente = non si misura. */
+  turnLog?: TurnLog;
   /**
    * Il fuso di ripiego, per la casa che non ne dichiara uno. ADR-050: quello
    * vero e' della casa e si legge insieme al resto — un fuso di processo per
@@ -229,6 +232,10 @@ async function buildRuntime(
   const chat = new ChatService({
     db: hdb,
     embedder: deps.embedder,
+    // il cronometro della diagnostica: **ogni** esemplare, non solo quello di
+    // avvio — altrimenti la pagina misurerebbe una creatura sola e la casa
+    // con due si diagnosticherebbe a metà
+    ...(deps.turnLog !== undefined && { turnLog: deps.turnLog }),
     llm: deps.llm(row.accountId, row.id, { timezone, locale }),
     psyche,
     dataKey: deps.dataKey,

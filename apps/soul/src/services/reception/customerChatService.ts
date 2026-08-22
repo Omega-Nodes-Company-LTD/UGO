@@ -5,6 +5,7 @@ import {
   gosini,
   accounts,
   tickets,
+  traitSets,
   type DbClient,
 } from "@ugo/db";
 import {
@@ -13,8 +14,14 @@ import {
   type ChatLlm,
   type LlmHistoryTurn,
 } from "@ugo/memory";
-import { decryptText, encryptText } from "@ugo/shared";
+import {
+  decryptText,
+  encryptText,
+  receptionLookSchema,
+  type ReceptionLook,
+} from "@ugo/shared";
 import { and, desc, eq, gt, ne } from "drizzle-orm";
+import { characterFrom } from "../council/character.js";
 import type { AuditLogger } from "../auditLog.js";
 import type { AnswerCache } from "./answerCache.js";
 import type { CustomerContext } from "./customerAuth.js";
@@ -103,6 +110,15 @@ export interface CustomerChatDeps {
   github?: GithubLiveService;
   /** ADR-055 wall 3: the repeated question costs nothing */
   cache?: AnswerCache;
+  /**
+   * ADR-115: come sta il gosino, adesso.
+   *
+   * Una funzione e non una psiche: la reception non deve poter *muovere* uno
+   * stato d'animo, solo leggerlo — e leggerlo **quando risponde**, mai in
+   * continuo. Assente = la reception disegna un corpo fermo, che è ciò che
+   * faceva prima.
+   */
+  moodOf?: (gosinoId: string) => { label: string; vars: Record<string, number> } | undefined;
 }
 
 export type CustomerChatResult =
@@ -115,6 +131,8 @@ export type CustomerChatResult =
       ticketId?: string;
       /** the reply is a step-by-step guide: the client offers the PDF */
       guide?: boolean;
+      /** ADR-115: come sta, attaccato alla risposta e non a un canale aperto */
+      mood?: { label: string; vars: Record<string, number> };
     };
 
 export interface CustomerChatRequest {
@@ -132,15 +150,41 @@ export class CustomerChatService {
   }
 
   /** The gosini this customer may talk to — the picker's list. */
+  /**
+   * ADR-115: e **com'è fatto**, perché la reception possa disegnarlo.
+   *
+   * Escono gli otto geni del corpo e nient'altro: aspetto, mai temperamento.
+   * È la regola della vetrina (ADR-083) con un motivo in più — il cliente non è
+   * di casa, e quanto è affettuoso il gosino di qualcun altro non sono affari
+   * suoi. Il `look` è **facoltativo**: senza trait set si disegna quello medio,
+   * che è esattamente ciò che si vedeva prima.
+   */
   public async assignedGosini(
     context: CustomerContext,
-  ): Promise<{ id: string; name: string; locationLabel: string | null }[]> {
-    return this.dbOf(context.accountId)
+  ): Promise<
+    { id: string; name: string; locationLabel: string | null; look?: ReceptionLook }[]
+  > {
+    const db = this.dbOf(context.accountId);
+    const rows = await db
       .select({ id: gosini.id, name: gosini.name, locationLabel: gosini.locationLabel })
       .from(customerGosini)
       .innerJoin(gosini, eq(gosini.id, customerGosini.gosinoId))
       .where(eq(customerGosini.customerId, context.customerId))
       .orderBy(gosini.bornAt);
+
+    const out: { id: string; name: string; locationLabel: string | null; look?: ReceptionLook }[] =
+      [];
+    for (const row of rows) {
+      const [set] = await db
+        .select({ traits: traitSets.traits })
+        .from(traitSets)
+        .where(eq(traitSets.gosinoId, row.id))
+        .orderBy(desc(traitSets.version))
+        .limit(1);
+      const parsed = receptionLookSchema.safeParse(characterFrom(set?.traits).traits);
+      out.push({ ...row, ...(parsed.success && { look: parsed.data }) });
+    }
+    return out;
   }
 
   public async handle(
@@ -181,7 +225,7 @@ export class CustomerChatService {
       const ticketId = await this.collectTicket(request, shortcut[1].trim(), at);
       const reply = "Fatto, ho aperto il ticket. Lo studio lo vedrà e ti aggiorno qui.";
       await this.persistTurns(request, reply, at, { ticketId });
-      return { kind: "ok", reply, degraded: false, cached: false, ticketId };
+      return { kind: "ok", reply, degraded: false, cached: false, ticketId, ...this.mood(gosinoId) };
     }
 
     // a guide is a question like the others: quota, cache and budget valgono.
@@ -196,7 +240,14 @@ export class CustomerChatService {
       const remembered = await this.deps.cache?.lookup(cacheKey, request.text, at);
       if (remembered !== undefined) {
         await this.persistTurns(request, remembered, at, { cached: true });
-        return { kind: "ok", reply: remembered, degraded: false, cached: true, ...(guide && { guide }) };
+        return {
+          kind: "ok",
+          reply: remembered,
+          degraded: false,
+          cached: true,
+          ...(guide && { guide }),
+          ...this.mood(gosinoId),
+        };
       }
     }
 
@@ -239,7 +290,21 @@ export class CustomerChatService {
       cached: false,
       // degradata = la voce del muro, non una guida: niente PDF da offrire
       ...(guide && !result.degraded && { guide }),
+      ...this.mood(gosinoId),
     };
+  }
+
+  /**
+   * Come sta, se qualcuno può dirlo (ADR-115).
+   *
+   * Sta in un metodo solo perché va attaccato a **ogni** risposta, comprese
+   * quelle che non costano niente: se l'umore accompagnasse solo le risposte
+   * a pagamento, il corpo si fermerebbe di colpo quando il cliente ripete una
+   * domanda — e sembrerebbe un guasto invece di una cache che funziona.
+   */
+  private mood(gosinoId: string): { mood?: { label: string; vars: Record<string, number> } } {
+    const now = this.deps.moodOf?.(gosinoId);
+    return now === undefined ? {} : { mood: now };
   }
 
   /** A ticket collected on the customer's explicit words (ADR-052). */

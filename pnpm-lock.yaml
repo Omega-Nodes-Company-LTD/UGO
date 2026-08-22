@@ -39,6 +39,9 @@ importers:
       '@mediapipe/tasks-vision':
         specifier: ^1.0.1
         version: 1.0.1
+      '@ugo/face-body':
+        specifier: workspace:*
+        version: link:../../packages/face-body
       '@ugo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -104,6 +107,9 @@ importers:
 
   apps/reception:
     dependencies:
+      '@ugo/face-body':
+        specifier: workspace:*
+        version: link:../../packages/face-body
       '@ugo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -294,6 +300,28 @@ importers:
       tsx:
         specifier: ^4.23.11
         version: 4.23.11
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@22.20.1)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.11)(yaml@2.9.0))
+
+  packages/face-body:
+    dependencies:
+      '@ugo/shared':
+        specifier: workspace:*
+        version: link:../shared
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.0
+        version: 22.20.1
+      '@types/three':
+        specifier: ^0.185.0
+        version: 0.185.4
       typescript:
         specifier: ~5.9.3
         version: 5.9.3

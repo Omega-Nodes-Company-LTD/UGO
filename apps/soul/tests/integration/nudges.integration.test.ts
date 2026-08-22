@@ -14,7 +14,7 @@ import type { ServerToFaceMessage } from "@ugo/shared";
 import { eq, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { NudgeService, nudgeOf } from "../../src/services/nudges.js";
+import { NudgeService } from "../../src/services/nudges.js";
 import { GosinoRegistry } from "../../src/services/pack/runtimes.js";
 
 /**
@@ -96,16 +96,36 @@ afterAll(async () => {
   await pg.stop();
 });
 
-describe("nudgeOf: le forme", () => {
-  it("riconosce i due verbi e lascia in pace il resto", () => {
-    expect(nudgeOf("vai in cucina")).toEqual({ verb: "go", room: "cucina" });
-    expect(nudgeOf("Ugo, vai nello studio!")).toEqual({ verb: "go", room: "studio" });
-    expect(nudgeOf("spostati al salotto")).toEqual({ verb: "go", room: "salotto" });
-    expect(nudgeOf("chiama Silvio")).toEqual({ verb: "call", name: "Silvio" });
-    // frasi qualunque: NON sono spinte
-    expect(nudgeOf("vado in cucina a farmi un caffè")).toBeUndefined();
-    expect(nudgeOf("chiamami quando arrivi")).toBeUndefined();
-    expect(nudgeOf("ieri sono andato in studio")).toBeUndefined();
+/**
+ * Le FORME stanno in `src/services/nudges.test.ts`, come unit: sono pure, e
+ * tenerle qui voleva dire che un errore di riconoscimento si scopriva in CI
+ * invece che in cinque secondi. È successo con «vai a dormire», letto come
+ * «vai nella stanza *dormire*».
+ *
+ * Qui resta ciò che ha bisogno di un database e di un registro veri: cosa
+ * SUCCEDE quando una spinta arriva.
+ */
+describe("«dormi» e «vieni qui»", () => {
+  it("senza un corpo acceso non finge di andare a dormire", async () => {
+    const reply = await nudges.answer(ugo, "vai a dormire");
+    expect(reply).toMatch(/corpo acceso/u);
+    const noted = await db
+      .select({ payload: events.payload })
+      .from(events)
+      .where(sql`${events.type} = 'nudge' and ${events.gosinoId} = ${ugo}`);
+    expect(noted.map((n) => (n.payload as { outcome: string }).outcome)).toContain("no_body");
+  });
+
+  /**
+   * «Qui» è la sola parola che questo sistema non può risolvere: un messaggio
+   * di chat non porta con sé la stanza da cui è stato scritto. Le strade erano
+   * due — indovinare o chiedere — e vale la regola del pannello: si chiede
+   * QUALE, invece di prendere un default e sperare.
+   */
+  it("«vieni qui» chiede quale stanza invece di indovinare", async () => {
+    const reply = await nudges.answer(ugo, "vieni qui");
+    expect(reply).toMatch(/non so in che stanza/u);
+    expect(reply).toMatch(/vai in/u);
   });
 });
 

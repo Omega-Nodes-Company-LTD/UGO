@@ -36,6 +36,12 @@ export const rooms = pgTable(
      * two rooms differing only in case are one room with two spellings.
      */
     slug: text("slug").notNull(),
+    /**
+     * ADR-113: in quale luogo sta questa stanza. Una cucina è una cucina, ma
+     * quella al mare non è quella in città — e prima del luogo erano la stessa
+     * stanza per il cielo che ci si vedeva sopra.
+     */
+    placeId: uuid("place_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

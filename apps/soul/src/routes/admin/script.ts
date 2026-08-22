@@ -9,6 +9,7 @@ import { CORE_JS } from "./script/core.js";
 import { COUNCIL_JS } from "./script/council.js";
 import { CUSTOMERS_JS } from "./script/customers.js";
 import { DATA_JS } from "./script/data.js";
+import { DIAGNOSTICS_JS } from "./script/diagnostics.js";
 import { ADOPTIONS_JS } from "./script/adoptions.js";
 import { DIARY_JS } from "./script/diary.js";
 import { JOURNAL_JS } from "./script/journal.js";
@@ -21,6 +22,7 @@ import { PEDIGREE_JS } from "./script/pedigree.js";
 import { PIGGYBANK_JS } from "./script/piggybank.js";
 import { LIFE_JS } from "./script/life.js";
 import { LISTS_JS } from "./script/lists.js";
+import { DOCUMENTS_JS } from "./script/documents.js";
 import { PRINTS_JS } from "./script/prints.js";
 import { PROPS_JS } from "./script/props.js";
 import { SPARKS_JS } from "./script/sparks.js";
@@ -60,6 +62,7 @@ export const ADMIN_SCRIPT = [
   GRAPH_JS,
   DATA_JS,
   STATUS_JS,
+  DIAGNOSTICS_JS,
   PLACE_JS,
   CAPABILITIES_JS,
   ACCOUNTS_JS,
@@ -78,5 +81,6 @@ export const ADMIN_SCRIPT = [
   JOURNAL_JS,
   ADOPTIONS_JS,
   LISTS_JS,
+  DOCUMENTS_JS,
   TIES_JS,
 ].join("\n");

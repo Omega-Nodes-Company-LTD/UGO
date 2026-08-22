@@ -38,9 +38,26 @@ const SUBJECT = new RegExp(
 /**
  * I modi in cui la si chiede. Serve una **domanda** o un **ordine**: senza,
  * «ho letto una notizia interessante» diventerebbe una rassegna.
+ *
+ * Stessi confini a mano di SUBJECT, per la stessa trappola: con `\b`,
+ * `c'è` e `ci sono novità` non combaciavano MAI — dopo la vocale accentata
+ * il confine non esiste — ed erano due alternative scritte e morte, coperte
+ * dalle altre quasi sempre e quindi invisibili.
+ *
+ * E il campo ha portato la frase vera (2026-08-21): «mi fai un riassunto
+ * delle notizie del giorno?». Un riassunto chiesto con «fai», non «fammi» —
+ * nessuna parola della lista, la frase cadeva al provider e UGO rispondeva
+ * di non avere notizie col pannello che ne mostrava cinquanta. Fallire
+ * chiuso va bene su «ho letto una notizia»; su una domanda vera è la bugia
+ * peggiore: la funzione c'è e il matcher non la trova. Da qui «fai»,
+ * «leggi», «aggiornami» e la famiglia di «riassunto/riassumi(mi)» —
+ * a costo di leggere ogni tanto tre titoli a chi il riassunto lo stava
+ * solo nominando.
  */
-const ASKS =
-  /\b(che|quali|cosa|c'è|ci sono|ce n'è|leggimi|dimmi|raccontami|dammi|fammi|sentiamo|ci sono novità)\b/u;
+const ASKS = new RegExp(
+  `${EDGE_LEFT}(?:che|quali|cosa|c['’]è|ci sono|ce n['’]è|leggimi|leggi|dimmi|raccontami|dammi|fammi|fai|sentiamo|aggiornami|riassu\\p{L}*)${EDGE_RIGHT}`,
+  "u",
+);
 
 const WORD_NUMBERS: Readonly<Record<string, number>> = {
   un: 1,

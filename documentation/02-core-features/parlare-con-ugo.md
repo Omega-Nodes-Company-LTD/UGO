@@ -1,8 +1,8 @@
 ---
 title: "Parlare con UGO"
 description: "Come funziona una conversazione: la voce, la memoria che resta, l'umore che cambia e il budget giornaliero."
-version: "0.11.0"
-last_updated: "2026-08-18"
+version: "0.12.0"
+last_updated: "2026-08-21"
 author: "ThinkPink Studio"
 ---
 
@@ -14,13 +14,33 @@ prima. Per questo la stessa domanda, fatta in due giorni diversi, può avere due
 
 ## Avviare una conversazione
 
-1. Tocca il muso sullo schermo. Il grugno si muove: UGO è in ascolto.
-2. Parla normalmente. Non serve una formula magica né alzare la voce.
-3. Sullo schermo compare **la sua risposta scritta** e la senti a voce.
-4. Se vuoi chiudere il discorso, smetti di parlare: dopo qualche secondo torna in attesa.
+1. Accendi i sensi col pulsante del microfono, se non sono già accesi.
+2. **Chiamalo per nome**, come faresti con chiunque: `ciao Silvio`, `ehi Silvio, ci sei?`.
+   Si gira verso di te e da lì il discorso è aperto.
+3. Parla normalmente. Non serve una formula magica, non serve alzare la voce, e non serve
+   ripetere il nome a ogni frase: finché il discorso è vivo ti segue.
+4. Sullo schermo compare **la sua risposta scritta** e la senti a voce.
+5. Se smetti di parlargli, dopo un po' il discorso si chiude da solo. Per riprenderlo,
+   richiamalo per nome.
 
 Se il telefono non ti sente, torna a [Primo avvio](../01-getting-started/primo-avvio.md) e controlla
 di avere concesso il permesso al microfono.
+
+### Perché il nome
+
+UGO ha le orecchie sempre accese, ma **risponde solo a chi si rivolge a lui**. Se parli con
+un'altra persona, o c'è la televisione accesa, non si intromette — e quelle frasi **non
+partono verso il server e non diventano sue memorie**: muoiono sul dispositivo. Il nome è
+quello che gli dice «sto parlando con te», esattamente come fra persone.
+
+Qualche dettaglio utile:
+
+- il nome vale ovunque nella frase: `Silvio, che ne pensi?` funziona come `che ne pensi, Silvio?`;
+- se il riconoscimento storpia una lettera (`Silvia` per `Silvio`), capisce lo stesso;
+- il suo nome da solo (`Silvio!`) lo fa voltare: orecchie dritte, ti ascolta;
+- appena lui ti ha risposto il discorso è aperto: replica e basta, senza nominarlo;
+- se ti metti a parlare con qualcun altro, dopo qualche frase capisce che il discorso non è
+  più con lui e torna ad aspettare il suo nome.
 
 ## Cosa ricorda (e cosa no)
 
@@ -56,15 +76,65 @@ rilegge e si chiede se rispondono davvero: se non rispondono, te lo dice.
 
 Due cose da sapere, dette com'è giusto dirle:
 
-- **capita anche quando la risposta ce l'aveva.** Su dieci domande che una risposta hanno, circa una
-  riceve un «non lo so» di troppo. Se ti succede su una cosa che sei sicuro di avergli detto,
-  ridigliela: la sa da subito, e la prossima volta la ritrova;
+- **capita anche quando la risposta ce l'aveva.** Su dieci domande che una risposta hanno, due
+  ricevono un «non lo so» di troppo — misurato, non stimato. Se ti succede su una cosa che sei
+  sicuro di avergli detto, ridigliela: la sa da subito, e la prossima volta la ritrova;
 - **la conversazione non si ferma.** Non è un errore né un muro: puoi raccontargliela lì per lì, e
   da quel momento è sua.
 
 Chi gestisce il server può spegnere questo comportamento (`UGO_ABSTAIN=off`) e tornare a un UGO che
 prova sempre a rispondere. È uno scambio, e conviene saperlo in entrambe le direzioni: meno risposte
 inventate da una parte, qualche «non lo so» di troppo dall'altra.
+
+### «Sofia può mangiare i gamberi?» — la domanda a cui non risponde mai
+
+C'è una famiglia di domande su cui UGO non dice né sì né no, **anche quando in memoria ha
+qualcosa**: quelle che chiedono se una persona può, deve o riesce a fare qualcosa. Ti risponde
+riferendo.
+
+> — Sofia può mangiare i gamberi?
+> — Mi hai detto che è allergica ai crostacei. Di più non so, chiediglielo.
+
+Non è prudenza da ufficio legale, è aritmetica: **il fatto che non te l'abbia detto non vuol dire
+che non sia vero.** Se anche Sofia non fosse allergica ai crostacei, potrebbe esserlo alle noci
+senza che tu gliene abbia mai parlato — e un «sì, può» detto sul silenzio è la cosa più pericolosa
+che un compagno possa dire.
+
+Il contrario vale altrettanto, ed è la ragione per cui questa regola esiste: **quello che gli hai
+detto, te lo ridice sempre.** Se una sera racconti che Giovanni ha l'asma, quello è un ricordo come
+tutti gli altri — non perché UGO sappia di medicina, ma perché l'hai detto tu — e alla prima domanda
+che lo riguarda salta fuori. Prima di questa regola poteva succedere che si tenesse l'allergia per
+sé e rispondesse «non lo so»: era il modo peggiore possibile di essere prudenti.
+
+### Giocare: «ho pensato un numero»
+
+Ditegli **«giochiamo?»** e pensa un numero fra 1 e 100. Da lì in poi ogni numero che dite è un
+tentativo, e vi risponde «più alto» o «più basso» finché non ci prendete. Se vi arenate,
+dopo un po' vi offre lui la via d'uscita: **«mi arrendo»** e ve lo dice.
+
+Tre cose:
+
+- **il numero non lo sa nessun modello.** Se lo tiene lui, cifrato, e a dirvi «più alto» è un
+  conto fatto in casa: il gioco non costa niente;
+- **fuori partita un numero è solo un numero.** Se dite «ho 43 anni» quando non state giocando,
+  non comincia una partita;
+- **una partita lasciata a metà scade** dopo mezza giornata, così un numero pensato stamattina
+  non trasforma le cifre di stasera in tentativi.
+
+Se esportate i vostri dati a partita aperta, dentro ci trovate anche il numero. È il vostro
+file: non vi nasconde niente, nemmeno quando sarebbe più divertente.
+
+### «Com'è andata la settimana?»
+
+Di una giornata sola te la racconta a memoria: il diario l'ha già scritto lui stanotte, e non
+costa niente. Di una **settimana** no — sette pagine in fila non sono un riassunto — e allora
+le mette in ordine e te la racconta in tre frasi.
+
+A farlo è **la voce di casa**, sempre, anche quando per il resto sta rispondendo il modello
+grande: quello che c'è scritto nel diario è la vita di chi ci abita, e non esce per farsi
+riassumere.
+
+Se di quei giorni non ha scritto niente te lo dice, invece di inventarti una settimana.
 
 ## Le parole che sono gesti
 
@@ -91,6 +161,12 @@ E due sono **richieste, non comandi** — passano dal suo carattere, e può dirt
   sullo schermo di quella stanza. Se sta dormendo o ha appena preso uno spavento te lo dice,
   e se è stanco obbedisce sbuffando. Una stanza che non esiste non lo confonde: ti risponde
   che non la conosce.
+- **`vai a dormire`** — se ha un corpo acceso, si mette a dormire. **Non c'è il comando
+  contrario**, ed è voluto: per svegliarlo basta farti vedere. Se non ha nessuno schermo
+  acceso te lo dice, invece di rispondere «va bene» al buio.
+- **`vieni qui`** — ti risponde che da lì non sa in che stanza sei, e ti elenca quelle che
+  conosce. Un messaggio scritto non porta con sé la stanza da cui l'hai scritto, e tirare a
+  indovinare la stanza giusta sarebbe peggio che chiedertelo.
 - **`chiama Silvio`** (o come si chiama l'altro gosino) — il corpo di Silvio, dovunque sia,
   drizza le orecchie e risponde. Se non ha uno schermo acceso, UGO ti dice la verità: non
   può sentirlo.
@@ -166,8 +242,8 @@ parti fisse del suo carattere, sulla pagina di stato.
 Se hai iscritto dei feed (dal pannello, in **I feed**), UGO te ne legge i titoli quando glielo
 chiedi:
 
-- **«che notizie ci sono?»**, **«leggimi le notizie»**, **«fammi la rassegna»** — i primi tre
-  titoli, con la fonte.
+- **«che notizie ci sono?»**, **«leggimi le notizie»**, **«fammi la rassegna»**, **«mi fai un
+  riassunto delle notizie?»** — i primi tre titoli, con la fonte.
 - **«leggimi cinque notizie»** — quanti ne vuoi, fino a otto. È una rassegna, non un giornale
   letto per intero.
 

@@ -199,6 +199,17 @@ export class Speech {
   ): boolean {
     const Ctor = this.recognitionCtor();
     if (Ctor === undefined) return false;
+    // Chi ascolta gia', ascolta.
+    //
+    // Senza questa riga una seconda chiamata apriva una SECONDA catena di
+    // sessioni sullo stesso riconoscitore, con un freno, un verdetto e un
+    // registro tutti suoi: due bip per riavvio, due copie di ogni riga, e i
+    // due contatori che si azzeravano a vicenda — cioe' il muro di
+    // `network`/`not-allowed` fotocopiati arrivato dal telefono del
+    // proprietario, dove il verdetto (che si arrende alla prima) non e' mai
+    // riuscito a vincere sul freno (che conta fino a otto). Le catene morivano
+    // insieme, alla prima resa, ma dopo aver suonato tutte.
+    if (this.listening) return true;
     this.listening = true;
     let quickDeaths = 0;
     // una riga per CLASSE di errore, non una per tentativo: il registro del

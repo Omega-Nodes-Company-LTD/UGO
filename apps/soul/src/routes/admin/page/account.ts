@@ -54,6 +54,7 @@ export const ACCOUNT_PAGES = `
     </div>
     <div id="place-results" data-testid="place-results"></div>
     <p class="lede" id="place-now" data-testid="place-now"></p>
+    <div id="place-mine" data-testid="place-mine"></div>
     <div id="place-msg"></div>
   </div>
 
@@ -62,6 +63,10 @@ export const ACCOUNT_PAGES = `
     <div class="tiles" id="tiles" data-testid="stats"></div>
     <h3>Sta rispondendo tutto?</h3>
     <div class="pills" id="health" data-testid="health"></div>
+    <p class="lede">Questi sono i quattro pezzi vitali, e dicono solo s&igrave; o no. Se qualcosa
+       &egrave; lento invece che rotto &mdash; o se il pezzo che ti serve non &egrave; fra questi
+       quattro &mdash; la risposta sta in <a href="#/diagnostica">La diagnostica</a>: tutti i
+       container, coi millisecondi e con cosa fare.</p>
     <div class="row" style="margin-top:.9rem">
       <button id="dream" class="ghost" data-testid="dream">Fallo sognare adesso</button>
     </div>
@@ -435,6 +440,27 @@ export const ACCOUNT_PAGES = `
     </div>
     <div id="lists-all" data-testid="lists-all"></div>
     <div id="list-msg"></div>
+  </div>
+</section>
+
+<section class="page" data-page="documenti">
+  <div class="page-head">
+    <p class="eyebrow" data-account>—</p>
+    <h1>I documenti</h1>
+    <p>Il libretto della caldaia, il contratto della luce, il referto del veterinario. UGO
+       conosce solo quello che ha <b>sentito</b>: qui gli si dà da <b>leggere</b>. I file
+       restano nel vostro archivio privato e non escono di casa; quello che entra nel suo
+       indice è cifrato come i ricordi. Li legge <b>di notte</b>, non appena li caricate:
+       un PDF lungo sono centinaia di calcoli, e nessuno deve restare ad aspettarli.</p>
+  </div>
+  <div class="block">
+    <div class="row">
+      <div><label for="doc-file">File</label>
+        <input id="doc-file" data-testid="doc-file" type="file"></div>
+      <button id="doc-upload" data-testid="doc-upload">Carica</button>
+    </div>
+    <div id="docs-all" data-testid="docs-all"></div>
+    <div id="doc-msg"></div>
   </div>
 </section>
 

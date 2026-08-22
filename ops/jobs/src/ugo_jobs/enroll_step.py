@@ -80,6 +80,41 @@ def _remote_enroll(
     return "deferred"
 
 
+def has_pending(conn: psycopg.Connection, account_id: str) -> bool:
+    """C'è qualcosa in coda ADESSO, indipendentemente dai marcatori.
+
+    Esiste per una ragione precisa, e costata due giorni al proprietario: i
+    marcatori del sogno sono per **data + passo**, quindi il sogno delle 02:30
+    marca `enroll` come fatto per oggi, e ogni sogno lanciato a mano più tardi
+    **lo salta** — comprese le voci arruolate nel frattempo. Il pannello
+    intanto prometteva «l'impronta nasce stanotte, o subito se premi "Fallo
+    sognare adesso"», e quella promessa era falsa per ventuno ore su
+    ventiquattro.
+
+    Il rimedio ricalca quello che il backup fa già da sempre: un marcatore che
+    può essere stantìo non si crede sulla parola, si verifica contro la realtà.
+    Qui la realtà è la coda, e `run_enroll` è idempotente per costruzione — se
+    non c'è niente da fare, non fa niente.
+    """
+    row = conn.execute(
+        """
+        select 1
+        from perception_events r
+        where r.observed->>'kind' = %s
+          and r.being_id is not null
+          and r.gosino_id in (select id from gosini where account_id = %s)
+          and not exists (
+            select 1 from perception_events d
+            where d.observed->>'kind' = 'enrollment'
+              and d.observed->>'request_id' = r.id::text
+          )
+        limit 1
+        """,
+        (REQUEST_KIND, account_id),
+    ).fetchone()
+    return row is not None
+
+
 def _pending(conn: psycopg.Connection, account_id: str) -> list[tuple[str, str, str, str]]:
     """Requests with no outcome recorded yet — idempotent by construction.
 

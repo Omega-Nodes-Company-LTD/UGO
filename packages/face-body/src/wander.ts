@@ -81,6 +81,15 @@ const ROAMS_IN: readonly FaceState[] = ["idle", "thinking", "talking"];
  */
 const FACES_YOU: readonly FaceState[] = ["talking", "listening", "alert"];
 
+/**
+ * Nota per chi tocca `update`: **ogni** scrittura di `this.target` dentro
+ * questo file passa da `inCone`, tranne una — il rientro dal bordo del recinto,
+ * che è dichiarato esente lì dove sta. È una regola che si rompe scrivendo una
+ * riga in più, ed è già successa due volte: la prima con il vagabondaggio, la
+ * seconda con la caccia agli arredi. Se ne aggiungi una terza, falla passare
+ * di lì.
+ */
+
 /** Mezzo cono, in radianti (~52°): oltre, la spalla comincia a coprire il muso. */
 export const FACE_YOU_CONE = 0.9;
 
@@ -286,7 +295,13 @@ export class Wanderer {
     // fuori strada chiunque venga deviato da un ostacolo lungo la via
     if (this.heading_to !== undefined) {
       const goal = this.goalFor(this.heading_to);
-      this.target = Math.atan2(goal.x - this.x, goal.z - this.z);
+      // dentro il cono, come ogni altro bersaglio. Scrivere qui il rilevamento
+      // nudo dell'arredo era la seconda strada per «parla dandoti le spalle»,
+      // ed era quella che capita davvero: scegliere un arredo MENTRE parla è
+      // già vietato (`pickNext` non lo fa col cono acceso), ma incamminarsi da
+      // `idle` e cominciare a parlare per strada no — e la stanza vera ha
+      // sempre un cespuglio da qualche parte.
+      this.target = this.inCone(Math.atan2(goal.x - this.x, goal.z - this.z));
       if (this.arrivedAt(this.heading_to)) {
         this.reached = { id: this.heading_to.id, kind: this.heading_to.kind };
         this.usedAt.set(this.heading_to.id, now);

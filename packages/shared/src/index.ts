@@ -113,6 +113,8 @@ export {
   type ReceptionGosino,
   type ReceptionGuidePdfRequest,
   type ReceptionMe,
+  receptionLookSchema,
+  type ReceptionLook,
   type ReceptionRewardAllowance,
   type ReceptionRewardRequest,
   type ReceptionRewardResponse,

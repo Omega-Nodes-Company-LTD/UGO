@@ -3,6 +3,7 @@ import { GOSINO_PAGES, DIAL_STYLES } from "./page/gosino.js";
 import { PEDIGREE_STYLES } from "./script/pedigree.js";
 import { PIGGYBANK_STYLES } from "./script/piggybank.js";
 import { ACCOUNT_PAGES } from "./page/account.js";
+import { DIAGNOSTICS_PAGE, DIAGNOSTICS_STYLES } from "./page/diagnostics.js";
 import { JOURNAL_PAGES, JOURNAL_STYLES } from "./page/journal.js";
 import { ADMIN_SHELL_BOTTOM, ADMIN_SHELL_TOP, GATE_STYLES } from "./page/shell.js";
 import { ADMIN_STYLES } from "./page/styles.js";
@@ -32,9 +33,11 @@ export const ADMIN_PAGE = [
       DIAL_STYLES,
       PEDIGREE_STYLES,
       PIGGYBANK_STYLES,
+      DIAGNOSTICS_STYLES,
     ].join("\n"),
   ),
   ACCOUNT_PAGES,
+  DIAGNOSTICS_PAGE,
   JOURNAL_PAGES,
   CUSTOMER_PAGES,
   GOSINO_PAGES,

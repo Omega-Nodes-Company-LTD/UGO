@@ -2,6 +2,17 @@
 export const VOICE_JS = `
 // --- enrollment vocale -----------------------------------------------------
 const RECORD_MS = 10_000;
+/**
+ * Il ritmo di registrazione, dichiarato.
+ *
+ * Senza, il browser sceglie da sé e sceglie alto: il muso registrava con
+ * questa stessa ricetta e i suoi dieci secondi sforavano il tetto del
+ * contratto, quindi l'arruolamento si rifiutava da solo DOPO aver fatto
+ * parlare la persona. Il numero è lo stesso di \`VOICE_SAMPLE_BITRATE\` in
+ * \`faceContracts.ts\`: qui non si può importare (il pannello è una stringa
+ * servita, senza build), ma i due devono restare uguali.
+ */
+const RECORD_BITRATE = 24_000;
 
 $("rec").addEventListener("click", async () => {
   const beingId = $("enroll-being").value;
@@ -10,7 +21,8 @@ $("rec").addEventListener("click", async () => {
   button.disabled = true;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+    const recorder = new MediaRecorder(stream,
+      { mimeType: "audio/webm;codecs=opus", audioBitsPerSecond: RECORD_BITRATE });
     const chunks = [];
     recorder.addEventListener("dataavailable", (event) => { if (event.data.size > 0) chunks.push(event.data); });
     const stopped = new Promise((resolve) => recorder.addEventListener("stop", resolve));

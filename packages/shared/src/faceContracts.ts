@@ -175,11 +175,17 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
    * quella il frame viene ignorato — un corpo che può depositare biometria
    * quando vuole non è un corpo, è un registratore abusivo.
    *
-   * Il tetto è aritmetica, come per `audio` su `heard_text`: dieci secondi di
-   * webm/opus a voce (la stessa ricetta del pannello, ~2-4 kB/s) sono
-   * 20-40 000 byte, cioè al massimo ~54 000 caratteri di base64. 120 000
-   * lascia margine per microfoni loquaci e rifiuta qualunque cosa non sia
-   * un clip di arruolamento.
+   * Il tetto è aritmetica **solo se qualcuno fissa il ritmo**, e per mesi
+   * nessuno lo faceva. Il conto scritto qui — «dieci secondi di webm/opus a
+   * voce, ~2-4 kB/s, al massimo ~54 000 caratteri» — descriveva un
+   * `MediaRecorder` che nessuno aveva configurato: senza `audioBitsPerSecond`
+   * il browser sceglie da sé, e Chrome sceglie molto più alto. Dieci secondi
+   * a quel ritmo sforano i 120 000, quindi l'arruolamento della voce si
+   * rifiutava DA SOLO, dopo aver fatto parlare la persona per dieci secondi.
+   *
+   * Adesso il ritmo è dichiarato ({@link VOICE_SAMPLE_BITRATE}) e il conto
+   * torna: 10 s × 24 kbit/s = 30 000 byte, cioè 40 000 caratteri di base64.
+   * 120 000 resta come rete di sicurezza, non come limite che si tocca.
    */
   z.object({
     type: z.literal("voice_sample"),
@@ -187,6 +193,20 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
     audio: z.string().min(1).max(120_000),
   }),
 ]);
+
+/**
+ * A che ritmo registra chi manda un `voice_sample`, in bit al secondo.
+ *
+ * Sta nel contratto e non in chi registra perché **due lati registravano la
+ * stessa cosa** — il muso (`voiceInvite.ts`) e il pannello (`script/voice.ts`),
+ * «la stessa ricetta» dice il commento — e nessuno dei due dichiarava il
+ * ritmo. Un tetto che vale per entrambi e un ritmo che ognuno sceglie per
+ * conto suo non è aritmetica: è una scommessa sul browser di turno.
+ *
+ * 24 kbit/s è largo per una voce con opus (il parlato sta bene sotto i 32) e
+ * lascia al tetto un margine di tre volte.
+ */
+export const VOICE_SAMPLE_BITRATE = 24_000;
 export type FaceToServerMessage = z.infer<typeof faceToServerSchema>;
 
 /**

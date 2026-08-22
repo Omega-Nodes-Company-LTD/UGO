@@ -1,8 +1,8 @@
 ---
 title: "Runbook — Deploy di UGO su Coolify"
 description: "Procedura completa per portare l'anima di UGO in produzione sul server Coolify: prerequisiti, risorse una per una, bucket S3, smoke test, troubleshooting e aggiornamenti."
-version: "0.43.0"
-last_updated: "2026-08-17"
+version: "0.45.0"
+last_updated: "2026-08-20"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -250,18 +250,31 @@ restano in coda e si riprovano la notte dopo.
    resta rosso per qualche minuto (con whisper e Piper anche 5-10, dipende dalla rete). È
    voluto — nessuna frase può arrivare a un servizio senza pesi. Dai riavvii successivi parte
    in un attimo. Limite RAM consigliato: **4 GB**.
-6. Su **soul**, aggiungi: `UGO_RECOGNITION_URL=http://<HOST_PERCEZIONE>:8000` (accende
+6. **Dagli un alias di rete, PRIMA di cablarlo** — è un'Application, quindi il nome del suo
+   container cambia a ogni redeploy (§2-ter punto 3). Risorsa **PERCEZIONE → Network → Network
+   Aliases**: scrivi `percezione.internal`. Quello è il tuo `<HOST_PERCEZIONE>` per tutto il
+   resto di questa sezione, e non cambierà più.
+
+   > Costato un pomeriggio, il 2026-08-20: senza alias la variabile portava l'id del container,
+   > un redeploy l'ha invalidata, e il sintomo è arrivato dalla parte sbagliata — «whisper non
+   > risponde» sul chiosco, mentre il pannello diceva che la dettatura era accesa.
+
+7. Su **soul**, aggiungi: `UGO_RECOGNITION_URL=http://<HOST_PERCEZIONE>:8000` (accende
    riconoscimento, dettatura, voce di casa e «leggi» in un colpo solo).
    Su **jobs**, aggiungi: `UGO_RECOGNITION_URL=http://<HOST_PERCEZIONE>:8000` **e**
    `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` — è il fix della voce dimenticata: l'arruolamento
    del sogno passa da qui, dove vive l'encoder giusto. Senza queste due variabili sui job, i
    profili vocali tornano a nascere con l'encoder di ripiego e il riconoscitore vivo non li
    vede. Redeploy di soul e jobs dopo averle aggiunte.
-7. Verifica: `curl -s http://<HOST_PERCEZIONE>:8000/health` →
+8. Verifica: `curl -s http://<HOST_PERCEZIONE>:8000/health` →
    `{"ok":true,"voice":true,"face":true,"stt":true,"tts":true,"ocr":true}`. Un `false` significa
    che quel pezzo non ha caricato: guarda i log del container (le facoltative vuote danno
    `false` di proposito).
-8. **Poi ri-registra le voci una volta** (§5.2 o l'invito dal chiosco): i profili arruolati
+
+   **Dal pannello, senza terminale**: `/admin` → **La diagnostica** → riga *Volto, voce,
+   dettatura*. Mostra gli stessi cinque mestieri (`voce ✓ · volto ✓ · dettatura ✗ · Piper ✓ ·
+   OCR ✓`) e lo stato **a metà servizio** quando il container risponde con un pezzo a terra.
+9. **Poi ri-registra le voci una volta** (§5.2 o l'invito dal chiosco): i profili arruolati
    prima di questo fix sono del modello vecchio e non verranno mai riconosciuti dal vivo. Il
    primo sogno dopo il deploy li rimpiazza col campione nuovo.
 
@@ -316,6 +329,9 @@ container più economico dell'installazione.
    Dockerfile: `ops/docker/soul.Dockerfile`. Build context: root del repo.
 2. **Non impostare alcun dominio**: il servizio vive solo nella tailnet. In **Ports**, mappa
    `<TAILSCALE_IP>:3000:3000` (l'IP `100.x` del server) — così la porta esiste solo sulla tailnet.
+   In **Network → Network Aliases** scrivi `soul.internal`: è un'Application, quindi il nome del
+   suo container cambia a ogni redeploy, e l'alias è ciò che la reception userà in `SOUL_URL`
+   (§2-ter punto 3). Senza, la reception smette di trovarlo al primo redeploy, in silenzio.
 3. **Prima di incollare qualunque variabile**: in Coolify ogni variabile ha una casella
    **Available at Buildtime**. Lasciala **spenta** su tutte. Se accesa, Coolify le trasforma in
    `ARG` del Dockerfile e **le stampa in chiaro nel log di build** — chiavi comprese. Il log resta
@@ -507,7 +523,11 @@ rotte `/v1/reception/*` non vengono nemmeno registrate, e la superficie pubblica
    Encrypt lo prende da solo. Accendi **Force HTTPS** — e non è cosmesi: in HTTP il browser nega
    il microfono, e la reception è voice-first (ADR-053). Su HTTP il cliente vedrebbe solo la
    tastiera, senza capire perché.
-4. Variabili (regola del §2.4.3: **Available at Buildtime spenta su tutte**):
+4. Variabili (regola del §2.4.3: **Available at Buildtime spenta su tutte**).
+   ⚠️ `<HOST_SOUL>` dev'essere **l'alias di rete di soul** (`soul.internal`, §2.4), non l'id del
+   suo container: soul è un'Application, quindi quell'id cambia al primo redeploy e la reception
+   smette di trovarlo **in silenzio** — i clienti vedono una porta chiusa e nei log di soul non
+   c'è niente, perché nessuno ha bussato.
    `SOUL_URL=http://<HOST_SOUL>:3000` · `UGO_RECEPTION_TOKEN=<UGO_RECEPTION_TOKEN>` (Secret, **lo
    stesso identico valore** messo su soul al §2.4) · `NODE_ENV=production` · `PORT=3001`.
    **E nient'altro.** Niente `DATABASE_URL`, niente `UGO_DATA_KEY`, niente `ANTHROPIC_API_KEY`,
@@ -555,9 +575,23 @@ si aggiunge la sua sezione a §2 con lo stesso ordine.
    mondo: **nessuna porta sull'host**, nemmeno «solo per provare» — quella prova resta accesa
    per mesi. L'unica eccezione dell'installazione è la reception (§2.7), che ha un dominio
    perché serve ai clienti, e vive su una rete sua.
-3. **Il nome della risorsa È l'hostname.** Coolify risolve i servizi per nome sulla rete
-   condivisa: chiamala come la userai (`percezione`, `searxng`, `registry`), perché quel nome
-   finirà in una variabile d'ambiente di soul.
+3. **L'hostname dipende dal TIPO di risorsa, e questa riga è costata due guasti.**
+   Coolify risolve per nome sulla rete condivisa, ma il nome non è lo stesso nei due casi:
+
+   | tipo di risorsa | nome del container | stabile? |
+   |---|---|---|
+   | **Service** (compose: postgres, ollama, searxng) | `searxng-rt3bgn9j…` = `<servizio>-<id-risorsa>` | **sì** |
+   | **Application** (Dockerfile: soul, jobs, percezione, reception) | `mv7j150iqk…-142127236230` = `<id-app>-<id-deploy>` | **NO: cambia a ogni redeploy** |
+
+   Quel numero in coda è l'identificativo del *deployment*. Su un'Application, quindi:
+   **apri la risorsa → Network → Network Aliases e scrivi un nome tuo** (`percezione.internal`,
+   `soul.internal`). L'alias è tuo, sopravvive ai deploy, ed è **quello** che va nelle variabili.
+
+   > **Regola per non ricascarci: in una variabile d'ambiente non ci va mai un id di container.**
+   > Se il valore contiene una stringa di trenta caratteri casuali, è sbagliato per costruzione —
+   > o è un Service (e allora il nome è quello del servizio) o è un'Application (e allora serve
+   > l'alias). Vale anche per `SOUL_URL` della reception: soul è un'Application, quindi il giorno
+   > che lo ridistribuisci la reception smette di trovarlo, in silenzio.
 4. **Le variabili, in tre posti o in nessuno.** Nel blocco della risorsa, in `.env.example` (con
    una riga che dice a cosa serve), e nel **foglio dei valori** di §9. Una variabile che sta in
    uno solo dei tre è una variabile che il prossimo deploy dimentica.
@@ -565,10 +599,15 @@ si aggiunge la sua sezione a §2 con lo stesso ordine.
    chiama è indistinguibile da un container spento: `WebWindow`, `RecognitionClient` e gli
    altri nascono **solo se la loro variabile c'è**. Questa è la riga che si dimentica sempre —
    è successo con la percezione e con searxng, entrambe già costruite e mai raggiunte.
-6. **Il controllo di salute.** Se il servizio è vitale per una funzione visibile, aggiungilo a
-   `/health` di soul con la regola di ADR-101: **`off` quando non è configurato** (non averlo è
-   una scelta), `error` quando è configurato e non risponde. Mai `unavailable`: un pezzo giù
-   degrada, non spegne la casa.
+6. **Il controllo di salute, in due posti.** Se il servizio è vitale per una funzione visibile,
+   aggiungilo a `/health` di soul con la regola di ADR-101: **`off` quando non è configurato**
+   (non averlo è una scelta), `error` quando è configurato e non risponde. Mai `unavailable`: un
+   pezzo giù degrada, non spegne la casa. **E in ogni caso**, vitale o no, aggiungi la sua voce
+   al catalogo della diagnostica (`apps/soul/src/services/diagnostics/catalogue.ts`): è una voce
+   dichiarativa — nome umano, nome del container, cosa fa, come si bussa, perché è spento, cosa
+   fare — e senza di lei il container nuovo ripete la storia di percezione e searxng, acceso e
+   mai guardato. È anche il modo in cui il punto 5 smette di essere una riga da ricordare: un
+   cablaggio dimenticato si vede in pannello come «spento», col nome della variabile accanto.
 7. **La prova che è vivo**, in una riga di `curl` dalla shell di soul, e scritta nella sezione:
    chi rilegge il runbook fra sei mesi deve poter distinguere «non l'ho acceso» da «non
    funziona» senza aprire il codice.
@@ -944,7 +983,26 @@ e `WebWindow` nascono solo se la loro variabile c'è (`UGO_RECOGNITION_URL`, `SE
 senza restano `undefined` — il codice non prova nemmeno a chiamarli, quindi nei log non c'è
 nessun errore da cercare.
 
-Come si distingue in dieci secondi:
+**Il caso più insidioso, e il più frequente su Coolify: «nome non risolto».** Se la diagnostica
+dice *non risponde · nome non risolto* in pochi millisecondi, il container non è giù: **il nome
+non esiste**. Due cause, in ordine di frequenza:
+
+1. la variabile porta **l'id di un container di un'Application**, e un redeploy l'ha invalidato →
+   metti un **Network Alias** sulla risorsa e usa quello (§2-ter punto 3);
+2. un refuso nel nome. Sembra impossibile e non lo è: un id di trenta caratteri nasconde una
+   lettera di troppo benissimo — `searcxng` invece di `searxng` è costato mezza giornata.
+
+In entrambi i casi il rimedio è lo stesso: **in una variabile non ci va mai un id di container.**
+
+Come si distingue in dieci secondi — **la strada corta**: apri `/admin` →
+**La diagnostica**. C'è una riga per ogni container del compose, e dice da sola quale dei tre
+casi è: `spento` (col nome della variabile che manca scritto accanto), `non risponde` (c'è ed è
+giù), `lento` (risponde e ti fa aspettare). Su ogni riga non verde c'è anche cosa fare. Se la
+riga di soul in cima dice che il **ritardo interno** supera qualche decina di millisecondi, non
+cercare oltre: è soul a essere occupato, e ogni altro numero della pagina è gonfiato di
+altrettanto.
+
+La strada lunga, che resta valida da una shell senza pannello:
 
 1. `curl -s http://<TAILSCALE_IP>:3000/health` — se la percezione è cablata leggi `"perception"`:
    `"off"` = **la variabile manca**; `"error"` = c'è e il container non risponde; `"ok"` = tutto

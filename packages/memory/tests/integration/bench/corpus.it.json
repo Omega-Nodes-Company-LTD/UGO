@@ -236,7 +236,9 @@
       "family": "semantica",
       "relevant": [
         "sofia-allergia"
-      ]
+      ],
+      "verdetto": true,
+      "note": "ADR-108: la memoria non risponde a «X puo fare Y» — riferisce. Il ricordo va ripescato (per questo resta in semantica) ma il giudice non lo tocca"
     },
     {
       "query": "quando e il compleanno della nonna?",
@@ -274,6 +276,14 @@
       "relevant": [
         "wifi-nome"
       ]
+    },
+    {
+      "query": "cosa si e rotto in casa?",
+      "family": "episodica",
+      "relevant": [
+        "lavatrice-rumore"
+      ],
+      "note": "ADR-110: la lavatrice si e rotta davvero, ed era sotto al nome del gatto — un episodio nasce meno importante di un fatto, e la formula lo pagava due volte"
     },
     {
       "query": "qual e il codice IBAN del conto corrente?",
@@ -331,6 +341,13 @@
       "family": "astensione",
       "relevant": [],
       "note": "la riparazione c e, il prezzo no"
+    },
+    {
+      "query": "posso dare le noci a Sofia?",
+      "family": "astensione",
+      "relevant": [],
+      "verdetto": true,
+      "note": "ADR-108, il caso del proprietario: delle noci non si e mai parlato. «Non lo so» sembra giusto e non lo e — il modo giusto e dire che sulle noci non si sa niente e che sui crostacei si"
     }
   ]
 }

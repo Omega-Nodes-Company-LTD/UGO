@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { INVITE_TTL_MS, MAX_AUDIO_B64, VoiceInvite } from "./voiceInvite.js";
+import { VOICE_SAMPLE_BITRATE } from "@ugo/shared/face";
+import { INVITE_TTL_MS, MAX_AUDIO_B64, RECORD_MS, VoiceInvite } from "./voiceInvite.js";
 
 /**
  * L'invito «fatti sentire la voce» (ADR-057, la seconda metà).
@@ -48,6 +49,26 @@ describe("l'invito a farsi sentire la voce", () => {
     const made = invite.frameFor(CLIP);
     if ("error" in made) throw new Error(made.error);
     expect(made.frame.beingId).toBe("being-2");
+  });
+
+  /**
+   * Il difetto che nessun test prendeva, perché nessuno faceva il conto.
+   *
+   * Il tetto del contratto era giustificato da un'aritmetica scritta in un
+   * commento — «dieci secondi a ~2-4 kB/s» — che descriveva un `MediaRecorder`
+   * mai configurato. Senza `audioBitsPerSecond` il browser sceglie da sé e
+   * sceglie alto, quindi il clip sforava e l'arruolamento si rifiutava DA
+   * SOLO, dopo aver fatto parlare la persona per dieci secondi.
+   *
+   * Adesso il ritmo è dichiarato e il conto si prova invece di raccontarlo.
+   */
+  it("dieci secondi al ritmo dichiarato stanno nel tetto, e con margine", () => {
+    const bytes = Math.ceil((RECORD_MS / 1000) * (VOICE_SAMPLE_BITRATE / 8));
+    const base64 = Math.ceil(bytes / 3) * 4;
+    expect(base64).toBeLessThan(MAX_AUDIO_B64);
+    // e non di un soffio: un pareggio lo rompe il prossimo browser che
+    // arrotonda il bitrate verso l'alto, ed è com'è nato questo difetto
+    expect(base64).toBeLessThan(MAX_AUDIO_B64 / 2);
   });
 
   it("clip vuoto e clip oltre il tetto del contratto si fermano qui, non sul server", () => {

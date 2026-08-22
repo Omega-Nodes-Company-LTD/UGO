@@ -55,9 +55,26 @@ export interface ExportBundle {
   customerMailAccounts: unknown[];
   customerChunks: unknown[];
   customerAnswerCache: unknown[];
+  /**
+   * ADR-111: i documenti di casa. Il file vero sta nel bucket e nell'export
+   * non ci può stare (è un JSON), ma **i frammenti sì**: sono la sola copia
+   * del contenuto che il database tiene, e un export che li lasciasse fuori
+   * direbbe di nuovo di essere completo senza esserlo.
+   */
+  houseDocuments: unknown[];
+  houseChunks: unknown[];
+  /**
+   * ADR-112: le partite. Esce anche il numero pensato, in chiaro come tutto il
+   * resto — e sì, vuol dire che esportare a partita aperta è uno spoiler. Il
+   * file è della famiglia: nasconderle qualcosa di suo per non rovinarle un
+   * gioco sarebbe la prima bugia di un export che promette tutto.
+   */
+  games: unknown[];
   /** ADR-089: la casa stessa, e tutto ciò che nessuno aveva mai portato fuori */
   account: unknown[];
   rooms: unknown[];
+  /** ADR-113: dove sta la famiglia, un luogo per riga */
+  places: unknown[];
   placedProps: unknown[];
   propStock: unknown[];
   listItems: unknown[];
@@ -163,6 +180,9 @@ export class ExportService {
       customerMailAccounts,
       customerChunks,
       customerAnswerCache,
+      houseDocuments,
+      houseChunks,
+      gameRows,
     ] =
       await Promise.all([
         rows(sql`select id, display_name, aliases, notes, created_at from beings
@@ -243,6 +263,15 @@ export class ExportService {
                         knowledge_epoch, created_at, expires_at
                  from customer_answer_cache
                  where account_id = ${accountId} order by created_at`),
+        // ADR-111: i documenti di casa. L'embedding non esce, come per ogni
+        // altro vettore: è derivato, non è un dato della famiglia
+        rows(sql`select id, s3_key, filename, mime, size_bytes, uploaded_at,
+                        indexed_at, status
+                 from house_documents where account_id = ${accountId} order by uploaded_at`),
+        rows(sql`select id, document_id, ref, text, created_at
+                 from house_chunks where account_id = ${accountId} order by created_at`),
+        rows(sql`select id, gosino_id, kind, secret, turns, started_at, last_at, ended_at
+                 from games where account_id = ${accountId} order by started_at`),
       ]);
 
     /**
@@ -258,6 +287,7 @@ export class ExportService {
      */
     const [
       account,
+      placeRows,
       rooms,
       placedProps,
       propStock,
@@ -281,7 +311,9 @@ export class ExportService {
       rows(sql`select id, slug, name, kind, timezone, locale, daily_budget_usd, metabolism,
                       created_at
                from accounts where id = ${accountId}`),
-      rows(sql`select id, name, slug, created_at from rooms
+      rows(sql`select id, name, slug, lat, lon, created_at from places
+               where account_id = ${accountId} order by created_at`),
+      rows(sql`select id, name, slug, place_id, created_at from rooms
                where account_id = ${accountId} order by created_at`),
       rows(sql`select id, room_slug, kind, x, z, rot, created_at from placed_props
                where account_id = ${accountId} order by created_at`),
@@ -377,7 +409,11 @@ export class ExportService {
         "question_text",
         "answer_text",
       ]),
+      houseDocuments: this.decryptColumn(houseDocuments, ["filename"]),
+      houseChunks: this.decryptColumn(houseChunks),
+      games: this.decryptColumn(gameRows, ["secret"]),
       account,
+      places: placeRows,
       rooms,
       placedProps,
       propStock,

@@ -36,11 +36,15 @@ import { registerTransferRoutes } from "./routes/transfer.js";
 import { registerVetrinaRoutes } from "./routes/vetrina.js";
 import { registerAdoptionRoutes } from "./routes/adoptions.js";
 import { registerListRoutes } from "./routes/lists.js";
+import { registerHouseDocRoutes, type HouseDocsStorage } from "./routes/houseDocs.js";
+import { registerPlaceRoutes } from "./routes/places.js";
 import { PeerService } from "./services/peerService.js";
 import { RegistryClient } from "./services/registryClient.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
+import { registerDiagnosticsRoute } from "./routes/diagnostics.js";
+import type { DiagnosticsDeps } from "./services/diagnostics/deps.js";
 import { registerMeetingArchiveRoutes } from "./routes/meetingArchive.js";
 import { registerMeetingsRoutes } from "./routes/meetings.js";
 import { registerCustomersRoutes } from "./routes/customers.js";
@@ -83,6 +87,14 @@ export interface ServerOptions extends HealthDeps {
    * stanotte si vede stamattina senza riavviare per guardare.
    */
   capabilities?: () => Capability[];
+  /**
+   * La diagnostica di tutti i container (`/v1/diagnostics`).
+   *
+   * Il database non si passa: è già `options.db`, ed è lo stesso. Assente =
+   * la rotta non esiste e il pannello mostra la sezione vuota dicendo perché,
+   * che è il comportamento di ogni altra funzione facoltativa qui dentro.
+   */
+  diagnostics?: Omit<DiagnosticsDeps, "db">;
   /**
    * ADR-061: far nascere una casa dal pannello.
    *
@@ -151,6 +163,12 @@ export interface ServerOptions extends HealthDeps {
        * Assente = `DEFAULT_LITTER_COST_USD`.
        */
       litterCostUsd?: number;
+      /**
+       * ADR-111: il bucket privato dei documenti di casa. Assente = il
+       * caricamento risponde 503 e lo dice, invece di accettare un file che
+       * non ha dove andare.
+       */
+      houseDocsStorage?: HouseDocsStorage;
     };
     /** ADR-032: the per-exemplar runtimes a socket can ask to be */
     registry?: GosinoRegistry;
@@ -319,6 +337,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     if (options.capabilities !== undefined) {
       registerCapabilitiesRoute(app, { guard, snapshot: options.capabilities });
     }
+    // e come stanno i container che quelle funzioni le fanno girare: una riga
+    // per servizio, coi millisecondi accanto. `/health` resta un battito per
+    // docker; questa è la pagina che apre una persona
+    if (options.diagnostics !== undefined) {
+      registerDiagnosticsRoute(app, { ...options.diagnostics, db: options.db, guard });
+    }
     // gruppo 12: il tempo che fa, per il cielo del recinto. Aperta come
     // /v1/rooms — il corpo non porta un token — e muta senza coordinate
     registerWeatherRoute(app, { db: options.db, ...(weather ?? {}) });
@@ -472,6 +496,13 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         });
         // ADR-076: le liste si vedono e si spuntano anche dal pannello
         registerListRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey });
+        // ADR-111: i documenti di casa — «UGO conosce solo ciò che ha sentito»
+        registerHouseDocRoutes(app, {
+          db: options.db,
+          guard,
+          dataKey: gosini.dataKey,
+          ...(gosini.houseDocsStorage !== undefined && { storage: gosini.houseDocsStorage }),
+        });
         // ADR-102: il giornale, le conversazioni di casa, chi è stato visto
         registerJournalRoutes(app, {
           db: options.db,
@@ -614,18 +645,47 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           ...(reception.github !== undefined && { github: reception.github }),
           // ADR-055 wall 3, built here so it shares db and key with the rest
           cache: new AnswerCache(options.db, reception.dataKey, reception.embedder, reception.dbFor),
+          /**
+           * ADR-115: la reception LEGGE l'umore, non lo muove — e lo legge
+           * solo quando risponde. Senza registro (una casa senza runtime
+           * accesi) il corpo si disegna fermo, che è ciò che faceva prima.
+           */
+          ...(registry !== undefined && {
+            moodOf: (gosinoId: string) =>
+              registry
+                .everywhere()
+                .find((runtime) => runtime.id === gosinoId)
+                ?.psyche.current(new Date()),
+          }),
         }),
         dataKey: reception.dataKey,
         audit,
         ...(reception.github !== undefined && { github: reception.github }),
       });
     }
+    /**
+     * ADR-113: i luoghi sono **dell'account**, non delle creature.
+     *
+     * Erano finiti dentro il blocco `gosini`, che è dove vivono nascite e
+     * genoma: una casa senza creature accese rispondeva 404 al proprio
+     * indirizzo. Le hanno trovate i test, ed è la stessa lezione della parola
+     * che faceva tre lavori — una rotta registrata sotto la condizione
+     * sbagliata è una rotta che a volte non c'è.
+     */
+    registerPlaceRoutes(app, { db: options.db, guard });
+
     if (face !== undefined) {
       app.register(async (instance) => {
-        await registerFaceWs(instance, face, options.db, registry, {
-          hub: scenes,
-          props: (accountId, room) => props.inRoom(accountId, room),
-        });
+        await registerFaceWs(
+          instance,
+          face,
+          options.db,
+          registry,
+          { hub: scenes, props: (accountId, room) => props.inRoom(accountId, room) },
+          // i contatori: quante frasi entrano, quante escono. È il punto in cui
+          // si distingue «non mi sente» da «non mi risponde»
+          options.diagnostics?.turnLog,
+        );
       });
     }
   }

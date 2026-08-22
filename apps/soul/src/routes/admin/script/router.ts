@@ -128,6 +128,9 @@ async function openPage(page) {
   } else if (page === "liste") {
     // ADR-076: la spesa e le cose da fare, riempite parlando
     await section(loadLists, "list-msg");
+  } else if (page === "documenti") {
+    // ADR-111: quello che UGO ha da leggere, e cosa ha già letto
+    await section(loadDocuments, "doc-msg");
   } else if (page === "adozioni") {
     // ADR-084: le pratiche, dai due lati
     await section(loadAdoptions, "adozioni-msg");
@@ -152,6 +155,10 @@ async function openPage(page) {
     await section(loadJobReports, "jobs-msg");
     await section(loadKeys, "key-msg");
     await section(loadCorrections, "corr-msg");
+  } else if (page === "diagnostica") {
+    // una sola chiamata, che sonda nove porte in parallelo: la pagina che si
+    // apre quando qualcosa è rotto non deve essere la più lenta del pannello
+    await section(loadDiagnostics, "diag-msg");
   } else if (page === "clienti") {
     await section(loadCustomers, "cust-msg");
   } else if (page === "arredi") {

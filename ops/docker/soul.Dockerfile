@@ -1,4 +1,7 @@
-# syntax=docker/dockerfile:1
+# Niente riga `# syntax=`: faceva scaricare il frontend `docker/dockerfile:1`
+# da Docker Hub A OGNI build, e il deploy del 2026-08-21 è morto su un 502 di
+# registry-1.docker.io prima ancora di cominciare. Il frontend integrato di
+# BuildKit (Docker ≥23) copre tutto quel che usiamo, `--mount=type=cache` incluso.
 # Multi-stage build for apps/soul. Runtime runs as the non-root `node` user
 # with no dev dependencies, no sources and no secrets baked in
 # (SECURITY_COMPLIANCE §5-§6). Build context: repository root.
@@ -30,6 +33,10 @@ COPY packages/db/package.json packages/db/
 COPY packages/memory/package.json packages/memory/
 COPY packages/psyche/package.json packages/psyche/
 COPY packages/prompts/package.json packages/prompts/
+# ADR-115: il corpo del muso vive in un package suo, e il muso viaggia dentro
+# questa immagine (ADR-018 Tempo 1): senza, `turbo build --filter=face` non trova
+# ciò che disegna il maiale
+COPY packages/face-body/package.json packages/face-body/
 COPY tests/factories/package.json tests/factories/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY apps/soul apps/soul
@@ -40,6 +47,7 @@ COPY packages/db packages/db
 COPY packages/memory packages/memory
 COPY packages/psyche packages/psyche
 COPY packages/prompts packages/prompts
+COPY packages/face-body packages/face-body
 COPY tests/factories tests/factories
 # the face travels inside soul's image (ADR-018 Tempo 1): one origin, one
 # certificate, therefore a secure context for microphone and wake lock

@@ -87,7 +87,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # `--with-deps` chiama apt dentro di sé: senza questo passo, un mirror che
+      # non risponde appende l'installazione del browser fino al tetto del job —
+      # trenta minuti buttati e un rosso che sembra del diff. Il tetto sul passo
+      # c'è perché fallire in dodici minuti è meglio che fallire in trenta.
+      - uses: ./.github/actions/apt-ready
       - run: pnpm --filter face exec playwright install --with-deps chromium
+        timeout-minutes: 12
       - uses: actions/cache@v4
         with:
           path: ~/.ugo-ollama
@@ -115,39 +121,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # Un mirror apt che non risponde ha bloccato questo passo tre volte
-      # (19/08/2026). Le prime due bruciavano i 30 minuti del job; la terza ha
-      # mostrato la causa e un difetto della prima correzione.
-      #
-      # La causa: `azure.archive.ubuntu.com` — il mirror di default sui runner —
-      # smette di rispondere (`Ign:` in ciclo) mentre `archive.ubuntu.com` sta
-      # in piedi. Da qui il terzo tentativo, che cambia mirror invece di
-      # ripetere lo stesso identico comando sperando in bene.
-      #
-      # Il difetto: il tetto stava sul PASSO, che conteneva tre tentativi. Il
-      # primo tentativo appeso se lo mangiava tutto e i retry non partivano mai
-      # — una correzione che si contraddiceva da sola. Adesso il tetto è su
-      # OGNI tentativo (`timeout 90`), e il passo ha budget per usarli.
+      # La preparazione di apt sta in `.github/actions/apt-ready`, che è
+      # condivisa con e2e: la prima versione di questa difesa viveva qui dentro,
+      # e infatti `playwright install --with-deps` — che apt lo usa anche lui —
+      # è rimasto scoperto e ha appeso il job per quindici minuti.
+      - uses: ./.github/actions/apt-ready
+      # Dodici e non otto: il tetto qui non serve a essere severi, serve a
+      # impedire che un mirror lento si mangi i trenta minuti del job. Otto li
+      # ha sfondati un `.deb` da 4,5 MB servito a pochi kB/s (19/08/2026).
       - name: espeak-ng provides the synthetic voice for the ingest fixture
-        timeout-minutes: 8
-        run: |
-          try_apt() {
-            timeout 90 sudo apt-get update -o Acquire::Retries=2 \
-              && timeout 90 sudo apt-get install -y --no-install-recommends \
-                   -o Acquire::Retries=2 espeak-ng
-          }
-          for attempt in 1 2 3; do
-            if [ "$attempt" = 3 ]; then
-              echo "cambio mirror: azure non risponde, provo archive.ubuntu.com"
-              sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
-                /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            fi
-            if try_apt; then exit 0; fi
-            echo "apt non ha risposto (tentativo $attempt/3)"
-            sleep 10
-          done
-          echo "::error::apt non risponde nemmeno cambiando mirror: e infrastruttura, non il diff"
-          exit 1
+        timeout-minutes: 12
+        run: sudo apt-get install -y --no-install-recommends -o Acquire::Retries=2 espeak-ng
       - uses: actions/cache@v4
         with:
           path: |

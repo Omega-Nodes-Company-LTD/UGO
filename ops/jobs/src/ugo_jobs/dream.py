@@ -21,7 +21,7 @@ from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
 from .contradictions import run_contradictions
 from .customer_digest import run_digest
-from .enroll_step import run_enroll
+from .enroll_step import has_pending, run_enroll
 from .entities import run_entities
 from .family_backup import run_family_backup
 from .feeds import run_advise, run_review
@@ -148,11 +148,28 @@ def _run_step(
     """Un passo, per un esemplare. `report` e' quello esterno: `backup_missing`
     e' una nota sulla notte, non sul passo, e deve restare visibile."""
     if step_done(conn, dream_date, step, mode, gosino_id=cfg.gosino_id):
-        # the backup is the one step whose result lives outside this
-        # database: trust the marker only if the object is still there
-        if step != "backup" or backup_exists(cfg, dream_date):
+        # Due passi non si fidano del proprio marcatore, e per la stessa
+        # ragione: il marcatore dice «fatto oggi», ma la realtà può essere
+        # cambiata dopo che è stato scritto.
+        #
+        # - `backup`: il risultato vive fuori da questo database, e il bucket
+        #   può non avercelo più;
+        # - `enroll`: la coda può essere CRESCIUTA dopo il sogno delle 02:30 —
+        #   ed è precisamente ciò che succede quando qualcuno arruola una voce
+        #   di giorno e poi preme «Fallo sognare adesso». Con il solo
+        #   marcatore quel gesto non faceva niente, in silenzio, e l'impronta
+        #   aspettava la notte dopo (due giorni persi dal proprietario a
+        #   credere che il riconoscimento vocale fosse rotto).
+        #
+        # `run_enroll` è idempotente per costruzione — `_pending` esclude le
+        # richieste già lavorate — quindi rieseguirlo non ripete niente.
+        stale = (step == "backup" and not backup_exists(cfg, dream_date)) or (
+            step == "enroll" and has_pending(conn, cfg.account_id)
+        )
+        if not stale:
             return "skipped (already done)"
-        report["backup_missing"] = "marker said done, the bucket disagreed"
+        if step == "backup":
+            report["backup_missing"] = "marker said done, the bucket disagreed"
 
     step_report: dict[str, object] = {}
 

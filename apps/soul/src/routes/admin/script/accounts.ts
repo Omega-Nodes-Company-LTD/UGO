@@ -24,7 +24,6 @@ async function loadAccountsPage() {
     escape(h.name) + ' <span class="deed-act">· ' + escape(h.slug) + "</span>" +
     '<a class="ghost" href="#/a/' + encodeURIComponent(h.slug) + '/sommario">apri</a></div>' +
     '<div class="because">' + escape(ACCOUNT_KIND_LABEL[h.kind] ?? h.kind) + " · " + escape(h.timezone) +
-    (h.place ? " · " + escape(h.place) : " · <b>non sa ancora dove sta</b>") +
     (h.dailyBudgetUsd ? " · tetto $" + h.dailyBudgetUsd : "") + "</div></div>").join("") ||
     '<p class="empty">Nessuna casa: qui sotto se ne fa nascere una.</p>';
 

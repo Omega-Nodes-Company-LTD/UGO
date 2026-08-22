@@ -202,6 +202,8 @@ export function registerReceptionRoutes(app: FastifyInstance, deps: ReceptionDep
         cached: result.cached,
         ...(result.ticketId !== undefined && { ticketId: result.ticketId }),
         ...(result.guide !== undefined && { guide: result.guide }),
+        // ADR-115: come sta, attaccato alla risposta e non a un canale aperto
+        ...(result.mood !== undefined && { mood: result.mood }),
       };
     } catch (error) {
       if (error instanceof GosinoNotAssignedError) return problem(reply, 404, "Not Found");

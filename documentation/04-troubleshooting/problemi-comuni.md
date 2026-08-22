@@ -1,8 +1,8 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.37.0"
-last_updated: "2026-08-18"
+version: "0.42.0"
+last_updated: "2026-08-19"
 author: "ThinkPink Studio"
 ---
 
@@ -18,9 +18,9 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
 1. Controlla che nella barra in alto ci sia scritto **connesso**.
 2. Guarda se il pulsante **Attiva sensi** è ancora visibile nei comandi. Se c'è, il microfono non è mai stato
    autorizzato: toccalo e concedi i permessi.
-   - Se lo tocchi e **non succede niente**, guarda l'indirizzo: se comincia per `http://` invece che
-     `https://`, è il telefono a negare il microfono, non UGO. Usa l'indirizzo `https://…ts.net`
-     (chi gestisce il server lo trova nel runbook, §10) e reinstalla l'icona da lì.
+   - Se lo tocchi e **non succede niente**, apri il registro (**Cosa è stato detto**): adesso UGO
+     dice sempre perché il microfono non si è aperto. Le frasi che puoi leggere sono queste, e
+     ognuna ha una cura diversa — vedi [Il microfono non si apre, e UGO lo dice](#il-microfono-non-si-apre-e-ugo-lo-dice).
 3. Tocca il muso: se il grugno si muove, ti sta ascoltando e il problema è il riconoscimento vocale.
    Parla più vicino, in un ambiente meno rumoroso.
 4. Se dice `oggi ho finito le parole` (o una frase simile), non è rotto: ha esaurito il budget
@@ -34,6 +34,25 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
 6. Se il bottone è passato da solo a **orecchie spente**, nemmeno la dettatura di casa era
    disponibile (il server non la offre, o non risponde). Un tocco sul bottone riprova; tutto il
    resto (rumori, luce, camera) continua a funzionare.
+
+## Il microfono non si apre, e UGO lo dice
+
+Fino alla versione 0.37 un microfono negato era invisibile: non succedeva niente, e l'unica traccia
+era il riconoscimento vocale che si spegneva e riaccendeva (righe `il riconoscitore si e' fermato:
+not-allowed` / `network` nel registro). Quelle righe raccontavano l'**effetto**; adesso il registro
+porta la **causa**, in una riga sola. Cercala nel registro e applica la cura corrispondente.
+
+| Quello che UGO scrive | Cosa sta succedendo | Cosa fare |
+|---|---|---|
+| `questa pagina non è su una connessione sicura (https://)…` | L'indirizzo comincia per `http://`. Nessun telefono concede il microfono a una pagina in chiaro: non è una scelta di UGO e nessun tocco sul bottone la cambia. | Apri UGO dall'indirizzo `https://…ts.net` (chi gestisce il server lo trova nel runbook, §10) e reinstalla l'icona da lì. |
+| `il microfono è negato a questa pagina…` | Il permesso è stato rifiutato, una volta o per sempre. | Apri le impostazioni del sito nel browser (il lucchetto accanto all'indirizzo), concedi il microfono e ricarica. |
+| `nessun microfono su questo dispositivo` | Il dispositivo non ne ha uno, o è disattivato dal sistema. | Collega un microfono o una cuffia e ricarica. |
+| `il microfono è già in mano a un'altra applicazione` | Un'altra app lo tiene occupato (una videochiamata, un registratore). | Chiudi l'altra applicazione e tocca di nuovo il pulsante delle orecchie. |
+| `questo browser non ha il riconoscitore vocale` | Il browser non fa dettatura (succede su Firefox per Android). | Non serve fare niente: UGO passa da solo alla **dettatura di casa**, che trascrive sul server. Se leggi anche `orecchie spente`, la dettatura di casa non è disponibile: vedi il punto 6 qui sopra. |
+
+Senza microfono nessuna delle due strade esiste, quindi le orecchie si spengono **subito** e col
+motivo vero, invece di spendere un minuto di bip per arrivare alla stessa conclusione. Gli altri
+sensi (rumore, luce, camera) non c'entrano e continuano a funzionare.
 
 ## Fa il suono del microfono a ripetizione, o non riesco ad attivare la camera
 
@@ -184,3 +203,112 @@ Se continua a sussultare per niente anche dopo un minuto, la causa è quasi semp
 microfono: qualcosa lo sta amplificando (una cuffia con riduzione rumore, un mixer, un
 altro programma che tiene il microfono aperto). Chiudi gli altri programmi che usano il
 microfono e ricarica la pagina.
+
+## La mia voce arriva senza punteggiatura
+
+Vuol dire che stai usando **il riconoscitore del browser** e non la dettatura di casa. Si vede dal
+testo: maiuscole in mezzo alla frase e zero punti sono la sua firma; whisper punteggia e mette le
+maiuscole al posto giusto.
+
+Da UGO 0.42 la dettatura di casa è la **base**, non un'opzione: se ti ritrovi sul browser è perché
+su questo dispositivo la strada di casa è stata provata e non c'era — e il dispositivo se l'è
+ricordato per non farti perdere un enunciato a ogni ricarica.
+
+Due cose da controllare, in ordine:
+
+1. `/admin` → **La diagnostica** → la riga **Volto, voce, dettatura**. Adesso dice i suoi mestieri
+   uno per uno: se leggi `dettatura ✗`, whisper non è caricato sul server ed è quello il guasto.
+   Lo stato **a metà servizio** vuol dire esattamente questo — il container risponde, ma uno dei
+   lavori che fa dentro non è partito.
+2. Quando l'hai sistemato, sul chiosco apri l'indirizzo con **`?stt=locale`** una volta sola: forza
+   la strada di casa **e cancella il ricordo**, che è come si riprova dopo una riparazione. Dalla
+   volta dopo riparte da sola.
+
+Vale la pena saperlo: il riconoscitore del browser è quello di Google, quindi finché sei lì **ciò
+che dici esce di casa**. La punteggiatura è il segnale; la privacy è la ragione.
+
+## Nel registro compaiono frasi che non ho detto
+
+Tipo **«Sottotitoli e revisione a cura di QTSS»**, o «Sottotitoli creati dalla comunità Amara.org»,
+attribuite a te.
+
+Non le hai dette e UGO non se le è inventate: **le ha inventate whisper**. È addestrato su
+montagne di video sottotitolati, e davanti a un frammento muto — una porta, un colpo di tosse, una
+sedia che apre il microfono per un secondo — invece di rispondere «niente» recita i titoli di coda.
+
+Da UGO 0.43 vengono filtrate in due modi: whisper dichiara per ogni pezzo quanto è probabile che
+lì non ci fosse parlato, e quel numero adesso viene guardato invece che buttato; in più c'è un
+elenco delle code di sottotitoli più note. Il filtro vale **sia per la dettatura dal vivo sia per
+le registrazioni archiviate** — quelle diventano memoria ripescabile, e una frase inventata lì
+sarebbe tornata a galla mesi dopo come una cosa detta in casa.
+
+Se te ne sfugge ancora qualcuna, mandamela: l'elenco sta stretto apposta — **meglio lasciar
+passare una frase strana che mangiarsi una frase vera.**
+
+## Non capisco se mi ha sentito
+
+Da UGO 0.43 il muso lo dice, in quattro tempi:
+
+| quando | cosa vedi |
+|---|---|
+| **mentre parli** | passa in *ascolto* — la voce è arrivata al microfono |
+| **appena smetti** | passa in *pensa* — sta trascrivendo quello che hai detto |
+| **mentre risponde soul** | resta in *pensa* |
+| **quando parla** | passa in *parla* |
+
+Prima c'era un buco fra il secondo e il terzo tempo: da quando smettevi di parlare a quando la
+trascrizione tornava passavano uno-tre secondi in cui il muso non faceva niente, e quel silenzio
+era indistinguibile dall'essere sordo.
+
+Se resti fermo in *ascolto* e non passa mai a *pensa*, l'enunciato non è stato chiuso: parla un
+po' più forte, o più vicino. Se torna a *fermo* senza rispondere, whisper non ci ha trovato
+parlato — vedi la sezione qui sopra.
+
+## Ci mette un minuto a rispondere
+
+Non tirare a indovinare: apri `/admin` → **La diagnostica**. La pagina risponde alla domanda
+esatta, in due blocchi.
+
+1. **I container** — se una riga è ▲ *lento*, il ritardo è suo e accanto c'è cosa fare. Il caso
+   più frequente ha un nome: i modelli di casa (Ollama) non tengono il modello **caldo**, e la
+   prima richiesta se lo carica da disco. Sono decine di secondi che sembrano lentezza della
+   creatura e non lo sono. La riga te lo dice in chiaro: `nessun modello caldo: la prima
+   richiesta paga il caricamento`.
+2. **Dove se ne va il tempo** — gli ultimi turni spezzati in fasi. Se il minuto sta tutto in
+   *modello*, il ritardo è fuori casa (il provider, o la rete per arrivarci) e nei container non
+   c'è niente da riparare. Se sta in *ripescaggio*, è la macchina di casa.
+
+C'è anche una terza possibilità, ed è scritta nella riga sotto il verdetto: se il **ritardo
+interno** di soul supera qualche decina di millisecondi, il server è occupato e **ogni** altra
+misura della pagina è gonfiata di altrettanto. Allora il problema non è nessuno dei container: è
+che il server ha troppo da fare.
+
+## Parlo dieci volte e mi risponde una
+
+Prima di cambiare qualsiasi cosa, guarda **quante frasi ha sentito** in `/admin` → *La
+diagnostica*. Ci sono due numeri, e dicono due guasti diversi:
+
+- **sentite** è basso (parli venti volte, ne conta tre) → le frasi **non arrivano**. Il problema è
+  sul dispositivo: microfono, dettatura, o rete. Vai a
+  [UGO non risponde quando parlo](#ugo-non-risponde-quando-parlo). Se sei sulla dettatura di casa,
+  guarda prima la riga **Volto, voce, dettatura** nella diagnostica: `dettatura ✗` spiega tutto.
+- **sentite** è giusto ma **risposte** è molto più basso → le frasi arrivano e muoiono in casa.
+  Guarda **rifiutate** (il contratto le ha respinte: quasi sempre un allegato audio oltre il
+  limite) e **fallite** (morte in un errore), e poi la riga rossa fra i container.
+
+Finché quei due numeri non li guardi, «non mi sente» e «non mi risponde» sono la stessa frase — e
+non sono lo stesso problema.
+
+## Ti parla dandoti le spalle
+
+Corretto. Mentre ti parla resta rivolto verso di te dentro un cono di una cinquantina di gradi:
+si muove, grufola, si gira un po', ma il muso ce l'ha da questa parte.
+
+Era rimasta una strada per cui girava lo stesso: se si era **incamminato verso un arredo** (un
+cespuglio, il cuscino) mentre era tranquillo e tu gli parlavi per strada, continuava ad andarci —
+e se l'arredo gli stava dietro, tu vedevi il sedere. Adesso mentre ti risponde all'arredo non ci
+arriva: ci va quando ha finito.
+
+Se lo vedi ancora di schiena **mentre parla**, il dispositivo sta mostrando un muso vecchio:
+controlla in `/admin`, nella barra a sinistra in basso, che il numero del **muso** sia quello
+scritto in basso a destra sul chiosco. Se non lo è, ricarica la pagina del chiosco.

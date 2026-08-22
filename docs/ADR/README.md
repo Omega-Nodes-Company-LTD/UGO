@@ -113,4 +113,13 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [105](./105-il-genoma-si-rilegge.md) | Il genoma si rilegge (e non si tocca) | Accettata |
 | [106](./106-l-astensione-il-criterio-relativo-non-regge.md) | L'astensione: il criterio relativo non regge, e il banco non poteva accorgersene | Accettata |
 | [107](./107-non-lo-so-il-giudice-di-casa.md) | «Non lo so»: a guardare il significato è il modello di casa | Accettata |
-| 108 | *(prossimo numero disponibile)* | — |
+| [108](./108-riferire-non-e-rispondere.md) | Riferire non è rispondere: «X può fare Y» non si giudica | Accettata |
+| [109](./109-un-gene-nuovo-non-azzera-i-pedigree.md) | Un gene nuovo non deve azzerare i pedigree (e le setole) | Accettata |
+| [110](./110-la-ricerca-conta-meno-dell-anagrafica.md) | La ricerca contava meno dell'anagrafica del ricordo | Accettata |
+| [111](./111-i-documenti-di-casa.md) | I documenti di casa: UGO conosce solo ciò che ha sentito | Accettata |
+| [112](./112-il-gioco-e-fatto-di-turni.md) | Un gioco è fatto di turni: lo stato che non esisteva | Accettata |
+| [113](./113-i-luoghi-dell-account.md) | I luoghi dell'account: il cielo è del posto, non del titolare | Accettata |
+| [114](./114-lo-screening-in-silico-non-filtra-niente.md) | Lo screening in silico non filtra niente (risultato negativo) | Accettata |
+| [115](./115-la-reception-e-una-nostra-stanza.md) | La reception è una nostra stanza: il corpo esce dal chiosco | Accettata |
+| [116](./116-il-verso-ha-un-timbro.md) | Il verso ha un timbro, e viene dal corpo | Accettata |
+| 117 | *(prossimo numero disponibile)* | — |

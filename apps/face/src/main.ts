@@ -8,7 +8,13 @@ import { openFaceLocator } from "./faceLocator.js";
 import { GlyphDriver } from "./glyph.js";
 import { PortableController } from "./portable.js";
 import { ScreenAwake } from "./wakelock.js";
-import { createFace } from "./body/createFace.js";
+import {
+  createFace,
+  DEFAULT_TRAITS,
+  GruntSound,
+  gruntShouldSound,
+  gruntVoice,
+} from "@ugo/face-body";
 import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { myBuildId, shouldReload } from "./version.js";
@@ -20,7 +26,9 @@ import { startObjectSpotter } from "./objectSpotter.js";
 import { RainSound } from "./rainSound.js";
 import { Speech } from "./speech.js";
 import { EarsChoice } from "./earsChoice.js";
-import { worthSending } from "./heard.js";
+import { micBlocked, micFailure } from "./micReason.js";
+import { isEcho, worthSending } from "./heard.js";
+import { AddressGate, type AddressVerdict } from "./addressGate.js";
 import { UtteranceGate } from "./utteranceGate.js";
 import { toPcm16Base64 } from "./voiceClip.js";
 import { watchSky } from "./skyWatch.js";
@@ -124,11 +132,28 @@ function captureGlimpse(fine = false): string | undefined {
 }
 let lastPresenceAt = 0;
 /** who is in this room (ADR-036); one nameless entry until the roster lands */
-let residents: { id: string; name: string }[] = [];
+/**
+ * Il roster. Porta anche i **tratti** da ADR-116: il timbro del verso viene dal
+ * corpo di chi grugnisce, e senza di loro tutti i gosini di una stanza
+ * suonerebbero uguali — che è precisamente il contrario di come si eredita
+ * tutto il resto.
+ */
+let residents: { id: string; name: string; traits?: Record<string, number> | undefined }[] = [];
 const nameOf = (who: string | undefined): string | undefined =>
   residents.find((r) => r.id === who)?.name;
 /** each creature's mood, so the caption can name all of them (ADR-038) */
 const moods = new Map<string, string>();
+
+/**
+ * ADR-111: la parola di sveglia è il NOME. Il cancello legge i nomi da qui —
+ * dal roster quando c'è, dal `whoami` altrimenti — e finché non è arrivato
+ * niente non filtra: un muso appena acceso si comporta come sempre.
+ * `?wake=off` è la porta di servizio per provare il mondo di prima.
+ */
+const wakeGateOff = params.get("wake") === "off";
+const addressGate = new AddressGate(() =>
+  residents.length > 0 ? residents.map((r) => r.name) : (app.dataset.gosino?.split(", ") ?? []),
+);
 
 // gruppo 13: la voce interim — soul sintetizza col TTS emotivo (l'umore del
 // momento colora il tono), e su 204 o guasto si torna alla voce di sistema
@@ -499,6 +524,9 @@ function onServerMessage(message: ServerToFaceMessage): void {
       // registro ricorda, ma la voce NON parte e nessuno si gira a guardare:
       // un borbottio notturno che sveglia la casa è una sveglia
       if (message.murmur === true) return;
+      // ADR-111: se parla ad alta voce, la conversazione è viva — la
+      // finestra del cancello del nome riparte (un borbottio nel sonno no)
+      addressGate.spoke(performance.now());
       speech.speak(message.text, message.who);
       // and the others turn to look at whoever is talking: a room where
       // nobody reacts to anybody is two creatures in the same picture, not
@@ -526,6 +554,9 @@ function onServerMessage(message: ServerToFaceMessage): void {
       // ADR-027: soul decided, the body performs. Unknown ids are dropped by
       // the player, so an older face and a newer soul stay compatible.
       renderer.reflex(message.id, message.who);
+      // ADR-116: e se il gesto è un grugnito, adesso si sente — col timbro di
+      // QUEL corpo, e solo quando le tre regole del silenzio lo permettono
+      if (message.id === "grunt") gruntFor(message.who);
       return;
     case "scene":
       // ADR-056: cosa c'è nella stanza. Arriva dopo il roster all'apertura, e
@@ -668,8 +699,34 @@ renderer.onUsedProp?.((who, kind) => {
  * filtro dell'eco, stato, ritaglio della voce per l'identità, e via a soul.
  */
 function handleHeardText(text: string): void {
-  if (!worthSending(text, { spoken: speech.spokenLast() })) return;
-  setLocalState("listening");
+  const spoken = speech.spokenLast();
+  // l'eco della sua voce si butta PRIMA del cancello del nome: le sue frasi
+  // il suo nome lo contengono spesso («sono Silvio!»), e fargliele contare
+  // come chiamate aprirebbe la finestra di conversazione a ogni sua battuta
+  if (isEcho(text, spoken)) return;
+  // ADR-111: risponde a chi si rivolge a lui, non a tutta la stanza. Quello
+  // che è «overheard» muore qui: niente soul, niente registro, niente token.
+  const heardAt = performance.now();
+  const verdict: AddressVerdict = wakeGateOff ? "conversing" : addressGate.judge(text, heardAt);
+  if (verdict === "overheard") return;
+  if (!worthSending(text, { spoken })) {
+    // il nome da solo («Silvio!») è troppo corto per un viaggio a soul, ma
+    // lui si è girato lo stesso: la finestra è aperta, ora puoi parlargli
+    if (verdict === "addressed") {
+      setLocalState("alert");
+      renderer.reflex("perkUp");
+    }
+    return;
+  }
+  // una frase senza nome partita davvero è un giro di conversazione (punto 3
+  // di ADR-111): rinnova la finestra e consuma il tetto dei giri anonimi
+  if (!wakeGateOff && verdict === "conversing") addressGate.sent(heardAt);
+  // «sta pensando», non «sta ascoltando»: da qui la frase è già in viaggio
+  // verso soul. Con la dettatura di casa eravamo già in `thinking` da quando
+  // il clip è partito, e tornare indietro a `listening` per un istante era un
+  // passo all'indietro sullo schermo — la creatura sembrava distrarsi proprio
+  // nel momento in cui si stava mettendo a rispondere.
+  setLocalState("thinking");
   // ADR-045: la voce che l'ha detta viaggia con la frase, così soul può
   // sapere CHI sta parlando. Assente se il microfono è spento: allora è
   // esattamente il messaggio di prima.
@@ -725,6 +782,21 @@ function startLocalEars(): void {
   let gateFor: { rate: number; gate: UtteranceGate } | undefined;
 
   const transcribe = async (audio: string): Promise<void> => {
+    /**
+     * «Sta pensando», detto SUBITO.
+     *
+     * Dal proprietario (2026-08-21): «deve darmi un'indicazione che ha
+     * sentito e sta pensando, altrimenti non si capisce se è arrivata la voce
+     * e sta facendo stt, o se non ha nemmeno sentito».
+     *
+     * Aveva ragione e il buco era largo: con la dettatura di casa il muso
+     * restava fermo da quando smetti di parlare a quando whisper risponde —
+     * uno, due, tre secondi — e quel silenzio è indistinguibile dall'essere
+     * sordo. Poi arrivava la risposta di soul, altri trenta secondi, e per
+     * tutto il tempo l'unico modo di sapere se ti avesse sentito era
+     * aspettare.
+     */
+    setLocalState("thinking");
     try {
       const response = await fetch(`${soulHttp}/v1/stt`, {
         method: "POST",
@@ -735,13 +807,34 @@ function startLocalEars(): void {
         localeFailed("la dettatura in casa non è configurata sul server");
         return;
       }
+      /**
+       * Un rifiuto DI QUESTO CLIP non è un servizio giù.
+       *
+       * Dal campo: un «sì» detto al chiosco dura meno di 0,8 s, e percezione
+       * risponde 422 «troppo corto». Qualunque codice non-ok contava fra i
+       * fallimenti, quindi TRE monosillabi di fila dichiaravano whisper
+       * morto e riportavano le orecchie su Google — scelta poi RICORDATA fra
+       * le ricariche (`earsChoice`), quindi la strada di casa non tornava
+       * più da sola. Solo il 5xx e la rete assente dicono «sono giù».
+       */
+      if (response.status >= 400 && response.status < 500) {
+        // il clip non si trascrive: si lascia perdere questo, non la strada
+        return;
+      }
       if (!response.ok) throw new Error(String(response.status));
       failures = 0;
       const body = (await response.json()) as { text?: string };
       if (typeof body.text === "string" && body.text.trim() !== "") {
         handleHeardText(body.text.trim());
+        return;
       }
+      // whisper non ci ha trovato parlato — un colpo di tosse, una porta, o
+      // una sua allucinazione su silenzio già filtrata dal server
+      // (`whisper_noise`). Si torna com'era: restare in «sta pensando» per
+      // una frase che non c'è è la stessa bugia al contrario.
+      setLocalState("idle");
     } catch {
+      setLocalState("idle");
       failures += 1;
       if (failures >= 3) localeFailed("whisper non risponde");
     }
@@ -766,22 +859,65 @@ function startLocalEars(): void {
     // la bocca è occupata: le orecchie non devono sentire l'altoparlante
     if (speech.isSpeaking()) return;
     if (gateFor?.rate !== rate) {
-      gateFor = { rate, gate: new UtteranceGate(rate, () => { sensors.heardAVoice(); }) };
+      gateFor = {
+        rate,
+        gate: new UtteranceGate(rate, () => {
+          sensors.heardAVoice();
+          // il primo dei quattro tempi: «ti sento». Arriva mentre parli
+          // ancora, non quando hai finito, ed è l'unico che dice davvero
+          // «la voce è arrivata» invece di «forse»
+          setLocalState("listening");
+        }),
+      };
     }
     const utterance = gateFor.gate.feed(samples, performance.now());
     if (utterance !== undefined) void transcribe(toPcm16Base64(utterance, rate));
   });
 }
 
-function startListening(): void {
+/**
+ * Il microfono si apre, e se non si apre lo DICE (`micReason.ts`).
+ *
+ * Prima era `.catch(() => { trouble("microfono non disponibile"); })`, che
+ * sono tre parole per cinque guasti diversi — e nel caso piu' frequente sul
+ * telefono (pagina in chiaro, quindi contesto non sicuro) erano anche tre
+ * parole sbagliate: non e' il microfono a non essere disponibile, e' il
+ * browser che non lo concede a un indirizzo `http://`. L'unico sintomo che
+ * arrivava in fondo era il riconoscitore che si spegneva e riaccendeva, cioe'
+ * il secondo effetto raccontato al posto della causa.
+ */
+async function openMicrophone(): Promise<boolean> {
+  if (sensors.micIsOn()) return true;
+  const blocked = micBlocked(globalThis);
+  if (blocked !== undefined) {
+    trouble(blocked);
+    return false;
+  }
+  try {
+    await sensors.startMicrophone();
+    return true;
+  } catch (error) {
+    trouble(micFailure(error));
+    return false;
+  }
+}
+
+async function startListening(): Promise<void> {
   // Riaccendere le orecchie riapre il microfono, che ora `stopListening()`
   // spegne davvero. Il click sul bottone è il gesto dell'utente che
   // `getUserMedia` richiede, quindi il permesso non viene richiesto due volte:
   // il browser lo ricorda per l'origin.
-  if (!sensors.micIsOn()) {
-    void sensors.startMicrophone().catch(() => {
-      trouble("microfono non disponibile");
-    });
+  //
+  // E si ASPETTA che sia aperto prima di scegliere le orecchie: `EarsChoice`
+  // decide anche in base al fatto che ci sia un nastro da ascoltare
+  // (`browserGaveUp(micIsOn)`), e interrogarlo mentre `getUserMedia` e' ancora
+  // per strada gli faceva dire «niente microfono» di un microfono che stava
+  // per aprirsi. Senza microfono non c'e' nessuna delle due strade: le
+  // orecchie si spengono subito, col motivo vero, invece di spendere un
+  // minuto di bip per arrivare alla stessa conclusione.
+  if (!(await openMicrophone())) {
+    earsOff();
+    return;
   }
   if (ears.first() === "locale") {
     startLocalEars();
@@ -790,8 +926,31 @@ function startListening(): void {
   startBrowserListening();
 }
 
+/**
+ * Il riconoscitore del browser non e' una strada su questo dispositivo.
+ *
+ * Due modi di scoprirlo, stessa decisione: la resa del freno (`onGaveUp`) e
+ * l'assenza pura e semplice dell'API — Firefox su Android non ha nessuno
+ * `SpeechRecognition`, e li' `startBrowserListening` usciva in silenzio: le
+ * orecchie non partivano, il bottone diceva «ti ascolto» e non ascoltava
+ * niente, per sempre. Una strada che non c'e' e' una strada morta come le
+ * altre, e `EarsChoice` sa gia' cosa farne.
+ */
+function browserIsNotARoad(why: string): void {
+  if (ears.browserGaveUp(sensors.micIsOn()) === "locale") {
+    trouble(why + ": passo alla dettatura in casa");
+    startLocalEars();
+  } else {
+    trouble(why + ": orecchie spente (un tocco riprova)");
+    earsOff();
+  }
+}
+
 function startBrowserListening(): void {
-  if (!speech.sttAvailable()) return;
+  if (!speech.sttAvailable()) {
+    browserIsNotARoad("questo browser non ha il riconoscitore vocale");
+    return;
+  }
   const started = speech.listen(
     (text) => {
       handleHeardText(text);
@@ -822,13 +981,7 @@ function startBrowserListening(): void {
     // sensi restano accesi (rumore, luce, camera), manca solo la dettatura,
     // e un altro tocco sul bottone riprova.
     (why) => {
-      if (ears.browserGaveUp(sensors.micIsOn()) === "locale") {
-        trouble(why + ": passo alla dettatura in casa");
-        startLocalEars();
-      } else {
-        trouble(why + ": orecchie spente (un tocco riprova)");
-        earsOff();
-      }
+      browserIsNotARoad(why);
     },
   );
   if (started) app.dataset.ears = "on";
@@ -868,7 +1021,12 @@ const pointerGaze = startPointerGaze(canvas, (target) => {
 micButton.addEventListener("click", () => {
   void (async () => {
     await awake.acquire();
-    await sensors.startMicrophone().catch(() => undefined);
+    // il microfono PRIMA della camera, come sempre: e' l'ordine in cui il
+    // gesto dell'utente vale ancora, ed e' l'unico senso che le orecchie
+    // usano davvero. L'esito si tiene: se non si e' aperto, il motivo l'ha
+    // gia' detto `openMicrophone`, e chiederglielo di nuovo da
+    // `startListening` sarebbe la stessa riga due volte
+    const earsPossible = await openMicrophone();
     sensors.startMotion();
     sensors.startLight();
     // ADR-044: il locator ORA viene passato. Prima non lo passava nessuno, e
@@ -912,7 +1070,13 @@ micButton.addEventListener("click", () => {
         });
       }
     }
-    startListening();
+    if (earsPossible) {
+      void startListening();
+    } else {
+      earsOff();
+    }
+    // il bottone compare comunque: concedere il permesso e ritoccare e' la
+    // strada per cui la riga nel registro e' stata scritta
     micButton.hidden = true;
     earsButton.hidden = false;
   })();
@@ -929,7 +1093,7 @@ earsButton.addEventListener("click", () => {
     stopListening();
     earsButton.textContent = "orecchie spente";
   } else {
-    startListening();
+    void startListening();
     earsButton.textContent = "ti ascolto";
   }
   // la pioggia segue l'interruttore dei sensi: uno solo, quello che c'è già
@@ -945,6 +1109,27 @@ void loadRooms();
 // non ha un cielo e ignora tutto, come per gli arredi. Gruppo 13: quando nel
 // cielo piove, si sente — piano, mai di notte, e solo a sensi accesi
 const rain = new RainSound();
+
+/**
+ * Il verso (ADR-116).
+ *
+ * Il timbro esce dai geni del corpo di chi grugnisce — `chonk` e `snout`,
+ * niente di nuovo da ereditare — quindi due gosini della stessa stanza fanno
+ * versi diversi senza che nessuno li abbia configurati. Chi non è nel roster
+ * (una casa a esemplare solo, dove `who` è vuoto) grugnisce col corpo medio.
+ */
+const grunt = new GruntSound();
+
+function gruntFor(who: string | undefined): void {
+  const allowed = gruntShouldSound({
+    sensesOn: app.dataset.ears === "on",
+    night: lastSky?.mode === "night",
+    speaking: speech.isSpeaking(),
+  });
+  if (!allowed) return;
+  const traits = residents.find((one) => one.id === who)?.traits ?? {};
+  grunt.play(gruntVoice({ ...DEFAULT_TRAITS, ...traits }));
+}
 let lastSky: Parameters<typeof rain.update>[0];
 watchSky(soulHttp, (state) => {
   renderer.setSky?.(state);

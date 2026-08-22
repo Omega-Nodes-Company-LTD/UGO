@@ -25,6 +25,8 @@ export const traitsSchema = z.object({
   // the coat and the tail (ADR-068): spots are recessive, hence rare
   spots: z.number().min(0).max(1).default(0.1),
   tail: z.number().min(0).max(1).default(0.5),
+  // le setole (ADR-109): dalla cresta rada al dorso irto
+  bristle: z.number().min(0).max(1).default(0.35),
   // the character
   curiosity: z.number().min(0).max(1).default(0.5),
   boldness: z.number().min(0).max(1).default(0.5),
