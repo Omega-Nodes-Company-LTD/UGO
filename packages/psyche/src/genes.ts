@@ -35,6 +35,11 @@ export const GENE_KEYS = [
   "talkativeness",
   // how long the arc lasts (ADR-071): hamster scale, 2.5–5 years
   "longevity",
+  // cultural genes (trasferimento orizzontale, Orizzonti 1+4): non si ereditano
+  // verticalmente, si scambiano negli incontri e mutano sognandoli
+  "grunt_repertoire",
+  "dialect",
+  "dream_style",
 ] as const;
 
 export type GeneKey = (typeof GENE_KEYS)[number];
@@ -52,6 +57,13 @@ export interface Genome {
 
 /** Eight mating types, alla Schizophyllum — breeding needs distinct ceppi. */
 export const CEPPI = 8;
+
+/** Structural/genetic gene keys (vertical inheritance): excludes cultural genes
+ *  which are transferred horizontally (Orizzonti 1+4). Used for genomeDistance
+ *  and compatibility ring — cultural genes don't affect reproductive isolation. */
+export const STRUCTURAL_GENE_KEYS = GENE_KEYS.filter(
+  (k): k is GeneKey => !["grunt_repertoire", "dialect", "dream_style"].includes(k)
+);
 
 /** Defaults mirror `traitsSchema` (character.ts): an empty genome is a plain UGO. */
 export const GENE_CATALOG: Record<GeneKey, { default: number; expression: Expression }> = {
@@ -72,6 +84,10 @@ export const GENE_CATALOG: Record<GeneKey, { default: number; expression: Expres
   calm: { default: 0.5, expression: "blend" },
   talkativeness: { default: 0.5, expression: "blend" },
   longevity: { default: 0.5, expression: "blend" },
+  // cultural genes: blend, low defaults — they grow through encounter + dream
+  grunt_repertoire: { default: 0.1, expression: "blend" },
+  dialect: { default: 0.1, expression: "blend" },
+  dream_style: { default: 0.1, expression: "blend" },
 };
 
 /** Epistasis, declared once: shyness masks the talkative gene (ADR-068 §2). */

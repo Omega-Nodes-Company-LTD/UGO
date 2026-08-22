@@ -2,6 +2,7 @@ import {
   CEPPI,
   expressedTraits,
   GENE_KEYS,
+  STRUCTURAL_GENE_KEYS,
   type Allele,
   type GeneKey,
   type Genome,
@@ -29,15 +30,17 @@ const DEFAULT_LITTER_SIZE = 3;
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
-/** Mean absolute difference of expressed values: the creature you would meet. */
+/** Mean absolute difference of expressed values: the creature you would meet.
+ *  Uses only structural genes (vertical inheritance); cultural genes are
+ *  transferred horizontally and don't affect reproductive compatibility. */
 export function genomeDistance(a: Genome, b: Genome): number {
   const ta = expressedTraits(a);
   const tb = expressedTraits(b);
   let total = 0;
-  for (const key of GENE_KEYS) {
+  for (const key of STRUCTURAL_GENE_KEYS) {
     total += Math.abs(ta[key] - tb[key]);
   }
-  return total / GENE_KEYS.length;
+  return total / STRUCTURAL_GENE_KEYS.length;
 }
 
 export type MateRefusalReason =
