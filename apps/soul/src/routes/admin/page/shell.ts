@@ -59,6 +59,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <a href="#/adozioni" data-nav="adozioni">Le adozioni</a>
       <a href="#/documenti" data-nav="documenti">I documenti</a>
       <a href="#/parentele" data-nav="parentele">Le parentele</a>
+      <a href="#/album" data-nav="album">L'album</a>
       <a href="#/clienti" data-nav="clienti">I clienti</a>
       <a href="#/conti" data-nav="conti">I conti</a>
       <a href="#/giornale" data-nav="giornale">Il giornale</a>

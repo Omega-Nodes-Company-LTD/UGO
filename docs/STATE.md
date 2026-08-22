@@ -2480,6 +2480,95 @@ nascondi→dock→reload→resta nascosto→⌃ riapre, e foglio+presa su viewpo
 dell'intero monorepo verdi (21/21 task turbo); `pnpm audit` pulito sopra il MODERATE noto di
 §7 (esbuild via drizzle-kit).
 
+## 6-quinquequadragies. La visione che ricorda: lo sguardo, l'album, il nodo GPU
+
+Il gruppo 22 del BACKLOG chiuso in un giro solo (ADR-108/109/110 + ADR-099 §7), su «fai
+tutto» del proprietario. Nasce dalle tre domande di partenza: «cosa costava il PC rosso?»,
+«fammi vedere gli scatti del parco», «scattaci una foto e mandala al gosino di nonno
+Sandro».
+
+**Lo sguardo che si ricorda (ADR-108).** «Ricordati questo» → **un frame, due occhi**: il
+modello vision dice cos'era, tesseract legge le lettere, e insieme diventano una riga
+`memories` in chiaro (ADR-091) ripescabile dal braccio lessicale. Prima i due percorsi non
+si incrociavano mai — l'OCR vedeva solo il frame `fine`, il vision solo quello a 320px — e
+nessuno dei due lasciava traccia: la risposta di «leggi» finiva fra i messaggi, la
+ruminazione in `events`, e la sera «quanto costava?» non trovava niente. Zero token: come
+ogni gesto, si risolve prima del provider.
+
+**L'album (ADR-109).** Riapre il vincolo 1 di ADR-016 in forma stretta. Si scatta **solo su
+gesto**; i pixel vivono cifrati con la DEK della casa in un bucket privato (`S3_BUCKET_PHOTOS`),
+la didascalia in chiaro perché è come si ritrova; la **durata la sceglie il titolare** fra
+0/6/12/24/48/72 ore, con `0` di default e il `check` nel database. `expires_at` si scrive
+allo scatto e non si ricalcola: allungare non resuscita, accorciare vale dal prossimo.
+
+Due cose imparate qui, e valgono oltre l'album:
+
+1. **`no_vision` non toccava la pipeline della visione.** L'unico punto che lo leggeva
+   davvero era `_guard()` in `ops/jobs/.../enrollment.py`, che protegge l'impronta
+   biometrica — coerente finché nessun pixel si conservava, falso il giorno dell'album. Ora
+   vale **a monte** (regola 9): il fotografo guarda i cancelli **prima** di chiedere il frame
+   al corpo, e il test che conta pretende `shotsAsked === 0`. Verificato rosso spostando la
+   guardia di tre righe.
+2. **`no_vision` non portava via il volto già imparato.** `beingsService.update()` distruggeva
+   la biometria su `isMinor` e `noAudio` ma non su `noVision`, e
+   `destroyRecognition(beingId, "face")` esisteva già senza che nessuno la chiamasse: chiuso qui,
+   con la prova verificata rossa.
+3. **RLS non si applica al proprietario delle tabelle**, e da lì passano job, migrazioni e
+   test. `AlbumService` si fidava solo del muro: `drop()` cancellava la foto della casa
+   accanto. L'ha scoperto il test d'integrazione, connesso proprio come loro. Ora **ogni
+   query nomina la casa** oltre a girare dentro `withAccount`.
+
+**Il nodo GPU (ADR-110), predisposto e inerte.** `OLLAMA_GPU_URL` opzionale: assente (il
+default) non cambia niente; presente, ci puntano vision, testo locale e l'anello di casa
+della catena di chat — le tre cose che degradano da sole quando il modello tace. **Gli
+embedding no, mai**: `embed()` è l'unico client locale che *lancia* invece di degradare, e
+di là «tailnet giù» vorrebbe dire ricordi che non si scrivono. `gpuNode.test.ts` legge i
+sorgenti e lo tiene vero (verificato rosso puntando l'embedder al nodo). Il muro è **solo la
+tailnet**, perché Ollama non ha autenticazione e fra due macchine la rete Docker
+`internal: true` non esiste più: scritto come vincolo, col controllo che conta — la curl da
+**fuori** deve fallire.
+
+**La cartolina con la foto (ADR-099 §7).** I pixel entrano nell'album di **chi riceve**,
+ri-cifrati con la loro DEK, con la **loro** durata. Se il loro album è spento la cartolina
+non parte affatto — né la foto né le parole: mezza cartolina è la sorpresa che chi riceve
+non ha modo di notare. `ON DELETE SET NULL (photo_id)` scritto a mano, perché il `no action`
+generato avrebbe fatto **bloccare la scadenza dalla cartolina stessa**, rendendo falsa la
+durata promessa.
+
+### Il giro completo (regola 12)
+
+- **BO** — `packages/db`: `photos` (+ unique `(account_id, id)`), `accounts.photo_retention_hours`,
+  `parcels.photo_id`; migrazioni **0054** (tabella e colonna), **0055** (RLS, `REVOKE UPDATE`:
+  una foto non si modifica), **0056** (la cartolina con la foto, scritta a mano per il
+  `SET NULL` per colonna). `apps/soul`: `sceneMemory`, `albumService`, `photographer`,
+  `volition/album`, `routes/album`, gesti in `chatService`, verbi di audit, `OLLAMA_GPU_URL`
+  e `gpuUrl`, capability `gpuNode`, `/health.ollamaGpu`. **L'export conosce `photos`**
+  (metadata e `object_key`, mai i pixel — la scelta già fatta per `customer_documents`) e
+  `parcels.photo_id`. `ops/jobs` non toccato: nessun vincolo nuovo tocca le sue fixture;
+- **`/admin`** — pagina **«L'album»** (avvertenza sopra la tendina, durata, scatti con quanto
+  gli resta, apri e butta; **nessun bottone «scatta»**, e c'è un test che lo pretende), la
+  tendina **«Con una foto»** sulla cartolina, i controlli di `/health` con nomi leggibili
+  invece delle chiavi tecniche. Ogni chiamata passa da `call()`, ogni id raggiunto esiste nel
+  markup: `script.test.ts` lo esegue;
+- **FE** — contratti `photo_ask` / `photo` / `show_photos` in `faceContracts.ts`, **distinti
+  da `glimpse`** e su una casella `snapshot` separata nel gateway (uno sguardo si consuma,
+  una foto si conserva: due destini, due nomi); cattura a 640px e striscia di foto sullo
+  schermo (`photoStrip.ts`, parte pura testata + renderer, `textContent` mai `innerHTML`).
+  **Il bundle del muso va ricostruito**, o i dispositivi restano al muso vecchio.
+
+Verificato qui: `pnpm turbo build lint test` verde (30/30), **43 file di integrazione su
+Postgres 16 + pgvector reale** (396 test) e **l'album intero su MinIO vero** — 10 test, fra
+cui la prova che nel bucket c'è ciphertext e non una foto, che la scadenza porta via **il
+file prima della riga**, e che una cartolina spedita ai vicini dura *settantadue* ore da
+loro mentre da noi ne durava sei. `pnpm audit` pulito sopra il MODERATE noto di §7.
+
+Nel farlo sono emersi due difetti non nostri, chiusi qui: un `expect(...).not.toContain("9.0")`
+in `adminSurface` che collideva con gli **istanti ISO** (`…T09:06:19.006Z` contiene «9.0») —
+verde di giorno, rosso a certe ore; e `startMinio()`/`startPostgres()` ora accettano un
+server già acceso (`UGO_TEST_S3_URL`, `UGO_TEST_PG_URL`), che è come questi test hanno potuto
+girare davvero in una sandbox senza Docker. Resta Zero-Mock: è lo stesso MinIO, acceso da
+fuori.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
@@ -2546,11 +2635,16 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
    dei modelli, cron del sogno, stack Vexa + Meet di prova. **Conseguenza operativa**: le migrazioni
    di schema non girano più su un database vuoto. Costano ancora poco a questo volume, e la finestra
    per i cambi strutturali (fra i quali la caduta dei `DEFAULT` del gruppo 5) non resterà aperta.
-4. **Col telefono**: installare la PWA (runbook §10), STT/TTS reali, MediaPipe/camera, Vosk wake
+4. **Per accendere l'album** (ADR-109): creare il bucket `S3_BUCKET_PHOTOS` accanto a quello
+   dell'audio, **ricostruire il bundle del muso**, e poi — dal pannello, non da psql — scegliere
+   la durata. Finché la durata resta su «non si tengono», il resto è inerte per costruzione.
+   Il nodo GPU (ADR-110) è predisposto ma nessuno l'ha comprato: senza `OLLAMA_GPU_URL` tutto
+   gira come prima, e le didascalie sono quelle che una CPU sa dare.
+5. **Col telefono**: installare la PWA (runbook §10), STT/TTS reali, MediaPipe/camera, Vosk wake
    word. Il guscio Capacitor (ADR-018 Tempo 2) parte quando serve registrare a schermo spento.
-5. **Fase 6 — Gusci**: sessione dedicata; il proprietario ha già dei design da una sessione chat
+6. **Fase 6 — Gusci**: sessione dedicata; il proprietario ha già dei design da una sessione chat
    precedente, da integrare in `hardware/shell/` con `params.py` e coupon di calibrazione.
-6. ~~Backlog gruppi B/C/D~~ — **chiusi** (§6-ter).
+7. ~~Backlog gruppi B/C/D~~ — **chiusi** (§6-ter).
 7. ~~Fondamenta del branco~~ — **chiuse** (§6-quater): schema, enrollment vocale e prompt.
    Restano da fare, dopo il deploy: popolare il branco reale, fare l'enrollment delle voci di casa,
    e documentare in `/documentation` le funzioni una volta che l'utente potrà usarle davvero.

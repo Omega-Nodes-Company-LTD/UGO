@@ -171,6 +171,19 @@ scelta precisa: è il registro che nessuno può riscrivere, e ciò che ci finisc
 
 Le righe si conservano **dodici mesi**, poi scadono da sole durante il sogno.
 
+## Per quanto si conservano le cose
+
+| Cosa                                | Per quanto                                              |
+| ----------------------------------- | ------------------------------------------------------- |
+| Conversazioni, ricordi, diario      | finché non li cancelli: sono la sua memoria              |
+| Registrazioni audio dell'arruolamento | cancellate dopo l'uso                                  |
+| Impronte di sconosciuti             | 30 giorni, poi via da sole                              |
+| Registro di chi ha fatto cosa       | 12 mesi                                                 |
+| **Foto** (l'[album](./l-album.md))  | **la scegli tu**: nessuna, oppure 6, 12, 24, 48 o 72 ore |
+
+La riga delle foto è l'unica che decidi tu, e nasce su «nessuna»: finché non scegli una durata dal
+pannello, UGO non conserva nemmeno una foto.
+
 Oggi si legge dal database, non dal pannello. Se ti serve, chiedi a chi gestisce il server.
 
 ## Cancellare tutto

@@ -23,6 +23,26 @@ export const soulEnvSchema = z.object({
   MQTT_USER: optionalNonEmpty,
   MQTT_PASS: optionalNonEmpty,
   OLLAMA_URL: z.url(),
+  /**
+   * ADR-110: la seconda macchina, quella con la scheda video.
+   *
+   * Quando c'è, ci puntano **il modello vision, il testo locale e l'anello
+   * Ollama della catena di chat** — cioè le tre cose che con una GPU
+   * diventano possibili invece che lente. Quando manca, tutto resta su
+   * `OLLAMA_URL` e non cambia una riga di comportamento: è il precedente
+   * esatto di `OLLAMA_BATCH_URL` nei job.
+   *
+   * **Gli embedding NO, mai** (ADR-110 §3): `OllamaEmbeddingsClient.embed()`
+   * è l'unico client locale che *lancia* invece di degradare. Spostarlo su
+   * una seconda macchina introdurrebbe una dipendenza dura che oggi nessun
+   * componente di questo sistema ha.
+   *
+   * **Il muro è la tailnet, e solo quella**: Ollama non ha autenticazione, e
+   * fra due macchine la rete Docker `internal: true` non esiste più
+   * (OPS_COOLIFY §2.3). Un indirizzo qui che non sia dentro la tailnet
+   * pubblica il modello a chiunque.
+   */
+  OLLAMA_GPU_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   OLLAMA_EMBED_MODEL: z.string().min(1).default("nomic-embed-text"),
   // ADR-027: the model that gives UGO the words for a question of his own.
   // Local on purpose — an initiative must never be able to spend the API
@@ -102,6 +122,8 @@ export const soulEnvSchema = z.object({
   S3_BUCKET_AUDIO: optionalNonEmpty,
   // ADR-054: il bucket privato dei documenti dei clienti (upload dal pannello)
   S3_BUCKET_DOCS: optionalNonEmpty,
+  /** ADR-109: il secchio delle foto dell'album; assente = l'album non conserva */
+  S3_BUCKET_PHOTOS: optionalNonEmpty,
   /** ADR-111: i documenti di CASA, in un bucket loro e non con quelli dei clienti */
   S3_BUCKET_HOUSE_DOCS: optionalNonEmpty,
   /** provider region; Hetzner needs its own (e.g. fsn1), AWS-alikes tolerate us-east-1 */
@@ -142,11 +164,6 @@ export const soulEnvSchema = z.object({
   // ADR-063: la finestra sul mondo — SearXNG in casa. Assente = il prefisso
   // «cerca:» non esiste e niente esce verso i motori
   SEARXNG_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
-  // La reception, per la sola diagnostica: soul non la chiama mai (è lei che
-  // chiama soul, ADR-051), quindi senza questo indirizzo non c'è modo di
-  // sapere dal pannello se la porta sulla strada è aperta. Assente = la riga
-  // resta spenta e lo dice — la reception può essere accesa lo stesso.
-  UGO_RECEPTION_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   // ADR-073: il libro genealogico, in un container suo. Assenti = i gosini
   // nascono esattamente come prima, solo senza atto in catena
   UGO_REGISTRY_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),

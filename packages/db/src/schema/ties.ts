@@ -3,6 +3,7 @@ import { check, foreignKey, index, pgTable, text, timestamp, uuid } from "drizzl
 import { beings } from "./beings.js";
 import { gosini } from "./gosini.js";
 import { accounts } from "./accounts.js";
+import { photos } from "./photos.js";
 
 /**
  * La parentela fra le case (ADR-099): un legame proposto da una casa e vero
@@ -108,6 +109,16 @@ export const parcels = pgTable(
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     /** ADR-099 §3: un ricordo ricevuto si può «tenere» — una volta sola */
     keptAt: timestamp("kept_at", { withTimezone: true }),
+    /**
+     * ADR-109 × ADR-099: la foto che la cartolina porta, **già nell'album di
+     * chi la riceve**. Non è un allegato in attesa: al momento dell'invio i
+     * pixel sono stati ri-cifrati con la DEK della casa destinataria e la
+     * riga è nata lì, con la scadenza che vale in quella casa. Qui resta il
+     * riferimento, perché la cassetta della posta possa mostrarla.
+     *
+     * Nullo per tutte le cartoline di sole parole, che restano la norma.
+     */
+    photoId: uuid("photo_id"),
   },
   (table) => [
     index("parcels_from_idx").on(table.fromAccountId),
@@ -126,6 +137,13 @@ export const parcels = pgTable(
       name: "parcels_to_gosino_fk",
       columns: [table.toAccountId, table.toGosinoId],
       foreignColumns: [gosini.accountId, gosini.id],
+    }),
+    // la foto è della casa DESTINATARIA: la coppia lo rende vero nel
+    // database, non solo nel servizio (ADR-019)
+    foreignKey({
+      name: "parcels_photo_fk",
+      columns: [table.toAccountId, table.photoId],
+      foreignColumns: [photos.accountId, photos.id],
     }),
   ],
 );

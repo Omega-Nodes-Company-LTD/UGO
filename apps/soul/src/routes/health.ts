@@ -19,6 +19,14 @@ const healthResponseSchema = z.object({
     mqtt: checkResult,
     ollama: checkResult,
     /**
+     * ADR-110: la seconda macchina, quella con la scheda video. `off` quando
+     * non è configurata — ed è il default: una casa con un solo server è la
+     * norma, non un guasto. Sta a parte da `ollama` perché sono due macchine
+     * e due rimedi: qui rosso vuol dire «la tailnet o il nodo GPU», non «il
+     * container di casa».
+     */
+    ollamaGpu: checkResult,
+    /**
      * ADR-101: la percezione. Da lei dipendono volto e voce — cioè metà di
      * quello che rende UGO un compagno e non una chat — e `/health` non la
      * guardava: un container di percezione morto era un riconoscimento che
@@ -33,6 +41,8 @@ export interface HealthDeps {
   db: DbClient;
   mqtt: { url?: string | undefined; username?: string | undefined; password?: string | undefined };
   ollamaUrl: string;
+  /** ADR-110: il nodo GPU; assente = "off", come il broker */
+  ollamaGpuUrl?: string | undefined;
   /** ADR-101: il servizio di percezione; assente = "off", come il broker */
   perceptionUrl?: string | undefined;
 }
@@ -100,18 +110,21 @@ async function checkPerception(baseUrl: string | undefined): Promise<CheckResult
 /** Liveness + readiness (PROGETTO §5.7): db is vital, mqtt/ollama/percezione degradano. */
 export function registerHealthRoute(app: FastifyInstance, deps: HealthDeps): void {
   app.get("/health", async (_request, reply) => {
-    const [db, broker, ollama, perception] = await Promise.all([
+    const [db, broker, ollama, ollamaGpu, perception] = await Promise.all([
       checkDb(deps.db),
       checkMqtt(deps.mqtt),
       checkOllama(deps.ollamaUrl),
+      deps.ollamaGpuUrl === undefined
+        ? Promise.resolve<CheckResult>("off")
+        : checkOllama(deps.ollamaGpuUrl),
       checkPerception(deps.perceptionUrl),
     ]);
-    const checks = { db, mqtt: broker, ollama, perception };
+    const checks = { db, mqtt: broker, ollama, ollamaGpu, perception };
     const off = (result: CheckResult): boolean => result === "ok" || result === "off";
     const status: HealthResponse["status"] =
       db === "error"
         ? "unavailable"
-        : off(broker) && ollama === "ok" && off(perception)
+        : off(broker) && ollama === "ok" && off(ollamaGpu) && off(perception)
           ? "ok"
           : "degraded";
     const body = healthResponseSchema.parse({ status, checks });

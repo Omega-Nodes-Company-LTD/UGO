@@ -30,6 +30,7 @@ import { registerCheckinRoutes } from "./routes/checkins.js";
 import { registerMemoryBookRoutes } from "./routes/memoryBook.js";
 import { registerPackMoodRoutes } from "./routes/packMood.js";
 import { registerDiaryRoutes } from "./routes/diary.js";
+import { registerAlbumRoutes } from "./routes/album.js";
 import { registerTieRoutes } from "./routes/ties.js";
 import { registerTransferRoutes } from "./routes/transfer.js";
 import { registerVetrinaRoutes } from "./routes/vetrina.js";
@@ -56,6 +57,7 @@ import { registerTtsRoute, type TtsRouteDeps } from "./routes/tts.js";
 import { registerWeatherRoute, type WeatherDeps } from "./routes/weather.js";
 import { registerPropRoutes } from "./routes/props.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
+import { AlbumService } from "./services/albumService.js";
 import { AnswerCache } from "./services/reception/answerCache.js";
 import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
 import type { CustomerQuota } from "./services/reception/customerQuota.js";
@@ -119,6 +121,13 @@ export interface ServerOptions extends HealthDeps {
   features?: Omit<V1Deps, "db" | "guard"> & {
     face?: FaceGateway;
     audio?: AudioStorageConfig;
+    /**
+     * ADR-109: il bucket delle foto — un secchio diverso da quello dell'audio,
+     * perché una foto e una registrazione hanno durate e diritti diversi.
+     * Assente = l'album non ha dove tenerle, e le rotte lo dicono invece di
+     * far credere che una foto si stia conservando.
+     */
+    photos?: AudioStorageConfig;
     meetings?: MeetingsService;
     privacy?: {
       forget: (db: DbClient) => ForgetService;
@@ -262,6 +271,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     const {
       face,
       audio,
+      photos,
       meetings,
       privacy,
       stats,
@@ -557,9 +567,25 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           ...(registry !== undefined && { registry }),
           ...(gosini.chain !== undefined && { chain: new RegistryClient(gosini.chain) }),
         });
+        // ADR-109: l'album. Serve la KEK (i pixel sono cifrati con la DEK
+        // della casa) e il bucket; senza bucket le rotte esistono e lo dicono,
+        // invece di far credere che una foto si stia conservando
+        const album = new AlbumService({
+          db: options.db,
+          masterKey: gosini.dataKey,
+          ...(photos !== undefined && { storage: photos }),
+        });
         // ADR-099: le parentele fra le case e le cartoline — serve la KEK,
-        // perché il testo viaggia ri-cifrato con la DEK della destinataria
-        registerTieRoutes(app, { db: options.db, guard, dataKey: gosini.dataKey, audit });
+        // perché il testo viaggia ri-cifrato con la DEK della destinataria.
+        // E l'album, perché una cartolina può portare una foto (ADR-109)
+        registerTieRoutes(app, {
+          db: options.db,
+          guard,
+          dataKey: gosini.dataKey,
+          audit,
+          album,
+        });
+        registerAlbumRoutes(app, { db: options.db, guard, audit, album });
       }
     }
     if (council !== undefined) {

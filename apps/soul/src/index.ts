@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
-import { createDbClient, createScopedDbClient, events, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { createDbClient, createScopedDbClient, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
+import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
   OllamaTextClient,
@@ -10,6 +10,7 @@ import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
 import { NudgeService } from "./services/nudges.js";
+import { SceneMemory } from "./services/sceneMemory.js";
 import { SceneReader } from "./services/sceneReader.js";
 import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
@@ -30,6 +31,7 @@ import { SolitudeMonitor } from "./services/solitudeMonitor.js";
 import { CheckinWatch } from "./services/checkinService.js";
 import { TimerWatch } from "./services/volition/timerWatch.js";
 import { CouncilService } from "./services/council/councilService.js";
+import { AlbumService } from "./services/albumService.js";
 import { GosinoRegistry } from "./services/pack/runtimes.js";
 import { RuminationService } from "./services/rumination.js";
 import { SearxClient, WebWindow } from "./services/webSearch.js";
@@ -40,8 +42,6 @@ import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
 import { buildServer } from "./server.js";
-import { TurnLog } from "./services/diagnostics/turnLog.js";
-import { servedBuildId } from "./routes/faceStatic.js";
 import { createAccount } from "./services/accountService.js";
 import type { Capability } from "./routes/capabilities.js";
 
@@ -140,6 +140,19 @@ const psyche = await PsycheService.restore(dbFor(bootstrapAccountId), new Date()
  * catena. Il modello locale: `OLLAMA_CHAT_MODEL`, o quello del testo
  * dell'iniziativa, o quello del sogno — la casa ne ha sempre almeno uno.
  */
+/**
+ * ADR-110: dove girano i modelli che vale la pena mettere su una GPU.
+ *
+ * Una sola costante, e passa **solo** al vision, al testo locale e all'anello
+ * Ollama della catena di chat. Gli embedding restano su `OLLAMA_URL` per
+ * scelta: sono l'unico client locale che lancia invece di degradare, e una
+ * seconda macchina in mezzo li renderebbe una dipendenza dura.
+ *
+ * Senza `OLLAMA_GPU_URL` questa riga vale `env.OLLAMA_URL` e il sistema è
+ * identico a com'era.
+ */
+const gpuUrl = env.OLLAMA_GPU_URL ?? env.OLLAMA_URL;
+
 const localChatModel = env.OLLAMA_CHAT_MODEL ?? env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL;
 const llmFor = (
   accountId: string,
@@ -166,7 +179,7 @@ const llmFor = (
     gosinoId,
     timezone: clock.timezone,
     locale: clock.locale,
-    local: { baseUrl: env.OLLAMA_URL, model: localChatModel },
+    local: { baseUrl: gpuUrl, model: localChatModel },
     ...(env.OPENROUTER_API_KEY !== undefined &&
       env.OPENROUTER_CHAT_MODEL !== undefined && {
         openRouter: {
@@ -198,7 +211,7 @@ const web =
     ? undefined
     : new WebWindow({
         searx: new SearxClient({ baseUrl: env.SEARXNG_URL }),
-        local: new OllamaTextClient(env.OLLAMA_URL, env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL),
+        local: new OllamaTextClient(gpuUrl, env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL),
         localUp: () => localTextUp,
       });
 
@@ -231,7 +244,7 @@ const bootstrapPercezione =
 const localVision =
   env.OLLAMA_VISION_MODEL === undefined
     ? undefined
-    : new OllamaVisionClient(env.OLLAMA_URL, env.OLLAMA_VISION_MODEL);
+    : new OllamaVisionClient(gpuUrl, env.OLLAMA_VISION_MODEL);
 // ADR-064: le spinte — il servizio nasce PRIMA di ogni chat (l'apparato di
 // avvio e i runtime lo vogliono fra le dipendenze) e legge il registro al
 // momento del gesto, quando esiste da un pezzo
@@ -239,19 +252,28 @@ let registryRef: GosinoRegistry | undefined = undefined;
 const nudges = new NudgeService({ dbFor, registry: () => registryRef });
 
 // l'annotazione esplicita spezza il cerchio dell'inferenza: chat → lettore →
-/**
- * Il cronometro dei turni e i contatori delle frasi, uno per processo.
- *
- * Uno solo, come l'audit e il `SceneHub`: la domanda a cui risponde è «quanto
- * ci mette QUESTA casa», e tenerne uno per esemplare vorrebbe dire non poter
- * rispondere finché non si sa già di chi è la colpa.
- */
-const turnLog = new TurnLog();
-
 // gateway → chat (il lettore guarda il corpo solo al momento del gesto)
+/**
+ * ADR-109: l'album. Uno per processo e non uno per casa: i cancelli (la
+ * durata scelta, il `no_vision` del branco) li legge a ogni scatto dalla riga
+ * della casa che gli viene nominata, quindi una scelta cambiata dal pannello
+ * vale subito — senza riavviare per guardare.
+ *
+ * Nasce qui, prima di ogni chat, perché lo vogliono in tre: il fotografo, la
+ * cartolina con la foto, e il registro degli esemplari.
+ */
+const photoStorage = audioStorageFromEnv(env);
+const albumService = new AlbumService({
+  db,
+  masterKey: parseDataKey(env.UGO_DATA_KEY),
+  ...(photoStorage !== undefined &&
+    env.S3_BUCKET_PHOTOS !== undefined && {
+      storage: { ...photoStorage, bucket: env.S3_BUCKET_PHOTOS },
+    }),
+});
+
 const chat: ChatService = new ChatService({
   db: dbFor(bootstrapAccountId),
-  turnLog,
   embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
   llm,
   psyche,
@@ -267,6 +289,23 @@ const chat: ChatService = new ChatService({
       ocr: (image) => bootstrapPercezione.ocr(image),
     }),
   }),
+  // ADR-108: «ricordati questo», anche per l'apparato di avvio — la rotta
+  // /v1/chat parla con QUESTA istanza, e il gesto deve valere da lì come dal
+  // chiosco (la lezione di ADR-065, che il lettore l'aveva imparata)
+  ...((bootstrapPercezione !== undefined || localVision !== undefined) && {
+    keepsake: new SceneMemory({
+      gateway: (): FaceGateway => face,
+      db,
+      gosinoId: bootstrapExemplar.id,
+      ...(bootstrapPercezione !== undefined && {
+        ocr: (image: string) => bootstrapPercezione.ocr(image),
+      }),
+      ...(localVision !== undefined && {
+        vision: { describe: (image: string) => localVision.describe(image) },
+      }),
+      embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
+    }),
+  }),
   nudges: { answer: (text, at) => nudges.answer(bootstrapExemplar.id, text, at) },
   ...(localVision !== undefined && {
     vision: { describe: (image: string) => localVision.describe(image) },
@@ -274,7 +313,7 @@ const chat: ChatService = new ChatService({
   // ADR-099: la cartolina a voce anche per l'apparato di avvio
   postcards: {
     ties: new TieService(db),
-    parcels: new ParcelService(db, parseDataKey(env.UGO_DATA_KEY)),
+    parcels: new ParcelService(db, parseDataKey(env.UGO_DATA_KEY), albumService),
   },
 });
 
@@ -331,7 +370,7 @@ const meetings =
 
 // ADR-027: initiative. Until now every single thing UGO said was a reply.
 const localText = new OllamaTextClient(
-  env.OLLAMA_URL,
+  gpuUrl,
   env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
 );
 let localTextUp = false;
@@ -390,7 +429,6 @@ const registry = await GosinoRegistry.load({
   db,
   dbFor,
   embedder,
-  turnLog,
   llm: llmFor,
   local: localText,
   dataKey,
@@ -410,6 +448,7 @@ const registry = await GosinoRegistry.load({
   ...(localVision !== undefined && {
     vision: { describe: (image: string) => localVision.describe(image) },
   }),
+  album: albumService,
 });
 registryRef = registry;
 
@@ -430,6 +469,16 @@ const capabilities = (): Capability[] => [
     on: localVision !== undefined,
     ...(localVision === undefined && {
       why: "manca OLLAMA_VISION_MODEL (e il modello va scaricato in Ollama). Senza, alle foto risponde che non riesce a vederle.",
+    }),
+  },
+  {
+    id: "gpuNode",
+    label: "Il nodo con la scheda video",
+    on: env.OLLAMA_GPU_URL !== undefined,
+    ...(env.OLLAMA_GPU_URL === undefined && {
+      // ADR-110: spenta è uno stato legittimo, e qui è pure il default. Senza
+      // nodo GPU tutto gira sulla macchina di casa, solo più lentamente
+      why: "manca OLLAMA_GPU_URL: vision e testo locale girano sulla stessa macchina di tutto il resto. Non è un guasto — è più lento, e basta.",
     }),
   },
   {
@@ -475,6 +524,14 @@ const capabilities = (): Capability[] => [
     }),
   },
   {
+    id: "album",
+    label: "Conservare le foto che scattate",
+    on: audio !== undefined && env.S3_BUCKET_PHOTOS !== undefined,
+    ...(!(audio !== undefined && env.S3_BUCKET_PHOTOS !== undefined) && {
+      why: "manca S3_BUCKET_PHOTOS (o il gruppo S3): senza un secchio l'album non ha dove tenerle. Le foto restano una cosa che si guarda e basta.",
+    }),
+  },
+  {
     id: "audio",
     label: "Registrazioni e arruolamento voce",
     on: audio !== undefined,
@@ -503,68 +560,10 @@ const app = buildServer({
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
-  /**
-   * La diagnostica di tutti i container.
-   *
-   * Riceve gli stessi indirizzi che riceve il resto del server, e apposta: una
-   * pagina che sonda indirizzi propri direbbe che il registro risponde mentre
-   * soul sta chiamando un altro registro. Si sonda ciò che si usa.
-   */
-  diagnostics: {
-    mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
-    ollama: { url: env.OLLAMA_URL, embedModel: env.OLLAMA_EMBED_MODEL },
-    ...(env.UGO_RECOGNITION_URL !== undefined && { perceptionUrl: env.UGO_RECOGNITION_URL }),
-    ...(env.SEARXNG_URL !== undefined && { searxngUrl: env.SEARXNG_URL }),
-    ...(env.UGO_REGISTRY_URL !== undefined &&
-      env.UGO_REGISTRY_TOKEN !== undefined && {
-        registry: { baseUrl: env.UGO_REGISTRY_URL, token: env.UGO_REGISTRY_TOKEN },
-      }),
-    ...(env.UGO_RECEPTION_URL !== undefined && { receptionUrl: env.UGO_RECEPTION_URL }),
-    // la chiave è obbligatoria per soul (`config/env.ts`): qui il modello c'è
-    // sempre, e la riga «spenta» del provider resta per chi costruisce il
-    // server senza — i test, e una casa di sole risposte locali
-    chatModel: env.UGO_CHAT_MODEL,
-    // letto sulla connessione di processo: «il sogno è passato stanotte?» è
-    // una domanda sul container, non su una casa, e non deve dipendere da
-    // quale casa sta guardando chi apre il pannello
-    lastDream: async () => {
-      const [row] = await db
-        .select({ ts: events.ts })
-        .from(events)
-        .where(eq(events.type, "dream_step_completed"))
-        .orderBy(desc(events.ts))
-        .limit(1);
-      return row?.ts ?? null;
-    },
-    /**
-     * Quante voci aspettano un sogno per diventare impronte.
-     *
-     * **La stessa domanda che si fa `enroll_step._pending`**, e apposta: se
-     * questo numero e quello che il sogno andrà a lavorare divergessero, il
-     * pannello direbbe una cosa e la notte ne farebbe un'altra — che è
-     * esattamente il genere di bugia che questa pagina esiste per togliere.
-     *
-     * Sulla connessione di processo: «quante ne aspettano» è una domanda
-     * sull'installazione, e il sogno gira casa per casa.
-     */
-    pendingVoices: async () => {
-      const [row] = await db.execute<{ waiting: number }>(sql`
-        select count(*)::int as waiting
-        from perception_events r
-        where r.observed->>'kind' = 'enrollment_requested'
-          and r.being_id is not null
-          and not exists (
-            select 1 from perception_events d
-            where d.observed->>'kind' = 'enrollment'
-              and d.observed->>'request_id' = r.id::text
-          )
-      `);
-      return row?.waiting ?? 0;
-    },
-    turnLog,
-    faceVersion: () => (env.UGO_FACE_DIR === undefined ? "dev" : servedBuildId(resolve(env.UGO_FACE_DIR))),
-    startedAt: new Date(),
-  },
+  // ADR-110: la seconda macchina si guarda a parte. Una GPU che non risponde
+  // e un Ollama di casa che non risponde sono due guasti diversi e si
+  // rimediano in due posti diversi
+  ...(env.OLLAMA_GPU_URL !== undefined && { ollamaGpuUrl: env.OLLAMA_GPU_URL }),
   // ADR-101: volto e voce dipendono dalla percezione, e /health non la guardava
   ...(env.UGO_RECOGNITION_URL !== undefined && { perceptionUrl: env.UGO_RECOGNITION_URL }),
   features: {
@@ -588,12 +587,6 @@ const app = buildServer({
         }),
       // ADR-103: il listino della cucciolata
       litterCostUsd: env.UGO_LITTER_COST_USD,
-      // ADR-111: i documenti di casa. Senza bucket il caricamento risponde 503
-      // e lo dice, invece di accettare un file che non ha dove andare
-      ...(env.S3_BUCKET_HOUSE_DOCS !== undefined &&
-        audio !== undefined && {
-          houseDocsStorage: { ...audio, bucket: env.S3_BUCKET_HOUSE_DOCS },
-        }),
     },
     psyche,
     face,
@@ -605,6 +598,13 @@ const app = buildServer({
     ...(env.UGO_INTERNAL_TOKEN !== undefined && { internalToken: env.UGO_INTERNAL_TOKEN }),
     ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),
     ...(audio !== undefined && { audio }),
+    // ADR-109: stesse credenziali, secchio diverso — una foto e una
+    // registrazione hanno durate e diritti diversi, e un secchio solo
+    // vorrebbe dire una retention che ne governa due
+    ...(audio !== undefined &&
+      env.S3_BUCKET_PHOTOS !== undefined && {
+        photos: { ...audio, bucket: env.S3_BUCKET_PHOTOS },
+      }),
     ...(meetings !== undefined && { meetings }),
     // ADR-052: the house side of the reception, in the panel
     customers: {

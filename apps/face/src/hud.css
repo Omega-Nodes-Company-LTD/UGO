@@ -652,3 +652,54 @@ body {
     max-height: 80vh;
   }
 }
+
+/* ADR-109 — il visore dell'album.
+   Sopra il muso e sotto i comandi: si guarda e si tocca per chiudere, e
+   quando è nascosto non occupa niente. */
+#photo-strip {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 62%);
+  backdrop-filter: blur(3px);
+  z-index: 40;
+  cursor: pointer;
+}
+#photo-strip[hidden] {
+  display: none;
+}
+.photo-strip {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  max-width: min(94vw, 60rem);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 0.8rem;
+}
+.photo-strip figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 22rem;
+}
+.photo-strip img {
+  width: 100%;
+  height: auto;
+  max-height: 62vh;
+  object-fit: contain;
+  border-radius: 0.6rem;
+  box-shadow: 0 0.6rem 1.6rem rgb(0 0 0 / 45%);
+}
+.photo-strip figcaption {
+  font-size: 0.86rem;
+  line-height: 1.3;
+  color: rgb(255 255 255 / 88%);
+  text-align: center;
+  /* la scrive un modello: che sia lunga non deve sfondare la colonna */
+  overflow-wrap: anywhere;
+}

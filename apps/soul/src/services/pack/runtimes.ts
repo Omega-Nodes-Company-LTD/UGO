@@ -12,6 +12,9 @@ import { TieService } from "../tieService.js";
 import { FaceGateway } from "../faceGateway.js";
 import { PackService } from "../packService.js";
 import { PsycheService } from "../psycheService.js";
+import type { AlbumService } from "../albumService.js";
+import { Photographer } from "../photographer.js";
+import { SceneMemory } from "../sceneMemory.js";
 import { SceneReader } from "../sceneReader.js";
 import type { TurnLog } from "../diagnostics/turnLog.js";
 import { storeVoiceSample } from "../voiceEnrolment.js";
@@ -143,6 +146,8 @@ export interface RuntimeDeps {
   nudges?: { answer: (gosinoId: string, text: string, at: Date) => Promise<string | undefined> };
   /** gruppo 4 — input immagini: il vision locale, condiviso come `web` */
   vision?: { describe: (jpegBase64: string) => Promise<string | undefined> };
+  /** ADR-109: l'album della casa; assente = i gesti dell'album non esistono */
+  album?: AlbumService;
 }
 
 /**
@@ -255,6 +260,36 @@ async function buildRuntime(
         ocr: (image) => recognition.ocr(image),
       }),
     }),
+    /**
+     * ADR-108: lo sguardo che si ricorda. Vive anche SENZA la percezione —
+     * con la sola descrizione del modello vision il ricordo è più povero ma
+     * esiste, e «il PC rosso» sta lì dentro, non nel cartellino.
+     */
+    /**
+     * ADR-109: l'album. Il fotografo esiste sempre — i cancelli (durata
+     * scelta, `no_vision`) stanno dentro di lui e si guardano a ogni scatto:
+     * cablarlo solo «se l'album è acceso» vorrebbe dire leggere una scelta
+     * della casa al boot e non riguardarla mai più.
+     */
+    ...(deps.album !== undefined && {
+      photographer: new Photographer({
+        gateway: () => body.gateway,
+        album: deps.album,
+        accountId: row.accountId,
+        gosinoId: row.id,
+        ...(deps.vision !== undefined && { vision: deps.vision }),
+      }),
+    }),
+    ...((recognition !== undefined || deps.vision !== undefined) && {
+      keepsake: new SceneMemory({
+        gateway: () => body.gateway,
+        db: deps.db,
+        gosinoId: row.id,
+        ...(recognition !== undefined && { ocr: (image: string) => recognition.ocr(image) }),
+        ...(deps.vision !== undefined && { vision: deps.vision }),
+        embedder: deps.embedder,
+      }),
+    }),
     ...(nudges !== undefined && {
       nudges: { answer: (text: string, at: Date) => nudges.answer(row.id, text, at) },
     }),
@@ -263,7 +298,8 @@ async function buildRuntime(
     // perché la porta vera è il consenso della parentela, non il cablaggio
     postcards: {
       ties: new TieService(deps.db),
-      parcels: new ParcelService(deps.db, deps.dataKey),
+      // ADR-109: e con l'album, la cartolina può portare una foto
+      parcels: new ParcelService(deps.db, deps.dataKey, deps.album),
     },
   });
   // ADR-058: i pesi sono dell'esemplare, come i suoi ricordi e il suo umore.

@@ -105,6 +105,13 @@ export class FaceGateway {
    * i pixel no.
    */
   private glimpse: { at: number; image: string } | undefined;
+  /**
+   * ADR-109: lo scatto, in uno slot suo. Separato da `glimpse` apposta: se
+   * condividessero la casella, una foto chiesta da una persona potrebbe
+   * essere consumata da una ruminazione che passava di lì — e viceversa una
+   * occhiata potrebbe finire nell'album.
+   */
+  private snapshot: { at: number; image: string } | undefined;
 
   public constructor(private readonly deps: FaceGatewayDeps) {}
 
@@ -169,6 +176,24 @@ export class FaceGateway {
     for (const send of this.senders) {
       send({ type: "glimpse_ask", ...(fine && { fine: true }) });
     }
+  }
+
+  /** ADR-109: «scatta». Il corpo risponde solo a camera accesa, come sempre. */
+  public askPhoto(): void {
+    for (const send of this.senders) send({ type: "photo_ask" });
+  }
+
+  /** Lo scatto appena arrivato, una volta sola: stessa regola dello sguardo. */
+  public takePhoto(maxAgeMs: number, at: Date = new Date()): string | undefined {
+    const held = this.snapshot;
+    this.snapshot = undefined;
+    if (held === undefined || at.getTime() - held.at > maxAgeMs) return undefined;
+    return held.image;
+  }
+
+  /** ADR-109: le foto che la casa ha chiesto di rivedere, sullo schermo. */
+  public showPhotos(shown: { id: string; caption: string; image: string }[]): void {
+    for (const send of this.senders) send({ type: "show_photos", photos: shown });
   }
 
   /** L'ultimo sguardo se è fresco, e poi non c'è più: si guarda una volta. */
@@ -531,6 +556,16 @@ export class FaceGateway {
         // ruminazione lo consumerà al prossimo battito; nessun evento, perché
         // un'immagine non è un fatto finché qualcuno non l'ha guardata
         this.glimpse = { at: at.getTime(), image: message.image };
+        return;
+      }
+      /**
+       * ADR-109: lo scatto, in una casella sua. **Nessun evento**, come per
+       * lo sguardo: che il corpo abbia mandato dei pixel non è un fatto da
+       * scrivere nel registro — il fatto, se la casa tiene le foto, è la riga
+       * dell'album, e la scrive chi l'ha chiesta.
+       */
+      case "photo": {
+        this.snapshot = { at: at.getTime(), image: message.image };
         return;
       }
       case "seen_object": {

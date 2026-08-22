@@ -1,8 +1,8 @@
 ---
 title: "Le parentele: le case dei parenti, e le cartoline"
 description: "Come si lega la propria casa a quella dei nonni o degli amici veri, cosa rende possibile il legame, e come si spedisce un messaggio o un ricordo — sempre e solo quando lo chiedi tu."
-version: "0.42.0"
-last_updated: "2026-08-18"
+version: "0.43.0"
+last_updated: "2026-08-19"
 author: "ThinkPink Studio"
 ---
 
@@ -50,6 +50,18 @@ La frase funziona solo così — il verbo all'inizio, i due punti prima del test
 fatta apposta: una cartolina non deve mai partire per un fraintendimento. Se il legame non
 c'è, o non è ancora stato accettato, UGO te lo dice con le parole giuste invece di
 spedire. E non costa niente: la frase la capisce in casa, senza chiedere a nessuno.
+
+## Con una foto
+
+Se avete acceso l'[album](./l-album.md), una cartolina può portarsi dietro una foto:
+
+> «scattaci una foto e mandala ai nonni»
+
+oppure, dal pannello, scegliendola nella tendina **Con una foto**.
+
+La foto entra nel **loro** album e ci resta per la durata che **loro** hanno scelto — non la
+vostra. E se il loro album è spento, **la cartolina non parte affatto**: né la foto né le parole.
+UGO ve lo dice, invece di mandare mezza cartolina.
 
 ## Cosa succede dall'altra parte
 

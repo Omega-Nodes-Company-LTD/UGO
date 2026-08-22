@@ -353,12 +353,20 @@ describe("il pannello guarda una casa sola", () => {
   });
 
   it("counts the memories of this house and not of the street", async () => {
-    const ours = (await mine("/v1/stats")).json<{ counts: { memories: number } }>();
+    const ours = (await mine("/v1/stats")).json<{
+      counts: { memories: number };
+      budget: { spentUsd: number };
+    }>();
     const them = (await theirs("/v1/stats")).json<{ counts: { memories: number } }>();
     expect(ours.counts.memories).toBeGreaterThan(0);
     expect(them.counts.memories).toBe(1);
-    // nine dollars next door must not appear on our bill
-    expect((await mine("/v1/stats")).body).not.toContain("9.0");
+    // nine dollars next door must not appear on our bill.
+    //
+    // Si guarda IL NUMERO e non più la stringa «9.0» dentro il corpo: la
+    // risposta porta anche gli istanti dell'umore, e un ISO come
+    // `…T09:06:19.006Z` contiene «9.0». Il test falliva a seconda dell'ora in
+    // cui girava — verde tutto il giorno e rosso in CI la sera.
+    expect(ours.budget.spentUsd).toBe(0);
   });
 
   it("lists our pack, our creatures and our relations — never theirs", async () => {

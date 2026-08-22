@@ -76,21 +76,46 @@ export class BeingsService {
       .update(beings)
       .set(patch)
       .where(this.mine(beingId))
-      .returning({ isMinor: beings.isMinor, noAudio: beings.noAudio });
+      .returning({
+        isMinor: beings.isMinor,
+        noAudio: beings.noAudio,
+        noVision: beings.noVision,
+      });
 
+    /**
+     * Ritirare un consenso distrugge ciò che quel consenso aveva permesso di
+     * costruire — e vale per **tutte e due** le modalità.
+     *
+     * `noVision` mancava: accendere «non guardarmi» dal pannello lasciava il
+     * centroide del volto in tabella, e `destroyRecognition(beingId, "face")`
+     * esisteva già senza che nessuno la chiamasse. Passava inosservato finché
+     * il flag serviva soltanto a impedire *nuovi* arruolamenti; con l'album
+     * (ADR-109) «non guardarmi» diventa una frase che spegne una funzione
+     * intera, e lasciare l'impronta di prima sarebbe l'esatto contrario.
+     */
     let biometricsDestroyed = 0;
-    if (updated?.isMinor === true || updated?.noAudio === true) {
-      biometricsDestroyed = await this.destroyVoice(beingId);
-      if (biometricsDestroyed > 0) {
-        // audit with ids and counts only, never a name (NIS2)
-        await this.db.insert(events).values({
-          gosinoId: await this.eldestExemplar(),
-          ts: at,
-          source: "system",
-          type: "biometrics_withdrawn",
-          payload: { beingId, profiles: biometricsDestroyed, reason: updated.isMinor ? "minor" : "no_audio" },
-        });
-      }
+    const takesVoice = updated?.isMinor === true || updated?.noAudio === true;
+    const takesFace = updated?.isMinor === true || updated?.noVision === true;
+    if (takesVoice) biometricsDestroyed += await this.destroyRecognition(beingId, "voice");
+    if (takesFace) biometricsDestroyed += await this.destroyRecognition(beingId, "face");
+    if (biometricsDestroyed > 0) {
+      // audit with ids and counts only, never a name (NIS2)
+      await this.db.insert(events).values({
+        gosinoId: await this.eldestExemplar(),
+        ts: at,
+        source: "system",
+        type: "biometrics_withdrawn",
+        payload: {
+          beingId,
+          profiles: biometricsDestroyed,
+          reason:
+            updated?.isMinor === true
+              ? "minor"
+              : updated?.noVision === true && !takesVoice
+                ? "no_vision"
+                : "no_audio",
+        },
+      });
     }
     return { beingId, biometricsDestroyed };
   }

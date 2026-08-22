@@ -37,6 +37,26 @@ async function loadTies() {
       ).join("");
   $("parcel-from").innerHTML = '<option value="">— chi la spedisce? —</option>' +
     GOSINI.map((g) => '<option value="' + escape(g.id) + '">' + escape(g.name) + "</option>").join("");
+
+  /**
+   * ADR-109: le foto che si possono allegare sono quelle dell'album di QUESTA
+   * casa. Se l'album è spento non c'è niente da scegliere, e la tendina lo
+   * dice invece di restare vuota — una tendina vuota sembra un guasto.
+   */
+  try {
+    const album = await call("/v1/album", {});
+    const photos = album.photos ?? [];
+    $("parcel-photo").innerHTML = photos.length === 0
+      ? '<option value="">— ' + (album.retentionHours === 0
+          ? "l'album è spento" : "nessuno scatto") + " —</option>"
+      : '<option value="">— nessuna —</option>' + photos.map((photo) =>
+          '<option value="' + escape(photo.id) + '">' +
+          escape(photo.caption === "" ? "senza didascalia" : photo.caption) + "</option>").join("");
+  } catch {
+    // l'album può non esistere in questa installazione: la cartolina di sole
+    // parole deve continuare a funzionare, e infatti funziona
+    $("parcel-photo").innerHTML = '<option value="">— album non disponibile —</option>';
+  }
 }
 
 async function loadParcels() {
@@ -49,6 +69,7 @@ async function loadParcels() {
         '<li data-parcel="' + escape(p.id) + '"><b>' + escape(p.kind) + "</b> da " +
         escape(p.otherName) + ": " +
         (p.text === "" ? "<i>non si apre con la chiave di questa casa</i>" : escape(p.text)) +
+        (p.photoId ? ' <span class="persona">con una foto, nel vostro album</span>' : "") +
         (p.kind === "ricordo" && p.keptAt === null && p.text !== ""
           ? ' <button data-parcel-keep="' + escape(p.id) + '">Tienilo</button>'
           : p.keptAt !== null ? ' <span class="persona">tenuto</span>' : "") +
@@ -102,13 +123,19 @@ $("parcel-send").addEventListener("click", async () => {
   // a nome di uno mentre il pannello ne mostra un altro
   if (fromGosinoId === "") { say("parcel-msg", "Chi la spedisce? Scegli l'esemplare.", "info"); return; }
   if (text === "") { say("parcel-msg", "E il testo?", "info"); return; }
+  const photoId = $("parcel-photo").value;
   try {
     await call("/v1/parcels", {
       method: "POST",
-      body: JSON.stringify({ tieId, fromGosinoId, kind: $("parcel-kind").value, text }),
+      body: JSON.stringify({
+        tieId, fromGosinoId, kind: $("parcel-kind").value, text,
+        ...(photoId === "" ? {} : { photoId }),
+      }),
     });
     $("parcel-text").value = "";
-    say("parcel-msg", "Partita.", "ok");
+    $("parcel-photo").value = "";
+    say("parcel-msg", photoId === "" ? "Partita." :
+      "Partita, con la foto: adesso è nel loro album, per il tempo che hanno scelto loro.", "ok");
     await loadParcels();
   } catch (error) { say("parcel-msg", error.message, "err"); }
 });

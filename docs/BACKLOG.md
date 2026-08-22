@@ -393,18 +393,23 @@ orienta, la spec comanda — ogni punto promosso a lavoro parte dal suo ADR.
 ## Gruppo 22 — Le parentele e la visione che ricorda (decisioni del proprietario, 2026-08-18)
 
 Dalla domanda sul server GPU e la visione («fammi vedere gli scatti del parco», «manda una foto
-al gosino di nonno Sandro», «cosa costava il PC rosso?»). La prima voce è stata **decisa e
-promossa a lavoro**; le altre tre sono le decisioni che restano da cliccare, ognuna col suo
-prezzo dichiarato.
+al gosino di nonno Sandro», «cosa costava il PC rosso?»). **Il proprietario le ha cliccate tutte
+e quattro** (2026-08-19, «fai tutto»), con una condizione sull'album: *o non si tengono, o si
+tengono da 6 a 72 ore, e lo sceglie lui*. Il gruppo è chiuso.
 
 | | Punto | Note |
 |---|---|---|
 | ✅ | **Le parentele fra le case** (ADR-099) | **FATTO**: legame fra due case con consenso bilaterale (`account_ties`), avvertenza PRIMA del click, e la **cartolina** (`parcels`): messaggio o ricordo, testo, **solo su azione esplicita** — mai iniziativa, sogno o job. RLS bilaterale sul precedente di `adoptions`, testo ri-cifrato con la DEK della casa destinataria, consegna come desiderio del gosino destinatario + cassetta della posta nel pannello. E il ruolo **`ugo_post`** (`withPost`), che il merge con la Fase C ha reso necessario: le parentele sono la QUINTA superficie cross-account di ADR-097, e sotto `ugo_app` senza porta morivano in silenzio. Perimetro: stessa installazione, solo testo |
-| ⬜️ | **Lo sguardo che si ricorda** (da cliccare) | il pezzo mancante di «cosa costava il PC rosso?»: su gesto esplicito («ricordati questo», «guarda qui») la frase del modello vision e/o l'OCR (ADR-065) diventano un **ricordo** ripescabile — testo, mai pixel: ADR-016 v.1 resta intatto. Niente GPU richiesta: moondream/tesseract su CPU bastano per l'MVP |
-| ⬜️ | **L'album di famiglia** (da cliccare — tocca ADR-016 v.1) | «fammi vedere gli scatti del parco» richiede di CONSERVARE foto, oggi vietato («nessun media raw persistito»). La forma proposta: scatto solo su gesto esplicito, foto cifrate a riposo come i centroidi biometrici, didascalia VLM ripescabile, retention e cestino nel pannello, **mai riconoscimento facciale sulle foto conservate**. È un ADR che riapre un vincolo non negoziabile: decisione del proprietario, non un'implementazione |
-| ⬜️ | **Il nodo GPU (GEX44)** (da cliccare — estende ADR-017) | già registrato nel gruppo 13 per la commercializzazione; per la visione anticipa qwen-VL (didascalie serie, «leggere e capire»), whisper large e XTTS. Stessa tailnet, frame transienti in RAM anche lì, `UGO_DATA_KEY` resta su soul: il perimetro diventa due macchine, e va scritto in un ADR che estende ADR-017 |
+| ✅ | **Lo sguardo che si ricorda** (ADR-108) | **FATTO**: «ricordati questo» → **un frame, due occhi** (il modello vision dice cos'era, tesseract legge le lettere: prima non guardavano mai la stessa immagine) → una riga `memories` in chiaro, ripescabile dal braccio lessicale. Testo, mai pixel: ADR-016 v.1 resta intatto. Zero token: il gesto si risolve prima del provider |
+| ✅ | **L'album di famiglia** (ADR-109) | **FATTO**, e riapre ADR-016 v.1 in forma stretta: scatto **solo su gesto**, pixel cifrati con la DEK della casa in un bucket privato, didascalia in chiaro perché è come si ritrova, e la **durata scelta dal titolare** fra 0/6/12/24/48/72 ore — 0 è il default. `no_vision` di **una sola** persona spegne l'album per tutta la casa, e vale **a monte**: al corpo non viene chiesto niente. La scadenza porta via **il file prima della riga**. Nessun riconoscimento facciale sulle foto conservate, come promesso |
+| ✅ | **Il nodo GPU (GEX44)** (ADR-110) | **PREDISPOSTO e inerte**: `OLLAMA_GPU_URL` opzionale: assente (default) niente cambia; presente, ci vanno vision, testo locale e l'anello di casa della catena di chat. **Gli embedding no, mai** — l'unico client che lancia invece di degradare resta sulla macchina di casa, e una guardia sui sorgenti lo tiene vero. Capability `gpuNode` + riga `ollamaGpu` in `/health`. Il muro è **solo la tailnet**: Ollama non ha autenticazione, ed è scritto come vincolo in ADR-110 §4 e nel runbook |
 
-La cartolina con la **foto** dipende dall'album: finché l'album non esiste, la cartolina è testo.
+La cartolina con la **foto** dipendeva dall'album, e adesso l'album c'è: **fatta** (ADR-099 §7).
+I pixel entrano nell'album di **chi riceve**, con la **loro** durata; se il loro album è spento la
+cartolina non parte affatto — né la foto né le parole.
+
+**Resta fuori, dichiarato**: il nodo GPU è predisposto ma nessuno l'ha comprato, quindi il modello
+vision gira ancora su CPU e le didascalie sono quelle che una CPU sa dare.
 
 ## Scartati, con motivo
 

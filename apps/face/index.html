@@ -126,6 +126,9 @@
         </div>
         <p id="mydata-msg" data-testid="mydata-msg" class="lede"></p>
       </aside>
+      <!-- ADR-109: il visore dell'album. Vuoto e nascosto finché la casa non
+           chiede di rivedere qualcosa; si chiude al tocco o da solo. -->
+      <div id="photo-strip" data-testid="photo-strip" hidden></div>
       <!-- ADR-096: il chiosco nascondibile. Barra + comandi quando è esteso,
            dock di vetro quando `data-chrome="nascosto"`; è sempre lo stesso
            markup, cambia solo la veste (src/hud.css). -->

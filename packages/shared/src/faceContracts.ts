@@ -112,6 +112,19 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
    */
   z.object({ type: z.literal("glimpse"), image: z.string().min(1).max(120_000) }),
   /**
+   * ADR-109: la FOTO, che è un'altra cosa dallo sguardo.
+   *
+   * Uno sguardo si consuma alla lettura e non tocca il disco; una foto si
+   * conserva, per il tempo che la casa ha scelto. Due nomi perché sono due
+   * destini, e un solo frame con un flag avrebbe reso possibile conservare
+   * per sbaglio un'occhiata che nessuno aveva chiesto di tenere.
+   *
+   * Sale SOLO in risposta a `photo_ask`, e il tetto è quello che il muso usa
+   * già per il bottone della fotocamera (190 000 caratteri di base64, 640px a
+   * qualità calante): una foto da guardare, non un negativo.
+   */
+  z.object({ type: z.literal("photo"), image: z.string().min(1).max(190_000) }),
+  /**
    * ADR-058: la mela. Un premio deliberato, e non un tocco qualunque.
    *
    * Il bersaglio è il **muso**, non tutta la tela: `tap` è la carezza e arriva
@@ -280,6 +293,26 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
    * macchie, non lettere. Stesso tetto sul frame di risposta: il corpo cala
    * la qualità JPEG finché ci sta. */
   z.object({ type: z.literal("glimpse_ask"), fine: z.boolean().optional() }),
+  /**
+   * ADR-109: «scatta». Come `glimpse_ask` il corpo risponde solo a camera
+   * accesa — ma questa la chiede una PERSONA, e quello che torna si conserva.
+   */
+  z.object({ type: z.literal("photo_ask") }),
+  /**
+   * ADR-109: «guarda cosa ti faccio vedere» — le foto che la casa ha chiesto
+   * di rivedere, già in chiaro, sullo schermo del chiosco.
+   *
+   * Le immagini viaggiano dentro il frame invece che per URL perché il muso
+   * non ha un token da spendere su `/v1/album/:id` e non deve averne uno: il
+   * canale autenticato è già questo. Al massimo `SHOW_MAX_PHOTOS`, che è
+   * quante ne guarda una persona in una volta.
+   */
+  z.object({
+    type: z.literal("show_photos"),
+    photos: z
+      .array(z.object({ id: z.string(), caption: z.string(), image: z.string().min(1) }))
+      .max(6),
+  }),
   z.object({
     type: z.literal("roster"),
     room: z.string().optional(),

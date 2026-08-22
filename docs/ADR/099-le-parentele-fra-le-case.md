@@ -129,6 +129,33 @@ La prova non è un ragionamento: `tiesUnderRls.integration.test.ts` si collega *
 come la produzione, e cammina il giro intero. Verificato **rosso** togliendo `withPost` — cinque
 test su sei, «casa sconosciuta» al primo passo — e verde rimettendolo.
 
+### 7. Estensione (ADR-109, 2026-08-19): la cartolina può portare una foto
+
+Decisione del proprietario nello stesso giro dell'album. Il perimetro «testo, un elemento per
+volta» si allarga di un pezzo, e con tre vincoli che non sono negoziabili:
+
+1. **La durata che vale è quella di chi riceve.** I pixel entrano nell'album della casa
+   destinataria — ri-cifrati con la loro DEK, come già il testo — e scadono secondo la durata che
+   **loro** hanno scelto. Una cartolina è di chi la riceve, e quanto si tengono le cose lo decide
+   la casa che le ospita.
+2. **Se il loro album è spento, non parte niente**: né la foto né le parole. Spedire il testo e far
+   sparire l'immagine sarebbe una mezza cartolina, e la casa che riceve non ha nessun modo di
+   accorgersene. Lo stesso vale se in quella casa qualcuno ha chiesto di non essere guardato.
+3. **La posta non guadagna nessun permesso nuovo.** Verrebbe da dare a `ugo_post` la lettura
+   dell'album del mittente e la scrittura in quello del destinatario; non serve, perché i pixel
+   passano dalla porta di casa di ognuno (`withAccount` da una parte e dall'altra), che è la stessa
+   meccanica con cui la consegna scrive già un desiderio in casa d'altri. Un `USING (true)` in più
+   su una tabella di immagini sarebbe una porta aperta per un passaggio che nessuno percorre.
+
+Sul database: `parcels.photo_id` con la coppia `(to_account_id, photo_id)` verso `photos`, e
+`ON DELETE SET NULL (photo_id)` — senza, la prima foto che scade bloccherebbe la propria scadenza
+sulla chiave esterna, e la durata promessa sarebbe falsa. Quando la foto scade, della cartolina
+resta il testo.
+
+A voce è **un gesto solo**, «scattaci una foto e mandala ai nonni», e non due: chi lo pronuncia sta
+dando un consenso a scattare *e* a mandare, e spezzarlo lascerebbe in casa una foto che nessuno
+voleva conservare per il tempo fra le due frasi. La parentela si guarda **prima** dello scatto.
+
 ## Perimetro — dichiarato, non implicito
 
 - **Stessa installazione.** La parentela vive nel vicinato di ADR-019: due case sullo stesso

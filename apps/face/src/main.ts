@@ -1,5 +1,6 @@
 import "@fontsource/atkinson-hyperlegible/400.css";
 import "@fontsource/atkinson-hyperlegible/700.css";
+import { createPhotoStrip } from "./photoStrip.js";
 import "./hud.css";
 import type { FaceState, FaceToServerMessage, ServerToFaceMessage } from "@ugo/shared/face";
 import { startCameraGaze, startPointerGaze } from "./gaze.js";
@@ -90,6 +91,28 @@ let activeCamera: { video?: HTMLVideoElement } | null = null;
  * si cala la qualità finché il frame ci sta, e se non ci sta non si manda.
  */
 const GLIMPSE_MAX_B64 = 120_000;
+
+/**
+ * ADR-109: lo SCATTO. Come `captureGlimpse` ma a 640px e a qualità più alta,
+ * perché una foto si guarda — e col tetto del contratto (190 000), non quello
+ * dello sguardo. Torna `undefined` a camera spenta, che è la risposta giusta.
+ */
+function capturePhoto(): string | undefined {
+  const video = activeCamera?.video;
+  if (video === undefined || video.videoWidth === 0) return undefined;
+  const width = 640;
+  const frame = document.createElement("canvas");
+  frame.width = width;
+  frame.height = Math.max(1, Math.round((width * video.videoHeight) / video.videoWidth));
+  const ctx = frame.getContext("2d");
+  if (ctx === null) return undefined;
+  ctx.drawImage(video, 0, 0, frame.width, frame.height);
+  for (const quality of [0.8, 0.65, 0.5, 0.35]) {
+    const image = frame.toDataURL("image/jpeg", quality).split(",")[1];
+    if (image !== undefined && image.length <= 190_000) return image;
+  }
+  return undefined;
+}
 
 function captureGlimpse(fine = false): string | undefined {
   const video = activeCamera?.video;
@@ -405,6 +428,8 @@ earPick.addEventListener("change", () => {
  * parte verso la chat di casa, e il commento torna a voce come tutto il
  * resto. I pixel non si salvano da nessuna parte: resta il commento.
  */
+/** ADR-109: il visore dell'album, vuoto finché la casa non chiede di rivedere. */
+const photoStrip = createPhotoStrip(requireElement("#photo-strip"));
 const photoButton = requireElement("#btn-photo");
 const photoFile = requireElement("#photo-file") as HTMLInputElement;
 const PHOTO_MAX_B64 = 190_000;
@@ -539,6 +564,17 @@ function onServerMessage(message: ServerToFaceMessage): void {
       // senza la seconda cosa dovrebbe ricaricare il chiosco a ogni cuscino.
       renderer.setProps?.(message.props);
       return;
+    case "photo_ask": {
+      // ADR-109: lo scatto lo chiede una PERSONA, e quello che torna si
+      // conserva. Camera spenta = silenzio, come per l'occhiata
+      const shot = capturePhoto();
+      if (shot !== undefined) socket.send({ type: "photo", image: shot });
+      return;
+    }
+    case "show_photos": {
+      photoStrip.show(message.photos);
+      return;
+    }
     case "glimpse_ask": {
       // gruppo 12: «fammi dare un'occhiata». Solo a camera accesa — a camera
       // spenta la risposta è niente, che è la risposta giusta
