@@ -88,6 +88,12 @@ export interface GreetingCard {
   rotationSecret?: string;
   /** epoch of issue, so a captured card cannot be replayed forever */
   epoch: number;
+  /** Cultural genes carried by this gosino (Orizzonti 1+4): transferred horizontally at meetings */
+  culturalGenes?: {
+    grunt_repertoire: number;
+    dialect: number;
+    dream_style: number;
+  };
 }
 
 export interface SignedCard {
@@ -106,6 +112,7 @@ function canonical(card: GreetingCard): Buffer {
       card.signingPublicKey,
       card.rotationSecret ?? null,
       card.epoch,
+      card.culturalGenes ?? null,
     ]),
     "utf8",
   );
@@ -144,30 +151,46 @@ export function openCard(signed: SignedCard, atMs: number): GreetingCard | undef
 }
 
 /** Two gosini introduce themselves: each hands over its key and secret. */
-export function introduction(keys: GosinoKeys, name: string, generation: number, mood: string, atMs: number): SignedCard {
-  return signCard(
-    {
-      name,
-      generation,
-      mood,
-      signingPublicKey: keys.signingPublicKey.toString("base64"),
-      rotationSecret: keys.rotationSecret.toString("base64"),
-      epoch: epochAt(atMs),
-    },
-    keys.signingPrivateKey,
-  );
+export function introduction(
+  keys: GosinoKeys, 
+  name: string, 
+  generation: number, 
+  mood: string, 
+  atMs: number,
+  culturalGenes?: { grunt_repertoire: number; dialect: number; dream_style: number }
+): SignedCard {
+  const card: GreetingCard = {
+    name,
+    generation,
+    mood,
+    signingPublicKey: keys.signingPublicKey.toString("base64"),
+    rotationSecret: keys.rotationSecret.toString("base64"),
+    epoch: epochAt(atMs),
+  };
+  if (culturalGenes !== undefined) {
+    card.culturalGenes = culturalGenes;
+  }
+  return signCard(card, keys.signingPrivateKey);
 }
 
 /** The everyday greeting: same card, without handing the secret out again. */
-export function greeting(keys: GosinoKeys, name: string, generation: number, mood: string, atMs: number): SignedCard {
-  return signCard(
-    {
-      name,
-      generation,
-      mood,
-      signingPublicKey: keys.signingPublicKey.toString("base64"),
-      epoch: epochAt(atMs),
-    },
-    keys.signingPrivateKey,
-  );
+export function greeting(
+  keys: GosinoKeys, 
+  name: string, 
+  generation: number, 
+  mood: string, 
+  atMs: number,
+  culturalGenes?: { grunt_repertoire: number; dialect: number; dream_style: number }
+): SignedCard {
+  const card: GreetingCard = {
+    name,
+    generation,
+    mood,
+    signingPublicKey: keys.signingPublicKey.toString("base64"),
+    epoch: epochAt(atMs),
+  };
+  if (culturalGenes !== undefined) {
+    card.culturalGenes = culturalGenes;
+  }
+  return signCard(card, keys.signingPrivateKey);
 }

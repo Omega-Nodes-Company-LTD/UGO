@@ -20,6 +20,7 @@ from .backup import backup_exists, run_backup
 from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
 from .contradictions import run_contradictions
+from .cultural_drift import run_cultural_drift
 from .customer_digest import run_digest
 from .enroll_step import has_pending, run_enroll
 from .entities import run_entities
@@ -34,6 +35,8 @@ from .reflect import run_reflect
 # contradictions sits between reflect and hygiene on purpose (ADR-023):
 # reflect writes tonight's memories, hygiene merges near-duplicates above
 # 0.95 cosine and deletes one of the pair. Judge first, compact after.
+# cultural_drift runs after hygiene: it reads cultural_gene_received events
+# written by peer encounters, and mutates cultural genes via the dream.
 STEPS = (
     "ingest",
     "enroll",
@@ -46,6 +49,7 @@ STEPS = (
     "contradictions",
     "entities",
     "hygiene",
+    "cultural_drift",
     "compaction",
     "backup",
     "family",
@@ -59,7 +63,7 @@ STEPS = (
 #:   per casa       l'audio e' del branco, il backup e' della famiglia
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
-PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene")
+PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene", "cultural_drift")
 PER_HOUSEHOLD = ("ingest", "enroll", "advise", "review", "digest", "anniversaries", "backup", "family")
 GLOBAL = ("compaction",)
 
@@ -237,6 +241,12 @@ def _run_step(
             "decayed": hygiene.decayed,
             "merged": hygiene.merged,
             "baseline_adjusted": hygiene.baseline_adjusted,
+        }
+    elif step == "cultural_drift":
+        drift = run_cultural_drift(conn, cfg, dream_date)
+        step_report[step] = {
+            "genes_mutated": drift.genes_mutated,
+            "events_processed": drift.events_processed,
         }
     elif step == "compaction":
         compaction = run_compaction(conn, cfg.gosino_id)
