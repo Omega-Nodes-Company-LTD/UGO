@@ -6,6 +6,7 @@ import { decryptText } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
+import { GameService } from "../../src/services/gameService.js";
 import { characterFrom } from "../../src/services/council/character.js";
 import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { PsycheService } from "../../src/services/psycheService.js";
@@ -56,6 +57,7 @@ beforeAll(async () => {
     gosinoId: who,
     accountId: houseId,
     character: characterFrom({}),
+    games: { answer: (text, at) => new GameService({ db, accountId: houseId, gosinoId: who, dataKey: DATA_KEY }).answer(text, at) },
   });
 }, 240_000);
 

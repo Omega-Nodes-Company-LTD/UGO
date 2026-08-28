@@ -593,10 +593,12 @@ describe("GET /v1/gosini/:id/genome", () => {
     expect(body.versions).toBe(1);
     expect(body.ceppo).toBeGreaterThanOrEqual(0);
     // ogni gene del catalogo c'è, coi suoi due alleli e come si esprime
-    // 15 da ADR-109 (le setole). Il numero è scritto a mano apposta: un gene
-    // che compare senza che nessuno se ne accorga è precisamente il modo in cui
-    // il lettore dei genomi è rimasto tutto-o-niente per tre ADR di fila.
-    expect(body.genes).toHaveLength(15);
+    // 15 da ADR-109 (le setole), poi 18 con i tre culturali di Orizzonti 1+4
+    // (grunt_repertoire, dialect, dream_style). Il numero è scritto a mano
+    // apposta: un gene che compare senza che nessuno se ne accorga è
+    // precisamente il modo in cui il lettore dei genomi è rimasto
+    // tutto-o-niente per tre ADR di fila.
+    expect(body.genes).toHaveLength(18);
     const calm = body.genes.find((gene) => gene.key === "calm");
     expect(calm?.alleles).toHaveLength(2);
     expect(calm?.expressed).toBeCloseTo(0.9, 5);
