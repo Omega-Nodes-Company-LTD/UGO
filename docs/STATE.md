@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.79.0"
-last_updated: "2026-08-19"
+version: "0.80.0"
+last_updated: "2026-08-28"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -2682,3 +2682,37 @@ telefono, il guscio, lo stack Vexa.
 - Manuale per chi usa UGO: [`documentation/index.md`](../documentation/index.md)
 - Architettura e razionale delle scelte: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 - Specifica completa e fonte di verità: [`PROGETTO.md`](./PROGETTO.md)
+
+## 6-sexquadragies. Il journal torna a 60 e ADR-113 si completa — la CI risale
+
+Il merge `0fc7beb` (22/08) aveva risolto il conflitto di `packages/db/drizzle/meta/_journal.json`
+tenendo i tag dell'album (`…l-album`, `…l-album-rls`, `…la-cartolina-con-la-foto`) e buttando
+quelli del ramo casa (`…i-documenti-di-casa`, `…il-gioco-in-corso`, `…i-luoghi-dell-account`)
+**senza rinominare i file**: il journal dichiarava 57 migrazioni mentre la cartella ne aveva 60,
+e i tre numeri duplicati significavano che `house_documents`, `places` e `rooms.place_id` **non
+venivano mai creati**. `integration` (`expected 57 to be 60`, `column "place_id" does not exist`)
+e `e2e` (`relation "places"/"house_documents" does not exist`) erano rossi **anche su main**, e
+nell'e2e che guardava il vecchio mondo.
+
+Fix: i tre numeri 0054/0055/0056 tornano ai tre file di casa (con i loro timestamp), l'album
+scala a 0057/0058/0059 (timestamp conservati), e lo schema `accounts` perde `lat`/`lon`/`place`
+che ADR-113 aveva già spostato su `places` ma che un lato del merge aveva riportato dentro — il
+codice (weather, places) leggeva già da `places`. Con Postgres reale: **59/59** integration verdi.
+
+In più, il 2026-08-28 (PR #115):
+- `0060_event-source-peer`: la branch aggiungeva `"peer"` a `EVENT_SOURCES` ma mancava la
+  migrazione che estende l'enum Postgres, e l'insert `cultural_gene_received` moriva con
+  `invalid input value for enum event_source: "peer"` (12 test rossi). Come 0021 per `reception`.
+- ADR-112: il gioco dei numeri era cablato solo nei runtime e l'`handle` chiamava sempre
+  `searchMemories` prima di ogni mossa — «giochiamo?» moriva sull'embedder (test: 3/4 rossi).
+  Ora vive accanto a spinte/lettura, prima del retrieval, zero token, segreto mai vicino
+  all'embedding.
+- ADR-108 era stato vittima del refactor casa→account: il blocco «Riferisci» era uscito da
+  `buildDynamicSystem` senza aggiornare il test che lo cercava in `system[2]`. Ripristinato
+  `reporting` e il suo blocco.
+- Genoma: i tre geni culturali (Orizzonti 1+4) portano la lettura dei geni da 15 a 18 — il test
+  che li contava a mano ora dichiara 18.
+
+La PR #115 è stata **mergiata su main** (`8981e8b`); tutti i 6 job CI verdi, e anche su main
+(l'unico rosso residuo era il benchmark `memoryBench` ADR-107, **flaky** — `perse` 3/9 contro
+tetto `< 3` — passato al rerun senza toccare nulla).
