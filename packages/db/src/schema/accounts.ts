@@ -108,9 +108,13 @@ export const accounts = pgTable(
    * stanno le sue: sulla riga della casa, come il fuso e il posto.
    */
   photoRetentionHours: integer("photo_retention_hours").notNull().default(0),
-  lat: numeric("lat", { precision: 8, scale: 5 }),
-  lon: numeric("lon", { precision: 8, scale: 5 }),
-  place: text("place"),
+  /**
+   * Questo commento è la prova (con la sua assenza) che ADR-113 è qui: le
+   * colonne `lat`/`lon`/`place` NON stanno più su `accounts` — sono nella
+   * tabella `places`. La migrazione `0056_i-luoghi-dell-account` le ha
+   * spostate e droppate; chi le ri-aggiunge qui sta ricreando due verità
+   * sulla stessa cosa.
+   */
   /**
    * This house's data key (DEK), AES-256-GCM-wrapped with the master key in
    * UGO_DATA_KEY. Destroying this column erases the family beyond recovery —
