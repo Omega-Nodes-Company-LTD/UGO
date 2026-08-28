@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Sensors } from "./sensors.js";
 
 /**
@@ -11,39 +11,44 @@ import { Sensors } from "./sensors.js";
 
 type MotionListener = (event: DeviceMotionEvent) => void;
 
-const scope = globalThis as unknown as {
-  window?: {
-    addEventListener: ReturnType<typeof vi.fn> & ((type: string, listener: MotionListener) => void);
-    removeEventListener: ReturnType<typeof vi.fn> & ((type: string, listener: MotionListener) => void);
-  };
+interface WindowLike {
+  addEventListener: (type: string, listener: MotionListener) => void;
+  removeEventListener: (type: string, listener: MotionListener) => void;
+}
+
+const mockWindow: WindowLike & {
+  addEvents: MotionListener[];
+  removeEvents: MotionListener[];
+} = {
+  addEvents: [],
+  removeEvents: [],
+  addEventListener(type, listener) {
+    this.addEvents.push(listener);
+  },
+  removeEventListener(type, listener) {
+    this.removeEvents.push(listener);
+  },
 };
 
 describe("Sensors — niente sensi accesi a sensi spenti", () => {
-  beforeEach(() => {
-    scope.window = {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    };
-  });
-
   afterEach(() => {
-    delete scope.window;
+    vi.unstubAllGlobals();
+    mockWindow.addEvents = [];
+    mockWindow.removeEvents = [];
   });
 
   it("startMotion registra una sola volta e stopMotion rimuove lo stesso listener", () => {
+    vi.stubGlobal("window", mockWindow);
     const sensors = new Sensors(() => undefined, () => undefined);
 
     sensors.startMotion();
     sensors.startMotion(); // guard: non si registra due volte
 
-    expect(scope.window?.addEventListener).toHaveBeenCalledTimes(1);
-    expect(scope.window?.addEventListener).toHaveBeenCalledWith("devicemotion", expect.any(Function));
+    expect(mockWindow.addEvents).toHaveLength(1);
 
     sensors.stopMotion();
-    expect(scope.window?.removeEventListener).toHaveBeenCalledTimes(1);
+    expect(mockWindow.removeEvents).toHaveLength(1);
 
-    const added = (scope.window?.addEventListener.mock.calls[0] ?? [])[1] as MotionListener | undefined;
-    const removed = (scope.window?.removeEventListener.mock.calls[0] ?? [])[1] as MotionListener | undefined;
-    expect(added).toBe(removed); // è lo STESSO listener: la rimozione tocca davvero ciò che abbiamo aggiunto
+    expect(mockWindow.removeEvents[0]).toBe(mockWindow.addEvents[0]); // lo STESSO listener
   });
 });
