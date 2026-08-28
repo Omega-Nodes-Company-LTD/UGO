@@ -997,7 +997,8 @@ function stopListening(): void {
   // del browser acceso. Spento vuol dire spento.
   localEarsOn = false;
   speech.stopListening();
-  sensors.stopMicrophone();
+  sensors.stopMicrophone(); // spegne anche urti e luce (niente sensi a sensi spenti)
+  void awake.release();
   app.dataset.ears = "off";
   setLocalState("idle");
 }

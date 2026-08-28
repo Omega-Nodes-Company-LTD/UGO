@@ -132,6 +132,18 @@ export async function voiceAskOpen(
   beingId: string,
   at: Date = new Date(),
 ): Promise<boolean> {
+  // ADR-016 (regola 9 — a monte, mai a valle): la finestra può aprirsi a
+  // chiunque eccetto chi non si modella. `storeVoiceSample` la controllerà
+  // di nuovo prima del byte nel bucket, ma se la richiesta è aperta per un
+  // minore o un opt-out l'errore deve fermarsi QUI, prima che il corpo
+  // spenda un byte in audio per qualcuno a cui abbiamo promesso di non
+  // chiedere la voce.
+  const [being] = await db
+    .select({ isMinor: beings.isMinor, noAudio: beings.noAudio })
+    .from(beings)
+    .where(eq(beings.id, beingId));
+  if (being === undefined || being.isMinor || being.noAudio) return false;
+
   const since = new Date(at.getTime() - VOICE_ASK_WINDOW_MIN * 60_000);
   const [asked] = await db
     .select({ id: perceptionEvents.id })

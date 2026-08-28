@@ -287,6 +287,30 @@ describe("il chiosco deposita (FaceGateway)", () => {
     expect(await gateway.handleRaw(frame(beingId), send)).toBe(true);
     expect(await inboxKeys()).toEqual(before);
   });
+
+  it("un minore o un opt-out non depositano MAI, anche a finestra aperta", async () => {
+    // ADR-016 (regola 9 — a monte, mai a valle): se un essere che non si
+    // modella riesce ad "aprire" una finestra (per esempio un claim che
+    // avrebbe dovuto fallire), il deposito deve comunque fermarsi prima
+    // del bucket — `voiceAskOpen` lo rifiuta oggi senza nemmeno lasciar
+    // parte il frame.
+    for (const fields of [{ isMinor: true }, { noAudio: true }]) {
+      const beingId = await newBeing({ displayName: "Tutelato", ...fields });
+      // apriamo la finestra a forza, simulando un claim che ha eluso i
+      // controlli di `openVoiceAsk` — il test deve restare rosso se il
+      // deposito si appoggia solo a quei controlli
+      await db.insert(perceptionEvents).values({
+        gosinoId,
+        modality: "audio_speech",
+        beingId,
+        observed: { kind: VOICE_WANTED_KIND, channel: "home" },
+      });
+      await expect(voiceAskOpen(db, beingId)).resolves.toBe(false);
+      const before = await inboxKeys();
+      expect(await gateway.handleRaw(frame(beingId), send)).toBe(true);
+      expect(await inboxKeys()).toEqual(before);
+    }
+  });
 });
 
 describe("l'invito sul filo", () => {

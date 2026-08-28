@@ -48,5 +48,24 @@ export function registerFaceStatic(app: FastifyInstance, root: string): void {
   // aperta di proposito: la versione non è un segreto, e un corpo che deve
   // sapere se è aggiornato non ha ancora nessun token in mano
   app.get("/v1/version", () => ({ version }));
-  app.register(fastifyStatic, { root, wildcard: false, index: ["index.html"] });
+  app.register(fastifyStatic, {
+    root,
+    wildcard: false,
+    index: ["index.html"],
+    /**
+     * Il muso è una PWA servita dal kiosk: la `index.html` DEVE arrivare
+     * sempre fresca (il corpo la confronta con `/v1/version` e si ricarica),
+     * mentre i bundle hashati in `/assets/*` sono immutabili per costruzione
+     * — ri-servirli da cache è un guadagno, mai un problema. Senza questo,
+     * una proxy o una cache del provider poteva tenere la `index.html`
+     * vecchia e il check version ricaricava sempre la stessa build.
+     */
+    setHeaders(response, path) {
+      if (path.endsWith("/index.html")) {
+        response.header("cache-control", "no-cache, no-store, must-revalidate");
+      } else if (path.includes("/assets/")) {
+        response.header("cache-control", "public, max-age=31536000, immutable");
+      }
+    },
+  });
 }

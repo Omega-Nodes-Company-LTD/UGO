@@ -3,15 +3,17 @@ import {
   beings,
   bonds,
   createDbClient,
+  events,
   gosini,
   perceptionEvents,
   recognitionProfiles,
   runMigrations,
+  traitSets,
   type DbClient,
 } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
 import { advertise, generateDataKey, openCard } from "@ugo/shared";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PeerService } from "../../src/services/peerService.js";
 import { createHouse, type TestHouse } from "./helpers/tenancy.js";
@@ -202,5 +204,87 @@ describe("the neighbours cannot read what we wrote about them", () => {
         seen: advertise((await peerBianchi.keysFor(bianchi.gosinoId)).rotationSecret, Date.now()),
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe("trasferimento orizzontale dei geni culturali (Orizzonti 1+4)", () => {
+  const culturalTraits = (values: number[]): Record<string, unknown> => {
+    const [grunt_repertoire, dialect, dream_style] = values;
+    return {
+      grunt_repertoire,
+      dialect,
+      dream_style,
+      alleles: {
+        grunt_repertoire: [grunt_repertoire, grunt_repertoire],
+        dialect: [dialect, dialect],
+        dream_style: [dream_style, dream_style],
+      },
+    };
+  };
+
+  it("accettare una card che porta geni culturali scrive l'evento peer e fa convergere la cultura", async () => {
+    // Bianchi ha una cultura ricca; Rossi una povera. Il trait_set esiste per
+    // entrambi come in produzione (il sogno lo semina).
+    await db.insert(traitSets).values([
+      {
+        gosinoId: bianchi.gosinoId,
+        accountId: bianchi.id,
+        version: 1,
+        traits: culturalTraits([0.9, 0.8, 0.7]),
+      },
+      {
+        gosinoId: rossi.gosinoId,
+        accountId: rossi.id,
+        version: 1,
+        traits: culturalTraits([0.1, 0.1, 0.1]),
+      },
+    ]);
+
+    const card = await peerBianchi.introductionCard(bianchi.gosinoId, "curioso");
+    expect(card.card.culturalGenes).toBeDefined();
+
+    // Rossi accetta: l'introduzione trasferisce la cultura in ORIZZONTALE
+    const met = await peerRossi.accept({ ...scope(rossi), card });
+    if (met === undefined) throw new Error("should be accepted");
+    expect(met.culturalGenesReceived).toEqual({ grunt_repertoire: 0.9, dialect: 0.8, dream_style: 0.7 });
+
+    // 1) l'evento `peer` c'è, con type cultural_gene_received e il payload giusto
+    // (può essercene più d'uno storicità: i test precedenti hanno già incontrato
+    // Bianchi quando non aveva una cultura propria — si legge l'ULTIMO)
+    const [event] = await db
+      .select({ source: events.source, type: events.type, payload: events.payload })
+      .from(events)
+      .where(and(eq(events.gosinoId, rossi.gosinoId), eq(events.type, "cultural_gene_received")))
+      .orderBy(desc(events.ts))
+      .limit(1);
+    expect(event?.source).toBe("peer");
+    expect(event?.payload).toEqual({ grunt_repertoire: 0.9, dialect: 0.8, dream_style: 0.7 });
+
+    // 2) il genoma di Rossi è cresciuto di una versione, con la nota di drift
+    const [latest] = await db
+      .select({ version: traitSets.version, mutationNote: traitSets.mutationNote })
+      .from(traitSets)
+      .where(eq(traitSets.gosinoId, rossi.gosinoId))
+      .orderBy(desc(traitSets.version))
+      .limit(1);
+    expect(latest?.version).toBe(2);
+    expect(latest?.mutationNote).toContain("cultural_drift_from_peer");
+
+    // 3) la convergenza: gli ALLELI di Rossi si sono avviati verso quelli di
+    // Bianchi — è lì che la cultura abita (`blendCulturalGenes` media gli
+    // alleli del gene, e il campo top-level resta quello che era)
+    const [rolledBack] = await db
+      .select({ traits: traitSets.traits })
+      .from(traitSets)
+      .where(eq(traitSets.gosinoId, rossi.gosinoId))
+      .orderBy(desc(traitSets.version))
+      .limit(1);
+    const traits = rolledBack?.traits as Record<string, unknown>;
+    const grunt =
+      (traits.alleles as Record<string, [number, number] | undefined> | undefined)?.grunt_repertoire ??
+      undefined;
+    if (grunt === undefined) throw new Error("il trait_set dopo il drift non porta gli alleli del grunt");
+    expect(grunt[0]).toBeCloseTo((0.1 + 0.9) / 2, 5);
+    expect(grunt[1]).toBeCloseTo((0.1 + 0.9) / 2, 5);
   });
 });
