@@ -280,8 +280,11 @@ describe("trasferimento orizzontale dei geni culturali (Orizzonti 1+4)", () => {
       .orderBy(desc(traitSets.version))
       .limit(1);
     const traits = rolledBack?.traits as Record<string, unknown>;
-    const alleles = (traits.alleles as Record<string, [number, number]> | undefined) ?? {};
-    expect(alleles.grunt_repertoire[0]).toBeCloseTo((0.1 + 0.9) / 2, 5);
-    expect(alleles.grunt_repertoire[1]).toBeCloseTo((0.1 + 0.9) / 2, 5);
+    const grunt =
+      (traits.alleles as Record<string, [number, number] | undefined> | undefined)?.grunt_repertoire ??
+      undefined;
+    if (grunt === undefined) throw new Error("il trait_set dopo il drift non porta gli alleli del grunt");
+    expect(grunt[0]).toBeCloseTo((0.1 + 0.9) / 2, 5);
+    expect(grunt[1]).toBeCloseTo((0.1 + 0.9) / 2, 5);
   });
 });
