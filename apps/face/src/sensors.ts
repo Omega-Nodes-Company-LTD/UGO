@@ -37,6 +37,10 @@ export class Sensors {
   private stream: MediaStream | undefined;
   /** l'anello del misuratore: si ferma davvero quando si spegne */
   private metering = false;
+  /** il listener `devicemotion`, tenuto per poterlo RIMUOVERE a orecchie spente */
+  private motionListener: ((event: DeviceMotionEvent) => void) | undefined;
+  /** il sensore di luce, tenuto per lo stop (privacy: niente sensi accesi a sensi spenti) */
+  private lightSensor: { stop: () => void } | undefined;
 
   public constructor(
     private readonly send: SendFn,
@@ -93,6 +97,22 @@ export class Sensors {
     this.stream = undefined;
     void this.audioContext?.close();
     this.audioContext = undefined;
+    this.stopMotion();
+    this.stopLight();
+  }
+
+  /** spegne davvero il sensore di urti: niente `devicemotion` a orecchie spente */
+  public stopMotion(): void {
+    if (this.motionListener !== undefined) {
+      window.removeEventListener("devicemotion", this.motionListener);
+      this.motionListener = undefined;
+    }
+  }
+
+  /** spegne il sensore di luce, se c'era */
+  public stopLight(): void {
+    this.lightSensor?.stop();
+    this.lightSensor = undefined;
   }
 
   /** Il microfono è acceso adesso? Lo chiede il muso per il suo interruttore. */
@@ -281,7 +301,8 @@ export class Sensors {
 
   /** accelerometer bumps → shake events (urto → indignazione) */
   public startMotion(): void {
-    window.addEventListener("devicemotion", (event) => {
+    if (this.motionListener !== undefined) return; // già attivo, non doppio
+    this.motionListener = (event: DeviceMotionEvent): void => {
       const a = event.accelerationIncludingGravity;
       if (a?.x == null || a.y == null || a.z == null) return;
       const magnitude = Math.abs(Math.hypot(a.x, a.y, a.z) - 9.81);
@@ -291,7 +312,8 @@ export class Sensors {
         this.onLocalStartle();
         this.send({ type: "shake" });
       }
-    });
+    };
+    window.addEventListener("devicemotion", this.motionListener);
   }
 
   /** ambient light → periodic light events (drives the sleep rule server-side) */
@@ -300,6 +322,7 @@ export class Sensors {
       illuminance?: number;
       addEventListener: (type: "reading", cb: () => void) => void;
       start: () => void;
+      stop: () => void;
     }
     const Ctor = (
       globalThis as { AmbientLightSensor?: new (init: { frequency: number }) => AmbientLightSensorLike }
@@ -316,6 +339,7 @@ export class Sensors {
         }
       });
       sensor.start();
+      this.lightSensor = sensor;
     } catch {
       // permission or platform issue: no light sense, nothing breaks
     }
