@@ -36,8 +36,18 @@ export const chatResponseSchema = z.object({
 });
 export type ChatResponse = z.infer<typeof chatResponseSchema>;
 
+/**
+ * Le fonti che IL CORPO può dichiarare su `/v1/events` (ADR-019 fase 2):
+ * niente `peer` né `reception` — sono scritture interne e certificate
+ * (incontro fra creature verificato via catena, digerito della reception),
+ * e ammetterle da un frame non-token le aprirebbe alla contraffazione.
+ */
+export const BODY_EVENT_SOURCES = EVENT_SOURCES.filter(
+  (source) => source !== "peer" && source !== "reception",
+);
+
 export const eventRequestSchema = z.object({
-  source: z.enum(EVENT_SOURCES),
+  source: z.enum(BODY_EVENT_SOURCES),
   type: z.string().min(1).max(64),
   payload: z.record(z.string(), z.unknown()).default({}),
 });
