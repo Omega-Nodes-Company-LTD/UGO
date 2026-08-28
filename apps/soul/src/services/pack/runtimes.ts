@@ -22,6 +22,7 @@ import { Curiosity } from "../volition/curiosity.js";
 import { EfficacyService } from "../volition/efficacy.js";
 import { RewardService } from "../volition/reward.js";
 import { VolitionService } from "../volition/volitionService.js";
+import { GameService } from "../gameService.js";
 
 /**
  * One runtime per exemplar (ADR-032).
@@ -293,6 +294,10 @@ async function buildRuntime(
     ...(nudges !== undefined && {
       nudges: { answer: (text: string, at: Date) => nudges.answer(row.id, text, at) },
     }),
+    // ADR-112: il gioco dei numeri. Esiste per ogni esemplare: la riga di
+    // partita porta `account_id` e `gosino_id`, e il servizio sa chi sta
+    // giocando. Il `dataKey` della casa cifra il segreto a riposo.
+    games: { answer: (text: string, at: Date) => new GameService({ db: deps.db, accountId: row.accountId, gosinoId: row.id, dataKey: deps.dataKey }).answer(text, at) },
     ...(deps.vision !== undefined && { vision: deps.vision }),
     // ADR-099: la cartolina a voce — il gesto esiste per ogni esemplare,
     // perché la porta vera è il consenso della parentela, non il cablaggio
