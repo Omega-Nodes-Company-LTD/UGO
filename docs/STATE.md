@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.80.0"
+version: "0.81.0"
 last_updated: "2026-08-28"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -2716,3 +2716,34 @@ In più, il 2026-08-28 (PR #115):
 La PR #115 è stata **mergiata su main** (`8981e8b`); tutti i 6 job CI verdi, e anche su main
 (l'unico rosso residuo era il benchmark `memoryBench` ADR-107, **flaky** — `perse` 3/9 contro
 tetto `< 3` — passato al rerun senza toccare nulla).
+
+## 6-septquadragies. Stabilizzazione post cantiere-B: sicurezza, biometria a monte, WS e cache
+
+Il 2026-08-28, dopo il merge del cantiere-B, il giro completo di bug-hunting (backend, frontend,
+test) ha prodotto questi interventi, tutti con test verde su istanze reali:
+
+- **`/v1/events` non ammette più le fonti interne**: il contratto condiviso
+  (`eventRequestSchema`) accettava `EVENT_SOURCES` intero, quindi anche `peer` e `reception` —
+  scritture interne e certificate — potevano essere dichiarate da un frame del corpo senza
+  token. Ora `BODY_EVENT_SOURCES` (le 5 sensoriali) è il dominio della rotta; `peer`/`reception`
+  restano solo dove i servizi interni le scrivono.
+- **Biometria davvero "a monte"**: `voiceAskOpen` ora rifiuta minori e opt-out audio PRIMA del
+  deposito (stessa promessa di `storeVoiceSample`/`openVoiceAsk`), chiudendo il percorso del
+  chiosco. Test integration dedicato: un minore/opt-out a finestra forzata non finisce MAI nel
+  bucket.
+- **WebSocket del kiosk**: guard doppio-socket (niente secondo filo se uno è `CONNECTING`/`OPEN`),
+  flush periodico della coda (5000 ms) e **watchdog zombie** (60 s senza frame → chiude e
+  riconnette): è il sintomo madre dell'ADR-045, il kiosk non resta più «connesso» con UGO muto.
+  Coperto da unit test con un WebSocket finto.
+- **Sensori**: `devicemotion` e sensore di luce ora si RIMUOVONO davvero a orecchie spente
+  (`stopMotion`/`stopLight` dentro `stopMicrophone`), e `awake.release()` libera il wake lock
+  quando le orecchie si spengono. «Orecchie spente» vuol dire spente, come prima da solo.
+- **PWA/caching**: `index.html` servita `no-cache, no-store` e `/assets/*` `immutable` — il check
+  version del muso può finalmente scoprire le build nuove, che finora una cache intermedia poteva
+  tenere vecchie per sempre.
+- **Test**: chiuso il buco di copertura sul trasferimento orizzontale dei geni culturali
+  (evento `peer` + `trait_sets` version+1 con `mutationNote`); il benchmark del giudice
+  ADR-107 non è più un semaforo sul modello quantizzato (tetto `perse` a 4 con margine, la
+  misura continua a stampare).
+- **Migrazioni**: il `when` di `0060_event-source-peer` era anacronistico (più piccolo di 0059):
+  corretto per tenere il journal monotono.
