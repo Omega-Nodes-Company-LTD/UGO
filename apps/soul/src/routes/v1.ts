@@ -13,6 +13,16 @@ import type { PsycheService } from "../services/psycheService.js";
 import type { PreHandler } from "./guard.js";
 import { eldestExemplarOf, resolveAccount } from "./scope.js";
 
+/**
+ * Tetti espliciti per le rotte del corpo (ADR-007: non portano token, ma la
+ * tailnet non è una mangiatoia). `imageBase64` da chat arriva a 200kB in JSON;
+ * il payload di un evento è un piccolo blocco di campi. Sotto il default di
+ * Fastify (1MB) ma dichiarato, perché una rotta senza tetto dichiarato è una
+ * rotta che un host compromesso può riempire.
+ */
+const CHAT_BODY_LIMIT = 2 * 1024 * 1024;
+const EVENT_BODY_LIMIT = 64 * 1024;
+
 export interface V1Deps {
   db: DbClient;
   chat: ChatService;
@@ -40,7 +50,7 @@ function problem(reply: FastifyReply, status: number, title: string, detail?: st
 }
 
 export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
-  app.post("/v1/chat", async (request, reply) => {
+  app.post("/v1/chat", { bodyLimit: CHAT_BODY_LIMIT }, async (request, reply) => {
     const parsed = chatRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       problem(reply, 400, "Invalid chat request", z.prettifyError(parsed.error));
@@ -80,7 +90,7 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
     });
   });
 
-  app.post("/v1/events", async (request, reply) => {
+  app.post("/v1/events", { bodyLimit: EVENT_BODY_LIMIT }, async (request, reply) => {
     const parsed = eventRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       problem(reply, 400, "Invalid event", z.prettifyError(parsed.error));

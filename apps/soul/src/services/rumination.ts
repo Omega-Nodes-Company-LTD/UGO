@@ -1,6 +1,6 @@
 import { desires, events, memories, messages, type DbClient } from "@ugo/db";
 import type { LocalTextClient } from "@ugo/memory";
-import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import type { PsycheService } from "./psycheService.js";
 
 /**
@@ -29,6 +29,12 @@ import type { PsycheService } from "./psycheService.js";
 /** La notte è del sogno: fuori da questa finestra la testa tace. */
 const AWAKE_FROM = 8;
 const AWAKE_UNTIL = 22;
+/**
+ * Quanti desideri PENDENTI possono stare in coda da una sorgente generativa.
+ * Oltre, la ruminazione si trattiene: una notte di domande inventate non deve
+ * riempire il risveglio. I comandi espliciti dell'utente non passano da qui.
+ */
+const MAX_PENDING_DESIRES = 5;
 /** Con un messaggio più recente di così non è idle: sta vivendo, non rumina. */
 const IDLE_MIN = 20;
 /** Fra un pensiero e l'altro — anche a vuoto: contano i tentativi, non i successi. */
@@ -206,6 +212,17 @@ export class RuminationService {
       payload: worthless ? { about: [seed.id] } : { about: [seed.id], asked: true },
     });
     if (worthless) return { did: "nothing" };
+    // Tetto ai desideri PENDENTI da sorgenti generative (ADR-103 spirito):
+    // la ruminazione allucina raramente, ma una notte di domande inventate non
+    // deve riempire la coda del risveglio. I comandi espliciti dell'utente
+    // (promemoria, timer) non passano da qui.
+    const [pending] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(desires)
+      .where(and(eq(desires.gosinoId, self.id), eq(desires.status, "pending")));
+    if ((pending?.count ?? 0) >= MAX_PENDING_DESIRES) {
+      return { did: "nothing" };
+    }
     await db.insert(desires).values({
       gosinoId: self.id,
       text: out,
