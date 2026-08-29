@@ -36,6 +36,10 @@ export const AUDIT_VERBS = [
   "forget",
   /** un sogno chiesto fuori dall'orario in cui sarebbe partito da solo */
   "dream_requested",
+  /** il sogno notturno di una casa è andato a buon fine (scritto dal job) */
+  "dream_completed",
+  /** il sogno notturno di una casa è fallito (scritto dal job) */
+  "dream_failed",
   /** una famiglia nuova sotto lo stesso server (`ugo casa nuova`) */
   "account_created",
   /** un token emesso: nel giornale il suo id, mai il segreto */

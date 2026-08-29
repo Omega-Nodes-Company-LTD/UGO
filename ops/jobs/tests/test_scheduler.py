@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from conftest import db_only_config
+from conftest import db_only_config, make_house
 from ugo_jobs.config import ConfigError
 from ugo_jobs.scheduler import next_run_at, parse_at, run_forever
 
@@ -91,3 +91,40 @@ def test_one_bad_night_does_not_kill_the_container(monkeypatch) -> None:  # noqa
     # two nights attempted, each followed by a back-off instead of a hot loop
     assert len(slept) == 4
     assert scheduler.RETRY_AFTER_FAILURE_S in slept
+
+
+def test_dream_audit_writes_a_journal_row(pg_url) -> None:  # noqa: ANN001
+    """Il sogno lascia la sua impronta nel giornale dell'audit: che la notte
+    sia andata bene o male, il pannello e i monitor devono poterla leggere.
+    Solo id e verbi, mai contenuti (la regola 6 vale anche qui)."""
+    import psycopg
+
+    from ugo_jobs.scheduler import _record_dream_audit
+
+    with psycopg.connect(pg_url) as conn:
+        house = make_house(conn, "casa-audit-sogno")
+
+    cfg = db_only_config(pg_url, account_id=house)
+    _record_dream_audit(cfg, "dream_completed", "ok")
+
+    with psycopg.connect(pg_url) as conn:
+        rows = conn.execute(
+            "select verb, outcome, resource_type, account_id "
+            "from audit_log where verb = 'dream_completed' and account_id = %s",
+            (house,),
+        ).fetchall()
+    assert [(verb, outcome, rtype, str(account)) for verb, outcome, rtype, account in rows] == [
+        ("dream_completed", "ok", "dream", house)
+    ]
+
+
+def test_dream_audit_never_raises(pg_url) -> None:  # noqa: ANN001
+    """Una scrittura che fallisce (es. database irraggiungibile) non deve
+    spegnere il sogno: il giornale è prezioso, non indispensabile."""
+    import psycopg
+
+    from ugo_jobs.scheduler import _record_dream_audit
+
+    cfg = db_only_config("postgres://utente:errata@127.0.0.1:1/db_inesistente", account_id="x")
+    # non solleva: si limita a loggare il fallimento
+    _record_dream_audit(cfg, "dream_failed", "error")

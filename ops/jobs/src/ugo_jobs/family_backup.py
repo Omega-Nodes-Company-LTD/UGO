@@ -88,12 +88,23 @@ def _rows_of(conn: psycopg.Connection, table: str, mode: str, account_id: str) -
 def _prune_family(client, bucket: str, account_id: str, retention_days: int) -> int:  # noqa: ANN001
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
     pruned = 0
-    response = client.list_objects_v2(Bucket=bucket, Prefix=f"{FAMILY_PREFIX}{account_id}/")
-    for item in response.get("Contents", []):
-        if item["LastModified"] < cutoff:
-            client.delete_object(Bucket=bucket, Key=item["Key"])
-            pruned += 1
-    return pruned
+    continuation: str | None = None
+    # list_objects_v2 restituisce al massimo 1000 chiavi per pagina: senza
+    # loop, il prune di una famiglia con più di mille file di backup si
+    # fermava alla prima pagina e il retention di trenta giorni smetteva
+    # di valere — silenziosamente, come i bug che nessuno vede mai.
+    while True:
+        kwargs: dict = {"Bucket": bucket, "Prefix": f"{FAMILY_PREFIX}{account_id}/"}
+        if continuation is not None:
+            kwargs["ContinuationToken"] = continuation
+        response = client.list_objects_v2(**kwargs)
+        for item in response.get("Contents", []):
+            if item["LastModified"] < cutoff:
+                client.delete_object(Bucket=bucket, Key=item["Key"])
+                pruned += 1
+        continuation = response.get("NextContinuationToken")
+        if continuation is None:
+            return pruned
 
 
 def run_family_backup(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> FamilyBackupResult:
