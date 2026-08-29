@@ -231,6 +231,16 @@ export const soulEnvSchema = z.object({
 
 export type SoulEnv = z.infer<typeof soulEnvSchema>;
 
+/**
+ * Quale connessione usa il SERVIZIO (soul e i job), quando il flip di RLS è
+ * acceso. ADR-062 tempo 2b: con `DATABASE_URL_APP` il servizio parla come
+ * `ugo_app`, a cui le politiche mordono; senza, resta sull'owner e il muro
+ * è inerte. Le migrazioni non passano MAI da qui.
+ */
+export function appDatabaseUrl(env: SoulEnv): string {
+  return env.DATABASE_URL_APP ?? env.DATABASE_URL;
+}
+
 export function assertProductionSecrets(env: SoulEnv): void {
   if (env.NODE_ENV === "production" && env.UGO_INTERNAL_TOKEN === undefined) {
     throw new Error(

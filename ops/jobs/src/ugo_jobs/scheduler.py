@@ -79,6 +79,29 @@ def _houses(cfg: JobsConfig) -> list[_House]:
     return [_House(str(row[0]), str(row[1])) for row in rows]
 
 
+def _record_dream_audit(cfg: JobsConfig, verb: str, outcome: str) -> None:
+    """Una riga nel giornale dell'audit (ADR-049), per casa: che la notte sia
+    andata bene o male, deve essercene traccia leggibile dal pannello e dai
+    monitor. Solo id e verbi, mai contenuti — la stessa disciplina del lato TS.
+    Una scrittura che fallisce NON fa fallire il sogno: la riga è preziosa,
+    ma un giornale non deve poter bloccare chi sta sognando.
+    """
+    try:
+        with psycopg.connect(cfg.database_url) as conn:
+            conn.execute(
+                "insert into audit_log (account_id, verb, outcome, resource_type) "
+                "values (%s, %s, %s, 'dream')",
+                (cfg.account_id, verb, outcome),
+            )
+            conn.commit()
+    except Exception:  # noqa: BLE001 - un audit mancante non deve spegnere la notte
+        print(
+            json.dumps({"audit_write_failed": verb, "account": cfg.account_id}),
+            file=sys.stderr,
+            flush=True,
+        )
+
+
 def run_forever(
     cfg: JobsConfig,
     at_value: str = DEFAULT_AT,
@@ -122,6 +145,7 @@ def run_forever(
                     json.dumps({"dream_report": report, "account": house.account_id}),
                     flush=True,
                 )
+                _record_dream_audit(run_cfg, "dream_completed", "ok")
             except Exception as error:  # noqa: BLE001 - one bad night is not the end
                 # never crash the container: tomorrow's dream must still happen,
                 # and the step markers make the retry a no-op for what succeeded
@@ -133,6 +157,7 @@ def run_forever(
                     file=sys.stderr,
                     flush=True,
                 )
+                _record_dream_audit(run_cfg, "dream_failed", "error")
         if failed:
             sleep(RETRY_AFTER_FAILURE_S)
         done += 1

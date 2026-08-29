@@ -15,6 +15,10 @@ export default tseslint.config(
       // da un altro progetto: analizzarlo produce 1400 errori su codice che non
       // possiamo cambiare e non abbiamo scritto.
       "apps/face/public/vision/**",
+      // il service worker è JS statico copiato da vite nel dist: si esegue
+      // nello scope del worker, dove gli ESLint globali del browser non valgono
+      // (self, caches, clients). Non è TS, non è da analizzare, è da servire.
+      "apps/face/public/sw.js",
     ],
   },
   eslint.configs.recommended,

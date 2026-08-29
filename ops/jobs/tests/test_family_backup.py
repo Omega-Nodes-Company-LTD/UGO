@@ -8,6 +8,7 @@ from __future__ import annotations
 import io
 import json
 import tarfile
+from datetime import datetime, timezone
 
 import psycopg
 import pytest
@@ -96,3 +97,59 @@ def test_scoped_tables_covers_schema_without_a_hand_list(pg_url) -> None:
     assert scoped["desires"] == "gosino"
     # e le migrazioni di drizzle restano fuori
     assert "__drizzle_migrations" not in scoped
+
+
+def test_prune_family_paginates_beyond_one_page() -> None:
+    """Oltre le 1000 chiavi di una pagina di list_objects_v2, il prune deve
+    continuare: un retention che si ferma alla prima pagina è un retention
+    che non esiste per chi ha più di mille backup nella cartella."""
+    from datetime import timedelta
+
+    from ugo_jobs.family_backup import _prune_family
+
+    old = datetime.now(timezone.utc) - timedelta(days=40)
+    fresh = datetime.now(timezone.utc) - timedelta(days=1)
+
+    class Page:
+        def __init__(self, contents: list[dict], next_token: str | None) -> None:
+            self.contents = contents
+            self.next_token = next_token
+
+        def get(self, key: str, default=None):
+            if key == "Contents":
+                return self.contents
+            return self.next_token
+
+    class FakeClient:
+        def __init__(self, pages: list[Page]) -> None:
+            self.pages = pages
+            self.deleted: list[str] = []
+            self.calls = 0
+
+        def list_objects_v2(self, **kwargs) -> Page:
+            self.calls += 1
+            if "ContinuationToken" in kwargs:
+                assert self.calls == 2  # la seconda chiamata chiede la pagina successiva
+            return self.pages[self.calls - 1]
+
+        def delete_object(self, **kwargs) -> None:
+            self.deleted.append(kwargs["Key"])
+
+    keys = [f"families/casa/backup-{str(i).zfill(4)}.tar.enc" for i in range(1500)]
+    page_one = Page(
+        [{"Key": key, "LastModified": old} for key in keys[:1000]],
+        "token-continua",
+    )
+    page_two = Page(
+        [{"Key": key, "LastModified": fresh} for key in keys[1000:]],
+        None,
+    )
+    client = FakeClient([page_one, page_two])
+
+    pruned = _prune_family(client, "ugo-backup", "casa", 30)
+
+    assert client.calls == 2  # ha letto entrambe le pagine
+    # i vecchi (prima pagina) sono andati, i freschi (seconda) sono rimasti
+    assert pruned == 1000
+    assert len(client.deleted) == 1000
+    assert all(key.startswith("families/casa/backup-") for key in client.deleted)

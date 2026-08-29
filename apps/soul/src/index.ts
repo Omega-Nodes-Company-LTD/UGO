@@ -12,7 +12,7 @@ import { RecognitionClient } from "./services/recognitionClient.js";
 import { NudgeService } from "./services/nudges.js";
 import { SceneMemory } from "./services/sceneMemory.js";
 import { SceneReader } from "./services/sceneReader.js";
-import { assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
+import { appDatabaseUrl, assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
 import { ParcelService } from "./services/parcelService.js";
 import { TieService } from "./services/tieService.js";
@@ -89,7 +89,7 @@ if (env.UGO_AUTO_MIGRATE) {
  * Le migrazioni sopra restano sull'owner: i privilegi non si applicano al
  * proprietario delle tabelle, ed è per questo che sono due utenze.
  */
-const appUrl = env.DATABASE_URL_APP ?? env.DATABASE_URL;
+const appUrl = appDatabaseUrl(env);
 const db = createDbClient(appUrl);
 
 /**

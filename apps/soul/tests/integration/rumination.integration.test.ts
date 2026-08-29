@@ -198,4 +198,26 @@ describe("la ruminazione", () => {
     expect(again.did).toBe("nothing");
     expect(prompts).toHaveLength(1);
   });
+
+  it("non riempie la coda dei desideri: a tetto pieno la domanda si trattiene", async () => {
+    const self = await bornWithMemories("Vino", ["il proprietario parlava di un progetto a giugno"]);
+    // la coda è già piena: cinque desideri pendenti
+    for (let at = 0; at < 5; at += 1) {
+      await db.insert(desires).values({
+        gosinoId: self.id,
+        status: "pending",
+        text: `desiderio ${String(at)}`,
+      });
+    }
+    const { client, prompts } = recorder("Allora il progetto di giugno si fa?");
+    const report = await service(client, [0.8, 0.1, 0.1]).maybe(self, [], NOON);
+    expect(report.did).toBe("nothing");
+    // il modello è stato interrogato, ma il desiderio non è stato scritto
+    expect(prompts).toHaveLength(1);
+    const queued = await db
+      .select()
+      .from(desires)
+      .where(and(eq(desires.gosinoId, self.id), eq(desires.status, "pending")));
+    expect(queued).toHaveLength(5);
+  });
 });

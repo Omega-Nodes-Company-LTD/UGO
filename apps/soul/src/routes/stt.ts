@@ -46,7 +46,7 @@ export interface SttRouteDeps {
 }
 
 export function registerSttRoute(app: FastifyInstance, deps: SttRouteDeps): void {
-  app.post("/v1/stt", async (request, reply) => {
+  app.post("/v1/stt", { bodyLimit: 1024 * 1024 }, async (request, reply) => {
     const parsed = sttBodySchema.safeParse(request.body);
     if (!parsed.success) {
       return reply

@@ -290,6 +290,19 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") void checkVersion();
 });
 
+// PWA (ADR-018 Tempo 1): il worker serve gli asset hashati dalla cache e
+// rimanda l'HTML al network, così il confronto di versione qui sopra rimane
+// vero anche offline. Solo su https e su localhost, dove il browser lo accetta.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((error: unknown) => {
+      // un kiosk senza worker funziona come prima: è un miglioramento, non un
+      // requisito — e un fallimento di registrazione non deve fare rumore
+      console.warn("service worker non registrato:", error);
+    });
+  });
+}
+
 let speakTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Nobody named means the whole room, which is also the one-creature case. */

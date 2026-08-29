@@ -59,6 +59,22 @@ col telefono in tasca e lo schermo spento. Per il dock questo basta.
 > riconoscitore del browser e lo scrive nel registro. Diventerà il default quando l'avremo
 > misurata per bene su un telefono vero.
 
+### Misurare le orecchie: il metro per scegliere il default
+
+La dettatura di casa diventerà il default **solo con i numeri in mano**, su un telefono vero. Il
+metro è semplice e va annotato di fianco a ogni prova:
+
+| Cosa si misura | Come si prova | Soglia per promuoverla a default |
+| -------------- | ------------- | -------------------------------- |
+| **Ritardo** fra la fine della tua frase e la comparsa del testo | cronometro a occhio, 10 frasi | sotto i 2 secondi in 9 frasi su 10 |
+| **Batteria** | un'ora di uso normale, si guarda la percentuale persa | non peggio del riconoscitore del browser |
+| **Qualità** | frasi con nomi propri e numeri | UGO capisce i nomi di casa almeno quanto il browser |
+| **Ripresa dopo gli errori** | tre volte di fila che la strada muore | torna al browser dichiarandolo, mai muto |
+
+Quando sul tuo telefono i numeri reggono, dire `?stt=locale` una volta basta a fissare la scelta
+per quell'installazione: da lì la strada di casa parte da sola. Chi amministra il server può
+sempre decidere il contrario.
+
 > **E una sulla voce con cui risponde.** Di base la voce di UGO è quella del telefono e non esce di
 > casa. Se chi amministra il server attiva la **voce emotiva** (una chiave OpenAI nell'ambiente),
 > le frasi che UGO dice vengono sintetizzate da OpenAI: hanno un tono che segue il suo umore, ma

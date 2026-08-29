@@ -1,7 +1,7 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.81.0"
+version: "0.82.0"
 last_updated: "2026-08-28"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -2747,3 +2747,38 @@ test) ha prodotto questi interventi, tutti con test verde su istanze reali:
   misura continua a stampare).
 - **Migrazioni**: il `when` di `0060_event-source-peer` era anacronistico (più piccolo di 0059):
   corretto per tenere il journal monotono.
+
+## 6-octogies. Fix operativi ed evolutive: tetti, sveglie, dialetto, SW, grafo vivo
+
+Il 2026-08-29, il giro «fix operativi ed evolutive» ha portato, sul ramo
+`feat/fase-9-ops-evolutive`:
+
+**Binario A — operatività (fix)**
+- **RLS**: la scelta dell'utenza applicativa (`appDatabaseUrl`) è ora una funzione
+  testata a tre vie (scelto / owner / stringa vuota); il flip resta come runbook §8-bis.
+- **Tetti**: `bodyLimit` espliciti su `/v1/chat` (2MB), `/v1/events` (64KB), `/v1/tts`
+  (64KB), `/v1/stt` (1MB); rimossi due byte NUL storici in `tts.ts`.
+- **Desideri**: la ruminazione non riempie più la coda — oltre 5 pending da una
+  sorgente generativa trattiene la domanda (test integration).
+- **Sveglia del sogno**: a fine notte (o in errore) il sogno scrive l'audit
+  `dream_completed`/`dream_failed` per casa; un audit fallito non spegne il sogno.
+- **Prune di famiglia**: `_prune_family` pagina oltre le 1000 chiavi, e il
+  retention di 30 giorni torna a valere davvero (unit test).
+
+**Binario B — evolutive**
+- **Service worker del muso**: HTML sempre dal network, asset hashati dalla cache;
+  il confronto di versione resta vero anche offline (niente notifiche: attende).
+- **Grafo della memoria esplorabile**: un click su un nodo racconta i suoi vicini.
+- **Metro per la dettatura locale**: nella guida, i quattro numeri (ritardo,
+  batteria, qualità, ripresa) per promuovere `?stt=locale` a default.
+
+**Binario C — idee**
+- **ADR-120**: le evolutive senza precedenti (assenza, lettera al futuro, sogno
+  che disegna, diplomatico di famiglia, memoria federata) raccolte in Proposta.
+- **Banco di prova aperto**: `README.md` d'uso e di contribuzione.
+- **Lessico della casa**: nuovo passo del sogno `dialect` che impara (mai
+  configura) le parole ricorrenti dei transcript — zero modelli, una memoria
+  `preference` per notte al massimo.
+
+Verifiche: build/lint/typecheck 33/33, db 59/59, rumination+peer 21/21, test
+Python scheduler/family_backup/dialect 17/17 (locali).

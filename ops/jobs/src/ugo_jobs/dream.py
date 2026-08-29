@@ -22,6 +22,7 @@ from .config import ConfigError, JobsConfig
 from .contradictions import run_contradictions
 from .cultural_drift import run_cultural_drift
 from .customer_digest import run_digest
+from .dialect import run_dialect
 from .enroll_step import has_pending, run_enroll
 from .entities import run_entities
 from .family_backup import run_family_backup
@@ -39,6 +40,7 @@ from .reflect import run_reflect
 # written by peer encounters, and mutates cultural genes via the dream.
 STEPS = (
     "ingest",
+    "dialect",
     "enroll",
     "reflect",
     "recap",
@@ -64,7 +66,7 @@ STEPS = (
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
 PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene", "cultural_drift")
-PER_HOUSEHOLD = ("ingest", "enroll", "advise", "review", "digest", "anniversaries", "backup", "family")
+PER_HOUSEHOLD = ("ingest", "dialect", "enroll", "advise", "review", "digest", "anniversaries", "backup", "family")
 GLOBAL = ("compaction",)
 
 #: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
@@ -195,6 +197,8 @@ def _run_step(
             # percezione giù stanotte: in coda per domani, non perse
             "deferred": enrolled.deferred,
         }
+    elif step == "dialect":
+        step_report[step] = run_dialect(conn, cfg, dream_date)
     elif step == "reflect":
         result = run_reflect(conn, cfg, dream_date)
         step_report[step] = {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { audioStorageFromEnv, soulEnvSchema } from "./env.js";
+import { appDatabaseUrl, audioStorageFromEnv, soulEnvSchema } from "./env.js";
 
 /**
  * Pure configuration logic, so a unit test is the honest place for it
@@ -17,6 +17,22 @@ const base = {
 
 const parse = (extra: Record<string, string>) =>
   soulEnvSchema.parse({ ...base, ...extra });
+
+describe("appDatabaseUrl — il flip di RLS (ADR-062 tempo 2b)", () => {
+  it("sceglie DATABASE_URL_APP quando impostata (il servizio parla come ugo_app)", () => {
+    expect(
+      appDatabaseUrl(parse({ DATABASE_URL_APP: "postgres://ugo_app:p@db:5432/ugo" })),
+    ).toBe("postgres://ugo_app:p@db:5432/ugo");
+  });
+
+  it("senza DATABASE_URL_APP resta sull'owner (il muro è inerte)", () => {
+    expect(appDatabaseUrl(parse({}))).toBe("postgres://u:p@db:5432/ugo");
+  });
+
+  it("tratta la stringa vuota come assente (compose passa i default vuoti)", () => {
+    expect(appDatabaseUrl(parse({ DATABASE_URL_APP: "" }))).toBe("postgres://u:p@db:5432/ugo");
+  });
+});
 
 describe("S3 configuration", () => {
   it("accepts the AWS-conventional names every provider console shows", () => {
