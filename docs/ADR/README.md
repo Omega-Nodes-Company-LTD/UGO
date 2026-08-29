@@ -122,4 +122,7 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [114](./114-lo-screening-in-silico-non-filtra-niente.md) | Lo screening in silico non filtra niente (risultato negativo) | Accettata |
 | [115](./115-la-reception-e-una-nostra-stanza.md) | La reception è una nostra stanza: il corpo esce dal chiosco | Accettata |
 | [116](./116-il-verso-ha-un-timbro.md) | Il verso ha un timbro, e viene dal corpo | Accettata |
-| 117 | *(prossimo numero disponibile)* | — |
+| [117](./117-le-orecchie-di-casa-sono-la-base.md) | Le orecchie di casa sono la base: la dettatura locale come default | Accettata |
+| [118](./118-il-volto-concorre-a-dire-chi-parla.md) | Il volto concorre a dire chi parla | Accettata |
+| [119](./119-il-nome-e-la-parola-di-sveglia.md) | Il nome è la parola di sveglia | Accettata |
+| [120](./120-le-cose-che-nessuno-ha-ancora-proposto.md) | Le cose che nessuno ha ancora proposto (idee del branco, e il banco aperto) | **Proposta** |
