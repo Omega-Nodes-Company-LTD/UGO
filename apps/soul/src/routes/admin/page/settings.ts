@@ -40,7 +40,10 @@ export const SETTINGS_PAGES = `
     <p class="lede">La <b>conversazione</b> vuole un modello veloce; il <b>pensiero</b> (il
        sogno, la ruminazione, il consiglio) può essere più lento e più profondo; gli
        <b>occhi</b> vogliono un modello che veda le immagini; il <b>giudice</b> decide se UGO
-       sa davvero una cosa, e basta uno piccolo.</p>
+       sa davvero una cosa, e basta uno piccolo. <b>Voce</b> e <b>orecchie</b> sono facoltative:
+       senza, il muso usa quelle del browser.</p>
+    <p class="lede">Con voce e orecchie scelte qui, <b>l'audio di casa va al provider che hai
+       scelto</b>: è una scelta tua, e la puoi togliere quando vuoi.</p>
     <div id="ai-roles" data-testid="ai-roles"></div>
   </div>
   <div id="ai-msg"></div>

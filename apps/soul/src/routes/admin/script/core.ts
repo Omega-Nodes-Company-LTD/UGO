@@ -54,6 +54,14 @@ async function call(path, options) {
     ...options,
     headers: headers(options?.body !== undefined, options?.contentType),
   });
+  // ADR-123: l'anteprima della voce vuole i byte, non un JSON — sempre da qui,
+  // così porta l'account e il token come ogni altra chiamata
+  if (options?.blob === true) {
+    if (!res.ok && res.status !== 204) {
+      const error = new Error("HTTP " + res.status); error.status = res.status; throw error;
+    }
+    return res.status === 204 ? null : await res.blob();
+  }
   let body = null;
   try { body = await res.json(); } catch { /* empty body is fine */ }
   if (!res.ok) {

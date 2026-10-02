@@ -59,6 +59,13 @@ export const STUB_OPENROUTER_MODELS = [
     architecture: { input_modalities: ["text", "image"], output_modalities: ["text"] },
   },
   {
+    id: "openai/gpt-4o-audio-preview",
+    name: "OpenAI: GPT-4o Audio",
+    context_length: 128000,
+    pricing: { prompt: "0.0000025", completion: "0.00001" },
+    architecture: { input_modalities: ["text", "audio"], output_modalities: ["text", "audio"] },
+  },
+  {
     id: "mistralai/mistral-small",
     name: "Mistral Small",
     context_length: 32000,
@@ -66,6 +73,9 @@ export const STUB_OPENROUTER_MODELS = [
     architecture: { input_modalities: ["text"], output_modalities: ["text"] },
   },
 ];
+
+/** Un «mp3» di prova: non si ascolta, si conta (più dei 44 byte di un wav vuoto). */
+export const STUB_MP3 = Buffer.concat([Buffer.from("ID3"), Buffer.alloc(512, 7)]);
 
 function keyOf(req: IncomingMessage): string | undefined {
   const bearer = req.headers.authorization;
@@ -84,13 +94,16 @@ function json(res: ServerResponse, status: number, payload: unknown): void {
 export class LlmStub {
   public baseUrl = "";
   public readonly requests: CapturedRequest[] = [];
+  /** i corpi non-JSON (multipart della trascrizione), così come sono arrivati */
+  public readonly raw: string[] = [];
   /** mutate per-test to change reply text/usage or force an error status */
   public nextResponse: StubResponsePlan = {};
   private server: Server | undefined;
 
   private answer(req: IncomingMessage, res: ServerResponse, raw: string): void {
     const path = (req.url ?? "").split("?")[0] ?? "";
-    const body = (raw === "" ? {} : JSON.parse(raw)) as CapturedRequest["body"];
+    const isJson = (req.headers["content-type"] ?? "").includes("json");
+    const body = (raw === "" || !isJson ? {} : JSON.parse(raw)) as CapturedRequest["body"];
     this.requests.push({ method: req.method ?? "GET", path, headers: req.headers, body });
 
     if (keyOf(req) === BAD_KEY) {
@@ -111,7 +124,25 @@ export class LlmStub {
     };
     const text = this.nextResponse.text ?? "Grunf, ricevuto.";
 
+    if (req.method === "POST" && path.startsWith("/v1/text-to-speech/")) {
+      res.writeHead(200, { "content-type": "audio/mpeg" });
+      res.end(STUB_MP3);
+      return;
+    }
     switch (`${req.method ?? ""} ${path}`) {
+      case "POST /v1/audio/speech":
+        res.writeHead(200, { "content-type": "audio/mpeg" });
+        res.end(STUB_MP3);
+        return;
+      case "POST /v1/audio/transcriptions":
+      case "POST /v1/speech-to-text":
+        // il corpo è multipart: si tiene per intero, i test cercano il wav
+        this.raw.push(raw);
+        json(res, 200, { text: this.nextResponse.text ?? "ciao ugo" });
+        return;
+      case "GET /v1/voices":
+        json(res, 200, { voices: [{ voice_id: "voce-rachele", name: "Rachele" }] });
+        return;
       case "POST /v1/messages":
         json(res, 200, {
           id: "msg_stub",
@@ -126,6 +157,19 @@ export class LlmStub {
         });
         return;
       case "POST /api/v1/chat/completions":
+        if (Array.isArray((body as { modalities?: unknown }).modalities)) {
+          // ADR-123: l'uscita audio è solo in streaming — due pezzi e il conto
+          res.writeHead(200, { "content-type": "text/event-stream" });
+          const piece = (data: string): string =>
+            `data: ${JSON.stringify({ choices: [{ delta: { audio: { data } } }] })}\n\n`;
+          res.end(
+            piece(Buffer.alloc(4800, 1).toString("base64")) +
+              piece(Buffer.alloc(4800, 2).toString("base64")) +
+              `data: ${JSON.stringify({ choices: [], usage: { cost: this.nextResponse.cost ?? 0.0005 } })}\n\n` +
+              "data: [DONE]\n\n",
+          );
+          return;
+        }
         json(res, 200, {
           id: "gen-stub",
           model: body.model,
@@ -182,6 +226,7 @@ export class LlmStub {
 
   public reset(): void {
     this.requests.length = 0;
+    this.raw.length = 0;
     this.nextResponse = {};
   }
 

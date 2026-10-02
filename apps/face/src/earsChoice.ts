@@ -17,7 +17,13 @@
  * così la logica si prova coi numeri e senza un browser.
  */
 
-export type EarKind = "browser" | "locale";
+/**
+ * ADR-123: `cloud` = le orecchie della casa (`/v1/stt`, il provider che il
+ * titolare ha scelto). Si chiamava `locale` quando dietro c'era whisper sul
+ * server di casa: il nome vecchio si accetta ancora, nell'URL e nel ricordo,
+ * perché un dispositivo aggiornato non deve rifare la trafila.
+ */
+export type EarKind = "browser" | "cloud";
 export type NextEars = EarKind | "off";
 
 /** Il minimo di `Storage` che serve, per poter iniettare una memoria finta. */
@@ -32,13 +38,13 @@ export const EARS_MEMORY_KEY = "ugo-ears";
 export class EarsChoice {
   /** morti in QUESTA sessione: il ricordo fra le ricariche sta nella memoria */
   private browserDead = false;
-  private localeDead = false;
+  private cloudDead = false;
   /** la strada ricordata da un avvio precedente, se ce n'è una */
   private readonly remembered: EarKind | undefined;
 
   public constructor(
-    /** il parametro `?stt=` dell'URL: `locale` e `browser` forzano, il resto no */
-    private readonly forced: string | null,
+    /** il parametro `?stt=` dell'URL: `cloud` (o `locale`) e `browser` forzano */
+    forced: string | null,
     private readonly memory: EarsMemory | undefined,
   ) {
     // `?stt=browser` è la via d'uscita diagnostica: forza il browser E
@@ -48,27 +54,30 @@ export class EarsChoice {
     // strada E dimentica il ricordo — se il ricordo era stantio (un
     // aggiornamento di sistema ha aggiustato il riconoscitore, o whisper è
     // stato finalmente caricato sul server), è così che lo si scopre
-    if (forced === "browser" || forced === "locale") this.forget();
+    this.forced = forced === "locale" ? "cloud" : forced;
+    if (this.forced === "browser" || this.forced === "cloud") this.forget();
     this.remembered = this.recall();
   }
+
+  private readonly forced: string | null;
 
   /**
    * Da dove si parte quando le orecchie si accendono.
    *
-   * **La dettatura di casa è la base** (ADR-109), e il riconoscitore del
-   * browser è il ripiego. Era il contrario, e il contrario voleva dire che
-   * per default ciò che dici in casa tua veniva mandato a Google — scritto in
-   * un commento di `main.ts` da mesi, e vero a ogni avvio di ogni
-   * dispositivo. Un compagno locale-first non può avere le orecchie di
-   * qualcun altro come impostazione di fabbrica.
+   * **Le orecchie della casa sono la base** (ADR-109, ADR-123), e il
+   * riconoscitore del browser è il ripiego: le prime sono quelle che il
+   * titolare ha scelto e paga, le seconde mandano la voce a chi fa il
+   * browser senza che nessuno l'abbia deciso. Se la casa non ha scelto le
+   * orecchie, `/v1/stt` risponde 501 al primo enunciato e il ricordo passa
+   * al browser.
    *
    * Il ricordo vince sul default: un dispositivo che ha già scoperto quale
    * delle due strade funziona non la riscopre a ogni ricarica.
    */
   public first(): EarKind {
-    if (this.forced === "locale") return "locale";
+    if (this.forced === "cloud") return "cloud";
     if (this.forced === "browser") return "browser";
-    return this.remembered ?? "locale";
+    return this.remembered ?? "cloud";
   }
 
   /**
@@ -78,28 +87,28 @@ export class EarsChoice {
    */
   public browserGaveUp(micIsOn: boolean): NextEars {
     this.browserDead = true;
-    this.remember("locale");
+    this.remember("cloud");
     // chi ha scritto `?stt=browser` nell'URL sta diagnosticando: la resa del
     // browser è la risposta che cercava, non un motivo per cambiargli strada
     if (this.forced === "browser") return "off";
-    if (this.localeDead || !micIsOn) return "off";
-    return "locale";
+    if (this.cloudDead || !micIsOn) return "off";
+    return "cloud";
   }
 
   /**
-   * La dettatura in casa non risponde: 501 dal ponte, o whisper muto.
+   * Le orecchie della casa non rispondono: 501 (non scelte) o 503 (giù).
    *
    * NB: **non** un clip rifiutato. Da ADR-109 il ponte distingue i due «no» —
    * 422 «questo clip non si trascrive» contro 503 «il servizio non c'è» — e
    * solo il secondo arriva fin qui. Prima erano lo stesso codice, e tre «sì»
    * di fila bastavano a far dichiarare morta la strada di casa.
    */
-  public localeFailed(): NextEars {
-    this.localeDead = true;
+  public cloudFailed(): NextEars {
+    this.cloudDead = true;
     // un browser arreso in questa sessione o rotto per memoria non si riprova
     // a suon di bip: due strade morte = orecchie spente, dette
-    if (this.browserDead || this.remembered === "locale") return "off";
-    // e si ricorda: una casa senza whisper non deve ripagare il primo
+    if (this.browserDead || this.remembered === "cloud") return "off";
+    // e si ricorda: una casa senza orecchie scelte non deve ripagare il primo
     // enunciato a ogni ricarica per riscoprire ciò che sa già
     this.remember("browser");
     return "browser";
@@ -110,7 +119,8 @@ export class EarsChoice {
   private recall(): EarKind | undefined {
     try {
       const kept = this.memory?.getItem(EARS_MEMORY_KEY);
-      return kept === "locale" || kept === "browser" ? kept : undefined;
+      if (kept === "locale" || kept === "cloud") return "cloud";
+      return kept === "browser" ? "browser" : undefined;
     } catch {
       return undefined;
     }

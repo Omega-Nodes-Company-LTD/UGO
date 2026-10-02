@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { anthropicModel, anthropicModelIds } from "../pricing.js";
-import type { TextProvider } from "./types.js";
+import type { Provider } from "./types.js";
 
 /**
  * La lista da cui la casa sceglie (ADR-122): viene dal provider, non da noi.
@@ -15,13 +15,16 @@ import type { TextProvider } from "./types.js";
 export type TextRole = "chat" | "think" | "vision" | "judge";
 
 export interface CatalogModel {
-  provider: TextProvider;
+  provider: Provider;
   id: string;
   label: string;
   /** USD per milione di token, quando il provider lo dice */
   inputPerMTok?: number;
   outputPerMTok?: number;
   vision: boolean;
+  /** ADR-123: sente l'audio (trascrizione) / parla (sintesi) */
+  audioIn?: boolean;
+  audioOut?: boolean;
   contextLength?: number;
 }
 
@@ -95,6 +98,8 @@ export class ModelCatalog {
           ...(input !== undefined && { inputPerMTok: input }),
           ...(output !== undefined && { outputPerMTok: output }),
           vision: m.architecture?.input_modalities?.includes("image") ?? false,
+          audioIn: m.architecture?.input_modalities?.includes("audio") ?? false,
+          audioOut: m.architecture?.output_modalities?.includes("audio") ?? false,
           ...(m.context_length !== undefined && m.context_length !== null && {
             contextLength: m.context_length,
           }),

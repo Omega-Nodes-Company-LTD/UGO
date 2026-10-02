@@ -2,10 +2,11 @@ import { resolve } from "node:path";
 import { createDbClient, createScopedDbClient, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
-import { ModelCatalog, OllamaEmbeddingsClient, OpenAiTtsClient, type ChatLlm } from "@ugo/memory";
+import { ModelCatalog, OllamaEmbeddingsClient, type ChatLlm } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
 import { AiResolver } from "./services/ai/resolver.js";
+import { hear, speak } from "./services/ai/voice.js";
 import { NudgeService } from "./services/nudges.js";
 import { SceneMemory } from "./services/sceneMemory.js";
 import { SceneReader } from "./services/sceneReader.js";
@@ -426,24 +427,6 @@ const capabilities = (): Capability[] => [
     }),
   },
   {
-    id: "ttsProvider",
-    label: "Voce espressiva del provider",
-    on: env.OPENAI_API_KEY !== undefined,
-    ...(env.OPENAI_API_KEY === undefined && {
-      why: "manca OPENAI_API_KEY: si scende alla voce di casa (Piper) o a quella di sistema.",
-    }),
-  },
-  {
-    id: "sttLocal",
-    label: "Dettatura locale (whisper in casa)",
-    // passa dallo stesso servizio di percezione: se non c'è quello, non c'è
-    // nemmeno il ponte /v1/stt, che risponde 501 e rimanda al browser
-    on: recognition !== undefined,
-    ...(recognition === undefined && {
-      why: "serve il servizio di percezione (UGO_RECOGNITION_URL): senza, le orecchie restano quelle del browser.",
-    }),
-  },
-  {
     id: "meetings",
     label: "Riunioni (Vexa)",
     on: env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined,
@@ -578,10 +561,9 @@ const app = buildServer({
     // ADR-057: rivendicare un'impronta ignota passa dallo stesso servizio che
     // tiene gli encoder, e con lo stesso client per casa
     ...(recognition !== undefined && { prints: recognition }),
-    // gruppo 13: la dettatura locale passa dallo stesso servizio di percezione
-    ...(recognition !== undefined && { stt: recognition }),
-    // decisione 2026-08-16: la voce di casa (Piper) sta sullo stesso servizio
-    ...(recognition !== undefined && { ttsLocal: recognition }),
+    // ADR-123: le orecchie e la voce sono della casa (ruoli `stt`/`tts`)
+    stt: (who, audio) => hear(ai, who, audio),
+    tts: (who, text, instructions) => speak(ai, who, text, instructions),
     // backlog gruppo 3: la memoria interrogabile da altri agenti (MCP, sola
     // lettura, token di casa). Gli embedding sono quelli di Ollama: zero provider
     mcp: { embedder, dataKey },
@@ -590,20 +572,6 @@ const app = buildServer({
       env.UGO_HOME_LON !== undefined && {
         weather: { home: { lat: env.UGO_HOME_LAT, lon: env.UGO_HOME_LON } },
       }),
-    // gruppo 13: la voce interim — si accende con la chiave, si spegne col
-    // budget (ogni frase è una riga di budget_ledger)
-    ...(env.OPENAI_API_KEY !== undefined && {
-      tts: new OpenAiTtsClient({
-        db,
-        dbFor,
-        apiKey: env.OPENAI_API_KEY,
-        dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
-        model: env.UGO_TTS_MODEL,
-        voice: env.UGO_TTS_VOICE,
-        timezone: env.TZ,
-        ...(env.OPENAI_BASE_URL !== undefined && { baseUrl: env.OPENAI_BASE_URL }),
-      }),
-    }),
   },
 });
 

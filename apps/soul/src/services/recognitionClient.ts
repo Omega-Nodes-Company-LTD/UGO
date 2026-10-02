@@ -12,7 +12,6 @@
  */
 
 import { z } from "zod";
-import type { SttOutcome } from "../routes/stt.js";
 
 const recognisedSchema = z.object({
   being_id: z.string().nullable().optional(),
@@ -83,68 +82,6 @@ export class RecognitionClient {
    * enunciato su CPU costa più dell'identità, e chi chiama (la rotta
    * `/v1/stt`) sta comunque fuori dal giro sincrono della conversazione.
    */
-  /**
-   * Trascrivi questo clip — e **distingui i due no**, che è tutto il punto.
-   *
-   * Questa funzione collassava ogni esito diverso da 200 in `undefined`, e
-   * `/v1/stt` traduceva `undefined` in un 503 «servizio giù». Ma percezione
-   * risponde **422 «troppo corto»** a un clip sotto gli 0,8 s — cioè a un
-   * «sì» — e quel 422 arrivava al chiosco travestito da 503. Tre monosillabi
-   * di fila e il muso dichiarava whisper morto, tornava su Google, e se lo
-   * ricordava fra le ricariche.
-   *
-   * «Questo clip non si trascrive» e «il servizio non risponde» si riparano in
-   * due modi opposti: il primo si lascia perdere, il secondo cambia strada.
-   */
-  public async transcribe(audioBase64: string): Promise<SttOutcome> {
-    try {
-      const response = await this.fetchImpl(new URL("/v1/transcribe", this.deps.baseUrl), {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${this.deps.token}`,
-        },
-        body: JSON.stringify({ audio: audioBase64 }),
-        signal: AbortSignal.timeout(15_000),
-      });
-      // 4xx = il clip. 5xx (e il 503 «modello non caricato») = il servizio.
-      if (response.status >= 400 && response.status < 500) return { kind: "unusable" };
-      if (!response.ok) return { kind: "down" };
-      const body = (await response.json()) as { text?: string };
-      return typeof body.text === "string" ? { kind: "text", text: body.text } : { kind: "unusable" };
-    } catch {
-      return { kind: "down" }; // giù o lento: il chiosco resta sul riconoscitore che ha
-    }
-  }
-
-  /**
-   * La voce di casa (decisione 2026-08-16): Piper sul servizio di percezione.
-   *
-   * Gradino di mezzo della catena di `/v1/tts`: quando il provider non c'è —
-   * niente chiave, o salvadanaio finito — la frase si sintetizza QUI, gratis
-   * e senza uscire di casa. `undefined` = anche questo gradino manca, e la
-   * rotta degrada alla voce di sistema del browser (204). Timeout largo come
-   * la dettatura: la sintesi su CPU costa, e chi aspetta è un muso che sa
-   * già parlare da solo.
-   */
-  public async synthesize(text: string): Promise<Buffer | undefined> {
-    try {
-      const response = await this.fetchImpl(new URL("/v1/synthesize", this.deps.baseUrl), {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${this.deps.token}`,
-        },
-        body: JSON.stringify({ text }),
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok) return undefined;
-      return Buffer.from(await response.arrayBuffer());
-    } catch {
-      return undefined; // giù o lento: la voce di sistema c'è sempre
-    }
-  }
-
   /**
    * La lettura su gesto (ADR-065): tesseract sul servizio di percezione.
    *

@@ -14,6 +14,7 @@ export { startVexaStub, VexaStub, type VexaSegment } from "./vexa-stub.helper.js
 export {
   BAD_KEY,
   LlmStub,
+  STUB_MP3,
   STUB_OPENROUTER_MODELS,
   startLlmStub,
   type CapturedRequest,

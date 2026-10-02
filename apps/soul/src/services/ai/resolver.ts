@@ -14,6 +14,7 @@ import {
   type ProviderBaseUrls,
   type TextLlm,
   type VisionLlm,
+  type VoiceGateOptions,
 } from "@ugo/memory";
 import { eq, isNull } from "drizzle-orm";
 import { textAdapter } from "./adapters.js";
@@ -56,7 +57,7 @@ interface AccountAi {
 }
 
 interface Resolved {
-  ai: AccountAi;
+  timezone: string;
   choice: RoleChoice;
   adapter: CompletionAdapter;
 }
@@ -125,35 +126,55 @@ export class AiResolver {
     return ai !== undefined && choice !== undefined && this.keyFor(ai, choice) !== undefined;
   }
 
-  private async resolve(accountId: string, role: AiRole): Promise<Resolved | undefined> {
+  /** La scelta di un ruolo con la chiave che la apre, o niente. */
+  public async keyed(
+    accountId: string,
+    role: AiRole,
+  ): Promise<{ timezone: string; choice: RoleChoice; apiKey: string } | undefined> {
     const ai = await this.load(accountId);
     const choice = ai.choices.get(role);
     if (choice === undefined) return undefined;
     const apiKey = this.keyFor(ai, choice);
-    if (apiKey === undefined) return undefined;
-    const adapter = textAdapter(choice, apiKey, this.deps.baseUrls, this.deps.referer);
-    return adapter === undefined ? undefined : { ai, choice, adapter };
+    return apiKey === undefined ? undefined : { timezone: ai.timezone, choice, apiKey };
   }
 
-  private gated(accountId: string, gosinoId: string, timezone: string, r: Resolved): GatedOptions {
-    const { choice } = r;
+  private async resolve(accountId: string, role: AiRole): Promise<Resolved | undefined> {
+    const found = await this.keyed(accountId, role);
+    if (found === undefined) return undefined;
+    const adapter = textAdapter(found.choice, found.apiKey, this.deps.baseUrls, this.deps.referer);
+    return adapter === undefined ? undefined : { timezone: found.timezone, choice: found.choice, adapter };
+  }
+
+  /** Ciò che il cancello vuole sapere di una spesa, qualunque sia il provider. */
+  public gateFor(accountId: string, gosinoId: string, timezone: string, choice: RoleChoice): VoiceGateOptions {
     return {
       db: this.deps.dbFor(accountId),
-      adapter: r.adapter,
       accountId,
       gosinoId,
       timezone,
       dailyBudgetUsd: this.deps.dailyBudgetUsd,
       keySource: choice.source,
       credit: this.deps.credit,
-      ...(choice.priceInPerMTok !== null &&
-        choice.priceOutPerMTok !== null && {
-          priceSnapshot: { inputPerMTok: choice.priceInPerMTok, outputPerMTok: choice.priceOutPerMTok },
-        }),
       onAuthFailure: () => {
         this.rejected(accountId, choice);
       },
       ...(this.deps.logger !== undefined && { logger: this.deps.logger }),
+    };
+  }
+
+  public get baseUrls(): ProviderBaseUrls {
+    return this.deps.baseUrls;
+  }
+
+  private gated(accountId: string, gosinoId: string, timezone: string, r: Resolved): GatedOptions {
+    const { choice } = r;
+    return {
+      ...this.gateFor(accountId, gosinoId, timezone, choice),
+      adapter: r.adapter,
+      ...(choice.priceInPerMTok !== null &&
+        choice.priceOutPerMTok !== null && {
+          priceSnapshot: { inputPerMTok: choice.priceInPerMTok, outputPerMTok: choice.priceOutPerMTok },
+        }),
     };
   }
 
@@ -186,7 +207,7 @@ export class AiResolver {
       generate: async (prompt, maxTokens, options) => {
         const r = await this.resolve(accountId, role);
         if (r === undefined) return SILENT_TEXT.generate(prompt);
-        return new GatedText(this.gated(accountId, gosinoId, r.ai.timezone, r)).generate(
+        return new GatedText(this.gated(accountId, gosinoId, r.timezone, r)).generate(
           prompt,
           maxTokens,
           options,
@@ -201,7 +222,7 @@ export class AiResolver {
       describe: async (image) => {
         const r = await this.resolve(accountId, "vision");
         if (r === undefined) return BLIND_VISION.describe(image);
-        return new GatedVision(this.gated(accountId, gosinoId, r.ai.timezone, r)).describe(image);
+        return new GatedVision(this.gated(accountId, gosinoId, r.timezone, r)).describe(image);
       },
     };
   }

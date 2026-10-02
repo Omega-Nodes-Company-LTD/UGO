@@ -1,21 +1,21 @@
 import type { DbClient } from "@ugo/db";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { resolveAccount } from "./scope.js";
+import { eldestExemplarOf, resolveAccount } from "./scope.js";
 
 /**
- * La dettatura locale (gruppo 13): il ponte fra il chiosco e whisper.
+ * Le orecchie della casa (ADR-123): il ponte fra il chiosco e il modello di
+ * trascrizione che la casa ha scelto (ruolo `stt`).
  *
  * Il chiosco manda l'enunciato (PCM int16 a 16 kHz in base64, lo stesso
- * formato di `heard_text`), soul lo gira al servizio di percezione, e il
- * testo torna indietro: NIENTE esce di casa. 501 quando la dettatura non è
- * configurata — è il segnale con cui il muso capisce che deve restare sul
- * riconoscitore del browser, e la risposta onesta di un'installazione che
- * non l'ha accesa.
+ * formato di `heard_text`), soul lo incapsula in un WAV, lo passa al provider
+ * dal cancello e lo dimentica: l'audio non si salva. 501 quando la casa non
+ * ha scelto le orecchie — è il segnale con cui il muso capisce che deve
+ * restare sul riconoscitore del browser.
  *
  * Il tetto sull'audio è aritmetica: 12 secondi di int16 a 16 kHz sono
  * 384 000 byte, cioè 512 000 caratteri di base64 — un enunciato, non un
- * nastro. Aperta come `/v1/chat` (ADR-007: mono-utente, mai pubblico).
+ * nastro.
  */
 
 const MAX_STT_B64_CHARS = 520_000;
@@ -41,8 +41,11 @@ export type SttOutcome = { kind: "text"; text: string } | { kind: "unusable" } |
 
 export interface SttRouteDeps {
   db: DbClient;
-  /** per casa, come il riconoscimento: assente = 501 */
-  transcriber?: (accountId: string) => { transcribe: (audio: string) => Promise<SttOutcome> };
+  /** ADR-123: le orecchie della casa. `undefined` come risposta = nessuna scelta → 501 */
+  transcriber?: (
+    who: { accountId: string; gosinoId: string },
+    audio: string,
+  ) => Promise<SttOutcome | undefined>;
 }
 
 export function registerSttRoute(app: FastifyInstance, deps: SttRouteDeps): void {
@@ -57,12 +60,16 @@ export function registerSttRoute(app: FastifyInstance, deps: SttRouteDeps): void
     if (deps.transcriber === undefined) return reply.code(501).send();
     const scope = await resolveAccount(deps.db, request);
     if (!scope.ok) return reply.code(501).send();
-    const outcome = await deps.transcriber(scope.accountId).transcribe(parsed.data.audio);
+    const outcome = await deps.transcriber(
+      { accountId: scope.accountId, gosinoId: await eldestExemplarOf(deps.db, scope.accountId) },
+      parsed.data.audio,
+    );
+    if (outcome === undefined) return reply.code(501).send();
     // 422: questo clip non si trascrive. Il chiosco lo lascia perdere e resta
-    // dov'è — un 503 qui gli farebbe credere che whisper sia morto
+    // dov'è — un 503 qui gli farebbe credere che le orecchie siano morte
     if (outcome.kind === "unusable") return reply.code(422).send();
-    // whisper giù o in ritardo: 503, e il muso decide lui se riprovare o
-    // ripiegare — un 501 direbbe «non esiste», che sarebbe una bugia
+    // provider giù, chiave rifiutata o tetto finito: 503, e il muso decide lui
+    // se riprovare o ripiegare — un 501 direbbe «non esiste», che è un'altra cosa
     if (outcome.kind === "down") return reply.code(503).send();
     return reply.send({ text: outcome.text });
   });

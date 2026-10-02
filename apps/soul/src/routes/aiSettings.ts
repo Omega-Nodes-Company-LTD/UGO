@@ -1,12 +1,12 @@
 import type { DbClient } from "@ugo/db";
-import { fitsRole, verifyKey, type ModelCatalog, type ProviderBaseUrls } from "@ugo/memory";
+import { verifyKey, type ModelCatalog, type ProviderBaseUrls } from "@ugo/memory";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { AuditLogger } from "../services/auditLog.js";
 import { AI_ROLES, choiceInputSchema, removeChoice, ROLE_PROVIDERS } from "../services/ai/choices.js";
 import { removeKey, saveKey } from "../services/ai/keyring.js";
 import type { AiResolver, PlatformKeys } from "../services/ai/resolver.js";
-import { catalogQuerySchema, choose, modelsFor } from "../services/ai/settings.js";
+import { catalogQuerySchema, choose, modelsFor, voicesOf } from "../services/ai/settings.js";
 import { aiStatus } from "../services/ai/status.js";
 import type { PreHandler } from "./guard.js";
 import { inAccount } from "./scope.js";
@@ -31,6 +31,10 @@ export interface AiSettingsDeps {
 const providerSchema = z.enum(["anthropic", "openrouter", "openai", "elevenlabs"]);
 const roleSchema = z.enum(AI_ROLES);
 const keyBodySchema = z.object({ secret: z.string().trim().min(8).max(500) });
+const voicesQuerySchema = z.object({
+  provider: z.enum(["openai", "elevenlabs", "openrouter"]),
+  fonte: z.enum(["byok", "ugo"]).default("byok"),
+});
 
 function problem(reply: FastifyReply, status: number, title: string, detail?: string): FastifyReply {
   return reply
@@ -120,7 +124,19 @@ export function registerAiSettingsRoutes(app: FastifyInstance, deps: AiSettingsD
       return problem(reply, 409, "manca la chiave", `aggiungi prima una chiave ${query.data.provider}`);
     }
     if (listed === "unreachable") return problem(reply, 503, "il provider non risponde");
-    return reply.send({ modelli: listed.filter((m) => fitsRole(m, query.data.ruolo)) });
+    return reply.send({ modelli: listed });
+  });
+
+  /** ADR-123: le voci di un provider, per il ruolo `tts`. */
+  app.get("/v1/ai/voci", { preHandler: deps.guard }, async (request, reply) => {
+    const query = voicesQuerySchema.safeParse(request.query);
+    if (!query.success) return problem(reply, 400, "richiesta non valida");
+    const listed = await inAccount(deps.db, request, reply, admin, (db, accountId) =>
+      voicesOf(db, accountId, deps, query.data.provider, query.data.fonte),
+    );
+    if (listed === undefined) return reply;
+    if (listed === "unreachable") return problem(reply, 503, "il provider non risponde");
+    return reply.send({ voci: listed });
   });
 
   app.put("/v1/ai/scelte/:ruolo", { preHandler: deps.guard }, async (request, reply) => {

@@ -759,9 +759,10 @@ function handleHeardText(text: string): void {
 }
 
 /**
- * Gruppo 4, la metà chiosco della dettatura locale.
+ * Gruppo 4, la metà chiosco delle orecchie della casa (ADR-123: il modello di
+ * trascrizione che il titolare ha scelto, dietro `/v1/stt`).
  *
- * Nata dietro `?stt=locale` e solo dietro; da STATE §6-terquadragies è
+ * Nata dietro `?stt=locale` (oggi `?stt=cloud`); da STATE §6-terquadragies è
  * anche il ripiego AUTOMATICO del telefono su cui il riconoscitore del
  * browser non resta acceso (il microfono è del misuratore di rumore, ogni
  * `start()` è un bip di sistema). La decisione su quale orecchio usare — e
@@ -770,10 +771,10 @@ function handleHeardText(text: string): void {
  *
  * Il giro: la presa contigua sul microfono già aperto (`sensors.tapAudio`),
  * il cancello puro decide gli enunciati, ogni enunciato va a `/v1/stt` e il
- * testo entra dallo stesso `handleHeardText` del browser. 501 = il server
- * non ha la dettatura; tre guasti di fila = whisper muto: in entrambi i casi
- * decide `EarsChoice` se c'è un'altra strada o se le orecchie si spengono.
- * Niente esce di casa finché funziona: è tutto il punto.
+ * testo entra dallo stesso `handleHeardText` del browser. 501 = la casa non
+ * ha scelto le orecchie; tre guasti di fila = provider muto: in entrambi i
+ * casi decide `EarsChoice` se c'è un'altra strada o se le orecchie si spengono.
+ * L'audio va al provider scelto dalla casa e a nessun altro.
  */
 const ears = new EarsChoice(params.get("stt"), localStorage);
 let localEarsOn = false;
@@ -817,7 +818,7 @@ function startLocalEars(): void {
         body: JSON.stringify({ audio }),
       });
       if (response.status === 501) {
-        localeFailed("la dettatura in casa non è configurata sul server");
+        cloudEarsFailed("la casa non ha scelto le orecchie (Impostazioni AI)");
         return;
       }
       /**
@@ -849,16 +850,16 @@ function startLocalEars(): void {
     } catch {
       setLocalState("idle");
       failures += 1;
-      if (failures >= 3) localeFailed("whisper non risponde");
+      if (failures >= 3) cloudEarsFailed("le orecchie della casa non rispondono");
     }
   };
 
-  const localeFailed = (why: string): void => {
+  const cloudEarsFailed = (why: string): void => {
     if (!localEarsOn) return;
     localEarsOn = false;
     // niente ping-pong: se il browser si è già arreso (o è rotto per memoria)
     // le orecchie si spengono e lo dicono, invece di rimbalzare fra due morti
-    if (ears.localeFailed() === "browser") {
+    if (ears.cloudFailed() === "browser") {
       trouble(why + ": torno al riconoscitore del browser");
       startBrowserListening();
     } else {
@@ -932,7 +933,7 @@ async function startListening(): Promise<void> {
     earsOff();
     return;
   }
-  if (ears.first() === "locale") {
+  if (ears.first() === "cloud") {
     startLocalEars();
     return;
   }
@@ -950,7 +951,7 @@ async function startListening(): Promise<void> {
  * altre, e `EarsChoice` sa gia' cosa farne.
  */
 function browserIsNotARoad(why: string): void {
-  if (ears.browserGaveUp(sensors.micIsOn()) === "locale") {
+  if (ears.browserGaveUp(sensors.micIsOn()) === "cloud") {
     trouble(why + ": passo alla dettatura in casa");
     startLocalEars();
   } else {

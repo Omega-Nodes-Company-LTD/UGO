@@ -47,7 +47,7 @@ export {
   type Provider,
   type TextProvider,
 } from "./providers/types.js";
-export { OpenAiTtsClient, type LocalTtsClient, type TtsSpender } from "./ttsClient.js";
+export * from "./voice/index.js";
 export {
   rerank,
   recencyFactor,

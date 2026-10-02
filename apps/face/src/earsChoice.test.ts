@@ -32,7 +32,7 @@ describe("la prima scelta", () => {
    * casa tua veniva mandato a Google — a ogni avvio di ogni dispositivo.
    */
   it("di default parte dalla dettatura in casa: la voce non esce", () => {
-    expect(new EarsChoice(null, memoryOf()).first()).toBe("locale");
+    expect(new EarsChoice(null, memoryOf()).first()).toBe("cloud");
   });
 
   it("un dispositivo che ha già scoperto che qui whisper non c'è riparte dal browser", () => {
@@ -40,21 +40,21 @@ describe("la prima scelta", () => {
   });
 
   it("?stt=locale forza la dettatura in casa, come sempre", () => {
-    expect(new EarsChoice("locale", memoryOf()).first()).toBe("locale");
+    expect(new EarsChoice("locale", memoryOf()).first()).toBe("cloud");
   });
 
   it("un dispositivo che si ricorda del browser rotto parte dalla dettatura in casa: zero bip", () => {
-    expect(new EarsChoice(null, memoryOf("locale")).first()).toBe("locale");
+    expect(new EarsChoice(null, memoryOf("cloud")).first()).toBe("cloud");
   });
 
   it("?stt=locale dimentica pure: è come si riprova casa dopo che è stata dichiarata morta", () => {
     const memory = memoryOf("browser");
-    expect(new EarsChoice("locale", memory).first()).toBe("locale");
+    expect(new EarsChoice("locale", memory).first()).toBe("cloud");
     expect(memory.stored.has(EARS_MEMORY_KEY)).toBe(false);
   });
 
   it("?stt=browser forza il browser E dimentica: è la via d'uscita se il ricordo è stantio", () => {
-    const memory = memoryOf("locale");
+    const memory = memoryOf("cloud");
     expect(new EarsChoice("browser", memory).first()).toBe("browser");
     expect(memory.stored.has(EARS_MEMORY_KEY)).toBe(false);
   });
@@ -64,9 +64,9 @@ describe("quando il browser si arrende", () => {
   it("passa alla dettatura in casa e se lo ricorda per il prossimo avvio", () => {
     const memory = memoryOf();
     const choice = new EarsChoice(null, memory);
-    expect(choice.browserGaveUp(true)).toBe("locale");
+    expect(choice.browserGaveUp(true)).toBe("cloud");
     // il ricordo sopravvive alla ricarica: la prossima scelta non suona bip
-    expect(new EarsChoice(null, memory).first()).toBe("locale");
+    expect(new EarsChoice(null, memory).first()).toBe("cloud");
   });
 
   it("a microfono spento non c'è nastro da trascrivere: orecchie spente", () => {
@@ -75,7 +75,7 @@ describe("quando il browser si arrende", () => {
 
   it("se la dettatura in casa è già morta in questa sessione, si spegne: niente ping-pong", () => {
     const choice = new EarsChoice(null, memoryOf());
-    expect(choice.localeFailed()).toBe("browser");
+    expect(choice.cloudFailed()).toBe("browser");
     expect(choice.browserGaveUp(true)).toBe("off");
   });
 
@@ -86,7 +86,7 @@ describe("quando il browser si arrende", () => {
 
 describe("quando la dettatura in casa non risponde", () => {
   it("se il browser non è ancora stato provato, si torna lì: è il ripiego di sempre", () => {
-    expect(new EarsChoice("locale", memoryOf()).localeFailed()).toBe("browser");
+    expect(new EarsChoice("locale", memoryOf()).cloudFailed()).toBe("browser");
   });
 
   /**
@@ -98,29 +98,29 @@ describe("quando la dettatura in casa non risponde", () => {
    */
   it("il ripiego sul browser si ricorda: il prezzo si paga una volta sola", () => {
     const memory = memoryOf();
-    expect(new EarsChoice(null, memory).localeFailed()).toBe("browser");
+    expect(new EarsChoice(null, memory).cloudFailed()).toBe("browser");
     expect(memory.stored.get(EARS_MEMORY_KEY)).toBe("browser");
     expect(new EarsChoice(null, memory).first()).toBe("browser");
   });
 
   it("se il browser si è già arreso in questa sessione, ci si spegne invece di rimbalzare", () => {
     const choice = new EarsChoice(null, memoryOf());
-    expect(choice.browserGaveUp(true)).toBe("locale");
-    expect(choice.localeFailed()).toBe("off");
+    expect(choice.browserGaveUp(true)).toBe("cloud");
+    expect(choice.cloudFailed()).toBe("off");
   });
 
   it("se il browser è rotto per memoria, non si riprova a suon di bip: orecchie spente", () => {
-    const choice = new EarsChoice(null, memoryOf("locale"));
-    expect(choice.first()).toBe("locale");
-    expect(choice.localeFailed()).toBe("off");
+    const choice = new EarsChoice(null, memoryOf("cloud"));
+    expect(choice.first()).toBe("cloud");
+    expect(choice.cloudFailed()).toBe("off");
   });
 });
 
 describe("una memoria che non c'è o esplode", () => {
   it("senza memoria funziona tutto, solo senza ricordo fra le ricariche", () => {
     const choice = new EarsChoice(null, undefined);
-    expect(choice.first()).toBe("locale");
-    expect(choice.browserGaveUp(true)).toBe("locale");
+    expect(choice.first()).toBe("cloud");
+    expect(choice.browserGaveUp(true)).toBe("cloud");
   });
 
   it("una memoria che lancia (kiosk in incognito) non abbatte la scelta", () => {
@@ -137,7 +137,16 @@ describe("una memoria che non c'è o esplode", () => {
     };
     const choice = new EarsChoice(null, broken);
     // niente ricordo leggibile = si riparte dal default, che da ADR-109 è casa
-    expect(choice.first()).toBe("locale");
-    expect(choice.localeFailed()).toBe("browser");
+    expect(choice.first()).toBe("cloud");
+    expect(choice.cloudFailed()).toBe("browser");
+  });
+});
+
+describe("il nome vecchio delle orecchie di casa", () => {
+  it("un ricordo «locale» di prima di ADR-123 vale come «cloud»", () => {
+    expect(new EarsChoice(null, memoryOf("locale")).first()).toBe("cloud");
+  });
+  it("?stt=locale nell'URL continua a funzionare", () => {
+    expect(new EarsChoice("locale", memoryOf()).first()).toBe("cloud");
   });
 });

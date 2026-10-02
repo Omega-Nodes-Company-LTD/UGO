@@ -160,12 +160,10 @@ services:
       # porta — mai durante una conversazione
       UGO_VOICE_MODEL_DIR: /models/spkrec-ecapa-voxceleb
       UGO_FACE_MODEL: /models/arcface/model.onnx
-      # gruppo 13 — la dettatura locale (vuota = spenta, il chiosco resta sul
-      # riconoscitore del browser)
-      UGO_STT_MODEL: ${UGO_STT_MODEL:-small}
-      # decisione 2026-08-16 — la voce di casa (vuota = spenta, /v1/tts salta
-      # il gradino Piper e degrada alla voce di sistema)
-      UGO_PIPER_VOICE: ${UGO_PIPER_VOICE:-it_IT-paola-medium}
+      # ADR-123: whisper e Piper non sono più nel percorso vivo (voce e
+      # orecchie sono della casa, dal provider scelto). Vuote = non si scaricano
+      UGO_STT_MODEL: ${UGO_STT_MODEL:-}
+      UGO_PIPER_VOICE: ${UGO_PIPER_VOICE:-}
       TZ: ${TZ:-Europe/Rome}
     volumes:
       # scrivibile: il container si procura da solo i pesi al primo avvio

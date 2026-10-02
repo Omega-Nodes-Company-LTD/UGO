@@ -142,8 +142,6 @@ export const soulEnvSchema = z.object({
   // una casa usa la chiave della casa; senza nessuna delle due, voce di sistema
   OPENAI_API_KEY: optionalNonEmpty,
   OPENAI_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
-  UGO_TTS_MODEL: z.string().min(1).default("gpt-4o-mini-tts"),
-  UGO_TTS_VOICE: z.string().min(1).default("alloy"),
   // preprocess: una stringa vuota NON è latitudine 0 (l'equatore per sbaglio)
   UGO_HOME_LAT: z.preprocess(
     (value) => (value === "" ? undefined : value),

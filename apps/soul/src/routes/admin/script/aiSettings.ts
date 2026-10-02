@@ -10,8 +10,12 @@ const AI_ROLE = {
   think: ["Il pensiero", "sogno, ruminazione, consiglio, storie"],
   vision: ["Gli occhi", "le foto che gli mostri e le occhiate"],
   judge: ["Il giudice", "decide se sa davvero una cosa"],
+  tts: ["La voce", "come suona quando parla (ADR-123)"],
+  stt: ["Le orecchie", "trascrive quello che gli dici"],
 };
 const AI_TEXT_PROVIDERS = ["anthropic", "openrouter"];
+const AI_VOICE_PROVIDERS = ["openai", "elevenlabs", "openrouter"];
+const providersFor = (role) => role === "tts" || role === "stt" ? AI_VOICE_PROVIDERS : AI_TEXT_PROVIDERS;
 const KEY_STATE = { ok: ["good", "funziona"], unverified: ["warning", "da provare"],
   invalid: ["critical", "rifiutata"] };
 let AI_STATUS = null;
@@ -52,8 +56,8 @@ function drawAiKeys(s) {
   }).join("");
 }
 
-function sourceOptions(s, chosen) {
-  const ugo = AI_TEXT_PROVIDERS.some((p) => s.chiaviUgo[p]);
+function sourceOptions(s, role, chosen) {
+  const ugo = providersFor(role).some((p) => s.chiaviUgo[p]);
   return '<option value="byok"' + (chosen === "byok" ? " selected" : "") + ">la mia chiave</option>" +
     (ugo ? '<option value="ugo"' + (chosen === "ugo" ? " selected" : "") + ">chiavi UGO a consumo</option>" : "");
 }
@@ -69,14 +73,18 @@ function drawAiRoles(s) {
       "<h3>" + AI_ROLE[role][0] + ' <span class="muted">— ' + AI_ROLE[role][1] + "</span></h3>" +
       '<p>Adesso: ' + now + "</p>" +
       '<div class="row">' +
-      '<select data-role-source="' + role + '">' + sourceOptions(s, r.source ?? "byok") + "</select>" +
-      '<select data-role-provider="' + role + '">' + AI_TEXT_PROVIDERS.map((p) =>
+      '<select data-role-source="' + role + '">' + sourceOptions(s, role, r.source ?? "byok") + "</select>" +
+      '<select data-role-provider="' + role + '">' + providersFor(role).map((p) =>
         '<option value="' + p + '"' + (r.provider === p ? " selected" : "") + ">" + AI_PROVIDER[p] + "</option>").join("") +
       "</select>" +
       '<button class="ghost" data-role-list="' + role + '">Mostra i modelli</button>' +
       "</div>" +
       '<div class="row"><select data-role-model="' + role + '" data-testid="ai-model-' + role + '" hidden></select>' +
-      '<button data-role-save="' + role + '" data-testid="ai-role-save-' + role + '" hidden>Usa questo</button></div>' +
+      (role === "tts" ? '<select data-role-voice="tts" data-testid="ai-voice" hidden></select>' : "") +
+      '<button data-role-save="' + role + '" data-testid="ai-role-save-' + role + '" hidden>Usa questo</button>' +
+      (role === "tts" && r.configured ? '<button class="ghost" data-voice-preview data-testid="ai-voice-preview">Ascolta</button>' : "") +
+      (r.model ? '<button class="ghost" data-role-drop="' + role + '">Togli</button>' : "") +
+      "</div>" +
       "</div>";
   }).join("");
 }
@@ -93,6 +101,25 @@ async function listModels(role) {
     '<option value="' + escape(m.id) + '">' + escape(m.label) + price(m) + "</option>").join("");
   select.hidden = false;
   document.querySelector('[data-role-save="' + role + '"]').hidden = false;
+  if (role === "tts") {
+    const voices = await call("/v1/ai/voci?provider=" + provider + "&fonte=" + source, {});
+    const pick = document.querySelector('[data-role-voice="tts"]');
+    pick.innerHTML = voices.voci.map((v) =>
+      '<option value="' + escape(v.id) + '">' + escape(v.label) + "</option>").join("");
+    pick.hidden = false;
+  }
+}
+
+/** L'anteprima: una frase vera, dalla stessa rotta del muso, pagata come le altre. */
+async function previewVoice() {
+  const audio = await call("/v1/tts", {
+    method: "POST",
+    blob: true,
+    body: JSON.stringify({ text: "Grunf! Ciao, sono io. Ti piace questa voce?", mood: "contento" }),
+  });
+  if (audio === null) { say("ai-msg", "Nessuna voce: controlla la chiave o il tetto di oggi.", "err"); return; }
+  const player = new Audio(URL.createObjectURL(audio));
+  await player.play();
 }
 
 $("ai-keys").addEventListener("click", async (event) => {
@@ -118,8 +145,16 @@ $("ai-keys").addEventListener("click", async (event) => {
 $("ai-roles").addEventListener("click", async (event) => {
   const list = event.target.closest("[data-role-list]");
   const save = event.target.closest("[data-role-save]");
+  const preview = event.target.closest("[data-voice-preview]");
+  const drop = event.target.closest("[data-role-drop]");
   try {
-    if (list) {
+    if (drop) {
+      await call("/v1/ai/scelte/" + drop.dataset.roleDrop, { method: "DELETE" });
+      say("ai-msg", AI_ROLE[drop.dataset.roleDrop][0] + ": tolto.", "ok");
+      await loadAiSettings();
+    } else if (preview) {
+      await previewVoice();
+    } else if (list) {
       await listModels(list.dataset.roleList);
     } else if (save) {
       const role = save.dataset.roleSave;
@@ -127,6 +162,7 @@ $("ai-roles").addEventListener("click", async (event) => {
         source: document.querySelector('[data-role-source="' + role + '"]').value,
         provider: document.querySelector('[data-role-provider="' + role + '"]').value,
         model: document.querySelector('[data-role-model="' + role + '"]').value,
+        ...(role === "tts" && { voice: document.querySelector('[data-role-voice="tts"]').value }),
       };
       await call("/v1/ai/scelte/" + role, { method: "PUT", body: JSON.stringify(body) });
       say("ai-msg", AI_ROLE[role][0] + ": " + body.model + ".", "ok");
