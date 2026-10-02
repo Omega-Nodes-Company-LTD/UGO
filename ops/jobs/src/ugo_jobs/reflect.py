@@ -150,7 +150,6 @@ def run_reflect(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> R
             date=dream_date, events=events_text, messages=messages_text, transcripts=transcripts_text
         ),
         ReflectionOutput,
-        conn,
     )
 
     memories = [m for m in output.memories if m.kind in ALLOWED_KINDS][:20]

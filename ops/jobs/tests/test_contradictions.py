@@ -346,14 +346,11 @@ def test_a_second_run_supersedes_nothing_twice(pg_url, cfg, batch_stub):
         assert events == 1
 
 
-def test_it_refuses_the_paid_fallback_once_the_day_is_spent(pg_url, cfg, batch_stub):
-    """ADR-023: with the local model gone the fallback costs money, and the
-    budget guard applies to the night path too (CLAUDE.md rule 3)."""
-    from dataclasses import replace
-
+def test_it_stops_when_soul_says_the_day_is_spent(pg_url, cfg, batch_stub):
+    """ADR-023 × ADR-129: the night path obeys the same ceiling as the day,
+    and the ceiling now lives in soul's gate (CLAUDE.md rule 3)."""
     with psycopg.connect(pg_url) as conn:
         _clean(conn)
-        conn.execute("delete from budget_ledger")
         _write_memory(conn, cfg, text="Il pane si compra dal fornaio.", valid_from="2025-05-01")
         _write_memory(
             conn,
@@ -362,23 +359,11 @@ def test_it_refuses_the_paid_fallback_once_the_day_is_spent(pg_url, cfg, batch_s
             valid_from="2026-05-01",
             dream_date=DREAM_DATE,
         )
-        # il giorno della CASA, non `current_date` di Postgres (che vive in
-        # UTC): fra le 22 e le 24 UTC Roma e' gia' domani, la riga finiva su
-        # ieri e il muro non la vedeva — test rosso solo a cavallo della
-        # mezzanotte, che e' il modo peggiore di essere rosso
-        from ugo_jobs.batch import _today
-
-        conn.execute(
-            """
-            insert into budget_ledger
-                (account_id, gosino_id, date, provider, model,
-                 tokens_in, tokens_out, cost_usd)
-            values (%s, %s, %s, 'anthropic', 'claude-haiku-4-5', 1, 1, 99.0)
-            """,
-            (cfg.account_id, cfg.gosino_id, _today(cfg)),
-        )
-        conn.commit()
-
-        broke = replace(cfg, ollama_batch_model="", anthropic_api_key="sk-test")
-        with pytest.raises(BudgetExhausted):
-            run_contradictions(conn, broke, DREAM_DATE)
+        # ADR-129: il tetto lo tiene soul, dentro il cancello. Il sogno sente
+        # il «no» (testo nullo) e lo porta come BudgetExhausted
+        batch_stub.refuse = True
+        try:
+            with pytest.raises(BudgetExhausted):
+                run_contradictions(conn, cfg, DREAM_DATE)
+        finally:
+            batch_stub.refuse = False

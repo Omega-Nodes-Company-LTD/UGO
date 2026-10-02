@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import { createDbClient, gosini, accounts, rooms, runMigrations, type DbClient } from "@ugo/db";
-import type { EmbeddingsClient, LocalTextClient } from "@ugo/memory";
+import type { EmbeddingsClient, TextLlm } from "@ugo/memory";
+import { BLIND_VISION } from "@ugo/memory";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GosinoRegistry } from "../../src/services/pack/runtimes.js";
@@ -25,6 +27,7 @@ const TOKEN = "operator-token";
 const dataKey = randomBytes(32);
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 let app: FastifyInstance;
 let registry: GosinoRegistry;
@@ -34,7 +37,7 @@ let accountId: string;
 const idleEmbedder: EmbeddingsClient = {
   embed: (texts) => Promise.resolve(texts.map(() => Array.from({ length: 768 }, () => 0))),
 };
-const idleLocal: LocalTextClient = {
+const idleLocal: TextLlm = {
   generate: () => Promise.resolve(undefined),
   available: () => Promise.resolve(false),
 };
@@ -54,9 +57,11 @@ const listRooms = async (): Promise<{ id: string; room: string; gosini: { name: 
   }>().rooms;
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  await runMigrations(pg.getConnectionUri());
-  db = createDbClient(pg.getConnectionUri());
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  await runMigrations(pgUrl);
+  db = createDbClient(pgUrl);
 
   const houses = await db.select({ id: accounts.id }).from(accounts).limit(1);
   const found = houses[0]?.id;
@@ -82,10 +87,12 @@ beforeAll(async () => {
     // conservato — e il giorno in cui ha cominciato a essere *chiamato* il cast
     // ha nascosto il cambio di firma al compilatore. Lo ha trovato la CI.
     llm: () => undefined as never,
-    local: idleLocal,
+    think: () => idleLocal,
+    judge: () => idleLocal,
+    vision: () => BLIND_VISION,
     dataKey,
     timezone: "Europe/Rome",
-    localModelUp: () => false,
+    thinkUp: () => false,
     initiativeEnabled: () => true,
     hourOf: () => 15,
   });

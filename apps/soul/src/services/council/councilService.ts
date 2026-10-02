@@ -1,5 +1,5 @@
 import { gosini, psycheSnapshots, traitSets, type DbClient } from "@ugo/db";
-import type { LocalTextClient } from "@ugo/memory";
+import type { TextLlm } from "@ugo/memory";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { type Character, characterFrom } from "./character.js";
 
@@ -50,7 +50,8 @@ interface Participant {
 
 export interface CouncilDeps {
   db: DbClient;
-  local: LocalTextClient;
+  /** ADR-122: ogni partecipante pensa col ruolo `think` della sua casa */
+  think: (accountId: string, gosinoId: string) => TextLlm;
 }
 
 function moodLine(vars: Record<string, number>): string {
@@ -186,7 +187,7 @@ export class CouncilService {
       who.map(async (participant) => ({
         participant,
         text: tidyAnswer(
-          await this.deps.local.generate(firstRoundPrompt(participant, question), 200),
+          await this.deps.think(accountId, participant.id).generate(firstRoundPrompt(participant, question), 200),
         ),
       })),
     );
@@ -211,7 +212,7 @@ export class CouncilService {
           return {
             voice,
             text: tidyAnswer(
-              await this.deps.local.generate(
+              await this.deps.think(accountId, participant.id).generate(
                 secondRoundPrompt(participant, question, voices),
                 200,
               ),

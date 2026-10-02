@@ -1,4 +1,5 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import {
   createDbClient,
   type DbClient,
@@ -8,7 +9,8 @@ import {
   runMigrations,
   traitSets,
 } from "@ugo/db";
-import type { EmbeddingsClient, LlmClient, LocalTextClient } from "@ugo/memory";
+import type { EmbeddingsClient, LlmClient, TextLlm } from "@ugo/memory";
+import { BLIND_VISION } from "@ugo/memory";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ARCHETYPES, characterFrom } from "../../src/services/council/character.js";
@@ -30,6 +32,7 @@ import { GosinoRegistry } from "../../src/services/pack/runtimes.js";
  */
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 let calmo: string;
 let nervoso: string;
@@ -38,7 +41,7 @@ let nervoso: string;
 const embedder: EmbeddingsClient = {
   embed: (texts) => Promise.resolve(texts.map(() => Array.from({ length: 768 }, () => 0.02))),
 };
-const local: LocalTextClient = {
+const local: TextLlm = {
   generate: () => Promise.resolve(undefined),
   available: () => Promise.resolve(false),
 };
@@ -52,8 +55,10 @@ const baselinesOf = async (gosinoId: string): Promise<Record<string, number>> =>
 };
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  const url = pg.getConnectionUri();
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  const url = pgUrl;
   await runMigrations(url);
   db = createDbClient(url);
 
@@ -91,10 +96,12 @@ beforeAll(async () => {
     dbFor: () => db,
     embedder,
     llm: () => undefined as unknown as LlmClient,
-    local,
+    think: () => local,
+    judge: () => local,
+    vision: () => BLIND_VISION,
     dataKey: Buffer.alloc(32, 7),
     timezone: "Europe/Rome",
-    localModelUp: () => false,
+    thinkUp: () => false,
     initiativeEnabled: () => false,
     hourOf: (at) => at.getHours(),
   });
@@ -141,10 +148,12 @@ describe("il genoma arriva fino al database", () => {
       dbFor: () => db,
       embedder,
       llm: () => undefined as unknown as LlmClient,
-      local,
+      think: () => local,
+      judge: () => local,
+      vision: () => BLIND_VISION,
       dataKey: Buffer.alloc(32, 7),
       timezone: "Europe/Rome",
-      localModelUp: () => false,
+      thinkUp: () => false,
       initiativeEnabled: () => false,
       hourOf: (at) => at.getHours(),
     });

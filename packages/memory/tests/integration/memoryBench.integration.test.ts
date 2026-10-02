@@ -10,7 +10,7 @@ import { OllamaEmbeddingsClient } from "../../src/embeddings.js";
 import { benchReport, type BenchCase, type BenchReport } from "../../src/metrics.js";
 import { searchMemories } from "../../src/retrieval.js";
 import { canAnswer } from "../../src/abstain.js";
-import { OllamaTextClient } from "../../src/localText.js";
+import type { TextLlm } from "../../src/text.js";
 
 /**
  * Banco di prova della memoria (backlog, gruppo 1).
@@ -111,6 +111,26 @@ const FLOORS: Record<Family, { recallAtK: number; mrr: number }> = {
   astensione: { recallAtK: 0, mrr: 0 },
 };
 
+function ollamaJudge(baseUrl: string, model: string): Pick<TextLlm, "generate"> {
+  return {
+    generate: async (prompt, maxTokens = 8, options = {}) => {
+      const response = await fetch(new URL("/api/generate", baseUrl), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          model,
+          prompt,
+          stream: false,
+          options: { num_predict: maxTokens, temperature: options.temperature ?? 0 },
+        }),
+      });
+      if (!response.ok) return undefined;
+      const said = z.object({ response: z.string() }).safeParse(await response.json());
+      return said.success ? said.data.response.trim() : undefined;
+    },
+  };
+}
+
 const corpusPath = fileURLToPath(new URL("./bench/corpus.it.json", import.meta.url));
 const corpus: Corpus = corpusSchema.parse(JSON.parse(readFileSync(corpusPath, "utf8")));
 
@@ -118,7 +138,7 @@ let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
 let db: DbClient;
 let embedder: OllamaEmbeddingsClient;
-let judge: OllamaTextClient;
+let judge: Pick<TextLlm, "generate">;
 /** corpus key → the uuid it was seeded under */
 const idByKey = new Map<string, string>();
 const keyById = new Map<string, string>();
@@ -131,9 +151,11 @@ beforeAll(async () => {
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
   embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
-  // ADR-107: il giudice dell'astensione. Modello di casa, mai il provider
-  // (regola 3), e piccolo perché deve rispondere una parola sola.
-  judge = new OllamaTextClient(ollama.baseUrl, TEXT_MODEL);
+  // ADR-107 × ADR-122: in produzione il giudice è il ruolo `judge` della casa,
+  // dietro il cancello. Il banco misura la LOGICA di `canAnswer` e lo fa
+  // contro un modello vero e gratuito: Ollama, chiamato qui dal test e da
+  // nessun'altra parte (il client locale di produzione non esiste più).
+  judge = ollamaJudge(ollama.baseUrl, TEXT_MODEL);
 
   // one embed call for the whole corpus: every memory is a real network round
   // trip and the CI integration job has 30 minutes for every suite together

@@ -1,3 +1,4 @@
+import { AI_SETTINGS_JS } from "./script/aiSettings.js";
 import { ALBUM_JS } from "./script/album.js";
 import { ARCHIVE_JS } from "./script/archive.js";
 import { BIRTH_JS } from "./script/birth.js";
@@ -62,6 +63,7 @@ export const ADMIN_SCRIPT = [
   GRAPH_JS,
   DATA_JS,
   STATUS_JS,
+  AI_SETTINGS_JS,
   DIAGNOSTICS_JS,
   PLACE_JS,
   CAPABILITIES_JS,

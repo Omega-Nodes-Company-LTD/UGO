@@ -1,5 +1,5 @@
 import { desires, events, memories, messages, type DbClient } from "@ugo/db";
-import type { LocalTextClient } from "@ugo/memory";
+import type { TextLlm } from "@ugo/memory";
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import type { PsycheService } from "./psycheService.js";
 
@@ -14,7 +14,7 @@ import type { PsycheService } from "./psycheService.js";
  *
  * Le regole dure, che sono la ragione per cui questo può girare sempre:
  *
- * - **mai il provider**: solo `LocalTextClient`. Il `budget_ledger` non deve
+ * - **mai il provider**: solo `TextLlm`. Il `budget_ledger` non deve
  *   nemmeno vederlo passare — ruminare è gratis o non è;
  * - **ciò che produce passa dal vaglio del sogno**: l'accostamento finisce in
  *   `events` (che `reflect` legge già, riga per riga) e diventa memoria solo
@@ -53,9 +53,10 @@ export interface Ruminator {
 export interface RuminationDeps {
   /** ADR-098: la connessione della casa del ruminante */
   dbFor: (accountId: string) => DbClient;
-  local: LocalTextClient;
-  /** la sonda di `index.ts`: il modello locale c'è ed è vivo */
-  localUp: () => boolean;
+  /** ADR-122: il ruolo `think` DELLA casa del ruminante, col suo cancello */
+  think: (accountId: string, gosinoId: string) => TextLlm;
+  /** la casa ha una testa per pensare (ruolo `think` con chiave) */
+  thinkUp: (accountId: string) => boolean;
   /** l'ora nel fuso della casa (ADR-050) */
   hourOf: (at: Date) => number;
   enabled: () => boolean;
@@ -89,7 +90,7 @@ export class RuminationService {
     mates: readonly Ruminator[],
     at: Date = new Date(),
   ): Promise<RuminationReport> {
-    if (!this.deps.enabled() || !this.deps.localUp()) return { did: "nothing" };
+    if (!this.deps.enabled() || !this.deps.thinkUp(self.accountId)) return { did: "nothing" };
     const hour = this.deps.hourOf(at);
     if (hour < AWAKE_FROM || hour >= AWAKE_UNTIL) return { did: "nothing" };
     const db = this.deps.dbFor(self.accountId);
@@ -177,7 +178,7 @@ export class RuminationService {
       `A: ${a.text}\nB: ${b.text}\n` +
       `C'è un nesso interessante o utile fra i due? Se sì, dillo in UNA frase in italiano, ` +
       `in prima persona. Se non c'è, rispondi solo: NIENTE.`;
-    const out = (await this.deps.local.generate(prompt, 120))?.trim();
+    const out = (await this.deps.think(self.accountId, self.id).generate(prompt, 120))?.trim();
     const worthless = out === undefined || out === "" || /^niente\b/i.test(out) || out.length > SHORT_ENOUGH;
     await db.insert(events).values({
       gosinoId: self.id,
@@ -202,7 +203,7 @@ export class RuminationService {
       `Sei ${self.name}, un maialino domestico curioso. Ripensi a questo: «${seed.text}». ` +
       `Ti è venuta una domanda VERA da fare al tuo umano — breve, concreta, in italiano. ` +
       `Scrivi solo la domanda. Se non te ne viene nessuna, rispondi solo: NIENTE.`;
-    const out = (await this.deps.local.generate(prompt, 80))?.trim();
+    const out = (await this.deps.think(self.accountId, self.id).generate(prompt, 80))?.trim();
     const worthless = out === undefined || out === "" || /^niente\b/i.test(out) || out.length > SHORT_ENOUGH;
     await db.insert(events).values({
       gosinoId: self.id,
@@ -242,7 +243,7 @@ export class RuminationService {
     const topic = picked[0];
     if (topic === undefined) return { did: "nothing" };
     const opening = (
-      await this.deps.local.generate(
+      await this.deps.think(self.accountId, self.id).generate(
         `Sei ${self.name}, un maialino domestico. Vicino a te c'è ${mate.name}, un altro maialino. ` +
           `Digli UNA battuta breve, in italiano, su questo pensiero: «${topic.text}».`,
         60,
@@ -251,8 +252,9 @@ export class RuminationService {
     if (opening === undefined || opening === "" || opening.length > SHORT_ENOUGH) {
       return { did: "nothing" };
     }
+    // ognuno parla con la SUA testa: la battuta di risposta la paga chi risponde
     const reply = (
-      await this.deps.local.generate(
+      await this.deps.think(mate.accountId, mate.id).generate(
         `Sei ${mate.name}, un maialino domestico. ${self.name} ti ha appena detto: «${opening}». ` +
           `Rispondigli con UNA battuta breve, in italiano.`,
         60,

@@ -1,4 +1,5 @@
-import { type StartedPostgreSqlContainer, PostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import {
   createDbClient,
   desires,
@@ -10,7 +11,7 @@ import {
   runMigrations,
   type DbClient,
 } from "@ugo/db";
-import type { LocalTextClient } from "@ugo/memory";
+import type { TextLlm } from "@ugo/memory";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PsycheService } from "../../src/services/psycheService.js";
@@ -24,6 +25,7 @@ import { RuminationService, type Ruminator } from "../../src/services/rumination
  */
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 let accountId: string;
 
@@ -32,7 +34,7 @@ const NOON = new Date("2026-08-17T12:00:00Z");
 const NIGHT = new Date("2026-08-17T23:30:00Z");
 const hourOf = (at: Date): number => at.getUTCHours();
 
-function recorder(answer: string | undefined): { client: LocalTextClient; prompts: string[] } {
+function recorder(answer: string | undefined): { client: TextLlm; prompts: string[] } {
   const prompts: string[] = [];
   return {
     prompts,
@@ -47,15 +49,15 @@ function recorder(answer: string | undefined): { client: LocalTextClient; prompt
 }
 
 function service(
-  client: LocalTextClient,
+  client: TextLlm,
   rolls: number[],
   overrides: Partial<{ enabled: boolean; up: boolean; gapMin: number }> = {},
 ): RuminationService {
   let index = 0;
   return new RuminationService({
     dbFor: () => db,
-    local: client,
-    localUp: () => overrides.up ?? true,
+    think: () => client,
+    thinkUp: () => overrides.up ?? true,
     hourOf,
     enabled: () => overrides.enabled ?? true,
     gapMin: overrides.gapMin ?? 45,
@@ -77,8 +79,10 @@ async function bornWithMemories(name: string, texts: string[]): Promise<Ruminato
 }
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  const url = pg.getConnectionUri();
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  const url = pgUrl;
   await runMigrations(url);
   db = createDbClient(url);
   const houses = await db.select({ id: accounts.id }).from(accounts).limit(1);

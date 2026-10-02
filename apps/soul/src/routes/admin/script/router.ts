@@ -117,6 +117,9 @@ async function openPage(page) {
     await section(loadCapabilities, "stats-msg");
   } else if (page === "account") {
     await section(loadAccountsPage, "account-msg");
+  } else if (page === "ai") {
+    // ADR-122: le chiavi, un modello per ruolo, e quanto costa oggi
+    await section(loadAiSettings, "ai-msg");
   } else if (page === "conti") {
     await section(loadStats, "stats-msg");
     // ADR-072: l'interruttore della fame vive coi conti, che è dove si guarda

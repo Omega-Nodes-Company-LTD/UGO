@@ -2,13 +2,10 @@ import { resolve } from "node:path";
 import { createDbClient, createScopedDbClient, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
-import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
-  OllamaTextClient,
-  OllamaVisionClient,
-  OpenAiTtsClient,
-} from "@ugo/memory";
+import { ModelCatalog, OllamaEmbeddingsClient, OpenAiTtsClient, type ChatLlm } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
+import { AiResolver } from "./services/ai/resolver.js";
 import { NudgeService } from "./services/nudges.js";
 import { SceneMemory } from "./services/sceneMemory.js";
 import { SceneReader } from "./services/sceneReader.js";
@@ -130,78 +127,58 @@ const [bootstrapExemplar] = await dbFor(bootstrapAccountId)
   .limit(1);
 if (bootstrapExemplar === undefined) throw new Error("no exemplar: run the migrations");
 const psyche = await PsycheService.restore(dbFor(bootstrapAccountId), new Date(), bootstrapExemplar.id);
+/**
+ * ADR-122: con che testa pensa ogni casa. Le chiavi e i modelli sono della
+ * casa (Impostazioni → AI) o di UGO a consumo (ADR-130); il resolver li legge
+ * al momento della chiamata, e ogni chiamata passa dal cancello misurato.
+ * Ollama resta solo per gli embedding.
+ */
+const platformKeys = {
+  anthropic: env.ANTHROPIC_API_KEY,
+  openrouter: env.OPENROUTER_API_KEY,
+  openai: env.OPENAI_API_KEY,
+  elevenlabs: env.ELEVENLABS_API_KEY,
+};
+const providerUrls = {
+  ...(env.ANTHROPIC_BASE_URL !== undefined && { anthropic: env.ANTHROPIC_BASE_URL }),
+  ...(env.OPENROUTER_BASE_URL !== undefined && { openrouter: env.OPENROUTER_BASE_URL }),
+  ...(env.OPENAI_BASE_URL !== undefined && { openai: env.OPENAI_BASE_URL }),
+  ...(env.ELEVENLABS_BASE_URL !== undefined && { elevenlabs: env.ELEVENLABS_BASE_URL }),
+};
+const modelCatalog = new ModelCatalog({
+  ...(env.OPENROUTER_BASE_URL !== undefined && { openRouterBaseUrl: env.OPENROUTER_BASE_URL }),
+  ...(env.ANTHROPIC_BASE_URL !== undefined && { anthropicBaseUrl: env.ANTHROPIC_BASE_URL }),
+});
+const ai = new AiResolver({
+  db,
+  dbFor,
+  masterKey: parseDataKey(env.UGO_DATA_KEY),
+  dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
+  platform: platformKeys,
+  baseUrls: providerUrls,
+  credit: { markup: env.UGO_TOKEN_MARKUP, usdToEur: env.UGO_USD_EUR },
+  // pigro: il resolver nasce prima di `app` (la TDZ che uccideva il boot vero)
+  logger: {
+    warn: (o, m) => {
+      app.log.warn(o, m);
+    },
+  },
+});
+await ai.warm();
+const aiRefresh = setInterval(() => {
+  void ai.warm().catch(() => undefined);
+}, 5 * 60_000);
+aiRefresh.unref();
 // ADR-050: l'orologio e la lingua arrivano dalla CASA. `env.TZ` resta il
 // ripiego per l'apparato di avvio, che nasce prima che una casa sia risolta.
-/**
- * ADR-094/095: la catena — casa (Ollama), poi OpenRouter se c'è la chiave,
- * poi Anthropic. Ogni anello che risponde scrive la sua riga sul ledger col
- * suo listino, e il metabolismo gira su tutti: anche la voce di casa mangia,
- * a listino nominale. I muri (tetto, salvadanaio) stanno all'ingresso della
- * catena. Il modello locale: `OLLAMA_CHAT_MODEL`, o quello del testo
- * dell'iniziativa, o quello del sogno — la casa ne ha sempre almeno uno.
- */
-/**
- * ADR-110: dove girano i modelli che vale la pena mettere su una GPU.
- *
- * Una sola costante, e passa **solo** al vision, al testo locale e all'anello
- * Ollama della catena di chat. Gli embedding restano su `OLLAMA_URL` per
- * scelta: sono l'unico client locale che lancia invece di degradare, e una
- * seconda macchina in mezzo li renderebbe una dipendenza dura.
- *
- * Senza `OLLAMA_GPU_URL` questa riga vale `env.OLLAMA_URL` e il sistema è
- * identico a com'era.
- */
-const gpuUrl = env.OLLAMA_GPU_URL ?? env.OLLAMA_URL;
-
-const localChatModel = env.OLLAMA_CHAT_MODEL ?? env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL;
 const llmFor = (
   accountId: string,
   gosinoId: string,
   clock: HouseClock = { timezone: env.TZ, locale: DEFAULT_LOCALE },
-): ChatLlm => {
-  const remote = new LlmClient({
-    // ADR-098: il muro del budget legge il ledger DELLA casa — sulla
-    // connessione nuda, sotto ugo_app, vedrebbe zero e non morderebbe mai
-    db: dbFor(accountId),
-    apiKey: env.ANTHROPIC_API_KEY,
-    model: env.UGO_CHAT_MODEL,
-    dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
-    accountId,
-    gosinoId,
-    ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
-    timezone: clock.timezone,
-    locale: clock.locale,
-  });
-  if (env.UGO_CHAT_LOCAL_FIRST !== "on") return remote;
-  return new ChatChain({
-    db: dbFor(accountId),
-    accountId,
-    gosinoId,
-    timezone: clock.timezone,
-    locale: clock.locale,
-    local: { baseUrl: gpuUrl, model: localChatModel },
-    ...(env.OPENROUTER_API_KEY !== undefined &&
-      env.OPENROUTER_CHAT_MODEL !== undefined && {
-        openRouter: {
-          apiKey: env.OPENROUTER_API_KEY,
-          model: env.OPENROUTER_CHAT_MODEL,
-          ...(env.OPENROUTER_BASE_URL !== undefined && { baseUrl: env.OPENROUTER_BASE_URL }),
-        },
-      }),
-    remote,
-    // pigro, e non e' un vezzo: llmFor gira al bootstrap, PRIMA che `app`
-    // esista — toccare app.log qui era una TDZ che uccideva il boot vero
-    // (l'ha detto l'e2e, non i test d'integrazione, che montano buildServer)
-    logger: {
-      info: (o, m) => {
-        app.log.info(o, m);
-      },
-      warn: (o, m) => {
-        app.log.warn(o, m);
-      },
-    },
-  });
-};
+): ChatLlm => ai.chatFor(accountId, gosinoId, clock);
+const thinkFor = (accountId: string, gosinoId: string) => ai.textFor(accountId, gosinoId, "think");
+const judgeFor = (accountId: string, gosinoId: string) => ai.textFor(accountId, gosinoId, "judge");
+const visionFor = (accountId: string, gosinoId: string) => ai.visionFor(accountId, gosinoId);
 const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
 
 // ADR-063: la finestra sul mondo — solo se SearXNG è configurato. Un'istanza
@@ -209,11 +186,7 @@ const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
 const web =
   env.SEARXNG_URL === undefined
     ? undefined
-    : new WebWindow({
-        searx: new SearxClient({ baseUrl: env.SEARXNG_URL }),
-        local: new OllamaTextClient(gpuUrl, env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL),
-        localUp: () => localTextUp,
-      });
+    : new WebWindow({ searx: new SearxClient({ baseUrl: env.SEARXNG_URL }) });
 
 
 const pack = new PackService(dbFor(bootstrapAccountId), speciesMap, bootstrapExemplar.id, bootstrapAccountId);
@@ -240,11 +213,9 @@ const bootstrapPercezione =
         token: env.UGO_INTERNAL_TOKEN,
         accountId: bootstrapAccountId,
       });
-// gruppo 12: gli occhi che raccontano — il modello vision locale, se c'è
-const localVision =
-  env.OLLAMA_VISION_MODEL === undefined
-    ? undefined
-    : new OllamaVisionClient(gpuUrl, env.OLLAMA_VISION_MODEL);
+// ADR-122: gli occhi dell'apparato di avvio sono il ruolo `vision` della sua casa
+const bootstrapEyes = visionFor(bootstrapAccountId, bootstrapExemplar.id);
+const bootstrapThink = thinkFor(bootstrapAccountId, bootstrapExemplar.id);
 // ADR-064: le spinte — il servizio nasce PRIMA di ogni chat (l'apparato di
 // avvio e i runtime lo vogliono fra le dipendenze) e legge il registro al
 // momento del gesto, quando esiste da un pezzo
@@ -282,7 +253,10 @@ const chat: ChatService = new ChatService({
   gosinoId: bootstrapExemplar.id,
   accountId: bootstrapAccountId,
   character: bootstrapCharacter,
-  ...(web !== undefined && { web }),
+  ...(web !== undefined && {
+    web: { ask: (query: string) => web.ask(query, bootstrapThink) },
+  }),
+  storyteller: bootstrapThink,
   ...(bootstrapPercezione !== undefined && {
     reader: new SceneReader({
       gateway: (): FaceGateway => face,
@@ -292,24 +266,18 @@ const chat: ChatService = new ChatService({
   // ADR-108: «ricordati questo», anche per l'apparato di avvio — la rotta
   // /v1/chat parla con QUESTA istanza, e il gesto deve valere da lì come dal
   // chiosco (la lezione di ADR-065, che il lettore l'aveva imparata)
-  ...((bootstrapPercezione !== undefined || localVision !== undefined) && {
-    keepsake: new SceneMemory({
-      gateway: (): FaceGateway => face,
-      db,
-      gosinoId: bootstrapExemplar.id,
-      ...(bootstrapPercezione !== undefined && {
-        ocr: (image: string) => bootstrapPercezione.ocr(image),
-      }),
-      ...(localVision !== undefined && {
-        vision: { describe: (image: string) => localVision.describe(image) },
-      }),
-      embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
+  keepsake: new SceneMemory({
+    gateway: (): FaceGateway => face,
+    db,
+    gosinoId: bootstrapExemplar.id,
+    ...(bootstrapPercezione !== undefined && {
+      ocr: (image: string) => bootstrapPercezione.ocr(image),
     }),
+    vision: bootstrapEyes,
+    embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
   }),
   nudges: { answer: (text, at) => nudges.answer(bootstrapExemplar.id, text, at) },
-  ...(localVision !== undefined && {
-    vision: { describe: (image: string) => localVision.describe(image) },
-  }),
+  vision: bootstrapEyes,
   // ADR-099: la cartolina a voce anche per l'apparato di avvio
   postcards: {
     ties: new TieService(db),
@@ -368,34 +336,6 @@ const meetings =
       })
     : undefined;
 
-// ADR-027: initiative. Until now every single thing UGO said was a reply.
-const localText = new OllamaTextClient(
-  gpuUrl,
-  env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
-);
-let localTextUp = false;
-let localVisionUp = false;
-const probeLocal = (): void => {
-  localText
-    .available()
-    .then((up) => {
-      localTextUp = up;
-    })
-    .catch(() => {
-      localTextUp = false;
-    });
-  localVision
-    ?.available()
-    .then((up) => {
-      localVisionUp = up;
-    })
-    .catch(() => {
-      localVisionUp = false;
-    });
-};
-probeLocal();
-const localProbeTimer = setInterval(probeLocal, 10 * 60_000);
-localProbeTimer.unref();
 
 const hourOf = (at: Date): number =>
   Number(at.toLocaleString("it-IT", { hour: "2-digit", hour12: false, timeZone: env.TZ }));
@@ -430,11 +370,13 @@ const registry = await GosinoRegistry.load({
   dbFor,
   embedder,
   llm: llmFor,
-  local: localText,
+  think: thinkFor,
+  judge: judgeFor,
+  vision: visionFor,
   dataKey,
   timezone: env.TZ,
   speciesMap,
-  localModelUp: () => localTextUp,
+  thinkUp: (accountId: string) => ai.has(accountId, "think"),
   initiativeEnabled: (accountId: string) => initiative.on(accountId),
   // ADR-107: il giudice dell'astensione, sul modello di casa
   abstain: env.UGO_ABSTAIN === "on",
@@ -444,10 +386,6 @@ const registry = await GosinoRegistry.load({
   ...(audio !== undefined && { audio }),
   ...(web !== undefined && { web }),
   nudges: { answer: (gosinoId, text, at) => nudges.answer(gosinoId, text, at) },
-  // gruppo 4 — input immagini: gli stessi occhi locali delle occhiate
-  ...(localVision !== undefined && {
-    vision: { describe: (image: string) => localVision.describe(image) },
-  }),
   album: albumService,
 });
 registryRef = registry;
@@ -464,21 +402,11 @@ registryRef = registry;
  */
 const capabilities = (): Capability[] => [
   {
-    id: "vision",
-    label: "Guardare le foto che gli mandi",
-    on: localVision !== undefined,
-    ...(localVision === undefined && {
-      why: "manca OLLAMA_VISION_MODEL (e il modello va scaricato in Ollama). Senza, alle foto risponde che non riesce a vederle.",
-    }),
-  },
-  {
-    id: "gpuNode",
-    label: "Il nodo con la scheda video",
-    on: env.OLLAMA_GPU_URL !== undefined,
-    ...(env.OLLAMA_GPU_URL === undefined && {
-      // ADR-110: spenta è uno stato legittimo, e qui è pure il default. Senza
-      // nodo GPU tutto gira sulla macchina di casa, solo più lentamente
-      why: "manca OLLAMA_GPU_URL: vision e testo locale girano sulla stessa macchina di tutto il resto. Non è un guasto — è più lento, e basta.",
+    id: "ugoKeys",
+    label: "Chiavi UGO a consumo (ADR-130)",
+    on: Object.values(platformKeys).some((key) => key !== undefined),
+    ...(Object.values(platformKeys).every((key) => key === undefined) && {
+      why: "nessuna chiave di piattaforma (ANTHROPIC_API_KEY, OPENROUTER_API_KEY, OPENAI_API_KEY, ELEVENLABS_API_KEY): le case possono usare solo le proprie chiavi.",
     }),
   },
   {
@@ -544,6 +472,14 @@ const capabilities = (): Capability[] => [
 const app = buildServer({
   db,
   capabilities,
+  ai: {
+    masterKey: parseDataKey(env.UGO_DATA_KEY),
+    resolver: ai,
+    catalog: modelCatalog,
+    platform: platformKeys,
+    baseUrls: providerUrls,
+    dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
+  },
   // ADR-061: la stessa nascita di `ugo casa nuova`, ma dal pannello — perché
   // «una persona può avere più case e più negozi» finché crearne una vuol dire
   // entrare nel container è una promessa scritta e non una funzione
@@ -560,18 +496,14 @@ const app = buildServer({
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
-  // ADR-110: la seconda macchina si guarda a parte. Una GPU che non risponde
-  // e un Ollama di casa che non risponde sono due guasti diversi e si
-  // rimediano in due posti diversi
-  ...(env.OLLAMA_GPU_URL !== undefined && { ollamaGpuUrl: env.OLLAMA_GPU_URL }),
   // ADR-101: volto e voce dipendono dalla percezione, e /health non la guardava
   ...(env.UGO_RECOGNITION_URL !== undefined && { perceptionUrl: env.UGO_RECOGNITION_URL }),
   features: {
     chat,
     // ADR-031: more than one exemplar, and a way to ask them all at once.
-    // Local model only: a room full of pigs arguing must never touch the
-    // API budget.
-    council: { council: new CouncilService({ db, local: localText }) },
+    // ADR-122: each one thinks with its own house's `think` role, through the
+    // gate — a room full of pigs arguing is a room full of ledger rows.
+    council: { council: new CouncilService({ db, think: thinkFor }) },
     // ADR-036: the population is its own surface — a house can hold several
     // creatures and never convene a council
     // ADR-070: la chiave della casa serve a firmare gli atti di nascita
@@ -708,15 +640,17 @@ const sleepTalk = new SleepTalk({ dbFor, hourOf });
 // gruppo 12, secondo taglio della visione: ogni tanto UGO dà un'occhiata —
 // lo sguardo si chiede al chiosco, il modello locale lo racconta, la frase
 // entra nella ruminazione. Solo se il modello vision è configurato.
-const sceneGlance =
-  localVision === undefined
-    ? undefined
-    : new SceneGlance({ dbFor, vision: localVision, visionUp: () => localVisionUp, hourOf });
+const sceneGlance = new SceneGlance({
+  dbFor,
+  vision: visionFor,
+  visionUp: (accountId) => ai.has(accountId, "vision"),
+  hourOf,
+});
 
 const rumination = new RuminationService({
   dbFor,
-  local: localText,
-  localUp: () => localTextUp,
+  think: thinkFor,
+  thinkUp: (accountId) => ai.has(accountId, "think"),
   hourOf,
   enabled: () => env.UGO_RUMINATION === "on",
   gapMin: env.UGO_RUMINATION_GAP_MIN,
@@ -740,7 +674,7 @@ const volitionTimer = setInterval(() => {
             app.log.warn(error, "initiative tick failed");
           });
         sceneGlance
-          ?.maybe(runtime)
+          .maybe(runtime)
           .then((did) => {
             // id e verbo, mai la frase (regola 6): il pensiero sta in events
             if (did !== "nothing") app.log.info({ did, gosino: runtime.id }, "scene glance");
@@ -915,7 +849,7 @@ const shutdown = (signal: NodeJS.Signals): void => {
   clearInterval(snapshotTimer);
   clearInterval(solitudeTimer);
   clearInterval(volitionTimer);
-  clearInterval(localProbeTimer);
+  clearInterval(aiRefresh);
   for (const timer of periodic) clearInterval(timer);
   void Promise.allSettled([app.close(), db.$client.end()]).then(() => {
     process.exit(0);

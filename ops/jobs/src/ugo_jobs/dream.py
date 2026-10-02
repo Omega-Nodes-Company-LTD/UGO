@@ -17,6 +17,7 @@ import psycopg
 
 from .anniversaries import run_anniversaries
 from .backup import backup_exists, run_backup
+from .batch import NoThinkingHead
 from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
 from .contradictions import run_contradictions
@@ -126,20 +127,28 @@ def run_dream(cfg: JobsConfig, dream_date: str, mode: str = FULL) -> dict[str, o
             return report
         report["exemplars"] = exemplars
         for step in steps_for(mode):
-            if step in PER_EXEMPLAR:
-                per: dict[str, object] = {}
-                for gosino_id in exemplars:
-                    per[gosino_id] = _run_step(
-                        conn, replace(cfg, gosino_id=gosino_id), dream_date, step, mode, report
+            try:
+                if step in PER_EXEMPLAR:
+                    per: dict[str, object] = {}
+                    for gosino_id in exemplars:
+                        per[gosino_id] = _run_step(
+                            conn, replace(cfg, gosino_id=gosino_id), dream_date, step, mode, report
+                        )
+                    report[step] = per
+                else:
+                    # per casa o globale: l'anziano porta il marcatore, perche'
+                    # `events` e' indicizzata sull'esemplare e il passo va marcato
+                    # una volta sola
+                    report[step] = _run_step(
+                        conn, replace(cfg, gosino_id=exemplars[0]), dream_date, step, mode, report
                     )
-                report[step] = per
-            else:
-                # per casa o globale: l'anziano porta il marcatore, perche'
-                # `events` e' indicizzata sull'esemplare e il passo va marcato
-                # una volta sola
-                report[step] = _run_step(
-                    conn, replace(cfg, gosino_id=exemplars[0]), dream_date, step, mode, report
-                )
+            except NoThinkingHead:
+                # ADR-129: la casa non ha scelto con che testa pensare. I passi
+                # che vogliono parole si saltano e il rapporto lo dice; igiene,
+                # backup e il resto girano lo stesso. Niente marcatore: quando
+                # la casa sceglie, il sogno della stessa data può ripassare.
+                conn.rollback()
+                report[step] = {"skipped": "nessun modello per il ruolo think"}
     return report
 
 

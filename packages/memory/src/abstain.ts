@@ -1,4 +1,4 @@
-import type { LocalTextClient } from "./localText.js";
+import type { TextLlm } from "./text.js";
 import type { RankedMemory } from "./rerank.js";
 import { asksForAVerdict } from "./reporting.js";
 
@@ -122,7 +122,7 @@ export interface CanAnswerDeps {
    * l'interfaccia intera costringerebbe ogni chiamante a portarsi dietro un
    * metodo che qui non serve.
    */
-  local: Pick<LocalTextClient, "generate">;
+  local: Pick<TextLlm, "generate">;
   /** quanti ricordi mostrare al giudice: gli stessi che finirebbero nel prompt */
   limit?: number;
 }

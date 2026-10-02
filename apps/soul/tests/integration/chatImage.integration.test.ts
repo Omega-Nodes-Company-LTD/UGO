@@ -1,4 +1,5 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import { createDbClient, gosini, accounts, runMigrations, type DbClient } from "@ugo/db";
 import type { EmbeddingsClient, LlmClient } from "@ugo/memory";
 import { randomBytes } from "node:crypto";
@@ -19,6 +20,7 @@ const flatEmbedder: EmbeddingsClient = {
 };
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 let gosinoId = "";
 let accountId = "";
@@ -52,8 +54,10 @@ async function chatWith(
 }
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  const url = pg.getConnectionUri();
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  const url = pgUrl;
   await runMigrations(url);
   db = createDbClient(url);
   const [house] = await db.select({ id: accounts.id }).from(accounts).limit(1);
@@ -86,14 +90,14 @@ describe("la foto nella chat", () => {
     expect(seen).not.toContain("jpeg-finto-in-base64");
   });
 
-  it("occhi locali giù o assenti: al modello arriva l'onestà, non il silenzio", async () => {
+  it("occhi giù o non scelti: al modello arriva l'onestà, non il silenzio", async () => {
     const blind = await chatWith({ describe: () => Promise.resolve(undefined) });
     await blind.handle({ channel: "home", text: "e questa?", imageBase64: "altro-jpeg" });
-    expect(askedOfProvider.at(-1)).toContain("non funzionano");
+    expect(askedOfProvider.at(-1)).toContain("non riesci a vederla");
 
     const none = await chatWith(undefined);
     await none.handle({ channel: "home", text: "la vedi?", imageBase64: "terzo-jpeg" });
-    expect(askedOfProvider.at(-1)).toContain("non funzionano");
+    expect(askedOfProvider.at(-1)).toContain("non riesci a vederla");
   });
 
   it("senza foto, il testo passa intonso: il ramo non tocca la chat di sempre", async () => {

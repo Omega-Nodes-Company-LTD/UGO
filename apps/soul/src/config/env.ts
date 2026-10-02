@@ -24,62 +24,32 @@ export const soulEnvSchema = z.object({
   MQTT_PASS: optionalNonEmpty,
   OLLAMA_URL: z.url(),
   /**
-   * ADR-110: la seconda macchina, quella con la scheda video.
-   *
-   * Quando c'è, ci puntano **il modello vision, il testo locale e l'anello
-   * Ollama della catena di chat** — cioè le tre cose che con una GPU
-   * diventano possibili invece che lente. Quando manca, tutto resta su
-   * `OLLAMA_URL` e non cambia una riga di comportamento: è il precedente
-   * esatto di `OLLAMA_BATCH_URL` nei job.
-   *
-   * **Gli embedding NO, mai** (ADR-110 §3): `OllamaEmbeddingsClient.embed()`
-   * è l'unico client locale che *lancia* invece di degradare. Spostarlo su
-   * una seconda macchina introdurrebbe una dipendenza dura che oggi nessun
-   * componente di questo sistema ha.
-   *
-   * **Il muro è la tailnet, e solo quella**: Ollama non ha autenticazione, e
-   * fra due macchine la rete Docker `internal: true` non esiste più
-   * (OPS_COOLIFY §2.3). Un indirizzo qui che non sia dentro la tailnet
-   * pubblica il modello a chiunque.
+   * ADR-122: Ollama resta SOLO per gli embedding — millisecondi su CPU, e
+   * cambiarli vorrebbe dire ricalcolare ogni vettore. Tutto il resto (chat,
+   * pensiero, visione, voce) passa dalle chiavi della casa.
    */
-  OLLAMA_GPU_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   OLLAMA_EMBED_MODEL: z.string().min(1).default("nomic-embed-text"),
-  // ADR-027: the model that gives UGO the words for a question of his own.
-  // Local on purpose — an initiative must never be able to spend the API
-  // budget. Falls back to the dream's model, already pulled on the server.
-  // the dream's model is already pulled on the server, so it is the default
-  // here too; point TEXT at something smaller for snappier questions
-  OLLAMA_BATCH_MODEL: z.string().min(1).default("qwen3:30b-a3b"),
-  OLLAMA_TEXT_MODEL: z.preprocess(
-    (value) => (value === "" ? undefined : value),
-    z.string().min(1).optional(),
-  ),
   /**
-   * ADR-094: la voce di casa parla per prima, e il provider è il soccorso.
-   * Acceso per default su direttiva del proprietario — «local-first» senza
-   * l'asterisco. `off` esiste per il giorno in cui serve confrontare le due
-   * voci, non come scelta consigliata.
+   * ADR-122 / ADR-130: le chiavi di PIATTAFORMA — le «chiavi UGO» che una casa
+   * può usare a consumo, scalando dal suo credito. Tutte facoltative: senza,
+   * le case possono solo portare le proprie. Mai mostrate, mai per account.
    */
-  UGO_CHAT_LOCAL_FIRST: z
-    .preprocess((value) => (value === "" ? undefined : value), z.enum(["on", "off"]).default("on")),
-  /** il modello di casa per la CHAT; vuoto = quello del testo, poi del sogno */
-  OLLAMA_CHAT_MODEL: z.preprocess(
-    (value) => (value === "" ? undefined : value),
-    z.string().min(1).optional(),
-  ),
-  // ADR-095: il secondo anello della catena, fra casa e Anthropic. Solo con
-  // la chiave; senza, la catena lo salta e non se ne accorge nessuno.
   OPENROUTER_API_KEY: optionalNonEmpty,
-  OPENROUTER_CHAT_MODEL: optionalNonEmpty,
   /** override per gli stub di rete nei test; vuoto = https://openrouter.ai */
   OPENROUTER_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  ELEVENLABS_API_KEY: optionalNonEmpty,
+  ELEVENLABS_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  /** ADR-130: ricarico sul costo reale delle chiavi UGO (1.3 = +30%) */
+  UGO_TOKEN_MARKUP: z.coerce.number().min(1).default(1.3),
+  /** ADR-130: il cambio con cui la spesa in dollari scala un credito in euro */
+  UGO_USD_EUR: z.coerce.number().positive().default(0.92),
   // Initiative off by default is the wrong default for a companion, but it is
   // the right one for a machine that just learned to speak first.
   UGO_INITIATIVE: z
     .preprocess((value) => (value === "" ? undefined : value), z.enum(["on", "off"]).default("on")),
   /**
    * ADR-107 — il giudice dell'astensione: prima di comporre «Ricordi
-   * pertinenti», il modello di CASA guarda se i ricordi ripescati rispondono
+   * pertinenti», il ruolo `judge` della casa (ADR-122) guarda se i ricordi ripescati rispondono
    * davvero alla domanda. Se no, UGO dice che non lo sa **con parole sue**.
    *
    * Acceso di default per scelta del proprietario (2026-08-19), preso lo
@@ -95,10 +65,10 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.coerce.number().int().min(1).default(4),
   ),
-  ANTHROPIC_API_KEY: z.string().min(1),
+  /** ADR-122: facoltativa — è la chiave UGO a consumo, non quella di tutti */
+  ANTHROPIC_API_KEY: optionalNonEmpty,
   /** override for network-level test stubs; defaults to the official API */
-  ANTHROPIC_BASE_URL: z.url().optional(),
-  UGO_CHAT_MODEL: z.string().min(1).default("claude-haiku-4-5"),
+  ANTHROPIC_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   UGO_DAILY_BUDGET_USD: z.coerce.number().positive().default(0.5),
   /**
    * ADR-103: quanto costa un cucciolo, **per cucciolo** e dalla terza
@@ -150,7 +120,7 @@ export const soulEnvSchema = z.object({
   UGO_CUSTOMER_DAILY_BUDGET_USD: z.coerce.number().positive().default(0.25),
   /** ADR-058: mele per cliente in sette giorni; `customers.weekly_reward_limit` scavalca */
   UGO_CUSTOMER_WEEKLY_REWARDS: z.coerce.number().int().min(0).default(2),
-  /** ADR-059: la ruminazione sui modelli locali — zero token del provider */
+  /** ADR-059: la ruminazione — col ruolo `think` della casa (ADR-122) */
   UGO_RUMINATION: z.enum(["on", "off"]).default("on"),
   /** minuti fra un pensiero e l'altro, per gosino (tentativi, non successi) */
   UGO_RUMINATION_GAP_MIN: z.coerce.number().int().positive().default(45),
@@ -158,9 +128,6 @@ export const soulEnvSchema = z.object({
   // Facoltative: senza, /v1/weather risponde «non disponibile» e il cielo del
   // recinto resta quello di sempre. Coordinate, non un indirizzo: open-meteo
   // non vuole chiavi e non riceve altro.
-  // gruppo 12: il modello vision locale (moondream, llava…). Assente = UGO
-  // non dà occhiate: la visione si accende, non si subisce
-  OLLAMA_VISION_MODEL: optionalNonEmpty,
   // ADR-063: la finestra sul mondo — SearXNG in casa. Assente = il prefisso
   // «cerca:» non esiste e niente esce verso i motori
   SEARXNG_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
@@ -171,12 +138,10 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().min(16).optional(),
   ),
-  // gruppo 13: la voce interim (TTS emotivo OpenAI, finché non c'è la GPU per
-  // XTTS locale). Assente = voce di sistema, come sempre. Attenzione
-  // dichiarata in /documentation: ciò che UGO dice può contenere pezzi della
-  // vostra vita, e sintetizzarlo fuori casa è una scelta, non un default
+  // ADR-123: la chiave OpenAI di PIATTAFORMA (voce UGO a consumo). La voce di
+  // una casa usa la chiave della casa; senza nessuna delle due, voce di sistema
   OPENAI_API_KEY: optionalNonEmpty,
-  OPENAI_BASE_URL: z.url().optional(),
+  OPENAI_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   UGO_TTS_MODEL: z.string().min(1).default("gpt-4o-mini-tts"),
   UGO_TTS_VOICE: z.string().min(1).default("alloy"),
   // preprocess: una stringa vuota NON è latitudine 0 (l'equatore per sbaglio)
@@ -218,15 +183,6 @@ export const soulEnvSchema = z.object({
   // development, where Vite serves it on its own port
   UGO_FACE_DIR: z.preprocess((value) => (value === "" ? undefined : value), z.string().optional()),
   NODE_ENV: z.string().default("development"),
-}).superRefine((env, ctx) => {
-  // meta' configurazione non e' una configurazione: fail fast al boot (regola 4)
-  if (env.OPENROUTER_API_KEY !== undefined && env.OPENROUTER_CHAT_MODEL === undefined) {
-    ctx.addIssue({
-      code: "custom",
-      message: "OPENROUTER_API_KEY impostata senza OPENROUTER_CHAT_MODEL: serve anche il modello",
-      path: ["OPENROUTER_CHAT_MODEL"],
-    });
-  }
 });
 
 export type SoulEnv = z.infer<typeof soulEnvSchema>;

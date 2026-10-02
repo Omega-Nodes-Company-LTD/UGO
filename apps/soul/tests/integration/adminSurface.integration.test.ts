@@ -17,7 +17,8 @@ import {
 } from "@ugo/db";
 import { startPostgres } from "@ugo/factories";
 import { loadSpeciesMap } from "@ugo/shared";
-import type { EmbeddingsClient, LocalTextClient } from "@ugo/memory";
+import type { EmbeddingsClient, TextLlm } from "@ugo/memory";
+import { BLIND_VISION } from "@ugo/memory";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GosinoRegistry } from "../../src/services/pack/runtimes.js";
@@ -52,7 +53,7 @@ let accountId: string;
 const idleEmbedder: EmbeddingsClient = {
   embed: (texts) => Promise.resolve(texts.map(() => Array.from({ length: 768 }, () => 0))),
 };
-const idleLocal: LocalTextClient = {
+const idleLocal: TextLlm = {
   generate: () => Promise.resolve(undefined),
   available: () => Promise.resolve(false),
 };
@@ -97,10 +98,12 @@ beforeAll(async () => {
     // conservato — e il giorno in cui ha cominciato a essere *chiamato* il cast
     // ha nascosto il cambio di firma al compilatore. Lo ha trovato la CI.
     llm: () => undefined as never,
-    local: idleLocal,
+    think: () => idleLocal,
+    judge: () => idleLocal,
+    vision: () => BLIND_VISION,
     dataKey,
     timezone: "Europe/Rome",
-    localModelUp: () => false,
+    thinkUp: () => false,
     initiativeEnabled: () => true,
     hourOf: () => 15,
   });

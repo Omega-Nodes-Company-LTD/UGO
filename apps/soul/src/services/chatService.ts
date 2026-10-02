@@ -932,9 +932,9 @@ export class ChatService {
       if (found.length === 0) throw new BeingNotFoundError(request.beingId);
     }
 
-    // gruppo 4 — input immagini: la foto diventa una frase QUI, col modello
-    // locale, e al provider arriva solo quella. Se gli occhi locali mancano o
-    // sono giù, UGO lo dice invece di fingere di aver visto
+    // gruppo 4 — input immagini: la foto diventa una frase QUI, col ruolo
+    // `vision` della casa (ADR-122), e alla chat arriva solo quella. Se gli
+    // occhi mancano o sono giù, UGO lo dice invece di fingere di aver visto
     let modelText = request.text;
     if (request.imageBase64 !== undefined) {
       const seen =
@@ -943,7 +943,7 @@ export class ChatService {
           : await this.deps.vision.describe(request.imageBase64);
       modelText =
         seen === undefined || seen === ""
-          ? `${request.text}\n[Ti hanno mandato una foto, ma i tuoi occhi locali adesso non funzionano: dillo con onestà.]`
+          ? `${request.text}\n[Ti hanno mandato una foto, ma adesso non riesci a vederla: dillo con onestà.]`
           : `${request.text}\n[Nella foto che ti mostrano: ${seen}]`;
     }
 

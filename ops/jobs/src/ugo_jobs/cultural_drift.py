@@ -121,7 +121,7 @@ def run_cultural_drift(
     )
     
     from .batch import BatchOutput
-    output = ask_batch_model(cfg, prompt, BatchOutput, conn)
+    output = ask_batch_model(cfg, prompt, BatchOutput)
     
     mutations = output.mutations if output and output.mutations else {}
     

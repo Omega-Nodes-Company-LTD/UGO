@@ -125,7 +125,7 @@ describe("POST /v1/chat — the minimal soul (Fase 1 DoD)", () => {
     const secondCapture = stub.requests.at(-1);
     // block 5: the previous session's turns are in the history, decrypted
     const historyContents = secondCapture?.body.messages.map((m) => m.content) ?? [];
-    expect(historyContents.some((c) => c.includes("fattorino DHL"))).toBe(true);
+    expect(historyContents.some((c) => typeof c === "string" && c.includes("fattorino DHL"))).toBe(true);
     // and the memory block is still fed from pgvector
     expect(secondCapture?.body.system[2]?.text).toContain("Ivan");
     await second.close();

@@ -67,16 +67,14 @@ describe("GET /health", () => {
   });
 
   /**
-   * ADR-110: il nodo GPU è una seconda macchina, e `/health` deve saper dire
-   * quale delle due è caduta. «Spenta» resta uno stato legittimo — con una
-   * casa sola non c'è nessun nodo GPU, ed è il caso normale.
+   * ADR-122 supera ADR-110: il nodo GPU non esiste più. Il controllo sparisce
+   * invece di restare «off» per sempre — una riga che non può mai cambiare
+   * stato è rumore nel posto dove si cerca un guasto.
    */
-  it("dice «off» per il nodo GPU quando non è configurato, senza degradare", async () => {
+  it("non elenca più il nodo GPU", async () => {
     const app = buildServer({
       db,
       mqtt: { url: mqttUrl },
-      // ollama di casa raggiungibile non lo è mai in questo test: si guarda
-      // solo la riga del nodo GPU, che è quella che questa prova aggiunge
       ollamaUrl: `http://${UNREACHABLE}`,
       logger: false,
     });
@@ -84,28 +82,7 @@ describe("GET /health", () => {
       const body = (await app.inject({ method: "GET", url: "/health" })).json<{
         checks: Record<string, string>;
       }>();
-      expect(body.checks.ollamaGpu).toBe("off");
-    } finally {
-      await app.close();
-    }
-  });
-
-  it("e «error» quando c'è ma non risponde: due macchine, due righe", async () => {
-    const app = buildServer({
-      db,
-      mqtt: { url: mqttUrl },
-      ollamaUrl: `http://${UNREACHABLE}`,
-      ollamaGpuUrl: `http://${UNREACHABLE}`,
-      logger: false,
-    });
-    try {
-      const response = await app.inject({ method: "GET", url: "/health" });
-      const body = response.json<{ status: string; checks: Record<string, string> }>();
-      expect(body.checks.ollamaGpu).toBe("error");
-      // un nodo GPU giù è una degradazione, non un servizio morto: senza di
-      // lui il vision e il testo locale tornano a girare come prima
-      expect(body.status).toBe("degraded");
-      expect(response.statusCode).toBe(200);
+      expect(Object.keys(body.checks).sort()).toEqual(["db", "mqtt", "ollama", "perception"]);
     } finally {
       await app.close();
     }

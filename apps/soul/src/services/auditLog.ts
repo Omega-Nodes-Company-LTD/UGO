@@ -100,6 +100,12 @@ export const AUDIT_VERBS = [
   "album_retention_set",
   /** ADR-109: le foto scadute, portate via dalla durata scelta. Il conteggio */
   "photos_expired",
+  /** ADR-122: una chiave di provider salvata — il provider, mai la chiave */
+  "provider_key_saved",
+  /** ADR-122: una chiave di provider tolta */
+  "provider_key_removed",
+  /** ADR-122: il modello di un ruolo scelto o tolto — ruolo e provider, mai il prompt */
+  "model_choice_set",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

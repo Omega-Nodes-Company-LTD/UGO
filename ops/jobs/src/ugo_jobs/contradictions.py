@@ -175,7 +175,7 @@ def run_contradictions(
         for a, b in pairs.values()
     )
     output = ask_batch_model(
-        cfg, PROMPT.format(pairs=rendered), ContradictionOutput, conn
+        cfg, PROMPT.format(pairs=rendered), ContradictionOutput
     )
 
     superseded = 0

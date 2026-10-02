@@ -2,7 +2,7 @@ import { gosini, accounts, psycheBaselines, traitSets, type DbClient } from "@ug
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { lifeAt } from "@ugo/psyche";
 import type { SpeciesMap } from "@ugo/shared";
-import type { ChatLlm, EmbeddingsClient, LocalTextClient } from "@ugo/memory";
+import type { ChatLlm, EmbeddingsClient, TextLlm, VisionLlm } from "@ugo/memory";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { AudioStorageConfig } from "../../routes/audio.js";
 import { ChatService } from "../chatService.js";
@@ -99,7 +99,13 @@ export interface RuntimeDeps {
    * conversation drained the first one's day and its ceiling was never read.
    */
   llm: (accountId: string, gosinoId: string, clock: HouseClock) => ChatLlm;
-  local: LocalTextClient;
+  /**
+   * ADR-122: le teste della casa, per ruolo. Fabbriche e non istanze: ogni
+   * esemplare spende per sé (`gosino_id` sul ledger) e la casa paga.
+   */
+  think: (accountId: string, gosinoId: string) => TextLlm;
+  judge: (accountId: string, gosinoId: string) => TextLlm;
+  vision: (accountId: string, gosinoId: string) => VisionLlm;
   dataKey: Buffer;
   /** il cronometro dei turni, per la diagnostica. Assente = non si misura. */
   turnLog?: TurnLog;
@@ -116,7 +122,8 @@ export interface RuntimeDeps {
    * is configuration and is shared.
    */
   speciesMap?: SpeciesMap;
-  localModelUp: () => boolean;
+  /** la casa ha una testa per pensare: l'iniziativa che vuole parole la usa */
+  thinkUp: (accountId: string) => boolean;
   /**
    * ADR-104: **della casa**. Era `() => boolean` per tutto il processo, quindi
    * spegnere l'iniziativa da una casa la spegneva anche al vicino.
@@ -141,12 +148,10 @@ export interface RuntimeDeps {
    * arrivato dal chiosco. Assente = i frame `voice_sample` si ignorano.
    */
   audio?: AudioStorageConfig;
-  /** ADR-063: la finestra sul mondo, condivisa — la query non porta la casa */
-  web?: { ask: (query: string) => Promise<string | undefined> };
+  /** ADR-063: la finestra sul mondo, condivisa; il riassunto lo fa la testa della casa */
+  web?: { ask: (query: string, summarizer?: TextLlm) => Promise<string | undefined> };
   /** ADR-064: le spinte («vai in…», «chiama…») — il servizio sa lui chi è chi */
   nudges?: { answer: (gosinoId: string, text: string, at: Date) => Promise<string | undefined> };
-  /** gruppo 4 — input immagini: il vision locale, condiviso come `web` */
-  vision?: { describe: (jpegBase64: string) => Promise<string | undefined> };
   /** ADR-109: l'album della casa; assente = i gesti dell'album non esistono */
   album?: AlbumService;
 }
@@ -230,6 +235,10 @@ async function buildRuntime(
   // gateway ha bisogno della chat). La scatola scioglie il cerchio: la chat
   // legge il corpo solo al momento del gesto, quando esiste da un pezzo.
   const body: { gateway?: FaceGateway } = {};
+  // ADR-122: la testa e gli occhi di QUESTO esemplare, sulle chiavi della sua casa
+  const think = deps.think(row.accountId, row.id);
+  const eyes = deps.vision(row.accountId, row.id);
+  const web = deps.web;
   const chat = new ChatService({
     db: hdb,
     embedder: deps.embedder,
@@ -248,13 +257,15 @@ async function buildRuntime(
     ...(deps.speciesMap !== undefined && {
       pack: new PackService(hdb, deps.speciesMap, row.id, row.accountId),
     }),
-    ...(deps.web !== undefined && { web: deps.web }),
-    // ADR-088: la storia della buonanotte la scrive il modello di casa, lo
-    // stesso che l'iniziativa usa per le sue domande. Mai il provider.
-    storyteller: deps.local,
-    // ADR-107: lo stesso modello di casa fa anche il giudice dell'astensione.
-    // Assente = spento: l'interruttore è la dipendenza che non arriva.
-    ...(deps.abstain === true && { abstain: deps.local }),
+    ...(web !== undefined && {
+      web: { ask: (query: string) => web.ask(query, think) },
+    }),
+    // ADR-088 × ADR-122: la storia della buonanotte la scrive il ruolo `think`
+    // della casa, lo stesso che l'iniziativa usa per le sue domande.
+    storyteller: think,
+    // ADR-107: il giudice dell'astensione è il ruolo `judge`. Assente = spento:
+    // l'interruttore è la dipendenza che non arriva.
+    ...(deps.abstain === true && { abstain: deps.judge(row.accountId, row.id) }),
     ...(recognition !== undefined && {
       reader: new SceneReader({
         gateway: () => body.gateway,
@@ -278,18 +289,16 @@ async function buildRuntime(
         album: deps.album,
         accountId: row.accountId,
         gosinoId: row.id,
-        ...(deps.vision !== undefined && { vision: deps.vision }),
+        vision: eyes,
       }),
     }),
-    ...((recognition !== undefined || deps.vision !== undefined) && {
-      keepsake: new SceneMemory({
-        gateway: () => body.gateway,
-        db: deps.db,
-        gosinoId: row.id,
-        ...(recognition !== undefined && { ocr: (image: string) => recognition.ocr(image) }),
-        ...(deps.vision !== undefined && { vision: deps.vision }),
-        embedder: deps.embedder,
-      }),
+    keepsake: new SceneMemory({
+      gateway: () => body.gateway,
+      db: deps.db,
+      gosinoId: row.id,
+      ...(recognition !== undefined && { ocr: (image: string) => recognition.ocr(image) }),
+      vision: eyes,
+      embedder: deps.embedder,
     }),
     ...(nudges !== undefined && {
       nudges: { answer: (text: string, at: Date) => nudges.answer(row.id, text, at) },
@@ -298,7 +307,7 @@ async function buildRuntime(
     // partita porta `account_id` e `gosino_id`, e il servizio sa chi sta
     // giocando. Il `dataKey` della casa cifra il segreto a riposo.
     games: { answer: (text: string, at: Date) => new GameService({ db: deps.db, accountId: row.accountId, gosinoId: row.id, dataKey: deps.dataKey }).answer(text, at) },
-    ...(deps.vision !== undefined && { vision: deps.vision }),
+    vision: eyes,
     // ADR-099: la cartolina a voce — il gesto esiste per ogni esemplare,
     // perché la porta vera è il consenso della parentela, non il cablaggio
     postcards: {
@@ -339,14 +348,14 @@ async function buildRuntime(
     gateway,
     curiosity: new Curiosity({
       db: hdb,
-      local: deps.local,
+      local: think,
       dataKey: deps.dataKey,
       name: row.name,
       gosinoId: row.id,
       persona: character.persona,
     }),
     efficacy,
-    localModelUp: deps.localModelUp,
+    localModelUp: () => deps.thinkUp(row.accountId),
     enabled: () => deps.initiativeEnabled(row.accountId),
     hourOf: deps.hourOf,
   });

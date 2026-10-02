@@ -1,4 +1,5 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import { createDbClient, events, messages, runMigrations, type DbClient,
   PRIME_GOSINO_ID,
 } from "@ugo/db";
@@ -18,6 +19,7 @@ const ago = (ms: number): Date => new Date(NOW.getTime() - ms);
 const HOUR = 3_600_000;
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 
 async function freshMonitor(): Promise<{ monitor: SolitudeMonitor; psyche: PsycheService }> {
@@ -26,9 +28,11 @@ async function freshMonitor(): Promise<{ monitor: SolitudeMonitor; psyche: Psych
 }
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  await runMigrations(pg.getConnectionUri());
-  db = createDbClient(pg.getConnectionUri());
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  await runMigrations(pgUrl);
+  db = createDbClient(pgUrl);
 });
 
 afterAll(async () => {

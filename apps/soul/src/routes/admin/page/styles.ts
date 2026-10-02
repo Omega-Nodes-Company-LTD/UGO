@@ -194,4 +194,9 @@ export const ADMIN_STYLES = `
                border-bottom: 1px solid var(--line); }
   .stock-row span { flex: 1 1 auto; }
   .stock-row input { width: 5rem; flex: 0 0 auto; }
+  /* ADR-122: l'avviso che vale su ogni pagina — una cosa da fare, non un errore */
+  .nudge { margin: 0 0 1rem; padding: .8rem 1rem; border: 1px solid var(--warning);
+           border-radius: var(--r); background: var(--surface); }
+  .ai-role { margin-top: .8rem; }
+  .ai-key { align-items: center; padding: .4rem 0; border-bottom: 1px solid var(--line); }
 `;

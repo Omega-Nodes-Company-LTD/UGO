@@ -1,4 +1,5 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import { createDbClient, events, messages, runMigrations, type DbClient,
   PRIME_GOSINO_ID,
 } from "@ugo/db";
@@ -17,6 +18,7 @@ const NOW = new Date("2026-08-09T15:00:00Z"); // 17:00 in Europe/Rome
 const ago = (ms: number): Date => new Date(NOW.getTime() - ms);
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 
 function build(
@@ -45,9 +47,11 @@ const sawSomeone = async (at: Date): Promise<void> => {
 };
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  await runMigrations(pg.getConnectionUri());
-  db = createDbClient(pg.getConnectionUri());
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  await runMigrations(pgUrl);
+  db = createDbClient(pgUrl);
 });
 
 afterAll(async () => {

@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import {
   createDbClient,
   type DbClient,
@@ -10,7 +11,7 @@ import {
   psycheSnapshots,
   runMigrations,
 } from "@ugo/db";
-import type { LocalTextClient } from "@ugo/memory";
+import type { TextLlm } from "@ugo/memory";
 import { encryptText, type ServerToFaceMessage } from "@ugo/shared";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -30,12 +31,15 @@ import { VolitionService } from "../../src/services/volition/volitionService.js"
  */
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 const dataKey = randomBytes(32);
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  const url = pg.getConnectionUri();
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  const url = pgUrl;
   await runMigrations(url);
   db = createDbClient(url);
 }, 240_000);
@@ -74,7 +78,7 @@ function connectBody(gateway: FaceGateway): ServerToFaceMessage[] {
   return heard;
 }
 
-const localSaying = (answer: string | undefined): LocalTextClient => ({
+const localSaying = (answer: string | undefined): TextLlm => ({
   generate: () => Promise.resolve(answer),
   available: () => Promise.resolve(answer !== undefined),
 });

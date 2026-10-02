@@ -1,4 +1,5 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import {
   beings,
   createDbClient,
@@ -28,6 +29,7 @@ const flatEmbedder: EmbeddingsClient = {
 };
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 let gosinoId = "";
 let accountId = "";
@@ -44,8 +46,10 @@ const capturingLlm = {
 } as unknown as LlmClient;
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  const url = pg.getConnectionUri();
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  const url = pgUrl;
   await runMigrations(url);
   db = createDbClient(url);
   const [house] = await db.select({ id: accounts.id }).from(accounts).limit(1);

@@ -1,4 +1,5 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import {
   createDbClient,
   type DbClient,
@@ -29,6 +30,7 @@ import { PsycheService } from "../../src/services/psycheService.js";
  */
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 let ugo: string;
 let nino: string;
@@ -39,8 +41,10 @@ const flatEmbedder: EmbeddingsClient = {
 };
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  const url = pg.getConnectionUri();
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  const url = pgUrl;
   await runMigrations(url);
   db = createDbClient(url);
   const houses = await db.select({ id: accounts.id }).from(accounts).limit(1);

@@ -1,4 +1,5 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDbClient, runMigrations, type DbClient } from "@ugo/db";
@@ -11,11 +12,14 @@ import { createDbClient, runMigrations, type DbClient } from "@ugo/db";
  */
 
 let container: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  db = createDbClient(container.getConnectionUri());
+  const started = await startPostgres();
+  container = started.container;
+  pgUrl = started.url;
+  db = createDbClient(pgUrl);
 }, 180_000);
 
 afterAll(async () => {
@@ -31,7 +35,7 @@ describe("first boot on an empty database", () => {
     `);
     expect(Number(before[0]?.n)).toBe(0);
 
-    await runMigrations(container.getConnectionUri());
+    await runMigrations(pgUrl);
 
     const after = await db.execute<{ n: string }>(sql`
       select count(*) as n from information_schema.tables
@@ -44,7 +48,7 @@ describe("first boot on an empty database", () => {
   });
 
   it("is safe to run twice, because a restart is not a special case", async () => {
-    await expect(runMigrations(container.getConnectionUri())).resolves.toBeUndefined();
+    await expect(runMigrations(pgUrl)).resolves.toBeUndefined();
     const gosini = await db.execute<{ n: string }>(sql`select count(*) as n from gosini`);
     expect(Number(gosini[0]?.n)).toBe(1);
   });

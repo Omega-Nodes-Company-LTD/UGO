@@ -113,7 +113,6 @@ services:
       # ADR-073: il libro genealogico. Senza, i gosini nascono lo stesso
       UGO_REGISTRY_URL: ${UGO_REGISTRY_URL:-http://registry:3100}
       UGO_REGISTRY_TOKEN: ${UGO_REGISTRY_TOKEN:-}
-      OLLAMA_BATCH_MODEL: ${OLLAMA_BATCH_MODEL:?missing OLLAMA_BATCH_MODEL}
       UGO_DATA_KEY: ${UGO_DATA_KEY:?missing UGO_DATA_KEY}
       S3_ENDPOINT: ${S3_ENDPOINT:?missing S3_ENDPOINT}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:?missing S3_ACCESS_KEY}
@@ -122,14 +121,9 @@ services:
       S3_BUCKET_AUDIO: ${S3_BUCKET_AUDIO:-ugo-audio}
       UGO_WHISPER_MODEL: ${UGO_WHISPER_MODEL:-large-v3}
       UGO_AUDIO_RETENTION_DAYS: ${UGO_AUDIO_RETENTION_DAYS:-90}
-      # ADR-001 — il ripiego a pagamento quando il modello locale non c'è.
-      # `config.py` la legge e `batch.py` la pretende, ma il compose non la
-      # passava: con `OLLAMA_BATCH_MODEL` vuoto — la scelta consigliata dal
-      # runbook — la riflessione notturna moriva su un errore invece di
-      # ripiegare. Facoltativa: senza, resta solo la strada locale, dichiarata.
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      # e il tetto, o il ripiego spenderebbe senza limite dichiarato
-      UGO_DAILY_BUDGET_USD: ${UGO_DAILY_BUDGET_USD:-0.50}
+      # ADR-129 — il sogno pensa chiedendo a soul (ruolo «think» della casa),
+      # col token operatore qui sotto. Nessuna chiave di provider nei job.
+      UGO_SOUL_URL: ${UGO_SOUL_URL:-http://soul:3000}
       # il fix della voce dimenticata (2026-08-16): l'arruolamento vocale va
       # fatto dalla percezione, che tiene ECAPA — il sogno le manda il campione.
       # Vuote = ripiego MFCC locale (ha senso solo in una casa senza percezione)
@@ -285,8 +279,14 @@ services:
       MQTT_PASS: ${MQTT_PASS:?missing MQTT_PASS}
       OLLAMA_URL: ${OLLAMA_URL:?missing OLLAMA_URL}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?missing ANTHROPIC_API_KEY}
-      UGO_CHAT_MODEL: ${UGO_CHAT_MODEL:-claude-haiku-4-5}
+      # ADR-122/130 — le chiavi UGO a consumo (facoltative): le case portano
+      # le proprie dal pannello, queste le pagano a credito
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      UGO_TOKEN_MARKUP: ${UGO_TOKEN_MARKUP:-1.3}
+      UGO_USD_EUR: ${UGO_USD_EUR:-0.92}
       UGO_DAILY_BUDGET_USD: ${UGO_DAILY_BUDGET_USD:-0.50}
       UGO_DATA_KEY: ${UGO_DATA_KEY:?missing UGO_DATA_KEY}
       # rotte protette (oblio/export/sogno/riunioni/presign). L'immagine gira
@@ -324,9 +324,6 @@ services:
       # gruppo 12 — dove sta la casa, per il meteo del recinto
       UGO_HOME_LAT: ${UGO_HOME_LAT:-}
       UGO_HOME_LON: ${UGO_HOME_LON:-}
-      # gruppo 13 — la voce: provider interim, poi Piper in casa
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OLLAMA_VISION_MODEL: ${OLLAMA_VISION_MODEL:-}
       UGO_OWNER_NAME: ${UGO_OWNER_NAME:-casa}
       PORT: "3000"
       TZ: ${TZ:-Europe/Rome}

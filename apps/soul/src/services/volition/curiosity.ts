@@ -1,5 +1,5 @@
 import { desires, memories, type DbClient } from "@ugo/db";
-import type { LocalTextClient } from "@ugo/memory";
+import type { TextLlm } from "@ugo/memory";
 import { decryptText } from "@ugo/shared";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
@@ -26,7 +26,7 @@ const MAX_CHARS = 180;
 
 export interface CuriosityDeps {
   db: DbClient;
-  local: LocalTextClient;
+  local: TextLlm;
   dataKey: Buffer;
   /** the exemplar asking; his own name goes in the prompt */
   name: string;

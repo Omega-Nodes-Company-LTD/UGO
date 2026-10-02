@@ -242,11 +242,9 @@ test("the whole soul can be downloaded, and a being erased for good", async ({ p
 test("the panel shows whether the machinery underneath is alive", async ({ page }) => {
   await openPanel(page);
   await goHouse(page, "sommario");
-  // ADR-110: i controlli si chiamano con parole, non con le chiavi tecniche —
-  // chi guarda il sommario non deve dedurre da «ollamaGpu» che esiste una
-  // seconda macchina
+  // i controlli si chiamano con parole, non con le chiavi tecniche
   await expect(page.getByTestId("health")).toContainText("database");
-  await expect(page.getByTestId("health")).toContainText("modelli in casa");
+  await expect(page.getByTestId("health")).toContainText("memoria (vettori)");
 });
 
 test("what UGO remembers can be read, and searched the way he would", async ({ page }) => {

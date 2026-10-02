@@ -1,37 +1,47 @@
-import {
-  budgetLedger,
-  feedings,
-  accounts,
-  PRIME_GOSINO_ID,
-  PRIME_ACCOUNT_ID,
-  type DbClient,
-} from "@ugo/db";
+import { PRIME_GOSINO_ID, PRIME_ACCOUNT_ID, type DbClient } from "@ugo/db";
 import { DEFAULT_LOCALE, identityPrompt, receptionPrompt, rulesPrompt } from "@ugo/prompts";
-import { and, eq, sql } from "drizzle-orm";
-import { z } from "zod";
-import { computeCostUsd, type TokenUsage } from "./pricing.js";
+import { throughGate, type CreditTerms, type GateRefusal, type KeySource } from "./gate.js";
+import { computeCost, type PriceSnapshot, type TokenUsage } from "./pricing.js";
+import { AnthropicAdapter } from "./providers/anthropic.js";
+import { ProviderAuthError, type CompletionAdapter } from "./providers/types.js";
+import { dailyBudgetUsd, piggyBankUsd, spentTodayUsd } from "./wallet.js";
 
 /**
- * THE budget-guard chokepoint (CLAUDE.md rule 3): every LLM provider call in
- * the whole system goes through this class, records itself on budget_ledger
- * and respects UGO_DAILY_BUDGET_USD. Instantiating a provider client anywhere
- * else in the repository is forbidden.
+ * La conversazione, attraverso il cancello misurato (CLAUDE.md regola 3,
+ * ADR-122). Il provider non è più fisso: è l'adapter che la casa ha scelto.
  *
- * Prompt-cache discipline (PROGETTO §5.5): the two [CACHED] blocks (identity,
- * rules) are ALWAYS first and marked cache_control; dynamic content only ever
- * comes after them. Never interpolate variable data into the cached blocks.
+ * Disciplina della cache (PROGETTO §5.5): i due blocchi [CACHED] — identità e
+ * regole — sono SEMPRE i primi e marcati; il contenuto dinamico viene solo
+ * dopo. Mai interpolare dati variabili nei blocchi cached.
  */
 
 export const DEGRADED_REPLY =
   "Grunf... per oggi ho finito le parole, il salvadanaio dice basta. Torno domani.";
 
 /**
- * La fame (ADR-072). Parole diverse dal tetto di casa apposta: sono due cose
- * diverse — quello è il limite della famiglia, questa è la SUA pancia vuota —
- * e dirle uguali sarebbe una bugia. Non è un guasto: gli si dà da mangiare.
+ * La fame (ADR-072). Parole diverse dal tetto di casa apposta: quello è il
+ * limite della famiglia, questa è la SUA pancia vuota.
  */
 export const HUNGRY_REPLY =
   "Grunf... ho fame. Il mio salvadanaio è vuoto: dammi qualcosa e torno a parlare.";
+
+/** ADR-122: la casa non ha ancora scelto con che testa farmi pensare. */
+export const KEYLESS_REPLY =
+  "Grunf... non ho ancora una testa per pensare: dammi una chiave in Impostazioni → AI e torno a parlare.";
+
+/** ADR-122: la chiave c'era, ma il provider l'ha rifiutata. */
+export const INVALID_KEY_REPLY =
+  "Grunf... la chiave che mi avete dato non apre più niente: controllatela in Impostazioni → AI.";
+
+/** ADR-130: le chiavi UGO a consumo e il credito finito. */
+export const CREDIT_REPLY =
+  "Grunf... ho finito le parole: il credito è a zero. Ricaricatelo e torno a chiacchierare.";
+
+const REFUSAL_REPLY: Record<GateRefusal, string> = {
+  budget: DEGRADED_REPLY,
+  hungry: HUNGRY_REPLY,
+  credit: CREDIT_REPLY,
+};
 
 // `ticket` (ADR-052): technical answers with repo context need more room
 const MAX_TOKENS_BY_CHANNEL = { home: 200, meeting: 300, api: 200, ticket: 400 } as const;
@@ -58,262 +68,134 @@ export interface LlmChatResult {
   costUsd?: number;
 }
 
-/**
- * Ciò che una conversazione chiede a un modello: una risposta. ADR-094 mette
- * due implementazioni dietro questa porta — il provider col budget guard, e
- * la voce di casa che gli parla davanti — e chi conversa non deve sapere
- * quale delle due ha risposto.
- */
+/** Ciò che una conversazione chiede a un modello: una risposta. */
 export interface ChatLlm {
   chat(request: LlmChatRequest, at?: Date): Promise<LlmChatResult>;
 }
 
 export interface LlmClientOptions {
   db: DbClient;
-  apiKey: string;
-  model: string;
+  /** l'adapter scelto dalla casa; senza, Anthropic con `apiKey`/`model` */
+  adapter?: CompletionAdapter;
+  apiKey?: string;
+  model?: string;
+  /** override for network-level test stubs */
+  baseUrl?: string;
   /** fallback ceiling; a house that sets its own in `accounts` overrides it */
   dailyBudgetUsd: number;
-  /** whose piggy bank this is (ADR-019); defaults to the first house */
   accountId?: string;
-  /** which exemplar spent it — a house may hold more than one */
   gosinoId?: string;
-  /** override for network-level test stubs and future proxies */
-  baseUrl?: string;
-  /**
-   * Il fuso della CASA (ADR-050), non del server.
-   *
-   * Decide il confine del giorno del `budget_ledger`, ed e' il punto in cui una
-   * svista non produce un errore ma un addebito nel giorno sbagliato — la
-   * famiglia di difetti peggiore (ADR-035 §3), quella che risponde qualcosa di
-   * plausibile senza sollevare. Due famiglie in fusi diversi resettavano il
-   * salvadanaio all'ora del server.
-   */
+  /** il fuso della CASA (ADR-050): decide il giorno della riga sul ledger */
   timezone?: string;
-  /** La lingua della casa (ADR-050): sceglie i due blocchi cached, N per N. */
+  /** la lingua della casa (ADR-050): sceglie i due blocchi cached */
   locale?: string;
+  /** ADR-130: di chi è la chiave */
+  keySource?: KeySource;
+  credit?: CreditTerms;
+  /** il prezzo fotografato alla scelta del modello (ADR-122) */
+  priceSnapshot?: PriceSnapshot;
+  /** il provider ha rifiutato la chiave: chi ha costruito il client la segna */
+  onAuthFailure?: () => void;
   logger?: { warn: (data: Record<string, unknown>, message: string) => void };
 }
 
-/**
- * Il conteggio, da solo: si legge PRIMA e indipendentemente dal resto, perché
- * la spesa va segnata anche quando la forma del resto è cambiata sotto i piedi.
- */
-const usageSchema = z.object({
-  input_tokens: z.number(),
-  output_tokens: z.number(),
-  cache_creation_input_tokens: z.number().optional(),
-  cache_read_input_tokens: z.number().optional(),
-});
-
-const messagesResponseSchema = z.object({
-  content: z.array(z.object({ type: z.string(), text: z.string().optional() })),
-  usage: usageSchema,
-});
-
-function localDate(timezone: string, at: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(at);
-}
-
-export class LlmClient {
-  private readonly baseUrl: string;
+export class LlmClient implements ChatLlm {
+  private readonly adapter: CompletionAdapter;
   private readonly timezone: string;
   private readonly locale: string;
   private readonly accountId: string;
   private readonly gosinoId: string;
-  /**
-   * La coda del salvadanaio (regola 3).
-   *
-   * Il controllo del tetto e la scrittura sul registro stavano ai due capi di
-   * una chiamata di rete: N richieste concorrenti leggevano tutte lo stesso
-   * `spent`, passavano tutte, e il tetto smetteva di essere un tetto senza
-   * dirlo. Qui la sequenza «guarda quanto s'è speso → chiama → segna» diventa
-   * indivisibile, una richiesta per volta per ogni casa.
-   *
-   * Costa la concorrenza fra due turni della stessa famiglia, ed è un prezzo
-   * che si paga volentieri: `UGO_DAILY_BUDGET_USD` è un vincolo dichiarato, e
-   * un vincolo che si può scavalcare correndo non è un vincolo. Resta di
-   * processo, come l'istanza: due soul sullo stesso database si
-   * ri-sovrapporrebbero, e allora il posto giusto sarebbe il database.
-   */
-  private queue: Promise<unknown> = Promise.resolve();
 
   public constructor(private readonly options: LlmClientOptions) {
-    this.baseUrl = options.baseUrl ?? "https://api.anthropic.com";
+    this.adapter =
+      options.adapter ??
+      new AnthropicAdapter({
+        apiKey: options.apiKey ?? "",
+        model: options.model ?? "claude-haiku-4-5",
+        ...(options.baseUrl !== undefined && { baseUrl: options.baseUrl }),
+      });
     this.timezone = options.timezone ?? "Europe/Rome";
     this.locale = options.locale ?? DEFAULT_LOCALE;
     this.accountId = options.accountId ?? PRIME_ACCOUNT_ID;
     this.gosinoId = options.gosinoId ?? PRIME_GOSINO_ID;
   }
 
-  /**
-   * Sum of THIS house's ledger today — always computed server-side, never
-   * estimated. Scoped by account (ADR-019): before that, one family's
-   * conversation drained the other's day.
-   */
-  public async spentTodayUsd(at: Date = new Date()): Promise<number> {
-    const today = localDate(this.timezone, at);
-    const rows = await this.options.db
-      .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
-      .from(budgetLedger)
-      .where(and(eq(budgetLedger.accountId, this.accountId), eq(budgetLedger.date, today)));
-    return Number(rows[0]?.total ?? 0);
+  public spentTodayUsd(at: Date = new Date()): Promise<number> {
+    return spentTodayUsd(this.options.db, this.accountId, this.timezone, at);
   }
 
-  /**
-   * Il saldo del salvadanaio DI QUESTO esemplare (ADR-072): quanto gli è stato
-   * dato meno quanto ha consumato, da sempre. Un saldo e non una razione: il
-   * lavoro di ieri paga le parole di oggi.
-   *
-   * `undefined` quando la casa non ha il metabolismo acceso — e allora vale
-   * solo il tetto di famiglia, esattamente come prima di questo ADR.
-   */
-  public async piggyBankUsd(): Promise<number | undefined> {
-    const [house] = await this.options.db
-      .select({ on: accounts.metabolism })
-      .from(accounts)
-      .where(eq(accounts.id, this.accountId));
-    if (house?.on !== true) return undefined;
-
-    const [fed] = await this.options.db
-      .select({ total: sql<string>`coalesce(sum(${feedings.amountUsd}), 0)` })
-      .from(feedings)
-      .where(eq(feedings.gosinoId, this.gosinoId));
-    const [eaten] = await this.options.db
-      .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
-      .from(budgetLedger)
-      .where(eq(budgetLedger.gosinoId, this.gosinoId));
-    return Number(fed?.total ?? 0) - Number(eaten?.total ?? 0);
+  public piggyBankUsd(): Promise<number | undefined> {
+    return piggyBankUsd(this.options.db, this.accountId, this.gosinoId);
   }
 
-  /** The house's own ceiling when it has one, the process default otherwise. */
-  public async dailyBudgetUsd(): Promise<number> {
-    const [row] = await this.options.db
-      .select({ limit: accounts.dailyBudgetUsd })
-      .from(accounts)
-      .where(eq(accounts.id, this.accountId));
-    const own = row?.limit;
-    return own === null || own === undefined ? this.options.dailyBudgetUsd : Number(own);
+  public dailyBudgetUsd(): Promise<number> {
+    return dailyBudgetUsd(this.options.db, this.accountId, this.options.dailyBudgetUsd);
   }
 
-  /**
-   * Accoda: la prossima chiamata comincia quando la precedente ha finito di
-   * segnare la spesa, comprese le chiamate finite male.
-   */
   public async chat(request: LlmChatRequest, at: Date = new Date()): Promise<LlmChatResult> {
-    const mine = this.queue.then(
-      () => this.chatSerialized(request, at),
-      () => this.chatSerialized(request, at),
-    );
-    // la coda non deve mai restare "rifiutata", o inghiottirebbe le successive
-    this.queue = mine.catch(() => undefined);
-    return mine;
-  }
-
-  private async chatSerialized(request: LlmChatRequest, at: Date): Promise<LlmChatResult> {
-    const [spent, budgetUsd] = await Promise.all([this.spentTodayUsd(at), this.dailyBudgetUsd()]);
-    if (spent >= budgetUsd) {
-      this.options.logger?.warn(
-        { spentUsd: spent, budgetUsd, accountId: this.accountId },
-        "daily LLM budget exceeded: declared degradation",
-      );
-      return { text: DEGRADED_REPLY, degraded: true };
-    }
-
-    /**
-     * ADR-072: il muro di famiglia è passato, resta la sua pancia. Il controllo
-     * sta DENTRO la stessa coda del tetto, o due turni concorrenti mangerebbero
-     * lo stesso pasto — la lezione già pagata sul TOCTOU del budget guard.
-     */
-    const piggyBank = await this.piggyBankUsd();
-    if (piggyBank !== undefined && piggyBank <= 0) {
-      this.options.logger?.warn(
-        { piggyBankUsd: piggyBank, accountId: this.accountId, gosinoId: this.gosinoId },
-        "empty piggy bank: the exemplar is hungry",
-      );
-      return { text: HUNGRY_REPLY, degraded: true };
-    }
-
     // ADR-052: at the reception the second cached block is the reception's
-    // rules, not the house's. Still a static per-locale file — the cache
-    // discipline of rule 2 holds: two channels, two caches, zero interpolation.
+    // rules. Still a static per-locale file: two channels, two caches.
     const secondBlock =
       request.channel === "ticket" ? receptionPrompt(this.locale) : rulesPrompt(this.locale);
-    const body = {
-      model: this.options.model,
-      max_tokens: MAX_TOKENS_BY_CHANNEL[request.channel],
+    const dynamic = request.dynamicSystem ?? "";
+    const completion = {
       system: [
+        { text: identityPrompt(this.locale), cache: true },
+        { text: secondBlock, cache: true },
+        ...(dynamic === "" ? [] : [{ text: dynamic, cache: false }]),
+      ],
+      messages: [...(request.history ?? []), { role: "user" as const, content: request.userText }],
+      maxTokens: MAX_TOKENS_BY_CHANNEL[request.channel],
+    };
+
+    try {
+      const outcome = await throughGate(
         {
-          type: "text",
-          text: identityPrompt(this.locale),
-          cache_control: { type: "ephemeral" },
+          db: this.options.db,
+          accountId: this.accountId,
+          gosinoId: this.gosinoId,
+          timezone: this.timezone,
+          dailyBudgetUsd: this.options.dailyBudgetUsd,
+          keySource: this.options.keySource ?? "byok",
+          ...(this.options.credit !== undefined && { credit: this.options.credit }),
+          ...(this.options.logger !== undefined && { logger: this.options.logger }),
         },
-        { type: "text", text: secondBlock, cache_control: { type: "ephemeral" } },
-        ...(request.dynamicSystem !== undefined && request.dynamicSystem !== ""
-          ? [{ type: "text", text: request.dynamicSystem }]
-          : []),
-      ],
-      messages: [
-        ...(request.history ?? []),
-        { role: "user" as const, content: request.userText },
-      ],
-    };
-
-    const response = await fetch(new URL("/v1/messages", this.baseUrl), {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": this.options.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
-    });
-    if (!response.ok) {
-      // status only: never log/propagate bodies that could echo prompt content
-      throw new Error(`LLM provider error (status ${String(response.status)})`);
-    }
-
-    // Da qui in giù la chiamata è GIÀ STATA PAGATA, e il registro va scritto
-    // qualunque cosa succeda alla forma della risposta. Prima si faceva
-    // `schema.parse(...)` e si segnava dopo: bastava che il provider
-    // aggiungesse un blocco inatteso perché ogni turno costasse senza lasciare
-    // una riga, e `UGO_DAILY_BUDGET_USD` smettesse di limitare in silenzio —
-    // esattamente il guasto che il salvadanaio esiste per impedire.
-    const payload: unknown = await response.json();
-    const counted = usageSchema.safeParse((payload as { usage?: unknown } | null)?.usage);
-    const usage: TokenUsage = {
-      inputTokens: counted.success ? counted.data.input_tokens : 0,
-      outputTokens: counted.success ? counted.data.output_tokens : 0,
-      cacheCreationInputTokens: counted.success ? (counted.data.cache_creation_input_tokens ?? 0) : 0,
-      cacheReadInputTokens: counted.success ? (counted.data.cache_read_input_tokens ?? 0) : 0,
-    };
-    const costUsd = computeCostUsd(this.options.model, usage);
-
-    await this.options.db.insert(budgetLedger).values({
-      accountId: this.accountId,
-      gosinoId: this.gosinoId,
-      date: localDate(this.timezone, at),
-      provider: "anthropic",
-      model: this.options.model,
-      tokensIn: usage.inputTokens + usage.cacheCreationInputTokens + usage.cacheReadInputTokens,
-      tokensCacheWrite: usage.cacheCreationInputTokens,
-      tokensCacheRead: usage.cacheReadInputTokens,
-      tokensOut: usage.outputTokens,
-      costUsd: costUsd.toFixed(6),
-    });
-    if (!counted.success) {
-      // segnata a zero e dichiarata: una riga a costo zero è una bugia più
-      // piccola di nessuna riga, e questo log è il solo modo di accorgersene
-      this.options.logger?.warn(
-        { accountId: this.accountId, model: this.options.model },
-        "provider usage unreadable: ledger row written with zero tokens",
+        async () => {
+          const answer = await this.adapter.complete(completion);
+          const usage = answer.usage ?? {
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0,
+          };
+          return {
+            value: answer.text,
+            provider: this.adapter.provider,
+            model: this.adapter.model,
+            usage: answer.usage,
+            cost: computeCost(this.adapter.model, usage, {
+              ...(answer.providerCostUsd !== undefined && { providerUsd: answer.providerCostUsd }),
+              ...(this.options.priceSnapshot !== undefined && {
+                snapshot: this.options.priceSnapshot,
+              }),
+            }),
+          };
+        },
+        at,
       );
+      if (!outcome.ok) return { text: REFUSAL_REPLY[outcome.refusal], degraded: true };
+      return {
+        text: outcome.value,
+        degraded: false,
+        ...(outcome.usage !== undefined && { usage: outcome.usage }),
+        costUsd: outcome.costUsd,
+      };
+    } catch (error) {
+      if (error instanceof ProviderAuthError) {
+        this.options.onAuthFailure?.();
+        return { text: INVALID_KEY_REPLY, degraded: true };
+      }
+      throw error;
     }
-
-    const parsed = messagesResponseSchema.parse(payload);
-    const text = parsed.content.find((block) => block.type === "text")?.text ?? "";
-
-    return { text, degraded: false, usage, costUsd };
   }
 }

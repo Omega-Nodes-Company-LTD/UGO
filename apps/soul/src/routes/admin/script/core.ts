@@ -98,6 +98,8 @@ async function boot() {
   }
   await section(refresh, "pack-msg");
   await section(loadGosini, "stats-msg");
+  // ADR-122: se la conversazione non ha una testa, lo si dice su ogni pagina
+  await section(loadAiNudge, "stats-msg");
   await go();
 }
 

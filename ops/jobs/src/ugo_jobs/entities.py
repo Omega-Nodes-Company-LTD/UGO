@@ -160,7 +160,7 @@ def _infer_relations(
         + ", ".join(f"{name}={being_id}" for being_id, name in people)
         for mid, people in interesting.items()
     )
-    output = ask_batch_model(cfg, PROMPT.format(memories=rendered), LinkOutput, conn)
+    output = ask_batch_model(cfg, PROMPT.format(memories=rendered), LinkOutput)
 
     written = 0
     for link in output.links:

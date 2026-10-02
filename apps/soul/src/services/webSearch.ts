@@ -1,4 +1,4 @@
-import type { LocalTextClient } from "@ugo/memory";
+import type { TextLlm } from "@ugo/memory";
 
 /**
  * La finestra sul mondo (gruppo 13, ADR-063): la ricerca web con SearXNG.
@@ -79,28 +79,29 @@ const host = (url: string): string => {
 
 export interface WebWindowDeps {
   searx: SearxClient;
-  /** la sintesi, se il modello locale è su; senza si elencano i titoli */
-  local?: LocalTextClient;
-  localUp?: () => boolean;
 }
 
 export class WebWindow {
   public constructor(private readonly deps: WebWindowDeps) {}
 
-  /** La risposta, o undefined quando la finestra non si apre (SearXNG giù). */
-  public async ask(query: string): Promise<string | undefined> {
+  /**
+   * La risposta, o undefined quando la finestra non si apre (SearXNG giù).
+   * `summarizer` è il ruolo `think` di CHI chiede (ADR-122): la finestra è una
+   * per processo, la testa che riassume è della casa e paga lei.
+   */
+  public async ask(query: string, summarizer?: TextLlm): Promise<string | undefined> {
     const results = await this.deps.searx.search(query);
     if (results === undefined) return undefined;
     if (results.length === 0) {
       return `Ho guardato fuori, ma su «${query}» non ho trovato niente. Grunf.`;
     }
 
-    // la sintesi locale, quando c'è: due frasi con le sue parole
-    if (this.deps.local !== undefined && (this.deps.localUp?.() ?? false)) {
+    // la sintesi, quando la casa ha una testa: due frasi con le sue parole
+    if (summarizer !== undefined) {
       const briefing = results
         .map((r) => `- ${r.title} (${host(r.url)}): ${r.snippet.slice(0, 200)}`)
         .join("\n");
-      const said = await this.deps.local.generate(
+      const said = await summarizer.generate(
         `Sei UGO, un maialino domestico curioso. Qualcuno ti ha chiesto di cercare: «${query}». ` +
           `Questi sono i risultati:\n${briefing}\n\n` +
           "Riassumi in DUE frasi in italiano, con tono da maialino, cosa hai trovato. Solo le due frasi.",

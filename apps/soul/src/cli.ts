@@ -9,6 +9,7 @@ import { createAuditLog } from "./services/auditLog.js";
 import { createAccount, AccountSlugTakenError } from "./services/accountService.js";
 import { ForgetService, BeingNotFoundError } from "./services/privacy/forgetService.js";
 import { plainTextMemories } from "./services/privacy/plainTextMemories.js";
+import { importKeysFromEnv } from "./services/ai/importFromEnv.js";
 
 /**
  * `ugo` operator CLI (PROGETTO §7): data-subject rights that must be
@@ -46,6 +47,11 @@ const USAGE = `uso:
                                fa nascere un'organizzazione: chiave dati, primo
                                gosino, genoma e token del proprietario
 
+  ugo chiavi importa-da-env [--account <slug|uuid>] [--modello claude-haiku-4-5]
+                               ADR-122: porta ANTHROPIC/OPENROUTER/OPENAI/ELEVENLABS_API_KEY
+                               dell'ambiente nelle chiavi dell'account, cifrate, e
+                               sceglie il modello Anthropic per i ruoli di testo
+
   --account   slug o uuid dell'account. Obbligatorio se ce n'è più di uno.`;
 
 /** Resolves `--account` to one account, or explains why it cannot. */
@@ -82,6 +88,7 @@ async function main(): Promise<number> {
       gosino: { type: "string" },
       archetipo: { type: "string" },
       tipo: { type: "string" },
+      modello: { type: "string" },
       // ADR-081: chi conia capostipiti, e chi può allevare
       fonderia: { type: "boolean", default: false },
       allevamento: { type: "boolean", default: false },
@@ -161,6 +168,13 @@ async function main(): Promise<number> {
         resourceId: accountId,
       });
       console.log(JSON.stringify({ ricordi_in_chiaro: report }, null, 2));
+      return 0;
+    }
+    if (command === "chiavi" && positionals[1] === "importa-da-env") {
+      const accountId = await resolveAccount(db, values.account);
+      const report = await importKeysFromEnv(db, accountId, dataKey, process.env, values.modello);
+      // i nomi dei provider e dei ruoli, mai le chiavi
+      console.log(JSON.stringify({ chiavi_importate: report }, null, 2));
       return 0;
     }
     if (command === "account" && positionals[1] === "nuovo") {

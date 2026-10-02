@@ -40,7 +40,7 @@ function searx(answer: object | undefined): SearxClient {
 }
 
 describe("la finestra", () => {
-  it("senza modello locale elenca i titoli, onesti e deterministici", async () => {
+  it("senza una testa per riassumere elenca i titoli, onesti e deterministici", async () => {
     const window = new WebWindow({ searx: searx(RESULTS) });
     const reply = await window.ask("gare di go-kart");
     expect(reply).toContain("Kartodromo di Roma");
@@ -48,16 +48,13 @@ describe("la finestra", () => {
     expect(reply).toContain("Grunf");
   });
 
-  it("col modello locale su, la sintesi ha le sue parole", async () => {
-    const window = new WebWindow({
-      searx: searx(RESULTS),
-      local: {
-        generate: () => Promise.resolve("Grunf! Ci sono gare al kartodromo ogni weekend."),
-        available: () => Promise.resolve(true),
-      },
-      localUp: () => true,
-    });
-    expect(await window.ask("gare di go-kart")).toContain("kartodromo ogni weekend");
+  it("con la testa della casa, la sintesi ha le sue parole", async () => {
+    const window = new WebWindow({ searx: searx(RESULTS) });
+    const think = {
+      generate: () => Promise.resolve("Grunf! Ci sono gare al kartodromo ogni weekend."),
+      available: () => Promise.resolve(true),
+    };
+    expect(await window.ask("gare di go-kart", think)).toContain("kartodromo ogni weekend");
   });
 
   it("zero risultati è una risposta, SearXNG giù è undefined (e chi chiama degrada)", async () => {

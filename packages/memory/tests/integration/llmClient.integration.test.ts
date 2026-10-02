@@ -1,4 +1,3 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   budgetLedger,
   createDbClient,
@@ -7,7 +6,7 @@ import {
   runMigrations,
   type DbClient,
 } from "@ugo/db";
-import { startLlmStub, type LlmStub } from "@ugo/factories";
+import { startLlmStub, startPostgres, type LlmStub, type PostgresHandle } from "@ugo/factories";
 import { identityPrompt, rulesPrompt } from "@ugo/prompts";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { DEGRADED_REPLY, LlmClient } from "../../src/llmClient.js";
@@ -18,7 +17,7 @@ import { computeCostUsd } from "../../src/pricing.js";
 const MODEL = "claude-haiku-4-5";
 const TZ = "Europe/Rome";
 
-let pg: StartedPostgreSqlContainer;
+let pg: PostgresHandle;
 let db: DbClient;
 let stub: LlmStub;
 
@@ -39,15 +38,15 @@ function makeClient(dailyBudgetUsd: number, warnSink?: Record<string, unknown>[]
 }
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  await runMigrations(pg.getConnectionUri());
-  db = createDbClient(pg.getConnectionUri());
+  pg = await startPostgres();
+  await runMigrations(pg.url);
+  db = createDbClient(pg.url);
   stub = await startLlmStub();
 });
 
 afterAll(async () => {
   await db.$client.end();
-  await pg.stop();
+  await pg.container.stop();
   await stub.close();
 });
 

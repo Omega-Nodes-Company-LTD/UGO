@@ -11,6 +11,8 @@ import { registerArchiveRoutes } from "./routes/archive.js";
 import { registerMemoryGraphRoutes } from "./routes/memoryGraph.js";
 import { registerJournalRoutes } from "./routes/journal.js";
 import { registerKeysRoutes } from "./routes/keys.js";
+import { registerAiSettingsRoutes, type AiSettingsDeps } from "./routes/aiSettings.js";
+import { registerInternalThinkRoute } from "./routes/internalThink.js";
 import { registerPackRoutes } from "./routes/pack/index.js";
 import { registerDataSummaryRoute, registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerStatsRoute } from "./routes/stats.js";
@@ -87,6 +89,12 @@ export interface ServerOptions extends HealthDeps {
    * stanotte si vede stamattina senza riavviare per guardare.
    */
   capabilities?: () => Capability[];
+  /**
+   * ADR-122: Impostazioni → AI — le chiavi della casa e un modello per ruolo.
+   * Assente = le rotte non esistono (i test che non parlano di AI non le
+   * costruiscono); in produzione ci sono sempre.
+   */
+  ai?: Omit<AiSettingsDeps, "db" | "guard" | "audit">;
   /**
    * La diagnostica di tutti i container (`/v1/diagnostics`).
    *
@@ -306,6 +314,11 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     const guard = createAuthGuard(audit);
     // ADR-100: le chiavi di casa, le correzioni, il nome della stanza
     registerKeysRoutes(app, { db: options.db, guard, audit });
+    if (options.ai !== undefined) {
+      registerAiSettingsRoutes(app, { ...options.ai, db: options.db, guard, audit });
+      // ADR-129: la porta da cui il sogno chiede di pensare
+      registerInternalThinkRoute(app, { db: options.db, guard, resolver: options.ai.resolver });
+    }
     registerV1Routes(app, {
       db: options.db,
       ...v1,

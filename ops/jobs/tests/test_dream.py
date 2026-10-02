@@ -36,8 +36,6 @@ def make_config(pg_url: str, minio: dict[str, str], ollama_url: str, batch_url: 
         database_url=pg_url,
         ollama_url=ollama_url,
         ollama_embed_model="nomic-embed-text",
-        ollama_batch_url=batch_url,
-        ollama_batch_model="qwen3:30b-a3b",
         data_key_b64=TEST_DATA_KEY,
         s3_endpoint=minio["endpoint"],
         s3_access_key=minio["access_key"],
@@ -45,7 +43,8 @@ def make_config(pg_url: str, minio: dict[str, str], ollama_url: str, batch_url: 
         s3_bucket_backup="ugo-backup",
         s3_bucket_audio="ugo-audio",
         timezone="Europe/Rome",
-        anthropic_api_key="",
+        soul_url=batch_url,
+        internal_token="token-operatore-del-test",
         whisper_model="base",
         whisper_download_root=os.environ.get("UGO_TEST_WHISPER_MODELS", ""),
     )

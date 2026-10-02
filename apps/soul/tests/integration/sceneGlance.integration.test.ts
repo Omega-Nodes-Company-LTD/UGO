@@ -66,7 +66,7 @@ afterAll(async () => {
 function glance(overrides: Partial<ConstructorParameters<typeof SceneGlance>[0]> = {}): SceneGlance {
   return new SceneGlance({
     dbFor: () => db,
-    vision,
+    vision: () => vision,
     visionUp: () => true,
     hourOf: () => 10,
     ...overrides,

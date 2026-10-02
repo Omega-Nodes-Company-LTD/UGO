@@ -1,10 +1,10 @@
 import { sql } from "drizzle-orm";
-import { date, index, integer, numeric, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { check, date, index, integer, numeric, pgTable, text, uuid } from "drizzle-orm/pg-core";
 import { accountId } from "./accounts.js";
 import { gosinoId } from "./self.js";
 
-// The piggy bank (PROGETTO §6): every LLM call is recorded here by
-// packages/memory/llmClient — the ONLY module allowed to call the provider.
+// The piggy bank (PROGETTO §6): every provider call is recorded here by the
+// metered gate of packages/memory (ADR-122) — the ONLY way to reach a provider.
 // The daily spend check reads this table server-side, never a client estimate.
 export const budgetLedger = pgTable(
   "budget_ledger",
@@ -29,6 +29,22 @@ export const budgetLedger = pgTable(
     tokensCacheRead: integer("tokens_cache_read").notNull().default(0),
     tokensOut: integer("tokens_out").notNull().default(0),
     costUsd: numeric("cost_usd", { precision: 10, scale: 6 }).notNull().default("0"),
+    /**
+     * ADR-122: da dove viene il numero. `provider` = lo ha detto lui
+     * (OpenRouter), `snapshot` = il prezzo fotografato alla scelta del modello,
+     * `list` = il nostro listino, `fallback` = modello ignoto prezzato con la
+     * fascia più cara nota. Una chiamata pagata scrive sempre una riga.
+     */
+    costSource: text("cost_source").notNull().default("list"),
+    /** ADR-130: di chi era la chiave — della casa, o di UGO a consumo */
+    keySource: text("key_source").notNull().default("byok"),
   },
-  (table) => [index("budget_ledger_account_date_idx").on(table.accountId, table.date)],
+  (table) => [
+    index("budget_ledger_account_date_idx").on(table.accountId, table.date),
+    check(
+      "budget_ledger_cost_source",
+      sql`${table.costSource} in ('provider', 'snapshot', 'list', 'fallback', 'local')`,
+    ),
+    check("budget_ledger_key_source", sql`${table.keySource} in ('byok', 'ugo')`),
+  ],
 );

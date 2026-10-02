@@ -10,6 +10,7 @@ import base64
 import json
 import os
 import threading
+import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -71,8 +72,6 @@ def db_only_config(database_url: str, **overrides: object) -> "JobsConfig":
         database_url=database_url,
         ollama_url="http://127.0.0.1:1",
         ollama_embed_model="nomic-embed-text",
-        ollama_batch_url="http://127.0.0.1:1",
-        ollama_batch_model="",
         data_key_b64=TEST_DATA_KEY,
         s3_endpoint="http://127.0.0.1:1",
         s3_access_key="x",
@@ -121,6 +120,29 @@ def make_being(conn: psycopg.Connection, account_id: str, name: str) -> str:
 
 @pytest.fixture(scope="session")
 def pg_url() -> str:
+    """Postgres 16 + pgvector, migrated. In CI a container; where Docker is
+    missing (remote sandboxes) a server already running, named by
+    ``UGO_TEST_PG_URL`` — the same fallback as ``postgres.helper.ts``: one
+    throw-away database per session, dropped at the end."""
+    local = os.environ.get("UGO_TEST_PG_URL", "")
+    if local:
+        name = f"ugo_jobs_test_{uuid.uuid4().hex[:10]}"
+        with psycopg.connect(local, autocommit=True) as admin:
+            admin.execute(f"create database {name}")
+        url = local.rsplit("/", 1)[0] + "/" + name
+        try:
+            with psycopg.connect(url) as conn:
+                apply_drizzle_migrations(conn)
+            yield url
+        finally:
+            with psycopg.connect(local, autocommit=True) as admin:
+                admin.execute(
+                    "select pg_terminate_backend(pid) from pg_stat_activity "
+                    "where datname = %s and pid <> pg_backend_pid()",
+                    (name,),
+                )
+                admin.execute(f"drop database if exists {name}")
+        return
     with PostgresContainer("pgvector/pgvector:pg16", driver=None) as container:
         url = container.get_connection_url()
         with psycopg.connect(url) as conn:
@@ -156,16 +178,27 @@ def ollama_url() -> str:
 
 
 class _BatchModelHandler(BaseHTTPRequestHandler):
+    """Soul's ``/v1/interno/pensa``, at network level (ADR-129).
+
+    The dream no longer talks to a model: it asks soul, which answers with the
+    house's ``think`` role. This stub answers the same contract — bearer token,
+    JSON body with ``account_id`` and ``prompt``, ``{"text": ...}`` back — so
+    the Python side runs its real HTTP code. ``refuse`` plays the gate saying
+    no (text null); ``headless`` plays a house with no ``think`` role (409).
+    """
+
     reflection: dict[str, object] = {}
     calls: list[dict[str, object]] = []
     # ADR-023: the dream asks more than one kind of question now. Each route is
     # (marker found in the prompt, answer); anything unmatched still gets
     # `reflection`, so the tests written before this existed are untouched.
     routes: list[tuple[str, dict[str, object]]] = []
+    refuse = False
+    headless = False
+    tokens: list[str] = []
 
     def _answer_for(self, body: dict[str, object]) -> dict[str, object]:
-        messages = body.get("messages", [])
-        prompt = messages[0].get("content", "") if messages else ""
+        prompt = str(body.get("prompt", ""))
         for marker, answer in type(self).routes:
             if marker in prompt:
                 return answer
@@ -175,13 +208,19 @@ class _BatchModelHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("content-length", "0"))
         body = json.loads(self.rfile.read(length))
         type(self).calls.append(body)
-        payload = {
-            "model": body.get("model", ""),
-            "message": {"role": "assistant", "content": json.dumps(self._answer_for(body))},
-            "done": True,
-        }
+        type(self).tokens.append(self.headers.get("authorization", ""))
+        if self.path != "/v1/interno/pensa":
+            self._send(404, {"error": "not found"})
+            return
+        if type(self).headless:
+            self._send(409, {"title": "Nessuna testa per pensare"})
+            return
+        text = None if type(self).refuse else json.dumps(self._answer_for(body))
+        self._send(200, {"text": text})
+
+    def _send(self, status: int, payload: dict[str, object]) -> None:
         data = json.dumps(payload).encode()
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("content-type", "application/json")
         self.send_header("content-length", str(len(data)))
         self.end_headers()

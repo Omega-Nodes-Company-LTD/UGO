@@ -1,5 +1,5 @@
 import { events, type DbClient } from "@ugo/db";
-import type { LocalVisionClient } from "@ugo/memory";
+import type { VisionLlm } from "@ugo/memory";
 import { and, eq, gte, sql } from "drizzle-orm";
 import type { FaceGateway } from "./faceGateway.js";
 
@@ -33,8 +33,9 @@ const GLIMPSE_MAX_AGE_MS = 10 * 60_000;
 export interface SceneGlanceDeps {
   /** ADR-098: la connessione della casa del runtime che guarda */
   dbFor: (accountId: string) => DbClient;
-  vision: LocalVisionClient;
-  visionUp: () => boolean;
+  /** ADR-122: gli occhi DELLA casa che guarda (ruolo `vision`), col suo cancello */
+  vision: (accountId: string, gosinoId: string) => VisionLlm;
+  visionUp: (accountId: string) => boolean;
   hourOf: (at: Date) => number;
   gapMin?: number;
 }
@@ -56,13 +57,13 @@ export class SceneGlance {
     const hour = this.deps.hourOf(at);
     if (hour < GLANCE_FROM_HOUR || hour >= GLANCE_TO_HOUR) return "nothing";
     if (!runtime.gateway.hasBody()) return "nothing";
-    if (!this.deps.visionUp()) return "nothing";
+    if (!this.deps.visionUp(runtime.accountId)) return "nothing";
 
     // uno sguardo già arrivato si guarda SEMPRE, anche col dado cattivo: è
     // stato chiesto, e chiedere per poi non guardare è il tic peggiore
     const held = runtime.gateway.takeGlimpse(GLIMPSE_MAX_AGE_MS, at);
     if (held !== undefined) {
-      const thought = await this.deps.vision.describe(held);
+      const thought = await this.deps.vision(runtime.accountId, runtime.id).describe(held);
       if (thought === undefined) return "nothing";
       // il pensiero entra dal canale della ruminazione: il sogno lo vaglia,
       // non diventa memoria da solo (ADR-059) — e i pixel sono già svaniti

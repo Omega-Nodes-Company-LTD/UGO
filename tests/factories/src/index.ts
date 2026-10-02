@@ -12,7 +12,9 @@ export {
 export { startMinio, type MinioHandle } from "./minio.helper.js";
 export { startVexaStub, VexaStub, type VexaSegment } from "./vexa-stub.helper.js";
 export {
+  BAD_KEY,
   LlmStub,
+  STUB_OPENROUTER_MODELS,
   startLlmStub,
   type CapturedRequest,
   type StubResponsePlan,

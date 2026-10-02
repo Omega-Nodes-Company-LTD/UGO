@@ -84,6 +84,12 @@ export interface ExportBundle {
   actEfficacy: unknown[];
   births: unknown[];
   feedings: unknown[];
+  /** ADR-122: quali chiavi la casa ha dato — provider e ultime cifre, MAI il segreto */
+  providerKeys: unknown[];
+  /** ADR-122: un modello per ruolo, col prezzo fotografato */
+  modelChoices: unknown[];
+  /** ADR-130: ogni movimento del credito, ricariche e consumi */
+  creditLedger: unknown[];
   adoptions: unknown[];
   /** ADR-099: i legami fra le case — le due parti, mai il vicinato intero */
   accountTies: unknown[];
@@ -298,6 +304,9 @@ export class ExportService {
       actEfficacy,
       births,
       feedings,
+      providerKeys,
+      modelChoiceRows,
+      credit,
       adoptions,
       accountTies,
       parcels,
@@ -335,6 +344,15 @@ export class ExportService {
                where account_id = ${accountId} order by born_at`),
       rows(sql`select id, gosino_id, kind, amount_usd, note, at from feedings
                where account_id = ${accountId} order by at`),
+      // ADR-122: `secret_enc` NON si seleziona — come il PAT dei clienti, una
+      // credenziale dentro un file di portabilità è una fuga, non un diritto
+      rows(sql`select provider, hint, status, verified_at, created_at, updated_at
+               from provider_credentials where account_id = ${accountId} order by provider`),
+      rows(sql`select role, source, provider, model, voice, price_in_per_mtok,
+                      price_out_per_mtok, updated_at
+               from model_choices where account_id = ${accountId} order by role`),
+      rows(sql`select id, kind, amount_micros, ref, created_at from credit_ledger
+               where account_id = ${accountId} order by created_at`),
       rows(sql`select id, gosino_id, kennel_account_id, buyer_account_id, status,
                       price_cents, currency, chain_seq, reserved_at, paid_at, delivered_at,
                       cancelled_at
@@ -424,6 +442,9 @@ export class ExportService {
       actEfficacy,
       births,
       feedings,
+      providerKeys,
+      modelChoices: modelChoiceRows,
+      creditLedger: credit,
       adoptions,
       accountTies,
       parcels: this.openParcels(parcels, accountId, houseKeyRow),

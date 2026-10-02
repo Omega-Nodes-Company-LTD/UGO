@@ -1,4 +1,5 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import {
   createDbClient,
   events,
@@ -9,7 +10,8 @@ import {
   runMigrations,
   type DbClient,
 } from "@ugo/db";
-import type { EmbeddingsClient, LocalTextClient } from "@ugo/memory";
+import type { EmbeddingsClient, TextLlm } from "@ugo/memory";
+import { BLIND_VISION } from "@ugo/memory";
 import type { ServerToFaceMessage } from "@ugo/shared";
 import { eq, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
@@ -27,12 +29,13 @@ import { GosinoRegistry } from "../../src/services/pack/runtimes.js";
 const idleEmbedder: EmbeddingsClient = {
   embed: (texts) => Promise.resolve(texts.map(() => Array.from({ length: 768 }, () => 0))),
 };
-const idleLocal: LocalTextClient = {
+const idleLocal: TextLlm = {
   generate: () => Promise.resolve(undefined),
   available: () => Promise.resolve(false),
 };
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 let registry: GosinoRegistry;
 let nudges: NudgeService;
@@ -42,8 +45,10 @@ let silvio = "";
 let pauroso = "";
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  const url = pg.getConnectionUri();
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  const url = pgUrl;
   await runMigrations(url);
   db = createDbClient(url);
   const [house] = await db.select({ id: accounts.id }).from(accounts).limit(1);
@@ -81,10 +86,12 @@ beforeAll(async () => {
     dbFor: () => db,
     embedder: idleEmbedder,
     llm: () => undefined as never,
-    local: idleLocal,
+    think: () => idleLocal,
+    judge: () => idleLocal,
+    vision: () => BLIND_VISION,
     dataKey: randomBytes(32),
     timezone: "Europe/Rome",
-    localModelUp: () => false,
+    thinkUp: () => false,
     initiativeEnabled: () => false,
     hourOf: () => 15,
     nudges: { answer: (gosinoId, text, at) => nudges.answer(gosinoId, text, at) },

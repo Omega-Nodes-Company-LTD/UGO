@@ -1,4 +1,5 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { startPostgres } from "@ugo/factories";
 import {
   createDbClient,
   type DbClient,
@@ -9,7 +10,7 @@ import {
   runMigrations,
   traitSets,
 } from "@ugo/db";
-import type { LocalTextClient } from "@ugo/memory";
+import type { TextLlm } from "@ugo/memory";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ARCHETYPES, characterFrom } from "../../src/services/council/character.js";
@@ -25,12 +26,13 @@ import { CouncilService } from "../../src/services/council/councilService.js";
  */
 
 let pg: StartedPostgreSqlContainer;
+let pgUrl = "";
 let db: DbClient;
 let accountId: string;
 
 /** Remembers every prompt it was asked, and answers with a canned line. */
 function recorder(answers: Record<string, string | undefined>): {
-  client: LocalTextClient;
+  client: TextLlm;
   prompts: string[];
 } {
   const prompts: string[] = [];
@@ -64,8 +66,10 @@ async function born(name: string, archetype: keyof typeof ARCHETYPES, where: str
 }
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
-  const url = pg.getConnectionUri();
+  const started = await startPostgres();
+  pg = started.container;
+  pgUrl = started.url;
+  const url = pgUrl;
   await runMigrations(url);
   db = createDbClient(url);
   const houses = await db.select({ id: accounts.id }).from(accounts).limit(1);
@@ -94,7 +98,7 @@ describe("the council", () => {
       Ugo: "Andiamo subito, dai!",
       Nino: "Mah. Si sta bene anche qui.",
     });
-    const result = await new CouncilService({ db, local: client }).deliberate("Usciamo?", accountId);
+    const result = await new CouncilService({ db, think: () => client }).deliberate("Usciamo?", accountId);
 
     expect(result.voices.map((v) => v.name).sort()).toEqual(["Nino", "Ugo"]);
     expect(result.voices.find((v) => v.name === "Ugo")?.where).toBe("cucina");
@@ -115,7 +119,7 @@ describe("the council", () => {
 
   it("holds the first round blind: nobody sees another answer before speaking", async () => {
     const { client, prompts } = recorder({ Ugo: "Sì", Nino: "No" });
-    await new CouncilService({ db, local: client }).deliberate("Piove?", accountId);
+    await new CouncilService({ db, think: () => client }).deliberate("Piove?", accountId);
     for (const prompt of prompts.slice(0, 2)) {
       expect(prompt).not.toContain("Gli altri hanno detto");
     }
@@ -126,7 +130,7 @@ describe("the council", () => {
       Ugo: "Il fango è la cosa migliore del mondo.",
       Nino: "Il fango è sopravvalutato.",
     });
-    const result = await new CouncilService({ db, local: client }).deliberate("Meglio il fango?", accountId);
+    const result = await new CouncilService({ db, think: () => client }).deliberate("Meglio il fango?", accountId);
 
     const second = prompts.filter((p) => p.includes("Gli altri hanno detto"));
     expect(second).toHaveLength(2);
@@ -140,7 +144,7 @@ describe("the council", () => {
 
   it("leaves out whoever had nothing usable to say, instead of inventing for him", async () => {
     const { client } = recorder({ Ugo: "Direi di sì.", Nino: undefined });
-    const result = await new CouncilService({ db, local: client }).deliberate("Tutto bene?", accountId);
+    const result = await new CouncilService({ db, think: () => client }).deliberate("Tutto bene?", accountId);
     expect(result.voices.map((v) => v.name)).toEqual(["Ugo"]);
     // and with a single voice there is nothing to deliberate about
     expect(result.changedMind).toBe(false);
