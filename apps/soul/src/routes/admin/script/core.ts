@@ -45,8 +45,8 @@ const SPECIES_LABEL = { human: "persona", dog: "cane", parrot: "pappagallo", rep
  */
 const scoped = (path) => {
   if (ACCOUNT === "" || !path.startsWith("/v1/")) return path;
-  if (/[?&]casa=/.test(path)) return path;
-  return path + (path.includes("?") ? "&" : "?") + "casa=" + encodeURIComponent(ACCOUNT);
+  if (/[?&]account=/.test(path)) return path;
+  return path + (path.includes("?") ? "&" : "?") + "account=" + encodeURIComponent(ACCOUNT);
 };
 
 async function call(path, options) {
@@ -89,7 +89,7 @@ async function boot() {
   await section(loadAccounts, "stats-msg");
   ACCOUNT = accountIdOf(ACCOUNT);
   if (ACCOUNT === "" && ACCOUNTS.length >= 2) {
-    // con due case «nessuna casa» non è uno stato: le chiamate senza ?casa=
+    // con due case «nessuna casa» non è uno stato: le chiamate senza ?account=
     // risponderebbero 400 su tutto. Si entra nella prima, e l'indirizzo lo
     // dice — replaceState, non location.hash: niente doppio giro di go()
     ACCOUNT = ACCOUNTS[0].id;

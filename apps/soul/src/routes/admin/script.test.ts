@@ -3,6 +3,7 @@ import { VOICE_SAMPLE_BITRATE } from "@ugo/shared/face";
 import { describe, expect, it } from "vitest";
 import { ADMIN_SCRIPT } from "./script.js";
 import { ADMIN_PAGE } from "./page.js";
+import { SCOPE_PARAM } from "../scope.js";
 
 /**
  * The panel is assembled from several modules concatenated into one script, so
@@ -85,13 +86,15 @@ describe("the assembled panel script", () => {
       path: string,
     ) => string;
 
+    // the panel writes the parameter the server reads: the junction, not two halves
+    expect(scoped("/v1/rooms")).toContain(`?${SCOPE_PARAM}=`);
     // a bare path gains the house; an existing query string is appended to
-    expect(scoped("/v1/rooms")).toBe("/v1/rooms?casa=11111111-2222-4333-8444-555555555555");
+    expect(scoped("/v1/rooms")).toBe("/v1/rooms?account=11111111-2222-4333-8444-555555555555");
     expect(scoped("/v1/memories?q=x")).toBe(
-      "/v1/memories?q=x&casa=11111111-2222-4333-8444-555555555555",
+      "/v1/memories?q=x&account=11111111-2222-4333-8444-555555555555",
     );
     // forWho already carries the house: no duplicate parameter
-    expect(scoped("/v1/stats?casa=altra")).toBe("/v1/stats?casa=altra");
+    expect(scoped("/v1/stats?account=altra")).toBe("/v1/stats?account=altra");
     // outside /v1 nothing changes, and with a single house nothing ever does
     expect(scoped("/health")).toBe("/health");
     context.ACCOUNT = "";

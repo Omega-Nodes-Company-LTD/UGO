@@ -1,0 +1,52 @@
+# ADR-121 — Soul si espone: da creatura di casa a servizio che si vende
+
+**Stato: ACCETTATA** (decisione del proprietario, 2026-10-02). **Supera ADR-007** («local-first,
+zero esposizione pubblica») per il solo servizio `soul`, e **supera ADR-110** (il nodo GPU): il
+calcolo pesante non è più nostro. Restano private, senza eccezioni: Postgres, Ollama (embedding),
+il servizio di percezione (biometria), Mosquitto.
+
+## Contesto
+
+Il proprietario, il 2026-10-02:
+
+> «stacchiamoci dal only local, che non può funzionare al momento per limiti di potenza: le cose
+> più semplici richiedono minuti di elaborazione […] rendilo monetizzabile»
+
+Un prodotto che si vende ha clienti che non stanno sulla nostra tailnet. Il muso di un cliente, a
+casa sua, deve aprire il WebSocket `/v1/face` e chiamare `/v1/chat`: oggi quelle rotte sono
+**aperte senza token** proprio perché ADR-007 garantiva che nessuno fuori dalla tailnet potesse
+raggiungerle. Esporre soul non è quindi un cambio di rete: è un cambio di **autenticazione**.
+
+## Decisione
+
+1. **Un solo dominio pubblico: soul**, dietro Traefik di Coolify con HTTPS. Reception resta come
+   è (ADR-051), con la sua rete dedicata.
+2. **`UGO_PUBLIC=on`** è l'interruttore che rende soul degno di internet:
+   - spegne il ripiego anonimo «c'è un solo account, quindi è quello» (`soleAccount`) per chi non
+     presenta credenziali;
+   - spegne la modalità aperta di sviluppo (nessun segreto configurato = tutto aperto);
+   - ogni rotta `/v1/*` vuole una credenziale, tranne un elenco esplicito e testato: salute,
+     sito pubblico, vetrina in lettura, accesso (magic link), webhook dei pagamenti.
+3. **Il chiosco si abbina**: il pannello mostra un codice di 6 cifre valido 10 minuti; il muso lo
+   presenta a `POST /v1/dispositivi/abbina` e riceve un token `member` etichettato `chiosco`. È
+   la stessa riga di `access_tokens` di ADR-100: revocabile dal pannello.
+4. **Header di sicurezza** su ogni risposta (HSTS, CSP, nosniff, frame-ancestors none,
+   referrer-policy), CORS limitato a `PUBLIC_URL`, `trustProxy` per leggere l'IP vero.
+5. **Rate limit su Postgres** (`rate_limits`), mai in memoria: la chiave è un HMAC dell'IP o
+   dell'email (l'IP è un dato personale), la finestra è fissa, l'upsert è atomico.
+
+## Alternative scartate
+
+- **Una nuova app BFF pubblica, soul privato.** Il WebSocket del muso andrebbe comunque proxato:
+  più pezzi, più latenza, e un secondo posto dove l'autenticazione può sbagliare.
+- **Tailscale per ogni cliente.** Non si chiede a una famiglia di installare una VPN per parlare
+  col suo porcello.
+
+## Conseguenze
+
+- Il limite di **una replica**: la coda per account dentro `LlmClient` è in-process. Due repliche
+  romperebbero il tetto di spesa. Se un giorno servono, la strada è `pg_advisory_xact_lock` per
+  account, non un Redis.
+- Il pannello e il sito portano stili inline che la CSP deve permettere (`style-src 'self'
+  'unsafe-inline'`): gli **script** restano `'self'`, che è la parte che conta.
+- `OPS_COOLIFY.md` cambia: un dominio per soul, nessuna porta di DB/Ollama/percezione/MQTT.

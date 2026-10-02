@@ -33,7 +33,7 @@ Dopo ogni modifica: `tsc --noEmit`, `eslint . --max-warnings=0`, build. Se rosso
 ## REGOLE NON NEGOZIABILI DI PROGETTO
 1. **Zero-Mock**: logica DB/HTTP/MQTT testata contro istanze reali (Testcontainers / broker effimero / sandbox). Unit test solo per funzioni pure (`packages/psyche`, `packages/memory` re-rank).
 2. **Ordine prompt & caching** (PROGETTO §5.5): blocchi identità+regole marcati cache SEMPRE prima di ogni contenuto dinamico. Mai interpolare dati variabili nei blocchi cached.
-3. **Budget guard**: nessuna chiamata al provider LLM fuori da `packages/memory/llmClient` che registra su `budget_ledger` e rispetta `UGO_DAILY_BUDGET_USD`. Vietato istanziare client API altrove.
+3. **Budget guard** (riformulata da ADR-122): ogni chiamata a un provider (LLM, voce) passa dal cancello misurato di `packages/memory` (`LlmClient` per il testo, `VoiceGate` per la voce), che serializza per account, rispetta tetto giornaliero, salvadanaio e credito (ADR-130) e registra `budget_ledger`. Gli adapter vivono in `packages/memory/src/providers/` e non si istanziano altrove; le chiavi sono della casa (`provider_credentials`) o di UGO a consumo. Python non chiama provider: chiede a soul (ADR-129).
 4. **Rete**: nessuna porta di DB/MQTT/Ollama pubblicata sull'host in alcun compose; container non-root; niente segreti nel repo (`.env.example` sempre aggiornato, fail-fast su env mancanti).
 5. **Migrazioni** solo via drizzle-kit, mai SQL a mano in produzione; ogni cambio schema = ADR se strutturale.
 6. **Dati**: testo di trascrizioni/messaggi cifrato a riposo (AES-256-GCM via `UGO_DATA_KEY`); niente PII né contenuti nei log; ID ovunque.

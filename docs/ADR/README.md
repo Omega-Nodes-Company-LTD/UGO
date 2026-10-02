@@ -126,3 +126,15 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [118](./118-il-volto-concorre-a-dire-chi-parla.md) | Il volto concorre a dire chi parla | Accettata |
 | [119](./119-il-nome-e-la-parola-di-sveglia.md) | Il nome è la parola di sveglia | Accettata |
 | [120](./120-le-cose-che-nessuno-ha-ancora-proposto.md) | Le cose che nessuno ha ancora proposto (idee del branco, e il banco aperto) | **Proposta** |
+| [121](./121-soul-si-espone.md) | Soul si espone: da creatura di casa a servizio che si vende | Accettata |
+| [122](./122-le-chiavi-sono-della-casa.md) | Le chiavi sono della casa: il cervello si porta da fuori, il cancello resta uno | Accettata |
+| [123](./123-la-voce-con-le-chiavi-di-casa.md) | La voce con le chiavi di casa | Accettata |
+| [124](./124-l-accesso-senza-utenti.md) | L'accesso senza utenti: una mail, un link, una sessione | Accettata |
+| [125](./125-piani-e-abbonamenti.md) | Piani e abbonamenti: il codice sa cosa sblocca, il prezzo lo sa il PSP | Accettata |
+| [126](./126-l-adozione-si-paga-online.md) | L'adozione si paga online | Accettata |
+| [127](./127-un-solo-design-system.md) | Un solo design system | Accettata |
+| [128](./128-la-prima-adozione.md) | La prima adozione: un account nuovo nasce vuoto, e sceglie | Accettata |
+| [129](./129-il-sogno-pensa-con-le-chiavi-della-casa.md) | Il sogno pensa con le chiavi della casa, e Python non le vede | Accettata |
+| [130](./130-il-credito-della-casa.md) | Il credito della casa: chiavi UGO a consumo e ricarica automatica | Accettata |
+| [131](./131-il-mercato-paga-l-allevatore.md) | Il mercato paga l'allevatore: Stripe Connect | Accettata |
+| [132](./132-la-piazza.md) | La piazza: incontri senza registro di passaggi | Accettata |

@@ -236,7 +236,7 @@ window.addEventListener("hashchange", () => { void go(); });
 async function loadAccounts() {
   try { ACCOUNTS = (await call("/v1/accounts", {})).accounts ?? []; } catch { ACCOUNTS = []; }
   // Con UNA casa 'ACCOUNT' resta vuota, e non e' una svista: vuota significa
-  // indirizzi senza prefisso e chiamate senza '?casa=', cioe' esattamente il
+  // indirizzi senza prefisso e chiamate senza '?account=', cioe' esattamente il
   // pannello di prima. Il server la risolve da se' ('soleAccount'), e i link
   // gia' salvati continuano a funzionare. Riempirla «tanto la casa e' quella»
   // riscriverebbe ogni indirizzo per un vicinato che non esiste — ed e'

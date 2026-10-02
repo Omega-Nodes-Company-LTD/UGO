@@ -25,7 +25,15 @@ import { z } from "zod";
  *     expires by itself the moment a second family arrives.
  */
 
-const scopeQuerySchema = z.object({ account: z.uuid().optional() });
+/**
+ * The one query parameter that names the account. Exported because the panel
+ * writes it from a string template the compiler cannot see: `script.test.ts`
+ * reads it from here, so a rename on either side turns a test red instead of
+ * sending the whole panel to the wrong account (the `?casa=` years).
+ */
+export const SCOPE_PARAM = "account";
+
+const scopeQuerySchema = z.object({ [SCOPE_PARAM]: z.uuid().optional() });
 
 export interface ScopeOptions {
   /** for what only an owner or an operator may do: erase, export, provision */
