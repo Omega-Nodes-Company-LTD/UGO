@@ -15,13 +15,15 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json tsconfig.base.js
 COPY packages/shared/package.json packages/shared/
 # ADR-115: la reception monta il corpo vero del gosino scelto
 COPY packages/face-body/package.json packages/face-body/
+COPY packages/design/package.json packages/design/
 COPY apps/reception/package.json apps/reception/turbo.json apps/reception/
 RUN pnpm install --frozen-lockfile --filter reception... --filter @ugo/shared
 
 COPY packages/shared packages/shared
 COPY packages/face-body packages/face-body
+COPY packages/design packages/design
 COPY apps/reception apps/reception
-RUN pnpm --filter @ugo/shared build && pnpm --filter reception build
+RUN pnpm --filter @ugo/shared build && pnpm --filter @ugo/design build && pnpm --filter reception build
 
 FROM node:22-slim AS runtime
 RUN useradd --system --create-home ugo

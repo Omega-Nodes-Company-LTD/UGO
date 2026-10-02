@@ -25,9 +25,11 @@ export class RoomCatalogue {
   public constructor(private readonly db: DbClient) {}
 
   /** Every room, with whoever lives in it — including the ones nobody does. */
-  public async list(accountId: string): Promise<{ id: string; room: string; gosini: Resident[] }[]> {
+  public async list(
+    accountId: string,
+  ): Promise<{ id: string; room: string; placeId: string | null; gosini: Resident[] }[]> {
     const known = await this.db
-      .select({ id: rooms.id, name: rooms.name, slug: rooms.slug })
+      .select({ id: rooms.id, name: rooms.name, slug: rooms.slug, placeId: rooms.placeId })
       .from(rooms)
       .where(eq(rooms.accountId, accountId))
       .orderBy(rooms.slug);
@@ -45,6 +47,8 @@ export class RoomCatalogue {
     return known.map((room) => ({
       id: room.id,
       room: room.name,
+      // ADR-113: in quale luogo sta (il pannello la sposta da qui)
+      placeId: room.placeId,
       gosini: byRoom.get(room.slug) ?? [],
     }));
   }

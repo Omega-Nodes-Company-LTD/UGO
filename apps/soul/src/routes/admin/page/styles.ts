@@ -1,10 +1,14 @@
+import { BASE_CSS, DESIGN_FONT_BASE, tokensCss } from "@ugo/design";
+
 /**
- * The panel's visual system (ADR-035).
+ * The panel's visual system (ADR-035), dressed in the one design system of
+ * ADR-127: colours, type and scale come from `@ugo/design`, the rules below
+ * are the panel's own.
  *
  * Rebuilt from nothing after the owner's verdict on the previous one. Three
  * decisions carry most of the difference:
  *
- * 1. **One typeface, the system sans, everywhere.** The old panel set every
+ * 1. **One typeface everywhere** (Atkinson Hyperlegible since ADR-127). The old panel set every
  *    heading in Palatino over a sans body; a display serif next to dense
  *    tabular data reads as a brochure pretending to be an instrument. Hierarchy
  *    now comes from size, weight and colour, which is what actually carries it.
@@ -18,44 +22,15 @@
  * Spacing is a 4px scale. Data numbers are tabular so columns line up.
  */
 export const ADMIN_STYLES = `
-  :root {
-    color-scheme: light;
-    --bg: #f4f2ef; --surface: #fbfaf8; --surface-2: #f1eeea; --raised: #ffffff;
-    --line: #e4e0da; --line-strong: #d0cbc2;
-    --ink: #1b1a18; --ink-2: #56534d; --ink-3: #8b867d;
-    --accent: #7a3030; --accent-soft: #7a303012; --on-accent: #ffffff;
-    --data: #a8443c; --data-soft: #a8443c22;
-    --good: #0ca30c; --warning: #b07600; --critical: #d03b3b;
-    --r: .5rem; --r-lg: .75rem;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      color-scheme: dark;
-      --bg: #111110; --surface: #1a1a19; --surface-2: #232321; --raised: #1f1f1d;
-      --line: #2e2e2b; --line-strong: #3d3c39;
-      --ink: #f2f0ec; --ink-2: #b5b0a8; --ink-3: #8a857d;
-      --accent: #c4695c; --accent-soft: #c4695c1f; --on-accent: #17100f;
-      --data: #c4695c; --data-soft: #c4695c2e;
-      --good: #3fbf3f; --warning: #fab219; --critical: #e26a6a;
-    }
-  }
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-    --bg: #111110; --surface: #1a1a19; --surface-2: #232321; --raised: #1f1f1d;
-    --line: #2e2e2b; --line-strong: #3d3c39;
-    --ink: #f2f0ec; --ink-2: #b5b0a8; --ink-3: #8a857d;
-    --accent: #c4695c; --accent-soft: #c4695c1f; --on-accent: #17100f;
-    --data: #c4695c; --data-soft: #c4695c2e;
-    --good: #3fbf3f; --warning: #fab219; --critical: #e26a6a;
-  }
-
+  ${tokensCss({ fontBase: DESIGN_FONT_BASE })}
+  ${BASE_CSS}
   * { box-sizing: border-box; }
   /* display:grid on .gate and .app beats the [hidden] default, which left
      the door standing open above the panel. Say it once, for everything. */
   [hidden] { display: none !important; }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 15px/1.5 var(--font);
     -webkit-text-size-adjust: 100%;
   }
   h1, h2, h3, h4 { font-weight: 600; margin: 0; letter-spacing: -.01em; }
@@ -199,4 +174,10 @@ export const ADMIN_STYLES = `
            border-radius: var(--r); background: var(--surface); }
   .ai-role { margin-top: .8rem; }
   .ai-key { align-items: center; padding: .4rem 0; border-bottom: 1px solid var(--line); }
+  /* ADR-127: le icone del menu, sottovoce finché non sono la pagina corrente */
+  .rail a .icon, .rail button.rail-link .icon { color: var(--ink-3); }
+  .rail a[aria-current="page"] .icon { color: var(--accent); }
+  .brand .icon { color: var(--accent); width: 1.4rem; height: 1.4rem; }
+  .brand-mark { display: flex; align-items: center; gap: .5rem; }
+  .brand-mark .icon { color: var(--accent); width: 1.8rem; height: 1.8rem; }
 `;

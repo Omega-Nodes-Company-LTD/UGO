@@ -1,5 +1,5 @@
-import "@fontsource/atkinson-hyperlegible/400.css";
-import "@fontsource/atkinson-hyperlegible/700.css";
+// ADR-127: il design system — colori, scala e il font (impacchettato, niente CDN)
+import "@ugo/design/tokens.css";
 import { createPhotoStrip } from "./photoStrip.js";
 import "./hud.css";
 import type { FaceState, FaceToServerMessage, ServerToFaceMessage } from "@ugo/shared/face";

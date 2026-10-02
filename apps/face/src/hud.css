@@ -4,6 +4,7 @@
  * ESTESO — barra in alto e comandi in colonna (desktop) o a foglio (telefono),
  * etichette sempre esplicite, Atkinson Hyperlegible (nato per l'accessibilità,
  * impacchettato nel bundle: la casa non ha una strada verso un CDN, ADR-044).
+ * Colori e font vengono dal design system unico (ADR-127).
  * NASCOSTO (`data-chrome="nascosto"` su #app) — resta il dock di vetro coi
  * gesti primari e il sussurro d'umore; il tasto ⌃ riapre tutto.
  *
@@ -16,21 +17,22 @@
 }
 
 :root {
-  --hud-font: "Atkinson Hyperlegible", Verdana, system-ui, sans-serif;
-  --chrome-bg: rgba(12, 15, 22, 0.92);
-  --rail-bg: rgba(12, 15, 22, 0.88);
-  --chrome-border: #2c3242;
-  --control-bg: #1a1f2b;
-  --control-border: #303748;
-  --ink: #f2f4f8;
-  --ink-dim: #aab2c5;
-  --ink-faint: #8b93a7;
-  --on-bg: #13351f;
-  --on-border: #2c6b43;
-  --on-ink: #7fe0a2;
-  --danger-bg: #3b1a1a;
-  --danger-border: #7f2c2c;
-  --danger-ink: #f2a0a0;
+  /* ADR-127: le variabili dell'HUD sono il design system, sempre al buio
+     (il chiosco è un muso nella stanza, non una pagina: data-theme="dark") */
+  --hud-font: var(--font);
+  --chrome-bg: color-mix(in srgb, var(--bg) 92%, transparent);
+  --rail-bg: color-mix(in srgb, var(--bg) 88%, transparent);
+  --chrome-border: var(--line-strong);
+  --control-bg: var(--surface-2);
+  --control-border: var(--line-strong);
+  --ink-dim: var(--ink-2);
+  --ink-faint: var(--ink-3);
+  --on-bg: color-mix(in srgb, var(--good) 16%, var(--bg));
+  --on-border: color-mix(in srgb, var(--good) 55%, var(--bg));
+  --on-ink: var(--good);
+  --danger-bg: color-mix(in srgb, var(--critical) 16%, var(--bg));
+  --danger-border: color-mix(in srgb, var(--critical) 55%, var(--bg));
+  --danger-ink: var(--critical);
   --glass-bg: rgba(14, 16, 24, 0.45);
   --glass-border: rgba(255, 255, 255, 0.12);
 }

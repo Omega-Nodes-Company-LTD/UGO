@@ -6,13 +6,14 @@ import { createAuthGuard, registerTenantResolution } from "./routes/guard.js";
 import { registerCapabilitiesRoute, type Capability } from "./routes/capabilities.js";
 import { registerAccountRoutes } from "./routes/accounts.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
-import { registerAdminRoutes } from "./routes/admin/index.js";
+import { registerAdminRoutes, registerDesignAssets } from "./routes/admin/index.js";
 import { registerArchiveRoutes } from "./routes/archive.js";
 import { registerMemoryGraphRoutes } from "./routes/memoryGraph.js";
 import { registerJournalRoutes } from "./routes/journal.js";
 import { registerKeysRoutes } from "./routes/keys.js";
 import { registerAiSettingsRoutes, type AiSettingsDeps } from "./routes/aiSettings.js";
 import { registerInternalThinkRoute } from "./routes/internalThink.js";
+import { registerMeRoute } from "./routes/me.js";
 import { registerPackRoutes } from "./routes/pack/index.js";
 import { registerDataSummaryRoute, registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerStatsRoute } from "./routes/stats.js";
@@ -311,6 +312,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     const guard = createAuthGuard(audit);
     // ADR-100: le chiavi di casa, le correzioni, il nome della stanza
     registerKeysRoutes(app, { db: options.db, guard, audit });
+    // ADR-127: i font del design system, per pannello e sito
+    registerDesignAssets(app);
+    // ADR-127: chi sei e cosa puoi, per un menu che non mostra il superfluo
+    registerMeRoute(app, { db: options.db, guard });
     if (options.ai !== undefined) {
       registerAiSettingsRoutes(app, { ...options.ai, db: options.db, guard, audit });
       // ADR-129: la porta da cui il sogno chiede di pensare

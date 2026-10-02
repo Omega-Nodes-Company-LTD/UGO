@@ -13,7 +13,7 @@ export const ACCOUNT_PAGES = `
 <section class="page" data-page="sommario">
   <div class="page-head">
     <p class="eyebrow" data-account>—</p>
-    <h1>Sommario</h1>
+    <h1>Oggi</h1>
     <p>Chi ci vive, quanto è costata la giornata, e se la macchina sotto sta rispondendo.</p>
   </div>
 
@@ -558,6 +558,17 @@ export const ACCOUNT_PAGES = `
     <div id="album-grid" data-testid="album-grid"></div>
     <div id="album-shot" data-testid="album-shot"></div>
   </div>
+  <div class="block">
+    <h2>Cerca nelle foto</h2>
+    <p class="lede">Per parole della didascalia e per giorni, come «quella del gatto sul divano».</p>
+    <div class="row">
+      <div style="flex:2 1 12rem"><label for="album-q">Parole</label><input id="album-q" data-testid="album-q" placeholder="gatto divano"></div>
+      <div><label for="album-from">Dal</label><input id="album-from" type="date"></div>
+      <div><label for="album-to">Al</label><input id="album-to" type="date"></div>
+      <button id="album-search" data-testid="album-search">Cerca</button>
+    </div>
+    <div id="album-found" data-testid="album-found"></div>
+  </div>
 </section>
 
 <section class="page" data-page="dati">
@@ -643,6 +654,19 @@ export const ACCOUNT_PAGES = `
        avvenuta ma il registro non lo sa ancora, e va guardato.</p>
     <div id="adozioni-list" data-testid="adozioni-list"></div>
     <div id="adozioni-msg"></div>
+  </div>
+  <div class="block">
+    <h2>Adotta una dote</h2>
+    <p class="lede">Una dote è il sapere che un gosino porta con sé (ADR-074): il file sigillato
+       e la sua chiave arrivano separati. Adottarla <b>fa nascere</b> un esemplare che sa quelle
+       cose: non è il gosino di un altro che torna in vita.</p>
+    <div class="row">
+      <div><label for="dowry-file">Il file della dote</label><input id="dowry-file" type="file" accept=".dote,.txt"></div>
+      <div><label for="dowry-key">La chiave</label><input id="dowry-key" type="password" autocomplete="off"></div>
+      <div><label for="dowry-name">Come si chiamerà</label><input id="dowry-name" maxlength="40"></div>
+      <button id="dowry-adopt" data-testid="dowry-adopt">Adotta</button>
+    </div>
+    <div id="dowry-adopt-msg"></div>
   </div>
 </section>
 `;

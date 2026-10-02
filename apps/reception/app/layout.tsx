@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Nav } from "../components/nav";
+// ADR-127: il design system unico — colori, scala, font impacchettato
+import "@ugo/design/tokens.css";
 import "./globals.css";
 
 /**

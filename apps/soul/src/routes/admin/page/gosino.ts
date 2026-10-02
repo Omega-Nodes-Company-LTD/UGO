@@ -288,6 +288,18 @@ export const GOSINO_PAGES = `
     </div>
     <div id="bye-msg"></div>
   </div>
+  <div class="block">
+    <h2>La sua dote</h2>
+    <p class="lede">Ciò che può viaggiare con lui se lo regali, lo passi o lo vendi (ADR-074):
+       il <b>sapere</b> sempre, i <b>racconti</b> solo se lo scegli e solo quelli che non nominano
+       nessun altro. Messaggi, trascrizioni e legami <b>non viaggiano mai</b>.</p>
+    <label class="check"><input type="checkbox" id="dowry-stories"> includi i racconti</label>
+    <div class="row" style="margin-top:.6rem">
+      <button class="ghost" id="dowry-preview" data-testid="dowry-preview">Cosa partirebbe</button>
+      <button id="dowry-make" data-testid="dowry-make">Prepara la dote</button>
+    </div>
+    <div id="dowry-out" data-testid="dowry-out"></div>
+  </div>
 </section>
 
 <section class="page" data-page="pedigree">

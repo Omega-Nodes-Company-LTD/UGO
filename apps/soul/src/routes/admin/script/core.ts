@@ -86,6 +86,40 @@ async function section(load, where) {
 
 // --- accesso ---------------------------------------------------------------
 /** Everything the panel needs whoever you are and wherever you land. */
+/**
+ * ADR-127: il tema. Automatico (segue il sistema), chiaro o scuro: è una
+ * comodità di chi guarda, quindi vive nel browser e basta. Il localStorage può
+ * mancare o lanciare (navigazione privata, chiosco blindato): senza, resta
+ * «automatico», che è comunque giusto.
+ */
+const THEMES = ["auto", "light", "dark"];
+const THEME_LABEL = { auto: "Tema: automatico", light: "Tema: chiaro", dark: "Tema: scuro" };
+let THEME = "auto";
+try { THEME = localStorage.getItem("ugo-theme") ?? "auto"; } catch { /* resta automatico */ }
+if (!THEMES.includes(THEME)) THEME = "auto";
+function applyTheme(theme) {
+  if (theme === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  $("theme-label").textContent = THEME_LABEL[theme];
+}
+applyTheme(THEME);
+$("theme").addEventListener("click", () => {
+  THEME = THEMES[(THEMES.indexOf(THEME) + 1) % THEMES.length];
+  try { localStorage.setItem("ugo-theme", THEME); } catch { /* pazienza */ }
+  applyTheme(THEME);
+});
+
+/** ADR-127: chi sei, per mostrare solo le voci che ti riguardano. */
+let ME = { role: "operator", account: null };
+async function loadMe() {
+  ME = await call("/v1/me", {});
+  for (const group of document.querySelectorAll("[data-group]")) {
+    const kind = group.dataset.group;
+    group.hidden = !(ME.role === "operator" ||
+      (kind === "business" && ME.account?.kind === "business"));
+  }
+}
+
 async function boot() {
   $("app").hidden = false;
   $("gate").hidden = true;
@@ -104,6 +138,7 @@ async function boot() {
     const rest = entry.who === undefined ? "#/" + entry.page : "#/g/" + entry.who + "/" + entry.page;
     history.replaceState(null, "", at(rest));
   }
+  await section(loadMe, "stats-msg");
   await section(refresh, "pack-msg");
   await section(loadGosini, "stats-msg");
   // ADR-122: se la conversazione non ha una testa, lo si dice su ogni pagina

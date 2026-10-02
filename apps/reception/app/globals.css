@@ -1,33 +1,15 @@
 /* La reception (ADR-051): voice-first, mobile-first, due temi. */
 
 :root {
-  --bg: #faf7f2;
-  --surface: #ffffff;
-  --ink: #2b2320;
-  --muted: #7a6f68;
-  --line: #e8e0d8;
-  --accent: #c4577a; /* il rosa del porcetto, adulto */
-  --accent-ink: #ffffff;
-  --ok: #3d7a4f;
-  --warn: #a8642a;
-  --bubble-me: #f1e7ee;
-  --bubble-ugo: #ffffff;
-  --shadow: 0 1px 3px rgb(43 35 32 / 8%), 0 8px 24px rgb(43 35 32 / 6%);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17130f;
-    --surface: #211c17;
-    --ink: #efe8e2;
-    --muted: #a3968d;
-    --line: #352d26;
-    --accent: #d76e91;
-    --accent-ink: #1d1218;
-    --bubble-me: #33272e;
-    --bubble-ugo: #211c17;
-    --shadow: 0 1px 3px rgb(0 0 0 / 30%);
-  }
+  /* ADR-127: le variabili della reception sono quelle del design system; i
+     nomi restano perché ogni regola qui sotto li usa già */
+  --muted: var(--ink-2);
+  --accent-ink: var(--on-accent);
+  --ok: var(--good);
+  --warn: var(--warning);
+  --bubble-me: var(--accent-soft);
+  --bubble-ugo: var(--surface);
+  --shadow: var(--shadow-1);
 }
 
 * {
@@ -40,7 +22,7 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font);
   min-height: 100dvh;
 }
 

@@ -37,6 +37,7 @@ COPY packages/prompts/package.json packages/prompts/
 # questa immagine (ADR-018 Tempo 1): senza, `turbo build --filter=face` non trova
 # ciò che disegna il maiale
 COPY packages/face-body/package.json packages/face-body/
+COPY packages/design/package.json packages/design/
 COPY tests/factories/package.json tests/factories/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY apps/soul apps/soul
@@ -48,6 +49,7 @@ COPY packages/memory packages/memory
 COPY packages/psyche packages/psyche
 COPY packages/prompts packages/prompts
 COPY packages/face-body packages/face-body
+COPY packages/design packages/design
 COPY tests/factories tests/factories
 # the face travels inside soul's image (ADR-018 Tempo 1): one origin, one
 # certificate, therefore a secure context for microphone and wake lock

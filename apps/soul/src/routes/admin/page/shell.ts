@@ -1,3 +1,5 @@
+import { icon } from "@ugo/design";
+
 /**
  * The shell: the way in, the navigation rail, and the frame the pages sit in
  * (ADR-035).
@@ -22,7 +24,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
 <!-- the way in. Nothing else exists until the token is accepted. -->
 <div id="gate" class="gate">
   <div class="gate-card">
-    <h1>UGO <span aria-hidden="true">🐷</span></h1>
+    <h1 class="brand-mark">${icon("pig")}UGO</h1>
     <p class="lede">Il pannello di casa. Serve il token operatore
        (<code>UGO_INTERNAL_TOKEN</code>).</p>
     <label for="token">Token operatore</label>
@@ -37,7 +39,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
 
 <div class="app" id="app" hidden>
   <aside class="rail">
-    <div class="brand">UGO <span>pannello</span></div>
+    <div class="brand">${icon("pig")}UGO <span>pannello</span></div>
 
     <nav class="rail-group" hidden>
       <small>Gli account</small>
@@ -45,39 +47,63 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
     </nav>
 
     <nav class="rail-group">
-      <small>L'account</small>
-      <a href="#/sommario" data-nav="sommario">Sommario</a>
-      <a href="#/account" data-nav="account">Gli account</a>
-      <a href="#/stanze" data-nav="stanze">Le stanze</a>
-      <a href="#/arredi" data-nav="arredi">Gli arredi</a>
-      <a href="#/branco" data-nav="branco">Il branco</a>
-      <a href="#/volti" data-nav="volti">I volti</a>
-      <a href="#/consiglio" data-nav="consiglio">Il consiglio</a>
-      <a href="#/riunioni" data-nav="riunioni">Riunioni e legami</a>
-      <a href="#/liste" data-nav="liste">Le liste</a>
-      <a href="#/feed" data-nav="feed">I feed</a>
-      <a href="#/adozioni" data-nav="adozioni">Le adozioni</a>
-      <a href="#/documenti" data-nav="documenti">I documenti</a>
-      <a href="#/parentele" data-nav="parentele">Le parentele</a>
-      <a href="#/album" data-nav="album">L'album</a>
-      <a href="#/clienti" data-nav="clienti">I clienti</a>
-      <a href="#/ai" data-nav="ai">La testa di UGO</a>
-      <a href="#/conti" data-nav="conti">I conti</a>
-      <a href="#/giornale" data-nav="giornale">Il giornale</a>
-      <a href="#/diagnostica" data-nav="diagnostica">La diagnostica</a>
-      <a href="#/dati" data-nav="dati">I dati</a>
+      <a href="#/sommario" data-nav="sommario">${icon("today")}Oggi</a>
     </nav>
 
     <nav class="rail-group">
       <small>I gosini</small>
       <div id="rail-gosini" data-testid="rail-gosini"></div>
-      <a href="#/nascita" data-nav="nascita">+ Fanne nascere uno</a>
+      <a href="#/nascita" data-nav="nascita">${icon("plus")}Fanne nascere uno</a>
+    </nav>
+
+    <nav class="rail-group">
+      <small>La casa</small>
+      <a href="#/stanze" data-nav="stanze">${icon("room")}Le stanze</a>
+      <a href="#/arredi" data-nav="arredi">${icon("sofa")}Gli arredi</a>
+      <a href="#/branco" data-nav="branco">${icon("users")}Il branco</a>
+      <a href="#/volti" data-nav="volti">${icon("face")}I volti</a>
+      <a href="#/liste" data-nav="liste">${icon("list")}Le liste</a>
+      <a href="#/documenti" data-nav="documenti">${icon("doc")}I documenti</a>
+      <a href="#/album" data-nav="album">${icon("photo")}L'album</a>
+    </nav>
+
+    <nav class="rail-group">
+      <small>Insieme</small>
+      <a href="#/riunioni" data-nav="riunioni">${icon("meeting")}Riunioni e legami</a>
+      <a href="#/consiglio" data-nav="consiglio">${icon("council")}Il consiglio</a>
+      <a href="#/feed" data-nav="feed">${icon("feed")}I feed</a>
+      <a href="#/parentele" data-nav="parentele">${icon("family")}Le parentele</a>
+    </nav>
+
+    <nav class="rail-group">
+      <small>Mercato</small>
+      <a href="#/adozioni" data-nav="adozioni">${icon("store")}Le adozioni</a>
+    </nav>
+
+    <nav class="rail-group" data-group="business">
+      <small>Lavoro</small>
+      <a href="#/clienti" data-nav="clienti">${icon("briefcase")}I clienti</a>
+    </nav>
+
+    <nav class="rail-group">
+      <small>Account</small>
+      <a href="#/ai" data-nav="ai">${icon("brain")}La testa di UGO</a>
+      <a href="#/conti" data-nav="conti">${icon("coin")}I conti</a>
+      <a href="#/giornale" data-nav="giornale">${icon("journal")}Il giornale</a>
+      <a href="#/dati" data-nav="dati">${icon("shield")}I dati</a>
+    </nav>
+
+    <nav class="rail-group" data-group="operator">
+      <small>Operatore</small>
+      <a href="#/account" data-nav="account">${icon("users")}Gli account</a>
+      <a href="#/diagnostica" data-nav="diagnostica">${icon("gauge")}La diagnostica</a>
     </nav>
 
     <nav class="rail-group">
       <small>Sessione</small>
-      <button type="button" class="rail-link" id="refresh" data-testid="refresh">Aggiorna tutto</button>
-      <button type="button" class="rail-link" id="logout" data-testid="logout">Esci</button>
+      <button type="button" class="rail-link" id="theme" data-testid="theme">${icon("auto")}<span id="theme-label">Tema: automatico</span></button>
+      <button type="button" class="rail-link" id="refresh" data-testid="refresh">${icon("refresh")}Aggiorna tutto</button>
+      <button type="button" class="rail-link" id="logout" data-testid="logout">${icon("logout")}Esci</button>
     </nav>
 
     <nav class="rail-group rail-build">

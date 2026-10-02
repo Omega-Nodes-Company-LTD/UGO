@@ -12,13 +12,21 @@ async function loadRooms() {
   // the catalogue is the source: a room nobody lives in is still a room
   const known = (await call("/v1/rooms", {})).rooms ?? [];
   const list = (await call("/v1/gosini", {})).gosini ?? [];
+  // ADR-113: con più di un luogo, ogni stanza dice dove sta e si può spostare
+  const places = (await call("/v1/places", {})).places ?? [];
   const homeless = list.filter((g) => (g.where ?? "").trim() === "");
 
   const card = (room) =>
     '<div class="deed"><div class="act">' + escape(room.room) +
     (room.gosini.length > 1 ? ' <span class="deed-act">· ' + room.gosini.length + " insieme</span>" : "") +
+    '<button class="ghost room-rename" data-room="' + room.id + '" data-name="' + escape(room.room) +
+    '" data-testid="room-rename">rinomina</button>' +
     '<button class="ghost room-del" data-room="' + room.id + '" data-name="' + escape(room.room) +
     '" data-testid="room-del">disfa</button></div>' +
+    (places.length < 2 ? "" :
+      '<div class="because">luogo: <select class="room-place" data-room="' + room.id + '">' +
+      places.map((p) => '<option value="' + p.id + '"' + (p.id === room.placeId ? " selected" : "") +
+        ">" + escape(p.name) + "</option>").join("") + "</select></div>") +
     '<div class="because">' +
     (room.gosini.length === 0 ? "<i>vuota</i>" : room.gosini.map((g) => escape(g.name)).join(" · ")) +
     "</div>" +
@@ -58,6 +66,39 @@ $("room-go").addEventListener("click", async () => {
   } catch (error) {
     say("rooms-msg", error.message, "err");
   } finally { $("room-go").disabled = false; }
+});
+
+// ADR-100: rinominare non sfratta — chi ci vive porta il nome nuovo
+$("rooms-list").addEventListener("click", async (event) => {
+  const rename = event.target.closest(".room-rename");
+  if (rename === null) return;
+  const name = prompt("Il nuovo nome di " + rename.dataset.name, rename.dataset.name);
+  if (name === null || name.trim() === "" || name.trim() === rename.dataset.name) return;
+  try {
+    await call("/v1/rooms/" + encodeURIComponent(rename.dataset.room), {
+      method: "PATCH", body: JSON.stringify({ name: name.trim() }),
+    });
+    say("rooms-msg", rename.dataset.name + " ora si chiama " + name.trim() + ".", "ok");
+    await loadRooms();
+    await loadGosini();
+    drawRail(route().page);
+  } catch (error) {
+    say("rooms-msg", error.status === 409 ? "C'è già una stanza con quel nome." : error.message, "err");
+  }
+});
+
+// ADR-113: il cielo di una stanza è quello del suo luogo
+$("rooms-list").addEventListener("change", async (event) => {
+  const pick = event.target.closest(".room-place");
+  if (pick === null) return;
+  try {
+    await call("/v1/rooms/" + encodeURIComponent(pick.dataset.room) + "/place", {
+      method: "PUT", body: JSON.stringify({ placeId: pick.value }),
+    });
+    say("rooms-msg", "Spostata.", "ok");
+  } catch (error) {
+    say("rooms-msg", error.message, "err");
+  }
 });
 
 $("rooms-list").addEventListener("click", async (event) => {

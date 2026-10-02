@@ -90,6 +90,13 @@ function describeNeighbours(event) {
 
 async function loadGraph() {
   try {
+    // prima si conta, poi si disegna: un grafo vuoto non vale la sua query
+    const size = await call("/v1/memories/graph/size", {});
+    if (size.about + size.superseded + size.inferredRelations === 0) {
+      $("graph-svg").innerHTML = "";
+      say("graph-msg", "Ancora niente da disegnare: UGO non ha collegato nessun ricordo a nessuno.", "");
+      return;
+    }
     const data = await call("/v1/memories/graph", {});
     if (!data.nodes.length) {
       lastPlaced = [];

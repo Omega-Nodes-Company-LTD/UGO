@@ -24,6 +24,7 @@ import { PIGGYBANK_JS } from "./script/piggybank.js";
 import { LIFE_JS } from "./script/life.js";
 import { LISTS_JS } from "./script/lists.js";
 import { DOCUMENTS_JS } from "./script/documents.js";
+import { DOWRY_JS } from "./script/dowry.js";
 import { PRINTS_JS } from "./script/prints.js";
 import { PROPS_JS } from "./script/props.js";
 import { SPARKS_JS } from "./script/sparks.js";
@@ -64,6 +65,7 @@ export const ADMIN_SCRIPT = [
   DATA_JS,
   STATUS_JS,
   AI_SETTINGS_JS,
+  DOWRY_JS,
   DIAGNOSTICS_JS,
   PLACE_JS,
   CAPABILITIES_JS,

@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { FONT_FILES } from "@ugo/design";
 import type { FastifyInstance } from "fastify";
 import { ADMIN_PAGE } from "./page.js";
 import { ADMIN_SCRIPT } from "./script.js";
@@ -40,4 +44,28 @@ export function registerAdminRoutes(app: FastifyInstance): void {
   app.get("/admin/panel.js", async (_request, reply) =>
     reply.type("text/javascript; charset=utf-8").send(ADMIN_SCRIPT),
   );
+}
+
+/**
+ * ADR-127: i font del design system, serviti da soul a pannello e sito. Solo
+ * i due file dichiarati — un elenco, non una cartella — letti una volta e
+ * consegnati come immutabili: il nome porta già la versione.
+ */
+const FONTS = new Map<string, Buffer>(
+  Object.values(FONT_FILES).map((file) => {
+    const require = createRequire(import.meta.url);
+    const root = dirname(require.resolve("@ugo/design/package.json"));
+    return [file, readFileSync(join(root, "dist", "fonts", file))] as const;
+  }),
+);
+
+export function registerDesignAssets(app: FastifyInstance): void {
+  app.get("/design/fonts/:file", async (request, reply) => {
+    const font = FONTS.get((request.params as { file: string }).file);
+    if (font === undefined) return reply.code(404).send();
+    return reply
+      .type("font/woff2")
+      .header("cache-control", "public, max-age=31536000, immutable")
+      .send(font);
+  });
 }

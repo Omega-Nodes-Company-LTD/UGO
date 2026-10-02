@@ -21,6 +21,7 @@
     "@fastify/websocket": "^11.3.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@ugo/db": "workspace:*",
+    "@ugo/design": "workspace:*",
     "@ugo/memory": "workspace:*",
     "@ugo/prompts": "workspace:*",
     "@ugo/psyche": "workspace:*",
