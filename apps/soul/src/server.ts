@@ -19,6 +19,15 @@ import { registerDataSummaryRoute, registerPrivacyRoutes } from "./routes/privac
 import { registerStatsRoute } from "./routes/stats.js";
 import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceStatic } from "./routes/faceStatic.js";
+import { NoExemplarError } from "./routes/scope.js";
+import { registerAccessRoutes } from "./routes/access.js";
+import { registerDeviceRoutes } from "./routes/devices.js";
+import { registerPublicGate } from "./routes/publicGate.js";
+import { registerSite } from "./routes/site/index.js";
+import type { LegalInfo } from "./routes/site/legal.js";
+import type { Mailer } from "./services/auth/mailer.js";
+import { RateLimiter } from "./services/auth/rateLimit.js";
+import { pepperFrom } from "./services/auth/secrets.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerCouncilRoutes } from "./routes/council.js";
 import { registerDeskRoutes } from "./routes/desk.js";
@@ -79,8 +88,25 @@ import type { ForgetService } from "./services/privacy/forgetService.js";
 import type { SpeciesMap } from "@ugo/shared";
 import type { DbClient } from "@ugo/db";
 
+/**
+ * ADR-121, ADR-124: soul davanti a internet (`UGO_PUBLIC=on`). Assente =
+ * soul in casa, com'è sempre stato: nessun sito, nessun accesso via email,
+ * la radice è del muso.
+ */
+export interface PublicOptions {
+  /** dove vive il sito: l'origine dei link e del controllo CSRF */
+  publicUrl: string;
+  /** per gli hash delle email e dei codici, e per far nascere le case */
+  masterKey: Buffer;
+  mailer: Mailer;
+  legal: LegalInfo;
+  /** ADR-125: annulla l'abbonamento presso il PSP prima della chiusura */
+  cancelBilling?: (accountId: string) => Promise<void>;
+}
+
 export interface ServerOptions extends HealthDeps {
   logger?: boolean;
+  public?: PublicOptions;
   /** absolute path of the built face bundle; absent in dev, where Vite serves it */
   faceRoot?: string;
   /**
@@ -248,7 +274,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   // No PII and no payload contents in logs (CLAUDE.md rule 6): IDs only.
   const serverOptions: FastifyServerOptions = {
     logger:
-      options.logger === false ? false : { redact: ["req.headers.authorization", "req.headers.cookie"] },
+      options.logger === false
+        ? false
+        : { redact: ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'] },
+    // ADR-121: in pubblico soul sta dietro il proxy di Coolify, l'unico che
+    // lo raggiunge — l'IP vero (per il rate limit) è in X-Forwarded-For
+    trustProxy: options.public !== undefined,
   };
   const app = Fastify(serverOptions);
   // In produzione il muso lo serve soul (`faceRoot`, cioè `UGO_FACE_DIR`):
@@ -261,7 +292,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   //
   // In dev il muso gira su Vite, su una porta diversa: lì la posizione
   // permissiva resta quella giusta, ed è l'unico posto in cui serviva.
-  app.register(cors, { origin: options.faceRoot === undefined });
+  // ADR-121: in pubblico mai — muso, pannello e sito sono tutti sulla stessa origine
+  app.register(cors, { origin: options.faceRoot === undefined && options.public === undefined });
   // audio arrives as bytes, not JSON: without this Fastify refuses the body
   // with a 415 before any route sees it
   app.addContentTypeParser(
@@ -271,6 +303,22 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       done(null, payload);
     },
   );
+  // ADR-124: una casa appena nata non ha ancora un gosino — 409 e parole, non 500
+  app.setErrorHandler(async (error, request, reply) => {
+    if (error instanceof NoExemplarError) {
+      return reply.code(409).type("application/problem+json").send({
+        type: "about:blank",
+        title: "No gosino yet",
+        status: 409,
+        detail: "questa casa non ha ancora un gosino: adottane uno dalla vetrina",
+      });
+    }
+    // il resto come il gestore di Fastify: 5xx nel log come errori, 4xx no
+    const status = (error as { statusCode?: number }).statusCode ?? 500;
+    if (status >= 500) request.log.error(error);
+    else request.log.info({ status }, "client error");
+    return reply.code(status).send(error);
+  });
   // health answers before anyone asks who is calling: it must not depend on
   // authentication to say the database is gone
   registerHealthRoute(app, options);
@@ -303,7 +351,10 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerTenantResolution(app, {
       db: options.db,
       ...(internalToken !== undefined && { legacyToken: internalToken }),
+      publicMode: options.public !== undefined,
     });
+    // ADR-121: subito dopo chi-sei, prima di ogni rotta — legge `request.tenant`
+    if (options.public !== undefined) registerPublicGate(app, { publicUrl: options.public.publicUrl });
     // ADR-049: uno solo, per la stessa ragione per cui `llmClient` e' uno solo
     const audit = createAuditLog(options.db, app.log);
     // ADR-056: chi guarda quale stanza, adesso. Uno per processo, come l'audit
@@ -314,6 +365,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerKeysRoutes(app, { db: options.db, guard, audit });
     // ADR-127: i font del design system, per pannello e sito
     registerDesignAssets(app);
+    if (options.public !== undefined) registerPublicSurface(app, options.db, options.public, guard, audit);
     // ADR-127: chi sei e cosa puoi, per un menu che non mostra il superfluo
     registerMeRoute(app, { db: options.db, guard });
     if (options.ai !== undefined) {
@@ -705,7 +757,41 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   }
   // last: the static bundle must never shadow an API route
   if (options.faceRoot !== undefined) {
-    registerFaceStatic(app, options.faceRoot);
+    registerFaceStatic(app, options.faceRoot, { rootIsFace: options.public === undefined });
   }
   return app;
+}
+
+/** ADR-121, ADR-124: il sito, l'accesso via email, il chiosco, la chiusura. */
+function registerPublicSurface(
+  app: FastifyInstance,
+  db: DbClient,
+  options: PublicOptions,
+  guard: ReturnType<typeof createAuthGuard>,
+  audit: ReturnType<typeof createAuditLog>,
+): void {
+  const limiter = new RateLimiter(db, pepperFrom(options.masterKey, "rate"));
+  registerSite(app, options.legal);
+  registerAccessRoutes(app, {
+    db,
+    guard,
+    audit,
+    limiter,
+    links: {
+      masterKey: options.masterKey,
+      emailPepper: pepperFrom(options.masterKey, "email"),
+      mailer: options.mailer,
+      publicUrl: options.publicUrl,
+      termsVersion: options.legal.termsVersion,
+    },
+  });
+  registerDeviceRoutes(app, {
+    db,
+    guard,
+    audit,
+    limiter,
+    masterKey: options.masterKey,
+    pairPepper: pepperFrom(options.masterKey, "pair"),
+    ...(options.cancelBilling !== undefined && { cancelBilling: options.cancelBilling }),
+  });
 }

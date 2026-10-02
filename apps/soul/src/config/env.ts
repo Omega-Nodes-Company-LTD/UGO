@@ -181,6 +181,26 @@ export const soulEnvSchema = z.object({
   // development, where Vite serves it on its own port
   UGO_FACE_DIR: z.preprocess((value) => (value === "" ? undefined : value), z.string().optional()),
   NODE_ENV: z.string().default("development"),
+  /**
+   * ADR-121: soul su internet. `on` spegne la porta aperta dello sviluppo e il
+   * ripiego «c'è un solo account, quindi è quello» per chi non presenta
+   * credenziali; ogni rotta vuole una sessione o un token, tranne un elenco
+   * esplicito (sito, accesso, vetrina, webhook). `off` = installazione di casa
+   * sulla tailnet, come prima.
+   */
+  UGO_PUBLIC: z.preprocess((value) => (value === "" ? undefined : value), z.enum(["on", "off"]).default("off")),
+  /** l'indirizzo pubblico, senza barra finale: CORS, CSRF, link nelle mail */
+  PUBLIC_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  /** ADR-124: le mail dei link d'accesso, via Resend */
+  RESEND_API_KEY: optionalNonEmpty,
+  RESEND_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  EMAIL_FROM: optionalNonEmpty,
+  /** la versione dei termini e dell'informativa che chi si iscrive accetta */
+  UGO_TERMS_VERSION: z.string().min(1).default("2026-10-02"),
+  /** il titolare del trattamento, come appare in informativa e termini */
+  UGO_LEGAL_NAME: optionalNonEmpty,
+  /** dove si scrive per esercitare i diritti (informativa) */
+  UGO_CONTACT_EMAIL: optionalNonEmpty,
 });
 
 export type SoulEnv = z.infer<typeof soulEnvSchema>;
@@ -201,6 +221,22 @@ export function assertProductionSecrets(env: SoulEnv): void {
       "UGO_INTERNAL_TOKEN is required when NODE_ENV=production: refusing to expose " +
         "erasure, export, meeting and upload routes without authentication",
     );
+  }
+  // ADR-121: su internet una configurazione a metà è una porta aperta a metà
+  if (env.UGO_PUBLIC === "on") {
+    const missing = (
+      [
+        ["UGO_INTERNAL_TOKEN", env.UGO_INTERNAL_TOKEN],
+        ["PUBLIC_URL", env.PUBLIC_URL],
+        ["RESEND_API_KEY", env.RESEND_API_KEY],
+        ["EMAIL_FROM", env.EMAIL_FROM],
+      ] as const
+    )
+      .filter(([, value]) => value === undefined)
+      .map(([name]) => name);
+    if (missing.length > 0) {
+      throw new Error(`UGO_PUBLIC=on requires: ${missing.join(", ")}`);
+    }
   }
 }
 

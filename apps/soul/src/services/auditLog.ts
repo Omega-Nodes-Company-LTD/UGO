@@ -106,6 +106,16 @@ export const AUDIT_VERBS = [
   "provider_key_removed",
   /** ADR-122: il modello di un ruolo scelto o tolto — ruolo e provider, mai il prompt */
   "model_choice_set",
+  /** ADR-124: un link d'accesso spedito — l'id del link, mai l'indirizzo */
+  "login_link_sent",
+  /** ADR-124: una sessione aperta da un link usato */
+  "session_opened",
+  /** ADR-124: una sessione chiusa (uscita o revoca dal pannello) */
+  "session_revoked",
+  /** ADR-121: un chiosco abbinato col codice — l'id del token che ha ricevuto */
+  "device_paired",
+  /** ADR-124: l'account chiuso dal suo proprietario: DEK distrutta, accessi revocati */
+  "account_closed",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 
@@ -138,6 +148,20 @@ export interface AuditLogger {
   record: (entry: AuditEntry, on?: DbClient) => Promise<void>;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Quale credenziale, nella colonna `uuid`. Una sessione (ADR-124) è
+ * `session:<uuid>` nel contesto e il suo uuid qui: è la riga di `sessions` da
+ * cercare dopo. Il segreto condiviso (`legacy`) e lo sviluppo aperto (`dev`)
+ * non sono righe di nessuna tabella: null, e il ruolo dice il resto — prima
+ * di questo un loro atto dentro una transazione la faceva fallire.
+ */
+function tokenColumn(tokenId: string | undefined): string | null {
+  const bare = tokenId?.startsWith("session:") === true ? tokenId.slice("session:".length) : tokenId;
+  return bare !== undefined && UUID.test(bare) ? bare : null;
+}
+
 export function createAuditLog(
   db: DbClient,
   logger?: { warn: (data: Record<string, unknown>, message: string) => void },
@@ -149,7 +173,7 @@ export function createAuditLog(
           verb: entry.verb,
           outcome: entry.outcome,
           accountId: entry.accountId ?? entry.actor?.accountId ?? null,
-          tokenId: entry.actor?.tokenId ?? null,
+          tokenId: tokenColumn(entry.actor?.tokenId),
           role: entry.actor?.role ?? null,
           resourceType: entry.resourceType ?? null,
           resourceId: entry.resourceId ?? null,

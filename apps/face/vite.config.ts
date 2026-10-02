@@ -32,6 +32,9 @@ function mediapipeWasm(): Plugin {
 
 export default defineConfig({
   plugins: [mediapipeWasm()],
+  // ADR-121: percorsi relativi — soul serve il muso sotto `/muso/`, l'APK e
+  // `vite preview` alla radice. Un bundle solo per tutti e tre
+  base: "./",
   build: {
     target: "es2022",
     sourcemap: true,

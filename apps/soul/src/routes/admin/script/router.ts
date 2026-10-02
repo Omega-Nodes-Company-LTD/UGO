@@ -117,6 +117,11 @@ async function openPage(page) {
     await section(loadCapabilities, "stats-msg");
   } else if (page === "account") {
     await section(loadAccountsPage, "account-msg");
+  } else if (page === "accessi") {
+    // ADR-124: i browser collegati, i musi abbinati, la chiusura
+    await section(loadAccess, "access-msg");
+  } else if (page === "benvenuto") {
+    welcomeFaceUrl();
   } else if (page === "ai") {
     // ADR-122: le chiavi, un modello per ruolo, e quanto costa oggi
     await section(loadAiSettings, "ai-msg");

@@ -71,4 +71,5 @@ export { checkins } from "./checkins.js";
 export { budgetLedger } from "./budget-ledger.js";
 export { providerCredentials, modelChoices } from "./ai.js";
 export { creditLedger } from "./credit.js";
+export { accountLogins, loginLinks, sessions, pairingCodes, rateLimits } from "./auth.js";
 export { PRIME_GOSINO_ID } from "./self.js";

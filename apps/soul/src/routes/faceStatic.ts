@@ -33,10 +33,37 @@ export function servedBuildId(root: string): string {
  * One origin buys three things that two origins cannot: a single TLS
  * certificate, therefore a secure context — without which the phone denies
  * microphone and screen wake lock — and a `wss://` socket the page is allowed
- * to open. In development this is inert: Vite serves the face, the directory
+ * to open. Since ADR-121 it lives under `/muso/`: the root belongs to the
+ * public site, and a device paired before the move is redirected there. In development this is inert: Vite serves the face, the directory
  * does not exist, and the route is not registered at all.
  */
-export function registerFaceStatic(app: FastifyInstance, root: string): void {
+/** ADR-121: dove vive il muso. La radice è del sito pubblico. */
+export const FACE_PREFIX = "/muso/";
+
+/** I parametri che dicono «sono un muso»: chi li porta su `/` va a `/muso/`. */
+const KIOSK_PARAMS = ["soul", "gosino", "stanza", "token", "mode", "contact", "ears"];
+
+export function isKioskQuery(query: string): boolean {
+  const params = new URLSearchParams(query);
+  return KIOSK_PARAMS.some((key) => params.has(key));
+}
+
+/** `/?gosino=x` di un dispositivo abbinato prima di ADR-121 → `/muso/?gosino=x`. */
+export function faceRedirect(url: string): string {
+  const query = url.includes("?") ? url.slice(url.indexOf("?")) : "";
+  return `${FACE_PREFIX}${query}`;
+}
+
+export interface FaceStaticOptions {
+  /**
+   * La radice manda al muso: vero quando non c'è un sito che la occupi
+   * (soul in casa, `UGO_PUBLIC=off`), così i dispositivi di prima non si
+   * accorgono del trasloco.
+   */
+  rootIsFace: boolean;
+}
+
+export function registerFaceStatic(app: FastifyInstance, root: string, options: FaceStaticOptions): void {
   if (!existsSync(root)) {
     app.log.info({ root }, "face bundle absent: soul serves the API only");
     return;
@@ -48,8 +75,14 @@ export function registerFaceStatic(app: FastifyInstance, root: string): void {
   // aperta di proposito: la versione non è un segreto, e un corpo che deve
   // sapere se è aggiornato non ha ancora nessun token in mano
   app.get("/v1/version", () => ({ version }));
+  if (options.rootIsFace) {
+    app.get("/", async (request, reply) => reply.redirect(faceRedirect(request.url), 302));
+  }
   app.register(fastifyStatic, {
     root,
+    prefix: FACE_PREFIX,
+    // `/muso` senza barra: i percorsi relativi del bundle vogliono la barra
+    redirect: true,
     wildcard: false,
     index: ["index.html"],
     /**

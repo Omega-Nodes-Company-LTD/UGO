@@ -23,6 +23,7 @@ import { accountScope } from "./scope.js";
  */
 
 const bookingSchema = z.object({
+  /** ADR-124: assente quando chi prenota ha già una casa (sessione o token) */
   casa: z.object({
     slug: z
       .string()
@@ -31,7 +32,7 @@ const bookingSchema = z.object({
       .regex(/^[a-z0-9-]+$/u, "solo minuscole, cifre e trattini"),
     nome: z.string().min(1).max(120),
     timezone: z.string().min(1).max(60).optional(),
-  }),
+  }).optional(),
 });
 
 const paymentSchema = z.object({ riferimento: z.string().min(1).max(200) });
@@ -68,11 +69,19 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
   app.post("/v1/vetrina/:id/prenota", async (request, reply) => {
     const parsed = bookingSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    if (deps.createHouse === undefined) {
+    // ADR-124: chi ha già una casa prenota PER QUELLA. Solo il proprietario:
+    // accogliere una creatura è un atto di chi la casa la possiede
+    const tenant = request.tenant;
+    const ownHouse = tenant?.role === "owner" && tenant.accountId !== null ? tenant.accountId : undefined;
+    const newHouse = parsed.data.casa;
+    const createHouse = deps.createHouse;
+    if (ownHouse === undefined && newHouse === undefined) {
+      return reply.status(400).send({ error: "manca la casa", detail: "entra nella tua casa o indicane una nuova" });
+    }
+    if (ownHouse === undefined && createHouse === undefined) {
       return reply.status(501).send({ error: "le case non si creano su questo server" });
     }
     const { id } = request.params as { id: string };
-    const createHouse = deps.createHouse;
 
     // ADR-097: prenotare attraversa le case per disegno — nasce la casa di
     // chi compra mentre il cucciolo è di chi vende. Tutto nel ruolo del
@@ -89,17 +98,23 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
         .where(eq(gosini.id, id));
       if (cub?.listed == null) return "not-listed" as const;
 
-      let house;
-      try {
-        house = await createHouse(db, {
-          slug: parsed.data.casa.slug,
-          name: parsed.data.casa.nome,
-          ...(parsed.data.casa.timezone !== undefined && { timezone: parsed.data.casa.timezone }),
-        });
-      } catch {
-        // lo slug è l'unica cosa che può collidere, ed è una cosa che chi
-        // prenota può correggere da solo
-        return "slug-taken" as const;
+      let house: { accountId: string; ownerToken?: string };
+      if (ownHouse !== undefined) {
+        house = { accountId: ownHouse };
+      } else if (createHouse === undefined || newHouse === undefined) {
+        return "no-house" as const; // escluso sopra; qui per il compilatore
+      } else {
+        try {
+          house = await createHouse(db, {
+            slug: newHouse.slug,
+            name: newHouse.nome,
+            ...(newHouse.timezone !== undefined && { timezone: newHouse.timezone }),
+          });
+        } catch {
+          // lo slug è l'unica cosa che può collidere, ed è una cosa che chi
+          // prenota può correggere da solo
+          return "slug-taken" as const;
+        }
       }
 
       const booked = await adoptions.reserve(id, house.accountId);
@@ -115,14 +130,15 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
         .send({ error: "nome già preso", detail: "quel nome di casa esiste già, scegline un altro" });
     }
     if (done === "gone") return reply.status(409).send({ error: "non è più disponibile" });
+    if (done === "no-house") return reply.status(400).send({ error: "manca la casa" });
     const { cub, house, booked } = done;
 
     return reply.status(201).send({
       adozione: booked.id,
       gosino: { id, name: cub.name },
       prezzo: booked.priceCents === null ? null : { centesimi: booked.priceCents, valuta: "EUR" },
-      /** in chiaro **una volta sola**, come ogni token di proprietario */
-      token: house.ownerToken,
+      /** in chiaro **una volta sola**, e solo se la casa è nata adesso */
+      ...(house.ownerToken !== undefined && { token: house.ownerToken }),
       casa: house.accountId,
     });
   });

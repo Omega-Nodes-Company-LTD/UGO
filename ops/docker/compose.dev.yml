@@ -291,6 +291,14 @@ services:
       # con NODE_ENV=production, quindi il token è richiesto anche in dev:
       # environment parity, e si prova subito quello che si userà davvero.
       UGO_INTERNAL_TOKEN: ${UGO_INTERNAL_TOKEN:?missing UGO_INTERNAL_TOKEN}
+      # ADR-121/124 — soul pubblico (facoltativo): con `on` servono tutte
+      UGO_PUBLIC: ${UGO_PUBLIC:-off}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      UGO_TERMS_VERSION: ${UGO_TERMS_VERSION:-2026-10-02}
+      UGO_LEGAL_NAME: ${UGO_LEGAL_NAME:-}
+      UGO_CONTACT_EMAIL: ${UGO_CONTACT_EMAIL:-}
       UGO_JOBS_TRIGGER_URL: ${UGO_JOBS_TRIGGER_URL:-}
       # ADR-051/055 — la reception (facoltativa: senza segreto resta chiusa)
       UGO_RECEPTION_TOKEN: ${UGO_RECEPTION_TOKEN:-}

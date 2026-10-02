@@ -31,3 +31,25 @@ regola 9 di `CLAUDE.md`: **nessuna tabella `users`**, nessuna identità che attr
 - **Password + reset**: più superficie (brute force, reset, hash da migrare) per nessun vantaggio in
   un prodotto dove si entra poche volte e si resta collegati.
 - **Una tabella `users` trasversale**: è l'identità fra le case che ADR-061 ha escluso.
+
+## Note di implementazione (2026-10-02, fase 4)
+
+- **Il link non entra da solo**: `GET /auth/verifica` mostra una pagina con un pulsante, e solo il
+  `POST` consuma il link. Gli antivirus della posta aprono i link per controllarli: se bastasse
+  il GET, il link sarebbe già usato quando la persona ci clicca. Il `POST` rifiuta un `Origin`
+  diverso dal nostro (login CSRF: una pagina altrui che ti fa entrare nel *suo* account).
+- **Chi chiede un link per entrare senza avere un account** riceve una mail che lo invita a
+  iscriversi; **chi si iscrive di nuovo** riceve un link per entrare. La risposta HTTP è sempre
+  202, uguale per tutti.
+- **L'iscrizione fonda la casa nel ruolo del mercato** (`withMarket`, ADR-097): la migrazione 0064
+  dà a `ugo_market` l'`INSERT` su `places` (che mancava anche alla nascita dal pannello) e su
+  `account_logins`. La casa nasce **senza token del proprietario** (`ownerToken: false`): si entra
+  con la sessione.
+- **Chiudere l'account sostituisce la DEK** con una nuova mai usata, invece di azzerarla: più
+  moduli, davanti a una DEK nulla, ripiegano sulla chiave madre (le case di prima di ADR-019).
+- **Pulizia**: ogni ora (`sweepAccess`) se ne vanno finestre di rate limit, link e codici scaduti
+  da più di un giorno, sessioni scadute o revocate.
+- **Audit**: cinque verbi nuovi (`login_link_sent`, `session_opened`, `session_revoked`,
+  `device_paired`, `account_closed`). Il `token_id` di una sessione è l'id della sessione; il
+  segreto condiviso e lo sviluppo aperto non hanno righe e scrivono null (prima facevano fallire
+  la transazione).

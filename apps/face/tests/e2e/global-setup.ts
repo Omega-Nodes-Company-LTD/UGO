@@ -40,6 +40,26 @@ async function waitForHealth(url: string, attempts = 60): Promise<void> {
   throw new Error("soul did not become healthy in time");
 }
 
+/**
+ * ADR-122: la casa sceglie con che testa pensa UGO — senza una scelta la chat
+ * risponde «non ho ancora una testa». Lo si fa come lo farebbe il pannello:
+ * chiave della casa (provata contro lo stub) e un modello per ruolo.
+ */
+async function giveUgoAHead(soul: string): Promise<void> {
+  const put = async (path: string, body: unknown): Promise<void> => {
+    const res = await fetch(`${soul}${path}`, {
+      method: "PUT",
+      headers: { authorization: `Bearer ${E2E_TOKEN}`, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`${path} answered ${String(res.status)}: ${await res.text()}`);
+  };
+  await put("/v1/ai/chiavi/anthropic", { secret: "e2e-key" });
+  for (const role of ["chat", "think", "judge"]) {
+    await put(`/v1/ai/scelte/${role}`, { source: "byok", provider: "anthropic", model: "claude-haiku-4-5" });
+  }
+}
+
 export default async function globalSetup(): Promise<() => Promise<void>> {
   [pg, ollama, minio, stub] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
@@ -73,6 +93,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     },
   });
   await waitForHealth(`http://127.0.0.1:${String(SOUL_PORT)}/health`);
+  await giveUgoAHead(`http://127.0.0.1:${String(SOUL_PORT)}`);
   process.env.UGO_E2E_SOUL_WS = `ws://127.0.0.1:${String(SOUL_PORT)}/v1/face`;
   process.env.UGO_E2E_TOKEN = E2E_TOKEN;
   process.env.UGO_E2E_DATABASE_URL = pg.getConnectionUri();

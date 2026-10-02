@@ -56,7 +56,8 @@ export async function resolveAccount(
   // exactly one; the day a second family arrives, a dock has to be configured
   // with a token like everything else.
   const tenant = request.tenant ?? null;
-  if (tenant === null && options.requireAdmin === true) {
+  // ADR-121: davanti a internet «nessuno» non è la casa unica, è nessuno
+  if (tenant === null && (options.requireAdmin === true || request.server.publicMode)) {
     return { ok: false, status: 401, title: "Unauthorized" };
   }
   if (tenant !== null && options.requireAdmin === true && !canAdminister(tenant)) {
@@ -167,6 +168,18 @@ export function exemplarsOf(
  * another family. The eldest is a deterministic choice inside the right house;
  * attributing them to the exemplar actually spoken to is ADR-019 phase 3.
  */
+/**
+ * ADR-082, ADR-124: una casa nasce vuota, e chi si iscrive ci entra prima di
+ * aver adottato. Un atto che vuole un esemplare, in una casa che non ne ha,
+ * non è un guasto del server: è un 409 che lo dice (`registerNoExemplarHandler`).
+ */
+export class NoExemplarError extends Error {
+  public constructor(accountId: string) {
+    super(`account ${accountId} has no exemplar`);
+    this.name = "NoExemplarError";
+  }
+}
+
 export async function eldestExemplarOf(db: DbClient, accountId: string): Promise<string> {
   const [eldest] = await db
     .select({ id: gosini.id })
@@ -174,6 +187,6 @@ export async function eldestExemplarOf(db: DbClient, accountId: string): Promise
     .where(eq(gosini.accountId, accountId))
     .orderBy(asc(gosini.bornAt))
     .limit(1);
-  if (eldest === undefined) throw new Error(`account ${accountId} has no exemplar`);
+  if (eldest === undefined) throw new NoExemplarError(accountId);
   return eldest.id;
 }

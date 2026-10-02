@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { FONT_FILES } from "@ugo/design";
+import { faviconSvg, FAVICON_PATH, FONT_FILES, LIGHT } from "@ugo/design";
 import type { FastifyInstance } from "fastify";
 import { ADMIN_PAGE } from "./page.js";
 import { ADMIN_SCRIPT } from "./script.js";
@@ -33,14 +33,19 @@ const PANEL_VERSION = createHash("sha256")
  * bearer guard as the routes, with the token typed by the operator.
  */
 export function registerAdminRoutes(app: FastifyInstance): void {
-  app.get("/admin", async (_request, reply) =>
-    reply
-      .type("text/html; charset=utf-8")
-      // sostituito qui e non dentro la pagina: `ADMIN_PAGE` è una costante, e
-      // l'hash si calcola su di lei — infilarcelo dentro prima sarebbe un
-      // hash di se stesso
-      .send(ADMIN_PAGE.replace("__PANEL_VERSION__", PANEL_VERSION)),
-  );
+  // ADR-124: `/casa` è dove atterra chi entra dal sito; `/admin` resta per
+  // chi ce l'ha nei segnalibri e per l'operatore. Stesso pannello, stesso hash
+  for (const path of ["/casa", "/admin"]) {
+    app.get(path, async (_request, reply) =>
+      reply
+        .type("text/html; charset=utf-8")
+        .header("cache-control", "no-cache")
+        // sostituito qui e non dentro la pagina: `ADMIN_PAGE` è una costante, e
+        // l'hash si calcola su di lei — infilarcelo dentro prima sarebbe un
+        // hash di se stesso
+        .send(ADMIN_PAGE.replace("__PANEL_VERSION__", PANEL_VERSION)),
+    );
+  }
   app.get("/admin/panel.js", async (_request, reply) =>
     reply.type("text/javascript; charset=utf-8").send(ADMIN_SCRIPT),
   );
@@ -59,7 +64,12 @@ const FONTS = new Map<string, Buffer>(
   }),
 );
 
+const FAVICON = faviconSvg(LIGHT.accent);
+
 export function registerDesignAssets(app: FastifyInstance): void {
+  app.get(FAVICON_PATH, async (_request, reply) =>
+    reply.type("image/svg+xml").header("cache-control", "public, max-age=86400").send(FAVICON),
+  );
   app.get("/design/fonts/:file", async (request, reply) => {
     const font = FONTS.get((request.params as { file: string }).file);
     if (font === undefined) return reply.code(404).send();

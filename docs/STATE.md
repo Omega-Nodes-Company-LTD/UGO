@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.82.0"
-last_updated: "2026-08-28"
+version: "0.83.0"
+last_updated: "2026-10-02"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -2782,3 +2782,68 @@ Il 2026-08-29, il giro «fix operativi ed evolutive» ha portato, sul ramo
 
 Verifiche: build/lint/typecheck 33/33, db 59/59, rumination+peer 21/21, test
 Python scheduler/family_backup/dialect 17/17 (locali).
+
+## 6-novies-octogies. Il tocco finale: chiavi della casa, voce, un design, soul pubblico
+
+Il 2026-10-02, sul ramo `ccr-7a432ede-45nab4`, il proprietario ha chiesto di staccarsi dal
+«solo locale» (troppo lento) e di rendere UGO vendibile. Il piano approvato ha nove fasi
+(ADR-121…132); qui le prime cinque, una per commit.
+
+**Fase 0 — il bug e le decisioni.** `scoped()` del pannello scriveva `?casa=` mentre il server
+legge `?account=`: con due account mezzo pannello parlava con la casa sbagliata. Ora il nome del
+parametro sta in un posto solo (`SCOPE_PARAM`) e il test lo legge da lì. ADR-121…132 scritti;
+CLAUDE.md regola 3 riscritta (il cancello misurato).
+
+**Fase 1 — le chiavi sono della casa (ADR-122, 129, 130).** Ogni account porta le sue chiavi
+(Anthropic, OpenRouter, OpenAI, ElevenLabs), cifrate con la sua DEK, e sceglie un modello per
+ruolo (chat, pensiero, occhi, giudice, voce, orecchie) dalla lista del provider. Le chiavi UGO di
+piattaforma si usano a consumo sul credito prepagato (micro-euro, costo × ricarico × cambio). Il
+costo non lancia mai (`computeCost`: provider → listino fotografato → listino → fascia più cara).
+Il sogno Python non chiama più nessun provider: chiede a soul (`POST /v1/interno/pensa`).
+Spariti `chatChain`, il testo e la visione locali, il nodo GPU.
+
+**Fase 2 — la voce con le chiavi di casa (ADR-123).** TTS/STT su OpenAI, ElevenLabs e
+OpenRouter (uscita audio in streaming PCM → WAV), attraverso lo stesso cancello e lo stesso
+ledger; senza scelta, il muso usa la voce e le orecchie del browser.
+
+**Fase 3 — un solo design system (ADR-127).** `packages/design`: palette chiaro/scuro con test
+di contrasto WCAG, token CSS, icone SVG, Atkinson Hyperlegible servito da soul. Pannello, muso e
+reception usano gli stessi token; la barra del pannello è ordinata per compiti e nasconde ciò che
+il ruolo non usa (`GET /v1/me`); le rotte orfane hanno un'interfaccia.
+
+**Fase 4 — soul pubblico, accesso senza utenti (ADR-121, 124).** Con `UGO_PUBLIC=on`:
+- sito server-side (`/`, `/registrati`, `/accedi`, `/vetrina`, `/privacy`, `/termini`) coi token
+  del design system e uno script esterno (CSP senza inline);
+- iscrizione e accesso con link via Resend: tabelle `account_logins`, `login_links`,
+  `sessions`, `pairing_codes`, `rate_limits` (migrazioni 0063, 0064); cookie `__Host-ugo_sid`;
+- il muso sotto `/muso/`, abbinato con sei cifre (cookie `__Host-ugo_dev`);
+- un cancello unico (`publicGate.ts`): API chiusa agli anonimi tranne un elenco, CSRF per
+  Origin sulle scritture da cookie, HSTS/CSP/nosniff/frame-ancestors, CORS spento, `trustProxy`;
+- nessun ripiego sulla casa di bootstrap per chat, psiche, eventi, ricerca e WS;
+- chiusura dell'account (DEK sostituita, accessi revocati, email cancellata), export di login e
+  sessioni, pulizia oraria.
+
+### Il giro completo (regola 12), fase 4
+- **BO**: `services/auth/*` (link, sessioni, dispositivi, chiusura, rate limit), rotte `access.ts`,
+  `devices.ts`, `site/*`, `publicGate.ts`, `cookies.ts`; prenotazione in vetrina legata alla
+  sessione (niente token in chiaro a chi ha già una casa); `createAccount` dà il luogo anche alla
+  casa vuota e può nascere senza token; `NoExemplarError` → 409; audit `token_id` corretto per
+  sessioni e segreto condiviso. `ops/jobs`: non toccato — nessuna tabella nuova scritta dai job.
+- **`/admin`** (anche su `/casa`): la porta principale è «Entra con la tua email», il token sta
+  dietro «Ho un token»; `call()` senza token porta il cookie; pagina «Accessi e dispositivi»
+  (sessioni, codice per il muso, chiusura); pagina «Benvenuto» per chi si è appena iscritto;
+  «Fanne nascere uno» visibile solo a chi alleva (regola 14).
+- **FE**: il muso si costruisce con percorsi relativi e vive sotto `/muso/`; all'avvio chiede
+  `GET /v1/dispositivi/io` e, se serve, mostra il riquadro delle sei cifre prima di aprire
+  qualunque cosa. **Il bundle del muso va ricostruito** perché il trasloco arrivi sui dispositivi.
+  L'APK in modalità pubblica non riceve il cookie (origine diversa): resta aperto, vedi ADR-121.
+
+Verifiche locali (Postgres 16 + pgvector, niente Docker): `pnpm turbo build lint typecheck test`
+49/49; `publicAccess` 19/19, e auth/tenancy/rlsRoutes/adminSurface/adoption/vetrina/
+exportCoverage/dataRights/aiSettings/voice verdi; prova nel browser (Chromium) del giro
+iscrizione → link dalla mail (stub Resend) → pannello → codice → abbinamento del muso → WS
+connesso, senza errori in console. Le suite che chiedono Docker (Ollama, MinIO, Mosquitto) e
+l'e2e del muso girano in CI; `global-setup.ts` ora sceglie la testa di UGO via API.
+
+**Prossimo**: fase 5 (piani, abbonamenti Stripe/PayPal, credito e ricarica automatica, adozioni a
+pagamento).

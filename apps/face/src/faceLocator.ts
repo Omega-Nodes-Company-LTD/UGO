@@ -1,3 +1,4 @@
+import { visionAsset } from "./assetPath.js";
 import type { FaceLocator } from "./gaze.js";
 
 /**
@@ -14,10 +15,6 @@ import type { FaceLocator } from "./gaze.js";
  * nel browser sulla CPU del dispositivo. Il video **non esce mai** dal
  * telefono — è una libreria locale su un modello locale, non un servizio.
  */
-
-/** Dove stanno il wasm (copiato da vite) e il modello (vendorizzato). */
-const WASM_PATH = "/vision";
-const MODEL_PATH = "/vision/blaze_face_short_range.tflite";
 
 /**
  * Sotto questa confidenza la faccia non è una faccia.
@@ -37,9 +34,9 @@ const MIN_CONFIDENCE = 0.6;
 export async function openFaceLocator(): Promise<FaceLocator | undefined> {
   try {
     const vision = await import("@mediapipe/tasks-vision");
-    const fileset = await vision.FilesetResolver.forVisionTasks(WASM_PATH);
+    const fileset = await vision.FilesetResolver.forVisionTasks(visionAsset());
     const detector = await vision.FaceDetector.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: MODEL_PATH },
+      baseOptions: { modelAssetPath: visionAsset("blaze_face_short_range.tflite") },
       runningMode: "VIDEO",
       minDetectionConfidence: MIN_CONFIDENCE,
     });

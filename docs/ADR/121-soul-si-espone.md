@@ -50,3 +50,26 @@ raggiungerle. Esporre soul non è quindi un cambio di rete: è un cambio di **au
 - Il pannello e il sito portano stili inline che la CSP deve permettere (`style-src 'self'
   'unsafe-inline'`): gli **script** restano `'self'`, che è la parte che conta.
 - `OPS_COOLIFY.md` cambia: un dominio per soul, nessuna porta di DB/Ollama/percezione/MQTT.
+
+## Note di implementazione (2026-10-02, fase 4)
+
+- **Il muso trasloca sotto `/muso/`**: la radice è del sito. Il bundle è costruito con
+  `base: "./"` (vale per `/muso/`, per `vite preview` e per l'APK); i modelli di MediaPipe si
+  risolvono contro il documento (`apps/face/src/assetPath.ts`). Con `UGO_PUBLIC=off` la radice
+  rimanda a `/muso/` con i suoi parametri, e i chioschi di prima non si accorgono di niente; con
+  `on` la rimandano solo i parametri da chiosco (`?gosino=`, `?stanza=`, `?token=`…).
+- **Il chiosco porta un cookie, non un token in JS**: `__Host-ugo_dev` (HttpOnly, Secure,
+  SameSite=Strict, 400 giorni) con dentro un token `member` «chiosco: …». Il WebSocket lo porta
+  da sé (stessa origine), e il codice del muso non lo vede mai. All'avvio il muso chiede
+  `GET /v1/dispositivi/io`: 404 = soul in casa, niente da abbinare.
+- **Nessun ripiego su un'altra casa**: in pubblico `/v1/chat`, `/v1/psyche`, `/v1/events`,
+  `/v1/memories/search` e il WS del muso rispondono con l'esemplare della casa di chi chiede, o
+  con un 404/una stanza vuota — mai col servizio di bootstrap, che è la casa di qualcun altro.
+- **L'elenco delle porte aperte** sta in `apps/soul/src/routes/publicGate.ts` (`OPEN_API`) ed è
+  provato in `publicAccess.integration.test.ts`. Le pagine (sito, `/casa`, `/muso/`, font) sono
+  aperte: sono codice, i dati passano dall'API.
+- **Una casa appena nata è vuota** (ADR-082): un atto che vuole un esemplare risponde 409 «non
+  ha ancora un gosino» (`NoExemplarError`), non 500.
+- **APK**: il cookie del chiosco vale solo sulla stessa origine. L'APK (origine
+  `https://localhost`) in pubblico non lo riceve: resta da fare con un bearer esplicito, insieme
+  al lavoro BLE di ADR-132.

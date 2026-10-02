@@ -1,7 +1,9 @@
 import type { DbClient } from "@ugo/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AuditLogger } from "../services/auditLog.js";
+import { resolveSession } from "../services/auth/sessions.js";
 import { TenantResolver, type TenantContext } from "../services/tenantAuth.js";
+import { DEVICE_COOKIE, readCookie, SESSION_COOKIE } from "./cookies.js";
 
 /**
  * Who is asking, and may they (ADR-019, SECURITY_COMPLIANCE §9).
@@ -28,6 +30,16 @@ declare module "fastify" {
   interface FastifyRequest {
     /** the caller's house and authority, or null when the bearer granted nothing */
     tenant: TenantContext | null;
+    /**
+     * ADR-124: how the caller proved it. A cookie travels by itself, so a
+     * cookie-borne write must also prove it comes from our own pages (CSRF);
+     * a bearer has to be attached on purpose and needs no such proof.
+     */
+    authVia: "bearer" | "cookie" | null;
+  }
+  interface FastifyInstance {
+    /** ADR-121: soul faces the internet — nobody anonymous speaks for a house */
+    publicMode: boolean;
   }
 }
 
@@ -43,6 +55,8 @@ export interface TenantAuthOptions {
   legacyToken?: string | undefined;
   /** the house a legacy token speaks for on a single-family install */
   legacyAccountId?: string | undefined;
+  /** ADR-121: never open for development, whatever the configuration says */
+  publicMode?: boolean;
 }
 
 function bearerOf(request: FastifyRequest): string {
@@ -63,18 +77,39 @@ export function registerTenantResolution(app: FastifyInstance, options: TenantAu
   // no configured secret means development, where the server has always been
   // open; it stays open, but it now hands routes a context to scope by rather
   // than nothing at all
-  const openForDevelopment = options.legacyToken === undefined;
+  const openForDevelopment = options.legacyToken === undefined && options.publicMode !== true;
   const developmentContext: TenantContext = {
     accountId: options.legacyAccountId ?? null,
     role: "operator",
     tokenId: "dev",
   };
 
+  app.decorate("publicMode", options.publicMode === true);
   app.decorateRequest("tenant", null);
+  app.decorateRequest("authVia", null);
+  // in order: a bearer someone attached on purpose, the browser session
+  // (ADR-124), the paired kiosk (ADR-121). The first that grants something wins
   app.addHook("onRequest", async (request) => {
     const token = bearerOf(request);
-    const resolved = token === "" ? undefined : await resolver.resolve(token);
-    request.tenant = resolved ?? (openForDevelopment ? developmentContext : null);
+    if (token !== "") {
+      const resolved = await resolver.resolve(token);
+      if (resolved !== undefined) {
+        request.tenant = resolved;
+        request.authVia = "bearer";
+        return;
+      }
+    }
+    const session = readCookie(request, SESSION_COOKIE);
+    const device = readCookie(request, DEVICE_COOKIE);
+    const fromCookie =
+      (session === undefined ? undefined : await resolveSession(options.db, session)) ??
+      (device === undefined ? undefined : await resolver.resolve(device));
+    if (fromCookie !== undefined) {
+      request.tenant = fromCookie;
+      request.authVia = "cookie";
+      return;
+    }
+    request.tenant = openForDevelopment ? developmentContext : null;
   });
 }
 

@@ -55,7 +55,8 @@ self.addEventListener("fetch", (event) => {
   }
 
   // gli asset hashati: dalla cache subito, riallineati in sottofondo
-  if (url.pathname.startsWith("/assets/")) {
+  // `includes`: il muso vive sotto /muso/ (ADR-121), gli asset in /muso/assets/
+  if (url.pathname.includes("/assets/")) {
     event.respondWith(
       caches.match(request).then((cached) => {
         const network = fetch(request)

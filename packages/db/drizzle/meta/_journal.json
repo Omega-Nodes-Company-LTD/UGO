@@ -442,6 +442,20 @@
       "when": 1790959802287,
       "tag": "0062_le-chiavi-della-casa-rls",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790962888747,
+      "tag": "0063_l-accesso-senza-utenti",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790963082979,
+      "tag": "0064_la-fondazione-dall-iscrizione",
+      "breakpoints": true
     }
   ]
 }

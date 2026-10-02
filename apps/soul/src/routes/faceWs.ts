@@ -139,6 +139,7 @@ export async function registerFaceWs(
         fallback,
         query,
         scope.ok ? scope.accountId : undefined,
+        app.publicMode,
       );
 
       const raw = (message: ServerToFaceMessage): void => {
@@ -274,6 +275,7 @@ function pickMembers(
   fallback: FaceGateway,
   query: { gosino?: string; stanza?: string } | undefined,
   accountId: string | undefined,
+  publicMode = false,
 ): RoomMember[] {
   if (
     registry !== undefined &&
@@ -288,6 +290,8 @@ function pickMembers(
   const chosen =
     accountId === undefined ? undefined : registry?.resolve(query?.gosino, accountId);
   if (chosen !== undefined) return [asMember(chosen)];
+  // ADR-121: davanti a internet il ripiego è la creatura di un'altra casa
+  if (publicMode) return [];
   return [{ id: "", name: "UGO", gateway: fallback }];
 }
 

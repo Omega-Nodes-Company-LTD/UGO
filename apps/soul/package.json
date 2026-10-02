@@ -27,7 +27,7 @@
     "@ugo/psyche": "workspace:*",
     "@ugo/shared": "workspace:*",
     "drizzle-orm": "^0.45.2",
-    "fastify": "^5.11.2",
+    "fastify": "^5.12.5",
     "mqtt": "^5.15.2",
     "pdfkit": "^0.19.1",
     "zod": "^4.4.3"

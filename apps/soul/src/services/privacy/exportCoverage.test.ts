@@ -30,6 +30,10 @@ const NOT_PERSONAL: Readonly<Record<string, string>> = {
   // esportare l'hash di un token è consegnare le credenziali di casa dentro
   // il file che si manda per email al Garante o a sé stessi
   access_tokens: "credenziali: sono hash di token, non dati della famiglia",
+  // ADR-124: le stesse ragioni, per le porte dell'accesso
+  login_links: "credenziali monouso di quindici minuti: l'email che portano è già in account_logins",
+  pairing_codes: "credenziali di dieci minuti per abbinare un chiosco: il token che ne nasce è in access_tokens",
+  rate_limits: "contatori anonimi (HMAC di IP o email) di nessuna casa: non sono di nessuno da esportare",
 };
 
 function tablesInSchema(): string[] {

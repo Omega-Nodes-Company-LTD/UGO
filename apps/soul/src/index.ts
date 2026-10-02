@@ -41,6 +41,8 @@ import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
 import { buildServer } from "./server.js";
 import { createAccount } from "./services/accountService.js";
+import { ResendMailer } from "./services/auth/mailer.js";
+import { sweepAccess } from "./services/auth/rateLimit.js";
 import type { Capability } from "./routes/capabilities.js";
 
 const SNAPSHOT_INTERVAL_MS = 15 * 60_000; // §5.3: periodic snapshot
@@ -452,9 +454,39 @@ const capabilities = (): Capability[] => [
   },
 ];
 
+// ADR-121: soul davanti a internet — `assertProductionSecrets` ha già
+// verificato che ci sia tutto, qui si monta
+const publicSurface =
+  env.UGO_PUBLIC === "on" && env.PUBLIC_URL !== undefined && env.RESEND_API_KEY !== undefined && env.EMAIL_FROM !== undefined
+    ? {
+        publicUrl: env.PUBLIC_URL,
+        masterKey: dataKey,
+        mailer: new ResendMailer({
+          apiKey: env.RESEND_API_KEY,
+          from: env.EMAIL_FROM,
+          baseUrl: env.RESEND_BASE_URL,
+          // `app` esiste quando parte la prima mail: nessuna mail parte prima di listen
+          logger: { warn: (data, message) => { app.log.warn(data, message); } },
+        }),
+        legal: { name: env.UGO_LEGAL_NAME, contact: env.UGO_CONTACT_EMAIL, termsVersion: env.UGO_TERMS_VERSION },
+      }
+    : undefined;
+
+// ADR-124: le righe dell'accesso che hanno finito di servire, una volta l'ora
+const accessSweep =
+  publicSurface === undefined
+    ? undefined
+    : setInterval(() => {
+        sweepAccess(db).catch((error: unknown) => {
+          app.log.warn({ reason: error instanceof Error ? error.name : "unknown" }, "access sweep failed");
+        });
+      }, 3_600_000);
+accessSweep?.unref();
+
 const app = buildServer({
   db,
   capabilities,
+  ...(publicSurface !== undefined && { public: publicSurface }),
   ai: {
     masterKey: parseDataKey(env.UGO_DATA_KEY),
     resolver: ai,
@@ -818,6 +850,7 @@ const shutdown = (signal: NodeJS.Signals): void => {
   clearInterval(solitudeTimer);
   clearInterval(volitionTimer);
   clearInterval(aiRefresh);
+  if (accessSweep !== undefined) clearInterval(accessSweep);
   for (const timer of periodic) clearInterval(timer);
   void Promise.allSettled([app.close(), db.$client.end()]).then(() => {
     process.exit(0);

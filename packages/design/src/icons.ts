@@ -62,3 +62,15 @@ export function icon(name: IconName, label?: string): string {
     `stroke-linecap="round" stroke-linejoin="round" ${a11y}>${PATHS[name]}</svg>`
   );
 }
+
+/**
+ * La favicon di pannello e sito: il porcello, nel colore dell'accento chiaro.
+ * Un SVG e non un .ico: si disegna dallo stesso tracciato delle icone, e un
+ * cambio di marca la cambia senza esportare niente.
+ */
+export function faviconSvg(colour: string): string {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${colour}" ` +
+    `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${PATHS.pig}</svg>`
+  );
+}

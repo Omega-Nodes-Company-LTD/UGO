@@ -31,6 +31,7 @@ import { isEcho, worthSending } from "./heard.js";
 import { AddressGate, type AddressVerdict } from "./addressGate.js";
 import { UtteranceGate } from "./utteranceGate.js";
 import { toPcm16Base64 } from "./voiceClip.js";
+import { askForCode, checkPairing } from "./pairing.js";
 import { watchSky } from "./skyWatch.js";
 import { mountVoiceInvite } from "./voiceInvite.js";
 import { FaceSocket } from "./ws.js";
@@ -69,6 +70,18 @@ const soulUrl = resolveSoulUrl(location, params.get("soul"), params.get("gosino"
 // portable mode (§4.2): NFC tag in the shell sets ?mode=portable; manual fallback
 const portableMode = params.get("mode") === "portable";
 const soulHttp = soulHttpBase(soulUrl);
+
+// ADR-121: davanti a internet un muso non abbinato non è di nessuna casa.
+// Si chiede PRIMA di tutto il resto: il cielo, le stanze e il socket partono
+// solo quando il cookie del chiosco c'è, invece di bussare e ricevere 401
+if ((await checkPairing(soulHttp)) === "needed") {
+  await askForCode(soulHttp, {
+    overlay: requireElement("#pair-overlay"),
+    input: requireElement("#pair-code") as HTMLInputElement,
+    button: requireElement("#btn-pair") as HTMLButtonElement,
+    message: requireElement("#pair-msg"),
+  });
+}
 
 // ADR-026: the body is 3D where the device can, 2D where it cannot. Nothing
 // below this line knows which one it got.

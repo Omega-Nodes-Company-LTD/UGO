@@ -12,7 +12,7 @@ import {
   uuidParam,
   type PackRouteDeps,
 } from "./shared.js";
-import { eldestExemplarOf, accountScope } from "../scope.js";
+import { eldestExemplarOf, accountScope, NoExemplarError } from "../scope.js";
 import { storeVoiceSample } from "../../services/voiceEnrolment.js";
 
 /** Ten seconds of speech at Opus bitrates is well under this. */
@@ -29,7 +29,12 @@ export function registerBeingRoutes(
   app.get("/v1/pack", async (request, reply) => {
     const accountId = await accountScope(db, request, reply);
     if (accountId === undefined) return reply;
-    const gosinoId = await eldestExemplarOf(db, accountId);
+    // ADR-124: una casa appena nata non ha ancora un gosino, e il suo branco è
+    // vuoto, non rotto — i legami si leggono dal più anziano, quando c'è
+    const gosinoId = await eldestExemplarOf(db, accountId).catch((error: unknown) => {
+      if (error instanceof NoExemplarError) return null;
+      throw error;
+    });
     // ADR-057: anche il volto, per la pagina «I volti» — che chiamava una
     // rotta /v1/beings mai esistita e moriva con un 404 (visto in produzione)
     const faceProfiles = alias(recognitionProfiles, "face_profiles");
@@ -79,7 +84,10 @@ export function registerBeingRoutes(
         )`,
       })
       .from(beings)
-      .leftJoin(bonds, and(eq(bonds.beingId, beings.id), eq(bonds.gosinoId, gosinoId)))
+      .leftJoin(
+        bonds,
+        and(eq(bonds.beingId, beings.id), gosinoId === null ? sql`false` : eq(bonds.gosinoId, gosinoId)),
+      )
       .leftJoin(
         recognitionProfiles,
         and(eq(recognitionProfiles.beingId, beings.id), eq(recognitionProfiles.modality, "voice")),

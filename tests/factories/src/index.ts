@@ -20,3 +20,4 @@ export {
   type CapturedRequest,
   type StubResponsePlan,
 } from "./llm-stub.helper.js";
+export { ResendStub, startResendStub, type SentMail } from "./resend-stub.helper.js";

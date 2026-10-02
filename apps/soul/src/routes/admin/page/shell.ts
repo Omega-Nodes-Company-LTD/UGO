@@ -1,4 +1,4 @@
-import { icon } from "@ugo/design";
+import { FAVICON_PATH, icon } from "@ugo/design";
 
 /**
  * The shell: the way in, the navigation rail, and the frame the pages sit in
@@ -17,23 +17,30 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>UGO — pannello</title>
+<link rel="icon" href="${FAVICON_PATH}" type="image/svg+xml">
 <style>__STYLES__</style>
 </head>
 <body>
 
-<!-- the way in. Nothing else exists until the token is accepted. -->
+<!-- the way in. Nothing else exists until a session or a token is accepted. -->
 <div id="gate" class="gate">
   <div class="gate-card">
     <h1 class="brand-mark">${icon("pig")}UGO</h1>
-    <p class="lede">Il pannello di casa. Serve il token operatore
-       (<code>UGO_INTERNAL_TOKEN</code>).</p>
-    <label for="token">Token operatore</label>
+    <p class="lede">Il pannello della tua casa.</p>
+    <p><a class="gate-primary" href="/accedi" data-testid="gate-email">Entra con la tua email</a></p>
+    <p class="fine">Non hai ancora una casa? <a href="/registrati">Creala qui</a>.</p>
+    <details class="gate-token">
+    <summary data-testid="gate-token-open">Ho un token</summary>
+    <p class="fine">Per l'operatore (<code>UGO_INTERNAL_TOKEN</code>) e per le case nate dalla
+       riga di comando.</p>
+    <label for="token">Token</label>
     <input type="password" id="token" data-testid="token" placeholder="token operatore" autocomplete="off">
     <label class="check" style="margin:.7rem 0"><input type="checkbox" id="stay" checked> resta collegato su questo dispositivo</label>
     <button id="save-token" data-testid="save-token" style="width:100%">Entra</button>
     <div id="auth-msg"></div>
     <p class="fine">Spuntando <b>resta collegato</b> il token resta su questo dispositivo finché
        non esci. Toglila su un computer che non è tuo: il token vale come una chiave di casa.</p>
+    </details>
   </div>
 </div>
 
@@ -53,7 +60,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
     <nav class="rail-group">
       <small>I gosini</small>
       <div id="rail-gosini" data-testid="rail-gosini"></div>
-      <a href="#/nascita" data-nav="nascita">${icon("plus")}Fanne nascere uno</a>
+      <a href="#/nascita" data-nav="nascita" data-needs="breeding">${icon("plus")}Fanne nascere uno</a>
     </nav>
 
     <nav class="rail-group">
@@ -88,6 +95,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
     <nav class="rail-group">
       <small>Account</small>
       <a href="#/ai" data-nav="ai">${icon("brain")}La testa di UGO</a>
+      <a href="#/accessi" data-nav="accessi">${icon("key")}Accessi e dispositivi</a>
       <a href="#/conti" data-nav="conti">${icon("coin")}I conti</a>
       <a href="#/giornale" data-nav="giornale">${icon("journal")}Il giornale</a>
       <a href="#/dati" data-nav="dati">${icon("shield")}I dati</a>
@@ -133,6 +141,10 @@ export const GATE_STYLES = `
   .gate-card { width: min(24rem, 100%); background: var(--surface); border: 1px solid var(--line);
                border-radius: var(--r-lg); padding: 1.5rem; }
   .gate-card h1 { font-size: 1.5rem; margin-bottom: .3rem; }
+  .gate-primary { display: block; text-align: center; font-weight: 700; padding: .75rem 1rem; border-radius: var(--r);
+    background: var(--accent); color: var(--on-accent); text-decoration: none; }
+  .gate-token { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: .8rem; }
+  .gate-token summary { cursor: pointer; font-weight: 700; }
   .fine { font-size: .76rem; color: var(--ink-3); margin: .8rem 0 0; }
   code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em;
          background: var(--surface-2); padding: .05rem .3rem; border-radius: .25rem; }

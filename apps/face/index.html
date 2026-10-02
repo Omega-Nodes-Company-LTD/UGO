@@ -85,6 +85,13 @@
         <div class="qr-card"><canvas id="qr-canvas" data-testid="qr-canvas" width="240" height="240"></canvas></div>
         <button id="btn-qr-close" data-testid="btn-qr-close" type="button">Chiudi</button>
       </div>
+      <div id="pair-overlay" data-testid="pair-overlay" class="overlay" hidden>
+        <b>Abbina questo muso</b>
+        <p>Nel pannello della tua casa apri «Accessi e dispositivi» e chiedi un codice: scrivi qui le sei cifre.</p>
+        <input id="pair-code" data-testid="pair-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" aria-label="Codice di abbinamento" />
+        <button id="btn-pair" data-testid="btn-pair" type="button">Abbina</button>
+        <p id="pair-msg" data-testid="pair-msg" role="status" aria-live="polite"></p>
+      </div>
       <aside id="log" data-testid="log" hidden>
         <header>
           <b>Cosa è stato detto</b>

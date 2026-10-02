@@ -59,6 +59,8 @@ const addBeing = async (page: Page, displayName: string, species = "human"): Pro
 
 const openPanel = async (page: Page): Promise<void> => {
   await page.goto(`${soulHttp()}/admin`);
+  // ADR-124: la porta principale è l'email; il token sta dietro «Ho un token»
+  await page.getByTestId("gate-token-open").click();
   await page.getByTestId("token").fill(token());
   await page.getByTestId("save-token").click();
   // ADR-035: the panel has pages now, and it opens on the house summary.
@@ -86,6 +88,8 @@ const goGosino = async (page: Page, sub: string): Promise<void> => {
 
 test("a wrong token does not let anybody in", async ({ page }) => {
   await page.goto(`${soulHttp()}/admin`);
+  // ADR-124: la porta principale è l'email; il token sta dietro «Ho un token»
+  await page.getByTestId("gate-token-open").click();
   await page.getByTestId("token").fill("non-e-il-token");
   await page.getByTestId("save-token").click();
   await expect(page.getByTestId("auth-msg-text")).toHaveText(/Token non valido/);

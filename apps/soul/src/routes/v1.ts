@@ -5,7 +5,7 @@ import {
   eventRequestSchema,
   memorySearchQuerySchema,
 } from "@ugo/shared";
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { BeingNotFoundError, type ChatService } from "../services/chatService.js";
 import type { GosinoRegistry } from "../services/pack/runtimes.js";
@@ -50,14 +50,34 @@ function problem(reply: FastifyReply, status: number, title: string, detail?: st
 }
 
 export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
+  /**
+   * ADR-121: con quale conversazione si parla. In casa il servizio di
+   * bootstrap È la casa, ed è sempre stato così. Davanti a internet il
+   * bootstrap è la casa di qualcun altro: ognuno parla col SUO esemplare, e
+   * chi non ne ha ancora uno riceve un 404, non i ricordi di un'altra famiglia.
+   */
+  const chatOf = async (request: FastifyRequest, reply: FastifyReply): Promise<ChatService | undefined> => {
+    if (!app.publicMode) return deps.chat;
+    const scope = await resolveAccount(deps.db, request);
+    if (!scope.ok) {
+      problem(reply, scope.status, scope.title, scope.detail);
+      return undefined;
+    }
+    const who = deps.registry?.resolve((request.query as { gosino?: string }).gosino, scope.accountId);
+    if (who === undefined) problem(reply, 404, "No gosino here", "questa casa non ha ancora un gosino");
+    return who?.chat;
+  };
+
   app.post("/v1/chat", { bodyLimit: CHAT_BODY_LIMIT }, async (request, reply) => {
     const parsed = chatRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       problem(reply, 400, "Invalid chat request", z.prettifyError(parsed.error));
       return;
     }
+    const chat = await chatOf(request, reply);
+    if (chat === undefined) return;
     try {
-      const response = await deps.chat.handle(parsed.data);
+      const response = await chat.handle(parsed.data);
       return await reply.send(chatResponseSchema.parse(response));
     } catch (error) {
       if (error instanceof BeingNotFoundError) {
@@ -78,6 +98,11 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
     // answers exactly as it did before ADR-019
     const scope = await resolveAccount(deps.db, request);
     const who = scope.ok ? deps.registry?.resolve(asked, scope.accountId) : undefined;
+    // ADR-121: in pubblico il ripiego è l'umore di un'altra casa — niente ripiego
+    if (who === undefined && app.publicMode) {
+      problem(reply, 404, "No gosino here", "questa casa non ha ancora un gosino");
+      return;
+    }
     const psyche = who?.psyche ?? deps.psyche;
     const at = new Date();
     const { vars, label, phrase } = psyche.current(at);
@@ -105,6 +130,11 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
       return;
     }
     const who = deps.registry?.resolve((request.query as { gosino?: string }).gosino, scope.accountId);
+    // ADR-121: il ripiego qui sotto è la psiche di bootstrap, cioè di un'altra casa
+    if (who === undefined && app.publicMode) {
+      problem(reply, 404, "No gosino here", "questa casa non ha ancora un gosino");
+      return;
+    }
     const inserted = await deps.db
       .insert(events)
       .values({
@@ -131,7 +161,9 @@ export function registerV1Routes(app: FastifyInstance, deps: V1Deps): void {
       problem(reply, 400, "Invalid search query", z.prettifyError(parsed.error));
       return;
     }
-    const results = await deps.chat.search(parsed.data.q, parsed.data.k);
+    const chat = await chatOf(request, reply);
+    if (chat === undefined) return;
+    const results = await chat.search(parsed.data.q, parsed.data.k);
     return reply.send(
       results.map(({ id, text, kind, score, similarity }) => ({
         id,

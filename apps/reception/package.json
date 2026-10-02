@@ -13,22 +13,22 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@ugo/shared": "workspace:*",
-    "next": "^15.5.12",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "@ugo/design": "workspace:*",
     "@ugo/face-body": "workspace:*",
-    "@ugo/design": "workspace:*"
+    "@ugo/shared": "workspace:*",
+    "next": "^15.5.27",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@testcontainers/postgresql": "^12.1.0",
     "@types/node": "^22.19.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "typescript": "~5.9.3",
-    "vitest": "^4.1.10",
-    "@playwright/test": "^1.62.1",
     "@ugo/db": "workspace:*",
     "@ugo/factories": "workspace:*",
-    "@testcontainers/postgresql": "^12.1.0"
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.10"
   }
 }

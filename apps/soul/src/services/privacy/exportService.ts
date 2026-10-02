@@ -90,6 +90,10 @@ export interface ExportBundle {
   modelChoices: unknown[];
   /** ADR-130: ogni movimento del credito, ricariche e consumi */
   creditLedger: unknown[];
+  /** ADR-124: chi entra in casa — l'email in chiaro (è sua), il consenso con la sua versione */
+  logins: unknown[];
+  /** ADR-124: le sessioni del browser — dispositivo e date, mai il token */
+  sessions: unknown[];
   adoptions: unknown[];
   /** ADR-099: i legami fra le case — le due parti, mai il vicinato intero */
   accountTies: unknown[];
@@ -307,6 +311,8 @@ export class ExportService {
       providerKeys,
       modelChoiceRows,
       credit,
+      logins,
+      sessionRows,
       adoptions,
       accountTies,
       parcels,
@@ -353,6 +359,11 @@ export class ExportService {
                from model_choices where account_id = ${accountId} order by role`),
       rows(sql`select id, kind, amount_micros, ref, created_at from credit_ledger
                where account_id = ${accountId} order by created_at`),
+      // ADR-124: `email_hash` no — è una chiave di ricerca col pepe del server
+      rows(sql`select id, email_enc, role, consented_at, terms_version, created_at
+               from account_logins where account_id = ${accountId} order by created_at`),
+      rows(sql`select id, label, created_at, last_seen_at, expires_at, revoked_at
+               from sessions where account_id = ${accountId} order by created_at`),
       rows(sql`select id, gosino_id, kennel_account_id, buyer_account_id, status,
                       price_cents, currency, chain_seq, reserved_at, paid_at, delivered_at,
                       cancelled_at
@@ -445,6 +456,8 @@ export class ExportService {
       providerKeys,
       modelChoices: modelChoiceRows,
       creditLedger: credit,
+      logins: this.openLogins(logins, houseKeyRow),
+      sessions: sessionRows,
       adoptions,
       accountTies,
       parcels: this.openParcels(parcels, accountId, houseKeyRow),
@@ -466,15 +479,7 @@ export class ExportService {
     accountId: string,
     houseKeyRow: Record<string, unknown>[],
   ): Record<string, unknown>[] {
-    let houseKey: Buffer | undefined;
-    const wrapped = houseKeyRow[0]?.wrapped_data_key;
-    if (wrapped != null) {
-      try {
-        houseKey = unwrapDataKey(wrapped as Buffer, this.dataKey);
-      } catch {
-        houseKey = undefined;
-      }
-    }
+    const houseKey = this.houseKeyOf(houseKeyRow);
     return parcels.map((row) => {
       if (row.to_account_id !== accountId) {
         return { ...row, text: "[spedita: il testo è della casa destinataria]" };
@@ -487,5 +492,31 @@ export class ExportService {
         return { ...row, text: UNREADABLE };
       }
     });
+  }
+
+  /** ADR-124: l'email di chi entra, riaperta con la DEK della casa. */
+  private openLogins(
+    logins: Record<string, unknown>[],
+    houseKeyRow: Record<string, unknown>[],
+  ): Record<string, unknown>[] {
+    const houseKey = this.houseKeyOf(houseKeyRow);
+    return logins.map(({ email_enc: sealed, ...row }) => {
+      if (typeof sealed !== "string" || houseKey === undefined) return { ...row, email: UNREADABLE };
+      try {
+        return { ...row, email: decryptText(sealed, houseKey) };
+      } catch {
+        return { ...row, email: UNREADABLE };
+      }
+    });
+  }
+
+  private houseKeyOf(houseKeyRow: Record<string, unknown>[]): Buffer | undefined {
+    const wrapped = houseKeyRow[0]?.wrapped_data_key;
+    if (wrapped == null) return undefined;
+    try {
+      return unwrapDataKey(wrapped as Buffer, this.dataKey);
+    } catch {
+      return undefined;
+    }
   }
 }

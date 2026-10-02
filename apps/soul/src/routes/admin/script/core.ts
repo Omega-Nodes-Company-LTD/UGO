@@ -24,9 +24,10 @@ const dropToken = () => { localStorage.removeItem(KEY); sessionStorage.removeIte
 
 // content-type only when there IS a body: Fastify rejects an empty body sent
 // as application/json, which silently broke every DELETE from this panel
+// ADR-124: senza token la richiesta porta il cookie della sessione, da sé
 const headers = (hasBody, contentType) => ({
   ...(hasBody ? { "content-type": contentType ?? "application/json" } : {}),
-  authorization: "Bearer " + token(),
+  ...(token() === "" ? {} : { authorization: "Bearer " + token() }),
 });
 const say = (where, text, kind) => { $(where).innerHTML = ""; const d = document.createElement("div");
   d.className = "msg " + (kind ?? "info"); d.textContent = text; d.dataset.testid = where + "-text";
@@ -118,6 +119,9 @@ async function loadMe() {
     group.hidden = !(ME.role === "operator" ||
       (kind === "business" && ME.account?.kind === "business"));
   }
+  // regola 14, ADR-081: una famiglia adotta — far nascere è di chi alleva
+  const breeds = ME.role === "operator" || ME.account?.canBreed === true || ME.account?.isFoundry === true;
+  for (const node of document.querySelectorAll('[data-needs="breeding"]')) node.hidden = !breeds;
 }
 
 async function boot() {
@@ -160,16 +164,18 @@ $("save-token").addEventListener("click", async () => {
   }
 });
 
-$("logout").addEventListener("click", () => {
+$("logout").addEventListener("click", async () => {
+  // ADR-124: la sessione si chiude anche sul server, non solo nel browser
+  if (token() === "") { try { await call("/v1/auth/esci", { method: "POST" }); } catch { /* era già chiusa */ } }
   dropToken();
   location.hash = "";
   location.reload();
 });
 
-// a token kept from last time gets you straight in — and if it has been
-// revoked meanwhile, you land on the door instead of on a broken panel
+// a token kept from last time — or the session cookie of who came in by email
+// (ADR-124) — gets you straight in; if it has been revoked meanwhile, you land
+// on the door instead of on a broken panel
 window.addEventListener("DOMContentLoaded", async () => {
-  if (token() === "") return;
   try { await call("/v1/accounts", {}); await boot(); }
   catch { dropToken(); }
 });

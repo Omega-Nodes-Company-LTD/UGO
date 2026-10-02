@@ -1,3 +1,4 @@
+import { visionAsset } from "./assetPath.js";
 /**
  * Gli occhi per le cose (gruppo 12): UGO vede COSA gli mostri.
  *
@@ -82,9 +83,9 @@ export async function startObjectSpotter(
 ): Promise<ObjectSpotterHandle | undefined> {
   try {
     const vision = await import("@mediapipe/tasks-vision");
-    const fileset = await vision.FilesetResolver.forVisionTasks("/vision");
+    const fileset = await vision.FilesetResolver.forVisionTasks(visionAsset());
     const detector = await vision.ObjectDetector.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: "/vision/efficientdet_lite0.tflite" },
+      baseOptions: { modelAssetPath: visionAsset("efficientdet_lite0.tflite") },
       runningMode: "VIDEO",
       scoreThreshold: SPOT_MIN_CONFIDENCE,
       maxResults: 3,

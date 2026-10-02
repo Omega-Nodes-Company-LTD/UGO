@@ -55,6 +55,11 @@ export interface NewAccountInput {
    */
   foundry?: boolean;
   breeder?: boolean;
+  /**
+   * ADR-124: chi s'iscrive con l'email entra con una sessione, non con un
+   * token da incollare. Falso, la casa nasce senza token del proprietario.
+   */
+  ownerToken?: boolean;
 }
 
 export interface NewAccount {
@@ -114,20 +119,26 @@ export async function createAccount(
       .returning({ id: accounts.id });
     if (house === undefined) throw new Error("la casa non è stata creata");
 
+    /**
+     * ADR-113: un account nasce con **un luogo**.
+     *
+     * La migrazione aveva traghettato le case esistenti e nessuno aveva pensato
+     * a quelle nuove: nascevano senza luoghi, quindi senza cielo, e le stanze
+     * che ci si creavano dentro non stavano in nessun posto. L'hanno trovato i
+     * test d'integrazione, e la lezione è la stessa di sempre — un traghetto
+     * che riguarda solo il passato lascia scoperto il futuro.
+     *
+     * Si chiama «Casa» perché è come lo chiamerebbe chi ci vive, e il nome si
+     * cambia dal pannello: nascere senza nome sarebbe una riga che nessuno
+     * riconosce. Sta prima del capostipite perché anche la casa vuota è
+     * una casa (ADR-082): lì il luogo mancava.
+     */
+    await tx.insert(places).values({ accountId: house.id, name: "Casa", slug: "casa" });
+
     // ADR-082: la casa nasce vuota se nessuno ha chiesto un capostipite
     if (founderName === undefined || founderName === "") {
-      const issuedAlone = await issueToken(tx as unknown as DbClient, {
-        accountId: house.id,
-        role: "owner",
-        label: `proprietario di ${slug}`,
-      });
-      return {
-        accountId: house.id,
-        slug,
-        persona: character.persona,
-        ownerToken: issuedAlone.token,
-        tokenId: issuedAlone.id,
-      };
+      const issuedAlone = await ownerTokenFor(tx as unknown as DbClient, house.id, slug, input);
+      return { accountId: house.id, slug, persona: character.persona, ...issuedAlone };
     }
 
     const [born] = await tx
@@ -168,36 +179,28 @@ export async function createAccount(
           : `capostipite coniato con la casa, archetipo: ${input.archetype}`,
     });
 
-    /**
-     * ADR-113: un account nasce con **un luogo**.
-     *
-     * La migrazione aveva traghettato le case esistenti e nessuno aveva pensato
-     * a quelle nuove: nascevano senza luoghi, quindi senza cielo, e le stanze
-     * che ci si creavano dentro non stavano in nessun posto. L'hanno trovato i
-     * test d'integrazione, e la lezione è la stessa di sempre — un traghetto
-     * che riguarda solo il passato lascia scoperto il futuro.
-     *
-     * Si chiama «Casa» perché è come lo chiamerebbe chi ci vive, e il nome si
-     * cambia dal pannello: nascere senza nome sarebbe una riga che nessuno
-     * riconosce.
-     */
-    await tx.insert(places).values({ accountId: house.id, name: "Casa", slug: "casa" });
-
-    const issued = await issueToken(tx as unknown as DbClient, {
-      accountId: house.id,
-      role: "owner",
-      label: `proprietario di ${slug}`,
-    });
+    const issued = await ownerTokenFor(tx as unknown as DbClient, house.id, slug, input);
 
     return {
       accountId: house.id,
       gosinoId: born.id,
       slug,
       persona: character.persona,
-      ownerToken: issued.token,
-      tokenId: issued.id,
+      ...issued,
     };
   });
+}
+
+/** Il token del proprietario, a meno che chi fonda abbia detto di no (ADR-124). */
+async function ownerTokenFor(
+  tx: DbClient,
+  accountId: string,
+  slug: string,
+  input: NewAccountInput,
+): Promise<{ ownerToken: string; tokenId: string }> {
+  if (input.ownerToken === false) return { ownerToken: "", tokenId: "" };
+  const issued = await issueToken(tx, { accountId, role: "owner", label: `proprietario di ${slug}` });
+  return { ownerToken: issued.token, tokenId: issued.id };
 }
 
 /**

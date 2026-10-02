@@ -510,12 +510,31 @@ body {
 }
 .overlay p {
   margin: 0;
-  max-width: 520px;
+  box-sizing: border-box;
+  max-width: min(520px, 100%);
   text-align: center;
   line-height: 1.5;
   padding: 0 24px;
 }
-/* il risveglio è l'unico gesto in bianco pieno */
+/* ADR-121: finché non è abbinato il muso non è di nessuno — sopra a tutto */
+#pair-overlay {
+  position: fixed;
+  z-index: 1000;
+}
+/* le sei cifre dell'abbinamento, grandi da leggere a un metro */
+#pair-code {
+  width: 11ch;
+  height: 64px;
+  border-radius: 10px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--ink);
+  font: 700 32px/1 ui-monospace, monospace;
+  letter-spacing: 0.25em;
+  text-align: center;
+}
+/* il risveglio è l'unico gesto in bianco pieno; l'abbinamento è il primo */
+#btn-pair,
 #btn-privacy-off {
   height: 56px;
   padding: 0 26px;
