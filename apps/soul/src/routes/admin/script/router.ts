@@ -133,6 +133,9 @@ async function openPage(page) {
   } else if (page === "allevamento") {
     // ADR-131: il conto con cui l'allevamento incassa
     await section(loadPayout, "payout-msg");
+  } else if (page === "piazza") {
+    // ADR-132/020: la piazza su invito e gli incontri di persona
+    await section(loadPlaza, "plaza-msg");
   } else if (page === "segnalazioni") {
     await section(loadReports, "reports-msg");
   } else if (page === "accessi") {

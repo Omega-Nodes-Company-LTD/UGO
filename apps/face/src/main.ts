@@ -7,6 +7,7 @@ import { startCameraGaze, startPointerGaze } from "./gaze.js";
 import { openFaceLocator } from "./faceLocator.js";
 import { GlyphDriver } from "./glyph.js";
 import { PortableController } from "./portable.js";
+import { PeerMeet } from "./peerMeet.js";
 import { ScreenAwake } from "./wakelock.js";
 import {
   createFace,
@@ -1217,6 +1218,30 @@ if (portableMode) {
   requireElement("#btn-qr-close").addEventListener("click", () => {
     portable.hideBusinessCard();
   });
+  // ADR-020: l'incontro di persona, solo in giro — il biglietto e la camera
+  const peerVideo = requireElement("#peer-video");
+  const peerCanvas = requireElement("#peer-canvas");
+  if (peerVideo instanceof HTMLVideoElement && peerCanvas instanceof HTMLCanvasElement) {
+    const meet = new PeerMeet(
+      { overlay: requireElement("#peer-overlay"), canvas: peerCanvas, video: peerVideo, status: requireElement("#peer-status") },
+      {
+        soulHttp,
+        token: params.get("token") ?? undefined,
+        gosinoId: () => residents[0]?.id,
+        privacy: () => portable.isPrivacyOn(),
+      },
+    );
+    requireElement("#btn-peer").hidden = false;
+    requireElement("#btn-peer").addEventListener("click", () => {
+      void meet.show();
+    });
+    requireElement("#btn-peer-scan").addEventListener("click", () => {
+      void meet.scan();
+    });
+    requireElement("#btn-peer-close").addEventListener("click", () => {
+      meet.close();
+    });
+  }
 }
 
 /** deterministic hooks for e2e tests */

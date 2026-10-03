@@ -4,6 +4,7 @@ import {
   accounts,
   creditSettings,
   pairingCodes,
+  plazaPresence,
   providerCredentials,
   sessions,
   withAccount,
@@ -49,6 +50,8 @@ export async function closeAccount(db: DbClient, masterKey: Buffer, accountId: s
     await tx.delete(pairingCodes).where(eq(pairingCodes.accountId, accountId));
     // ADR-130: il metodo di pagamento salvato per la ricarica automatica
     await tx.delete(creditSettings).where(eq(creditSettings.accountId, accountId));
+    // ADR-132: una casa chiusa non resta in piazza
+    await tx.delete(plazaPresence).where(eq(plazaPresence.accountId, accountId));
     return true;
   });
 }

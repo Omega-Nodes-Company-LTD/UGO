@@ -9,7 +9,7 @@ import {
   ADOPTION_STATUSES,
   EVENT_SOURCES,
   MEMORY_KINDS,
-  MESSAGE_CHANNELS,
+  STORED_MESSAGE_CHANNELS,
   RECOGNITION_MODALITIES,
   RELATION_SOURCES,
   RELATION_TYPES,
@@ -24,7 +24,7 @@ import {
 // deliberately NOT here — ADR-014/016 promise that adding one needs no
 // migration.
 export const eventSource = pgEnum("event_source", EVENT_SOURCES);
-export const messageChannel = pgEnum("message_channel", MESSAGE_CHANNELS);
+export const messageChannel = pgEnum("message_channel", STORED_MESSAGE_CHANNELS);
 export const memoryKind = pgEnum("memory_kind", MEMORY_KINDS);
 export const desireStatus = pgEnum("desire_status", DESIRE_STATUSES);
 export const desireKind = pgEnum("desire_kind", DESIRE_KINDS);

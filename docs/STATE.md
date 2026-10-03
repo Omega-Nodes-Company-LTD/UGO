@@ -2908,4 +2908,31 @@ rimborso con storno), le altre suite del mercato e dell'incasso verdi (156 test)
 compila lo script e vieta gli script inline; drizzle senza deriva; audit senza HIGH/CRITICAL;
 prova nel browser di vetrina, filtri, pagina dell'allevamento e scheda.
 
-**Prossimo**: fase 7 (la piazza e l'incontro).
+**Fase 7 — la piazza e l'incontro (ADR-132, ADR-020).**
+- Schema 0069/0070: `plaza_presence`, `plaza_invites`, `plaza_blocks`, ruolo `ugo_plaza`
+  (`withPlaza`), canale `piazza` fra i messaggi conservati e non fra quelli della chat.
+- `services/plaza/*`: presenza (30 minuti, handle nuovo a ogni ingresso), inviti (cinque al
+  giorno, uno alla volta, blocco), incontro (sei turni, ognuno col cancello della sua casa, nessun
+  ricordo nel prompt, copia cifrata per lato, interruzione se una casa tace).
+- Rotte `routes/plaza.ts` e `routes/peers.ts` (l'incontro di persona di ADR-020, finalmente
+  raggiungibile); cancelli del piano in `planGates.ts`; filtri d'account espliciti oltre a RLS.
+- Export: presenze, inviti (solo i nomi) e blocchi (senza l'id dell'altra casa); chiusura
+  dell'account = fuori dalla piazza.
+
+### Il giro completo (regola 12), fase 7
+- **BO**: quanto sopra. `ops/jobs`: non toccato — nessun job legge o scrive la piazza, e i messaggi
+  `piazza` passano dal sogno come ogni altro messaggio di casa.
+- **`/admin`**: pagina «La piazza» (sotto «Insieme», cartellino «Pro» se il piano non la apre):
+  quale gosino, entra/resta/esci, chi c'è, inviti con accetta/rifiuta/blocca, la chiacchierata
+  letta dalla propria copia, interruttore degli incontri di persona e conoscenze con «Dimentica».
+- **FE**: in modalità portatile il muso ha «Incontra» — mostra il biglietto in QR (ridisegnato
+  a ogni epoca) e inquadra quello dell'altro con `BarcodeDetector`; dove il browser non lo ha, lo
+  dice. **Il bundle del muso va ricostruito.** BLE e incontro in diretta sul muso: non fatti,
+  motivati in ADR-132.
+
+Verifiche: `plaza` 17/17 su Postgres (due case con lo stub del provider: sei battute, tre per
+chiave, nessun ricordo di casa nelle richieste, copia cifrata per lato, interruzione senza testa,
+blocco, scadenza, biglietto manomesso, avvistamento e oblio; RLS sotto `ugo_app`); unit del muso
+verdi; build del muso.
+
+**Prossimo**: fase 8 (documentazione, S3_PREFIX, rilascio).

@@ -724,3 +724,11 @@ body {
   /* la scrive un modello: che sia lunga non deve sfondare la colonna */
   overflow-wrap: anywhere;
 }
+
+/* ADR-020: la camera che legge il biglietto dell'altro, dentro lo stesso riquadro */
+#peer-video {
+  width: min(280px, 70vw);
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--chrome-radius, 12px);
+}

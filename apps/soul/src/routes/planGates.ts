@@ -23,7 +23,7 @@ interface Gate {
   url: string;
   need: Toggle | Quota;
   /** quando la rotta fa anche cose che non chiedono il piano */
-  when?: (body: unknown) => boolean;
+  when?: (body: unknown, params: unknown) => boolean;
 }
 
 const field = (body: unknown, key: string): unknown =>
@@ -43,6 +43,10 @@ export const PLAN_GATES: readonly Gate[] = [
     need: "breedingSales",
     when: (b) => field(b, "listed") === true && Number(field(b, "priceCents") ?? 0) > 0,
   },
+  // ADR-132: entrare e invitare chiedono la piazza; rifiutare e bloccare mai
+  { method: "POST", url: "/v1/piazza/presenza", need: "plaza" },
+  { method: "POST", url: "/v1/piazza/inviti", need: "plaza" },
+  { method: "POST", url: "/v1/piazza/inviti/:id/:azione", need: "plaza", when: (_b, p) => field(p, "azione") === "accetta" },
 ];
 
 const QUOTAS: readonly string[] = ["gosini", "rooms"] satisfies Quota[];
@@ -50,7 +54,7 @@ const QUOTAS: readonly string[] = ["gosini", "rooms"] satisfies Quota[];
 export function registerPlanGates(app: FastifyInstance, deps: { db: DbClient; plans: PlanGate }): void {
   app.addHook("preHandler", async (request, reply) => {
     const gate = PLAN_GATES.find((g) => g.method === request.method && g.url === request.routeOptions.url);
-    if (gate === undefined || (gate.when !== undefined && !gate.when(request.body))) return undefined;
+    if (gate === undefined || (gate.when !== undefined && !gate.when(request.body, request.params))) return undefined;
     // chi non si è presentato lo ferma il guardiano della rotta, con un 401
     if (request.tenant === null) return undefined;
     const scope = await resolveAccount(deps.db, request);

@@ -80,6 +80,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <a href="#/consiglio" data-nav="consiglio">${icon("council")}Il consiglio</a>
       <a href="#/feed" data-nav="feed">${icon("feed")}I feed</a>
       <a href="#/parentele" data-nav="parentele">${icon("family")}Le parentele</a>
+      <a href="#/piazza" data-nav="piazza" data-plan="plaza">${icon("plaza")}La piazza</a>
     </nav>
 
     <nav class="rail-group">

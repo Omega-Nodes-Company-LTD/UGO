@@ -49,6 +49,8 @@ import { registerHouseDocRoutes, type HouseDocsStorage } from "./routes/houseDoc
 import { registerPlaceRoutes } from "./routes/places.js";
 import { PeerService } from "./services/peerService.js";
 import { RegistryClient } from "./services/registryClient.js";
+import { registerPeerRoutes } from "./routes/peers.js";
+import { registerPlazaRoutes } from "./routes/plaza.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
@@ -683,6 +685,26 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           album,
         });
         registerAlbumRoutes(app, { db: options.db, guard, audit, album });
+        // ADR-020/132: incontrarsi — di persona (senza LLM) e in piazza (su invito)
+        const kek = gosini.dataKey;
+        const moodOf = (accountId: string, gosinoId: string): string =>
+          registry?.resolve(gosinoId, accountId)?.psyche.current().label.slice(0, 30) ?? "curioso";
+        registerPeerRoutes(app, { db: options.db, guard, dataKey: kek, moodOf });
+        const resolver = options.ai?.resolver;
+        if (resolver !== undefined) {
+          registerPlazaRoutes(app, {
+            db: options.db,
+            guard,
+            masterKey: kek,
+            moodOf,
+            // ogni battuta la paga la casa di chi parla, col suo cancello
+            chatFor: (accountId, gosinoId) =>
+              resolver.chatFor(accountId, gosinoId, {
+                timezone: registry?.resolve(gosinoId, accountId)?.timezone ?? "Europe/Rome",
+                locale: "it-IT",
+              }),
+          });
+        }
       }
     }
     if (council !== undefined) {

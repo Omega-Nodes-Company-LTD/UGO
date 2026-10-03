@@ -7,6 +7,12 @@ export type EventSource = (typeof EVENT_SOURCES)[number];
 /** `ticket` is the reception channel (ADR-051/052): customer conversations. */
 export const MESSAGE_CHANNELS = ["home", "meeting", "api", "ticket"] as const;
 export type MessageChannel = (typeof MESSAGE_CHANNELS)[number];
+/**
+ * I canali che si ARCHIVIANO: quelli della chat più `piazza` (ADR-132), che
+ * non è una porta di `/v1/chat` — la chiacchierata in piazza la conduce soul,
+ * e nessuno ci scrive da fuori.
+ */
+export const STORED_MESSAGE_CHANNELS = [...MESSAGE_CHANNELS, "piazza"] as const;
 
 /**
  * A ticket's life (ADR-052). The owner triages from the panel; the customer

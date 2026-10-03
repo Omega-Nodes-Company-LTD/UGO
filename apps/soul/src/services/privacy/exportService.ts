@@ -102,6 +102,7 @@ export interface ExportBundle {
   payoutAccount: unknown[];
   /** ADR-131: le segnalazioni fatte da questa casa */
   listingReports: unknown[];
+  plaza: { presence: unknown[]; invites: unknown[]; blocks: unknown[] };
   adoptions: unknown[];
   /** ADR-099: i legami fra le case — le due parti, mai il vicinato intero */
   accountTies: unknown[];
@@ -325,6 +326,7 @@ export class ExportService {
       creditSettingRows,
       payoutRows,
       reportRows,
+      plazaRows,
       adoptions,
       accountTies,
       parcels,
@@ -386,6 +388,14 @@ export class ExportService {
                from breeder_payout_accounts where account_id = ${accountId}`),
       rows(sql`select id, gosino_id, reason, note, status, created_at, resolved_at
                from listing_reports where reporter_account_id = ${accountId} order by created_at`),
+      // ADR-132: la piazza — gli inviti si vedono da entrambi i lati, i
+      // blocchi solo da chi li ha messi, e senza l'id dell'altra casa; la presenza vive trenta minuti
+      Promise.all([
+        rows(sql`select gosino_id, name, mood, expires_at, created_at from plaza_presence where account_id = ${accountId}`),
+        rows(sql`select id, from_name, to_name, status, turns_done, created_at, ended_at
+                 from plaza_invites where from_account_id = ${accountId} or to_account_id = ${accountId} order by created_at`),
+        rows(sql`select created_at from plaza_blocks where account_id = ${accountId}`),
+      ]),
       rows(sql`select id, gosino_id, kennel_account_id, buyer_account_id, status,
                       price_cents, currency, chain_seq, reserved_at, paid_at, delivered_at,
                       cancelled_at
@@ -484,6 +494,7 @@ export class ExportService {
       creditSettings: creditSettingRows,
       payoutAccount: payoutRows,
       listingReports: reportRows,
+      plaza: { presence: plazaRows[0], invites: plazaRows[1], blocks: plazaRows[2] },
       adoptions,
       accountTies,
       parcels: this.openParcels(parcels, accountId, houseKeyRow),

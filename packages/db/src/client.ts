@@ -107,3 +107,18 @@ export async function withPost<T>(db: DbClient, work: (tx: DbClient) => Promise<
     return work(tx as unknown as DbClient);
   });
 }
+
+/**
+ * ADR-132: la transazione della piazza.
+ *
+ * Il fratello più piccolo di `withMarket` e `withPost`: guardare chi c'è in
+ * piazza e chi mi ha bloccato attraversa le case per disegno, e sotto
+ * `ugo_app` non si vedrebbe nessuno. `ugo_plaza` legge presenze, blocchi e
+ * inviti — mai ricordi, messaggi o persone (migrazione 0070).
+ */
+export async function withPlaza<T>(db: DbClient, work: (tx: DbClient) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`set local role ugo_plaza`);
+    return work(tx as unknown as DbClient);
+  });
+}

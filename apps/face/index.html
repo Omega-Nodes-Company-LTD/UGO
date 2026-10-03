@@ -85,6 +85,15 @@
         <div class="qr-card"><canvas id="qr-canvas" data-testid="qr-canvas" width="240" height="240"></canvas></div>
         <button id="btn-qr-close" data-testid="btn-qr-close" type="button">Chiudi</button>
       </div>
+      <!-- ADR-020: l'incontro di persona — il proprio biglietto in QR, e la camera per leggere quello dell'altro -->
+      <div id="peer-overlay" data-testid="peer-overlay" class="overlay" hidden>
+        <b>Incontro di persona</b>
+        <p id="peer-status" data-testid="peer-status" role="status" aria-live="polite"></p>
+        <div class="qr-card"><canvas id="peer-canvas" data-testid="peer-canvas" width="280" height="280"></canvas></div>
+        <video id="peer-video" data-testid="peer-video" playsinline muted hidden></video>
+        <button id="btn-peer-scan" data-testid="btn-peer-scan" type="button">Inquadra il suo</button>
+        <button id="btn-peer-close" data-testid="btn-peer-close" type="button">Chiudi</button>
+      </div>
       <div id="pair-overlay" data-testid="pair-overlay" class="overlay" hidden>
         <b>Abbina questo muso</b>
         <p>Nel pannello della tua casa apri «Accessi e dispositivi» e chiedi un codice: scrivi qui le sei cifre.</p>
@@ -201,6 +210,10 @@
           <button id="btn-card" data-testid="btn-card" type="button" hidden>
             <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="5.5" height="5.5" rx="1"></rect><rect x="11.5" y="3" width="5.5" height="5.5" rx="1"></rect><rect x="3" y="11.5" width="5.5" height="5.5" rx="1"></rect><path d="M11.5 11.5h2.4v2.4h-2.4z"></path><path d="M14.6 14.6H17V17h-2.4z"></path></svg>
             <span class="lbl">Biglietto QR</span>
+          </button>
+          <button id="btn-peer" data-testid="btn-peer" type="button" hidden>
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="8" r="2.6"></circle><circle cx="13.5" cy="8" r="2.6"></circle><path d="M2.8 16.5c.6-2.4 2.2-3.6 4.2-3.6s3.6 1.2 4.2 3.6"></path><path d="M9.6 16.5c.5-2.4 2-3.6 3.9-3.6s3.4 1.2 3.9 3.6"></path></svg>
+            <span class="lbl">Incontra</span>
           </button>
           <input id="photo-file" data-testid="photo-file" type="file" accept="image/*" hidden>
           <button id="btn-expand" data-testid="btn-expand" type="button" title="apri i comandi">

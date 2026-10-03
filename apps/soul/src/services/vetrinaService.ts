@@ -47,6 +47,17 @@ export interface ShowcaseKennel {
  */
 const VISIBLE = ["chonk", "ear", "snout", "eye", "leg", "hue", "tail", "spots", "bristle"] as const;
 
+/** L'aspetto di un genoma, e nient'altro: è anche ciò che si vede in piazza (ADR-132). */
+export function visibleLook(traits: unknown): Record<string, number> {
+  const character = characterFrom(traits);
+  const look: Record<string, number> = {};
+  for (const key of VISIBLE) {
+    const value = character.traits[key];
+    if (typeof value === "number") look[key] = Number(value.toFixed(2));
+  }
+  return look;
+}
+
 export class VetrinaService {
   public constructor(private readonly db: DbClient) {}
 
@@ -86,11 +97,7 @@ export class VetrinaService {
         row.mortalFrom === null
           ? undefined
           : lifeAt(row.mortalFrom, now, character.traits.longevity, row.jitter ?? 0);
-      const look: Record<string, number> = {};
-      for (const key of VISIBLE) {
-        const value = character.traits[key];
-        if (typeof value === "number") look[key] = Number(value.toFixed(2));
-      }
+      const look = visibleLook(row.traits);
       const kennel = byKennel.get(row.slug) ?? { slug: row.slug, name: row.house, cubs: [] };
       kennel.cubs.push({
         gosinoId: row.gosinoId,
