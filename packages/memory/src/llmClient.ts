@@ -27,11 +27,11 @@ export const HUNGRY_REPLY =
 
 /** ADR-122: la casa non ha ancora scelto con che testa farmi pensare. */
 export const KEYLESS_REPLY =
-  "Grunf... non ho ancora una testa per pensare: dammi una chiave in Impostazioni → AI e torno a parlare.";
+  "Grunf... non ho ancora una testa per pensare: dammi una chiave nel pannello, in «La testa di UGO», e torno a parlare.";
 
 /** ADR-122: la chiave c'era, ma il provider l'ha rifiutata. */
 export const INVALID_KEY_REPLY =
-  "Grunf... la chiave che mi avete dato non apre più niente: controllatela in Impostazioni → AI.";
+  "Grunf... la chiave che mi avete dato non apre più niente: controllatela nel pannello, in «La testa di UGO».";
 
 /** ADR-130: le chiavi UGO a consumo e il credito finito. */
 export const CREDIT_REPLY =

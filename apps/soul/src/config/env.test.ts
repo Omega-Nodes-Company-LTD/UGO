@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { appDatabaseUrl, audioStorageFromEnv, soulEnvSchema } from "./env.js";
+import { appDatabaseUrl, areaPrefix,
+  audioStorageFromEnv,
+  storageFromEnv, soulEnvSchema } from "./env.js";
 
 /**
  * Pure configuration logic, so a unit test is the honest place for it
@@ -52,6 +54,8 @@ describe("S3 configuration", () => {
       bucket: "ugo-audio",
       // Hetzner rejects a wrong region, so it must travel with the rest
       region: "fsn1",
+      // i bucket separati di prima: niente cartella
+      prefix: "",
     });
   });
 
@@ -69,6 +73,31 @@ describe("S3 configuration", () => {
     expect(storage?.region).toBe("us-east-1");
   });
 
+  it("un bucket comune: ogni ambiente nella sua cartella, ogni area nella sua", () => {
+    const env = parse({
+      S3_ENDPOINT: "https://fsn1.your-objectstorage.com",
+      S3_ACCESS_KEY_ID: "AKIA",
+      S3_SECRET_ACCESS_KEY: "secret",
+      S3_BUCKET: "comune",
+      S3_PREFIX: "/prod/",
+      // il vecchio nome non vince sul nuovo
+      S3_BUCKET_AUDIO: "vecchio",
+    });
+    expect(storageFromEnv(env, "audio")).toMatchObject({ bucket: "comune", prefix: "prod/audio/" });
+    expect(storageFromEnv(env, "photos")?.prefix).toBe("prod/photos/");
+    expect(storageFromEnv(env, "house-docs")?.prefix).toBe("prod/house-docs/");
+  });
+
+  it("senza S3_PREFIX le aree stanno alla radice del bucket comune", () => {
+    expect(areaPrefix(undefined, "docs")).toBe("docs/");
+  });
+
+  it("coi bucket di prima, un'area senza il suo bucket resta spenta", () => {
+    const env = parse({ S3_ENDPOINT: "https://s3.example", S3_ACCESS_KEY: "a", S3_SECRET_KEY: "b", S3_BUCKET_AUDIO: "x" });
+    expect(storageFromEnv(env, "audio")?.bucket).toBe("x");
+    expect(storageFromEnv(env, "photos")).toBeUndefined();
+  });
+
   it("treats nothing configured as audio upload simply being off", () => {
     expect(audioStorageFromEnv(parse({}))).toBeUndefined();
   });
@@ -78,7 +107,7 @@ describe("S3 configuration", () => {
       audioStorageFromEnv(
         parse({ S3_ENDPOINT: "https://s3.example", S3_ACCESS_KEY_ID: "AKIA" }),
       ),
-    ).toThrow(/mancano .*S3_SECRET_KEY.*S3_BUCKET_AUDIO/s);
+    ).toThrow(/mancano .*S3_SECRET_KEY.*S3_BUCKET/s);
   });
 
   it("never puts a secret in the error text", () => {

@@ -50,6 +50,7 @@ Queste decisioni sono state prese consapevolmente e **non vanno rimesse in discu
 | ADR-009 | **Monorepo pnpm + Turborepo + TypeScript strict**, convenzioni allineate a Trisite. Schema DB con Drizzle; validazione runtime ai confini con Zod. | Coerenza con il resto dell'ecosistema ThinkPink. |
 | ADR-010 | **Giurisdizione: Italia/UE** (GDPR + postura NIS2). Le riunioni possono includere contatti in Uganda (Data Protection and Privacy Act 2019: minimizzazione e consenso valgono comunque). Registrare solo conversazioni a cui il proprietario partecipa; nelle call con clienti il bot è visibile e viene annunciato. | Pre-risposta alla domanda bloccante di geolocalizzazione legislativa del framework ThinkPink: non riproporla. |
 | ADR-011 | **Visibile by design.** Il corpo mobile non è un registratore nascosto: è UGO stesso, indossato a vista (badge/tracolla) con faccia attiva, indicatore **REC** evidente quando ascolta-registra e **privacy mode** inequivocabile (occhi chiusi + mic realmente off). Il guscio porta branding ThinkPink/Omega Nodes e un QR contatti: UGO è anche un biglietto da visita parlante. | Trasparenza > furtività: rafforza fiducia e correttezza delle registrazioni e trasforma la curiosità altrui in marketing. La visibilità non sostituisce l'annuncio (ADR-010). |
+| ADR-121…132 | **UGO si vende** (2026-10). Soul è **pubblico** e blindato (ADR-121, supera ADR-007 per soul soltanto: DB, Ollama, MQTT e percezione restano privati). Le **chiavi AI sono della casa** o di UGO a consumo, un modello per ruolo, un cancello misurato unico (ADR-122, 123, 129, 130: superano ADR-001 e ADR-006 per il percorso vivo; restano locali gli embedding e la biometria). Accesso con link via email, senza utenti (124). Piani Free/Pro/Allevamento, credito prepagato, adozioni pagate, mercato con Stripe Connect (125, 126, 128, 130, 131). Un design system (127). La piazza su invito (132). | Il locale-first non reggeva su CPU (minuti per un turno di chat) e non si vendeva. Le alternative scartate sono negli ADR. |
 
 ---
 
@@ -254,6 +255,7 @@ Il job è idempotente e ripartibile: ogni step marca il proprio stato; un crash 
 
 - Tariffe di riferimento (verificare a runtime sul listino ufficiale): Haiku 4.5 ≈ $1/$5 per MTok; cache hit ≈ 10% dell'input; batch −50%.
 - Uso atteso: casa ~50 scambi/giorno con blocco cached ⇒ **~1–3 €/mese**. Trascrizioni: 0 € (CPU locale). Sogno: 0 € se su Ollama.
+- **Da ADR-122/130** il costo dipende dalla casa: con le **sue chiavi** paga il fornitore e il tetto giornaliero (`daily_budget_usd` per account, default `UGO_DAILY_BUDGET_USD`) protegge il suo portafoglio; con le **chiavi UGO** ogni chiamata scala dal credito prepagato `costo reale × UGO_TOKEN_MARKUP` (micro-euro, `credit_ledger`). Il ricavo viene dagli abbonamenti (ADR-125) e dalla commissione del mercato `UGO_MARKET_FEE_PCT` (ADR-131). Le tariffe sotto restano il riferimento per Haiku.
 - **Guard obbligatoria**: `UGO_DAILY_BUDGET_USD` (default 0.50). Superata la soglia: degradazione dichiarata (risposte template + "oggi ho finito le parole, torno domani") e alert nei log. Il conteggio vive in `budget_ledger` — il **salvadanaio**: un porcetto che sorveglia il proprio salvadanaio è di una coerenza impeccabile — mai stimato client-side.
 
 ## 7. Sicurezza, privacy, conformità (postura GDPR/NIS2 — vedi ADR-010)
@@ -311,7 +313,9 @@ ugo/
 
 ## 10. Variabili d'ambiente (`.env.example` completo in Fase 0)
 
-`DATABASE_URL` · `MQTT_URL` · `MQTT_USER/PASS` · `OLLAMA_URL` · `OLLAMA_EMBED_MODEL=nomic-embed-text` · `OLLAMA_BATCH_MODEL` · `ANTHROPIC_API_KEY` · `UGO_CHAT_MODEL=claude-haiku-4-5` · `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY` (AES-256-GCM) · `S3_ENDPOINT/ACCESS_KEY/SECRET_KEY` · `S3_BUCKET_AUDIO/S3_BUCKET_BACKUP` · `UGO_AUDIO_RETENTION_DAYS=90` · `HF_TOKEN` (pyannote) · `VEXA_API_URL/KEY` (Fase 5) · `TZ=Europe/Rome`
+`DATABASE_URL` · `MQTT_URL` · `MQTT_USER/PASS` · `OLLAMA_URL` · `OLLAMA_EMBED_MODEL=nomic-embed-text` · `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY` (AES-256-GCM) · `S3_ENDPOINT` · `S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY` · `S3_REGION` · `S3_BUCKET` + `S3_PREFIX` (un bucket comune, una cartella per ambiente; i vecchi `S3_BUCKET_*` come ripiego) · `UGO_AUDIO_RETENTION_DAYS=90` · `HF_TOKEN` (pyannote) · `VEXA_API_URL/KEY` (Fase 5) · `TZ=Europe/Rome`
+
+Da ADR-121…131: `UGO_PUBLIC` · `PUBLIC_URL` · `RESEND_API_KEY` · `EMAIL_FROM` · chiavi di piattaforma facoltative `ANTHROPIC_API_KEY/OPENROUTER_API_KEY/OPENAI_API_KEY/ELEVENLABS_API_KEY` · `UGO_TOKEN_MARKUP` · `STRIPE_*` · `PAYPAL_*` · `UGO_MARKET_FEE_PCT`. Sul Coolify interno le comuni si prendono da `{{ server.NOME }}` (vedi `OPS_COOLIFY.md` §0-bis). L'elenco completo e commentato è `.env.example`.
 
 ## 11. Rischi noti e mitigazioni
 

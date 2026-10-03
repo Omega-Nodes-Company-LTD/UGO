@@ -73,3 +73,16 @@ raggiungerle. Esporre soul non è quindi un cambio di rete: è un cambio di **au
 - **APK**: il cookie del chiosco vale solo sulla stessa origine. L'APK (origine
   `https://localhost`) in pubblico non lo riceve: resta da fare con un bearer esplicito, insieme
   al lavoro BLE di ADR-132.
+
+## Note di implementazione (2026-10-03, fase 8) — lo storage comune
+
+- Un solo bucket S3 per tutti gli ambienti (`S3_BUCKET`), una cartella per ambiente (`S3_PREFIX`) e
+  una per area: `audio/`, `photos/`, `docs/`, `house-docs/` in soul, `audio/` e `backup/` nei job.
+  Le chiavi salvate nel database contengono la cartella, quindi letture e cancellazioni non
+  cambiano. I vecchi `S3_BUCKET_*` si leggono solo se `S3_BUCKET` manca.
+- Con un bucket comune, una chiave è un confine: la registrazione di un documento (di casa o di un
+  cliente) accetta solo una chiave emessa dal presign per **quella** casa o **quel** cliente in
+  **questo** ambiente. Prima la chiave arrivava dal client senza controllo; con bucket separati per
+  ambiente il danno era confinato, con un bucket comune non lo sarebbe stato.
+- I documenti di casa (ADR-111) avevano le rotte ma non il bucket: `index.ts` non lo passava mai.
+  Adesso arriva da `storageFromEnv(env, "house-docs")`.

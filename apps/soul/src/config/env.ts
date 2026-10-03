@@ -89,6 +89,14 @@ export const soulEnvSchema = z.object({
   S3_ACCESS_KEY_ID: optionalNonEmpty,
   S3_SECRET_KEY: optionalNonEmpty,
   S3_SECRET_ACCESS_KEY: optionalNonEmpty,
+  /**
+   * Un solo bucket per tutto (audio, foto, documenti), comune a più ambienti:
+   * `S3_PREFIX` è la cartella di questo ambiente (`prod`, `staging`…), e dentro
+   * ogni area ha la sua (`audio/`, `photos/`, `docs/`, `house-docs/`). I
+   * `S3_BUCKET_*` qui sotto sono il modo di prima, letti solo se questo manca.
+   */
+  S3_BUCKET: optionalNonEmpty,
+  S3_PREFIX: optionalNonEmpty,
   S3_BUCKET_AUDIO: optionalNonEmpty,
   // ADR-054: il bucket privato dei documenti dei clienti (upload dal pannello)
   S3_BUCKET_DOCS: optionalNonEmpty,
@@ -267,36 +275,60 @@ export interface AudioStorageEnv {
   bucket: string;
   /** provider region: Hetzner rejects a wrong one, AWS-alikes ignore it */
   region: string;
+  /** la cartella dell'area dentro il bucket, con la barra finale; "" coi bucket separati di prima */
+  prefix: string;
 }
 
-/** All-or-nothing S3 group: a partial configuration is a config error. */
-export function audioStorageFromEnv(env: SoulEnv): AudioStorageEnv | undefined {
+export type StorageArea = "audio" | "photos" | "docs" | "house-docs";
+
+const LEGACY_BUCKET = {
+  audio: "S3_BUCKET_AUDIO",
+  photos: "S3_BUCKET_PHOTOS",
+  docs: "S3_BUCKET_DOCS",
+  "house-docs": "S3_BUCKET_HOUSE_DOCS",
+} as const satisfies Record<StorageArea, keyof SoulEnv>;
+
+/** `S3_PREFIX=prod` + area `audio` → `prod/audio/`; senza prefisso → `audio/`. */
+export function areaPrefix(prefix: string | undefined, area: StorageArea): string {
+  const base = (prefix ?? "").replace(/^\/+|\/+$/g, "");
+  return `${base === "" ? "" : `${base}/`}${area}/`;
+}
+
+/**
+ * Lo storage di un'area, o niente. Il gruppo S3 è tutto-o-niente: endpoint,
+ * credenziali e un bucket (quello comune, o almeno uno di quelli di prima).
+ * Niente di configurato è una scelta valida: le funzioni che lo chiedono
+ * restano spente e lo dicono.
+ */
+export function storageFromEnv(env: SoulEnv, area: StorageArea): AudioStorageEnv | undefined {
   const accessKey = env.S3_ACCESS_KEY ?? env.S3_ACCESS_KEY_ID;
   const secretKey = env.S3_SECRET_KEY ?? env.S3_SECRET_ACCESS_KEY;
+  const anyBucket =
+    env.S3_BUCKET ?? Object.values(LEGACY_BUCKET).map((name) => env[name]).find((value) => value !== undefined);
   const required = {
     S3_ENDPOINT: env.S3_ENDPOINT,
     "S3_ACCESS_KEY (o S3_ACCESS_KEY_ID)": accessKey,
     "S3_SECRET_KEY (o S3_SECRET_ACCESS_KEY)": secretKey,
-    S3_BUCKET_AUDIO: env.S3_BUCKET_AUDIO,
+    "S3_BUCKET (o i vecchi S3_BUCKET_*)": anyBucket,
   };
   const missing = Object.entries(required)
     .filter(([, value]) => value === undefined)
     .map(([name]) => name);
-
-  // nothing configured at all is a valid choice: audio upload simply stays off
   if (missing.length === Object.keys(required).length) return undefined;
   if (missing.length > 0) {
     // name the variables, never their values (CLAUDE.md rule 6)
     throw new Error(
       `configurazione S3 incompleta: mancano ${missing.join(", ")}. ` +
-        "Impostale tutte, oppure nessuna per disattivare l'upload audio.",
+        "Impostale tutte, oppure nessuna per lasciare spenti audio, foto e documenti.",
     );
   }
-  return {
-    endpoint: env.S3_ENDPOINT ?? "",
-    accessKey: accessKey ?? "",
-    secretKey: secretKey ?? "",
-    bucket: env.S3_BUCKET_AUDIO ?? "",
-    region: env.S3_REGION,
-  };
+  const common = { endpoint: env.S3_ENDPOINT ?? "", accessKey: accessKey ?? "", secretKey: secretKey ?? "", region: env.S3_REGION };
+  if (env.S3_BUCKET !== undefined) return { ...common, bucket: env.S3_BUCKET, prefix: areaPrefix(env.S3_PREFIX, area) };
+  const legacy = env[LEGACY_BUCKET[area]];
+  return legacy === undefined ? undefined : { ...common, bucket: legacy, prefix: "" };
+}
+
+/** L'audio: il nome di prima, per chi lo chiama già. */
+export function audioStorageFromEnv(env: SoulEnv): AudioStorageEnv | undefined {
+  return storageFromEnv(env, "audio");
 }

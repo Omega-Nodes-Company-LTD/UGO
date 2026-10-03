@@ -10,7 +10,7 @@ import { hear, speak } from "./services/ai/voice.js";
 import { NudgeService } from "./services/nudges.js";
 import { SceneMemory } from "./services/sceneMemory.js";
 import { SceneReader } from "./services/sceneReader.js";
-import { appDatabaseUrl, assertProductionSecrets, audioStorageFromEnv, soulEnvSchema } from "./config/env.js";
+import { appDatabaseUrl, assertProductionSecrets, audioStorageFromEnv, soulEnvSchema, storageFromEnv } from "./config/env.js";
 import { ChatService } from "./services/chatService.js";
 import { ParcelService } from "./services/parcelService.js";
 import { TieService } from "./services/tieService.js";
@@ -257,16 +257,16 @@ const nudges = new NudgeService({ dbFor, registry: () => registryRef });
  * Nasce qui, prima di ogni chat, perché lo vogliono in tre: il fotografo, la
  * cartolina con la foto, e il registro degli esemplari.
  */
-const photoStorage = audioStorageFromEnv(env);
+// S3_BUCKET + S3_PREFIX: un bucket comune, una cartella per ambiente e per area
+const photoStorage = storageFromEnv(env, "photos");
+const docsStorage = storageFromEnv(env, "docs");
+const houseDocsStorage = storageFromEnv(env, "house-docs");
 const albumService = new AlbumService({
   db,
   masterKey: parseDataKey(env.UGO_DATA_KEY),
   // ADR-125: lo scatto automatico solo se il piano ha l'album
   allows: (accountId) => withAccount(db, accountId, (tx) => billing.options.plans.allows(tx, accountId, "album")),
-  ...(photoStorage !== undefined &&
-    env.S3_BUCKET_PHOTOS !== undefined && {
-      storage: { ...photoStorage, bucket: env.S3_BUCKET_PHOTOS },
-    }),
+  ...(photoStorage !== undefined && { storage: photoStorage }),
 });
 
 const chat: ChatService = new ChatService({
@@ -462,9 +462,9 @@ const capabilities = (): Capability[] => [
   {
     id: "album",
     label: "Conservare le foto che scattate",
-    on: audio !== undefined && env.S3_BUCKET_PHOTOS !== undefined,
-    ...(!(audio !== undefined && env.S3_BUCKET_PHOTOS !== undefined) && {
-      why: "manca S3_BUCKET_PHOTOS (o il gruppo S3): senza un secchio l'album non ha dove tenerle. Le foto restano una cosa che si guarda e basta.",
+    on: photoStorage !== undefined,
+    ...(photoStorage === undefined && {
+      why: "manca il gruppo S3 (S3_BUCKET, o il vecchio S3_BUCKET_PHOTOS): senza un secchio l'album non ha dove tenerle. Le foto restano una cosa che si guarda e basta.",
     }),
   },
   {
@@ -553,6 +553,8 @@ const app = buildServer({
         }),
       // ADR-103: il listino della cucciolata
       litterCostUsd: env.UGO_LITTER_COST_USD,
+      // ADR-111: i documenti di casa — c'erano le rotte, mancava il secchio
+      ...(houseDocsStorage !== undefined && { houseDocsStorage }),
     },
     psyche,
     face,
@@ -564,21 +566,14 @@ const app = buildServer({
     ...(env.UGO_INTERNAL_TOKEN !== undefined && { internalToken: env.UGO_INTERNAL_TOKEN }),
     ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),
     ...(audio !== undefined && { audio }),
-    // ADR-109: stesse credenziali, secchio diverso — una foto e una
-    // registrazione hanno durate e diritti diversi, e un secchio solo
-    // vorrebbe dire una retention che ne governa due
-    ...(audio !== undefined &&
-      env.S3_BUCKET_PHOTOS !== undefined && {
-        photos: { ...audio, bucket: env.S3_BUCKET_PHOTOS },
-      }),
+    // ADR-109: stesso bucket comune ma cartella diversa — la retention si
+    // regola per prefisso (`…/photos/` e `…/audio/` hanno durate diverse)
+    ...(photoStorage !== undefined && { photos: photoStorage }),
     ...(meetings !== undefined && { meetings }),
     // ADR-052: the house side of the reception, in the panel
     customers: {
       dataKey,
-      ...(audio !== undefined &&
-        env.S3_BUCKET_DOCS !== undefined && {
-          docsStorage: { ...audio, bucket: env.S3_BUCKET_DOCS },
-        }),
+      ...(docsStorage !== undefined && { docsStorage }),
       ...(env.UGO_JOBS_TRIGGER_URL !== undefined && {
         syncTriggerUrl: env.UGO_JOBS_TRIGGER_URL,
       }),

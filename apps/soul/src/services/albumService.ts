@@ -14,7 +14,7 @@ import {
 } from "@ugo/db";
 import { decryptBytes, encryptBytes, unwrapDataKey } from "@ugo/shared";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
-import type { AudioStorageConfig } from "../routes/audio.js";
+import { objectKey, type AudioStorageConfig } from "../routes/audio.js";
 
 /**
  * L'album di famiglia (ADR-109).
@@ -147,7 +147,7 @@ export class AlbumService {
 
     const at = input.at ?? new Date();
     const expiresAt = new Date(at.getTime() + hours * 3600_000);
-    const key = `album/${accountId}/${randomUUID()}`;
+    const key = objectKey(storage, `album/${accountId}/${randomUUID()}`);
     const sealed = encryptBytes(Buffer.from(input.jpegBase64, "base64"), await this.houseKey(accountId));
     // prima il bucket, poi la riga: una riga che punta a un oggetto assente è
     // una foto rotta, un oggetto senza riga è spazzatura che la scadenza non

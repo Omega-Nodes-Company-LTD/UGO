@@ -115,6 +115,7 @@ beforeAll(async () => {
     secretKey: minio.secretKey,
     bucket: BUCKET,
     region: "us-east-1",
+    prefix: "",
   };
   s3 = new S3Client({
     endpoint: storage.endpoint,

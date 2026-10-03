@@ -17,11 +17,10 @@ Le differenze rispetto a `customer_docs`, e sono due sole:
 from __future__ import annotations
 
 import json
-import os
 
 import psycopg
 
-from .config import JobsConfig
+from .config import JobsConfig, legacy_or_shared
 from .crypto import decrypt_text, encrypt_text, parse_data_key
 from .customer_chunks import EMBED_BATCH, chunk_text, max_chunks
 from .customer_docs import _extract_text, _s3_client
@@ -30,7 +29,7 @@ from .embeddings import embed
 
 def house_bucket(cfg: JobsConfig) -> str:
     """Un bucket suo: i documenti di famiglia non stanno con quelli dei clienti."""
-    return os.environ.get("S3_BUCKET_HOUSE_DOCS", "ugo-house-docs")
+    return legacy_or_shared("S3_BUCKET_HOUSE_DOCS", "ugo-house-docs")
 
 
 def _replace_chunks(

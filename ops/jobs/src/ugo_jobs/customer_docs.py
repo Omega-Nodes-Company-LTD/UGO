@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import io
 import json
-import os
 
 import boto3
 import psycopg
 
-from .config import JobsConfig
+from .config import JobsConfig, legacy_or_shared
 from .crypto import decrypt_text, parse_data_key
 from .customer_chunks import chunk_text, replace_chunks
 
@@ -29,7 +28,7 @@ def _s3_client(cfg: JobsConfig):  # noqa: ANN202 - boto3 has no useful static ty
 
 
 def docs_bucket(cfg: JobsConfig) -> str:
-    return os.environ.get("S3_BUCKET_DOCS", "ugo-docs")
+    return legacy_or_shared("S3_BUCKET_DOCS", "ugo-docs")
 
 
 def _extract_text(mime: str, blob: bytes) -> str:

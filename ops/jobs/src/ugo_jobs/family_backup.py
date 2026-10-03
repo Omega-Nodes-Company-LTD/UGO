@@ -85,7 +85,7 @@ def _rows_of(conn: psycopg.Connection, table: str, mode: str, account_id: str) -
     return [str(row[0]) for row in conn.execute(query, (account_id,)).fetchall()]
 
 
-def _prune_family(client, bucket: str, account_id: str, retention_days: int) -> int:  # noqa: ANN001
+def _prune_family(client, bucket: str, account_id: str, retention_days: int, prefix: str = "") -> int:  # noqa: ANN001
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
     pruned = 0
     continuation: str | None = None
@@ -94,7 +94,7 @@ def _prune_family(client, bucket: str, account_id: str, retention_days: int) -> 
     # fermava alla prima pagina e il retention di trenta giorni smetteva
     # di valere — silenziosamente, come i bug che nessuno vede mai.
     while True:
-        kwargs: dict = {"Bucket": bucket, "Prefix": f"{FAMILY_PREFIX}{account_id}/"}
+        kwargs: dict = {"Bucket": bucket, "Prefix": f"{prefix}{FAMILY_PREFIX}{account_id}/"}
         if continuation is not None:
             kwargs["ContinuationToken"] = continuation
         response = client.list_objects_v2(**kwargs)
@@ -130,9 +130,11 @@ def run_family_backup(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str
         client.head_bucket(Bucket=cfg.s3_bucket_backup)
     except Exception:  # noqa: BLE001 - assente o non nostro: si crea, come in backup.py
         client.create_bucket(Bucket=cfg.s3_bucket_backup)
-    key = f"{FAMILY_PREFIX}{cfg.account_id}/{dream_date}.tar.enc"
+    key = f"{cfg.s3_backup_prefix}{FAMILY_PREFIX}{cfg.account_id}/{dream_date}.tar.enc"
     client.put_object(Bucket=cfg.s3_bucket_backup, Key=key, Body=sealed)
-    pruned = _prune_family(client, cfg.s3_bucket_backup, cfg.account_id, cfg.backup_retention_days)
+    pruned = _prune_family(
+        client, cfg.s3_bucket_backup, cfg.account_id, cfg.backup_retention_days, cfg.s3_backup_prefix
+    )
     return FamilyBackupResult(
         object_key=key,
         tables=exported_tables,

@@ -82,12 +82,12 @@ def _dump_database(database_url: str) -> bytes:
     return completed.stdout
 
 
-def _prune_old(client, bucket: str, retention_days: int) -> int:  # noqa: ANN001
+def _prune_old(client, bucket: str, retention_days: int, prefix: str = KEY_PREFIX) -> int:  # noqa: ANN001
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
     pruned = 0
     # paginato: `list_objects_v2` si ferma a 1000 chiavi, e i backup più vecchi
     # — quelli da portare via — sono esattamente quelli che restavano fuori
-    for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=KEY_PREFIX):
+    for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
         for item in page.get("Contents", []):
             if item["LastModified"] < cutoff:
                 client.delete_object(Bucket=bucket, Key=item["Key"])
@@ -105,7 +105,7 @@ def backup_exists(cfg: JobsConfig, dream_date: str) -> bool:
     """
     try:
         _s3_client(cfg).head_object(
-            Bucket=cfg.s3_bucket_backup, Key=f"{KEY_PREFIX}{dream_date}.dump.enc"
+            Bucket=cfg.s3_bucket_backup, Key=f"{cfg.s3_backup_prefix}{KEY_PREFIX}{dream_date}.dump.enc"
         )
         return True
     except Exception:  # noqa: BLE001 - missing, unreachable or denied: redo it
@@ -125,7 +125,9 @@ def run_backup(cfg: JobsConfig, dream_date: str) -> BackupResult:
         if error.response.get("ResponseMetadata", {}).get("HTTPStatusCode") != 404:
             raise
         client.create_bucket(Bucket=cfg.s3_bucket_backup)
-    key = f"{KEY_PREFIX}{dream_date}.dump.enc"
+    key = f"{cfg.s3_backup_prefix}{KEY_PREFIX}{dream_date}.dump.enc"
     client.put_object(Bucket=cfg.s3_bucket_backup, Key=key, Body=sealed)
-    pruned = _prune_old(client, cfg.s3_bucket_backup, cfg.backup_retention_days)
+    pruned = _prune_old(
+        client, cfg.s3_bucket_backup, cfg.backup_retention_days, f"{cfg.s3_backup_prefix}{KEY_PREFIX}"
+    )
     return BackupResult(object_key=key, encrypted_bytes=len(sealed), pruned=pruned)

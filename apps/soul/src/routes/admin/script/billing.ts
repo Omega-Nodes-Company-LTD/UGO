@@ -39,7 +39,7 @@ async function loadPlan() {
     (sub.provider === "stripe" ? '<button class="ghost" id="plan-portal" data-testid="plan-portal">Ricevute e carta</button>' : "") +
     (sub.disdetto ? "" : '<button class="ghost" id="plan-cancel" data-testid="plan-cancel">Disdici</button>');
   $("plan-cards").innerHTML = Object.keys(PLAN_TABLE).map((id) => planCard(id, p.piano)).join("");
-  if (hashParam("esito") === "ok") say("plan-msg", "Pagamento ricevuto: il piano si aggiorna appena il PSP ce lo conferma.", "ok");
+  if (hashParam("esito") === "ok") say("plan-msg", "Pagamento ricevuto: il piano si aggiorna appena chi incassa ce lo conferma.", "ok");
 }
 
 $("plan-cards").addEventListener("click", async (event) => {
@@ -60,7 +60,7 @@ $("plan-manage").addEventListener("click", async (event) => {
     } else if (event.target.closest("#plan-cancel")) {
       if (!confirm("Disdire? Il piano resta fino alla fine del periodo già pagato.")) return;
       await call("/v1/abbonamento/disdici", { method: "POST" });
-      say("plan-msg", "Disdetta inviata: il PSP la conferma fra poco.", "ok");
+      say("plan-msg", "Disdetta inviata: Stripe o PayPal la confermano fra poco.", "ok");
     }
   } catch (error) { say("plan-msg", error.message, "err"); }
 });
@@ -85,7 +85,7 @@ async function loadCredit() {
   $("credit-moves").innerHTML = c.movimenti.length === 0 ? '<p class="empty">Nessun movimento.</p>' :
     c.movimenti.map((m) => '<div class="line"><span class="when">' + whenLabel(m.at) + "</span><b>" +
       (MOVE_LABEL[m.kind] ?? m.kind) + "</b> " + creditEuro(m.micros) + "</div>").join("");
-  if (hashParam("esito") === "ok") say("credit-msg", "Pagamento ricevuto: il credito arriva appena il PSP ce lo conferma.", "ok");
+  if (hashParam("esito") === "ok") say("credit-msg", "Pagamento ricevuto: il credito arriva appena chi incassa ce lo conferma.", "ok");
 }
 
 async function topup(via) {

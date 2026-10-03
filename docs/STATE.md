@@ -2935,4 +2935,43 @@ chiave, nessun ricordo di casa nelle richieste, copia cifrata per lato, interruz
 blocco, scadenza, biglietto manomesso, avvistamento e oblio; RLS sotto `ugo_app`); unit del muso
 verdi; build del muso.
 
-**Prossimo**: fase 8 (documentazione, S3_PREFIX, rilascio).
+**Fase 8 — storage comune, documentazione, rilascio.**
+- S3: `S3_BUCKET` + `S3_PREFIX` (un bucket comune, una cartella per ambiente e per area) in soul
+  (`storageFromEnv`) e nei job (`config.py`: `s3_audio_prefix`, `s3_backup_prefix`, le due grafie
+  delle credenziali); i vecchi `S3_BUCKET_*` restano come ripiego. Le chiavi registrate per i
+  documenti devono essere quelle emesse dal presign per quella casa o quel cliente (con un bucket
+  comune era un confine aperto). I documenti di casa (ADR-111) ricevono finalmente il bucket.
+- Le frasi di ripiego del cervello nominano la pagina vera («La testa di UGO»), e il pannello non
+  dice più «PSP».
+- `.env.example`, `OPS_COOLIFY.md` §0-bis (soul pubblico, solo Dockerfile, `{{ server.* }}`,
+  webhook) e §3 (bucket comune), PROGETTO §2/§6/§10, ADR-121 note.
+- `documentation/`: `creare-la-casa`, `la-testa-di-ugo`, `la-voce`, `abbonamento-e-credito`,
+  `adottare-un-gosino`, `la-piazza`, `allevare-e-vendere`, `03-integrations/stripe-paypal`;
+  indice e problemi comuni aggiornati.
+
+### Il giro completo (regola 12), fase 8
+- **BO**: storage in soul e nei job (con test unit in TS e in Python; l'integrazione audio prova la
+  cartella dell'ambiente su MinIO in CI). `ops/jobs/tests`: nuovo `test_config.py`; le fixture
+  esistenti non cambiano perché il default resta «nessuna cartella».
+- **`/admin`**: solo testi (niente «PSP»); nessun dato ha cambiato forma.
+- **FE**: nessun cambiamento in questa fase.
+
+### Note di rilascio (ramo `ccr-7a432ede-45nab4`, fasi 0–8)
+1. **Migrazioni** 0061 → 0070, in ordine, con `pnpm db:migrate`. Le RLS (0062, 0066, 0068, 0070)
+   creano i ruoli `ugo_plaza` e gli altri se mancano; tutte le case esistenti ricevono il piano
+   `allevamento` per concessione (0066), così nessuno perde niente.
+2. **Variabili**: vedi `.env.example`. Per una casa privata come prima basta `UGO_PUBLIC=off` e
+   una chiave AI per casa (`ugo chiavi importa-da-env --account <slug>`, oppure dal pannello).
+   Per il pubblico, `OPS_COOLIFY.md` §0-bis.
+3. **Il bundle del muso va ricostruito** (`pnpm turbo build --filter=face`, già dentro
+   `soul.Dockerfile`): sono cambiati il percorso `/muso/`, l'abbinamento, i token del design
+   system e «Incontra».
+4. **APK**: va ricostruito per avere il muso nuovo. BLE non c'è (ADR-132).
+5. **S3**: si può restare sui bucket separati; per passare al bucket comune si imposta
+   `S3_BUCKET` + `S3_PREFIX`, e gli oggetti già scritti restano leggibili dove sono (la chiave
+   completa è nel database). Le registrazioni ancora in `inbox/` del vecchio bucket vanno
+   trascritte prima del passaggio, o spostate a mano nella nuova cartella `audio/inbox/`.
+6. **Fisco**: ricevute, IVA e OSS si configurano in Stripe Tax o PayPal, e vanno verificati col
+   commercialista prima di vendere.
+
+Verifiche finali: turbo 49/49; integrazione su Postgres (piazza, incasso, mercato, accesso pubblico, chiavi, RLS delle rotte, privacy) verde, le suite che vogliono Docker in CI; pytest 107 passati (37 vogliono Docker); drizzle senza deriva; `pnpm audit` senza HIGH/CRITICAL (13 moderate); link della documentazione verificati.

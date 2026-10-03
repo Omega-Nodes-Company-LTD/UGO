@@ -98,6 +98,8 @@ beforeAll(async () => {
         secretKey: minio.secretKey,
         bucket: BUCKET,
         region: "us-east-1",
+        // un bucket comune a più ambienti (S3_PREFIX): ognuno nella sua cartella
+        prefix: "test/audio/",
       },
     },
   });
@@ -110,7 +112,7 @@ afterAll(async () => {
 });
 
 describe("POST /v1/audio/presign", () => {
-  it("issues a working presigned PUT: the blob lands in inbox/", async () => {
+  it("issues a working presigned PUT: the blob lands in this environment's inbox/", async () => {
     const presign = await app.inject({
       method: "POST",
       url: "/v1/audio/presign",
@@ -118,7 +120,7 @@ describe("POST /v1/audio/presign", () => {
     });
     expect(presign.statusCode).toBe(200);
     const { url, key } = presign.json<{ url: string; key: string }>();
-    expect(key).toBe("inbox/2026-08-07_1830_giro-in-centro.opus");
+    expect(key).toBe("test/audio/inbox/2026-08-07_1830_giro-in-centro.opus");
 
     const audioBytes = randomBytes(2048); // opaque payload: content is irrelevant here
     const upload = await fetch(url, { method: "PUT", body: audioBytes });
@@ -130,7 +132,7 @@ describe("POST /v1/audio/presign", () => {
       forcePathStyle: true,
       credentials: { accessKeyId: minio.accessKey, secretAccessKey: minio.secretKey },
     });
-    const listing = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "inbox/" }));
+    const listing = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "test/audio/inbox/" }));
     expect((listing.Contents ?? []).map((o) => o.Key)).toContain(key);
   });
 
@@ -210,16 +212,16 @@ describe("POST /v1/beings/:id/enroll/voice/audio", () => {
     const { objectKey } = response.json<{ objectKey: string }>();
     // secondi + nonce anti-collisione: due depositi ravvicinati per lo stesso
     // essere non si sovrascrivono più nel bucket (#50)
-    expect(objectKey).toMatch(/^inbox\/enroll_[0-9a-f]{8}_\d{14}_[0-9a-f]{8}\.webm$/);
+    expect(objectKey).toMatch(/^test\/audio\/inbox\/enroll_[0-9a-f]{8}_\d{14}_[0-9a-f]{8}\.webm$/);
 
-    const listed = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "inbox/" }));
+    const listed = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "test/audio/inbox/" }));
     const stored = (listed.Contents ?? []).find((item) => item.Key === objectKey);
     expect(stored?.Size).toBe(audio.length);
   });
 
   it("refuses a minor BEFORE the audio ever reaches the bucket", async () => {
     const beingId = await newBeing({ displayName: "Sofia", isMinor: true });
-    const before = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "inbox/" }));
+    const before = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "test/audio/inbox/" }));
 
     const response = await app.inject({
       method: "POST",
@@ -229,7 +231,7 @@ describe("POST /v1/beings/:id/enroll/voice/audio", () => {
     });
     expect(response.statusCode).toBe(403);
 
-    const after = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "inbox/" }));
+    const after = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: "test/audio/inbox/" }));
     expect((after.Contents ?? []).length).toBe((before.Contents ?? []).length);
   });
 

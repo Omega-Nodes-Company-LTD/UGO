@@ -149,7 +149,7 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, enc
     if not pieces:
         return 0
 
-    archive_key = f"{ARCHIVE_PREFIX}{name}"
+    archive_key = f"{cfg.s3_audio_prefix}{ARCHIVE_PREFIX}{name}"
     meeting_id = conn.execute(
         """
         insert into meetings (gosino_id, platform, title, started_at, status, audio_uri)
@@ -228,7 +228,7 @@ def _all_objects(client, bucket: str, prefix: str):  # noqa: ANN001, ANN201
 def _prune_archive(cfg: JobsConfig, client) -> int:  # noqa: ANN001
     cutoff = datetime.now(timezone.utc) - timedelta(days=cfg.audio_retention_days)
     pruned = 0
-    for item in _all_objects(client, cfg.s3_bucket_audio, ARCHIVE_PREFIX):
+    for item in _all_objects(client, cfg.s3_bucket_audio, f"{cfg.s3_audio_prefix}{ARCHIVE_PREFIX}"):
         if item["LastModified"] < cutoff:
             client.delete_object(Bucket=cfg.s3_bucket_audio, Key=item["Key"])
             pruned += 1
@@ -254,10 +254,11 @@ def run_ingest(
     # biometrico — finivano trascritti in `transcript_segments` e archiviati
     # per sempre, mentre l'intestazione di `enroll_step.py` promette che
     # «l'audio di un arruolamento non si tiene mai».
+    inbox = f"{cfg.s3_audio_prefix}{INBOX_PREFIX}"
     keys = [
         item["Key"]
-        for item in _all_objects(client, cfg.s3_bucket_audio, INBOX_PREFIX)
-        if item["Key"] != INBOX_PREFIX
+        for item in _all_objects(client, cfg.s3_bucket_audio, inbox)
+        if item["Key"] != inbox
         and not Path(item["Key"]).name.startswith(ENROLL_MARKER)
     ]
 

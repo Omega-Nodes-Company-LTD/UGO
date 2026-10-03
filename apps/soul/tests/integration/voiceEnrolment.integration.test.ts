@@ -57,7 +57,7 @@ let token = "";
 let house = "";
 let gosinoId = "";
 let gateway: FaceGateway;
-let storage: { endpoint: string; accessKey: string; secretKey: string; bucket: string; region: string };
+let storage: { endpoint: string; accessKey: string; secretKey: string; bucket: string; region: string; prefix: string };
 
 async function newBeing(fields: Record<string, unknown> = {}): Promise<string> {
   const [born] = await db
@@ -92,6 +92,7 @@ beforeAll(async () => {
     secretKey: minio.secretKey,
     bucket: BUCKET,
     region: "us-east-1",
+    prefix: "",
   };
 
   const [born] = await db

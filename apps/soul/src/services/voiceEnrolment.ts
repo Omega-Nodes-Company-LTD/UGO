@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { beings, desires, perceptionEvents, recognitionProfiles, type DbClient } from "@ugo/db";
 import { and, eq, gte, sql } from "drizzle-orm";
-import { putAudioObject, type AudioStorageConfig } from "../routes/audio.js";
+import { objectKey as keyIn, putAudioObject, type AudioStorageConfig } from "../routes/audio.js";
 import { eldestExemplarOf } from "../routes/scope.js";
 
 /**
@@ -60,7 +60,7 @@ export async function storeVoiceSample(
   // non collida mai, ed è per questo che c'è il suffisso casuale.
   const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
   const nonce = randomBytes(4).toString("hex");
-  const objectKey = `inbox/enroll_${input.beingId.slice(0, 8)}_${stamp}_${nonce}.webm`;
+  const objectKey = keyIn(deps.storage, `inbox/enroll_${input.beingId.slice(0, 8)}_${stamp}_${nonce}.webm`);
   await putAudioObject(deps.storage, objectKey, input.audio, "audio/webm");
   await deps.db.insert(perceptionEvents).values({
     gosinoId: await eldestExemplarOf(deps.db, input.accountId),

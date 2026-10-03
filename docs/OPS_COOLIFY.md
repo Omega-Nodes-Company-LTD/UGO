@@ -1,8 +1,8 @@
 ---
 title: "Runbook — Deploy di UGO su Coolify"
 description: "Procedura completa per portare l'anima di UGO in produzione sul server Coolify: prerequisiti, risorse una per una, bucket S3, smoke test, troubleshooting e aggiornamenti."
-version: "0.45.0"
-last_updated: "2026-08-20"
+version: "0.46.0"
+last_updated: "2026-10-03"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -17,6 +17,65 @@ Il server è un **dedicato Hetzner**, non una macchina in casa (ADR-017). Due co
 entrambe coperte sotto: il telefono non è sulla stessa rete del server, quindi serve Tailscale
 (§0); e la copia offline di `UGO_DATA_KEY` non è un consiglio ma un passo obbligatorio (§1.7),
 perché è l'unica ragione per cui i backup restano illeggibili a chiunque non sia tu.
+
+## 0-bis. UGO pubblico (ADR-121): un dominio per soul, e solo per lui
+
+Da ADR-121 UGO si vende: famiglie che non conosci si iscrivono da Internet, pagano, adottano. Il
+vincolo «nessun servizio esposto» qui sopra resta vero **per tutto tranne soul**, che diventa
+l'unica porta pubblica dell'installazione (più la reception, se la fai). Postgres, Ollama, la
+percezione, MQTT e i job restano sulla rete privata di Coolify, senza dominio e senza porte
+sull'host.
+
+**Si costruisce col Dockerfile, mai con un compose.** Nella risorsa soul: *Build Pack* =
+**Dockerfile**, *Dockerfile Location* = `ops/docker/soul.Dockerfile` (lo stesso di §2.4),
+*Base Directory* = `/`. Il compose del repo (`ops/docker/compose.dev.yml`) è solo per lo sviluppo.
+
+1. **Dominio.** Su soul (e solo su soul) metti il dominio vero, es. `https://ugo.tuodominio.it`, con
+   *Ports Exposes* = `3000`. Coolify fa da proxy e certificato. Record DNS A verso `<IP_HETZNER>`.
+2. **Variabili di soul** (*Environment Variables*, tutte come segreti). Quelle comuni a ogni
+   servizio del server si prendono da Coolify, così non si copiano a mano:
+
+   | Variabile | Valore |
+   |---|---|
+   | `UGO_PUBLIC` | `on` |
+   | `PUBLIC_URL` | `https://ugo.tuodominio.it` (senza barra finale) |
+   | `RESEND_API_KEY` | `{{ server.RESEND_API_KEY }}` |
+   | `EMAIL_FROM` | `{{ server.EMAIL_FROM }}` — un mittente di un dominio verificato in Resend |
+   | `S3_ENDPOINT` `S3_REGION` | `{{ server.S3_ENDPOINT }}`, `{{ server.S3_REGION }}` |
+   | `S3_ACCESS_KEY_ID` `S3_SECRET_ACCESS_KEY` | `{{ server.S3_ACCESS_KEY_ID }}`, `{{ server.S3_SECRET_ACCESS_KEY }}` |
+   | `S3_BUCKET` | `{{ server.S3_BUCKET }}` — il bucket comune (§3) |
+   | `S3_PREFIX` | `{{ server.S3_PREFIX }}`, oppure il nome di questo ambiente (`prod`, `staging`) |
+   | `DATABASE_URL` | la stringa di Postgres, una sola variabile |
+   | `UGO_DATA_KEY` `UGO_INTERNAL_TOKEN` | come in §9 |
+
+   Le stesse `S3_*` vanno anche sulla risorsa **jobs**: le cartelle `audio/` e `backup/` le scrive
+   lei.
+3. **Le chiavi AI non sono obbligatorie.** Ogni casa porta le sue (pannello → «La testa di UGO»).
+   Le variabili di piattaforma (`ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY`,
+   `ELEVENLABS_API_KEY`) servono solo se vendi il consumo «con le chiavi UGO» sul credito
+   prepagato. Il ricarico è `UGO_TOKEN_MARKUP`, di default `1.3`.
+4. **Pagamenti** (facoltativi: senza, le rispettive vie rispondono 501 e lo dicono).
+   - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`,
+     `STRIPE_PRICE_ALLEVAMENTO`. In Stripe → *Developers → Webhooks*, endpoint
+     `https://<dominio>/webhooks/stripe` con gli eventi `checkout.session.completed`,
+     `customer.subscription.*`, `invoice.payment_failed`, `payment_intent.succeeded`,
+     `payment_intent.payment_failed` e `account.updated`. Attiva **Connect (Express)** se vuoi
+     che allevamenti terzi vendano; la commissione è `UGO_MARKET_FEE_PCT`, di default `10`.
+   - PayPal: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV=live`, `PAYPAL_WEBHOOK_ID`,
+     `PAYPAL_PLAN_PRO`, `PAYPAL_PLAN_ALLEVAMENTO`. Il webhook va su
+     `https://<dominio>/webhooks/paypal` con `BILLING.SUBSCRIPTION.*`,
+     `PAYMENT.CAPTURE.COMPLETED` e `PAYMENT.CAPTURE.DENIED`.
+   - IVA, ricevute e OSS si configurano in Stripe Tax o PayPal, e vanno verificati col
+     commercialista. Il codice registra i movimenti, non fa il fisco.
+5. **Dopo il deploy.**
+   - `curl -s https://<dominio>/health` deve rispondere `ok`.
+   - `https://<dominio>/` mostra il sito.
+   - Iscriviti con la tua email: il link arriva da Resend.
+   - Fra i log di soul non deve comparire `UGO_PUBLIC=on requires`, che vorrebbe dire una
+     variabile mancante.
+6. **Il muso** sta su `https://<dominio>/muso/` e si abbina con le sei cifre del pannello
+   («Accessi e dispositivi»). **Va ricostruito a ogni rilascio** che tocca `apps/face`: soul serve il
+   bundle già costruito.
 
 ## 0. Tailscale — la rete privata fra i tuoi dispositivi
 
@@ -616,18 +675,33 @@ si aggiunge la sua sezione a §2 con lo stesso ordine.
 9. **Il giro di fumo** in §4 e una voce in §6 (troubleshooting) col sintomo che vedrai
    quando quel container manca — che è la cosa che cercherai davvero, e non il suo nome.
 
-## 3. Bucket S3 esistente
+## 3. Bucket S3 comune
 
-1. Nel pannello del tuo provider S3, verifica che il bucket sia **privato** (nessun accesso
-   pubblico, niente policy `*`); attiva la cifratura lato server (SSE) se disponibile.
-2. Crea (o lascia creare al primo run: i job li creano da soli) i bucket/prefissi:
-   `ugo-audio/inbox/`, `ugo-audio/archive/`, `ugo-backup/pg/`. **Con la reception (§2.7)** serve
-   anche `ugo-docs`, dove finiscono i documenti dei clienti: privato come gli altri, e senza
-   lifecycle — quei file valgono finché vale il rapporto col cliente, e se ne vanno con lui.
-3. Lifecycle (se il provider lo supporta — altrimenti ci pensano già i job):
-   `ugo-audio/archive/` scadenza 90 giorni; `ugo-backup/pg/` scadenza 30 giorni.
-4. Le credenziali `<S3_ACCESS_KEY>/<S3_SECRET_KEY>` devono poter fare solo `Get/Put/Delete/List`
-   su questi bucket: niente permessi account-wide.
+Un solo bucket, condiviso fra gli ambienti (`S3_BUCKET`), e una cartella per ambiente
+(`S3_PREFIX`). Dentro, ogni area ha la sua cartella:
+
+```
+<S3_PREFIX>/audio/inbox/      registrazioni da trascrivere (il job le sposta)
+<S3_PREFIX>/audio/archive/    registrazioni trascritte — 90 giorni
+<S3_PREFIX>/photos/           l'album (cifrato con la chiave della casa)
+<S3_PREFIX>/docs/             documenti dei clienti della reception
+<S3_PREFIX>/house-docs/       documenti di casa (ADR-111)
+<S3_PREFIX>/backup/pg/        dump cifrati del database — 30 giorni
+<S3_PREFIX>/backup/family/    backup cifrati per casa — 30 giorni
+```
+
+1. Il bucket è **privato**: nessun accesso pubblico, niente policy `*`. Attiva la cifratura lato
+   server (SSE) se il provider la offre.
+2. Lifecycle per prefisso, se il provider lo supporta (altrimenti ci pensano i job):
+   `<S3_PREFIX>/audio/archive/` a 90 giorni, `<S3_PREFIX>/backup/` a 30. `photos/`, `docs/` e
+   `house-docs/` **senza** scadenza: se ne vanno con la casa, col cliente, o quando li cancelli.
+3. Le credenziali devono poter fare solo `Get/Put/Delete/List` su quel bucket.
+4. Un ambiente non vede l'altro. soul accetta solo le chiavi dei documenti emesse per la sua
+   cartella, e i job elencano solo la loro.
+5. **Il modo di prima** (un bucket per area: `S3_BUCKET_AUDIO`, `S3_BUCKET_PHOTOS`,
+   `S3_BUCKET_DOCS`, `S3_BUCKET_HOUSE_DOCS`, `S3_BUCKET_BACKUP`) si legge ancora solo se
+   `S3_BUCKET` manca. Gli oggetti già scritti restano dove sono: le chiavi stanno nel database,
+   compresa la cartella.
 
 ## 4. Smoke test finale
 
@@ -1391,7 +1465,10 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 | Valore | Dove |
 |---|---|
 | `<ANTHROPIC_API_KEY>` | console Anthropic. È l'unica spesa ricorrente: il budget la tiene sotto controllo |
-| `<S3_ENDPOINT>` `<S3_ACCESS_KEY>` `<S3_SECRET_KEY>` `<S3_REGION>` | il tuo provider S3, con permessi **solo** sui due bucket (§3). I nomi standard AWS (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`) vanno bene |
+| `<S3_ENDPOINT>` `<S3_ACCESS_KEY_ID>` `<S3_SECRET_ACCESS_KEY>` `<S3_REGION>` `<S3_BUCKET>` | già nelle variabili del server: `{{ server.S3_… }}` (§0-bis, §3) |
+| `<S3_PREFIX>` | il nome dell'ambiente: `prod`, `staging`… (§3) |
+| `<RESEND_API_KEY>` `<EMAIL_FROM>` | già nelle variabili del server: `{{ server.RESEND_API_KEY }}`, `{{ server.EMAIL_FROM }}` (§0-bis) |
+| `<STRIPE_*>` `<PAYPAL_*>` | dashboard Stripe e developer.paypal.com, solo se vendi (§0-bis) |
 | `<VEXA_API_URL>` `<VEXA_API_KEY>` | dallo stack Vexa, se e quando lo installi (§2.6) |
 
 ### Scelte tue

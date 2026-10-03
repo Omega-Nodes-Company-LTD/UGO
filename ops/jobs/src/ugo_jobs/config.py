@@ -17,6 +17,31 @@ def _require(name: str) -> str:
     return value
 
 
+def _first(*names: str) -> str:
+    """Il primo dei nomi che c'è: soul accetta le due grafie, e le accetta anche qui."""
+    for name in names:
+        value = os.environ.get(name, "")
+        if value != "":
+            return value
+    raise ConfigError(f"missing required environment variable: {' or '.join(names)}")
+
+
+def area_prefix(base: str, area: str) -> str:
+    """`S3_PREFIX=prod` + `audio` → `prod/audio/`; senza prefisso → `audio/` (come soul)."""
+    clean = base.strip("/")
+    return f"{clean}/{area}/" if clean else f"{area}/"
+
+
+def shared_bucket() -> str:
+    """Il bucket comune (`S3_BUCKET`), o "" quando si usano ancora i bucket separati."""
+    return os.environ.get("S3_BUCKET", "")
+
+
+def legacy_or_shared(legacy_name: str, default: str) -> str:
+    """Per i documenti: le chiavi complete stanno nel DB, serve solo il bucket."""
+    return shared_bucket() or os.environ.get(legacy_name, default)
+
+
 @dataclass(frozen=True)
 class JobsConfig:
     database_url: str
@@ -29,6 +54,10 @@ class JobsConfig:
     s3_bucket_backup: str
     s3_bucket_audio: str
     timezone: str
+    # S3_BUCKET + S3_PREFIX: col bucket comune ogni area sta nella sua cartella
+    # dell'ambiente (`prod/audio/`, `prod/backup/`); coi bucket separati, "".
+    s3_audio_prefix: str = ""
+    s3_backup_prefix: str = ""
     # ADR-129: il sogno pensa chiedendo a soul, che usa il ruolo `think` della
     # casa. Python non vede chiavi di provider e non scrive il ledger.
     soul_url: str = ""
@@ -60,10 +89,12 @@ class JobsConfig:
             ollama_embed_model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
             data_key_b64=_require("UGO_DATA_KEY"),
             s3_endpoint=_require("S3_ENDPOINT"),
-            s3_access_key=_require("S3_ACCESS_KEY"),
-            s3_secret_key=_require("S3_SECRET_KEY"),
-            s3_bucket_backup=os.environ.get("S3_BUCKET_BACKUP", "ugo-backup"),
-            s3_bucket_audio=os.environ.get("S3_BUCKET_AUDIO", "ugo-audio"),
+            s3_access_key=_first("S3_ACCESS_KEY", "S3_ACCESS_KEY_ID"),
+            s3_secret_key=_first("S3_SECRET_KEY", "S3_SECRET_ACCESS_KEY"),
+            s3_bucket_backup=legacy_or_shared("S3_BUCKET_BACKUP", "ugo-backup"),
+            s3_bucket_audio=legacy_or_shared("S3_BUCKET_AUDIO", "ugo-audio"),
+            s3_audio_prefix=area_prefix(os.environ.get("S3_PREFIX", ""), "audio") if shared_bucket() else "",
+            s3_backup_prefix=area_prefix(os.environ.get("S3_PREFIX", ""), "backup") if shared_bucket() else "",
             timezone=os.environ.get("TZ", "Europe/Rome"),
             soul_url=os.environ.get("UGO_SOUL_URL", ""),
             whisper_model=os.environ.get("UGO_WHISPER_MODEL", "large-v3"),

@@ -14,7 +14,7 @@ import { and, asc, eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AuditLogger } from "../services/auditLog.js";
-import type { AudioStorageConfig } from "./audio.js";
+import { objectKey, type AudioStorageConfig } from "./audio.js";
 import type { PreHandler } from "./guard.js";
 import { inAccount } from "./scope.js";
 
@@ -310,7 +310,7 @@ export function registerCustomerSourcesRoutes(
       credentials: { accessKeyId: storage.accessKey, secretAccessKey: storage.secretKey },
     });
     // opaque key: the filename is content and stays encrypted in the row
-    const key = `docs/${scope.customerId}/${randomUUID()}`;
+    const key = objectKey(storage, `docs/${scope.customerId}/${randomUUID()}`);
     const url = await getSignedUrl(
       client,
       new PutObjectCommand({
@@ -326,7 +326,11 @@ export function registerCustomerSourcesRoutes(
   app.post("/v1/customers/:id/documents", admin, async (request, reply) => {
     const parsed = documentSchema.safeParse(request.body);
     if (!parsed.success) return problem(reply, 400, "Bad Request");
-    const made = await inCustomer(request, reply, async (tx, scope) => ({
+    // la chiave dev'essere quella emessa per QUESTO cliente in QUESTO ambiente
+    // (`S3_PREFIX`): una chiave altrui sarebbe un documento altrui
+    const issued = (customerId: string): boolean =>
+      deps.docsStorage === undefined || parsed.data.s3Key.startsWith(objectKey(deps.docsStorage, `docs/${customerId}/`));
+    const made = await inCustomer(request, reply, async (tx, scope) => !issued(scope.customerId) ? "foreign" as const : ({
       scope,
       row: (
         await tx
@@ -343,6 +347,7 @@ export function registerCustomerSourcesRoutes(
       )[0],
     }));
     if (made === undefined) return reply;
+    if (made === "foreign") return problem(reply, 400, "chiave non emessa per questo cliente");
     if (made.row === undefined) return problem(reply, 500, "Internal Server Error");
     await audited(made.scope.accountId, request, made.row.id);
     return reply.code(201).send({ id: made.row.id });

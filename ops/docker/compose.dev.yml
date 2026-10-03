@@ -115,8 +115,14 @@ services:
       UGO_REGISTRY_TOKEN: ${UGO_REGISTRY_TOKEN:-}
       UGO_DATA_KEY: ${UGO_DATA_KEY:?missing UGO_DATA_KEY}
       S3_ENDPOINT: ${S3_ENDPOINT:?missing S3_ENDPOINT}
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?missing S3_ACCESS_KEY}
-      S3_SECRET_KEY: ${S3_SECRET_KEY:?missing S3_SECRET_KEY}
+      # le due grafie: il job fallisce da solo, nominando quella che manca
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      # un bucket comune e la cartella dell'ambiente; i bucket separati se manca
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-}
       S3_BUCKET_BACKUP: ${S3_BUCKET_BACKUP:-ugo-backup}
       S3_BUCKET_AUDIO: ${S3_BUCKET_AUDIO:-ugo-audio}
       UGO_WHISPER_MODEL: ${UGO_WHISPER_MODEL:-large-v3}
@@ -327,7 +333,11 @@ services:
       # Fase 4 — upload audio (facoltative in dev: la feature si attiva solo se tutte presenti)
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-}
       S3_BUCKET_AUDIO: ${S3_BUCKET_AUDIO:-}
       # Fase 5 — riunioni (facoltative in dev)
       VEXA_API_URL: ${VEXA_API_URL:-}

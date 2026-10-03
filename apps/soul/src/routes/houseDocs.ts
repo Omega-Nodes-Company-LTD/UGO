@@ -1,3 +1,4 @@
+import { objectKey } from "./audio.js";
 import { randomUUID } from "node:crypto";
 import { PutObjectCommand, DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -44,6 +45,8 @@ export interface HouseDocsStorage {
   accessKey: string;
   secretKey: string;
   bucket: string;
+  /** la cartella dell'area dentro il bucket (`S3_PREFIX`), con la barra finale; "" = la radice */
+  prefix: string;
 }
 
 export interface HouseDocsDeps {
@@ -105,7 +108,7 @@ export function registerHouseDocRoutes(app: FastifyInstance, deps: HouseDocsDeps
     );
     if (scope === undefined) return reply;
     // chiave opaca: il nome del file è contenuto e resta cifrato nella riga
-    const key = `house/${scope}/${randomUUID()}`;
+    const key = objectKey(storage, `house/${scope}/${randomUUID()}`);
     const url = await getSignedUrl(
       client(storage),
       new PutObjectCommand({ Bucket: storage.bucket, Key: key, ContentType: parsed.data.mime }),
@@ -123,6 +126,12 @@ export function registerHouseDocRoutes(app: FastifyInstance, deps: HouseDocsDeps
       reply,
       { requireAdmin: true },
       async (db, accountId) => {
+        // la chiave è quella che il presign ha dato a QUESTA casa, in QUESTO
+        // ambiente: con un bucket comune (`S3_PREFIX`) una chiave altrui
+        // sarebbe un oggetto altrui — da indicizzare, o da cancellare
+        if (deps.storage !== undefined && !parsed.data.s3Key.startsWith(objectKey(deps.storage, `house/${accountId}/`))) {
+          return "foreign" as const;
+        }
         const [inserted] = await db
           .insert(houseDocuments)
           .values({
@@ -137,6 +146,7 @@ export function registerHouseDocRoutes(app: FastifyInstance, deps: HouseDocsDeps
       },
     );
     if (row === undefined) return reply;
+    if (row === "foreign") return reply.status(400).send({ error: "chiave non emessa per questa casa" });
     // indicizzato dal sogno, non qui: un PDF lungo è centinaia di embedding e
     // nessuno deve restare col dito sul bottone ad aspettarli
     return reply.status(201).send({ id: row.id, indexed: false });

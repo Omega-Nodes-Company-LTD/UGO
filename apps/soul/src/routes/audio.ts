@@ -17,7 +17,12 @@ export interface AudioStorageConfig {
   bucket: string;
   /** provider region: Hetzner rejects a wrong one, AWS-alikes ignore it */
   region: string;
+  /** la cartella dell'area dentro il bucket (`S3_PREFIX`), con la barra finale; "" = la radice */
+  prefix: string;
 }
+
+/** La chiave vera di un oggetto: la cartella dell'area davanti, sempre e in un posto solo. */
+export const objectKey = (cfg: { prefix: string }, key: string): string => `${cfg.prefix}${key}`;
 
 const PRESIGN_TTL_SECONDS = 300;
 
@@ -81,7 +86,7 @@ export function registerAudioRoutes(
       problem(reply, 400, "Invalid presign request", z.prettifyError(parsed.error));
       return;
     }
-    const key = `inbox/${parsed.data.filename}`;
+    const key = objectKey(storage, `inbox/${parsed.data.filename}`);
     const url = await getSignedUrl(
       client,
       new PutObjectCommand({ Bucket: storage.bucket, Key: key }),

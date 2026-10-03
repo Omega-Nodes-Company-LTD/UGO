@@ -1,8 +1,8 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.42.0"
-last_updated: "2026-08-19"
+version: "0.46.0"
+last_updated: "2026-10-03"
 author: "ThinkPink Studio"
 ---
 
@@ -23,8 +23,13 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
      ognuna ha una cura diversa — vedi [Il microfono non si apre, e UGO lo dice](#il-microfono-non-si-apre-e-ugo-lo-dice).
 3. Tocca il muso: se il grugno si muove, ti sta ascoltando e il problema è il riconoscimento vocale.
    Parla più vicino, in un ambiente meno rumoroso.
-4. Se dice `oggi ho finito le parole` (o una frase simile), non è rotto: ha esaurito il budget
-   giornaliero. Riprende da mezzanotte. Chi gestisce il server può alzare il limite.
+4. Se dice `oggi ho finito le parole` (o una frase simile), non è rotto: ha esaurito il tetto
+   giornaliero delle tue chiavi (riprende da mezzanotte, e il tetto si alza in **La testa di UGO**)
+   oppure il credito delle chiavi UGO (ricarica in **Il credito**).
+   - Se dice `non ho ancora una testa per pensare`, non ha un modello per la conversazione:
+     scegline uno in [La testa di UGO](../02-core-features/la-testa-di-ugo.md).
+   - Se dice `la chiave che mi avete dato non apre più niente`, il fornitore ha rifiutato la tua
+     chiave: inseriscine una nuova nello stesso posto.
 5. Su alcuni Android il riconoscimento vocale del telefono non riesce a restare acceso (si
    spaventa ai rumori ma non trascrive quello che dici, e ogni tentativo suona il bip del
    microfono). UGO ci prova qualche volta, poi **passa da solo alla dettatura di casa**: ascolta
@@ -158,12 +163,21 @@ L'unico verdetto che segnala davvero qualcosa è **firma non valida**: quel geno
 modificato dopo la nascita, scrivendo direttamente nel database. Se compare e nessuno ci ha
 messo le mani apposta, segnalalo a chi gestisce il server.
 
-## Prossimi Passi
+## Il link d'accesso non funziona
 
-- [Primo avvio](../01-getting-started/primo-avvio.md) — rifare il setup da zero.
-- [Parlare con UGO](../02-core-features/parlare-con-ugo.md) — come funzionano memoria e umore.
-- [Il branco](../02-core-features/il-branco.md) — cucciolate, adozione, pedigree.
-- [I tuoi dati](../02-core-features/i-tuoi-dati.md) — esportare o cancellare.
+1. Il link vale **quindici minuti** e si usa **una volta sola**. Se l'hai già aperto, o è passato
+   troppo tempo, la pagina dice che è scaduto: chiedine un altro da `/accedi`.
+2. La mail non arriva? Guarda nello spam, poi richiedila. Dopo troppe richieste ravvicinate UGO
+   chiede di aspettare un quarto d'ora.
+
+## Il pagamento è andato ma il pannello non lo vede
+
+La conferma arriva da Stripe o PayPal a parte, di solito in pochi secondi: ricarica la pagina. Se
+dopo qualche minuto non c'è ancora, vedi [Stripe e PayPal](../03-integrations/stripe-paypal.md).
+
+## Una voce del pannello ha il cartellino «Pro»
+
+Il tuo piano non la comprende. Vedi [Abbonamento e credito](../02-core-features/abbonamento-e-credito.md).
 
 ## UGO sussulta in continuazione, anche quando c'è silenzio
 
@@ -312,3 +326,10 @@ arriva: ci va quando ha finito.
 Se lo vedi ancora di schiena **mentre parla**, il dispositivo sta mostrando un muso vecchio:
 controlla in `/admin`, nella barra a sinistra in basso, che il numero del **muso** sia quello
 scritto in basso a destra sul chiosco. Se non lo è, ricarica la pagina del chiosco.
+
+## Prossimi Passi
+
+- [Primo avvio](../01-getting-started/primo-avvio.md) — rifare il setup da zero.
+- [Parlare con UGO](../02-core-features/parlare-con-ugo.md) — come funzionano memoria e umore.
+- [Il branco](../02-core-features/il-branco.md) — cucciolate, adozione, pedigree.
+- [I tuoi dati](../02-core-features/i-tuoi-dati.md) — esportare o cancellare.
