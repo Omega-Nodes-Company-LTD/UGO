@@ -49,6 +49,12 @@ input[type=email] { font: inherit; padding: var(--s-3); border: 1px solid var(--
 .msg.ok { border-color: var(--good); } .msg.err { border-color: var(--critical); }
 .muted { color: var(--ink-3); font-size: var(--text-sm); }
 .pup { display: grid; gap: var(--s-2); }
+.filters { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: flex-end; margin: var(--s-4) 0; }
+.filters label { display: grid; gap: var(--s-1); font-size: var(--text-sm); }
+.filters input { font: inherit; padding: var(--s-2); border: 1px solid var(--line-strong); border-radius: var(--r);
+  background: var(--surface); color: var(--ink); width: 9rem; min-height: 2.5rem; }
+.tree { list-style: none; padding: 0; display: grid; gap: var(--s-2); }
+.tree li { padding: var(--s-2) var(--s-3); border-left: 3px solid var(--accent-soft); }
 .price { font-weight: 700; color: var(--ink); font-size: var(--text-lg); }
 footer.bottom { border-top: 1px solid var(--line); padding: var(--s-5) 0; color: var(--ink-3); font-size: var(--text-sm); }
 footer.bottom .wrap { display: flex; gap: var(--s-4); flex-wrap: wrap; }

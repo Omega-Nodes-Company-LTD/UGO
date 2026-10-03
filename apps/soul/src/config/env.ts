@@ -196,7 +196,7 @@ export const soulEnvSchema = z.object({
   RESEND_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   EMAIL_FROM: optionalNonEmpty,
   /** la versione dei termini e dell'informativa che chi si iscrive accetta */
-  UGO_TERMS_VERSION: z.string().min(1).default("2026-10-02"),
+  UGO_TERMS_VERSION: z.string().min(1).default("2026-10-03"),
   /**
    * ADR-125/126/130 — Stripe. Facoltative: senza, la via Stripe risponde 501
    * e lo dice. I prezzi stanno in Stripe, non qui: qui gli id dei prezzi.
@@ -206,6 +206,8 @@ export const soulEnvSchema = z.object({
   STRIPE_API_BASE: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   STRIPE_PRICE_PRO: optionalNonEmpty,
   STRIPE_PRICE_ALLEVAMENTO: optionalNonEmpty,
+  /** ADR-131: la commissione del mercato sulle adozioni degli allevamenti (Connect), in percento */
+  UGO_MARKET_FEE_PCT: z.coerce.number().min(0).max(50).default(10),
   /** ADR-125/126/130 — PayPal. Facoltative come Stripe */
   PAYPAL_CLIENT_ID: optionalNonEmpty,
   PAYPAL_CLIENT_SECRET: optionalNonEmpty,

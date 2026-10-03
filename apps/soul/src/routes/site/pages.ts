@@ -95,6 +95,12 @@ export function shopPage(): string {
     path: "/vetrina",
     body: `<h1>La vetrina</h1>
 <p class="lede">Cuccioli nati, in cerca di casa. Il temperamento non si legge in un numero: si scopre vivendoci.</p>
+<form class="filters" data-shop-filters>
+  <label>Generazione <input type="number" name="generazione" min="0" max="100" inputmode="numeric"></label>
+  <label>Prezzo massimo (€) <input type="number" name="prezzoMax" min="0" step="5" inputmode="numeric"></label>
+  <label>Età massima (giorni) <input type="number" name="etaMaxGiorni" min="0" inputmode="numeric"></label>
+  <button class="btn ghost" type="submit">Filtra</button>
+</form>
 <div data-shop aria-live="polite"><p class="muted">Carico i cuccioli…</p></div>`,
   });
 }
@@ -106,5 +112,16 @@ export function pupPage(id: string): string {
     path: "/vetrina",
     body: `<p><a href="/vetrina">← Torna alla vetrina</a></p>
 <div data-pup="${escapeHtml(id)}" aria-live="polite"><p class="muted">Carico il cucciolo…</p></div>`,
+  });
+}
+
+/** ADR-131 §6: la pagina pubblica di un allevamento — nome e cuccioli, nessuna email. */
+export function kennelPage(slug: string): string {
+  return sitePage({
+    title: "Un allevamento",
+    description: "I cuccioli di un allevamento di UGO.",
+    path: "/vetrina",
+    body: `<p><a href="/vetrina">← Tutta la vetrina</a></p>
+<div data-shop data-kennel="${escapeHtml(slug)}" aria-live="polite"><p class="muted">Carico l'allevamento…</p></div>`,
   });
 }

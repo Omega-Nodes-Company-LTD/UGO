@@ -9,6 +9,7 @@ import { registerAdoptionCheckout } from "./adoptionCheckout.js";
 import { registerBillingRoutes } from "./billing.js";
 import { registerCreditRoutes } from "./credit.js";
 import type { PreHandler } from "./guard.js";
+import { registerMarketRoutes } from "./market.js";
 import { registerWebhookRoutes } from "./webhooks.js";
 
 /**
@@ -24,6 +25,8 @@ export interface BillingOptions {
   mailer?: Mailer | undefined;
   /** il sito pubblico; assente = l'origine della richiesta */
   siteUrl?: string | undefined;
+  /** ADR-131: la commissione del mercato sulle adozioni Connect, in percento */
+  marketFeePct: number;
 }
 
 export function registerCommerce(
@@ -34,7 +37,8 @@ export function registerCommerce(
   const psp = { stripe: billing.stripe, paypal: billing.paypal, siteUrl: billing.siteUrl };
   registerBillingRoutes(app, { db, guard, plans: billing.plans, ...psp });
   registerCreditRoutes(app, { db, guard, ...psp });
-  registerAdoptionCheckout(app, { db, guard, ...psp });
+  registerAdoptionCheckout(app, { db, guard, ...psp, marketFeePct: billing.marketFeePct });
+  registerMarketRoutes(app, { db, guard, stripe: billing.stripe, siteUrl: billing.siteUrl });
   const log = { warn: (data: Record<string, unknown>, message: string) => { app.log.warn(data, message); } };
   registerWebhookRoutes(app, {
     db,

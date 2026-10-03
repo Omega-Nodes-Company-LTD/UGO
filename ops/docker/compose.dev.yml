@@ -298,7 +298,7 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
-      UGO_TERMS_VERSION: ${UGO_TERMS_VERSION:-2026-10-02}
+      UGO_TERMS_VERSION: ${UGO_TERMS_VERSION:-2026-10-03}
       UGO_LEGAL_NAME: ${UGO_LEGAL_NAME:-}
       UGO_CONTACT_EMAIL: ${UGO_CONTACT_EMAIL:-}
       # ADR-125/126/130 — Stripe e PayPal (facoltativi: senza, 501 dichiarato)
@@ -312,6 +312,7 @@ services:
       PAYPAL_PLAN_PRO: ${PAYPAL_PLAN_PRO:-}
       PAYPAL_PLAN_ALLEVAMENTO: ${PAYPAL_PLAN_ALLEVAMENTO:-}
       PAYPAL_ENV: ${PAYPAL_ENV:-sandbox}
+      UGO_MARKET_FEE_PCT: ${UGO_MARKET_FEE_PCT:-10}
       UGO_JOBS_TRIGGER_URL: ${UGO_JOBS_TRIGGER_URL:-}
       # ADR-051/055 — la reception (facoltativa: senza segreto resta chiusa)
       UGO_RECEPTION_TOKEN: ${UGO_RECEPTION_TOKEN:-}

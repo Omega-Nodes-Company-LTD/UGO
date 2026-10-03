@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { faceRedirect, isKioskQuery } from "../faceStatic.js";
 import { privacyPage, termsPage, type LegalInfo } from "./legal.js";
-import { landingPage, loginPage, pupPage, shopPage, signupPage } from "./pages.js";
+import { kennelPage, landingPage, loginPage, pupPage, shopPage, signupPage } from "./pages.js";
 import { SITE_JS } from "./script.js";
 
 /**
@@ -36,6 +36,11 @@ export function registerSite(app: FastifyInstance, legal: LegalInfo): void {
     const { id } = request.params as { id: string };
     if (!z.uuid().safeParse(id).success) return reply.code(404).type(html).send(shop);
     return reply.type(html).send(pupPage(id));
+  });
+  app.get("/allevamenti/:slug", async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    if (!/^[a-z0-9-]{1,60}$/.test(slug)) return reply.code(404).type(html).send(shop);
+    return reply.type(html).send(kennelPage(slug));
   });
   app.get("/privacy", async (_request, reply) => reply.type(html).send(privacy));
   app.get("/termini", async (_request, reply) => reply.type(html).send(terms));

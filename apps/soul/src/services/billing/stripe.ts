@@ -28,7 +28,7 @@ export class StripeError extends Error {
   }
 }
 
-interface Form {
+export interface Form {
   [key: string]: string | number | boolean | undefined | Form;
 }
 
@@ -63,7 +63,8 @@ export class StripeClient {
     return this.config.prices[plan];
   }
 
-  private async call<T>(method: string, path: string, form?: Form, idempotencyKey?: string): Promise<T> {
+  /** Una chiamata autenticata: per Connect (`connect.ts`) e per ciò che non ha un metodo qui. */
+  public async call<T>(method: string, path: string, form?: Form, idempotencyKey?: string): Promise<T> {
     const response = await fetch(new URL(path, this.base), {
       method,
       headers: {
@@ -116,6 +117,8 @@ export class StripeClient {
       name: string;
       ref?: string | undefined;
       saveMethod: boolean;
+      /** ADR-131: il conto Connect dell'allevamento e la nostra commissione */
+      transfer?: { destination: string; feeCents: number } | undefined;
     },
   ): Promise<string> {
     const meta = { account_id: input.accountId, purpose: input.purpose, ref: input.ref };
@@ -135,6 +138,10 @@ export class StripeClient {
       payment_intent_data: {
         metadata: meta,
         ...(input.saveMethod && { setup_future_usage: "off_session" }),
+        ...(input.transfer !== undefined && {
+          transfer_data: { destination: input.transfer.destination },
+          application_fee_amount: input.transfer.feeCents,
+        }),
       },
     });
     return session.url;

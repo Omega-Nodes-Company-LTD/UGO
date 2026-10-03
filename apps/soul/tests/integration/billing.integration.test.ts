@@ -85,7 +85,7 @@ beforeAll(async () => {
     mqtt: { url: "mqtt://127.0.0.1:1" },
     ollamaUrl: "http://127.0.0.1:1",
     logger: false,
-    billing: { plans: new PlanGate("free"), masterKey: MASTER, stripe, paypal, mailer, siteUrl: SITE },
+    billing: { plans: new PlanGate("free"), masterKey: MASTER, stripe, paypal, mailer, siteUrl: SITE, marketFeePct: 10 },
     features: {
       chat: undefined as never,
       psyche: undefined as never,

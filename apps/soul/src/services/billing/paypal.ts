@@ -180,6 +180,11 @@ export class PayPalClient {
     }
   }
 
+  /** Il rimborso di una cattura (ADR-126 §5): tutto, non una parte. */
+  public async refundCapture(captureId: string): Promise<void> {
+    await this.call("POST", `/v2/payments/captures/${encodeURIComponent(captureId)}/refund`, {}, `refund-${captureId}`);
+  }
+
   public async cancelSubscription(id: string): Promise<void> {
     await this.call("POST", `/v1/billing/subscriptions/${encodeURIComponent(id)}/cancel`, { reason: "Disdetta UGO" });
   }

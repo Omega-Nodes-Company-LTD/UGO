@@ -58,6 +58,12 @@ export interface AdoptionRoutesDeps {
   chain?: RegistryClient;
   /** ADR-125: i piani; assente = nessun tetto (i test che non parlano di piani) */
   plans?: PlanGate | undefined;
+  /**
+   * ADR-126 §5: annullare una pratica PAGATA online rimborsa presso il PSP
+   * (con Connect, stornando trasferimento e commissione). Assente = il
+   * rimborso è a mano, e la risposta lo dice.
+   */
+  refund?: ((input: { kennelAccountId: string; provider: string; ref: string }) => Promise<boolean>) | undefined;
 }
 
 export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoutesDeps): void {
@@ -226,15 +232,22 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
     const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
     if (accountId === undefined) return reply;
     if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
+    const pratica = await withMarket(deps.db, (db) => new AdoptionService(db).ofKennel(accountId, id));
+    if (pratica === undefined) return reply.status(404).send({ error: "non esiste" });
+    // prima il rimborso, poi l'annullamento: una pratica annullata con i soldi
+    // ancora da restituire sarebbe un debito che nessuno vede
+    let refunded = false;
+    const online = pratica.paymentProvider === "stripe" || pratica.paymentProvider === "paypal";
+    if (pratica.status === "pagata" && online && pratica.paymentRef !== null) {
+      if (deps.refund === undefined) return reply.status(501).send({ error: "il rimborso online non è configurato" });
+      refunded = await deps.refund({ kennelAccountId: accountId, provider: pratica.paymentProvider ?? "", ref: pratica.paymentRef });
+      if (!refunded) return reply.status(502).send({ error: "il PSP non ha accettato il rimborso: riprova" });
+    }
     const done = await withMarket(deps.db, async (db) => {
-      const adoptions = new AdoptionService(db);
-      const pratica = await adoptions.ofKennel(accountId, id);
-      if (pratica === undefined) return "missing" as const;
-      if (!(await adoptions.cancel(id))) return { was: pratica.status };
+      if (!(await new AdoptionService(db).cancel(id))) return { was: pratica.status };
       return "cancelled" as const;
     });
-    if (done === "missing") return reply.status(404).send({ error: "non esiste" });
     if (done !== "cancelled") return reply.status(409).send({ error: `non si annulla: è ${done.was}` });
-    return reply.send({ status: "annullata" });
+    return reply.send({ status: "annullata", rimborsata: refunded });
   });
 }

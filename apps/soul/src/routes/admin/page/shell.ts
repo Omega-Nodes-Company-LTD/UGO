@@ -85,6 +85,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
     <nav class="rail-group">
       <small>Mercato</small>
       <a href="#/adozioni" data-nav="adozioni">${icon("store")}Le adozioni</a>
+      <a href="#/allevamento" data-nav="allevamento" data-needs="breeding">${icon("coin")}Il mio allevamento</a>
     </nav>
 
     <nav class="rail-group" data-group="business">
@@ -107,6 +108,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <small>Operatore</small>
       <a href="#/account" data-nav="account">${icon("users")}Gli account</a>
       <a href="#/diagnostica" data-nav="diagnostica">${icon("gauge")}La diagnostica</a>
+      <a href="#/segnalazioni" data-nav="segnalazioni">${icon("alert")}Le segnalazioni</a>
     </nav>
 
     <nav class="rail-group">

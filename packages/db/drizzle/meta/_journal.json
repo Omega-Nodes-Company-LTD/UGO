@@ -470,6 +470,20 @@
       "when": 1791016551153,
       "tag": "0066_l-incasso-rls",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1791018143161,
+      "tag": "0067_il-mercato-connect",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1791018144262,
+      "tag": "0068_il-mercato-connect-rls",
+      "breakpoints": true
     }
   ]
 }

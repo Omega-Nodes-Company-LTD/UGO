@@ -4,6 +4,7 @@ import { PEDIGREE_STYLES } from "./script/pedigree.js";
 import { PIGGYBANK_STYLES } from "./script/piggybank.js";
 import { ACCESS_PAGES, ACCESS_STYLES } from "./page/access.js";
 import { BILLING_PAGES, BILLING_STYLES } from "./page/billing.js";
+import { MARKET_PAGES } from "./page/market.js";
 import { ACCOUNT_PAGES } from "./page/account.js";
 import { SETTINGS_PAGES } from "./page/settings.js";
 import { DIAGNOSTICS_PAGE, DIAGNOSTICS_STYLES } from "./page/diagnostics.js";
@@ -45,6 +46,7 @@ export const ADMIN_PAGE = [
   ACCOUNT_PAGES,
   ACCESS_PAGES,
   BILLING_PAGES,
+  MARKET_PAGES,
   DIAGNOSTICS_PAGE,
   JOURNAL_PAGES,
   CUSTOMER_PAGES,

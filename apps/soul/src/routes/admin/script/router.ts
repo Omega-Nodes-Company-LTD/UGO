@@ -130,6 +130,11 @@ async function openPage(page) {
   } else if (page === "credito") {
     // ADR-130: il saldo delle chiavi UGO e la ricarica che si fa da sola
     await section(loadCredit, "credit-msg");
+  } else if (page === "allevamento") {
+    // ADR-131: il conto con cui l'allevamento incassa
+    await section(loadPayout, "payout-msg");
+  } else if (page === "segnalazioni") {
+    await section(loadReports, "reports-msg");
   } else if (page === "accessi") {
     // ADR-124: i browser collegati, i musi abbinati, la chiusura
     await section(loadAccess, "access-msg");

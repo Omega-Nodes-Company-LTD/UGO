@@ -22,3 +22,21 @@ ci renderebbe intermediari di pagamento, con obblighi fiscali e antiriciclaggio 
 6. **Vetrina pubblica** con filtri (stirpe, generazione, età, prezzo, allevamento), scheda del
    cucciolo col corpo 3D, pedigree e dote; pagina dell'allevamento senza email esposte.
 7. **Segnalazioni**: chiunque può segnalare un annuncio; l'operatore può sospenderlo.
+
+## Note di implementazione (2026-10-03, fase 6)
+
+- Schema (0067, 0068): `breeder_payout_accounts` (per account; il ruolo del mercato la legge per
+  sapere dove va il denaro) e `listing_reports` (chi segnala vede solo le sue; l'operatore le legge
+  e le chiude dal ruolo del mercato; l'allevamento non vede chi l'ha segnalato).
+- Il conto si apre con `POST /v1/allevamento/pagamenti` (Express, Italia, `metadata.account_id`);
+  lo stato arriva solo dal webhook `account.updated`. Mettere in vetrina **a pagamento** risponde
+  409 finché il conto non incassa; la fonderia ne è esente.
+- Checkout: `transfer_data.destination` + `application_fee_amount = ⌊prezzo × UGO_MARKET_FEE_PCT⌋`
+  (arrotondata a favore dell'allevatore). PayPal resta della fonderia. Annullare una pratica pagata
+  rimborsa **prima** di annullare: Stripe con `reverse_transfer` e `refund_application_fee`,
+  PayPal col rimborso della cattura.
+- Vetrina pubblica: filtri per allevamento, generazione, prezzo massimo ed età
+  (`GET /v1/vetrina?…`), pagina `/allevamenti/:slug`, scheda col pedigree e «Segnala».
+- **Non fatto, e detto**: la scheda del sito mostra la descrizione dell'aspetto, non il corpo 3D
+  (resta nel muso: portare `@ugo/face-body` nel sito è un bundle in più da costruire e servire);
+  la dote (ADR-074) non è pubblica, perché è il sapere della casa che cede.

@@ -28,7 +28,20 @@ export interface VetrinaRoutesDeps {
   guard: PreHandler;
   /** ADR-073: gli atti, per far vedere il pedigree a chi non ha ancora niente */
   chain?: RegistryClient;
+  /**
+   * ADR-131 §3: può vendere a pagamento? La fonderia sì; gli altri solo col
+   * conto Connect attivo. Assente = nessun controllo (soul senza incasso).
+   */
+  canSell?: ((accountId: string) => Promise<boolean>) | undefined;
 }
+
+/** ADR-131 §6: i filtri della vetrina pubblica. Tutti facoltativi. */
+const filterSchema = z.object({
+  allevamento: z.string().max(60).optional(),
+  generazione: z.coerce.number().int().min(0).max(100).optional(),
+  prezzoMax: z.coerce.number().int().min(0).optional(),
+  etaMaxGiorni: z.coerce.number().int().min(0).optional(),
+});
 
 export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesDeps): void {
 
@@ -37,7 +50,9 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
    * un allevamento vero — l'allevamento, i cuccioli, com'è fatto ognuno — e
    * niente delle case: nessuna persona, nessun ricordo, nessun conto.
    */
-  app.get("/v1/vetrina", async (_request, reply) => {
+  app.get("/v1/vetrina", async (request, reply) => {
+    const filter = filterSchema.safeParse(request.query);
+    const f = filter.success ? filter.data : {};
     // ADR-097: chi guarda non ha una casa — la vetrina attraversa gli
     // allevamenti per disegno, e sotto RLS passa dal ruolo del mercato
     const allevamenti = await withMarket(deps.db, async (db) => {
@@ -46,7 +61,20 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
       await new AdoptionService(db).releaseExpired();
       return new VetrinaService(db).browse();
     });
-    return reply.send({ allevamenti });
+    // pochi allevamenti, pochi cuccioli: si filtra qui, sull'elenco già pubblico
+    const shown = allevamenti
+      .filter((kennel) => f.allevamento === undefined || kennel.slug === f.allevamento)
+      .map((kennel) => ({
+        ...kennel,
+        cubs: kennel.cubs.filter(
+          (cub) =>
+            (f.generazione === undefined || cub.generation === f.generazione) &&
+            (f.prezzoMax === undefined || (cub.priceCents !== null && cub.priceCents <= f.prezzoMax)) &&
+            (f.etaMaxGiorni === undefined || cub.ageDays <= f.etaMaxGiorni),
+        ),
+      }))
+      .filter((kennel) => kennel.cubs.length > 0);
+    return reply.send({ allevamenti: shown });
   });
 
   /**
@@ -82,6 +110,9 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
       { requireAdmin: true },
       async (db, accountId) => {
         if (!(await guardBreeding(db, accountId, "alleva", reply))) return "denied" as const;
+        // ADR-131 §3: vendere a pagamento vuole un conto che incassi
+        const paid = parsed.data.listed && (parsed.data.priceCents ?? 0) > 0;
+        if (paid && deps.canSell !== undefined && !(await deps.canSell(accountId))) return "no-payout" as const;
         const shown = await new VetrinaService(db).show(
           accountId,
           id,
@@ -93,6 +124,12 @@ export function registerVetrinaRoutes(app: FastifyInstance, deps: VetrinaRoutesD
     );
     if (done === undefined) return reply;
     if (done === "denied") return reply;
+    if (done === "no-payout") {
+      return reply.status(409).send({
+        error: "attiva i pagamenti",
+        detail: "per vendere a pagamento serve il conto di versamento: lo apri da «Il mio allevamento»",
+      });
+    }
     if (done === "unfit") {
       return reply.status(422).send({
         error: "non si può mettere in vetrina",

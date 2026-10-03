@@ -115,6 +115,8 @@ export class AdoptionService {
         gosinoId: string;
         buyerAccountId: string;
         status: string;
+        paymentRef: string | null;
+        paymentProvider: string | null;
       }
     | undefined
   > {
@@ -124,6 +126,8 @@ export class AdoptionService {
         gosinoId: adoptions.gosinoId,
         buyerAccountId: adoptions.buyerAccountId,
         status: adoptions.status,
+        paymentRef: adoptions.paymentRef,
+        paymentProvider: adoptions.paymentProvider,
       })
       .from(adoptions)
       .where(and(eq(adoptions.id, id), eq(adoptions.kennelAccountId, kennelAccountId)));

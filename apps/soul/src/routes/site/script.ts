@@ -61,9 +61,66 @@ function cubCard(kennel, cub) {
   return el("article", { class: "card pup", "data-testid": "shop-cub" }, [
     el("h3", {}, [el("a", { href: "/vetrina/" + encodeURIComponent(cub.gosinoId), text: cub.name })]),
     el("p", { text: cub.persona }),
-    el("p", { class: "muted", text: "Generazione " + cub.generation + " · " + age(cub.ageDays) + " · " + kennel.name }),
+    el("p", { class: "muted" }, [
+      document.createTextNode("Generazione " + cub.generation + " · " + age(cub.ageDays) + " · "),
+      el("a", { href: "/allevamenti/" + encodeURIComponent(kennel.slug), text: kennel.name }),
+    ]),
     el("p", { class: "price", text: euro(cub.priceCents) }),
   ]);
+}
+
+/** I filtri del form diventano la query della vetrina; i prezzi in euro diventano centesimi. */
+function shopQuery() {
+  const params = new URLSearchParams();
+  const box = document.querySelector("[data-shop]");
+  if (box?.dataset.kennel) params.set("allevamento", box.dataset.kennel);
+  const form = document.querySelector("[data-shop-filters]");
+  for (const input of form ? form.querySelectorAll("input") : []) {
+    if (input.value === "") continue;
+    params.set(input.name, input.name === "prezzoMax" ? String(Math.round(Number(input.value) * 100)) : input.value);
+  }
+  const query = params.toString();
+  return "/v1/vetrina" + (query === "" ? "" : "?" + query);
+}
+
+async function showPedigree(box, id) {
+  try {
+    const res = await fetch("/v1/vetrina/" + encodeURIComponent(id) + "/pedigree");
+    if (!res.ok) return;
+    const { pedigree } = await res.json();
+    const ancestors = pedigree.filter((node) => node.id !== id);
+    if (ancestors.length === 0) return;
+    box.appendChild(el("h2", { text: "Da chi discende" }));
+    box.appendChild(el("ul", { class: "tree" }, ancestors.map((node) =>
+      el("li", { text: node.name + " · generazione " + node.generation }))));
+  } catch { /* il pedigree è un di più: la scheda vale anche senza */ }
+}
+
+async function report(box, id) {
+  const reason = box.querySelector('select[name="motivo"]').value;
+  const res = await fetch("/v1/vetrina/" + encodeURIComponent(id) + "/segnala", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ motivo: reason }),
+  });
+  const out = box.querySelector("[data-report-msg]");
+  if (res.status === 201) say(out, "Grazie: la guardiamo noi. L'allevamento non sa chi l'ha segnalato.", "ok");
+  else if (res.status === 401) say(out, "Per segnalare entra nella tua casa: così sappiamo che non è uno scherzo.", "err");
+  else say(out, "Non sono riuscito a mandarla. Riprova.", "err");
+}
+
+function reportForm(id) {
+  const select = el("select", { name: "motivo", "aria-label": "Motivo" }, [
+    ["ingannevole", "annuncio ingannevole"], ["maltrattamento", "maltrattamento"], ["prezzo", "prezzo"], ["altro", "altro"],
+  ].map(([value, label]) => el("option", { value, text: label })));
+  const button = el("button", { class: "btn ghost", type: "button", text: "Segnala" });
+  const box = el("details", { class: "muted" }, [
+    el("summary", { text: "Qualcosa non va con questo annuncio?" }),
+    el("div", { class: "filters" }, [select, button]),
+    el("div", { "data-report-msg": "" }),
+  ]);
+  button.addEventListener("click", () => { void report(box, id); });
+  return box;
 }
 
 async function loadShop() {
@@ -72,7 +129,7 @@ async function loadShop() {
   if (!shop && !pup) return;
   const box = shop ?? pup;
   try {
-    const res = await fetch("/v1/vetrina");
+    const res = await fetch(shop ? shopQuery() : "/v1/vetrina");
     if (!res.ok) throw new Error("HTTP " + res.status);
     const { allevamenti } = await res.json();
     if (shop) {
@@ -88,11 +145,16 @@ async function loadShop() {
       pup.replaceChildren(
         el("h1", { text: cub.name }),
         el("p", { class: "lede", text: cub.persona }),
-        el("p", { class: "muted", text: "Allevamento " + kennel.name + " · generazione " + cub.generation + " · " + age(cub.ageDays) }),
+        el("p", { class: "muted" }, [
+          el("a", { href: "/allevamenti/" + encodeURIComponent(kennel.slug), text: kennel.name }),
+          document.createTextNode(" · generazione " + cub.generation + " · " + age(cub.ageDays)),
+        ]),
         el("p", { class: "price", text: euro(cub.priceCents) }),
         el("p", {}, [el("a", { class: "btn", href: "/casa#/adozioni?cucciolo=" + encodeURIComponent(cub.gosinoId), text: "Voglio adottarlo" })]),
         el("p", { class: "muted", text: "Per adottarlo serve una casa: se non ce l'hai, la crei in un minuto." }),
       );
+      await showPedigree(pup, wanted);
+      pup.appendChild(reportForm(wanted));
       return;
     }
     say(pup, "Questo cucciolo non è più in vetrina: forse ha già trovato casa.", "info");
@@ -100,5 +162,7 @@ async function loadShop() {
     say(box, "La vetrina non si è caricata. Riprova fra poco.", "err");
   }
 }
+const filters = document.querySelector("[data-shop-filters]");
+filters?.addEventListener("submit", (event) => { event.preventDefault(); void loadShop(); });
 loadShop();
 `;

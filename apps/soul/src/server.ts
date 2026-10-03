@@ -21,6 +21,7 @@ import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceStatic } from "./routes/faceStatic.js";
 import { NoExemplarError } from "./routes/scope.js";
 import { registerCommerce, type BillingOptions } from "./routes/commerce.js";
+import { refundPaidAdoption, sellerOf } from "./services/billing/market.js";
 import { registerPublicGate } from "./routes/publicGate.js";
 import { registerPlanGates } from "./routes/planGates.js";
 import { registerPublicSurface, type PublicOptions } from "./routes/publicSurface.js";
@@ -621,6 +622,11 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           ...(registry !== undefined && { registry }),
           ...(gosini.chain !== undefined && { chain: new RegistryClient(gosini.chain) }),
           plans,
+          // ADR-126 §5: annullare una pratica pagata online la rimborsa
+          ...(options.billing !== undefined && {
+            refund: (input: { kennelAccountId: string; provider: string; ref: string }) =>
+              refundPaidAdoption({ db: options.db, stripe: options.billing?.stripe, paypal: options.billing?.paypal }, input),
+          }),
         });
         // ADR-125/126/130: l'incasso — consegna della fonderia compresa
         if (options.billing !== undefined) {
@@ -638,6 +644,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         registerVetrinaRoutes(app, {
           db: options.db,
           guard,
+          ...(options.billing !== undefined && {
+            canSell: async (accountId: string) => (await sellerOf(options.db, accountId)).kind !== "offline",
+          }),
           ...(gosini.chain !== undefined && { chain: new RegistryClient(gosini.chain) }),
         });
         // ADR-082: la cessione di un nato, e l'atto in catena

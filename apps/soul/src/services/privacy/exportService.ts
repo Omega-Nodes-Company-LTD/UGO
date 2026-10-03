@@ -98,6 +98,10 @@ export interface ExportBundle {
   subscription: unknown[];
   /** ADR-130: la ricarica automatica — soglie e stato, mai il metodo salvato */
   creditSettings: unknown[];
+  /** ADR-131: il conto di versamento dell'allevamento — l'id presso Stripe e lo stato */
+  payoutAccount: unknown[];
+  /** ADR-131: le segnalazioni fatte da questa casa */
+  listingReports: unknown[];
   adoptions: unknown[];
   /** ADR-099: i legami fra le case — le due parti, mai il vicinato intero */
   accountTies: unknown[];
@@ -319,6 +323,8 @@ export class ExportService {
       sessionRows,
       subscriptionRows,
       creditSettingRows,
+      payoutRows,
+      reportRows,
       adoptions,
       accountTies,
       parcels,
@@ -376,6 +382,10 @@ export class ExportService {
       rows(sql`select auto_recharge, threshold_micros, amount_micros, monthly_cap_micros, provider,
                       failures, disabled_reason, updated_at
                from credit_settings where account_id = ${accountId}`),
+      rows(sql`select stripe_account_id, charges_enabled, payouts_enabled, requirements_due, updated_at
+               from breeder_payout_accounts where account_id = ${accountId}`),
+      rows(sql`select id, gosino_id, reason, note, status, created_at, resolved_at
+               from listing_reports where reporter_account_id = ${accountId} order by created_at`),
       rows(sql`select id, gosino_id, kennel_account_id, buyer_account_id, status,
                       price_cents, currency, chain_seq, reserved_at, paid_at, delivered_at,
                       cancelled_at
@@ -472,6 +482,8 @@ export class ExportService {
       sessions: sessionRows,
       subscription: subscriptionRows,
       creditSettings: creditSettingRows,
+      payoutAccount: payoutRows,
+      listingReports: reportRows,
       adoptions,
       accountTies,
       parcels: this.openParcels(parcels, accountId, houseKeyRow),

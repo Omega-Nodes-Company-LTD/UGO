@@ -64,7 +64,15 @@ export function billingFromEnv(
     log: deps.log,
   };
   return {
-    options: { plans, masterKey: deps.masterKey, stripe, paypal, mailer: deps.mailer, siteUrl: env.PUBLIC_URL },
+    options: {
+      plans,
+      masterKey: deps.masterKey,
+      stripe,
+      paypal,
+      mailer: deps.mailer,
+      siteUrl: env.PUBLIC_URL,
+      marketFeePct: env.UGO_MARKET_FEE_PCT,
+    },
     onCreditDebited: (accountId) => {
       maybeRecharge(recharge, accountId).catch((error: unknown) => {
         deps.log.warn({ accountId, reason: error instanceof Error ? error.name : "unknown" }, "recharge check failed");

@@ -2883,4 +2883,29 @@ vogliono Docker: CI); pytest 103 passati (gli altri vogliono Docker); drizzle se
 `pnpm audit` senza HIGH/CRITICAL; prova nel browser di «Abbonamento» e «Il credito» con
 apertura del checkout sullo stub.
 
-**Prossimo**: fase 6 (il mercato con Stripe Connect).
+**Fase 6 — il mercato dei cuccioli con Stripe Connect (ADR-131).**
+- Schema 0067/0068: `breeder_payout_accounts`, `listing_reports` con RLS e lettura dal ruolo del
+  mercato.
+- `services/billing/connect.ts` e `market.ts`: conto Express, link di verifica e dashboard,
+  stato dal webhook `account.updated`, venditore visto dal compratore (fonderia / Connect /
+  offline), rimborso con storno del trasferimento e della commissione.
+- Checkout delle adozioni con destination charge e commissione `UGO_MARKET_FEE_PCT`; vendere a
+  pagamento richiede il conto attivo (409 altrimenti); annullare una pratica pagata rimborsa
+  prima di annullare.
+- Vetrina: filtri, pagina dell'allevamento, pedigree e segnalazione nel sito; segnalazioni per
+  l'operatore (sospendi = fuori vetrina).
+
+### Il giro completo (regola 12), fase 6
+- **BO**: quanto sopra; export del conto di versamento e delle segnalazioni fatte; termini con la
+  sezione sulla compravendita (versione `2026-10-03`). `ops/jobs`: non toccato — nessun job legge
+  o scrive il mercato.
+- **`/admin`**: «Il mio allevamento» (solo per chi alleva: stato del conto, attiva/completa,
+  versamenti e ricevute su Stripe) e «Le segnalazioni» (operatore: sospendi/archivia).
+- **FE**: nessun cambiamento — il mercato vive nel sito e nel pannello, il muso non vende.
+
+Verifiche: turbo 49/49; `market` 7/7 (destinazione e commissione lette nella richiesta allo stub,
+rimborso con storno), le altre suite del mercato e dell'incasso verdi (156 test); `site.test.ts`
+compila lo script e vieta gli script inline; drizzle senza deriva; audit senza HIGH/CRITICAL;
+prova nel browser di vetrina, filtri, pagina dell'allevamento e scheda.
+
+**Prossimo**: fase 7 (la piazza e l'incontro).

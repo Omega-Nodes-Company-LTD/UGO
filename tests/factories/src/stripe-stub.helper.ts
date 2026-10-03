@@ -49,6 +49,15 @@ export class StripeStub {
       }
       return { status: 200, body: { id: this.next("pi"), status: "succeeded" } };
     }
+    // ADR-131: Connect Express — conti, percorso di verifica, dashboard, rimborsi
+    if (route === "POST /v1/accounts") return { status: 200, body: { id: this.next("acct"), type: "express" } };
+    if (route === "POST /v1/account_links") {
+      return { status: 200, body: { url: `https://connect.stripe.test/onboarding/${call.form.account ?? ""}` } };
+    }
+    if (call.method === "POST" && /^\/v1\/accounts\/[^/]+\/login_links$/.test(call.path)) {
+      return { status: 200, body: { url: `https://connect.stripe.test/express/${call.path.split("/")[3] ?? ""}` } };
+    }
+    if (route === "POST /v1/refunds") return { status: 200, body: { id: this.next("re"), status: "succeeded" } };
     if (call.method === "DELETE" && call.path.startsWith("/v1/subscriptions/")) {
       return { status: 200, body: { id: call.path.split("/").at(-1), status: "canceled" } };
     }

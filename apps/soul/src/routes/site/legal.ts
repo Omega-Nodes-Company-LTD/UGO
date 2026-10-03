@@ -95,6 +95,13 @@ export function termsPage(legal: LegalInfo): string {
   condizioni; il tetto di spesa giornaliero che imposti nel pannello è una protezione, non una garanzia del
   fornitore. Se usi le chiavi UGO, i consumi si scalano dal credito prepagato della tua casa.</p>
 
+<h2>Comprare e vendere cuccioli</h2>
+<p>Gli allevamenti vendono i loro cuccioli attraverso UGO, ma il contratto di adozione è fra chi
+  vende e chi adotta. I pagamenti passano da Stripe, che versa il denaro all'allevamento; UGO
+  trattiene una commissione e non custodisce i soldi altrui. Fino alla consegna l'adozione si può
+  annullare, e chi ha pagato viene rimborsato per intero. Un annuncio che non va si segnala dalla
+  sua pagina: lo guardiamo noi, e l'allevamento non sa chi l'ha segnalato.</p>
+
 <h2>Cosa non è</h2>
 <p>UGO non è un servizio medico, di emergenza o di sorveglianza. Non affidargli decisioni su salute,
   sicurezza o persone.</p>

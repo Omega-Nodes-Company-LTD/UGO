@@ -2,7 +2,9 @@ import type { DbClient } from "@ugo/db";
 import { centsToMicros } from "@ugo/shared";
 import { z } from "zod";
 import { settleAdoption, type DeliveryDeps } from "../adoptionDelivery.js";
+import { connectStateOf } from "./connect.js";
 import { creditTopup, firstTime, saveMethod, saveSubscription } from "./ledger.js";
+import { saveConnectState } from "./market.js";
 import { parseCustomId, type PayPalClient } from "./paypal.js";
 import { rechargeRefused, type RechargeDeps } from "./recharge.js";
 
@@ -43,6 +45,14 @@ export async function handleStripeEvent(deps: WebhookDeps, body: unknown): Promi
   const event = stripeEvent.parse(body);
   if (!(await firstTime(deps.db, "stripe", event.id, event.type))) return "duplicate";
   const object = event.data.object;
+  // ADR-131: il conto Connect di un allevamento è cambiato (verifica, versamenti)
+  if (event.type === "account.updated") {
+    const owner = z.object({ account_id: z.uuid() }).safeParse(object.metadata);
+    const state = connectStateOf(object);
+    if (!owner.success || state === undefined) return "ignored";
+    await saveConnectState(deps.db, owner.data.account_id, state);
+    return "done";
+  }
   const m = meta.safeParse(object.metadata);
   if (!m.success) return "ignored";
   const { account_id: accountId, purpose } = m.data;
