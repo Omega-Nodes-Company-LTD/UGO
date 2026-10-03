@@ -13,3 +13,11 @@ nasce senza gosino) e ADR-084 (l'adozione). **Precisa ADR-084** per la sola fond
 4. La fonderia ha **consegna automatica** (`accounts.auto_deliver`): le sue adozioni pagate si
    consegnano senza un passo manuale. Gli altri allevamenti consegnano a mano, come oggi.
 5. Il piano Free permette **un** gosino: la prima adozione è sempre possibile, la seconda chiede Pro.
+
+## Note di implementazione (2026-10-03, fase 5)
+
+- `accounts.auto_deliver` esiste (migrazione 0065) ed è acceso per le fonderie dalla 0066; si dà
+  anche con `ugo account piano … --consegna-automatica`.
+- Dal sito, «Voglio adottarlo» porta a `/casa#/adozioni?cucciolo=<id>`: il pannello prenota per la
+  casa aperta e mostra la pratica col pulsante per pagare — o già consegnata, se era un regalo
+  della fonderia.

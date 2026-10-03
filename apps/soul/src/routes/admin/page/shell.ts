@@ -71,12 +71,12 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <a href="#/volti" data-nav="volti">${icon("face")}I volti</a>
       <a href="#/liste" data-nav="liste">${icon("list")}Le liste</a>
       <a href="#/documenti" data-nav="documenti">${icon("doc")}I documenti</a>
-      <a href="#/album" data-nav="album">${icon("photo")}L'album</a>
+      <a href="#/album" data-nav="album" data-plan="album">${icon("photo")}L'album</a>
     </nav>
 
     <nav class="rail-group">
       <small>Insieme</small>
-      <a href="#/riunioni" data-nav="riunioni">${icon("meeting")}Riunioni e legami</a>
+      <a href="#/riunioni" data-nav="riunioni" data-plan="meetings">${icon("meeting")}Riunioni e legami</a>
       <a href="#/consiglio" data-nav="consiglio">${icon("council")}Il consiglio</a>
       <a href="#/feed" data-nav="feed">${icon("feed")}I feed</a>
       <a href="#/parentele" data-nav="parentele">${icon("family")}Le parentele</a>
@@ -95,6 +95,8 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
     <nav class="rail-group">
       <small>Account</small>
       <a href="#/ai" data-nav="ai">${icon("brain")}La testa di UGO</a>
+      <a href="#/abbonamento" data-nav="abbonamento">${icon("card")}Abbonamento</a>
+      <a href="#/credito" data-nav="credito">${icon("bolt")}Il credito</a>
       <a href="#/accessi" data-nav="accessi">${icon("key")}Accessi e dispositivi</a>
       <a href="#/conti" data-nav="conti">${icon("coin")}I conti</a>
       <a href="#/giornale" data-nav="giornale">${icon("journal")}Il giornale</a>

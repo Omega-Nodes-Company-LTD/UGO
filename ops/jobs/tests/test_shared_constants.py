@@ -69,3 +69,17 @@ def test_the_plasticity_curve_keeps_its_promise() -> None:
     assert hygiene.plasticity_at(0.9) < hygiene.PLASTICITY_YOUNG / 4
     # ma mai zero: un vecchio impara poco, non niente
     assert hygiene.plasticity_at(50.0) >= hygiene.PLASTICITY_OLD
+
+
+def test_the_plans_that_dream_are_the_same_in_both_languages() -> None:
+    # ADR-125: chi sogna di notte lo decide il piano. Il job lo sa in Python,
+    # il pannello in TypeScript: un piano nuovo che sogna non deve restare
+    # sveglio perché nessuno ha aggiornato la seconda copia
+    from ugo_jobs import scheduler
+
+    text = (REPO / "packages" / "shared" / "src" / "plans.ts").read_text(encoding="utf-8")
+    dreaming = re.findall(r"(\w+): \{[^}]*?dream: true", text)
+    assert tuple(sorted(dreaming)) == tuple(sorted(scheduler.DREAM_PLANS))
+    live = re.search(r"LIVE_SUBSCRIPTION = \[([^\]]*)\]", text)
+    assert live is not None
+    assert tuple(re.findall(r'"(\w+)"', live.group(1))) == scheduler.LIVE_SUBSCRIPTION

@@ -21,8 +21,15 @@ let WHO = "";
 let ACCOUNTS = [];
 let ACCOUNT = "";
 
+/** I parametri dopo «?» nell'indirizzo: «#/credito?esito=ok», «#/adozioni?cucciolo=…». */
+function hashParam(name) {
+  const at = location.hash.indexOf("?");
+  if (at === -1) return undefined;
+  return new URLSearchParams(location.hash.slice(at + 1)).get(name) ?? undefined;
+}
+
 function route() {
-  let parts = location.hash.replace(/^#\\/?/, "").split("/").filter(Boolean);
+  let parts = location.hash.replace(/^#\\/?/, "").split("?")[0].split("/").filter(Boolean);
   // '#/a/<account>/...' avvolge tutto il resto: si toglie il prefisso e si
   // legge quel che segue con le stesse regole, cosi' un indirizzo senza
   // account davanti continua a funzionare
@@ -117,6 +124,12 @@ async function openPage(page) {
     await section(loadCapabilities, "stats-msg");
   } else if (page === "account") {
     await section(loadAccountsPage, "account-msg");
+  } else if (page === "abbonamento") {
+    // ADR-125: il piano, cosa sblocca, e come cambiarlo
+    await section(loadPlan, "plan-msg");
+  } else if (page === "credito") {
+    // ADR-130: il saldo delle chiavi UGO e la ricarica che si fa da sola
+    await section(loadCredit, "credit-msg");
   } else if (page === "accessi") {
     // ADR-124: i browser collegati, i musi abbinati, la chiusura
     await section(loadAccess, "access-msg");
@@ -140,7 +153,8 @@ async function openPage(page) {
     // ADR-111: quello che UGO ha da leggere, e cosa ha già letto
     await section(loadDocuments, "doc-msg");
   } else if (page === "adozioni") {
-    // ADR-084: le pratiche, dai due lati
+    // ADR-084: le pratiche, dai due lati — e ADR-128: quella appena scelta in vetrina
+    await section(adoptFromShop, "adozioni-msg");
     await section(loadAdoptions, "adozioni-msg");
   } else if (page === "album") {
     // ADR-109: la durata e gli scatti che restano

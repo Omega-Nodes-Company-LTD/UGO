@@ -2845,5 +2845,42 @@ iscrizione → link dalla mail (stub Resend) → pannello → codice → abbinam
 connesso, senza errori in console. Le suite che chiedono Docker (Ollama, MinIO, Mosquitto) e
 l'e2e del muso girano in CI; `global-setup.ts` ora sceglie la testa di UGO via API.
 
-**Prossimo**: fase 5 (piani, abbonamenti Stripe/PayPal, credito e ricarica automatica, adozioni a
-pagamento).
+**Fase 5 — piani, abbonamenti, credito, adozioni a pagamento (ADR-125, 126, 128, 130).**
+- `packages/shared`: `plans.ts` (Free/Pro/Allevamento, `effectivePlan`, `withinQuota`) e
+  `billing.ts` (firma dei webhook Stripe in tempo costante, decisione della ricarica automatica),
+  puri e testati.
+- Schema (0065, 0066): `subscriptions`, `billing_events`, `credit_settings`, `accounts.plan_grant`
+  e `auto_deliver`, `adoptions.payment_provider`; RLS per account; le case esistenti diventano
+  `allevamento` per concessione, le fonderie consegnano da sole.
+- `services/billing/*`: `PlanGate`, client Stripe e PayPal con `fetch`, webhook idempotenti (il
+  credito si accredita solo lì), ricarica automatica con lock consultivo, attesa del webhook e tetto
+  mensile, spenta e annunciata per mail al primo rifiuto. Il gancio sta nel cancello
+  (`onCreditDebited`).
+- Rotte: `/v1/abbonamento*`, `/v1/credito*`, `/v1/adozioni/:id/checkout`, `/webhooks/stripe`,
+  `/webhooks/paypal`, `/pagamenti/paypal/ritorno`; i cancelli del piano in una tabella sola
+  (`planGates.ts`, 402); la voce fuori piano risponde 204/501 come a ogni guasto; il sogno notturno
+  filtrato per piano nel job Python (solo in pubblico).
+- Prenotazione: conta i cuccioli in arrivo nel tetto dei gosini; il cucciolo gratuito è pagato e, se
+  della fonderia, consegnato subito. La consegna sta in `services/adoptionDelivery.ts`, unica per la
+  mano dell'allevatore e per la fonderia.
+- CLI: `ugo account piano <piano> --account <slug> [--consegna-automatica]`.
+
+### Il giro completo (regola 12), fase 5
+- **BO**: quanto sopra; `ops/jobs/scheduler.py::_houses` filtra per piano con `UGO_PUBLIC=on`,
+  con test su Postgres e il confronto delle costanti con TypeScript (`test_shared_constants.py`);
+  export di `subscriptions` e `credit_settings` (senza il metodo salvato); la chiusura dell'account
+  annulla l'abbonamento presso il PSP e cancella il metodo salvato.
+- **`/admin`**: pagine «Abbonamento» (piano, da dove viene, cosa sblocca, upgrade con carta o
+  PayPal, portale e disdetta) e «Il credito» (saldo, ricarica, ricarica automatica, movimenti); le
+  pratiche d'adozione mostrano a chi riceve «Paga con carta/PayPal»; dal sito `?cucciolo=` prenota
+  per la casa aperta; le voci che il piano non apre portano il cartellino «Pro».
+- **FE**: nessun cambiamento necessario — senza la voce nel piano `/v1/tts` risponde 204 e
+  `/v1/stt` 501, che il muso gestisce già passando a voce e orecchie del browser.
+
+Verifiche locali: turbo 49/49; `billing` 15/15 su Postgres con stub di rete Stripe/PayPal/Resend
+(webhook firmati davvero); le altre 24 suite d'integrazione toccate verdi (album e riunioni
+vogliono Docker: CI); pytest 103 passati (gli altri vogliono Docker); drizzle senza deriva;
+`pnpm audit` senza HIGH/CRITICAL; prova nel browser di «Abbonamento» e «Il credito» con
+apertura del checkout sullo stub.
+
+**Prossimo**: fase 6 (il mercato con Stripe Connect).

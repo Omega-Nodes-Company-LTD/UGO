@@ -33,6 +33,7 @@ const NOT_PERSONAL: Readonly<Record<string, string>> = {
   // ADR-124: le stesse ragioni, per le porte dell'accesso
   login_links: "credenziali monouso di quindici minuti: l'email che portano è già in account_logins",
   pairing_codes: "credenziali di dieci minuti per abbinare un chiosco: il token che ne nasce è in access_tokens",
+  billing_events: "l'identità degli eventi dei PSP (provider, id, tipo), senza casa né contenuto: serve solo a non lavorarli due volte",
   rate_limits: "contatori anonimi (HMAC di IP o email) di nessuna casa: non sono di nessuno da esportare",
 };
 

@@ -20,14 +20,10 @@ import { registerStatsRoute } from "./routes/stats.js";
 import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceStatic } from "./routes/faceStatic.js";
 import { NoExemplarError } from "./routes/scope.js";
-import { registerAccessRoutes } from "./routes/access.js";
-import { registerDeviceRoutes } from "./routes/devices.js";
+import { registerCommerce, type BillingOptions } from "./routes/commerce.js";
 import { registerPublicGate } from "./routes/publicGate.js";
-import { registerSite } from "./routes/site/index.js";
-import type { LegalInfo } from "./routes/site/legal.js";
-import type { Mailer } from "./services/auth/mailer.js";
-import { RateLimiter } from "./services/auth/rateLimit.js";
-import { pepperFrom } from "./services/auth/secrets.js";
+import { registerPlanGates } from "./routes/planGates.js";
+import { registerPublicSurface, type PublicOptions } from "./routes/publicSurface.js";
 import { registerFaceWs } from "./routes/faceWs.js";
 import { registerCouncilRoutes } from "./routes/council.js";
 import { registerDeskRoutes } from "./routes/desk.js";
@@ -85,28 +81,17 @@ import type { FaceGateway } from "./services/faceGateway.js";
 import type { MeetingsService } from "./services/meetingsService.js";
 import type { ExportService } from "./services/privacy/exportService.js";
 import type { ForgetService } from "./services/privacy/forgetService.js";
-import type { SpeciesMap } from "@ugo/shared";
-import type { DbClient } from "@ugo/db";
-
-/**
- * ADR-121, ADR-124: soul davanti a internet (`UGO_PUBLIC=on`). Assente =
- * soul in casa, com'è sempre stato: nessun sito, nessun accesso via email,
- * la radice è del muso.
- */
-export interface PublicOptions {
-  /** dove vive il sito: l'origine dei link e del controllo CSRF */
-  publicUrl: string;
-  /** per gli hash delle email e dei codici, e per far nascere le case */
-  masterKey: Buffer;
-  mailer: Mailer;
-  legal: LegalInfo;
-  /** ADR-125: annulla l'abbonamento presso il PSP prima della chiusura */
-  cancelBilling?: (accountId: string) => Promise<void>;
-}
+import type { SpeciesMap, Toggle } from "@ugo/shared";
+import { withAccount, type DbClient } from "@ugo/db";
 
 export interface ServerOptions extends HealthDeps {
   logger?: boolean;
   public?: PublicOptions;
+  /**
+   * ADR-125/126/130: piani, abbonamenti, credito, adozioni a pagamento.
+   * Assente = nessun tetto e nessun incasso (i test che non parlano di soldi).
+   */
+  billing?: BillingOptions;
   /** absolute path of the built face bundle; absent in dev, where Vite serves it */
   faceRoot?: string;
   /**
@@ -355,6 +340,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     });
     // ADR-121: subito dopo chi-sei, prima di ogni rotta — legge `request.tenant`
     if (options.public !== undefined) registerPublicGate(app, { publicUrl: options.public.publicUrl });
+    // ADR-125: dove il piano conta — prima delle rotte, come ogni hook
+    if (options.billing !== undefined) registerPlanGates(app, { db: options.db, plans: options.billing.plans });
     // ADR-049: uno solo, per la stessa ragione per cui `llmClient` e' uno solo
     const audit = createAuditLog(options.db, app.log);
     // ADR-056: chi guarda quale stanza, adesso. Uno per processo, come l'audit
@@ -367,7 +354,23 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerDesignAssets(app);
     if (options.public !== undefined) registerPublicSurface(app, options.db, options.public, guard, audit);
     // ADR-127: chi sei e cosa puoi, per un menu che non mostra il superfluo
-    registerMeRoute(app, { db: options.db, guard });
+    const plans = options.billing?.plans;
+    // ADR-125: «il piano lo permette?», sulla connessione della casa (RLS)
+    const allows =
+      plans === undefined
+        ? undefined
+        : (accountId: string, capability: Toggle): Promise<boolean> =>
+            withAccount(options.db, accountId, (tx) => plans.allows(tx, accountId, capability));
+    registerMeRoute(app, {
+      db: options.db,
+      guard,
+      ...(plans !== undefined && {
+        plan: async (db: DbClient, accountId: string) => {
+          const view = await plans.of(db, accountId);
+          return { id: view.plan, fonte: view.fonte, capacita: view.capacita };
+        },
+      }),
+    });
     if (options.ai !== undefined) {
       registerAiSettingsRoutes(app, { ...options.ai, db: options.db, guard, audit });
       // ADR-129: la porta da cui il sogno chiede di pensare
@@ -426,8 +429,13 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerTtsRoute(app, {
       db: options.db,
       ...(tts !== undefined && { voice: tts }),
+      ...(allows !== undefined && { allows }),
     });
-    registerSttRoute(app, { db: options.db, ...(stt !== undefined && { transcriber: stt }) });
+    registerSttRoute(app, {
+      db: options.db,
+      ...(stt !== undefined && { transcriber: stt }),
+      ...(allows !== undefined && { allows }),
+    });
     registerJobsRoutes(app, {
       db: options.db,
       guard,
@@ -612,7 +620,20 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           }),
           ...(registry !== undefined && { registry }),
           ...(gosini.chain !== undefined && { chain: new RegistryClient(gosini.chain) }),
+          plans,
         });
+        // ADR-125/126/130: l'incasso — consegna della fonderia compresa
+        if (options.billing !== undefined) {
+          registerCommerce(app, {
+            db: options.db,
+            guard,
+            billing: options.billing,
+            delivery: {
+              ...(registry !== undefined && { registry }),
+              ...(gosini.chain !== undefined && { chain: new RegistryClient(gosini.chain) }),
+            },
+          });
+        }
         // ADR-083: la vetrina — guardare è pubblico, mettere in vetrina no
         registerVetrinaRoutes(app, {
           db: options.db,
@@ -640,6 +661,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           db: options.db,
           masterKey: gosini.dataKey,
           ...(photos !== undefined && { storage: photos }),
+          ...(allows !== undefined && { allows: (accountId: string) => allows(accountId, "album") }),
         });
         // ADR-099: le parentele fra le case e le cartoline — serve la KEK,
         // perché il testo viaggia ri-cifrato con la DEK della destinataria.
@@ -760,38 +782,4 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     registerFaceStatic(app, options.faceRoot, { rootIsFace: options.public === undefined });
   }
   return app;
-}
-
-/** ADR-121, ADR-124: il sito, l'accesso via email, il chiosco, la chiusura. */
-function registerPublicSurface(
-  app: FastifyInstance,
-  db: DbClient,
-  options: PublicOptions,
-  guard: ReturnType<typeof createAuthGuard>,
-  audit: ReturnType<typeof createAuditLog>,
-): void {
-  const limiter = new RateLimiter(db, pepperFrom(options.masterKey, "rate"));
-  registerSite(app, options.legal);
-  registerAccessRoutes(app, {
-    db,
-    guard,
-    audit,
-    limiter,
-    links: {
-      masterKey: options.masterKey,
-      emailPepper: pepperFrom(options.masterKey, "email"),
-      mailer: options.mailer,
-      publicUrl: options.publicUrl,
-      termsVersion: options.legal.termsVersion,
-    },
-  });
-  registerDeviceRoutes(app, {
-    db,
-    guard,
-    audit,
-    limiter,
-    masterKey: options.masterKey,
-    pairPepper: pepperFrom(options.masterKey, "pair"),
-    ...(options.cancelBilling !== undefined && { cancelBilling: options.cancelBilling }),
-  });
 }

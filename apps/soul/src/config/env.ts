@@ -197,6 +197,24 @@ export const soulEnvSchema = z.object({
   EMAIL_FROM: optionalNonEmpty,
   /** la versione dei termini e dell'informativa che chi si iscrive accetta */
   UGO_TERMS_VERSION: z.string().min(1).default("2026-10-02"),
+  /**
+   * ADR-125/126/130 — Stripe. Facoltative: senza, la via Stripe risponde 501
+   * e lo dice. I prezzi stanno in Stripe, non qui: qui gli id dei prezzi.
+   */
+  STRIPE_SECRET_KEY: optionalNonEmpty,
+  STRIPE_WEBHOOK_SECRET: optionalNonEmpty,
+  STRIPE_API_BASE: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  STRIPE_PRICE_PRO: optionalNonEmpty,
+  STRIPE_PRICE_ALLEVAMENTO: optionalNonEmpty,
+  /** ADR-125/126/130 — PayPal. Facoltative come Stripe */
+  PAYPAL_CLIENT_ID: optionalNonEmpty,
+  PAYPAL_CLIENT_SECRET: optionalNonEmpty,
+  PAYPAL_WEBHOOK_ID: optionalNonEmpty,
+  /** `live` o `sandbox`: decide l'indirizzo dell'API, se PAYPAL_API_BASE non lo dice */
+  PAYPAL_ENV: z.enum(["live", "sandbox"]).default("sandbox"),
+  PAYPAL_API_BASE: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  PAYPAL_PLAN_PRO: optionalNonEmpty,
+  PAYPAL_PLAN_ALLEVAMENTO: optionalNonEmpty,
   /** il titolare del trattamento, come appare in informativa e termini */
   UGO_LEGAL_NAME: optionalNonEmpty,
   /** dove si scrive per esercitare i diritti (informativa) */

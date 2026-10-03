@@ -15,3 +15,14 @@ porta da cui passerà un processore di pagamento»).
    (`payment_ref = 'gratuita'`), senza PSP.
 5. **Annullamento prima della consegna**: rimborso completo dal PSP, con storno del trasferimento e
    della commissione.
+
+## Note di implementazione (2026-10-03, fase 5)
+
+- In questa fase il pagamento online si apre **solo quando chi cede è la fonderia** (Stripe o
+  PayPal): gli altri allevamenti incassano con Stripe Connect, che arriva con ADR-131. Fino ad
+  allora la pratica dice «accordati con l'allevamento», e la porta manuale `…/pagamento` resta.
+- Il pagamento è confermato **solo dal webhook** (`payment_intent.succeeded`,
+  `PAYMENT.CAPTURE.COMPLETED`), che chiama `settleAdoption` → `markPaid` con
+  `payment_provider`. Pagata e con consegna automatica (ADR-128) → consegnata, con la stessa
+  funzione della consegna a mano (`services/adoptionDelivery.ts`).
+- Il cucciolo a prezzo 0 è pagato alla prenotazione (`payment_ref = 'gratuita'`).

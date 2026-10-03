@@ -122,6 +122,10 @@ async function loadMe() {
   // regola 14, ADR-081: una famiglia adotta — far nascere è di chi alleva
   const breeds = ME.role === "operator" || ME.account?.canBreed === true || ME.account?.isFoundry === true;
   for (const node of document.querySelectorAll('[data-needs="breeding"]')) node.hidden = !breeds;
+  // ADR-125: quel che il piano non apre resta in vista, col suo cartellino
+  for (const node of document.querySelectorAll("[data-plan]")) {
+    node.classList.toggle("locked", ME.piano?.capacita?.[node.dataset.plan] === false);
+  }
 }
 
 async function boot() {

@@ -21,3 +21,5 @@ export {
   type StubResponsePlan,
 } from "./llm-stub.helper.js";
 export { ResendStub, startResendStub, type SentMail } from "./resend-stub.helper.js";
+export { StripeStub, startStripeStub, type StripeCall } from "./stripe-stub.helper.js";
+export { PayPalStub, startPayPalStub, type PayPalCall } from "./paypal-stub.helper.js";

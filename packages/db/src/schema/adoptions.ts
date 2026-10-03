@@ -40,6 +40,8 @@ export const adoptions = pgTable(
     currency: text("currency").notNull().default("EUR"),
     /** il riferimento del pagamento: un bonifico, una ricevuta, un id del PSP */
     paymentRef: text("payment_ref"),
+    /** ADR-126: chi ha incassato — `stripe`, `paypal`, `gratuita`, o null se a mano */
+    paymentProvider: text("payment_provider"),
     /**
      * La voce in catena dell'atto di trasferimento. `null` dopo una consegna
      * vuol dire una cosa precisa e va guardata: la creatura ha cambiato casa

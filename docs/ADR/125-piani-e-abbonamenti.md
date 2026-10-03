@@ -36,3 +36,22 @@ nessun piano, nessun pagamento».
   testare, non una seconda logica: entrambe arrivano allo stesso `subscriptions`.
 - **Limiti nel database come configurazione.** Sono prodotto, cambiano con un rilascio, e un test
   puro li tiene onesti.
+
+## Note di implementazione (2026-10-03, fase 5)
+
+- **Il piano di ripiego dipende da dove gira soul**: con `UGO_PUBLIC=on` chi non ha né abbonamento
+  né concessione è `free`; con `off` (l'installazione di casa) è `allevamento`. Un'installazione
+  del proprietario non vende niente a se stessa, e il giorno in cui arrivano i piani non si spegne
+  niente di quello che c'era. Le case che esistevano prima ricevono comunque
+  `plan_grant = 'allevamento'` dalla migrazione 0066, per il giorno in cui si accende il pubblico.
+- **Fra abbonamento e concessione vince il più ricco** (`effectivePlan`): una fonderia che si
+  abbona Pro per sbaglio non perde l'allevamento.
+- **Dove il piano conta sta in una tabella** (`apps/soul/src/routes/planGates.ts`, un solo hook):
+  sogno chiesto, riunioni, accendere l'album, nuove stanze, nascite, vendita a pagamento in
+  vetrina. La risposta è **402** con il motivo in italiano. Fanno eccezione la **voce** (`/v1/tts`
+  risponde 204 e `/v1/stt` 501: il muso usa quella del browser, come a ogni guasto), gli **scatti
+  dell'album** (li ferma `AlbumService`) e il **sogno notturno** (il job Python filtra le case per
+  piano solo in pubblico).
+- **Un cucciolo prenotato occupa già il suo posto**: il tetto dei gosini conta i vivi più quelli
+  prenotati o pagati e non ancora arrivati.
+- La concessione si dà dalla riga di comando: `ugo account piano <piano> --account <slug>`.

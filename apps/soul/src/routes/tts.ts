@@ -43,6 +43,8 @@ export interface TtsRouteDeps {
     text: string,
     instructions: string,
   ) => Promise<{ audio: Buffer; mime: string } | undefined>;
+  /** ADR-125: il piano della casa ha la voce sintetica? Assente = sì */
+  allows?: (accountId: string, capability: "voice") => Promise<boolean>;
 }
 
 export function registerTtsRoute(app: FastifyInstance, deps: TtsRouteDeps): void {
@@ -63,6 +65,8 @@ export function registerTtsRoute(app: FastifyInstance, deps: TtsRouteDeps): void
     if (deps.voice === undefined) return reply.code(204).send();
     const scope = await resolveAccount(deps.db, request);
     if (!scope.ok) return reply.code(204).send();
+    // senza la voce nel piano: 204, e il muso parla con quella del browser
+    if (deps.allows !== undefined && !(await deps.allows(scope.accountId, "voice"))) return reply.code(204).send();
 
     // La casa sta NELLA chiave. Senza, il memo era uno per processo e comune
     // a tutte le case: la casa B che chiedeva la stessa frase si sentiva

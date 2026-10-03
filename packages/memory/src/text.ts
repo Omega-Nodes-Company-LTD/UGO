@@ -45,6 +45,8 @@ export interface GatedOptions {
   dailyBudgetUsd: number;
   keySource: KeySource;
   credit?: CreditTerms;
+  /** ADR-130: dopo un addebito sul credito (la ricarica automatica) */
+  onCreditDebited?: (accountId: string) => void;
   priceSnapshot?: PriceSnapshot;
   onAuthFailure?: () => void;
   logger?: { warn: (data: Record<string, unknown>, message: string) => void };
@@ -73,6 +75,7 @@ async function gated(options: GatedOptions, request: CompletionRequest): Promise
         dailyBudgetUsd: options.dailyBudgetUsd,
         keySource: options.keySource,
         ...(options.credit !== undefined && { credit: options.credit }),
+        ...(options.onCreditDebited !== undefined && { onCreditDebited: options.onCreditDebited }),
         ...(options.logger !== undefined && { logger: options.logger }),
       },
       async () => {

@@ -21,6 +21,8 @@ export interface VoiceGateOptions {
   dailyBudgetUsd: number;
   keySource: KeySource;
   credit?: CreditTerms;
+  /** ADR-130: dopo un addebito sul credito (la ricarica automatica) */
+  onCreditDebited?: (accountId: string) => void;
   onAuthFailure?: () => void;
   logger?: { warn: (data: Record<string, unknown>, message: string) => void };
 }
@@ -36,6 +38,7 @@ function context(options: VoiceGateOptions): Parameters<typeof throughGate>[0] {
     dailyBudgetUsd: options.dailyBudgetUsd,
     keySource: options.keySource,
     ...(options.credit !== undefined && { credit: options.credit }),
+        ...(options.onCreditDebited !== undefined && { onCreditDebited: options.onCreditDebited }),
     ...(options.logger !== undefined && { logger: options.logger }),
   };
 }

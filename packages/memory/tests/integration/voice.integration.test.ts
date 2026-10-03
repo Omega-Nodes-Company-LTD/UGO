@@ -120,14 +120,29 @@ describe("la sintesi", () => {
 
   it("con le chiavi UGO scala il credito", async () => {
     await db.insert(creditLedger).values({ accountId: PRIME_ACCOUNT_ID, kind: "topup", amountMicros: 1_000_000 });
+    const debited: string[] = [];
+    let debitedDone: () => void = () => undefined;
+    const told = new Promise<void>((resolve) => {
+      debitedDone = resolve;
+    });
     await gatedSpeech(
-      gate({ keySource: "ugo", credit: { markup: 1.3, usdToEur: 0.92 } }),
+      gate({
+        keySource: "ugo",
+        credit: { markup: 1.3, usdToEur: 0.92 },
+        // ADR-130 §5: dopo l'addebito, fuori dalla coda — è qui che parte la ricarica
+        onCreditDebited: (accountId) => {
+          debited.push(accountId);
+          debitedDone();
+        },
+      }),
       new OpenAiSpeech({ apiKey: "k", model: "tts-1", baseUrl: stub.baseUrl }),
       "Una frase di prova.",
       { voice: "alloy" },
     );
     const usage = (await db.select().from(creditLedger)).filter((r) => r.kind === "usage");
     expect(usage).toHaveLength(1);
+    await told;
+    expect(debited).toEqual([PRIME_ACCOUNT_ID]);
   });
 });
 

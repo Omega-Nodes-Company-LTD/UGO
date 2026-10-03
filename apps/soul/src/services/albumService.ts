@@ -59,6 +59,11 @@ export interface AlbumServiceDeps {
   masterKey: Buffer;
   /** il bucket delle foto; assente = l'album non può esistere, e lo dice */
   storage?: AudioStorageConfig | undefined;
+  /**
+   * ADR-125: il piano della casa ha l'album? Assente = sì. Un piano che scende
+   * non cancella le foto già tenute: smette di tenerne di nuove.
+   */
+  allows?: ((accountId: string) => Promise<boolean>) | undefined;
 }
 
 export class AlbumService {
@@ -104,7 +109,8 @@ export class AlbumService {
       .from(beings)
       .where(and(eq(beings.accountId, accountId), eq(beings.noVision, true)))
       .limit(1);
-    return { hours: row?.hours ?? 0, someoneRefuses: refuser !== undefined };
+    const inPlan = this.deps.allows === undefined || (await this.deps.allows(accountId));
+    return { hours: inPlan ? (row?.hours ?? 0) : 0, someoneRefuses: refuser !== undefined };
   }
 
   /**

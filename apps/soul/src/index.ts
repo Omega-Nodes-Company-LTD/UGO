@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { createDbClient, createScopedDbClient, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
+import { createDbClient, createScopedDbClient, gosini, accounts, runMigrations, traitSets, withAccount, type DbClient } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { ModelCatalog, OllamaEmbeddingsClient, type ChatLlm } from "@ugo/memory";
@@ -42,6 +42,7 @@ import { GithubLiveService } from "./services/reception/githubLiveService.js";
 import { buildServer } from "./server.js";
 import { createAccount } from "./services/accountService.js";
 import { ResendMailer } from "./services/auth/mailer.js";
+import { billingFromEnv } from "./services/billing/fromEnv.js";
 import { sweepAccess } from "./services/auth/rateLimit.js";
 import type { Capability } from "./routes/capabilities.js";
 
@@ -152,9 +153,29 @@ const modelCatalog = new ModelCatalog({
   ...(env.OPENROUTER_BASE_URL !== undefined && { openRouterBaseUrl: env.OPENROUTER_BASE_URL }),
   ...(env.ANTHROPIC_BASE_URL !== undefined && { anthropicBaseUrl: env.ANTHROPIC_BASE_URL }),
 });
+// ADR-124: una sola casella di posta in uscita, per i link d'accesso e per gli
+// avvisi della ricarica. `app` esiste quando parte la prima mail
+const mailer =
+  env.RESEND_API_KEY !== undefined && env.EMAIL_FROM !== undefined
+    ? new ResendMailer({
+        apiKey: env.RESEND_API_KEY,
+        from: env.EMAIL_FROM,
+        baseUrl: env.RESEND_BASE_URL,
+        logger: { warn: (data, message) => { app.log.warn(data, message); } },
+      })
+    : undefined;
+// ADR-125/126/130: piani, PSP, ricarica automatica
+const billing = billingFromEnv(env, {
+  db,
+  masterKey: parseDataKey(env.UGO_DATA_KEY),
+  mailer,
+  log: { warn: (data, message) => { app.log.warn(data, message); } },
+});
+
 const ai = new AiResolver({
   db,
   dbFor,
+  onCreditDebited: billing.onCreditDebited,
   masterKey: parseDataKey(env.UGO_DATA_KEY),
   dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
   platform: platformKeys,
@@ -240,6 +261,8 @@ const photoStorage = audioStorageFromEnv(env);
 const albumService = new AlbumService({
   db,
   masterKey: parseDataKey(env.UGO_DATA_KEY),
+  // ADR-125: lo scatto automatico solo se il piano ha l'album
+  allows: (accountId) => withAccount(db, accountId, (tx) => billing.options.plans.allows(tx, accountId, "album")),
   ...(photoStorage !== undefined &&
     env.S3_BUCKET_PHOTOS !== undefined && {
       storage: { ...photoStorage, bucket: env.S3_BUCKET_PHOTOS },
@@ -457,18 +480,13 @@ const capabilities = (): Capability[] => [
 // ADR-121: soul davanti a internet — `assertProductionSecrets` ha già
 // verificato che ci sia tutto, qui si monta
 const publicSurface =
-  env.UGO_PUBLIC === "on" && env.PUBLIC_URL !== undefined && env.RESEND_API_KEY !== undefined && env.EMAIL_FROM !== undefined
+  env.UGO_PUBLIC === "on" && env.PUBLIC_URL !== undefined && mailer !== undefined
     ? {
         publicUrl: env.PUBLIC_URL,
         masterKey: dataKey,
-        mailer: new ResendMailer({
-          apiKey: env.RESEND_API_KEY,
-          from: env.EMAIL_FROM,
-          baseUrl: env.RESEND_BASE_URL,
-          // `app` esiste quando parte la prima mail: nessuna mail parte prima di listen
-          logger: { warn: (data, message) => { app.log.warn(data, message); } },
-        }),
+        mailer,
         legal: { name: env.UGO_LEGAL_NAME, contact: env.UGO_CONTACT_EMAIL, termsVersion: env.UGO_TERMS_VERSION },
+        cancelBilling: billing.cancel,
       }
     : undefined;
 
@@ -487,6 +505,7 @@ const app = buildServer({
   db,
   capabilities,
   ...(publicSurface !== undefined && { public: publicSurface }),
+  billing: billing.options,
   ai: {
     masterKey: parseDataKey(env.UGO_DATA_KEY),
     resolver: ai,

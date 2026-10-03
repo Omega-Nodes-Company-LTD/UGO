@@ -128,3 +128,33 @@ def test_dream_audit_never_raises(pg_url) -> None:  # noqa: ANN001
     cfg = db_only_config("postgres://utente:errata@127.0.0.1:1/db_inesistente", account_id="x")
     # non solleva: si limita a loggare il fallimento
     _record_dream_audit(cfg, "dream_failed", "error")
+
+
+def test_in_public_only_the_plans_that_dream_dream(pg_url, monkeypatch) -> None:  # noqa: ANN001
+    """ADR-125: davanti a internet il sogno e' del piano Pro (o di una
+    concessione). Una casa free non sogna; in casa sognano tutte."""
+    import psycopg
+
+    from ugo_jobs import scheduler
+
+    with psycopg.connect(pg_url) as conn:
+        free = make_house(conn, "sogno-free")
+        granted = make_house(conn, "sogno-concessa")
+        subscribed = make_house(conn, "sogno-abbonata")
+        lapsed = make_house(conn, "sogno-scaduta")
+        conn.execute("update accounts set plan_grant = 'pro' where id = %s", (granted,))
+        conn.execute(
+            "insert into subscriptions (account_id, provider, external_id, plan, status) "
+            "values (%s, 'stripe', 'sub_1', 'pro', 'active'), (%s, 'stripe', 'sub_2', 'pro', 'canceled')",
+            (subscribed, lapsed),
+        )
+    cfg = db_only_config(pg_url)
+
+    monkeypatch.setenv("UGO_PUBLIC", "on")
+    dreamers = {house.account_id for house in scheduler._houses(cfg)}
+    assert {granted, subscribed} <= dreamers
+    assert free not in dreamers
+    assert lapsed not in dreamers
+
+    monkeypatch.setenv("UGO_PUBLIC", "off")
+    assert {free, granted, subscribed, lapsed} <= {house.account_id for house in scheduler._houses(cfg)}

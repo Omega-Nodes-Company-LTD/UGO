@@ -2,6 +2,7 @@ import {
   accessTokens,
   accountLogins,
   accounts,
+  creditSettings,
   pairingCodes,
   providerCredentials,
   sessions,
@@ -46,6 +47,8 @@ export async function closeAccount(db: DbClient, masterKey: Buffer, accountId: s
     await tx.delete(accountLogins).where(eq(accountLogins.accountId, accountId));
     await tx.delete(providerCredentials).where(eq(providerCredentials.accountId, accountId));
     await tx.delete(pairingCodes).where(eq(pairingCodes.accountId, accountId));
+    // ADR-130: il metodo di pagamento salvato per la ricarica automatica
+    await tx.delete(creditSettings).where(eq(creditSettings.accountId, accountId));
     return true;
   });
 }

@@ -109,6 +109,18 @@ export const accounts = pgTable(
    */
   photoRetentionHours: integer("photo_retention_hours").notNull().default(0),
   /**
+   * ADR-125: il piano concesso dall'operatore, senza abbonamento — la
+   * fonderia e l'installazione di prima nascono `allevamento`. Si dà dalla
+   * riga di comando, come `can_breed`, mai dal pannello.
+   */
+  planGrant: text("plan_grant"),
+  /**
+   * ADR-128: le adozioni pagate si consegnano da sole. È della fonderia, che
+   * regala i primi cuccioli a chi arriva: aspettare un clic dell'allevatore
+   * per una cosa già decisa sarebbe solo attesa.
+   */
+  autoDeliver: boolean("auto_deliver").notNull().default(false),
+  /**
    * Questo commento è la prova (con la sua assenza) che ADR-113 è qui: le
    * colonne `lat`/`lon`/`place` NON stanno più su `accounts` — sono nella
    * tabella `places`. La migrazione `0056_i-luoghi-dell-account` le ha
@@ -131,6 +143,7 @@ export const accounts = pgTable(
       sql`${table.photoRetentionHours} in (0, 6, 12, 24, 48, 72)`,
     ),
     check("accounts_kind", sql`${table.kind} in ('home', 'business')`),
+    check("accounts_plan_grant", sql`${table.planGrant} is null or ${table.planGrant} in ('free', 'pro', 'allevamento')`),
   ],
 );
 

@@ -94,6 +94,10 @@ export interface ExportBundle {
   logins: unknown[];
   /** ADR-124: le sessioni del browser — dispositivo e date, mai il token */
   sessions: unknown[];
+  /** ADR-125: l'abbonamento — PSP, piano, stato, scadenza */
+  subscription: unknown[];
+  /** ADR-130: la ricarica automatica — soglie e stato, mai il metodo salvato */
+  creditSettings: unknown[];
   adoptions: unknown[];
   /** ADR-099: i legami fra le case — le due parti, mai il vicinato intero */
   accountTies: unknown[];
@@ -313,6 +317,8 @@ export class ExportService {
       credit,
       logins,
       sessionRows,
+      subscriptionRows,
+      creditSettingRows,
       adoptions,
       accountTies,
       parcels,
@@ -364,6 +370,12 @@ export class ExportService {
                from account_logins where account_id = ${accountId} order by created_at`),
       rows(sql`select id, label, created_at, last_seen_at, expires_at, revoked_at
                from sessions where account_id = ${accountId} order by created_at`),
+      rows(sql`select provider, external_id, plan, status, current_period_end, cancel_at_period_end, updated_at
+               from subscriptions where account_id = ${accountId}`),
+      // `payment_method_enc` no: un puntatore di pagamento in un file è una fuga
+      rows(sql`select auto_recharge, threshold_micros, amount_micros, monthly_cap_micros, provider,
+                      failures, disabled_reason, updated_at
+               from credit_settings where account_id = ${accountId}`),
       rows(sql`select id, gosino_id, kennel_account_id, buyer_account_id, status,
                       price_cents, currency, chain_seq, reserved_at, paid_at, delivered_at,
                       cancelled_at
@@ -458,6 +470,8 @@ export class ExportService {
       creditLedger: credit,
       logins: this.openLogins(logins, houseKeyRow),
       sessions: sessionRows,
+      subscription: subscriptionRows,
+      creditSettings: creditSettingRows,
       adoptions,
       accountTies,
       parcels: this.openParcels(parcels, accountId, houseKeyRow),

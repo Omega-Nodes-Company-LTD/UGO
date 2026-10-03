@@ -27,3 +27,17 @@
    automatica **si spegne** e arriva una mail con il link per ricaricare a mano.
 6. **Fiscalità**: ricevute e IVA si configurano nel PSP (Stripe Tax, impostazioni PayPal). Il codice
    registra i movimenti; non finge di essere un software di fatturazione.
+
+## Note di implementazione (2026-10-03, fase 5)
+
+- **Il gancio**: `GateContext.onCreditDebited` in `packages/memory/src/gate.ts`, chiamato dopo
+  l'addebito d'uso al giro successivo dell'event loop — mai dentro la coda della chiamata.
+- **Tre freni** in `services/billing/recharge.ts`: lock consultivo per account
+  (`pg_try_advisory_xact_lock`), `credit_settings.pending_since` (una ricarica partita e non ancora
+  accreditata blocca la successiva per mezz'ora), tetto del mese contato sui `topup` con
+  riferimento `auto:`.
+- **Il metodo salvato** è un puntatore del PSP (`cus_…:pm_…` per Stripe, il token del vault per
+  PayPal), cifrato con la DEK della casa; si salva alla prima ricarica a mano, e la chiusura
+  dell'account lo cancella.
+- **Un evento lavorato a metà** non resta «già visto»: se l'elaborazione fallisce si toglie la
+  riga da `billing_events` e si risponde 500, così il PSP lo riprova.

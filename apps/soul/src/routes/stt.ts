@@ -46,6 +46,8 @@ export interface SttRouteDeps {
     who: { accountId: string; gosinoId: string },
     audio: string,
   ) => Promise<SttOutcome | undefined>;
+  /** ADR-125: il piano della casa ha le orecchie sintetiche? Assente = sì */
+  allows?: (accountId: string, capability: "voice") => Promise<boolean>;
 }
 
 export function registerSttRoute(app: FastifyInstance, deps: SttRouteDeps): void {
@@ -60,6 +62,8 @@ export function registerSttRoute(app: FastifyInstance, deps: SttRouteDeps): void
     if (deps.transcriber === undefined) return reply.code(501).send();
     const scope = await resolveAccount(deps.db, request);
     if (!scope.ok) return reply.code(501).send();
+    // senza la voce nel piano: 501, e il muso resta sulle orecchie del browser
+    if (deps.allows !== undefined && !(await deps.allows(scope.accountId, "voice"))) return reply.code(501).send();
     const outcome = await deps.transcriber(
       { accountId: scope.accountId, gosinoId: await eldestExemplarOf(deps.db, scope.accountId) },
       parsed.data.audio,

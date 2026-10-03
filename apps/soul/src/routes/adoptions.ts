@@ -1,11 +1,11 @@
-import { gosini, traitSets, withMarket, type DbClient } from "@ugo/db";
-import { genomeHash, holderHash } from "@ugo/shared";
+import { gosini, withAccount, withMarket, type DbClient } from "@ugo/db";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { AdoptionService } from "../services/adoptionService.js";
 import type { RegistryClient } from "../services/registryClient.js";
-import { TransferService } from "../services/transferService.js";
+import { deliverAdoption, settleAdoption } from "../services/adoptionDelivery.js";
+import { incomingCubs, needsPlan, type PlanGate } from "../services/billing/plan.js";
 import { guardBreeding } from "./breeding.js";
 import type { PreHandler } from "./guard.js";
 import { accountScope } from "./scope.js";
@@ -56,6 +56,8 @@ export interface AdoptionRoutesDeps {
   ) => Promise<{ accountId: string; ownerToken: string }>;
   registry?: { reload: () => Promise<void> };
   chain?: RegistryClient;
+  /** ADR-125: i piani; assente = nessun tetto (i test che non parlano di piani) */
+  plans?: PlanGate | undefined;
 }
 
 export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoutesDeps): void {
@@ -82,6 +84,14 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
       return reply.status(501).send({ error: "le case non si creano su questo server" });
     }
     const { id } = request.params as { id: string };
+    // ADR-125/128: un posto per il cucciolo — contano anche quelli già in arrivo
+    const plans = deps.plans;
+    if (ownHouse !== undefined && plans !== undefined) {
+      const room = await withAccount(deps.db, ownHouse, async (db) =>
+        plans.hasRoom(db, ownHouse, "gosini", await incomingCubs(db, ownHouse)),
+      );
+      if (!room) return needsPlan(reply, "gosini");
+    }
 
     // ADR-097: prenotare attraversa le case per disegno — nasce la casa di
     // chi compra mentre il cucciolo è di chi vende. Tutto nel ruolo del
@@ -132,9 +142,20 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
     if (done === "gone") return reply.status(409).send({ error: "non è più disponibile" });
     if (done === "no-house") return reply.status(400).send({ error: "manca la casa" });
     const { cub, house, booked } = done;
+    // ADR-126 §4: un cucciolo gratuito è pagato alla prenotazione, e se chi lo
+    // cede consegna da sé (la fonderia, ADR-128) è già a casa
+    const settled =
+      booked.priceCents === 0
+        ? await settleAdoption(
+            { db: deps.db, chain: deps.chain, registry: deps.registry, log: request.log },
+            booked.id,
+            { ref: "gratuita", provider: "gratuita" },
+          )
+        : undefined;
 
     return reply.status(201).send({
       adozione: booked.id,
+      stato: settled === "delivered" ? "consegnata" : settled === "paid" ? "pagata" : "prenotata",
       gosino: { id, name: cub.name },
       prezzo: booked.priceCents === null ? null : { centesimi: booked.priceCents, valuta: "EUR" },
       /** in chiaro **una volta sola**, e solo se la casa è nata adesso */
@@ -180,75 +201,23 @@ export function registerAdoptionRoutes(app: FastifyInstance, deps: AdoptionRoute
     return reply.send({ status: "pagata" });
   });
 
-  /**
-   * La consegna: **qui la creatura cambia casa davvero** (ADR-082) e l'atto va
-   * in catena.
-   *
-   * Non si consegna quello che non è stato pagato, e non per burocrazia: la
-   * consegna è irreversibile e il pagamento no.
-   */
+  /** La consegna (ADR-082): il lavoro sta in `adoptionDelivery.ts`, condiviso con la fonderia. */
   app.post("/v1/adozioni/:id/consegna", { preHandler: deps.guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const accountId = await accountScope(deps.db, request, reply, { requireAdmin: true });
     if (accountId === undefined) return reply;
     if (!(await guardBreeding(deps.db, accountId, "alleva", reply))) return reply;
-
-    const delivered = await withMarket(deps.db, async (db) => {
-      const adoptions = new AdoptionService(db);
-      const pratica = await adoptions.ofKennel(accountId, id);
-      if (pratica === undefined) return "missing" as const;
-      if (pratica.status !== "pagata") return "unpaid" as const;
-
-      // l'impronta si legge PRIMA: dopo, quel genoma è di un'altra casa
-      const [genome] = await db
-        .select({ traits: traitSets.traits })
-        .from(traitSets)
-        .where(eq(traitSets.gosinoId, pratica.gosinoId))
-        .orderBy(traitSets.version)
-        .limit(1);
-
-      const done = await new TransferService(db).cede(
-        accountId,
-        pratica.gosinoId,
-        pratica.buyerAccountId,
-      );
-      if (typeof done === "string") return { refused: done };
-      return { pratica, genome, done };
-    });
-    if (delivered === "missing") return reply.status(404).send({ error: "non esiste" });
-    if (delivered === "unpaid") {
-      return reply
-        .status(409)
-        .send({ error: "non pagata", detail: "si consegna quello che è stato pagato" });
+    const delivered = await deliverAdoption(
+      { db: deps.db, chain: deps.chain, registry: deps.registry, log: request.log },
+      accountId,
+      id,
+    );
+    if (delivered.ok) return reply.send({ ...delivered.transfer, chainSeq: delivered.chainSeq });
+    if (delivered.reason === "missing") return reply.status(404).send({ error: "non esiste" });
+    if (delivered.reason === "unpaid") {
+      return reply.status(409).send({ error: "non pagata", detail: "si consegna quello che è stato pagato" });
     }
-    if ("refused" in delivered) {
-      return reply.status(409).send({ error: delivered.refused });
-    }
-    const { pratica, genome, done } = delivered;
-
-    /**
-     * L'atto in catena. Se il registro è giù **la consegna è avvenuta lo
-     * stesso** — le righe sono già cambiate casa — e la pratica resta con
-     * `chainSeq` vuoto, che è una cosa da guardare e non un dettaglio: la
-     * creatura ha cambiato casa e il libro genealogico non lo sa ancora.
-     */
-    let chainSeq: number | undefined;
-    if (deps.chain !== undefined) {
-      const outcome = await deps.chain.publish({
-        kind: "transfer",
-        gosinoId: pratica.gosinoId,
-        genomeHash: genomeHash(genome?.traits ?? {}),
-        at: new Date().toISOString(),
-        fromHash: holderHash(accountId),
-        toHash: holderHash(pratica.buyerAccountId),
-      });
-      if (outcome.published) chainSeq = outcome.seq;
-      else request.log.warn({ adozione: id, reason: outcome.reason }, "transfer not published");
-    }
-
-    await withMarket(deps.db, (db) => new AdoptionService(db).markDelivered(id, chainSeq));
-    await deps.registry?.reload();
-    return reply.send({ ...done, chainSeq: chainSeq ?? null });
+    return reply.status(409).send({ error: delivered.reason });
   });
 
   /** Annullare: la pratica si chiude e il cucciolo torna in vetrina. */

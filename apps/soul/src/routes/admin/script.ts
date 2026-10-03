@@ -1,4 +1,5 @@
 import { ACCESS_JS } from "./script/access.js";
+import { BILLING_JS } from "./script/billing.js";
 import { AI_SETTINGS_JS } from "./script/aiSettings.js";
 import { ALBUM_JS } from "./script/album.js";
 import { ARCHIVE_JS } from "./script/archive.js";
@@ -67,6 +68,7 @@ export const ADMIN_SCRIPT = [
   STATUS_JS,
   AI_SETTINGS_JS,
   ACCESS_JS,
+  BILLING_JS,
   DOWRY_JS,
   DIAGNOSTICS_JS,
   PLACE_JS,

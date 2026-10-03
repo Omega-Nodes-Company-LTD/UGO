@@ -59,23 +59,43 @@ class _House:
     timezone: str
 
 
+# ADR-125: i piani che sognano. Lo stesso elenco sta in TypeScript
+# (`packages/shared/src/plans.ts`): `test_shared_constants.py` li confronta.
+DREAM_PLANS = ("pro", "allevamento")
+LIVE_SUBSCRIPTION = ("active", "trialing", "past_due")
+
+# Davanti a internet (UGO_PUBLIC=on) sogna solo chi ha il sogno nel piano:
+# un abbonamento vivo o una concessione dell'operatore. In casa sognano tutte,
+# come prima dei piani — un'installazione del proprietario non vende a se stessa.
+_DREAMERS = """
+    select a.id, a.timezone from accounts a
+    left join subscriptions s on s.account_id = a.id
+    where a.closed_at is null
+      and (%(everyone)s
+           or a.plan_grant = any(%(plans)s)
+           or (s.plan = any(%(plans)s) and s.status = any(%(live)s)))
+"""
+
+
 def _houses(cfg: JobsConfig) -> list[_House]:
-    """Le case aperte, ciascuna col suo fuso.
+    """Le case aperte che sognano, ciascuna col suo fuso.
 
     Con `UGO_HOUSEHOLD_ID` impostata il job serve quella sola — che e' come si
     schiera un container per famiglia. Senza, le serve tutte, che e' come gira
     oggi il vicinato su un ferro solo.
     """
+    params = {
+        "everyone": os.environ.get("UGO_PUBLIC", "off") != "on",
+        "plans": list(DREAM_PLANS),
+        "live": list(LIVE_SUBSCRIPTION),
+    }
     with psycopg.connect(cfg.database_url) as conn:
         if os.environ.get("UGO_HOUSEHOLD_ID"):
             rows = conn.execute(
-                "select id, timezone from accounts where id = %s and closed_at is null",
-                (cfg.account_id,),
+                _DREAMERS + " and a.id = %(account)s", {**params, "account": cfg.account_id}
             ).fetchall()
         else:
-            rows = conn.execute(
-                "select id, timezone from accounts where closed_at is null order by created_at"
-            ).fetchall()
+            rows = conn.execute(_DREAMERS + " order by a.created_at", params).fetchall()
     return [_House(str(row[0]), str(row[1])) for row in rows]
 
 

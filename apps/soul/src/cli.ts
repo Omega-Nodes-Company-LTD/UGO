@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import { createDbClient, accounts, type DbClient } from "@ugo/db";
 import { OllamaEmbeddingsClient } from "@ugo/memory";
-import { EnvValidationError, parseDataKey, parseEnv } from "@ugo/shared";
+import { EnvValidationError, isPlanId, parseDataKey, parseEnv } from "@ugo/shared";
 import { eq, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { ExportService } from "./services/privacy/exportService.js";
@@ -52,6 +52,12 @@ const USAGE = `uso:
                                dell'ambiente nelle chiavi dell'account, cifrate, e
                                sceglie il modello Anthropic per i ruoli di testo
 
+  ugo account piano <free|pro|allevamento|nessuno> [--account <slug|uuid>]
+                 [--consegna-automatica]
+                               ADR-125: concede un piano senza abbonamento (o lo
+                               toglie: «nessuno»). ADR-128: la consegna automatica
+                               delle adozioni pagate, per la fonderia
+
   --account   slug o uuid dell'account. Obbligatorio se ce n'è più di uno.`;
 
 /** Resolves `--account` to one account, or explains why it cannot. */
@@ -92,6 +98,8 @@ async function main(): Promise<number> {
       // ADR-081: chi conia capostipiti, e chi può allevare
       fonderia: { type: "boolean", default: false },
       allevamento: { type: "boolean", default: false },
+      // ADR-128: la fonderia consegna da sé le adozioni pagate
+      "consegna-automatica": { type: "boolean", default: false },
       yes: { type: "boolean", default: false },
     },
   });
@@ -175,6 +183,24 @@ async function main(): Promise<number> {
       const report = await importKeysFromEnv(db, accountId, dataKey, process.env, values.modello);
       // i nomi dei provider e dei ruoli, mai le chiavi
       console.log(JSON.stringify({ chiavi_importate: report }, null, 2));
+      return 0;
+    }
+    if (command === "account" && positionals[1] === "piano") {
+      const plan = positionals[2];
+      if (plan !== "nessuno" && !isPlanId(plan)) {
+        console.error("errore: il piano è free, pro, allevamento o nessuno\n" + USAGE);
+        return 1;
+      }
+      const accountId = await resolveAccount(db, values.account);
+      // come --fonderia e --allevamento: si concede da qui, mai dal pannello
+      await db
+        .update(accounts)
+        .set({
+          planGrant: plan === "nessuno" ? null : plan,
+          ...(values["consegna-automatica"] && { autoDeliver: true }),
+        })
+        .where(eq(accounts.id, accountId));
+      console.log(JSON.stringify({ accountId, piano: plan, consegnaAutomatica: values["consegna-automatica"] }));
       return 0;
     }
     if (command === "account" && positionals[1] === "nuovo") {

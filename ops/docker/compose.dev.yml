@@ -124,6 +124,8 @@ services:
       # ADR-129 — il sogno pensa chiedendo a soul (ruolo «think» della casa),
       # col token operatore qui sotto. Nessuna chiave di provider nei job.
       UGO_SOUL_URL: ${UGO_SOUL_URL:-http://soul:3000}
+      # ADR-125: in pubblico sogna solo chi ha il sogno nel piano
+      UGO_PUBLIC: ${UGO_PUBLIC:-off}
       # il fix della voce dimenticata (2026-08-16): l'arruolamento vocale va
       # fatto dalla percezione, che tiene ECAPA — il sogno le manda il campione.
       # Vuote = ripiego MFCC locale (ha senso solo in una casa senza percezione)
@@ -299,6 +301,17 @@ services:
       UGO_TERMS_VERSION: ${UGO_TERMS_VERSION:-2026-10-02}
       UGO_LEGAL_NAME: ${UGO_LEGAL_NAME:-}
       UGO_CONTACT_EMAIL: ${UGO_CONTACT_EMAIL:-}
+      # ADR-125/126/130 — Stripe e PayPal (facoltativi: senza, 501 dichiarato)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-}
+      STRIPE_PRICE_ALLEVAMENTO: ${STRIPE_PRICE_ALLEVAMENTO:-}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
+      PAYPAL_PLAN_PRO: ${PAYPAL_PLAN_PRO:-}
+      PAYPAL_PLAN_ALLEVAMENTO: ${PAYPAL_PLAN_ALLEVAMENTO:-}
+      PAYPAL_ENV: ${PAYPAL_ENV:-sandbox}
       UGO_JOBS_TRIGGER_URL: ${UGO_JOBS_TRIGGER_URL:-}
       # ADR-051/055 — la reception (facoltativa: senza segreto resta chiusa)
       UGO_RECEPTION_TOKEN: ${UGO_RECEPTION_TOKEN:-}

@@ -1,5 +1,5 @@
 import { adoptions, gosini, type DbClient } from "@ugo/db";
-import { and, desc, eq, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 /**
  * L'adozione (ADR-084): il filo fra la vetrina e la consegna.
@@ -28,6 +28,8 @@ export interface AdoptionRow {
   chainSeq: number | null;
   reservedAt: Date;
   deliveredAt: Date | null;
+  /** da che parte sta chi guarda: cede (l'allevamento) o riceve (la famiglia) */
+  side: "cede" | "riceve";
 }
 
 export class AdoptionService {
@@ -89,6 +91,7 @@ export class AdoptionService {
         chainSeq: adoptions.chainSeq,
         reservedAt: adoptions.reservedAt,
         deliveredAt: adoptions.deliveredAt,
+        side: sql<"cede" | "riceve">`case when ${adoptions.kennelAccountId} = ${accountId} then 'cede' else 'riceve' end`,
       })
       .from(adoptions)
       .innerJoin(gosini, eq(adoptions.gosinoId, gosini.id))
@@ -127,11 +130,45 @@ export class AdoptionService {
     return row;
   }
 
-  /** L'allevamento ha visto i soldi. Da qui si può consegnare. */
-  public async markPaid(id: string, paymentRef: string, at = new Date()): Promise<boolean> {
+  /** Di chi è il cucciolo di questa pratica: la casa che cede. */
+  public async kennelOf(id: string): Promise<string | undefined> {
+    const [row] = await this.db
+      .select({ kennel: adoptions.kennelAccountId })
+      .from(adoptions)
+      .where(eq(adoptions.id, id));
+    return row?.kennel;
+  }
+
+  /** La pratica, vista da chi riceve: per pagarla (ADR-126). */
+  public async ofBuyer(
+    buyerAccountId: string,
+    id: string,
+  ): Promise<{ id: string; kennelAccountId: string; status: string; priceCents: number | null } | undefined> {
+    const [row] = await this.db
+      .select({
+        id: adoptions.id,
+        kennelAccountId: adoptions.kennelAccountId,
+        status: adoptions.status,
+        priceCents: adoptions.priceCents,
+      })
+      .from(adoptions)
+      .where(and(eq(adoptions.id, id), eq(adoptions.buyerAccountId, buyerAccountId)));
+    return row;
+  }
+
+  /**
+   * I soldi sono arrivati. Da qui si può consegnare. `provider` dice chi li ha
+   * incassati (ADR-126): null quando è l'allevamento a dirlo a mano.
+   */
+  public async markPaid(
+    id: string,
+    paymentRef: string,
+    at = new Date(),
+    provider: "stripe" | "paypal" | "gratuita" | null = null,
+  ): Promise<boolean> {
     const done = await this.db
       .update(adoptions)
-      .set({ status: "pagata", paidAt: at, paymentRef })
+      .set({ status: "pagata", paidAt: at, paymentRef, paymentProvider: provider })
       .where(and(eq(adoptions.id, id), eq(adoptions.status, "prenotata")))
       .returning({ id: adoptions.id });
     return done.length > 0;

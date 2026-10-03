@@ -46,6 +46,12 @@ export interface GateContext {
   keySource: KeySource;
   /** obbligatorio con `keySource: "ugo"`: senza, nessuna chiave UGO si spende */
   credit?: CreditTerms;
+  /**
+   * ADR-130 §5: dopo un addebito sul credito. Chi lo imposta decide se è ora
+   * di ricaricare — e lo fa DOPO, fuori dalla coda: una ricarica non deve mai
+   * far aspettare la risposta a chi sta parlando.
+   */
+  onCreditDebited?: (accountId: string) => void;
   logger?: { warn: (data: Record<string, unknown>, message: string) => void };
 }
 
@@ -148,6 +154,13 @@ async function record<T>(ctx: GateContext, paid: PaidCall<T>, at: Date): Promise
         amountMicros: -micros,
         ref: `ledger:${row.id}`,
       });
+      const hook = ctx.onCreditDebited;
+      if (hook !== undefined) {
+        // il giro successivo dell'event loop: la coda dell'account si libera prima
+        setImmediate(() => {
+          hook(ctx.accountId);
+        });
+      }
     }
   }
 }

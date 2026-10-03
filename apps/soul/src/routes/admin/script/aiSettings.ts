@@ -21,7 +21,8 @@ const KEY_STATE = { ok: ["good", "funziona"], unverified: ["warning", "da provar
 let AI_STATUS = null;
 
 // il credito è in micro-euro (ADR-130); euro() di adoptions parla in centesimi
-const creditEuro = (micros) => "\u20AC " + (Number(micros) / 1e6).toFixed(2);
+const creditEuro = (micros) =>
+  (Number(micros) / 1e6).toLocaleString("it-IT", { style: "currency", currency: "EUR" });
 
 async function loadAiNudge() {
   const status = await call("/v1/ai/stato", {});

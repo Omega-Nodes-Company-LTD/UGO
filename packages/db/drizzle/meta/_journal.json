@@ -456,6 +456,20 @@
       "when": 1790963082979,
       "tag": "0064_la-fondazione-dall-iscrizione",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1791016539026,
+      "tag": "0065_l-incasso",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1791016551153,
+      "tag": "0066_l-incasso-rls",
+      "breakpoints": true
     }
   ]
 }

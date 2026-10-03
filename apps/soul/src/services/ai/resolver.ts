@@ -46,6 +46,8 @@ export interface AiResolverDeps {
   platform: PlatformKeys;
   baseUrls: ProviderBaseUrls;
   credit: CreditTerms;
+  /** ADR-130 §5: dopo un addebito sul credito — la ricarica automatica */
+  onCreditDebited?: ((accountId: string) => void) | undefined;
   referer?: string | undefined;
   logger?: { warn: (data: Record<string, unknown>, message: string) => void };
 }
@@ -155,6 +157,7 @@ export class AiResolver {
       dailyBudgetUsd: this.deps.dailyBudgetUsd,
       keySource: choice.source,
       credit: this.deps.credit,
+      ...(this.deps.onCreditDebited !== undefined && { onCreditDebited: this.deps.onCreditDebited }),
       onAuthFailure: () => {
         this.rejected(accountId, choice);
       },

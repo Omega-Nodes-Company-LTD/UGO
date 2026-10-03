@@ -172,3 +172,27 @@ export {
   type PropNature,
   type SceneProp,
 } from "./props.js";
+export {
+  effectivePlan,
+  isPlanId,
+  LIVE_SUBSCRIPTION,
+  PLAN_IDS,
+  PLAN_LABEL,
+  PLANS,
+  withinQuota,
+  type Capability,
+  type Entitlements,
+  type PlanId,
+  type Quota,
+  type Toggle,
+} from "./plans.js";
+export {
+  centsToMicros,
+  microsToCents,
+  nextRechargeDecision,
+  signStripePayload,
+  STRIPE_SIGNATURE_TOLERANCE_SEC,
+  verifyStripeSignature,
+  type RechargeDecision,
+  type RechargeSettings,
+} from "./billing.js";

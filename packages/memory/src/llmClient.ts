@@ -92,6 +92,8 @@ export interface LlmClientOptions {
   /** ADR-130: di chi è la chiave */
   keySource?: KeySource;
   credit?: CreditTerms;
+  /** ADR-130: dopo un addebito sul credito (la ricarica automatica) */
+  onCreditDebited?: (accountId: string) => void;
   /** il prezzo fotografato alla scelta del modello (ADR-122) */
   priceSnapshot?: PriceSnapshot;
   /** il provider ha rifiutato la chiave: chi ha costruito il client la segna */
@@ -158,6 +160,7 @@ export class LlmClient implements ChatLlm {
           dailyBudgetUsd: this.options.dailyBudgetUsd,
           keySource: this.options.keySource ?? "byok",
           ...(this.options.credit !== undefined && { credit: this.options.credit }),
+          ...(this.options.onCreditDebited !== undefined && { onCreditDebited: this.options.onCreditDebited }),
           ...(this.options.logger !== undefined && { logger: this.options.logger }),
         },
         async () => {
