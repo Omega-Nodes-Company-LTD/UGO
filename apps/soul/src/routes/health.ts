@@ -33,7 +33,6 @@ export interface HealthDeps {
   db: DbClient;
   mqtt: { url?: string | undefined; username?: string | undefined; password?: string | undefined };
   ollamaUrl: string;
-  /** ADR-110: il nodo GPU; assente = "off", come il broker */
   /** ADR-101: il servizio di percezione; assente = "off", come il broker */
   perceptionUrl?: string | undefined;
 }

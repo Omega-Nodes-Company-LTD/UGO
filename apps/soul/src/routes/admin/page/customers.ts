@@ -35,7 +35,7 @@ export const CUSTOMER_PAGES = `
 
     <h3>A chi può rivolgersi</h3>
     <div id="cust-gosini-list"></div>
-    <div class="row" style="margin-top:.5rem">
+    <div class="row mt-2">
       <button id="cust-assign" data-testid="cust-assign">Salva gli ascoltatori</button>
     </div>
 
@@ -53,7 +53,7 @@ export const CUSTOMER_PAGES = `
 
     <h3>I token</h3>
     <div id="cust-tokens"></div>
-    <div class="row" style="margin-top:.5rem">
+    <div class="row mt-2">
       <div><label for="cust-token-label">Per cosa è</label>
         <input id="cust-token-label" data-testid="cust-token-label" placeholder="portale di Rossi SRL" maxlength="120"></div>
       <button id="cust-token-go" data-testid="cust-token-go">Emetti un token</button>
@@ -64,7 +64,7 @@ export const CUSTOMER_PAGES = `
        da <b>leggere soltanto</b>, documenti nel bucket privato. Le credenziali entrano cifrate
        e non escono mai più.</p>
     <div id="cust-sources"></div>
-    <div class="row" style="margin-top:.5rem">
+    <div class="row mt-2">
       <div><label for="cust-repo-url">Repository (URL git)</label>
         <input id="cust-repo-url" data-testid="cust-repo-url" placeholder="https://github.com/studio/progetto"></div>
       <div><label for="cust-repo-branch">Ramo</label>
@@ -73,7 +73,7 @@ export const CUSTOMER_PAGES = `
         <input id="cust-repo-pat" data-testid="cust-repo-pat" type="password" maxlength="300"></div>
       <button id="cust-repo-go" data-testid="cust-repo-go">Collega il repo</button>
     </div>
-    <div class="row" style="margin-top:.5rem">
+    <div class="row mt-2">
       <div><label for="cust-mail-host">IMAP host</label>
         <input id="cust-mail-host" data-testid="cust-mail-host" placeholder="imap.example.com"></div>
       <div><label for="cust-mail-port">Porta</label>
@@ -84,13 +84,13 @@ export const CUSTOMER_PAGES = `
         <input id="cust-mail-pass" data-testid="cust-mail-pass" type="password"></div>
       <div><label for="cust-mail-folder">Cartella</label>
         <input id="cust-mail-folder" data-testid="cust-mail-folder" value="INBOX"></div>
-      <div style="flex:2"><label for="cust-mail-senders">Solo da/per (vuoto = tutta la cartella)</label>
+      <div class="f2-16"><label for="cust-mail-senders">Solo da/per (vuoto = tutta la cartella)</label>
         <input id="cust-mail-senders" data-testid="cust-mail-senders"
           placeholder="mario@rossi.it, @rossisrl.it"
           title="indirizzi o domini separati da virgola: si indicizzano solo i messaggi in cui mittente o destinatari combaciano"></div>
       <button id="cust-mail-go" data-testid="cust-mail-go">Collega la casella</button>
     </div>
-    <div class="row" style="margin-top:.5rem">
+    <div class="row mt-2">
       <div><label for="cust-doc-file">Documento (pdf, txt, md, csv)</label>
         <input id="cust-doc-file" data-testid="cust-doc-file" type="file" accept=".pdf,.txt,.md,.csv"></div>
       <button id="cust-doc-go" data-testid="cust-doc-go">Caricalo</button>
@@ -102,11 +102,11 @@ export const CUSTOMER_PAGES = `
 
     <div id="cust-stats"></div>
 
-    <div class="row" style="margin-top:.9rem">
+    <div class="row mt-4">
       <button id="cust-archive" class="ghost" data-testid="cust-archive"></button>
     </div>
 
-    <div class="row" style="margin-top:.9rem">
+    <div class="row mt-4">
       <input id="cust-forget-confirm" data-testid="cust-forget-confirm" type="text"
              autocomplete="off" placeholder="scrivi il nome del cliente per confermare">
       <button id="cust-forget" class="ghost" data-testid="cust-forget">Dimentica il cliente</button>

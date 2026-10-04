@@ -11,7 +11,9 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <title>UGO</title>
     <style>
-      /* Solo il critico sta qui: il resto della veste vive in `src/hud.css`
+      /* I colori sono i token del design system, col valore di prima come
+         ripiego per il primo istante, prima che arrivi il bundle.
+         Solo il critico sta qui: il resto della veste vive in `src/hud.css`
          (ADR-096) e arriva col bundle. `hidden` ha da vincere sempre: ogni
          pannello imposta il proprio display su un selettore id, che batte il
          `[hidden] { display: none }` del browser e lascerebbe un pannello
@@ -23,7 +25,7 @@
       body {
         margin: 0;
         height: 100%;
-        background: #0b0b10;
+        background: var(--bg, #0b0b10);
         overflow: hidden;
         touch-action: manipulation;
         font-family: system-ui, sans-serif;
@@ -40,20 +42,20 @@
       .overlay {
         position: absolute;
         inset: 0;
-        background: rgba(5, 5, 10, 0.92);
+        background: color-mix(in srgb, var(--bg, #05050a) 92%, transparent);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 1rem;
-        color: #cfcfe0;
+        color: var(--ink-2, #cfcfe0);
       }
       #rec-banner {
         position: absolute;
         top: env(safe-area-inset-top, 0.6rem);
         left: 50%;
         transform: translateX(-50%);
-        background: #c62828;
+        background: var(--critical, #c62828);
         color: #fff;
         font-weight: 700;
         letter-spacing: 0.15em;
@@ -69,14 +71,14 @@
     </style>
   </head>
   <body>
-    <div id="app" data-testid="app" data-state="idle" data-connected="false">
+    <main id="app" data-testid="app" data-state="idle" data-connected="false">
       <canvas id="face" data-testid="face-canvas"></canvas>
       <p id="speak-text" data-testid="speak-text"></p>
       <!-- ADR-133: la fonte di quello che dice, quando ne ha una -->
       <a id="speak-link" data-testid="speak-link" target="_blank" rel="noopener noreferrer" hidden></a>
       <div id="rec-banner" data-testid="rec-banner" hidden>● REC</div>
       <div id="privacy-overlay" data-testid="privacy-overlay" class="overlay" hidden>
-        <svg width="56" height="56" viewBox="0 0 20 20" fill="none" stroke="#9db4e8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 12.5A7 7 0 0 1 7.5 4a7 7 0 1 0 8.5 8.5z"></path></svg>
+        <svg width="56" height="56" viewBox="0 0 20 20" fill="none" stroke="currentColor" class="moon" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 12.5A7 7 0 0 1 7.5 4a7 7 0 1 0 8.5 8.5z"></path></svg>
         <b>UGO riposa</b>
         <p>Modalità privacy: microfono e registrazione spenti davvero. Nessun senso è acceso finché non lo risvegli.</p>
         <button id="btn-privacy-off" data-testid="btn-privacy-off" type="button">Risveglia UGO</button>
@@ -179,7 +181,7 @@
           </button>
           <!-- ADR-041: quanto facilmente si spaventa. Sta qui e non nel pannello
                perché è una proprietà della STANZA, non della creatura. -->
-          <select id="ear-pick" data-testid="ear-pick" title="quanto forte deve essere per spaventarlo">
+          <select id="ear-pick" data-testid="ear-pick" title="quanto forte deve essere per spaventarlo" aria-label="Quanto forte deve essere un rumore per spaventarlo">
             <option value="alta">orecchie: sensibile</option>
             <option value="media">orecchie: normale</option>
             <option value="bassa">orecchie: stanza rumorosa</option>
@@ -223,7 +225,7 @@
           </button>
         </div>
       </div>
-    </div>
+    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

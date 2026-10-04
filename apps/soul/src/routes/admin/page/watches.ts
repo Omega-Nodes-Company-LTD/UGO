@@ -26,17 +26,17 @@ export const WATCH_PAGES = `
   <div class="block">
     <h2>Aggiungine una</h2>
     <div class="row">
-      <div style="flex:2 1 16rem"><label for="watch-subject">Cosa</label>
-        <input id="watch-subject" data-testid="watch-subject" maxlength="200" placeholder="es. il viaggio in Uganda a febbraio"></div>
-      <div style="flex:1 1 9rem"><label for="watch-kind">Di che tipo</label>
+      <div class="f2-16"><label for="watch-subject">Cosa</label>
+        <input id="watch-subject" data-testid="watch-subject" minlength="3" maxlength="200" required placeholder="es. il viaggio in Uganda a febbraio"></div>
+      <div class="f-9"><label for="watch-kind">Di che tipo</label>
         <select id="watch-kind" data-testid="watch-kind">
           <option value="curiosita">curiosità</option>
           <option value="progetto">progetto</option>
           <option value="preoccupazione">preoccupazione</option>
         </select></div>
-      <div style="flex:1 1 9rem"><label for="watch-gosino">Chi la segue</label>
+      <div class="f-9"><label for="watch-gosino">Chi la segue</label>
         <select id="watch-gosino" data-testid="watch-gosino"></select></div>
-      <div style="flex:0 1 7rem"><label for="watch-days">Per giorni</label>
+      <div class="w-7"><label for="watch-days">Per giorni</label>
         <input id="watch-days" data-testid="watch-days" type="number" min="7" max="365" value="90"></div>
       <button id="watch-add" data-testid="watch-add">Seguila</button>
     </div>

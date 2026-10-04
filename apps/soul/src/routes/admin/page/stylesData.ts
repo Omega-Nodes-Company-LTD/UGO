@@ -51,6 +51,8 @@ export const ADMIN_DATA_STYLES = `
                 border-radius: var(--r); color: var(--ink); font-weight: 400; }
   .spark-card:hover { border-color: var(--line-strong); }
   .spark-card[aria-pressed="true"] { border-color: var(--data); background: var(--data-soft); }
+  /* sul fondo rosato l'etichetta grigia non arrivava al 4.5:1: un tono più scuro */
+  .spark-card[aria-pressed="true"] small { color: var(--ink-2); }
   .spark-card small { display: block; font-size: .68rem; font-weight: 600; text-transform: uppercase;
                       letter-spacing: .07em; color: var(--ink-3); }
   .spark-card b { display: block; font-size: 1.05rem; line-height: 1.3;
@@ -73,7 +75,7 @@ export const ADMIN_DATA_STYLES = `
   /* --- the pack ----------------------------------------------------------- */
   .pack { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .7rem; }
   .being { background: var(--surface-2); border-radius: var(--r); padding: .75rem .85rem; }
-  .being h4 { margin: 0; font-size: .95rem; }
+  .being h3 { margin: 0; font-size: .95rem; }
   .being .species { font-size: .76rem; color: var(--ink-3); margin-bottom: .5rem; }
   .being .bond { display: grid; gap: .3rem; margin-bottom: .5rem; }
   .being .bond > div { display: grid; grid-template-columns: 5rem 1fr; align-items: center; gap: .5rem; }
@@ -90,7 +92,7 @@ export const ADMIN_DATA_STYLES = `
   .deed .deed-act { font-weight: 400; color: var(--ink-2); }
   .deed .because { font-size: .82rem; color: var(--ink-2); font-style: italic; }
   .voice { background: var(--surface-2); border-radius: var(--r); padding: .7rem .85rem; margin: .45rem 0; }
-  .voice h4 { margin: 0 0 .25rem; font-size: .9rem; }
+  .voice h3 { margin: 0 0 .25rem; font-size: .9rem; }
   .voice .said { margin: .15rem 0; font-size: .9rem; }
   .voice .again { margin: .4rem 0 0; padding-left: .65rem; border-left: 2px solid var(--data); font-size: .9rem; }
 

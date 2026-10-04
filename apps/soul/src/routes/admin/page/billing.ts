@@ -33,7 +33,7 @@ export const BILLING_PAGES = `
     <h2>Saldo</h2>
     <div class="tiles" id="credit-now" data-testid="credit-now"></div>
     <div class="row">
-      <div style="flex:0 1 9rem"><label for="topup-euro">Ricarica (€)</label>
+      <div class="w-9"><label for="topup-euro">Ricarica (€)</label>
         <input id="topup-euro" type="number" min="5" max="500" step="5" value="10" data-testid="topup-euro"></div>
       <button id="topup-stripe" data-testid="topup-stripe">Ricarica con carta</button>
       <button id="topup-paypal" class="ghost" data-testid="topup-paypal">Ricarica con PayPal</button>
@@ -47,11 +47,11 @@ export const BILLING_PAGES = `
     <p id="auto-state" data-testid="auto-state"></p>
     <div class="row">
       <label class="check"><input type="checkbox" id="auto-on" data-testid="auto-on"> attiva</label>
-      <div style="flex:0 1 8rem"><label for="auto-threshold">Sotto (€)</label>
+      <div class="w-8"><label for="auto-threshold">Sotto (€)</label>
         <input id="auto-threshold" type="number" min="0" max="100" step="1"></div>
-      <div style="flex:0 1 8rem"><label for="auto-amount">Ricarica (€)</label>
+      <div class="w-8"><label for="auto-amount">Ricarica (€)</label>
         <input id="auto-amount" type="number" min="5" max="200" step="5"></div>
-      <div style="flex:0 1 8rem"><label for="auto-cap">Al mese al massimo (€)</label>
+      <div class="w-8"><label for="auto-cap">Al mese al massimo (€)</label>
         <input id="auto-cap" type="number" min="5" max="1000" step="5"></div>
       <button id="auto-save" data-testid="auto-save">Salva</button>
     </div>

@@ -44,7 +44,7 @@ function diagRow(s) {
       (DIAG_WORD[s.state] ?? s.state) + "</span>" +
     '<p class="diag-what">' + escape(s.what) + "</p>" +
     detail + why + hint +
-    '<p class="diag-ms" style="grid-column:2/-1">' +
+    '<p class="diag-ms span-rest">' +
       (s.ms === null ? "non cronometrato" : ms(s.ms)) + "</p>" +
     "</div>";
 }
@@ -59,8 +59,7 @@ function diagRow(s) {
 function diagTurn(turn) {
   const total = Math.max(turn.totalMs, 1);
   const bar = turn.stages.map((stage, index) =>
-    '<span style="width:' + ((stage.ms / total) * 100).toFixed(1) + "%;background:" +
-    ["var(--accent)", "var(--warning, #c98a00)", "var(--ink-3)"][index % 3] + '"></span>').join("");
+    '<span class="stage-' + (index % 3) + '" data-w="' + ((stage.ms / total) * 100).toFixed(1) + '"></span>').join("");
   const parts = turn.stages.map((stage) => escape(stage.name) + " " + ms(stage.ms)).join(" \\u00b7 ");
   return '<div class="diag-turn"><b>' + ms(turn.totalMs) + "</b> \\u00b7 " +
     escape(new Date(turn.at).toLocaleTimeString("it-IT")) + " \\u00b7 " + escape(turn.channel) +

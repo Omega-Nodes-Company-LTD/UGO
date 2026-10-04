@@ -128,7 +128,7 @@ $("meet-list").addEventListener("click", async (event) => {
     const data = await call("/v1/meetings/" + id + "/transcript", {});
     $("meet-transcript").innerHTML = data.segments.length === 0
       ? '<p class="lede">Nessun segmento: la trascrizione non è (ancora) arrivata.</p>'
-      : '<h4>' + escape(data.meeting.title ?? "(senza titolo)") + "</h4>" +
+      : '<h3>' + escape(data.meeting.title ?? "(senza titolo)") + "</h3>" +
         data.segments.map((seg) =>
           '<div class="line"><span class="when">' + seg.t0.toFixed(1) + "s · " +
           escape(seg.speaker ?? "?") + "</span> " + escape(seg.text) + "</div>").join("");

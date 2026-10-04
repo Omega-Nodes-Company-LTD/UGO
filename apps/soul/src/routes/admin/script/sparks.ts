@@ -40,7 +40,7 @@ function hbar(host, rows) {
   const top = Math.max(...rows.map((r) => r.value)) || 1;
   host.innerHTML = rows.map((row) =>
     '<div class="hbar"><span class="hbar-name">' + escape(row.label) + "</span>" +
-    '<span class="hbar-track"><i style="width:' + ((row.value / top) * 100).toFixed(1) + '%"></i></span>' +
+    '<span class="hbar-track"><i data-w="' + ((row.value / top) * 100).toFixed(1) + '"></i></span>' +
     '<span class="hbar-num">' + row.value + "</span></div>").join("");
 }
 
@@ -48,7 +48,7 @@ function hbar(host, rows) {
 function meter(value, baseline) {
   const pct = Math.max(0, Math.min(1, value)) * 100;
   const mark = baseline === undefined ? "" :
-    '<i class="baseline" style="left:' + (Math.max(0, Math.min(1, baseline)) * 100) + '%"></i>';
-  return '<span class="meter"><i style="width:' + pct.toFixed(1) + '%"></i>' + mark + "</span>";
+    '<i class="baseline" data-x="' + (Math.max(0, Math.min(1, baseline)) * 100).toFixed(1) + '"></i>';
+  return '<span class="meter"><i data-w="' + pct.toFixed(1) + '"></i>' + mark + "</span>";
 }
 `;

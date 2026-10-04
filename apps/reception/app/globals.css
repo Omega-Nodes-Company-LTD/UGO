@@ -294,8 +294,8 @@ label {
 }
 
 .msg.err {
-  background: color-mix(in srgb, #c0392b 12%, transparent);
-  color: var(--warn);
+  background: color-mix(in srgb, var(--critical) 12%, transparent);
+  color: var(--critical);
 }
 
 .msg.ok {
@@ -312,10 +312,25 @@ label {
   aspect-ratio: 4 / 3;
   border-radius: 0.9rem;
   overflow: hidden;
-  background: linear-gradient(180deg, #f3ecf3 0%, #e7dfe6 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 .body3d-canvas {
   width: 100%;
   height: 100%;
   display: block;
 }
+
+/* revisione UI 2026-10-04: gli stili che stavano scritti nei componenti */
+.stack { margin-bottom: 0.8rem; }
+.tight { margin: 0.35rem 0 0; }
+.flush-top { margin-top: 0; }
+.m-0 { margin: 0; }
+.hero-gap { margin-top: 18vh; }
+.mt-2 { margin-top: 0.6rem; }
+.mt-3 { margin-top: 0.7rem; }
+.mt-4 { margin-top: 0.9rem; }
+.pre { white-space: pre-wrap; }
+.plain-link { text-decoration: none; color: inherit; }
+.chips.start { justify-content: flex-start; margin: 0.6rem 0; }
+.fine { font-size: 0.7rem; color: var(--muted); margin-top: 0.25rem; }
+.muted { color: var(--muted); }

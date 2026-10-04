@@ -35,8 +35,8 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
        riga di comando.</p>
     <label for="token">Token</label>
     <input type="password" id="token" data-testid="token" placeholder="token operatore" autocomplete="off">
-    <label class="check" style="margin:.7rem 0"><input type="checkbox" id="stay" checked> resta collegato su questo dispositivo</label>
-    <button id="save-token" data-testid="save-token" style="width:100%">Entra</button>
+    <label class="check my-3"><input type="checkbox" id="stay" checked> resta collegato su questo dispositivo</label>
+    <button class="full" id="save-token" data-testid="save-token">Entra</button>
     <div id="auth-msg"></div>
     <p class="fine">Spuntando <b>resta collegato</b> il token resta su questo dispositivo finché
        non esci. Toglila su un computer che non è tuo: il token vale come una chiave di casa.</p>
@@ -45,25 +45,32 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
 </div>
 
 <div class="app" id="app" hidden>
-  <aside class="rail">
+  <!-- sul telefono il menu è un cassetto: la barra in alto lo apre, e dice dove sei -->
+  <header class="topbar">
+    <button type="button" class="ghost menu-btn" id="menu-open" aria-controls="rail" aria-expanded="false"
+      data-testid="menu-open">${icon("list")}<span>Menu</span></button>
+    <span class="topbar-page" id="topbar-page" aria-live="polite"></span>
+  </header>
+  <div class="scrim" id="scrim" data-testid="scrim" hidden></div>
+  <aside class="rail" id="rail" aria-label="Menu del pannello">
     <div class="brand">${icon("pig")}UGO <span>pannello</span></div>
 
-    <nav class="rail-group" hidden>
+    <nav class="rail-group" aria-label="Gli account" hidden>
       <small>Gli account</small>
       <div id="rail-accounts" data-testid="rail-accounts"></div>
     </nav>
 
-    <nav class="rail-group">
+    <nav class="rail-group" aria-label="Oggi">
       <a href="#/sommario" data-nav="sommario">${icon("today")}Oggi</a>
     </nav>
 
-    <nav class="rail-group">
+    <nav class="rail-group" aria-label="I gosini">
       <small>I gosini</small>
       <div id="rail-gosini" data-testid="rail-gosini"></div>
       <a href="#/nascita" data-nav="nascita" data-needs="breeding">${icon("plus")}Fanne nascere uno</a>
     </nav>
 
-    <nav class="rail-group">
+    <nav class="rail-group" aria-label="La casa">
       <small>La casa</small>
       <a href="#/stanze" data-nav="stanze">${icon("room")}Le stanze</a>
       <a href="#/arredi" data-nav="arredi">${icon("sofa")}Gli arredi</a>
@@ -75,7 +82,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <a href="#/album" data-nav="album" data-plan="album">${icon("photo")}L'album</a>
     </nav>
 
-    <nav class="rail-group">
+    <nav class="rail-group" aria-label="Insieme">
       <small>Insieme</small>
       <a href="#/riunioni" data-nav="riunioni" data-plan="meetings">${icon("meeting")}Riunioni e legami</a>
       <a href="#/consiglio" data-nav="consiglio">${icon("council")}Il consiglio</a>
@@ -84,18 +91,18 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <a href="#/piazza" data-nav="piazza" data-plan="plaza">${icon("plaza")}La piazza</a>
     </nav>
 
-    <nav class="rail-group">
+    <nav class="rail-group" aria-label="Mercato">
       <small>Mercato</small>
       <a href="#/adozioni" data-nav="adozioni">${icon("store")}Le adozioni</a>
       <a href="#/allevamento" data-nav="allevamento" data-needs="breeding">${icon("coin")}Il mio allevamento</a>
     </nav>
 
-    <nav class="rail-group" data-group="business">
+    <nav class="rail-group" data-group="business" aria-label="Lavoro">
       <small>Lavoro</small>
       <a href="#/clienti" data-nav="clienti">${icon("briefcase")}I clienti</a>
     </nav>
 
-    <nav class="rail-group">
+    <nav class="rail-group" aria-label="Account">
       <small>Account</small>
       <a href="#/ai" data-nav="ai">${icon("brain")}La testa di UGO</a>
       <a href="#/abbonamento" data-nav="abbonamento">${icon("card")}Abbonamento</a>
@@ -106,21 +113,21 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <a href="#/dati" data-nav="dati">${icon("shield")}I dati</a>
     </nav>
 
-    <nav class="rail-group" data-group="operator">
+    <nav class="rail-group" data-group="operator" aria-label="Operatore">
       <small>Operatore</small>
       <a href="#/account" data-nav="account">${icon("users")}Gli account</a>
       <a href="#/diagnostica" data-nav="diagnostica">${icon("gauge")}La diagnostica</a>
       <a href="#/segnalazioni" data-nav="segnalazioni">${icon("alert")}Le segnalazioni</a>
     </nav>
 
-    <nav class="rail-group">
+    <nav class="rail-group" aria-label="Sessione">
       <small>Sessione</small>
       <button type="button" class="rail-link" id="theme" data-testid="theme">${icon("auto")}<span id="theme-label">Tema: automatico</span></button>
       <button type="button" class="rail-link" id="refresh" data-testid="refresh">${icon("refresh")}Aggiorna tutto</button>
       <button type="button" class="rail-link" id="logout" data-testid="logout">${icon("logout")}Esci</button>
     </nav>
 
-    <nav class="rail-group rail-build">
+    <nav class="rail-group rail-build" aria-label="Che roba stai guardando">
       <small>Che roba stai guardando</small>
       <p class="rail-version" data-testid="panel-version">pannello <code>__PANEL_VERSION__</code></p>
       <p class="rail-version" id="face-version" data-testid="face-version">muso <code>&hellip;</code></p>
@@ -130,7 +137,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
     </nav>
   </aside>
 
-  <main id="main">
+  <main id="main" tabindex="-1">
 `;
 
 /** Closes the frame and pulls in the behaviour. */

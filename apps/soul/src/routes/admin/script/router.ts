@@ -70,7 +70,7 @@ function drawRail(page) {
     : GOSINI.map((g) => {
         const open = g.id === WHO;
         const sub = !open ? "" : GOSINO_PAGES.map((p) =>
-          '<a href="' + at("#/g/" + g.id + "/" + p) + '" data-nav="g:' + p + '" style="padding-left:1.6rem">' +
+          '<a class="indent" href="' + at("#/g/" + g.id + "/" + p) + '" data-nav="g:' + p + '">' +
           PAGE_TITLE[p] + "</a>").join("");
         return '<a href="' + at("#/g/" + g.id + "/stato") + '" data-nav="g:' + g.id + '">' +
           '<span class="dot" aria-hidden="true"></span>' + escape(g.name) +
@@ -112,6 +112,8 @@ async function openPage(page) {
     node.textContent = here === undefined ? "L'account" : here.name;
   }
   document.title = "UGO — " + (PAGE_TITLE[page] ?? page);
+  // sul telefono la barra in alto dice dove sei: il titolo della pagina aperta
+  $("topbar-page").textContent = PAGE_TITLE[page] ?? document.querySelector('.page[data-page="' + page + '"] h1')?.textContent ?? "";
   window.scrollTo(0, 0);
 
   if (page === "sommario") {
@@ -321,8 +323,8 @@ async function drawGosiniCards() {
     try { mood = (await call("/v1/psyche?gosino=" + encodeURIComponent(g.id), {})).label; }
     catch { /* one that cannot be read still gets a row, with a dash */ }
     cards.push('<a class="gosino-card" href="' + at("#/g/" + g.id + "/stato") + '">' +
-      "<div><h4>" + escape(g.name) + (g.where ? ' <span class="persona">· ' + escape(g.where) + "</span>" : "") +
-      '</h4><div class="persona">' + escape(g.persona ?? "") + "</div>" +
+      "<div><h3>" + escape(g.name) + (g.where ? ' <span class="persona">· ' + escape(g.where) + "</span>" : "") +
+      '</h3><div class="persona">' + escape(g.persona ?? "") + "</div>" +
       // ADR-071: quanti giorni ha, e quanto la vita può ancora cambiarlo
       (g.age === undefined ? "" : '<div class="persona">' + ageLine(g.age) + "</div>") +
       "</div>" +

@@ -49,11 +49,11 @@ function renderGraph(data) {
     const hit = ' data-id="' + escape(node.id) + '" data-label="' + escape(node.label) + '" data-type="' + node.type + '"';
     if (node.type === "being") {
       // a square for a person, a circle for a memory: the shape is the legend
-      return '<g data-testid="graph-node" class="graph-hit"' + hit + ' style="cursor:pointer"><rect x="' + (node.x - 7) + '" y="' + (node.y - 7) +
+      return '<g data-testid="graph-node" class="graph-hit clickable"' + hit + '><rect x="' + (node.x - 7) + '" y="' + (node.y - 7) +
         '" width="14" height="14" rx="3" fill="var(--brand)"></rect>' + title + "</g>";
     }
     const fill = node.retired ? "transparent" : "currentColor";
-    return '<g data-testid="graph-node" class="graph-hit"' + hit + ' style="cursor:pointer"><circle cx="' + node.x + '" cy="' + node.y + '" r="5" fill="' + fill +
+    return '<g data-testid="graph-node" class="graph-hit clickable"' + hit + '><circle cx="' + node.x + '" cy="' + node.y + '" r="5" fill="' + fill +
       '" stroke="currentColor" stroke-width="1.5" opacity="' + (node.retired ? "0.5" : "0.85") + '"></circle>' +
       title + "</g>";
   }).join("");

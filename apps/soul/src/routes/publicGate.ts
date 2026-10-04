@@ -58,8 +58,12 @@ export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   // il wasm di MediaPipe (ADR-044) compila nel browser
   "script-src 'self' 'wasm-unsafe-eval'",
-  // gli `style=` del pannello: classi un giorno, oggi inline (rischio dichiarato nel piano)
-  "style-src 'self' 'unsafe-inline'",
+  // revisione UI 2026-10-04: nel markup non ci sono più attributi `style=` —
+  // vietati (`style-src-attr 'none'`). Restano ammessi i blocchi <style> delle
+  // pagine composte dal server; le larghezze calcolate passano dal CSSOM.
+  "style-src 'self'",
+  "style-src-elem 'self' 'unsafe-inline'",
+  "style-src-attr 'none'",
   "img-src 'self' data: blob:",
   "media-src 'self' blob:",
   "font-src 'self'",

@@ -40,7 +40,7 @@ export default function Tickets(): React.JSX.Element {
       {error !== "" && <div className="msg err">{error}</div>}
       {tickets !== null && tickets.length === 0 && (
         <div className="card">
-          <p className="lede" style={{ margin: 0 }}>
+          <p className="lede m-0">
             Nessuna richiesta per ora. Quando vorrai aggiungere o cambiare qualcosa, il gosino la
             scrive qui.
           </p>
@@ -50,11 +50,11 @@ export default function Tickets(): React.JSX.Element {
         <Link
           key={ticket.id}
           href={`/ticket/${ticket.id}`}
-          style={{ textDecoration: "none", color: "inherit" }}
+          className="plain-link"
         >
-          <div className="card" style={{ marginBottom: "0.8rem" }} data-testid="ticket-card">
+          <div className="card stack" data-testid="ticket-card">
             <strong>{ticket.title}</strong>
-            <p className="lede" style={{ margin: "0.3rem 0 0" }}>
+            <p className="lede tight">
               {STATUS_LABEL[ticket.status]} · aperto il {ticket.createdAt.slice(0, 10)}
             </p>
           </div>

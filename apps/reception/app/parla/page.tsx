@@ -265,7 +265,7 @@ export default function Parla(): React.JSX.Element {
           <div key={index} className={`bubble ${turn.who}`}>
             {turn.text}
             {turn.guide === true && (
-              <div style={{ marginTop: "0.6rem" }}>
+              <div className="mt-2">
                 <button
                   className="ghost"
                   data-testid="guide-pdf"

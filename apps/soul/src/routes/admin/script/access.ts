@@ -16,14 +16,17 @@ async function loadAccess() {
   try {
     rows = (await call("/v1/sessioni", {})).sessioni ?? [];
   } catch (error) {
-    // con un token (operatore, CLI) le sessioni del browser non sono il punto
-    $("access-sessions").innerHTML = '<p class="muted">' + escape(error.message) + "</p>";
+    // 404: su un'installazione di casa (non pubblica) l'accesso via email non
+    // esiste, quindi non esistono sessioni del browser — è un fatto, non un guasto
+    $("access-sessions").innerHTML = '<p class="muted">' + (error.status === 404
+      ? "Su questo server si entra col token, non con l'email: non ci sono browser collegati da mostrare."
+      : escape(error.message)) + "</p>";
     return;
   }
   $("access-sessions").innerHTML = rows.length === 0
     ? '<p class="muted">Nessun browser collegato: sei entrato con un token.</p>'
     : rows.map((s) => '<div class="row ai-key">' +
-        '<div style="flex:1 1 14rem"><b>' + escape(s.label) + "</b>" +
+        '<div class="f-14"><b>' + escape(s.label) + "</b>" +
         (s.current ? ' <span class="pill good">questo</span>' : "") +
         '<br><span class="muted">aperta ' + whenLabel(s.createdAt) + " · vista " + whenLabel(s.lastSeenAt) + "</span></div>" +
         (s.current ? "" : '<button class="ghost" data-session-drop="' + escape(s.id) + '">Chiudi</button>') +

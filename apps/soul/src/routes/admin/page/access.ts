@@ -49,7 +49,7 @@ export const ACCESS_PAGES = `
        abbinato compare fra le chiavi in <a href="#/giornale" data-nav-link="giornale">Il
        giornale</a>, da dove lo puoi revocare.</p>
     <div class="row">
-      <div style="flex:1 1 12rem"><label for="pair-name">Dove sta</label>
+      <div class="f-12"><label for="pair-name">Dove sta</label>
         <input id="pair-name" type="text" maxlength="40" placeholder="cucina" data-testid="pair-name"></div>
       <button id="pair-make" data-testid="pair-make">Dammi il codice</button>
     </div>

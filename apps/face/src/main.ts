@@ -509,7 +509,7 @@ photoFile.addEventListener("change", () => {
         speech.speak(body.reply, undefined);
       }
     } catch {
-      trouble("la foto non è arrivata: soul non risponde");
+      trouble("la foto non è arrivata: UGO non risponde, riprova fra poco");
     } finally {
       setLocalState("idle");
     }
@@ -772,7 +772,7 @@ function handleHeardText(text: string): void {
     voice = sensors.lastVoice();
   } catch {
     voice = undefined;
-    trouble("la voce non si e' potuta ritagliare: mando solo il testo");
+    trouble("la voce non si è potuta ritagliare: mando solo il testo");
   }
   sendToSoul({ type: "heard_text", text, ...(voice !== undefined && { audio: voice }) });
 }

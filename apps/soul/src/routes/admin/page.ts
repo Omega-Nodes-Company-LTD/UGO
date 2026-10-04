@@ -14,6 +14,7 @@ import { JOURNAL_PAGES, JOURNAL_STYLES } from "./page/journal.js";
 import { ADMIN_SHELL_BOTTOM, ADMIN_SHELL_TOP, GATE_STYLES } from "./page/shell.js";
 import { ADMIN_STYLES } from "./page/styles.js";
 import { ADMIN_DATA_STYLES } from "./page/stylesData.js";
+import { ADMIN_UI_STYLES } from "./page/stylesUi.js";
 
 /**
  * The operator panel (served at /admin). No build step, no dependencies.
@@ -34,6 +35,7 @@ export const ADMIN_PAGE = [
     [
       ADMIN_STYLES,
       ADMIN_DATA_STYLES,
+      ADMIN_UI_STYLES,
       GATE_STYLES,
       JOURNAL_STYLES,
       DIAL_STYLES,

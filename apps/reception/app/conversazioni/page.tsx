@@ -56,7 +56,7 @@ export default function Conversazioni(): React.JSX.Element {
     <div>
       <p className="eyebrow">La reception</p>
       <h1>Le conversazioni</h1>
-      <div className="chips" style={{ justifyContent: "flex-start", margin: "0.6rem 0" }}>
+      <div className="chips start">
         {me?.gosini.map((candidate) => (
           <button
             key={candidate.id}
@@ -81,7 +81,7 @@ export default function Conversazioni(): React.JSX.Element {
         {visible.map((message) => (
           <div key={message.id} className={`bubble ${message.role === "user" ? "me" : "ugo"}`}>
             {message.text}
-            <div style={{ fontSize: "0.7rem", color: "var(--muted)", marginTop: "0.25rem" }}>
+            <div className="fine">
               {message.ts.slice(0, 16).replace("T", " ")}
               {message.cached && " · risposta ricordata"}
             </div>

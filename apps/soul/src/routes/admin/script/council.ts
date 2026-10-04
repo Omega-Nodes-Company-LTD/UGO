@@ -16,12 +16,12 @@ $("council-go").addEventListener("click", async () => {
     $("council-out").innerHTML = result.voices.map((v) =>
       // the mood belongs in the header: two of them answering differently is
       // the whole point, and half the reason is what kind of day each is having
-      '<div class="voice"><h4>' + escape(v.name) +
-      ' <span class="lede" style="margin:0">· ' +
-      escape([v.where, v.mood].filter(Boolean).join(" · ")) + "</span></h4>" +
+      '<div class="voice"><h3>' + escape(v.name) +
+      ' <span class="lede m-0">· ' +
+      escape([v.where, v.mood].filter(Boolean).join(" · ")) + "</span></h3>" +
       '<p class="said">' + escape(v.first) + "</p>" +
       (v.second === undefined ? ""
-        : '<p class="again"><span class="lede" style="margin:0">dopo aver sentito gli altri</span><br>' +
+        : '<p class="again"><span class="lede m-0">dopo aver sentito gli altri</span><br>' +
           escape(v.second) + "</p>") +
       "</div>").join("");
     say("council-msg", result.changedMind

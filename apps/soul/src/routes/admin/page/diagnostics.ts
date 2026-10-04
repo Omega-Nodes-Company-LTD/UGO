@@ -26,7 +26,7 @@ export const DIAGNOSTICS_PAGE = `
     <h2>Il verdetto</h2>
     <p class="lede">Una riga sola. Se qui &egrave; verde e la creatura sembra lenta lo stesso,
        la risposta sta in <b>Dove se ne va il tempo</b> qui sotto.</p>
-    <div class="row" style="align-items:center">
+    <div class="row center">
       <p id="diag-verdict" data-testid="diag-verdict" class="verdict">&hellip;</p>
       <button id="diag-refresh" class="ghost" data-testid="diag-refresh">Risonda adesso</button>
     </div>

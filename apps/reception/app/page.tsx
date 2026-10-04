@@ -41,7 +41,7 @@ export default function Accesso(): React.JSX.Element {
   };
 
   return (
-    <div className="card" style={{ marginTop: "18vh" }}>
+    <div className="card hero-gap">
       <p className="eyebrow">La reception di UGO</p>
       <h1>Vieni, entra</h1>
       <p className="lede">
@@ -62,7 +62,7 @@ export default function Accesso(): React.JSX.Element {
         }}
         autoComplete="off"
       />
-      <label style={{ marginTop: "0.7rem" }}>
+      <label className="mt-3">
         <input
           type="checkbox"
           checked={persist}
@@ -72,7 +72,7 @@ export default function Accesso(): React.JSX.Element {
         />{" "}
         Resta collegato su questo dispositivo
       </label>
-      <div style={{ marginTop: "0.9rem" }}>
+      <div className="mt-4">
         <button data-testid="gate-go" onClick={() => void enter()} disabled={busy}>
           {busy ? "Un attimo…" : "Entra"}
         </button>

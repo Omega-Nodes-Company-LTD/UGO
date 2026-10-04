@@ -54,19 +54,19 @@ export default function Lavori(): React.JSX.Element {
       {error !== "" && <div className="msg err">{error}</div>}
       {works !== null && works.repos.length === 0 && (
         <div className="card">
-          <p className="lede" style={{ margin: 0 }}>
+          <p className="lede m-0">
             Nessun repository collegato per ora: chiedi allo studio di collegarne uno, e da lì il
             gosino potrà risponderti «repo alla mano».
           </p>
         </div>
       )}
       {works?.repos.map((repo) => (
-        <div className="card" style={{ marginBottom: "0.8rem" }} key={repo.remoteUrl} data-testid="work-card">
+        <div className="card stack" key={repo.remoteUrl} data-testid="work-card">
           <strong>{nameOf(repo.remoteUrl)}</strong>{" "}
-          <span className="gosino-meta" style={{ color: "var(--muted)" }}>
+          <span className="gosino-meta muted">
             · {repo.defaultBranch}
           </span>
-          <p className="lede" style={{ margin: "0.3rem 0 0" }}>
+          <p className="lede tight">
             {STATE_LABEL[repo.status]}
             {repo.lastCommitSha !== null && ` · commit ${repo.lastCommitSha.slice(0, 7)}`}
             {repo.lastIndexedAt !== null && ` · letto il ${repo.lastIndexedAt.slice(0, 10)}`}
@@ -74,9 +74,9 @@ export default function Lavori(): React.JSX.Element {
         </div>
       ))}
       {works?.live !== undefined && (
-        <div className="card" style={{ marginBottom: "0.8rem" }} data-testid="live-state">
+        <div className="card stack" data-testid="live-state">
           <strong>Adesso, sui repository</strong>
-          <p className="lede" style={{ whiteSpace: "pre-wrap", margin: "0.3rem 0 0" }}>
+          <p className="lede tight pre">
             {works.live}
           </p>
         </div>

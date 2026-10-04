@@ -108,7 +108,7 @@ function drawLitterCubs() {
       " · coda " + cub.traits.tail.toFixed(2) + " · tinta " + cub.traits.hue.toFixed(2);
     return '<div class="cub" data-cub="' + cub.index + '"' +
       ' data-viable="' + cub.viable + '">' +
-      "<h4>Cucciolo " + (cub.index + 1) + "</h4>" +
+      "<h3>Cucciolo " + (cub.index + 1) + "</h3>" +
       '<div class="persona">' + escape(cub.persona) + "</div>" +
       '<div class="coat">' + coat + "</div>" +
       (cub.viable

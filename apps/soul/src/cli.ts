@@ -60,13 +60,32 @@ const USAGE = `uso:
 
   --account   slug o uuid dell'account. Obbligatorio se ce n'è più di uno.`;
 
+/**
+ * L'errore detto a chi sta al terminale. Un errore del database arriva da
+ * Drizzle come «Failed query: <SQL> params: <valori>»: illeggibile, e i
+ * parametri possono essere dati personali. Si dice cosa ha risposto Postgres,
+ * senza la query e senza i valori.
+ */
+function cliError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  if (error.message.startsWith("Failed query")) {
+    const cause = error.cause instanceof Error ? error.cause.message : "motivo sconosciuto";
+    return `il database ha rifiutato l'operazione (${cause}). Controlla i valori passati e che le migrazioni siano aggiornate.`;
+  }
+  return error.message;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
 /** Resolves `--account` to one account, or explains why it cannot. */
 async function resolveAccount(db: DbClient, requested: string | undefined): Promise<string> {
   if (requested !== undefined) {
     const [row] = await db
       .select({ id: accounts.id, slug: accounts.slug })
       .from(accounts)
-      .where(or(eq(accounts.slug, requested), eq(accounts.id, requested)));
+      // uno slug non è un uuid: confrontarlo con la colonna id faceva fallire
+      // la query intera («invalid input syntax for type uuid»)
+      .where(UUID.test(requested) ? or(eq(accounts.slug, requested), eq(accounts.id, requested)) : eq(accounts.slug, requested));
     if (row === undefined) throw new Error(`account "${requested}" non trovato`);
     return row.id;
   }
@@ -282,7 +301,7 @@ async function main(): Promise<number> {
       console.error(`errore: essere ${values.being ?? ""} non trovato`);
       return 1;
     }
-    console.error("errore:", error instanceof Error ? error.message : error);
+    console.error(`errore: ${cliError(error)}`);
     return 1;
   } finally {
     await db.$client.end();

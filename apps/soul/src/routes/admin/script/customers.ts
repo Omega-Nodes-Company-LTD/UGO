@@ -53,7 +53,7 @@ async function loadCustomerDetail() {
   $("cust-gosini-list").innerHTML = GOSINI.length === 0
     ? '<p class="empty">Non è ancora nato nessuno.</p>'
     : GOSINI.map((g) =>
-        '<label class="row" style="gap:.4rem"><input type="checkbox" class="cust-gosino" value="' + g.id + '"' +
+        '<label class="row gap-sm"><input type="checkbox" class="cust-gosino" value="' + g.id + '"' +
         (assigned.has(g.id) ? " checked" : "") + "> " + escape(g.name) +
         (g.where ? ' <span class="persona">· ' + escape(g.where) + "</span>" : "") + "</label>").join("");
 

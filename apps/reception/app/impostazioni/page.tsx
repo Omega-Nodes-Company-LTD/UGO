@@ -28,7 +28,7 @@ export default function Impostazioni(): React.JSX.Element {
     <div>
       <p className="eyebrow">La reception</p>
       <h1>Impostazioni</h1>
-      <div className="card" style={{ marginBottom: "0.8rem" }}>
+      <div className="card stack">
         <label>
           <input
             type="checkbox"
@@ -39,14 +39,14 @@ export default function Impostazioni(): React.JSX.Element {
           />{" "}
           Il gosino risponde anche a voce
         </label>
-        <p className="lede" style={{ margin: "0.5rem 0 0" }}>
+        <p className="lede tight">
           {speechAvailable()
             ? "L'ascolto e la voce restano nel tuo browser: nessun audio viene inviato al server, mai."
             : "Questo browser non sa ascoltare: la tastiera funziona comunque, e la privacy è la stessa."}
         </p>
       </div>
-      <div className="card" style={{ marginBottom: "0.8rem" }}>
-        <p className="lede" style={{ marginTop: 0 }}>
+      <div className="card stack">
+        <p className="lede flush-top">
           La guida del primo ingresso — chi ti ascolta, dove va la voce, come nascono i ticket —
           resta a portata di mano.
         </p>
@@ -61,7 +61,7 @@ export default function Impostazioni(): React.JSX.Element {
         </button>
       </div>
       <div className="card">
-        <p className="lede" style={{ marginTop: 0 }}>
+        <p className="lede flush-top">
           Il tuo token vive solo su questo dispositivo. Uscendo, lo dimentichiamo: per rientrare
           servirà di nuovo.
         </p>

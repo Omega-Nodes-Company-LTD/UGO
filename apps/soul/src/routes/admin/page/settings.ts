@@ -1,5 +1,5 @@
 /**
- * Impostazioni → AI (ADR-122, ADR-130): con che testa pensa UGO.
+ * La testa di UGO (ADR-122, ADR-130): con che testa pensa UGO.
  *
  * La pagina risponde a tre domande, in quest'ordine: **con quali chiavi**
  * (della casa, o di UGO a consumo), **quale modello per ogni lavoro** (dalla
@@ -8,10 +8,11 @@
  * questa installazione.
  */
 export const SETTINGS_PAGES = `
-<div class="nudge" id="ai-nudge" data-testid="ai-nudge" hidden>
-  <b>UGO non ha ancora una testa per parlare.</b>
-  Scegli un modello per la conversazione in <a href="#/ai" data-nav-link="ai">Impostazioni AI</a>:
-  con una tua chiave Anthropic o OpenRouter, oppure con le chiavi UGO a consumo.
+<div class="nudge" id="ai-nudge" data-testid="ai-nudge" role="status" hidden>
+  <div><b>UGO non ha ancora una testa per parlare.</b>
+  Scegli un modello per la conversazione: con una tua chiave Anthropic o OpenRouter, oppure con
+  le chiavi UGO a consumo.</div>
+  <a class="btn" href="#/ai" data-nav-link="ai">Scegli la testa</a>
 </div>
 
 <section class="page" data-page="ai">

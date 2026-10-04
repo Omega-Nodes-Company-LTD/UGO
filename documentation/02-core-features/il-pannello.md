@@ -1,8 +1,8 @@
 ---
 title: "Il pannello"
 description: "Come sta, cosa ha deciso da solo, e come chiedere a tutti quanti insieme. Tutto da /admin, senza toccare un terminale."
-version: "0.40.0"
-last_updated: "2026-08-19"
+version: "0.48.0"
+last_updated: "2026-10-04"
 author: "ThinkPink Studio"
 ---
 
@@ -336,6 +336,29 @@ non è acceso.
 Vedrai un messaggio su quella sezione e basta: il resto del pannello continua a
 funzionare. È di proposito — il pannello lo apri quando qualcosa già non va, ed
 è il momento peggiore per farlo sparire tutto insieme.
+
+### I messaggi dicono cosa fare
+
+Un errore non è mai un codice: dice **cosa è successo e cosa fare**, in italiano.
+
+| Se leggi… | Fai così |
+| --- | --- |
+| «Non riesco a raggiungere UGO» | controlla la connessione, o che il server sia acceso |
+| «Non sei entrato, o l'accesso è scaduto» | rientra con la tua email o col token |
+| «Il tuo piano non comprende questa funzione» | apri **Abbonamento** |
+| «Troppe richieste in poco tempo» | aspetta qualche minuto |
+| «Qualcosa si è rotto dalla nostra parte… (rif. req-…)» | riprova; se succede ancora, manda il riferimento a chi gestisce UGO: ritrova la riga nel registro |
+
+Mentre un pulsante lavora mostra una rotella e non si può premere due volte. Mentre una
+pagina carica, in alto scorre una riga sottile.
+
+## Dal telefono
+
+Su uno schermo stretto il menu è un **cassetto**:
+
+1. Tocca **Menu** in alto a sinistra. Il menu scorre da sinistra.
+2. Tocca la pagina che ti serve. Il menu si chiude da solo e la barra in alto dice dove sei.
+3. Per chiuderlo senza scegliere, tocca fuori dal menu o premi `Esc`.
 
 ## Da leggere anche
 

@@ -1,5 +1,5 @@
 /**
- * Impostazioni → AI (ADR-122). Tutto passa da `call()`, quindi dall'account
+ * La testa di UGO (ADR-122). Tutto passa da `call()`, quindi dall'account
  * scelto (scoped): le chiavi e i modelli sono di QUELL'account.
  */
 export const AI_SETTINGS_JS = `
@@ -48,9 +48,9 @@ function drawAiKeys(s) {
     const state = k === undefined ? "" : '<span class="pill ' + KEY_STATE[k.status][0] + '">' +
       KEY_STATE[k.status][1] + "</span> <code>" + escape(k.hint) + "</code>";
     return '<div class="row ai-key">' +
-      '<div style="flex:0 1 9rem"><b>' + AI_PROVIDER[p] + "</b><br>" + state + "</div>" +
-      '<input type="password" autocomplete="off" placeholder="incolla la chiave" ' +
-        'data-testid="ai-key-input-' + p + '" data-key-input="' + p + '" style="flex:1 1 14rem">' +
+      '<div class="w-9"><b>' + AI_PROVIDER[p] + "</b><br>" + state + "</div>" +
+      '<input class="f-14" type="password" autocomplete="off" placeholder="incolla la chiave" ' +
+        'data-testid="ai-key-input-' + p + '" data-key-input="' + p + '">' +
       '<button data-key-save="' + p + '" data-testid="ai-key-save-' + p + '">Salva</button>' +
       (k === undefined ? "" : '<button class="ghost" data-key-drop="' + p + '">Togli</button>') +
       "</div>";
@@ -74,14 +74,14 @@ function drawAiRoles(s) {
       "<h3>" + AI_ROLE[role][0] + ' <span class="muted">— ' + AI_ROLE[role][1] + "</span></h3>" +
       '<p>Adesso: ' + now + "</p>" +
       '<div class="row">' +
-      '<select data-role-source="' + role + '">' + sourceOptions(s, role, r.source ?? "byok") + "</select>" +
-      '<select data-role-provider="' + role + '">' + providersFor(role).map((p) =>
+      '<select data-role-source="' + role + '" aria-label="Con che chiave: ' + AI_ROLE[role][0] + '">' + sourceOptions(s, role, r.source ?? "byok") + "</select>" +
+      '<select data-role-provider="' + role + '" aria-label="Fornitore: ' + AI_ROLE[role][0] + '">' + providersFor(role).map((p) =>
         '<option value="' + p + '"' + (r.provider === p ? " selected" : "") + ">" + AI_PROVIDER[p] + "</option>").join("") +
       "</select>" +
       '<button class="ghost" data-role-list="' + role + '">Mostra i modelli</button>' +
       "</div>" +
-      '<div class="row"><select data-role-model="' + role + '" data-testid="ai-model-' + role + '" hidden></select>' +
-      (role === "tts" ? '<select data-role-voice="tts" data-testid="ai-voice" hidden></select>' : "") +
+      '<div class="row"><select data-role-model="' + role + '" aria-label="Modello: ' + AI_ROLE[role][0] + '" data-testid="ai-model-' + role + '" hidden></select>' +
+      (role === "tts" ? '<select data-role-voice="tts" aria-label="Voce" data-testid="ai-voice" hidden></select>' : "") +
       '<button data-role-save="' + role + '" data-testid="ai-role-save-' + role + '" hidden>Usa questo</button>' +
       (role === "tts" && r.configured ? '<button class="ghost" data-voice-preview data-testid="ai-voice-preview">Ascolta</button>' : "") +
       (r.model ? '<button class="ghost" data-role-drop="' + role + '">Togli</button>' : "") +

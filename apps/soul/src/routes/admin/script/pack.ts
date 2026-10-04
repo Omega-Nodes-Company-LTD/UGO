@@ -53,7 +53,7 @@ async function refresh() {
     const drop = b.hasVoiceProfile
       ? '<button class="ghost" data-drop-voice="' + b.id + '" data-testid="drop-voice">scorda la voce</button>'
       : "";
-    return '<article class="being" data-testid="pack-row"><h4>' + escape(b.displayName) + "</h4>" +
+    return '<article class="being" data-testid="pack-row"><h3>' + escape(b.displayName) + "</h3>" +
       '<div class="species">' + (SPECIES_LABEL[b.species] ?? escape(b.species)) + " · " + voice + "</div>" +
       enrolment() +
       '<div class="bond"><div><span>conoscenza</span>' + meter(b.familiarity) + "</div>" +
@@ -61,7 +61,7 @@ async function refresh() {
       '<div><span>affinità</span>' + meter((b.affinity + 1) / 2, 0.5) + "</div></div>" +
       '<div class="guards">' + guard("isMinor", "minorenne") + guard("noAudio", "non ascoltare") +
       guard("noVision", "non guardare") + "</div>" +
-      (drop ? '<div style="margin-top:.5rem">' + drop + "</div>" : "") + "</article>";
+      (drop ? '<div class="mt-2">' + drop + "</div>" : "") + "</article>";
   };
   document.querySelector('[data-testid="pack-rows"]').innerHTML = pack.map(card).join("") ||
     '<p class="empty">Nessuno, ancora. UGO risponderà a tutti come a sconosciuti.</p>';

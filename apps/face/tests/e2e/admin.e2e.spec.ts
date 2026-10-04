@@ -344,18 +344,15 @@ test("each service says what it is doing in words, not only in colour", async ({
   await openPanel(page);
   await goHouse(page, "sommario");
   const pills = page.getByTestId("health").locator(".pill");
-  // database, broker, modelli in casa, nodo GPU, percezione: il conto è qui
-  // apposta, perché un servizio che sparisce dal sommario si legge come un
-  // servizio che sta bene
-  await expect(pills).toHaveCount(5);
+  // database, broker, modelli in casa, percezione: il conto è qui apposta,
+  // perché un servizio che sparisce dal sommario si legge come un servizio che
+  // sta bene. (ADR-122: il nodo GPU non c'è più — la testa è delle chiavi della casa)
+  await expect(pills).toHaveCount(4);
   await expect(pills.filter({ hasText: "database" })).toContainText("risponde");
   // mqtt is deliberately unconfigured on this deployment, and says so
   await expect(pills.filter({ hasText: "broker" })).toContainText("non configurato");
   // ADR-101: e la percezione, spenta qui, lo dice con la stessa parola
   await expect(pills.filter({ hasText: "percezione" })).toContainText("non configurato");
-  // ADR-110: il nodo GPU è una SECONDA macchina, e ha una riga sua — «spenta»
-  // è uno stato legittimo, ed è pure il default
-  await expect(pills.filter({ hasText: "nodo GPU" })).toContainText("non configurato");
 });
 
 /**
@@ -390,4 +387,23 @@ test("a room is made empty, filled from a list, and unmade without losing anybod
   await officina.getByTestId("room-del").click();
   await expect(page.getByTestId("rooms-list").filter({ hasText: "officina" })).toHaveCount(0);
   await expect(page.getByTestId("rooms-list")).toContainText("Senza stanza");
+});
+
+// Revisione UI 2026-10-04: sul telefono il menu è un cassetto. Prima occupava
+// lo schermo intero e il contenuto stava sotto, da scorrere per trovarlo.
+test("on a phone the rail is a drawer that opens, navigates and closes", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${soulHttp()}/admin`);
+  await page.getByTestId("gate-token-open").click();
+  await page.getByTestId("token").fill(token());
+  await page.getByTestId("save-token").click();
+  const opener = page.getByTestId("menu-open");
+  await expect(opener).toBeVisible();
+  await expect(page.locator('.rail a[data-nav="branco"]')).not.toBeInViewport();
+  await opener.click();
+  await expect(opener).toHaveAttribute("aria-expanded", "true");
+  await page.locator('.rail a[data-nav="branco"]').click();
+  await expect(page.locator('[data-page="branco"]')).toHaveClass(/\bon\b/);
+  await expect(opener).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#topbar-page")).not.toBeEmpty();
 });

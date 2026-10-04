@@ -47,9 +47,9 @@ export default function Benvenuto(): React.JSX.Element {
         Quattro cose, trenta secondi. Poi la porta è tua, e questa guida resta in Impostazioni.
       </p>
 
-      <div className="card" style={{ marginBottom: "0.8rem" }} data-testid="welcome-pack">
+      <div className="card stack" data-testid="welcome-pack">
         <strong>Chi ti ascolta.</strong>
-        <p className="lede" style={{ margin: "0.4rem 0 0" }}>
+        <p className="lede tight">
           {listeners}
           {me !== null && me.gosini.length > 1
             ? ": ognuno ha il suo carattere e si ricorda le vostre conversazioni. Scegli tu, e puoi cambiare quando vuoi."
@@ -61,27 +61,27 @@ export default function Benvenuto(): React.JSX.Element {
         </p>
       </div>
 
-      <div className="card" style={{ marginBottom: "0.8rem" }} data-testid="welcome-voice">
+      <div className="card stack" data-testid="welcome-voice">
         <strong>La tua voce resta qui.</strong>
-        <p className="lede" style={{ margin: "0.4rem 0 0" }}>
+        <p className="lede tight">
           {speechAvailable()
             ? "Tieni premuto l'orbe e parla: è il tuo browser a trascrivere, e al server arriva solo il testo. Nessun audio lascia mai questo dispositivo, e su questo canale non esiste alcun riconoscimento vocale."
             : "Questo browser non sa ascoltare, quindi qui si scrive — e la promessa vale lo stesso: al server arriva solo testo, mai audio, e su questo canale non esiste alcun riconoscimento vocale."}
         </p>
       </div>
 
-      <div className="card" style={{ marginBottom: "0.8rem" }} data-testid="welcome-tickets">
+      <div className="card stack" data-testid="welcome-tickets">
         <strong>Le richieste diventano ticket.</strong>
-        <p className="lede" style={{ margin: "0.4rem 0 0" }}>
+        <p className="lede tight">
           Il gosino non esegue lavori: raccoglie. Quando vuoi qualcosa, dillo — «apri un ticket:
           vorrei l&apos;export in CSV» — e lui lo apre con la tua conferma. Lo ritrovi ne «I
           ticket», e vedi lo stato che lo studio gli dà.
         </p>
       </div>
 
-      <div className="card" style={{ marginBottom: "0.9rem" }} data-testid="welcome-pace">
+      <div className="card stack" data-testid="welcome-pace">
         <strong>Ha un suo ritmo.</strong>
-        <p className="lede" style={{ margin: "0.4rem 0 0" }}>
+        <p className="lede tight">
           Se un giorno ti chiede di riprovare più tardi, non è rotto: ha un limite di domande,
           per tenere il servizio sostenibile. E quando una risposta ti serve davvero, sotto c&apos;è
           una mela{me !== null && me.rewards.weeklyLimit > 0

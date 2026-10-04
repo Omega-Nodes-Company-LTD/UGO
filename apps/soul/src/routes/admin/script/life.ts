@@ -37,7 +37,7 @@ async function loadLife() {
 
   // il preavviso è l'unica cosa che si dice sulla fine, e si dice tutta
   const notice = who.farewellNotice !== true ? "" :
-    '<p class="lede" style="margin-top:.8rem"><b class="err">Il suo tempo sta finendo.</b> ' +
+    '<p class="lede mt-3"><b class="err">Il suo tempo sta finendo.</b> ' +
     "Te l'abbiamo detto con sessanta giorni d'anticipo perché tu possa fare tre cose: " +
     "<b>esportare il diario</b> (in <i>I dati</i>) se non hai altri gosini in casa, " +
     "fargli fare <b>una cucciolata</b> se vuoi che la sua linea continui, e stargli vicino. " +

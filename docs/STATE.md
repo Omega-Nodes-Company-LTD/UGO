@@ -3015,3 +3015,28 @@ scartato non rigiudicato, rete privata chiusa), suite Python 113 passati (37 vog
 sotto `ugo_app`, oblio con cascata, chiusura); `volition` 13/13; unit del muso.
 
 **Rilascio**: migrazioni 0071–0072; `SEARXNG_URL` anche sui job; bundle del muso da ricostruire.
+
+## 6-undecies-nonagies. La revisione UI/UX, e gli errori che parlano (ADR-127)
+
+Il 2026-10-04 il proprietario ha chiesto se le grafiche fossero allo standard UI/UX moderno, e poi
+«procedi, e anche gli errori sempre parlanti». La risposta onesta era no; il dettaglio di cosa si
+è fatto è nelle note di ADR-127. In sintesi: revisione con screenshot e axe di ogni pagina; tre
+difetti veri trovati guardando (la pagina «Da chi discende» rotta da sempre, `ugo account piano
+--account <slug>` che falliva con una query SQL, un test e2e rimasto al nodo GPU); stili e colori
+dentro il design system; menu a cassetto sul telefono; stati di lavoro e caricamento; CSP più
+stretta; errori parlanti su server, pannello, muso, reception e CLI.
+
+### Il giro completo (regola 12)
+- **BO**: `routes/speakingErrors.ts` (hook unico per ogni risposta d'errore, 404 e gestore degli
+  errori), CLI che spiega gli errori del database, CSP; `ops/jobs`: non toccato.
+- **`/admin`**: `page/stylesUi.ts`, cassetto, `call()` parlante e pulsanti occupati, banner con
+  azione, etichette, titoli in ordine, contrasto; `script/pedigreeActs.ts`.
+- **FE**: colori del muso in token, `main` come area principale, abbinamento opaco, messaggi senza
+  gergo. **Il bundle del muso va ricostruito.** Reception: classi al posto degli stili, errori
+  parlanti nel client.
+
+Verifiche: axe-core e screenshot su 70 viste del pannello (35 pagine × desktop/telefono) più sito
+e muso: zero violazioni, zero errori JavaScript, zero violazioni CSP; turbo verde; integrazione
+582 test passati (le 12 suite che vogliono Docker in CI); e2e del pannello eseguiti qui contro un
+soul reale: i nuovi (cassetto) e quello corretto (salute) passano, i 5 rimasti rossi dipendono
+dall'ambiente locale (niente microfono finto, niente Ollama, soul avviato col token obbligatorio).

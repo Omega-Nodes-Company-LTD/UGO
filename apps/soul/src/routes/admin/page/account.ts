@@ -28,9 +28,9 @@ export const ACCOUNT_PAGES = `
     <p class="lede">Le barre qui sopra dicono <b>adesso</b>. Questo dice <b>da quanto</b>: una
        linea per creatura, una media al giorno. È la domanda che una casa con più gosini si fa
        per prima — chi sta bene e chi no, e da quando.</p>
-    <div class="row" style="align-items:center">
+    <div class="row center">
       <div id="pack-mood-vars" data-testid="pack-mood-vars"></div>
-      <div style="flex:0 1 10rem"><label for="pack-mood-days">Quanto indietro</label>
+      <div class="w-10"><label for="pack-mood-days">Quanto indietro</label>
         <select id="pack-mood-days" data-testid="pack-mood-days">
           <option value="7">una settimana</option>
           <option value="14" selected>due settimane</option>
@@ -67,7 +67,7 @@ export const ACCOUNT_PAGES = `
        &egrave; lento invece che rotto &mdash; o se il pezzo che ti serve non &egrave; fra questi
        quattro &mdash; la risposta sta in <a href="#/diagnostica">La diagnostica</a>: tutti i
        container, coi millisecondi e con cosa fare.</p>
-    <div class="row" style="margin-top:.9rem">
+    <div class="row mt-4">
       <button id="dream" class="ghost" data-testid="dream">Fallo sognare adesso</button>
     </div>
     <div id="stats-msg"></div>
@@ -106,13 +106,17 @@ export const ACCOUNT_PAGES = `
     <p class="lede">Di questo account &mdash; quello nominato qui sopra. Il fuso decide quando finisce la
        sua giornata, e quindi quando si azzera il salvadanaio.</p>
     <div class="row">
-      <input id="account-name" type="text" placeholder="Casa Mare" data-testid="account-name" />
+      <div class="f-14"><label for="account-name">Nome</label>
+        <input id="account-name" type="text" placeholder="Casa Mare" data-testid="account-name" /></div>
+      <div class="w-10"><label for="account-kind">Che cos'è</label>
       <select id="account-kind" data-testid="account-kind">
         <option value="home">famiglia</option>
         <option value="business">azienda</option>
-      </select>
-      <input id="account-tz" type="text" placeholder="Europe/Rome" data-testid="account-tz" />
-      <input id="account-budget" type="number" step="0.01" min="0" placeholder="0.50" data-testid="account-budget" />
+      </select></div>
+      <div class="w-12"><label for="account-tz">Fuso orario</label>
+        <input id="account-tz" type="text" placeholder="Europe/Rome" data-testid="account-tz" /></div>
+      <div class="w-10"><label for="account-budget">Tetto al giorno ($)</label>
+        <input id="account-budget" type="number" step="0.01" min="0" placeholder="0.50" data-testid="account-budget" /></div>
       <button id="account-save" class="ghost" data-testid="account-save">Salva</button>
     </div>
     <div id="account-msg"></div>
@@ -124,13 +128,17 @@ export const ACCOUNT_PAGES = `
        proprietario si vede <strong>una volta sola</strong>: in archivio esiste solo come impronta,
        e se si perde si riemette &mdash; non si recupera.</p>
     <div class="row">
-      <input id="new-account-slug" type="text" placeholder="casa-mare" data-testid="new-account-slug" />
-      <input id="new-account-name" type="text" placeholder="Casa Mare" data-testid="new-account-name" />
+      <div class="w-12"><label for="new-account-slug">Indirizzo breve</label>
+        <input id="new-account-slug" type="text" placeholder="casa-mare" pattern="[a-z0-9-]+" required data-testid="new-account-slug" /></div>
+      <div class="f-14"><label for="new-account-name">Nome</label>
+        <input id="new-account-name" type="text" placeholder="Casa Mare" required data-testid="new-account-name" /></div>
+      <div class="w-10"><label for="new-account-kind">Che cos'è</label>
       <select id="new-account-kind" data-testid="new-account-kind">
         <option value="famiglia">famiglia</option>
         <option value="azienda">azienda</option>
-      </select>
-      <input id="new-account-tz" type="text" placeholder="Europe/Rome" data-testid="new-account-tz" />
+      </select></div>
+      <div class="w-12"><label for="new-account-tz">Fuso orario</label>
+        <input id="new-account-tz" type="text" placeholder="Europe/Rome" data-testid="new-account-tz" /></div>
       <button id="new-house" class="ghost" data-testid="new-house">Falla nascere</button>
     </div>
     <div id="new-account-msg"></div>
@@ -172,7 +180,7 @@ export const ACCOUNT_PAGES = `
         <select id="move-room" data-testid="move-room"></select></div>
       <button id="move-go" data-testid="move-go">Spostalo</button>
     </div>
-    <p class="lede" style="margin-top:.7rem">Scegli <b>— nessuna stanza —</b> per toglierlo da
+    <p class="lede mt-3">Scegli <b>— nessuna stanza —</b> per toglierlo da
        ogni schermo. Lo spostamento è immediato: non perde né umore né ricordi, cambia solo
        dove lo vedi.</p>
   </div>
@@ -267,7 +275,7 @@ export const ACCOUNT_PAGES = `
   <div class="block">
     <h2>Chi c'è</h2>
     <div class="pack" data-testid="pack-rows" id="pack-rows"></div>
-    <p class="lede" style="margin-top:.8rem">Le tutele si cambiano quando vuoi. Spuntare
+    <p class="lede mt-3">Le tutele si cambiano quando vuoi. Spuntare
        <b>non ascoltare</b> (o <b>è minorenne</b>) su chi ha già un'impronta vocale la
        <b>cancella</b>: revocare un consenso non è smettere di usare un dato, è distruggerlo.</p>
     <div id="pack-msg"></div>
@@ -285,7 +293,7 @@ export const ACCOUNT_PAGES = `
         <option value="unknown">non so</option></select></div>
       <div><label for="arrival">Nel branco da</label><input type="date" id="arrival" data-testid="being-arrival"></div>
     </div>
-    <div class="row" style="margin-top:.7rem">
+    <div class="row mt-3">
       <label class="check"><input type="checkbox" id="minor" data-testid="being-minor"> è minorenne</label>
       <label class="check"><input type="checkbox" id="no-audio" data-testid="being-noaudio"> non ascoltare</label>
       <label class="check"><input type="checkbox" id="no-vision" data-testid="being-novision"> non guardare</label>
@@ -318,7 +326,7 @@ export const ACCOUNT_PAGES = `
       <div><label for="enroll-being">Chi parla</label><select id="enroll-being" data-testid="enroll-being"></select></div>
       <button id="rec" data-testid="rec">● Registra 10 s</button>
     </div>
-    <p class="lede" style="margin-top:.7rem">Ripeti due o tre volte in momenti diversi: il centroide
+    <p class="lede mt-3">Ripeti due o tre volte in momenti diversi: il centroide
        è una media, e migliora con la varietà.</p>
     <div id="enroll-msg"></div>
 
@@ -413,9 +421,9 @@ export const ACCOUNT_PAGES = `
        resta il muro esterno per tutti.</p>
     <p class="lede">Il salvadanaio di ognuno sta nella sua pagina <b>Il suo salvadanaio</b>.
        Guardali prima di accendere: chi è a zero smetterà di parlare finché non mangia.</p>
-    <div class="row" style="align-items:center">
+    <div class="row center">
       <button id="meta-toggle" class="ghost" data-testid="meta-toggle">—</button>
-      <span id="meta-state" data-testid="meta-state" class="lede" style="margin:0;flex:1 1 14rem"></span>
+      <span id="meta-state" data-testid="meta-state" class="lede m-0 f-14"></span>
     </div>
     <div id="meta-msg"></div>
   </div>
@@ -432,7 +440,7 @@ export const ACCOUNT_PAGES = `
   </div>
   <div class="block">
     <div class="row">
-      <div style="flex:0 1 12rem"><label for="list-name">Lista</label>
+      <div class="w-12"><label for="list-name">Lista</label>
         <input id="list-name" data-testid="list-name" placeholder="spesa"></div>
       <div><label for="list-text">Cosa</label>
         <input id="list-text" data-testid="list-text" placeholder="latte"></div>
@@ -480,7 +488,7 @@ export const ACCOUNT_PAGES = `
     <p class="lede">Serve lo slug della loro casa (te lo dicono loro: non c'è un elenco da
        sfogliare, ed è una protezione, non una mancanza).</p>
     <div class="row">
-      <div style="flex:0 1 14rem"><label for="tie-house">La loro casa</label>
+      <div class="w-14"><label for="tie-house">La loro casa</label>
         <input id="tie-house" data-testid="tie-house" placeholder="casa-dei-nonni"></div>
       <div><label for="tie-label">Come li chiamate</label>
         <input id="tie-label" data-testid="tie-label" placeholder="i nonni"></div>
@@ -495,11 +503,11 @@ export const ACCOUNT_PAGES = `
   <div class="block">
     <h2>Spedire una cartolina</h2>
     <div class="row">
-      <div style="flex:0 1 12rem"><label for="parcel-tie">A chi</label>
+      <div class="w-12"><label for="parcel-tie">A chi</label>
         <select id="parcel-tie" data-testid="parcel-tie"></select></div>
-      <div style="flex:0 1 12rem"><label for="parcel-from">Chi la spedisce</label>
+      <div class="w-12"><label for="parcel-from">Chi la spedisce</label>
         <select id="parcel-from" data-testid="parcel-from"></select></div>
-      <div style="flex:0 1 10rem"><label for="parcel-kind">Cosa</label>
+      <div class="w-10"><label for="parcel-kind">Cosa</label>
         <select id="parcel-kind" data-testid="parcel-kind">
           <option value="messaggio">un messaggio</option>
           <option value="ricordo">un ricordo</option>
@@ -509,7 +517,7 @@ export const ACCOUNT_PAGES = `
       <div><label for="parcel-text">Il testo</label>
         <input id="parcel-text" data-testid="parcel-text" placeholder="siamo stati al parco!"></div>
       <!-- ADR-109: e una foto, se l'album è acceso da tutte e due le parti -->
-      <div style="flex:0 1 16rem"><label for="parcel-photo">Con una foto</label>
+      <div class="w-16"><label for="parcel-photo">Con una foto</label>
         <select id="parcel-photo" data-testid="parcel-photo"></select></div>
       <button id="parcel-send" data-testid="parcel-send">Spedisci</button>
     </div>
@@ -521,7 +529,7 @@ export const ACCOUNT_PAGES = `
     <p class="lede">Quello che è arrivato si legge qui; un <b>ricordo</b> ricevuto si può
        «tenere», e da lì entra nella memoria del gosino a cui era indirizzato.</p>
     <div id="parcels-inbox" data-testid="parcels-inbox"></div>
-    <h2 style="margin-top:1rem">Le spedite</h2>
+    <h2 class="mt-4">Le spedite</h2>
     <p class="lede">Solo la busta: una cartolina spedita è di chi la riceve, e il testo non è
        più in mano a chi l'ha mandata.</p>
     <div id="parcels-outbox" data-testid="parcels-outbox"></div>
@@ -544,7 +552,7 @@ export const ACCOUNT_PAGES = `
     <p class="lede">Di default <b>non si tengono</b>: finché è su «non si tengono», niente
        tocca il disco. Allungare la durata non riporta indietro una foto già scaduta.</p>
     <div class="row">
-      <div style="flex:0 1 14rem"><label for="album-hours">La durata</label>
+      <div class="w-14"><label for="album-hours">La durata</label>
         <select id="album-hours" data-testid="album-hours"></select></div>
       <button id="album-save" data-testid="album-save">Salva</button>
       <button class="ghost" id="album-expire" data-testid="album-expire">Fai passare la scadenza adesso</button>
@@ -562,7 +570,7 @@ export const ACCOUNT_PAGES = `
     <h2>Cerca nelle foto</h2>
     <p class="lede">Per parole della didascalia e per giorni, come «quella del gatto sul divano».</p>
     <div class="row">
-      <div style="flex:2 1 12rem"><label for="album-q">Parole</label><input id="album-q" data-testid="album-q" placeholder="gatto divano"></div>
+      <div class="f2-12"><label for="album-q">Parole</label><input id="album-q" data-testid="album-q" placeholder="gatto divano"></div>
       <div><label for="album-from">Dal</label><input id="album-from" type="date"></div>
       <div><label for="album-to">Al</label><input id="album-to" type="date"></div>
       <button id="album-search" data-testid="album-search">Cerca</button>
@@ -580,7 +588,7 @@ export const ACCOUNT_PAGES = `
   <div class="block">
     <h2>Portarli via</h2>
     <button id="export" class="ghost" data-testid="export">Scarica tutto (JSON)</button>
-    <p class="lede" style="margin-top:.7rem">Il file contiene conversazioni, trascrizioni, ricordi
+    <p class="lede mt-3">Il file contiene conversazioni, trascrizioni, ricordi
        e diario <b>in chiaro</b>. Le impronte vocali no: un export è testo leggibile, e un'impronta
        in chiaro è ciò che la cifratura esiste per impedire.</p>
   </div>
@@ -592,7 +600,7 @@ export const ACCOUNT_PAGES = `
         <input id="forget-confirm" data-testid="forget-confirm" autocomplete="off"></div>
       <button id="forget" data-testid="forget">Dimentica</button>
     </div>
-    <p class="lede" style="margin-top:.7rem">Irreversibile. Il nome sparisce da tutta la biografia
+    <p class="lede mt-3">Irreversibile. Il nome sparisce da tutta la biografia
        — anche dalle frasi degli altri — i ricordi vengono riscritti e ricalcolati, e l'impronta
        vocale è distrutta.</p>
     <div id="forget-msg"></div>

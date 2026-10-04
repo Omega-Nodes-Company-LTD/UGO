@@ -64,7 +64,7 @@ export default function Ticket(): React.JSX.Element {
         aperto il {ticket.createdAt.slice(0, 10)} · ultimo movimento {ticket.updatedAt.slice(0, 10)}
       </p>
       <div className="card" data-testid="ticket-body">
-        <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{ticket.body}</p>
+        <p className="m-0 pre">{ticket.body}</p>
       </div>
       <div className="thread" data-testid="thread">
         {ticket.messages.map((message, index) => (

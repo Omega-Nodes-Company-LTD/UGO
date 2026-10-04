@@ -22,7 +22,7 @@ async function loadPiggyBank() {
     '<div class="bank-row"><span class="bank-big">' + usd(bank.balanceUsd) + "</span>" +
     '<span class="bank-note">in pancia · ricevuti ' + usd(bank.fedUsd) +
     " · consumati " + usd(bank.eatenUsd) + "</span></div>" +
-    '<p class="lede" style="margin:.5rem 0 0">' + state + "</p>";
+    '<p class="lede mt-2">' + state + "</p>";
 
   $("bank-meals").innerHTML = (bank.meals ?? []).length === 0
     ? '<li class="empty">Non gli ha ancora dato niente nessuno.</li>'

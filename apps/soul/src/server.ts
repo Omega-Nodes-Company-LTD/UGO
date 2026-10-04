@@ -52,6 +52,8 @@ import { RegistryClient } from "./services/registryClient.js";
 import { registerPeerRoutes } from "./routes/peers.js";
 import { registerPlazaRoutes } from "./routes/plaza.js";
 import { registerWatchRoutes } from "./routes/watches.js";
+import { registerSpeakingErrors, speakError } from "./routes/speakingErrors.js";
+import { escapeHtml, sitePage } from "./routes/site/layout.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
@@ -297,17 +299,28 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     if (error instanceof NoExemplarError) {
       return reply.code(409).type("application/problem+json").send({
         type: "about:blank",
-        title: "No gosino yet",
+        title: "Ancora nessun gosino",
         status: 409,
-        detail: "questa casa non ha ancora un gosino: adottane uno dalla vetrina",
+        detail: "Questa casa non ha ancora un gosino: adottane uno dalla vetrina.",
       });
     }
-    // il resto come il gestore di Fastify: 5xx nel log come errori, 4xx no
-    const status = (error as { statusCode?: number }).statusCode ?? 500;
-    if (status >= 500) request.log.error(error);
-    else request.log.info({ status }, "client error");
-    return reply.code(status).send(error);
+    // il resto: una frase in italiano, mai lo stack (5xx nel log come errori)
+    return speakError(error, request, reply);
   });
+  // gli errori parlano sempre: ogni risposta d'errore esce con titolo e spiegazione
+  registerSpeakingErrors(
+    app,
+    // in pubblico la pagina «non c'è» è una pagina del sito, con i suoi colori e i suoi link
+    options.public === undefined
+      ? undefined
+      : (title, text) =>
+          sitePage({
+            title,
+            description: text,
+            path: "/",
+            body: `<h1>${escapeHtml(title)}</h1><p class="lede">${escapeHtml(text)}</p><p><a class="btn" href="/">Torna all'inizio</a></p>`,
+          }),
+  );
   // health answers before anyone asks who is calling: it must not depend on
   // authentication to say the database is gone
   registerHealthRoute(app, options);

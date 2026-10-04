@@ -40,8 +40,8 @@ export const GOSINO_PAGES = `
        stesso bottone. Fino a oggi si faceva solo con una query sul database.</p>
     <div class="row">
       <button id="retire-go" class="ghost" data-testid="retire-go">&mdash;</button>
-      <span id="retire-state" data-testid="retire-state" class="lede"
-            style="margin:0;flex:1 1 14rem"></span>
+      <span id="retire-state" data-testid="retire-state" class="lede m-0 f-14"
+           ></span>
     </div>
     <div id="retire-msg"></div>
   </div>
@@ -56,10 +56,10 @@ export const GOSINO_PAGES = `
   </div>
 
   <div class="block">
-    <div class="row" style="align-items:center">
+    <div class="row center">
       <button id="init-toggle" class="ghost" data-testid="init-toggle">—</button>
       <button id="init-default" class="ghost" data-testid="init-default" hidden>Lascia decidere al server</button>
-      <span id="init-state" data-testid="init-state" class="lede" style="margin:0;flex:1 1 14rem"></span>
+      <span id="init-state" data-testid="init-state" class="lede m-0 f-14"></span>
     </div>
     <div id="volition-msg"></div>
   </div>
@@ -84,7 +84,7 @@ export const GOSINO_PAGES = `
        chiedertelo</b>, e lo dice quando ha senso — se l'iniziativa è spenta, tace.</p>
     <div id="checkin-list" data-testid="checkin-list"></div>
     <div id="checkin-msg"></div>
-    <p class="lede" style="margin-top:.9rem">Per spegnerle tutte in una volta basta dirgli
+    <p class="lede mt-4">Per spegnerle tutte in una volta basta dirgli
        «<i>non chiedermelo più</i>».</p>
   </div>
 
@@ -94,8 +94,8 @@ export const GOSINO_PAGES = `
       <p class="lede">Quello che si &egrave; ripromesso di dirti, e i promemoria che gli hai
          chiesto. Puoi aggiungerne uno tu, e annullare quelli che non servono pi&ugrave;.</p>
       <div id="desire-list" data-testid="desire-list"></div>
-      <div class="row" style="margin-top:.8rem">
-        <div style="flex:1 1 16rem"><label for="desire-new">Ricordagli di&hellip;</label>
+      <div class="row mt-3">
+        <div class="f-16"><label for="desire-new">Ricordagli di&hellip;</label>
           <input id="desire-new" data-testid="desire-new" placeholder="annaffiare le piante"></div>
         <div><label for="desire-when">Quando</label>
           <input id="desire-when" data-testid="desire-when" placeholder="domani mattina"></div>
@@ -144,7 +144,7 @@ export const GOSINO_PAGES = `
        scrivi qui lo sa da subito. Non &egrave; una manopola sul carattere: &egrave; una cosa
        che gli dici, come gliela diresti a voce.</p>
     <div class="row">
-      <div style="flex:1 1 22rem"><label for="mem-new">Cosa deve sapere</label>
+      <div class="f-22"><label for="mem-new">Cosa deve sapere</label>
         <input id="mem-new" data-testid="mem-new"
                placeholder="la caldaia si accende girando la manopola azzurra"></div>
       <div><label for="mem-new-kind">Tipo</label><select id="mem-new-kind" data-testid="mem-new-kind">
@@ -180,12 +180,12 @@ export const GOSINO_PAGES = `
        una quota di quello che ha aiutato a guadagnare, o semplicemente di dargli da mangiare
        perché gli vuoi bene. È contabilità di casa, non un conto corrente di una creatura.</p>
     <div class="row">
-      <div style="flex:0 1 12rem"><label for="feed-kind">Perché</label>
+      <div class="w-12"><label for="feed-kind">Perché</label>
         <select id="feed-kind" data-testid="feed-kind">
           <option value="affetto">affetto — glielo do e basta</option>
           <option value="lavoro">lavoro — se l'è guadagnato</option>
         </select></div>
-      <div style="flex:0 1 9rem"><label for="feed-amount">Quanto (USD)</label>
+      <div class="w-9"><label for="feed-amount">Quanto (USD)</label>
         <input id="feed-amount" data-testid="feed-amount" type="number" step="0.10" min="0" value="1.00"></div>
       <div><label for="feed-note">Nota</label>
         <input id="feed-note" data-testid="feed-note" placeholder="ticket di marzo"></div>
@@ -212,14 +212,14 @@ export const GOSINO_PAGES = `
   </div>
 
   <div class="block">
-    <div class="row" style="align-items:center">
-      <div style="flex:0 1 10rem"><label for="diary-days">Quante notti</label>
+    <div class="row center">
+      <div class="w-10"><label for="diary-days">Quante notti</label>
         <select id="diary-days" data-testid="diary-days">
           <option value="7">l'ultima settimana</option>
           <option value="30" selected>l'ultimo mese</option>
           <option value="120">tutto quello che c'è</option>
         </select></div>
-      <span class="lede" style="margin:0;flex:1 1 16rem">Le pagine le scrive il sogno, una per
+      <span class="lede m-0 f-16">Le pagine le scrive il sogno, una per
         notte. Un buco vuol dire una notte in cui il sogno non è girato.</span>
     </div>
     <div id="diary-msg"></div>
@@ -227,7 +227,7 @@ export const GOSINO_PAGES = `
 
   <div class="block">
     <div id="diary-book" data-testid="diary-book"></div>
-    <p class="lede" style="margin-top:.9rem"><b>Il diario è della casa, non della creatura.</b>
+    <p class="lede mt-4"><b>Il diario è della casa, non della creatura.</b>
        Resta anche dopo di lui — è il senso del libro della vita (ADR-075). Se vuoi portartelo
        via per intero, l'export completo è in <b>I dati</b>.</p>
   </div>
@@ -273,7 +273,7 @@ export const GOSINO_PAGES = `
        un backup del database. Il lascito — il sapere curato — viene <b>prima</b> riscritto
        con la chiave della casa, così sopravvive a lui.</p>
     <div class="row">
-      <div style="flex:0 1 14rem"><label for="bye-stories">Cosa resta</label>
+      <div class="w-14"><label for="bye-stories">Cosa resta</label>
         <select id="bye-stories" data-testid="bye-stories">
           <option value="no">solo il sapere (fatti e intuizioni)</option>
           <option value="si">anche i racconti (episodi e preferenze)</option>
@@ -281,7 +281,7 @@ export const GOSINO_PAGES = `
       <button id="bye-preview" class="ghost" data-testid="bye-preview">Guarda cosa resta</button>
     </div>
     <div id="bye-summary" data-testid="bye-summary"></div>
-    <div class="row" style="margin-top:.8rem">
+    <div class="row mt-3">
       <div><label for="bye-name">Scrivi il suo nome per confermare</label>
         <input id="bye-name" data-testid="bye-name" placeholder="il suo nome"></div>
       <button id="bye-go" data-testid="bye-go">Congedalo</button>
@@ -294,7 +294,7 @@ export const GOSINO_PAGES = `
        il <b>sapere</b> sempre, i <b>racconti</b> solo se lo scegli e solo quelli che non nominano
        nessun altro. Messaggi, trascrizioni e legami <b>non viaggiano mai</b>.</p>
     <label class="check"><input type="checkbox" id="dowry-stories"> includi i racconti</label>
-    <div class="row" style="margin-top:.6rem">
+    <div class="row mt-2">
       <button class="ghost" id="dowry-preview" data-testid="dowry-preview">Cosa partirebbe</button>
       <button id="dowry-make" data-testid="dowry-make">Prepara la dote</button>
     </div>
@@ -313,7 +313,7 @@ export const GOSINO_PAGES = `
 
   <div class="block">
     <div id="pedigree-tree" data-testid="pedigree-tree"></div>
-    <p class="lede" style="margin-top:.9rem">
+    <p class="lede mt-4">
        <b>Firmato</b> = il genitore ha attestato questa nascita, e il genoma è ancora quello
        che ha firmato. <b>Senza firma</b> non è un difetto: i capostipiti non hanno genitori,
        e le nascite di prima di questa versione non hanno firme.
@@ -340,12 +340,12 @@ export const GOSINO_PAGES = `
     <p class="lede">Chi cerca un gosino guarda gli allevamenti, i cuccioli disponibili e i loro
        pedigree — <b>prima</b> di sceglierne uno. In vetrina si vede com'è fatto e da chi
        discende: niente dell'account, nessuna persona, nessun ricordo.</p>
-    <div class="row" style="align-items:center">
-      <div style="flex:0 1 10rem"><label for="vetrina-price">Prezzo (€)</label>
+    <div class="row center">
+      <div class="w-10"><label for="vetrina-price">Prezzo (€)</label>
         <input id="vetrina-price" data-testid="vetrina-price" type="number" step="10" min="0"
                placeholder="da concordare"></div>
       <button id="vetrina-toggle" class="ghost" data-testid="vetrina-toggle">—</button>
-      <span id="vetrina-state" data-testid="vetrina-state" class="lede" style="margin:0;flex:1 1 14rem"></span>
+      <span id="vetrina-state" data-testid="vetrina-state" class="lede m-0 f-14"></span>
     </div>
     <div id="vetrina-msg"></div>
   </div>
@@ -405,7 +405,7 @@ export const GOSINO_PAGES = `
       <div><label for="new-where">In che stanza</label>
         <select id="new-where" data-testid="new-where"></select></div>
     </div>
-    <p class="lede" style="margin-top:.7rem">La stanza decide su quale schermo lo vedi:
+    <p class="lede mt-3">La stanza decide su quale schermo lo vedi:
        <code>/?stanza=&lt;nome&gt;</code>. Se non ce n'è ancora nessuna, falla in
        <b>Le stanze</b> — oppure lascia <b>— nessuna stanza —</b> e dagliela dopo.</p>
 
@@ -413,14 +413,14 @@ export const GOSINO_PAGES = `
     <p class="lede">Un archetipo è un punto di partenza. Le manopole qui sotto vincono
        sull'archetipo, e restano com'erano se non le tocchi.</p>
     <div class="row">
-      <div style="flex:0 1 20rem"><label for="new-archetype">Archetipo</label><select id="new-archetype" data-testid="new-archetype">
+      <div class="w-20"><label for="new-archetype">Archetipo</label><select id="new-archetype" data-testid="new-archetype">
         <option value="">nessuno, uno normale</option>
         <option value="curiosone">curiosone</option><option value="pigrone">pigrone</option>
         <option value="affettuoso">affettuoso</option><option value="brontolone">brontolone</option>
         <option value="timidone">timidone</option></select></div>
     </div>
     <div id="new-dials" class="dials"></div>
-    <div class="row" style="margin-top:1rem">
+    <div class="row mt-4">
       <button id="new-go" data-testid="new-go">Fallo nascere</button>
     </div>
     <div id="new-msg"></div>
@@ -443,7 +443,7 @@ export const GOSINO_PAGES = `
       <button id="litter-go" data-testid="litter-go">Guarda la cucciolata</button>
     </div>
     <div id="litter-cubs" data-testid="litter-cubs" class="litter"></div>
-    <div class="row" style="margin-top:1rem">
+    <div class="row mt-4">
       <button id="litter-adopt" data-testid="litter-adopt" disabled>Falli nascere</button>
     </div>
     <div id="litter-msg"></div>
@@ -478,7 +478,7 @@ export const DIAL_STYLES = `
   /* ADR-103: non si sceglie più un cucciolo, si battezzano tutti — quindi non
      c'è più uno «scelto» da evidenziare, e il campo del nome sta nella scheda */
   .cub .cub-name { width: 100%; margin-top: .45rem; }
-  .cub h4 { font-size: .9rem; margin: 0 0 .25rem; }
+  .cub h3 { font-size: .9rem; margin: 0 0 .25rem; }
   .cub .persona { font-size: .78rem; color: var(--ink-3); }
   .cub .coat { font-size: .78rem; color: var(--ink-2); margin-top: .3rem; }
   .cub[data-viable="false"] { opacity: .55; }
@@ -492,8 +492,10 @@ export const DIAL_STYLES = `
   .gene .shown { font-variant-numeric: tabular-nums; font-weight: 600; }
   .gene .flags { font-size: .78rem; color: var(--ink-3); }
   .gene .because { grid-column: 1 / -1; font-size: .78rem; color: var(--ink-2); }
-  .gosino-card h4, .gosino-card .persona, .gosino-card .mood { text-decoration: none; }
-  .gosino-card h4 { font-size: .95rem; margin: 0; }
+  .gosino-card h3, .gosino-card .persona, .gosino-card .mood { text-decoration: none; }
+  /* sul telefono una colonna sola: il carattere sotto il nome, non schiacciato accanto */
+  @media (max-width: 40rem) { .gosino-card { grid-template-columns: minmax(0, 1fr); } }
+  .gosino-card h3 { font-size: .95rem; margin: 0; }
   .gosino-card .persona { font-size: .78rem; color: var(--ink-3); }
   .gosino-card .mood { font-size: .82rem; color: var(--ink-2); }
 `;

@@ -81,6 +81,10 @@ export function refusalMessage(status: number): string {
     return "Quel token non basta per questa cosa. Serve quello dell'account.";
   }
   if (status === 404) return "Non l'ho trovato: forse è già stato cancellato.";
+  if (status === 429) return "Troppe richieste in poco tempo: aspetta qualche minuto e riprova.";
+  if (status === 0) return "Non riesco a raggiungere UGO: controlla la connessione e riprova.";
+  // il numero resta, tra parentesi, per chi deve chiedere aiuto: la frase viene prima
+  if (status >= 500) return `UGO ha avuto un problema dalla sua parte (${String(status)}). Riprova fra poco, o fallo dal pannello.`;
   return `Non ci sono riuscito (${String(status)}). Riprova, o fallo dal pannello.`;
 }
 

@@ -50,6 +50,28 @@ describe("the assembled panel script", () => {
   });
 
   /**
+   * Trovato guardando le pagine, non leggendo il codice: le funzioni della
+   * cessione, della vetrina e del genoma stavano dentro un foglio di stile, e
+   * la pagina «Da chi discende» si fermava su «loadGenome is not defined».
+   * Ogni funzione che il router chiama deve essere dichiarata nello script.
+   */
+  it("every function the router calls is declared in the script", () => {
+    const go = /async function openPage\([\s\S]*?\n\}/.exec(ADMIN_SCRIPT)?.[0] ?? "";
+    expect(go, "the router moved or was renamed").not.toBe("");
+    const called = new Set(
+      [...go.matchAll(/(?:section\(([a-zA-Z]+),|^\s+(?:await )?([a-z][A-Za-z]+)\(\);)/gm)].map((m) => m[1] ?? m[2] ?? ""),
+    );
+    const declared = new Set([...ADMIN_SCRIPT.matchAll(/(?:async )?function ([A-Za-z_$][\w$]*)/g)].map((m) => m[1]));
+    const missing = [...called].filter((name) => !declared.has(name) && !["section", "go", "await"].includes(name));
+    expect(missing).toEqual([]);
+  });
+
+  it("a stylesheet carries no script: what is in <style> never runs", () => {
+    const styles = /<style>([\s\S]*?)<\/style>/.exec(ADMIN_PAGE)?.[1] ?? "";
+    expect(styles).not.toMatch(/addEventListener|async function|\bfunction \w+\(/);
+  });
+
+  /**
    * NB per chi scrive qui dentro: un backtick NON escapato dentro un modulo
    * del pannello chiude il template letterale, e il resto del file diventa
    * TypeScript rotto — capitato scrivendo il nome di un campo fra backtick in
