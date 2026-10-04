@@ -1,8 +1,8 @@
 ---
 title: "UGO — Manuale"
 description: "Cos'è UGO, come parlargli e cosa ricorda: la guida per chi lo usa, non per chi lo sviluppa."
-version: "0.46.0"
-last_updated: "2026-10-03"
+version: "0.47.0"
+last_updated: "2026-10-04"
 author: "ThinkPink Studio"
 ---
 
@@ -38,6 +38,7 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 - [La voce](./02-core-features/la-voce.md) — voce sintetica e orecchie, o quelle del browser.
 - [Abbonamento e credito](./02-core-features/abbonamento-e-credito.md) — Free, Pro, Allevamento; il credito e la ricarica automatica.
 - [Adottare un gosino](./02-core-features/adottare-un-gosino.md) — dalla vetrina alla casa.
+- [Le cose che segue](./02-core-features/le-cose-che-segue.md) — dici una curiosità o un progetto, lui ti avvisa quando esce qualcosa.
 - [La piazza](./02-core-features/la-piazza.md) — incontri fra gosini di case diverse, solo su invito; e di persona.
 - [Allevare e vendere](./02-core-features/allevare-e-vendere.md) — il conto di versamento, la vetrina, le consegne.
 - [Stripe e PayPal](./03-integrations/stripe-paypal.md) — come passano i pagamenti.

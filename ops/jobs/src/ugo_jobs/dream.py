@@ -17,7 +17,7 @@ import psycopg
 
 from .anniversaries import run_anniversaries
 from .backup import backup_exists, run_backup
-from .batch import NoThinkingHead
+from .batch import BudgetExhausted, NoThinkingHead
 from .compaction import run_compaction
 from .config import ConfigError, JobsConfig
 from .contradictions import run_contradictions
@@ -33,6 +33,8 @@ from .ingest import run_ingest
 from .markers import FULL, LIGHT, mark_step_done, step_done
 from .recap import run_recap
 from .reflect import run_reflect
+from .watch_look import run_watch_look
+from .watch_note import run_watch_note
 
 # contradictions sits between reflect and hygiene on purpose (ADR-023):
 # reflect writes tonight's memories, hygiene merges near-duplicates above
@@ -45,8 +47,10 @@ STEPS = (
     "enroll",
     "reflect",
     "recap",
+    "watch_note",
     "advise",
     "review",
+    "watch_look",
     "digest",
     "anniversaries",
     "contradictions",
@@ -66,8 +70,8 @@ STEPS = (
 #:   per casa       l'audio e' del branco, il backup e' della famiglia
 #:   globale        sfoltire gli eventi vecchi non riguarda nessuno in
 #:                  particolare, ed e' manutenzione del database
-PER_EXEMPLAR = ("reflect", "recap", "contradictions", "entities", "hygiene", "cultural_drift")
-PER_HOUSEHOLD = ("ingest", "dialect", "enroll", "advise", "review", "digest", "anniversaries", "backup", "family")
+PER_EXEMPLAR = ("reflect", "recap", "watch_note", "contradictions", "entities", "hygiene", "cultural_drift")
+PER_HOUSEHOLD = ("ingest", "dialect", "enroll", "advise", "review", "watch_look", "digest", "anniversaries", "backup", "family")
 GLOBAL = ("compaction",)
 
 #: ADR-025: what a run triggered by idleness is allowed to do. No ingest (there
@@ -223,6 +227,20 @@ def _run_step(
         # ADR-060: il consiglio del mattino — feed x conoscenza clienti,
         # soglia alta, un desiderio al giorno per casa al massimo
         step_report[step] = run_advise(conn, cfg)
+    elif step in ("watch_note", "watch_look"):
+        # ADR-133: le cose che segue — capirle da come parla (per esemplare),
+        # guardarle nel mondo e proporne una (per casa). Un credito finito o
+        # un JSON storto stanotte non devono fermare il backup che viene dopo
+        try:
+            step_report[step] = (
+                run_watch_note(conn, cfg, dream_date) if step == "watch_note" else run_watch_look(conn, cfg)
+            )
+        except BudgetExhausted:
+            conn.rollback()
+            return {"skipped": "la casa ha finito il budget di oggi"}
+        except RuntimeError as error:
+            conn.rollback()
+            return {"failed": type(error).__name__}
     elif step == "digest":
         # backlog gruppo 8: «a che punto siamo» pre-calcolato per cliente —
         # la reception lo usa quando lo stato vivo di GitHub non c'è

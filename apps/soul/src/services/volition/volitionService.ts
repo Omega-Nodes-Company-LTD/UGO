@@ -154,6 +154,8 @@ export class VolitionService {
     isReminder: boolean;
     text: string | undefined;
     id: string | undefined;
+    /** ADR-133: la fonte di quello che ha da dire, se ne ha una */
+    link?: string | undefined;
   }> {
     /**
      * ADR-078: **timer e sveglie non sono affari suoi**. Vivono nella stessa
@@ -165,7 +167,7 @@ export class VolitionService {
      * finché non si dice chi legge cosa.
      */
     const rows = await this.deps.db
-      .select({ id: desires.id, text: desires.text, dueAt: desires.dueAt, dueHint: desires.dueHint })
+      .select({ id: desires.id, text: desires.text, dueAt: desires.dueAt, dueHint: desires.dueHint, link: desires.link })
       .from(desires)
       .where(
         and(
@@ -203,6 +205,7 @@ export class VolitionService {
       isReminder: false,
       text: first?.text,
       id: first?.id,
+      link: first?.link ?? undefined,
     };
   }
 
@@ -252,7 +255,7 @@ export class VolitionService {
 
   private async perform(
     act: Act,
-    desire: { text: string | undefined; id: string | undefined },
+    desire: { text: string | undefined; id: string | undefined; link?: string | undefined },
   ): Promise<boolean> {
     const { gateway, db } = this.deps;
     switch (act.kind) {
@@ -264,7 +267,7 @@ export class VolitionService {
         return true;
       case "speakDesire": {
         if (desire.text === undefined || desire.id === undefined) return false;
-        gateway.broadcastSpeak(desire.text);
+        gateway.broadcastSpeak(desire.text, desire.link);
         // voiced is fulfilled: the same desire must never come round twice
         await db.update(desires).set({ status: "done" }).where(eq(desires.id, desire.id));
         return true;

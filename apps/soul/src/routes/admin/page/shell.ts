@@ -71,6 +71,7 @@ export const ADMIN_SHELL_TOP = `<!doctype html>
       <a href="#/volti" data-nav="volti">${icon("face")}I volti</a>
       <a href="#/liste" data-nav="liste">${icon("list")}Le liste</a>
       <a href="#/documenti" data-nav="documenti">${icon("doc")}I documenti</a>
+      <a href="#/segue" data-nav="segue" data-plan="dream">${icon("eye")}Le cose che segue</a>
       <a href="#/album" data-nav="album" data-plan="album">${icon("photo")}L'album</a>
     </nav>
 

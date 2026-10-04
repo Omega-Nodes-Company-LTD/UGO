@@ -2,6 +2,7 @@ import { ACCESS_JS } from "./script/access.js";
 import { BILLING_JS } from "./script/billing.js";
 import { MARKET_JS } from "./script/market.js";
 import { PLAZA_JS } from "./script/plaza.js";
+import { WATCHES_JS } from "./script/watches.js";
 import { AI_SETTINGS_JS } from "./script/aiSettings.js";
 import { ALBUM_JS } from "./script/album.js";
 import { ARCHIVE_JS } from "./script/archive.js";
@@ -73,6 +74,7 @@ export const ADMIN_SCRIPT = [
   BILLING_JS,
   MARKET_JS,
   PLAZA_JS,
+  WATCHES_JS,
   DOWRY_JS,
   DIAGNOSTICS_JS,
   PLACE_JS,

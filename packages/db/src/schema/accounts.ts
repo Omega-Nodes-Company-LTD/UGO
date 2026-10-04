@@ -121,6 +121,12 @@ export const accounts = pgTable(
    */
   autoDeliver: boolean("auto_deliver").notNull().default(false),
   /**
+   * ADR-133: le cose che segue si cercano anche sul web. È l'unico punto in
+   * cui il tema di una curiosità esce di casa (verso i motori, senza nome):
+   * spento per le case nuove, si accende dal pannello.
+   */
+  watchWeb: boolean("watch_web").notNull().default(false),
+  /**
    * Questo commento è la prova (con la sua assenza) che ADR-113 è qui: le
    * colonne `lat`/`lon`/`place` NON stanno più su `accounts` — sono nella
    * tabella `places`. La migrazione `0056_i-luoghi-dell-account` le ha

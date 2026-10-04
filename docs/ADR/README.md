@@ -138,3 +138,4 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [130](./130-il-credito-della-casa.md) | Il credito della casa: chiavi UGO a consumo e ricarica automatica | Accettata |
 | [131](./131-il-mercato-paga-l-allevatore.md) | Il mercato paga l'allevatore: Stripe Connect | Accettata |
 | [132](./132-la-piazza.md) | La piazza: incontri senza registro di passaggi | Accettata |
+| [133](./133-le-cose-che-segue.md) | Le cose che segue: quello che hai detto, tenuto d'occhio nel mondo | Accettata |

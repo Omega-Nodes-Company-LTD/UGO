@@ -8,6 +8,7 @@ import { openFaceLocator } from "./faceLocator.js";
 import { GlyphDriver } from "./glyph.js";
 import { PortableController } from "./portable.js";
 import { PeerMeet } from "./peerMeet.js";
+import { SourceChip } from "./speechLink.js";
 import { ScreenAwake } from "./wakelock.js";
 import {
   createFace,
@@ -53,6 +54,8 @@ if (!(canvasElement instanceof HTMLCanvasElement)) throw new Error("#face is not
 const canvas = canvasElement;
 const moodLabel = requireElement("#mood-label");
 const speakText = requireElement("#speak-text");
+const speakLink = requireElement("#speak-link");
+const sourceChip = speakLink instanceof HTMLAnchorElement ? new SourceChip(speakLink) : undefined;
 const connStatus = requireElement("#conn");
 const micButton = requireElement("#btn-mic");
 const roomPick = requireElement("#room-pick") as HTMLSelectElement;
@@ -547,6 +550,8 @@ function onServerMessage(message: ServerToFaceMessage): void {
         mine: false,
       });
       showSpeech(message.text, message.who);
+      // ADR-133: la fonte si mostra, non si legge
+      if (message.link !== undefined) sourceChip?.show(message.link);
       // gruppo 12: un `murmur` è parlare nel sonno — la nuvoletta appare e il
       // registro ricorda, ma la voce NON parte e nessuno si gira a guardare:
       // un borbottio notturno che sveglia la casa è una sveglia

@@ -51,5 +51,7 @@ export const desires = pgTable("desires", {
    * because the dream's own desires have no appointment.
    */
   dueAt: timestamp("due_at", { withTimezone: true }),
+  /** ADR-133: il link di quello che dice, quando ne ha uno — si mostra, non si legge a voce */
+  link: text("link"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

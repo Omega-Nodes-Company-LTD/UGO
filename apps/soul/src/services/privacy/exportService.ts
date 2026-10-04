@@ -103,6 +103,7 @@ export interface ExportBundle {
   /** ADR-131: le segnalazioni fatte da questa casa */
   listingReports: unknown[];
   plaza: { presence: unknown[]; invites: unknown[]; blocks: unknown[] };
+  watches: { followed: unknown[]; finds: unknown[] };
   adoptions: unknown[];
   /** ADR-099: i legami fra le case — le due parti, mai il vicinato intero */
   accountTies: unknown[];
@@ -327,6 +328,7 @@ export class ExportService {
       payoutRows,
       reportRows,
       plazaRows,
+      watchRows,
       adoptions,
       accountTies,
       parcels,
@@ -395,6 +397,13 @@ export class ExportService {
         rows(sql`select id, from_name, to_name, status, turns_done, created_at, ended_at
                  from plaza_invites where from_account_id = ${accountId} or to_account_id = ${accountId} order by created_at`),
         rows(sql`select created_at from plaza_blocks where account_id = ${accountId}`),
+      ]),
+      // ADR-133: le cose che segue e cosa ha trovato, in chiaro per chi le porta via
+      Promise.all([
+        rows(sql`select id, gosino_id, kind, subject_enc, queries_enc, source, status, until, created_at, closed_at
+                 from watches where account_id = ${accountId} order by created_at`),
+        rows(sql`select watch_id, title_enc, link_enc, line_enc, verdict, created_at
+                 from watch_finds where account_id = ${accountId} order by created_at`),
       ]),
       rows(sql`select id, gosino_id, kennel_account_id, buyer_account_id, status,
                       price_cents, currency, chain_seq, reserved_at, paid_at, delivered_at,
@@ -495,6 +504,10 @@ export class ExportService {
       payoutAccount: payoutRows,
       listingReports: reportRows,
       plaza: { presence: plazaRows[0], invites: plazaRows[1], blocks: plazaRows[2] },
+      watches: {
+        followed: this.decryptColumn(watchRows[0], ["subject_enc", "queries_enc"]),
+        finds: this.decryptColumn(watchRows[1], ["title_enc", "link_enc", "line_enc"]),
+      },
       adoptions,
       accountTies,
       parcels: this.openParcels(parcels, accountId, houseKeyRow),

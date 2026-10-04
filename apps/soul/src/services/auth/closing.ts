@@ -5,6 +5,7 @@ import {
   creditSettings,
   pairingCodes,
   plazaPresence,
+  watches,
   providerCredentials,
   sessions,
   withAccount,
@@ -52,6 +53,8 @@ export async function closeAccount(db: DbClient, masterKey: Buffer, accountId: s
     await tx.delete(creditSettings).where(eq(creditSettings.accountId, accountId));
     // ADR-132: una casa chiusa non resta in piazza
     await tx.delete(plazaPresence).where(eq(plazaPresence.accountId, accountId));
+    // ADR-133: quello che aveva in testa non sopravvive alla casa (i trovati vanno in cascata)
+    await tx.delete(watches).where(eq(watches.accountId, accountId));
     return true;
   });
 }

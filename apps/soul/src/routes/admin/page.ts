@@ -6,6 +6,7 @@ import { ACCESS_PAGES, ACCESS_STYLES } from "./page/access.js";
 import { BILLING_PAGES, BILLING_STYLES } from "./page/billing.js";
 import { MARKET_PAGES } from "./page/market.js";
 import { PLAZA_PAGES } from "./page/plaza.js";
+import { WATCH_PAGES } from "./page/watches.js";
 import { ACCOUNT_PAGES } from "./page/account.js";
 import { SETTINGS_PAGES } from "./page/settings.js";
 import { DIAGNOSTICS_PAGE, DIAGNOSTICS_STYLES } from "./page/diagnostics.js";
@@ -49,6 +50,7 @@ export const ADMIN_PAGE = [
   BILLING_PAGES,
   MARKET_PAGES,
   PLAZA_PAGES,
+  WATCH_PAGES,
   DIAGNOSTICS_PAGE,
   JOURNAL_PAGES,
   CUSTOMER_PAGES,

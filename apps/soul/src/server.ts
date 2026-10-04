@@ -51,6 +51,7 @@ import { PeerService } from "./services/peerService.js";
 import { RegistryClient } from "./services/registryClient.js";
 import { registerPeerRoutes } from "./routes/peers.js";
 import { registerPlazaRoutes } from "./routes/plaza.js";
+import { registerWatchRoutes } from "./routes/watches.js";
 import type { CouncilService } from "./services/council/councilService.js";
 import type { GosinoRegistry } from "./services/pack/runtimes.js";
 import { registerHealthRoute, type HealthDeps } from "./routes/health.js";
@@ -690,6 +691,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         const moodOf = (accountId: string, gosinoId: string): string =>
           registry?.resolve(gosinoId, accountId)?.psyche.current().label.slice(0, 30) ?? "curioso";
         registerPeerRoutes(app, { db: options.db, guard, dataKey: kek, moodOf });
+        // ADR-133: le cose che segue — si vedono, si aggiungono, si dimenticano
+        registerWatchRoutes(app, { db: options.db, guard, dataKey: kek });
         const resolver = options.ai?.resolver;
         if (resolver !== undefined) {
           registerPlazaRoutes(app, {

@@ -132,6 +132,21 @@ describe("initiative", () => {
     expect(rows.every((row) => row.status === "done")).toBe(true);
   });
 
+  it("ADR-133: la fonte arriva al muso a parte, e non dentro le parole", async () => {
+    const link = "https://www.viaggiaresicuri.it/find-country/country/UGA";
+    await db.insert(desires).values({
+      gosinoId: PRIME_GOSINO_ID,
+      text: "Ricordo che volevi andare in Uganda: la Farnesina sconsiglia i viaggi.",
+      status: "pending",
+      link,
+    });
+    const { volition, heard } = await buildVolition({});
+    await volition.tick();
+    const spoken = heard.filter((m) => m.type === "speak");
+    expect(spoken[0]).toMatchObject({ link });
+    expect(spoken[0]?.type === "speak" && spoken[0].text.includes("http")).toBe(false);
+  });
+
   it("writes down what it did and why, so an initiative can be explained after", async () => {
     await db.insert(desires).values({ gosinoId: PRIME_GOSINO_ID, text: "Chi era la persona di ieri?", status: "pending" });
     const { volition } = await buildVolition({});

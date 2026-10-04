@@ -127,9 +127,10 @@ export class FaceGateway {
    * ADR-013 (opzione b): meeting answers are voiced by the home body — every
    * connected face speaks the text through its on-device TTS.
    */
-  public broadcastSpeak(text: string): void {
+  /** `link` (ADR-133): la fonte, mostrata e non detta. */
+  public broadcastSpeak(text: string, link?: string): void {
     for (const send of this.senders) {
-      send({ type: "speak", text });
+      send({ type: "speak", text, ...(link !== undefined && { link }) });
     }
   }
 

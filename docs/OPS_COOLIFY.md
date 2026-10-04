@@ -371,6 +371,8 @@ Nessuna chiave, nessun account, nessun costo. L'immagine è pubblica e non si co
 6. Su **soul**, aggiungi: `SEARXNG_URL=http://<HOST_SEARXNG>:8080`. **Senza questa riga il
    container gira e non lo usa nessuno**: `WebWindow` nasce solo se la variabile c'è (è la
    stessa forma della percezione, ed è lo stesso modo di restare spenti senza accorgersene).
+   **La stessa riga va anche sui job** (ADR-133): è da lì che, di notte, si cercano le cose che
+   UGO segue per te. Senza, guardano solo i feed.
 7. Prova che sia viva, dalla shell di soul:
    ```bash
    curl -s "http://<HOST_SEARXNG>:8080/search?q=ugo&format=json" | head -c 200

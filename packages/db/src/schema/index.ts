@@ -74,5 +74,6 @@ export { creditLedger } from "./credit.js";
 export { billingEvents, creditSettings, subscriptions } from "./billing.js";
 export { breederPayoutAccounts, listingReports } from "./market.js";
 export { plazaBlocks, plazaInvites, plazaPresence } from "./plaza.js";
+export { FIND_VERDICTS, WATCH_KINDS, WATCH_SOURCES, WATCH_STATUSES, watchFinds, watches } from "./watches.js";
 export { accountLogins, loginLinks, sessions, pairingCodes, rateLimits } from "./auth.js";
 export { PRIME_GOSINO_ID } from "./self.js";

@@ -77,6 +77,9 @@ class JobsConfig:
     # (MFCC) produce profili che il riconoscitore vivo non può confrontare.
     recognition_url: str = ""
     internal_token: str = ""
+    # ADR-133: la finestra sul mondo (ADR-063) anche per il sogno, con lo stesso
+    # nome che usa soul; vuoto = le cose seguite guardano solo i feed
+    searxng_url: str = ""
 
     @staticmethod
     def from_env() -> "JobsConfig":
@@ -119,4 +122,5 @@ class JobsConfig:
             # gli stessi nomi che usa soul: un servizio, una coppia di variabili
             recognition_url=os.environ.get("UGO_RECOGNITION_URL", ""),
             internal_token=os.environ.get("UGO_INTERNAL_TOKEN", ""),
+            searxng_url=os.environ.get("SEARXNG_URL", ""),
         )

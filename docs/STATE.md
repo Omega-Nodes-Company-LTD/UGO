@@ -2975,3 +2975,43 @@ verdi; build del muso.
    commercialista prima di vendere.
 
 Verifiche finali: turbo 49/49; integrazione su Postgres (piazza, incasso, mercato, accesso pubblico, chiavi, RLS delle rotte, privacy) verde, le suite che vogliono Docker in CI; pytest 107 passati (37 vogliono Docker); drizzle senza deriva; `pnpm audit` senza HIGH/CRITICAL (13 moderate); link della documentazione verificati.
+
+## 6-decies-nonagies. Le cose che segue (ADR-133)
+
+Il 2026-10-04 il proprietario ha chiesto: «se gli dico una curiosità, tra un mese esce un articolo,
+lui se lo ricorda e me lo propone con link e riassunto?». Non lo faceva nessun pezzo. L'ha poi
+allargata ai progetti e alle preoccupazioni: «voglio andare in Uganda… lui mi dice: ricordo che
+volevi andare in Uganda, ma la Farnesina lo sconsiglia». Scelte sue: capirlo da come parla, sì
+alla ricerca sul web.
+
+- **Schema** (0071, 0072): `watches` (soggetto e ricerche cifrati, vettore, tipo, durata),
+  `watch_finds` (titolo, link e frase cifrati, URL riconosciuto da HMAC, proposto o scartato),
+  `accounts.watch_web` (spento per le case nuove, acceso per quelle esistenti), `desires.link`.
+  RLS per account.
+- **Sogno**: `watch_note` per esemplare (le frasi `user` dei canali di casa, mai minori né
+  piazza, alla testa `think`: nuove cose da seguire e quelle chiuse) e `watch_look` per casa (feed
+  delle ultime 48 ore e, se acceso, SearXNG una volta a settimana per cosa; somiglianza coi
+  vettori; lettura sicura dell'articolo; giudizio della testa; un desiderio al giorno col link).
+  Un credito finito o un JSON storto saltano il passo senza fermare il resto della notte.
+- **Soul**: `/v1/tieni-d-occhio` (elenco, aggiunta a mano col gosino scelto, dimentica,
+  interruttore del web), cancello del piano `dream`, export, chiusura dell'account.
+  `speak.link` nel contratto condiviso; la volontà lo passa al muso.
+
+### Il giro completo (regola 12)
+- **BO**: quanto sopra; `ops/jobs`: `watch_note.py`, `watch_look.py`, `watch_sources.py`,
+  `safe_fetch.py` (solo http/https e indirizzi pubblici, 1 MB, 10 s, redirect controllati),
+  `SEARXNG_URL` nella config dei job; `ops/jobs/tests/test_watches.py`.
+- **`/admin`**: pagina «Le cose che segue» (sotto «La casa», cartellino Pro): l'interruttore del
+  web con la sua spiegazione, cosa segue, aggiungine una (chiede quale gosino), cosa ha trovato
+  con i link.
+- **FE**: il muso mostra **Leggi su …** sopra la nuvoletta per dieci minuti quando quello che dice
+  ha una fonte; l'URL non si legge a voce. **Il bundle del muso va ricostruito.** Contratto
+  condiviso aggiornato in `faceContracts.ts`; il test della volontà prova la giunzione.
+
+Verifiche: pytest `test_watches` 6/6 (estrazione solo dal proprietario e cifrata, chiusura, web
+con articolo letto per intero e desiderio col link, tetto giornaliero, web spento = nessuna query,
+scartato non rigiudicato, rete privata chiusa), suite Python 113 passati (37 vogliono Docker);
+`watches` 9/9 su Postgres (piano, gosino altrui, cifratura, trovati, interruttore, export, RLS
+sotto `ugo_app`, oblio con cascata, chiusura); `volition` 13/13; unit del muso.
+
+**Rilascio**: migrazioni 0071–0072; `SEARXNG_URL` anche sui job; bundle del muso da ricostruire.

@@ -130,6 +130,8 @@ services:
       # ADR-129 — il sogno pensa chiedendo a soul (ruolo «think» della casa),
       # col token operatore qui sotto. Nessuna chiave di provider nei job.
       UGO_SOUL_URL: ${UGO_SOUL_URL:-http://soul:3000}
+      # ADR-133: le cose che segue si cercano anche sul web (se la casa lo accende)
+      SEARXNG_URL: ${SEARXNG_URL:-}
       # ADR-125: in pubblico sogna solo chi ha il sogno nel piano
       UGO_PUBLIC: ${UGO_PUBLIC:-off}
       # il fix della voce dimenticata (2026-08-16): l'arruolamento vocale va

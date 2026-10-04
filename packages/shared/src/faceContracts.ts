@@ -234,6 +234,12 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
     text: z.string(),
     who: z.string().optional(),
     murmur: z.boolean().optional(),
+    /**
+     * ADR-133: la fonte di quello che dice, quando ne ha una («ricordo che
+     * volevi andare in Uganda…»). Si MOSTRA nella nuvoletta, cliccabile; non
+     * si legge a voce — un URL detto da un porcetto non è un'informazione.
+     */
+    link: z.string().max(2000).regex(/^https?:\/\//u).optional(),
   }),
   z.object({ type: z.literal("state"), state: z.enum(FACE_STATES), who: z.string().optional() }),
   z.object({ type: z.literal("glyph"), pattern: z.enum(GLYPH_PATTERNS), who: z.string().optional() }),

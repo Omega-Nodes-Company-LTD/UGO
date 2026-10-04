@@ -47,6 +47,8 @@ export const PLAN_GATES: readonly Gate[] = [
   { method: "POST", url: "/v1/piazza/presenza", need: "plaza" },
   { method: "POST", url: "/v1/piazza/inviti", need: "plaza" },
   { method: "POST", url: "/v1/piazza/inviti/:id/:azione", need: "plaza", when: (_b, p) => field(p, "azione") === "accetta" },
+  // ADR-133: le cose che segue le guarda il sogno, quindi stanno col sogno
+  { method: "POST", url: "/v1/tieni-d-occhio", need: "dream" },
 ];
 
 const QUOTAS: readonly string[] = ["gosini", "rooms"] satisfies Quota[];
