@@ -7,7 +7,7 @@ import type { PreHandler } from "./guard.js";
 import { accountScope } from "./scope.js";
 
 /**
- * L'album (ADR-109). Tutte le rotte sono della casa: guard + scope.
+ * L'album (ADR-122). Tutte le rotte sono della casa: guard + scope.
  *
  * L'avvertenza sulla durata non è un dettaglio dell'interfaccia: è la cosa
  * che il proprietario ha chiesto per primo — o non si tengono, o si tengono
@@ -105,7 +105,7 @@ export function registerAlbumRoutes(app: FastifyInstance, deps: AlbumRoutesDeps)
   });
 
   /**
-   * La scadenza applicata (ADR-109 §5).
+   * La scadenza applicata (ADR-122 §5).
    *
    * Sta su una rotta per la ragione di `POST /v1/prints/expire`: i job di
    * questa casa girano così, e girarla a mano è anche il modo in cui si

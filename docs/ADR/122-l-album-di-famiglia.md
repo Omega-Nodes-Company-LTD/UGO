@@ -1,8 +1,15 @@
-# ADR-109 — L'album di famiglia: i pixel si conservano, ma solo per il tempo che scegli tu
+# ADR-122 — L'album di famiglia: i pixel si conservano, ma solo per il tempo che scegli tu
 
 **Stato: ACCETTATA** (decisione del proprietario, 2026-08-19). **Riapre il vincolo 1 di ADR-016**
 («nessun media raw persistito») in forma stretta. Si appoggia ad ADR-019 (KEK/DEK), ADR-093 (prima
 il bucket, poi le righe), ADR-049 (audit), e ADR-099 per la cartolina.
+
+> **Nota sul numero.** Nasce come ADR-109 il 19 agosto 2026 e diventa **ADR-122** il
+> 20 ottobre: il merge di #103 lo portò su main senza accorgersi che un altro ramo aveva già
+> preso il 109, e — non essendo entrato nell'indice — chi è venuto dopo ha continuato a
+> contare da lì. Il numero vecchio appartiene a «Un gene nuovo non deve azzerare i pedigree». Vale la regola
+> del repo: chi è arrivato primo tiene il numero. Da adesso c'è una guardia che non lascia
+> ripetere né il doppione né l'assenza dall'indice (`apps/soul/src/adrNumbers.test.ts`).
 
 ## Contesto
 

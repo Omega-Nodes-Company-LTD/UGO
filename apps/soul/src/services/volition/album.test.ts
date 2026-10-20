@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseShot, parseShow, SHOW_DEFAULT, windowFor } from "./album.js";
 
 /**
- * ADR-109: i due gesti dell'album. Una foto scattata per sbaglio è una foto
+ * ADR-122: i due gesti dell'album. Una foto scattata per sbaglio è una foto
  * che qualcuno non voleva, quindi qui si prova soprattutto cosa NON è il gesto.
  */
 

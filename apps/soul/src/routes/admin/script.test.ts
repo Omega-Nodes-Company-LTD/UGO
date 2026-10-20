@@ -124,7 +124,7 @@ describe("the assembled panel script", () => {
   });
 
   /**
-   * ADR-109: gli scalini della durata esistono in due posti che devono
+   * ADR-122: gli scalini della durata esistono in due posti che devono
    * restare veri insieme — il `check` nel database e `PHOTO_RETENTION_STEPS`.
    * Un terzo elenco scritto a mano nel pannello sarebbe quello che diverge
    * per primo, e diverge in silenzio: la tendina offrirebbe una durata che
@@ -143,7 +143,7 @@ describe("the assembled panel script", () => {
   });
 
   /**
-   * ADR-109 §1: dal pannello si guarda e si butta, **non si scatta**. Uno
+   * ADR-122 §1: dal pannello si guarda e si butta, **non si scatta**. Uno
    * scatto lo chiede una persona al corpo; un bottone «scatta» qui sarebbe
    * la casa che fotografa una stanza in cui nessuno ha chiesto niente.
    */

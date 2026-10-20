@@ -1,4 +1,4 @@
-# ADR-109 — Le orecchie di casa sono la base, non un'opzione
+# ADR-117 — Le orecchie di casa sono la base, non un'opzione
 
 **Stato: ACCETTATA** (2026-08-20). Direttiva del proprietario, e correzione di un default che
 contraddiceva la prima riga della specifica.

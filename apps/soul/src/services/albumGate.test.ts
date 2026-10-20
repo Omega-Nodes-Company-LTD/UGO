@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * ADR-109 §1: «si scatta solo su gesto».
+ * ADR-122 §1: «si scatta solo su gesto».
  *
  * Una foto conservata è la cosa più delicata che questo sistema tocchi, e la
  * promessa che nessuno la scatti da solo vive in un documento — che non ferma

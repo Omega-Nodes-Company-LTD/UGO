@@ -47,7 +47,7 @@ export function parsePostcard(text: string): PostcardCommand | undefined {
 }
 
 /**
- * ADR-109 × ADR-099: la cartolina con la foto, chiesta a voce.
+ * ADR-122 × ADR-099: la cartolina con la foto, chiesta a voce.
  *
  * Era la seconda delle tre domande da cui è nato tutto il cantiere —
  * «scattaci una foto e mandala al gosino di nonno Sandro» — e vale la pena

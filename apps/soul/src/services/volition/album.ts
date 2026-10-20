@@ -1,5 +1,5 @@
 /**
- * I gesti dell'album (ADR-109) — PURI, come tutta la famiglia: «scatta una
+ * I gesti dell'album (ADR-122) — PURI, come tutta la famiglia: «scatta una
  * foto» è un atto, «fammi vedere quelli del parco» è una domanda alla casa,
  * e nessuno dei due deve costare un token.
  *

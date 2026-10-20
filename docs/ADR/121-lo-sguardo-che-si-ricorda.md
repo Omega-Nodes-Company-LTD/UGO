@@ -1,7 +1,14 @@
-# ADR-108 — Lo sguardo che si ricorda: un frame, due occhi, una riga
+# ADR-121 — Lo sguardo che si ricorda: un frame, due occhi, una riga
 
 **Stato: ACCETTATA** (decisione del proprietario, 2026-08-19). Estende ADR-065 e si appoggia ad
 ADR-022/091 per come un ricordo si scrive.
+
+> **Nota sul numero.** Nasce come ADR-108 il 19 agosto 2026 e diventa **ADR-121** il
+> 20 ottobre: il merge di #103 lo portò su main senza accorgersi che un altro ramo aveva già
+> preso il 108, e — non essendo entrato nell'indice — chi è venuto dopo ha continuato a
+> contare da lì. Il numero vecchio appartiene a «Riferire non è rispondere». Vale la regola
+> del repo: chi è arrivato primo tiene il numero. Da adesso c'è una guardia che non lascia
+> ripetere né il doppione né l'assenza dall'indice (`apps/soul/src/adrNumbers.test.ts`).
 
 ## Contesto
 
@@ -60,7 +67,7 @@ lessicale, come il sapere della dote (ADR-074).
 rilegge come una cosa che qualcuno ha detto.
 
 **I pixel non si conservano**, e questo ADR non li conserva: finiscono come sempre, consumati alla
-lettura. Conservarli è un'altra decisione, con un'altra durata e un'altra pagina — ADR-109.
+lettura. Conservarli è un'altra decisione, con un'altra durata e un'altra pagina — ADR-122.
 
 ### 4. Quattro esiti, quattro risposte
 
@@ -76,5 +83,5 @@ non c'era niente da ricordare» è esattamente ciò che dice a una persona cosa 
 - Verificato sul giro vero: la riga si scrive in chiaro, si ripesca con
   `plainto_tsquery('italian', 'computer rosso')`, non lascia una riga sul `budget_ledger`, e a
   camera spenta non nasce nessun ricordo vuoto.
-- **Nessuna GPU richiesta**: moondream su CPU descrive e tesseract legge. Con il nodo GPU (ADR-110)
+- **Nessuna GPU richiesta**: moondream su CPU descrive e tesseract legge. Con il nodo GPU (ADR-123)
   la descrizione diventa più precisa, e quel giorno questo file non cambia.

@@ -1,5 +1,5 @@
 /**
- * Il visore dell'album (ADR-109): le foto che la casa ha chiesto di rivedere,
+ * Il visore dell'album (ADR-122): le foto che la casa ha chiesto di rivedere,
  * sullo schermo del chiosco.
  *
  * Diviso in due apposta. `photoStripPlan` **decide** — cosa si vede, con che

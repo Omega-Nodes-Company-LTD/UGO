@@ -119,13 +119,13 @@ export interface ChatServiceDeps {
    */
   reader?: { read: () => Promise<ReadOutcome> };
   /**
-   * ADR-108: «ricordati questo» — lo sguardo che diventa un ricordo. Fratello
+   * ADR-121: «ricordati questo» — lo sguardo che diventa un ricordo. Fratello
    * di `reader` e cablato accanto a lui: stesso frame `fine`, ma guardato da
    * due occhi e scritto in memoria. Assente = il gesto non esiste.
    */
   keepsake?: { keep: (at?: Date) => Promise<KeepsakeOutcome> };
   /**
-   * ADR-109: «scatta una foto» e «fammi vedere quelli del parco». Assente =
+   * ADR-122: «scatta una foto» e «fammi vedere quelli del parco». Assente =
    * i due gesti non esistono, e le frasi vanno al modello come qualunque
    * altra — che è ciò che succede a una casa senza album.
    */
@@ -640,7 +640,7 @@ export class ChatService {
   }
 
   /**
-   * ADR-109 × ADR-099: «scattaci una foto e mandala ai nonni».
+   * ADR-122 × ADR-099: «scattaci una foto e mandala ai nonni».
    *
    * Un gesto solo, e quindi un ordine solo: **prima la parentela, poi lo
    * scatto**. Se la porta con quella casa non c'è, al corpo non si chiede
@@ -841,7 +841,7 @@ export class ChatService {
      * proposta non ancora accettata ≠ partita.
      */
     if (this.deps.postcards !== undefined) {
-      // ADR-109: la cartolina CON la foto va guardata per prima — «manda una
+      // ADR-122: la cartolina CON la foto va guardata per prima — «manda una
       // foto ai nonni: …» ha la stessa forma di «manda ai nonni: …», e chi
       // arriva secondo si prenderebbe anche quella
       const withPhoto = parsePhotoPostcard(request.text);
@@ -874,7 +874,7 @@ export class ChatService {
     }
 
     /**
-     * ADR-108: «ricordati questo». Accanto a «leggi» perché è lo stesso
+     * ADR-121: «ricordati questo». Accanto a «leggi» perché è lo stesso
      * sguardo, e DOPO i promemoria perché «ricordami di comprare il latte»
      * porta un compito e appartiene ad ADR-028: chi ha un compito dentro
      * vince, chi ha solo un «questo» arriva qui.
@@ -885,7 +885,7 @@ export class ChatService {
     }
 
     /**
-     * ADR-109: l'album. Lo scatto e la rivista, sullo stesso binario di tutti
+     * ADR-122: l'album. Lo scatto e la rivista, sullo stesso binario di tutti
      * i gesti — risposta prima del provider, zero token, e in biografia come
      * ogni scambio. I cancelli (durata scelta, `no_vision`) stanno dentro il
      * fotografo, PRIMA che al corpo venga chiesto qualcosa.

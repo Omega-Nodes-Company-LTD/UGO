@@ -4,7 +4,7 @@ import { KEEP_REFUSALS } from "./albumService.js";
 import { windowFor, type ShowCommand } from "./volition/album.js";
 
 /**
- * Il fotografo (ADR-109): il pezzo che sta fra il gesto di una persona, il
+ * Il fotografo (ADR-122): il pezzo che sta fra il gesto di una persona, il
  * corpo che ha la camera, e l'album che conserva.
  *
  * Esiste per una ragione sola ma buona: `AlbumService` sa di archivio e non

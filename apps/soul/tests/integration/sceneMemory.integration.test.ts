@@ -11,7 +11,7 @@ import { PsycheService } from "../../src/services/psycheService.js";
 import { SceneMemory } from "../../src/services/sceneMemory.js";
 
 /**
- * ADR-108 sul giro vero: «ricordati questo» deve diventare una RIGA, in
+ * ADR-121 sul giro vero: «ricordati questo» deve diventare una RIGA, in
  * chiaro (ADR-091, o il braccio lessicale non la trova mai) e senza sfiorare
  * il provider. E i pixel non devono finire da nessuna parte.
  */

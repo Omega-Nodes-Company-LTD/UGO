@@ -224,7 +224,15 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      # `packages: ''` e non il default: l'action installerebbe il pacchetto
+      # SDK `tools`, deprecato da anni e non più presente nel repository SDK —
+      # `sdkmanager` esce 1 con «Failed to find package 'tools'» e il job muore
+      # in venti secondi, prima di leggere un file. Platform-tools e
+      # build-tools sono già nell'immagine del runner, che è tutto ciò che
+      # serve per un APK di debug.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: ""
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

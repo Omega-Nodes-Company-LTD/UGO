@@ -67,7 +67,7 @@ describe("GET /health", () => {
   });
 
   /**
-   * ADR-110: il nodo GPU è una seconda macchina, e `/health` deve saper dire
+   * ADR-123: il nodo GPU è una seconda macchina, e `/health` deve saper dire
    * quale delle due è caduta. «Spenta» resta uno stato legittimo — con una
    * casa sola non c'è nessun nodo GPU, ed è il caso normale.
    */

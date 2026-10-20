@@ -39,7 +39,7 @@ async function loadTies() {
     GOSINI.map((g) => '<option value="' + escape(g.id) + '">' + escape(g.name) + "</option>").join("");
 
   /**
-   * ADR-109: le foto che si possono allegare sono quelle dell'album di QUESTA
+   * ADR-122: le foto che si possono allegare sono quelle dell'album di QUESTA
    * casa. Se l'album è spento non c'è niente da scegliere, e la tendina lo
    * dice invece di restare vuota — una tendina vuota sembra un guasto.
    */

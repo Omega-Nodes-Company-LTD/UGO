@@ -39,7 +39,7 @@ const sendSchema = z.object({
   toGosinoId: z.uuid().optional(),
   kind: z.enum(["messaggio", "ricordo"]),
   text: z.string().min(1).max(2000),
-  /** ADR-109: una foto dell'album di casa mia, se la cartolina ne porta una */
+  /** ADR-122: una foto dell'album di casa mia, se la cartolina ne porta una */
   photoId: z.uuid().optional(),
 });
 
@@ -69,7 +69,7 @@ const PARCEL_REFUSALS: Readonly<Record<ParcelRefusal, { status: number; detail: 
   "non-un-ricordo": { status: 400, detail: "si tiene solo un ricordo: un messaggio si legge" },
   "gia-tenuta": { status: 409, detail: "è già stata tenuta" },
   illeggibile: { status: 422, detail: "non si apre con la chiave di questa casa" },
-  // ADR-109 × ADR-099: i tre modi in cui una foto non parte. Tutti e tre
+  // ADR-122 × ADR-099: i tre modi in cui una foto non parte. Tutti e tre
   // fermano l'INTERA cartolina: spedirne una a metà — il testo sì, la foto
   // no — è la sorpresa che chi riceve non ha modo di notare
   "foto-non-tua": { status: 404, detail: "quella foto non è nell'album di questa casa" },
@@ -89,7 +89,7 @@ export interface TieRoutesDeps {
   guard: PreHandler;
   /** la KEK di processo: avvolge le DEK delle case (ADR-019) */
   dataKey: Buffer;
-  /** ADR-109: l'album, se c'è — senza, le cartoline restano di sole parole */
+  /** ADR-122: l'album, se c'è — senza, le cartoline restano di sole parole */
   album?: AlbumService | undefined;
   audit?: AuditLogger;
 }

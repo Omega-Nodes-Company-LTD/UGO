@@ -19,7 +19,7 @@ import { createAccountWithFounder } from "../../src/services/accountService.js";
 import { Photographer } from "../../src/services/photographer.js";
 
 /**
- * ADR-109, i due cancelli e il muro — la parte che non ha bisogno di un
+ * ADR-122, i due cancelli e il muro — la parte che non ha bisogno di un
  * bucket, perché **rifiuta prima di arrivarci**.
  *
  * È il file che prova la regola 9: `no_vision` si applica a monte, e la
@@ -151,7 +151,7 @@ describe("il secondo cancello: «non guardarmi» spegne l'album (regola 9)", () 
 });
 
 /**
- * ADR-109 §3, la seconda metà: ritirare un consenso distrugge anche ciò che
+ * ADR-122 §3, la seconda metà: ritirare un consenso distrugge anche ciò che
  * quel consenso aveva costruito.
  *
  * `noVision` mancava da `BeingsService.update()`: accendere «non guardarmi»

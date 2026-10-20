@@ -135,7 +135,7 @@ async function openPage(page) {
     // ADR-084: le pratiche, dai due lati
     await section(loadAdoptions, "adozioni-msg");
   } else if (page === "album") {
-    // ADR-109: la durata e gli scatti che restano
+    // ADR-122: la durata e gli scatti che restano
     await section(loadAlbum, "album-msg");
   } else if (page === "parentele") {
     // ADR-099: i legami fra le case, e la cassetta della posta

@@ -95,7 +95,7 @@ export interface ExportBundle {
    */
   parcels: unknown[];
   /**
-   * ADR-109: l'album. Escono la didascalia, chi ha scattato e le due date —
+   * ADR-122: l'album. Escono la didascalia, chi ha scattato e le due date —
    * **non i pixel**: stanno cifrati nel bucket, e un bundle JSON con dentro
    * le foto di casa in base64 sarebbe un file che nessuno può mandare per
    * email in sicurezza. È la scelta già fatta per `customer_documents`, che

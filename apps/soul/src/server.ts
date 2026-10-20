@@ -122,7 +122,7 @@ export interface ServerOptions extends HealthDeps {
     face?: FaceGateway;
     audio?: AudioStorageConfig;
     /**
-     * ADR-109: il bucket delle foto — un secchio diverso da quello dell'audio,
+     * ADR-122: il bucket delle foto — un secchio diverso da quello dell'audio,
      * perché una foto e una registrazione hanno durate e diritti diversi.
      * Assente = l'album non ha dove tenerle, e le rotte lo dicono invece di
      * far credere che una foto si stia conservando.
@@ -567,7 +567,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
           ...(registry !== undefined && { registry }),
           ...(gosini.chain !== undefined && { chain: new RegistryClient(gosini.chain) }),
         });
-        // ADR-109: l'album. Serve la KEK (i pixel sono cifrati con la DEK
+        // ADR-122: l'album. Serve la KEK (i pixel sono cifrati con la DEK
         // della casa) e il bucket; senza bucket le rotte esistono e lo dicono,
         // invece di far credere che una foto si stia conservando
         const album = new AlbumService({
@@ -577,7 +577,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
         });
         // ADR-099: le parentele fra le case e le cartoline — serve la KEK,
         // perché il testo viaggia ri-cifrato con la DEK della destinataria.
-        // E l'album, perché una cartolina può portare una foto (ADR-109)
+        // E l'album, perché una cartolina può portare una foto (ADR-122)
         registerTieRoutes(app, {
           db: options.db,
           guard,

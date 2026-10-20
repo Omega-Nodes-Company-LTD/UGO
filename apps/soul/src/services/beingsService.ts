@@ -90,7 +90,7 @@ export class BeingsService {
      * centroide del volto in tabella, e `destroyRecognition(beingId, "face")`
      * esisteva già senza che nessuno la chiamasse. Passava inosservato finché
      * il flag serviva soltanto a impedire *nuovi* arruolamenti; con l'album
-     * (ADR-109) «non guardarmi» diventa una frase che spegne una funzione
+     * (ADR-122) «non guardarmi» diventa una frase che spegne una funzione
      * intera, e lasciare l'impronta di prima sarebbe l'esatto contrario.
      */
     let biometricsDestroyed = 0;

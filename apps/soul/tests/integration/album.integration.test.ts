@@ -12,7 +12,7 @@ import { ParcelService } from "../../src/services/parcelService.js";
 import { Photographer } from "../../src/services/photographer.js";
 
 /**
- * L'album di famiglia (ADR-109), il giro intero su Postgres **e MinIO veri**.
+ * L'album di famiglia (ADR-122), il giro intero su Postgres **e MinIO veri**.
  *
  * I cancelli stanno in `albumGates.integration.test.ts`, che rifiuta prima di
  * arrivare al bucket e quindi gira ovunque. Qui c'è ciò che solo un archivio
@@ -254,7 +254,7 @@ describe("l'album di famiglia, con l'archivio vero", () => {
 });
 
 /**
- * ADR-109 × ADR-099: la cartolina che porta una foto.
+ * ADR-122 × ADR-099: la cartolina che porta una foto.
  *
  * La regola che questo blocco esiste per dimostrare è una sola, e non si vede
  * da nessuna parte se non qui: **la durata che vale è quella di chi riceve**.

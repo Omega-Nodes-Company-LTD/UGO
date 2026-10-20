@@ -1,4 +1,4 @@
-# ADR-110 — Il volto concorre a dire chi parla
+# ADR-118 — Il volto concorre a dire chi parla
 
 **Stato: ACCETTATA** (2026-08-20), **corretta lo stesso giorno** — vedi §Correzione in fondo, che
 è la parte che conta. Estende ADR-045 (chi sta parlando) e ADR-057 (l'arruolamento del volto);

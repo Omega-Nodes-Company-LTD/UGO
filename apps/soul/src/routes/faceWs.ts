@@ -160,7 +160,7 @@ export async function registerFaceWs(
             message.type === "roster" ||
             message.type === "scene" ||
             message.type === "glimpse_ask" ||
-            // ADR-109: lo scatto e le foto da rivedere sono della stanza per
+            // ADR-122: lo scatto e le foto da rivedere sono della stanza per
             // la stessa ragione dello sguardo — la camera e lo schermo sono
             // uno solo, e non appartengono a un esemplare in particolare
             message.type === "photo_ask" ||

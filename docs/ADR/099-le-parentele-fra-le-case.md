@@ -129,7 +129,7 @@ La prova non è un ragionamento: `tiesUnderRls.integration.test.ts` si collega *
 come la produzione, e cammina il giro intero. Verificato **rosso** togliendo `withPost` — cinque
 test su sei, «casa sconosciuta» al primo passo — e verde rimettendolo.
 
-### 7. Estensione (ADR-109, 2026-08-19): la cartolina può portare una foto
+### 7. Estensione (ADR-122, 2026-08-19): la cartolina può portare una foto
 
 Decisione del proprietario nello stesso giro dell'album. Il perimetro «testo, un elemento per
 volta» si allarga di un pezzo, e con tre vincoli che non sono negoziabili:

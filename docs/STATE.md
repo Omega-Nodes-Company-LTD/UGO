@@ -2482,12 +2482,12 @@ dell'intero monorepo verdi (21/21 task turbo); `pnpm audit` pulito sopra il MODE
 
 ## 6-quinquequadragies. La visione che ricorda: lo sguardo, l'album, il nodo GPU
 
-Il gruppo 22 del BACKLOG chiuso in un giro solo (ADR-108/109/110 + ADR-099 §7), su «fai
+Il gruppo 22 del BACKLOG chiuso in un giro solo (ADR-121/122/123 + ADR-099 §7), su «fai
 tutto» del proprietario. Nasce dalle tre domande di partenza: «cosa costava il PC rosso?»,
 «fammi vedere gli scatti del parco», «scattaci una foto e mandala al gosino di nonno
 Sandro».
 
-**Lo sguardo che si ricorda (ADR-108).** «Ricordati questo» → **un frame, due occhi**: il
+**Lo sguardo che si ricorda (ADR-121).** «Ricordati questo» → **un frame, due occhi**: il
 modello vision dice cos'era, tesseract legge le lettere, e insieme diventano una riga
 `memories` in chiaro (ADR-091) ripescabile dal braccio lessicale. Prima i due percorsi non
 si incrociavano mai — l'OCR vedeva solo il frame `fine`, il vision solo quello a 320px — e
@@ -2495,7 +2495,7 @@ nessuno dei due lasciava traccia: la risposta di «leggi» finiva fra i messaggi
 ruminazione in `events`, e la sera «quanto costava?» non trovava niente. Zero token: come
 ogni gesto, si risolve prima del provider.
 
-**L'album (ADR-109).** Riapre il vincolo 1 di ADR-016 in forma stretta. Si scatta **solo su
+**L'album (ADR-122).** Riapre il vincolo 1 di ADR-016 in forma stretta. Si scatta **solo su
 gesto**; i pixel vivono cifrati con la DEK della casa in un bucket privato (`S3_BUCKET_PHOTOS`),
 la didascalia in chiaro perché è come si ritrova; la **durata la sceglie il titolare** fra
 0/6/12/24/48/72 ore, con `0` di default e il `check` nel database. `expires_at` si scrive
@@ -2518,7 +2518,7 @@ Due cose imparate qui, e valgono oltre l'album:
    accanto. L'ha scoperto il test d'integrazione, connesso proprio come loro. Ora **ogni
    query nomina la casa** oltre a girare dentro `withAccount`.
 
-**Il nodo GPU (ADR-110), predisposto e inerte.** `OLLAMA_GPU_URL` opzionale: assente (il
+**Il nodo GPU (ADR-123), predisposto e inerte.** `OLLAMA_GPU_URL` opzionale: assente (il
 default) non cambia niente; presente, ci puntano vision, testo locale e l'anello di casa
 della catena di chat — le tre cose che degradano da sole quando il modello tace. **Gli
 embedding no, mai**: `embed()` è l'unico client locale che *lancia* invece di degradare, e
@@ -2569,11 +2569,80 @@ server già acceso (`UGO_TEST_S3_URL`, `UGO_TEST_PG_URL`), che è come questi te
 girare davvero in una sandbox senza Docker. Resta Zero-Mock: è lo stesso MinIO, acceso da
 fuori.
 
+## 6-novemquadragies. La CI era ferma da sette settimane, e nessuno lo sapeva
+
+> Il salto di numero (da *quinquequadragies* a *novemquadragies*) non è un errore: *sexquadragies*,
+> *septquadragies* e *octogies* esistono già, appese in coda al file dopo «Prossimi Passi» da altri
+> giri. Questa sta al suo posto nella sequenza narrativa e prende il primo numero libero.
+
+Il 20 ottobre, aprendo una PR di rinumerazione, la CI è risultata rossa su quattro job su sei. Il
+dato che spiega tutto: **l'ultimo run su `main` era del 29 agosto.** Sette settimane senza una
+corsa, quindi tre rotture maturate in silenzio e trovate tutte insieme.
+
+**L'immagine MinIO non esiste più.** `minio/minio` su Docker Hub è stato **cancellato** l'11
+settembre (l'API risponde `404 object not found`): MinIO aveva chiuso le immagini community
+nell'ottobre 2025 e archiviato l'open source a febbraio 2026, e la cancellazione è il seguito.
+Ogni test Zero-Mock che vuole un bucket moriva nel `beforeAll` — tre file in `soul`, 39 test in
+`ops/jobs`. `quay.io/minio/minio`, che tutti indicano come destinazione, **non serve pull anonimi**
+(401 col token anonimo in mano) e le sue immagini sono congelate.
+
+Si è passati a `cgr.dev/chainguard/minio:latest`: MinIO **vero**, ricostruito e patchato,
+scaricabile senza credenziali. Conta che sia vero e non un emulatore — `s3mock`, `s3proxy` e
+LocalStack farebbero passare i test contro un'imitazione dell'API S3, che è ciò che la regola 1
+vieta. Il costo è dichiarato nel commento del helper: in anonimo Chainguard offre solo `latest`,
+quindi l'immagine si muove e questi test non sono riproducibili nel tempo come con un tag pinnato.
+
+La riparazione ha portato `jobs` da «98 passati, 39 errori» a «137 passati, 6 falliti»: **33 test
+che da settembre non girava nessuno**, e sei difetti veri che l'immagine mancante teneva nascosti.
+
+**PyAV 19 ha rimosso un argomento che faster-whisper passa ancora.** Cinque dei sei:
+`TypeError: open() got an unexpected keyword argument 'metadata_errors'`. `faster-whisper`
+1.1–1.2.1 chiama `av.open(..., metadata_errors="ignore")`, PyAV 19.0.0 ha tolto quel parametro, e
+`faster-whisper` dichiara `av>=11` senza tetto. Nessun fix upstream (ultima release ottobre 2025,
+problema aperto), quindi il tetto sta da noi: `"av<19"`. **Misurato, entrambi i lati, su Python
+3.12 come la CI**: con 19.0.1 la chiamata solleva quel TypeError, con 18.1.0 l'argomento è
+accettato — la prova al contrario, che dimostra la diagnosi invece di assumerla.
+
+**`setup-android@v3` installava un pacchetto SDK morto.** `Failed to find package 'tools'`,
+deprecato da anni: `packages: ''` e il job supera il setup.
+
+**E l'audit era diventato un muro.** Da «1 moderate» di agosto a **75 vulnerabilità, 4 critical e
+37 high**, senza che nessuno toccasse il lockfile: le advisory si aggiungono da sole. La più grave
+era una RCE non autenticata in `next`, cioè in `apps/reception` — la sola risorsa con un dominio
+pubblico (runbook §2.7). Chiuse aggiornando quattro dirette (`next`, `fastify`,
+`@capacitor/android`, `@modelcontextprotocol/sdk`, tutte dentro i caret esistenti) e vincolando
+sette transitivi con `pnpm.overrides`. Esito: **0 critical, 0 high**, 14 moderate residue, e la CI
+blocca su `--audit-level high`.
+
+Due cose imparate, oltre ai numeri. La prima: **una CI che non gira non è una CI verde**, e sette
+settimane sono bastate perché tre pezzi si rompessero da soli — tutti fuori dal nostro codice. La
+seconda: la metà Python di questo guaio esiste perché `ops/jobs` **non ha un lockfile**, e quello
+resta aperto in §7, perché è una decisione di toolchain e non si prende in coda a un giro di patch.
+
+### Il giro completo (regola 12)
+
+- **BO** — `ops/jobs/pyproject.toml` (il tetto su `av`), `ops/jobs/tests/conftest.py` e
+  `tests/factories/src/minio.helper.ts` (l'immagine, tenuta uguale fra i due lati),
+  `.github/workflows/ci.yml`, `package.json` (gli override) e i quattro `package.json` aggiornati.
+  Nessun codice applicativo toccato: nessun aggiornamento l'ha richiesto;
+- **`/admin`** — nessuna modifica, e non serviva: nessun dato ha cambiato forma, scope o nome;
+- **FE** — nessuna modifica al codice; `apps/face` e `apps/face-android` hanno però dipendenze
+  aggiornate (`@capacitor/android`, `undici`, `@grpc/grpc-js`, `@xmldom/xmldom`,
+  `source-map-js`), quindi **il bundle del muso e l'APK vanno ricostruiti**.
+
+Verificato: `turbo build lint test` 33/33 a cache vuota; 82 test d'integrazione su Postgres reale
+dopo il salto di Fastify (`rlsRoutes` 31, `tenancy` 15, `ties` 15, `adminSurface` 12,
+`albumGates` 9); `pnpm audit --audit-level high` pulito. In CI: `integration`, `e2e`,
+`android shell` e `docker images build` verdi già prima del giro sulle dipendenze.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
 |---|---|---|
-| esbuild MODERATE via drizzle-kit (dev-only) | Basso | Bump drizzle-kit quando esce il fix |
+| 14 MODERATE residue dopo il giro del 20 ottobre (fra cui esbuild via drizzle-kit, dev-only) | Basso: la CI blocca su HIGH/CRITICAL, e di quelle non ne resta nessuna | Rivedere al prossimo giro di aggiornamenti; non vale un bump forzato oggi |
+| **Undici override tengono in piedi la sicurezza dei transitivi** (`package.json`, `pnpm.overrides`) | Medio, e di natura diversa dalle altre voci: un override è un vincolo che nessuno rilegge. Il giorno che un genitore si aggiorna da solo, il nostro resta e congela una versione senza che niente lo segnali | Al prossimo giro: togliere quelli il cui genitore ha recuperato, invece di accumularne altri. La chiave porta il range vulnerabile, quindi si capisce cosa proteggeva |
+| **`av<19` in `ops/jobs/pyproject.toml`** | Medio: è un tetto su una dipendenza di una dipendenza, messo perché `faster-whisper` dichiara `av>=11` e passa ancora `metadata_errors`, che PyAV 19 ha rimosso | Si toglie quando faster-whisper esce con la chiamata corretta (ultima release ottobre 2025, problema aperto). Misurato su Python 3.12 entrambi i lati: 19.0.1 rompe, 18.1.0 no |
+| **Nessun lockfile Python** in `ops/jobs` | Medio, ed è la causa STRUTTURALE del punto sopra: con `faster-whisper>=1.1` e nessun lock, la CI installa l'ultima di tutto e un cambio a monte arriva senza preavviso | Decisione di toolchain, non di sicurezza: `uv.lock` o `pip-compile`. Da prendere a parte, non in coda a un giro di patch |
 | Python 3.11 nell'ambiente vs 3.12 in spec | Nullo fino a Fase 3 | Pin 3.12 nel Dockerfile di `ops/jobs` |
 | Chiave dati e database sulla stessa macchina (ADR-017) | La cifratura a riposo copre backup/snapshot/dump, non root sul server vivo | Copia offline di `UGO_DATA_KEY` obbligatoria (runbook §1.7); un KMS ha senso solo se il ferro diventa più di uno |
 | ~~Il recency del re-rank seppellisce i ricordi vecchi~~ | — | **Chiuso** da ADR-021 (§6-duodecies): τ per `kind` |
@@ -2635,10 +2704,10 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
    dei modelli, cron del sogno, stack Vexa + Meet di prova. **Conseguenza operativa**: le migrazioni
    di schema non girano più su un database vuoto. Costano ancora poco a questo volume, e la finestra
    per i cambi strutturali (fra i quali la caduta dei `DEFAULT` del gruppo 5) non resterà aperta.
-4. **Per accendere l'album** (ADR-109): creare il bucket `S3_BUCKET_PHOTOS` accanto a quello
+4. **Per accendere l'album** (ADR-122): creare il bucket `S3_BUCKET_PHOTOS` accanto a quello
    dell'audio, **ricostruire il bundle del muso**, e poi — dal pannello, non da psql — scegliere
    la durata. Finché la durata resta su «non si tengono», il resto è inerte per costruzione.
-   Il nodo GPU (ADR-110) è predisposto ma nessuno l'ha comprato: senza `OLLAMA_GPU_URL` tutto
+   Il nodo GPU (ADR-123) è predisposto ma nessuno l'ha comprato: senza `OLLAMA_GPU_URL` tutto
    gira come prima, e le didascalie sono quelle che una CPU sa dare.
 5. **Col telefono**: installare la PWA (runbook §10), STT/TTS reali, MediaPipe/camera, Vosk wake
    word. Il guscio Capacitor (ADR-018 Tempo 2) parte quando serve registrare a schermo spento.

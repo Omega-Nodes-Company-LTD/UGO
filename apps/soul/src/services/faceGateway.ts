@@ -106,7 +106,7 @@ export class FaceGateway {
    */
   private glimpse: { at: number; image: string } | undefined;
   /**
-   * ADR-109: lo scatto, in uno slot suo. Separato da `glimpse` apposta: se
+   * ADR-122: lo scatto, in uno slot suo. Separato da `glimpse` apposta: se
    * condividessero la casella, una foto chiesta da una persona potrebbe
    * essere consumata da una ruminazione che passava di lì — e viceversa una
    * occhiata potrebbe finire nell'album.
@@ -178,7 +178,7 @@ export class FaceGateway {
     }
   }
 
-  /** ADR-109: «scatta». Il corpo risponde solo a camera accesa, come sempre. */
+  /** ADR-122: «scatta». Il corpo risponde solo a camera accesa, come sempre. */
   public askPhoto(): void {
     for (const send of this.senders) send({ type: "photo_ask" });
   }
@@ -191,7 +191,7 @@ export class FaceGateway {
     return held.image;
   }
 
-  /** ADR-109: le foto che la casa ha chiesto di rivedere, sullo schermo. */
+  /** ADR-122: le foto che la casa ha chiesto di rivedere, sullo schermo. */
   public showPhotos(shown: { id: string; caption: string; image: string }[]): void {
     for (const send of this.senders) send({ type: "show_photos", photos: shown });
   }
@@ -559,7 +559,7 @@ export class FaceGateway {
         return;
       }
       /**
-       * ADR-109: lo scatto, in una casella sua. **Nessun evento**, come per
+       * ADR-122: lo scatto, in una casella sua. **Nessun evento**, come per
        * lo sguardo: che il corpo abbia mandato dei pixel non è un fatto da
        * scrivere nel registro — il fatto, se la casa tiene le foto, è la riga
        * dell'album, e la scrive chi l'ha chiesta.

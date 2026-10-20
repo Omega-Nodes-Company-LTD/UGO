@@ -11,6 +11,23 @@ dependencies = [
     "cryptography>=43.0",
     # ingest.py transcribes on CPU (ADR-001); heavy, imported lazily
     "faster-whisper>=1.1",
+    # Il tetto su PyAV, e non è un capriccio: `faster-whisper` 1.1–1.2.1 chiama
+    # `av.open(..., metadata_errors="ignore")` dentro `audio.py`, e **PyAV 19.0.0
+    # ha rimosso quell'argomento**. Dichiarando `av>=11` senza limite, pip
+    # installa la 19 e ogni trascrizione muore con
+    # «TypeError: open() got an unexpected keyword argument 'metadata_errors'»:
+    # erano cinque test di `test_ingest.py` rossi in CI.
+    #
+    # Il vincolo sta qui perché a monte non c'è: l'ultima release di
+    # faster-whisper è dell'ottobre 2025 e il problema è ancora aperto, quindi
+    # non arriva nessuna correzione a togliercelo di mano.
+    #
+    # Misurato su Python 3.12 (la stessa minor della CI), entrambi i lati:
+    # con `av 19.0.1` la chiamata solleva quel TypeError, con `av 18.1.0`
+    # l'argomento è accettato. `<19` e non un pin esatto: le patch delle 18.x
+    # restano disponibili, e il giorno che una rompesse si stringe con la
+    # misura in mano, non per sospetto.
+    "av<19",
     # customer_docs.py (ADR-054): pure-python pdf text extraction, imported lazily
     "pypdf>=5.1",
 ]

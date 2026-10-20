@@ -1,8 +1,15 @@
-# ADR-110 — Il nodo GPU: una seconda macchina nostra, e la tailnet come unico muro
+# ADR-123 — Il nodo GPU: una seconda macchina nostra, e la tailnet come unico muro
 
 **Stato: ACCETTATA** (decisione del proprietario, 2026-08-19). **Precisa ADR-001** («niente GPU»)
 e usa la clausola aperta di ADR-017. Predisposta e **inerte**: senza `OLLAMA_GPU_URL` il sistema è
 identico a com'era.
+
+> **Nota sul numero.** Nasce come ADR-110 il 19 agosto 2026 e diventa **ADR-123** il
+> 20 ottobre: il merge di #103 lo portò su main senza accorgersi che un altro ramo aveva già
+> preso il 110, e — non essendo entrato nell'indice — chi è venuto dopo ha continuato a
+> contare da lì. Il numero vecchio appartiene a «La ricerca contava meno dell'anagrafica del ricordo». Vale la regola
+> del repo: chi è arrivato primo tiene il numero. Da adesso c'è una guardia che non lascia
+> ripetere né il doppione né l'assenza dall'indice (`apps/soul/src/adrNumbers.test.ts`).
 
 ## Contesto
 
@@ -77,7 +84,7 @@ di voler pagare.
 
 - **Il costo**: una seconda macchina da pagare, aggiornare e sorvegliare, e una dipendenza di rete
   in più su tre percorsi (che degradano). Il beneficio è che il modello vision diventa usabile
-  davvero, e l'album e lo sguardo che si ricorda (ADR-108/109) hanno senso solo con un vision che
+  davvero, e l'album e lo sguardo che si ricorda (ADR-121/122) hanno senso solo con un vision che
   risponde in tempi umani.
 - **Cosa non cambia**: la Claude API resta l'unica uscita verso Internet nel percorso critico. La
   seconda macchina è **nostra** e sta nella tailnet: il confine di fiducia di ARCHITECTURE §2.1 si

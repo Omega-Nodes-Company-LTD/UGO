@@ -28,6 +28,10 @@ if TYPE_CHECKING:
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DRIZZLE_DIR = REPO_ROOT / "packages" / "db" / "drizzle"
 EMBED_MODEL = "nomic-embed-text"
+# MinIO vero, ricostruito e patchato: `minio/minio` su Docker Hub è stato
+# cancellato e `quay.io/minio/minio` non serve pull anonimi. Tenuta uguale a
+# `tests/factories/src/minio.helper.ts`, dove sta la spiegazione per intero.
+MINIO_IMAGE = "cgr.dev/chainguard/minio:latest"
 
 TEST_DATA_KEY = base64.b64encode(bytes(range(32))).decode()
 
@@ -130,7 +134,14 @@ def pg_url() -> str:
 
 @pytest.fixture(scope="session")
 def minio() -> dict[str, str]:
-    with MinioContainer() as container:
+    # L'immagine va passata, e non è pignoleria: `MinioContainer()` nudo chiede
+    # il tag di default di testcontainers-python — `RELEASE.2022-12-02T19-19-22Z`
+    # — e quel repository su Docker Hub non esiste più (cancellato l'11
+    # settembre 2026; l'API risponde 404). Erano i 39 errori `pull access
+    # denied` di questo job. Il perché di QUESTA immagine, e il suo costo, sta
+    # in `tests/factories/src/minio.helper.ts`, che fa la stessa scelta per il
+    # lato TypeScript: le due infrastrutture di test vanno tenute d'accordo.
+    with MinioContainer(image=MINIO_IMAGE) as container:
         cfg = container.get_config()
         yield {
             "endpoint": f"http://{cfg['endpoint']}",

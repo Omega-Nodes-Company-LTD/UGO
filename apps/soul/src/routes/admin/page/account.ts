@@ -508,7 +508,7 @@ export const ACCOUNT_PAGES = `
     <div class="row">
       <div><label for="parcel-text">Il testo</label>
         <input id="parcel-text" data-testid="parcel-text" placeholder="siamo stati al parco!"></div>
-      <!-- ADR-109: e una foto, se l'album è acceso da tutte e due le parti -->
+      <!-- ADR-122: e una foto, se l'album è acceso da tutte e due le parti -->
       <div style="flex:0 1 16rem"><label for="parcel-photo">Con una foto</label>
         <select id="parcel-photo" data-testid="parcel-photo"></select></div>
       <button id="parcel-send" data-testid="parcel-send">Spedisci</button>
@@ -533,10 +533,10 @@ export const ACCOUNT_PAGES = `
   <div class="page-head">
     <p class="eyebrow" data-account>—</p>
     <h1>L'album</h1>
-    <p>Le foto che questa casa ha scelto di tenere (ADR-109). Si scattano <b>solo quando le
+    <p>Le foto che questa casa ha scelto di tenere (ADR-122). Si scattano <b>solo quando le
        chiedi tu</b> — a voce («scatta una foto») o da qui — e spariscono da sole quando
        scade il tempo che hai deciso.</p>
-    <!-- ADR-109 §2: l'avvertenza sta PRIMA della tendina, come per le parentele -->
+    <!-- ADR-122 §2: l'avvertenza sta PRIMA della tendina, come per le parentele -->
     <p class="lede" data-testid="album-warning"><b>${ALBUM_WARNING}</b></p>
   </div>
   <div class="block">

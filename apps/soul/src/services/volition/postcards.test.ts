@@ -53,7 +53,7 @@ describe("parsePostcard — le frasi che NON lo sono", () => {
 });
 
 /**
- * ADR-109 × ADR-099: «scattaci una foto e mandala al gosino di nonno Sandro».
+ * ADR-122 × ADR-099: «scattaci una foto e mandala al gosino di nonno Sandro».
  *
  * Un gesto solo, che ne contiene due — e per questo la forma è più stretta,
  * non più larga: qui una frase mal capita non manda solo parole sbagliate a

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { composeKeepsake, keepsakeGestureOf, replyForKeepsake } from "./sceneMemory.js";
 
 /**
- * ADR-108. Il gesto è una forma chiusa e ha due vicini pericolosi: il
+ * ADR-121. Il gesto è una forma chiusa e ha due vicini pericolosi: il
  * promemoria («ricordami di…», ADR-028) e la domanda alla memoria («cosa ti
  * ricordi di marzo?», ADR-086). Qui si prova soprattutto che non li mangi.
  */

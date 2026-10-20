@@ -24,7 +24,7 @@ export const soulEnvSchema = z.object({
   MQTT_PASS: optionalNonEmpty,
   OLLAMA_URL: z.url(),
   /**
-   * ADR-110: la seconda macchina, quella con la scheda video.
+   * ADR-123: la seconda macchina, quella con la scheda video.
    *
    * Quando c'è, ci puntano **il modello vision, il testo locale e l'anello
    * Ollama della catena di chat** — cioè le tre cose che con una GPU
@@ -32,7 +32,7 @@ export const soulEnvSchema = z.object({
    * `OLLAMA_URL` e non cambia una riga di comportamento: è il precedente
    * esatto di `OLLAMA_BATCH_URL` nei job.
    *
-   * **Gli embedding NO, mai** (ADR-110 §3): `OllamaEmbeddingsClient.embed()`
+   * **Gli embedding NO, mai** (ADR-123 §3): `OllamaEmbeddingsClient.embed()`
    * è l'unico client locale che *lancia* invece di degradare. Spostarlo su
    * una seconda macchina introdurrebbe una dipendenza dura che oggi nessun
    * componente di questo sistema ha.
@@ -122,7 +122,7 @@ export const soulEnvSchema = z.object({
   S3_BUCKET_AUDIO: optionalNonEmpty,
   // ADR-054: il bucket privato dei documenti dei clienti (upload dal pannello)
   S3_BUCKET_DOCS: optionalNonEmpty,
-  /** ADR-109: il secchio delle foto dell'album; assente = l'album non conserva */
+  /** ADR-122: il secchio delle foto dell'album; assente = l'album non conserva */
   S3_BUCKET_PHOTOS: optionalNonEmpty,
   /** ADR-111: i documenti di CASA, in un bucket loro e non con quelli dei clienti */
   S3_BUCKET_HOUSE_DOCS: optionalNonEmpty,

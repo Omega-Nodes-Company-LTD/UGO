@@ -47,7 +47,7 @@ export type GlimpseBody = Pick<FaceGateway, "hasBody" | "askGlimpse" | "takeGlim
  * Chiedi uno sguardo e aspettalo: la meccanica, senza cosa farsene.
  *
  * Estratta da `SceneReader.read()` quando è arrivato il secondo chiamante
- * (ADR-108, lo sguardo che si ricorda): due copie di questo ciclo sono due
+ * (ADR-121, lo sguardo che si ricorda): due copie di questo ciclo sono due
  * posti in cui `FRESH_MS` può divergere, e il frame lo si prende **una volta
  * sola** perché `takeGlimpse` è distruttivo — chi lo vuole per due usi lo
  * chiede una volta e lo passa a entrambi.
