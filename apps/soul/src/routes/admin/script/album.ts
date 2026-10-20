@@ -1,5 +1,5 @@
 /**
- * L'album nel pannello (ADR-109).
+ * L'album nel pannello (ADR-122).
  *
  * Due cose sole, e sono le due che il proprietario ha chiesto: **la durata**,
  * che è l'unica manopola dell'album e sta sopra tutto il resto, e **gli

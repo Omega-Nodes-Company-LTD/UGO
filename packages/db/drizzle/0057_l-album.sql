@@ -1,4 +1,4 @@
--- ADR-109 — l'album di famiglia: la tabella e la durata scelta dalla casa.
+-- ADR-122 — l'album di famiglia: la tabella e la durata scelta dalla casa.
 --
 -- Nota su una riga che sembra di troppo: `accounts.initiative` esiste già in
 -- produzione dalla 0053, che è scritta a mano — quindi lo snapshot di

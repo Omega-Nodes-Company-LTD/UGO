@@ -136,7 +136,7 @@ async function loadHealth() {
   const body = await res.json();
   const WORD = { ok: "risponde", degraded: "arranca", error: "non risponde", off: "non configurato" };
   // i nomi dei controlli sono chiavi tecniche: chi guarda il pannello non
-  // deve dedurre da «ollamaGpu» che c'è una seconda macchina (ADR-110)
+  // deve dedurre da «ollamaGpu» che c'è una seconda macchina (ADR-123)
   const CHECK_NAME = { db: "database", mqtt: "broker", ollama: "modelli in casa",
     ollamaGpu: "nodo GPU", perception: "percezione" };
   const MARK = { ok: "●", degraded: "▲", error: "■", off: "○" };

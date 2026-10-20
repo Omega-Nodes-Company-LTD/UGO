@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { photoStripPlan } from "./photoStrip.js";
 
 /**
- * ADR-109: la parte che decide. Il disegno è quattro `append` e non ha
+ * ADR-122: la parte che decide. Il disegno è quattro `append` e non ha
  * bisogno di un DOM finto per essere creduto; questo invece sì, perché
  * decide cosa una persona vede.
  */

@@ -112,7 +112,7 @@ export const faceToServerSchema = z.discriminatedUnion("type", [
    */
   z.object({ type: z.literal("glimpse"), image: z.string().min(1).max(120_000) }),
   /**
-   * ADR-109: la FOTO, che è un'altra cosa dallo sguardo.
+   * ADR-122: la FOTO, che è un'altra cosa dallo sguardo.
    *
    * Uno sguardo si consuma alla lettura e non tocca il disco; una foto si
    * conserva, per il tempo che la casa ha scelto. Due nomi perché sono due
@@ -294,12 +294,12 @@ export const serverToFaceSchema = z.discriminatedUnion("type", [
    * la qualità JPEG finché ci sta. */
   z.object({ type: z.literal("glimpse_ask"), fine: z.boolean().optional() }),
   /**
-   * ADR-109: «scatta». Come `glimpse_ask` il corpo risponde solo a camera
+   * ADR-122: «scatta». Come `glimpse_ask` il corpo risponde solo a camera
    * accesa — ma questa la chiede una PERSONA, e quello che torna si conserva.
    */
   z.object({ type: z.literal("photo_ask") }),
   /**
-   * ADR-109: «guarda cosa ti faccio vedere» — le foto che la casa ha chiesto
+   * ADR-122: «guarda cosa ti faccio vedere» — le foto che la casa ha chiesto
    * di rivedere, già in chiaro, sullo schermo del chiosco.
    *
    * Le immagini viaggiano dentro il frame invece che per URL perché il muso

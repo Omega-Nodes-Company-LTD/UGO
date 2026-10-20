@@ -1,4 +1,4 @@
--- ADR-109 — il muro sull'album. SCRITTA A MANO come la 0013, la 0049 e la
+-- ADR-122 — il muro sull'album. SCRITTA A MANO come la 0013, la 0049 e la
 -- 0052: drizzle-kit non modella ruoli, GRANT né politiche.
 --
 -- Le foto sono di UNA casa, a differenza delle cartoline: la politica è
@@ -19,14 +19,14 @@ END
 $$;--> statement-breakpoint
 REVOKE UPDATE ON photos FROM ugo_app;--> statement-breakpoint
 -- il DELETE invece SÌ, e serve: è come una foto sparisce quando scade, e come
--- il proprietario ne butta una senza aspettare (ADR-109 §5). L'album è
+-- il proprietario ne butta una senza aspettare (ADR-122 §5). L'album è
 -- l'opposto di un registro: `births` è un atto, questa è una fotografia.
 GRANT SELECT, INSERT, DELETE ON photos TO ugo_app;--> statement-breakpoint
 
 -- ============================================================================
 -- La posta NON guadagna niente qui, ed è una nota che vale la riga.
 --
--- Una cartolina può portare una foto (ADR-109 × ADR-099), e verrebbe da
+-- Una cartolina può portare una foto (ADR-122 × ADR-099), e verrebbe da
 -- pensare che il ruolo `ugo_post` debba poter leggere l'album del mittente e
 -- scrivere in quello del destinatario. Non serve: i pixel passano dalla porta
 -- di casa di ognuno — `withAccount(mittente)` per aprirli, `withAccount(chi

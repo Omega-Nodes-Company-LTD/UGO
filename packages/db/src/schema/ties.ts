@@ -110,7 +110,7 @@ export const parcels = pgTable(
     /** ADR-099 §3: un ricordo ricevuto si può «tenere» — una volta sola */
     keptAt: timestamp("kept_at", { withTimezone: true }),
     /**
-     * ADR-109 × ADR-099: la foto che la cartolina porta, **già nell'album di
+     * ADR-122 × ADR-099: la foto che la cartolina porta, **già nell'album di
      * chi la riceve**. Non è un allegato in attesa: al momento dell'invio i
      * pixel sono stati ri-cifrati con la DEK della casa destinataria e la
      * riga è nata lì, con la scadenza che vale in quella casa. Qui resta il

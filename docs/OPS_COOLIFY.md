@@ -44,7 +44,7 @@ bussare. È gratis fino a 100 dispositivi e non richiede di toccare il router n�
 5. Rendilo permanente: `tailscale up --ssh=false --accept-routes` non serve; basta verificare che il
    servizio parta da solo con `systemctl is-enabled tailscaled` → atteso `enabled`.
 
-### 0.2-bis Il secondo server, quello con la scheda video (opzionale, ADR-110)
+### 0.2-bis Il secondo server, quello con la scheda video (opzionale, ADR-123)
 
 Solo se hai preso un nodo GPU. **Se non ce l'hai, salta**: senza `OLLAMA_GPU_URL` tutto gira come
 prima, solo più lentamente — non è un guasto e il pannello lo dice con quelle parole.
@@ -63,7 +63,7 @@ prima, solo più lentamente — non è un guasto e il pannello lo dice con quell
 
 > ⚠️ **Ollama non ha autenticazione. Nessuna.** Su una macchina sola non è mai stato un problema
 > perché il container sta in una rete Docker privata; fra due macchine quella protezione non esiste
-> più, e **l'unica cosa che tiene il modello privato è che l'indirizzo sia di tailnet** (ADR-110 §4,
+> più, e **l'unica cosa che tiene il modello privato è che l'indirizzo sia di tailnet** (ADR-123 §4,
 > §2.3 qui sotto). Se al punto 5 la curl da fuori risponde, fermati e sistema `OLLAMA_HOST` prima di
 > andare avanti: stai regalando inferenza — e, con il vision acceso, la possibilità di far
 > descrivere immagini — a chiunque scansioni quella porta.
@@ -189,7 +189,7 @@ server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo r
 8. Prova dalla shell di soul: `curl -s http://<HOST_OLLAMA>:11434/api/tags` → deve elencare
    `nomic-embed-text`.
 
-### 2.3-quater · ollama-gpu (il nodo con la scheda video, ADR-110)
+### 2.3-quater · ollama-gpu (il nodo con la scheda video, ADR-123)
 
 Solo se hai fatto §0.2-bis. Non è una risorsa di Coolify: è una macchina a parte, e a soul si dice
 soltanto dove trovarla.
@@ -208,7 +208,7 @@ soltanto dove trovarla.
 > **Cosa ci va e cosa no**: il modello vision, il testo locale e l'anello di casa della catena di
 > chat. **Gli embeddings restano sulla macchina di casa, sempre** — sono l'unico pezzo che *si
 > ferma* invece di degradare quando il modello non risponde, e metterli di là vorrebbe dire che la
-> tailnet giù = i ricordi non si scrivono (ADR-110 §3). Non provare a "uniformare": c'è un test che
+> tailnet giù = i ricordi non si scrivono (ADR-123 §3). Non provare a "uniformare": c'è un test che
 > lo impedisce.
 
 ### 2.3-bis · percezione (riconoscimento, dettatura, voce di casa, lettura)
@@ -1031,7 +1031,7 @@ Prima domanda, e nel 90% dei casi è finita lì: `curl -s http://<TAILSCALE_IP>:
   `OLLAMA_VISION_MODEL`.
 
 E la cosa che non è un guasto: gli **embeddings restano lenti come prima**, perché girano ancora
-sulla macchina di casa e ci restano per scelta (ADR-110 §3). Se la memoria è lenta, il rimedio è
+sulla macchina di casa e ci restano per scelta (ADR-123 §3). Se la memoria è lenta, il rimedio è
 un'altra cosa, non questo.
 
 ### UGO sente ma non risponde

@@ -141,7 +141,7 @@ const psyche = await PsycheService.restore(dbFor(bootstrapAccountId), new Date()
  * dell'iniziativa, o quello del sogno — la casa ne ha sempre almeno uno.
  */
 /**
- * ADR-110: dove girano i modelli che vale la pena mettere su una GPU.
+ * ADR-123: dove girano i modelli che vale la pena mettere su una GPU.
  *
  * Una sola costante, e passa **solo** al vision, al testo locale e all'anello
  * Ollama della catena di chat. Gli embedding restano su `OLLAMA_URL` per
@@ -254,7 +254,7 @@ const nudges = new NudgeService({ dbFor, registry: () => registryRef });
 // l'annotazione esplicita spezza il cerchio dell'inferenza: chat → lettore →
 // gateway → chat (il lettore guarda il corpo solo al momento del gesto)
 /**
- * ADR-109: l'album. Uno per processo e non uno per casa: i cancelli (la
+ * ADR-122: l'album. Uno per processo e non uno per casa: i cancelli (la
  * durata scelta, il `no_vision` del branco) li legge a ogni scatto dalla riga
  * della casa che gli viene nominata, quindi una scelta cambiata dal pannello
  * vale subito — senza riavviare per guardare.
@@ -289,7 +289,7 @@ const chat: ChatService = new ChatService({
       ocr: (image) => bootstrapPercezione.ocr(image),
     }),
   }),
-  // ADR-108: «ricordati questo», anche per l'apparato di avvio — la rotta
+  // ADR-121: «ricordati questo», anche per l'apparato di avvio — la rotta
   // /v1/chat parla con QUESTA istanza, e il gesto deve valere da lì come dal
   // chiosco (la lezione di ADR-065, che il lettore l'aveva imparata)
   ...((bootstrapPercezione !== undefined || localVision !== undefined) && {
@@ -476,7 +476,7 @@ const capabilities = (): Capability[] => [
     label: "Il nodo con la scheda video",
     on: env.OLLAMA_GPU_URL !== undefined,
     ...(env.OLLAMA_GPU_URL === undefined && {
-      // ADR-110: spenta è uno stato legittimo, e qui è pure il default. Senza
+      // ADR-123: spenta è uno stato legittimo, e qui è pure il default. Senza
       // nodo GPU tutto gira sulla macchina di casa, solo più lentamente
       why: "manca OLLAMA_GPU_URL: vision e testo locale girano sulla stessa macchina di tutto il resto. Non è un guasto — è più lento, e basta.",
     }),
@@ -560,7 +560,7 @@ const app = buildServer({
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
-  // ADR-110: la seconda macchina si guarda a parte. Una GPU che non risponde
+  // ADR-123: la seconda macchina si guarda a parte. Una GPU che non risponde
   // e un Ollama di casa che non risponde sono due guasti diversi e si
   // rimediano in due posti diversi
   ...(env.OLLAMA_GPU_URL !== undefined && { ollamaGpuUrl: env.OLLAMA_GPU_URL }),
@@ -598,7 +598,7 @@ const app = buildServer({
     ...(env.UGO_INTERNAL_TOKEN !== undefined && { internalToken: env.UGO_INTERNAL_TOKEN }),
     ...(env.UGO_JOBS_TRIGGER_URL !== undefined && { dreamTriggerUrl: env.UGO_JOBS_TRIGGER_URL }),
     ...(audio !== undefined && { audio }),
-    // ADR-109: stesse credenziali, secchio diverso — una foto e una
+    // ADR-122: stesse credenziali, secchio diverso — una foto e una
     // registrazione hanno durate e diritti diversi, e un secchio solo
     // vorrebbe dire una retention che ne governa due
     ...(audio !== undefined &&

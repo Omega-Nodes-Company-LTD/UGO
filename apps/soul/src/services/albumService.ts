@@ -17,7 +17,7 @@ import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import type { AudioStorageConfig } from "../routes/audio.js";
 
 /**
- * L'album di famiglia (ADR-109).
+ * L'album di famiglia (ADR-122).
  *
  * Tre promesse, e questo file è dove diventano vere:
  *
@@ -252,7 +252,7 @@ export class AlbumService {
   }
 
   /**
-   * La scadenza (ADR-109 §5), sul pattern delle impronte ignote: **prima il
+   * La scadenza (ADR-122 §5), sul pattern delle impronte ignote: **prima il
    * bucket, poi il database**. `DeleteObject` è idempotente e le chiavi si
    * leggono solo dalle righe, quindi morire a metà lascia un lavoro
    * riprovabile — al contrario resterebbero oggetti che nessuno sa più di

@@ -126,3 +126,6 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [118](./118-il-volto-concorre-a-dire-chi-parla.md) | Il volto concorre a dire chi parla | Accettata |
 | [119](./119-il-nome-e-la-parola-di-sveglia.md) | Il nome è la parola di sveglia | Accettata |
 | [120](./120-le-cose-che-nessuno-ha-ancora-proposto.md) | Le cose che nessuno ha ancora proposto (idee del branco, e il banco aperto) | **Proposta** |
+| [121](./121-lo-sguardo-che-si-ricorda.md) | Lo sguardo che si ricorda: un frame, due occhi, una riga | Accettata |
+| [122](./122-l-album-di-famiglia.md) | L'album di famiglia: i pixel si conservano, per il tempo che scegli tu | Accettata |
+| [123](./123-il-nodo-gpu.md) | Il nodo GPU: una seconda macchina nostra, e la tailnet come unico muro | Accettata |

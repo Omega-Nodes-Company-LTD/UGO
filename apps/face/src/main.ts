@@ -93,7 +93,7 @@ let activeCamera: { video?: HTMLVideoElement } | null = null;
 const GLIMPSE_MAX_B64 = 120_000;
 
 /**
- * ADR-109: lo SCATTO. Come `captureGlimpse` ma a 640px e a qualità più alta,
+ * ADR-122: lo SCATTO. Come `captureGlimpse` ma a 640px e a qualità più alta,
  * perché una foto si guarda — e col tetto del contratto (190 000), non quello
  * dello sguardo. Torna `undefined` a camera spenta, che è la risposta giusta.
  */
@@ -441,7 +441,7 @@ earPick.addEventListener("change", () => {
  * parte verso la chat di casa, e il commento torna a voce come tutto il
  * resto. I pixel non si salvano da nessuna parte: resta il commento.
  */
-/** ADR-109: il visore dell'album, vuoto finché la casa non chiede di rivedere. */
+/** ADR-122: il visore dell'album, vuoto finché la casa non chiede di rivedere. */
 const photoStrip = createPhotoStrip(requireElement("#photo-strip"));
 const photoButton = requireElement("#btn-photo");
 const photoFile = requireElement("#photo-file") as HTMLInputElement;
@@ -578,7 +578,7 @@ function onServerMessage(message: ServerToFaceMessage): void {
       renderer.setProps?.(message.props);
       return;
     case "photo_ask": {
-      // ADR-109: lo scatto lo chiede una PERSONA, e quello che torna si
+      // ADR-122: lo scatto lo chiede una PERSONA, e quello che torna si
       // conserva. Camera spenta = silenzio, come per l'occhiata
       const shot = capturePhoto();
       if (shot !== undefined) socket.send({ type: "photo", image: shot });

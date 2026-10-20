@@ -96,9 +96,9 @@ export const AUDIT_VERBS = [
   "memory_written",
   /** ADR-104: una riunione buttata, segmenti compresi (cancellazione vera) */
   "meeting_deleted",
-  /** ADR-109: per quante ore questa casa tiene le foto — il numero, non le foto */
+  /** ADR-122: per quante ore questa casa tiene le foto — il numero, non le foto */
   "album_retention_set",
-  /** ADR-109: le foto scadute, portate via dalla durata scelta. Il conteggio */
+  /** ADR-122: le foto scadute, portate via dalla durata scelta. Il conteggio */
   "photos_expired",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];

@@ -13,7 +13,7 @@ import { accounts } from "./accounts.js";
 import { gosini } from "./gosini.js";
 
 /**
- * L'album di famiglia (ADR-109): le foto che una casa decide di tenere, e per
+ * L'album di famiglia (ADR-122): le foto che una casa decide di tenere, e per
  * quanto.
  *
  * Riapre il vincolo 1 di ADR-016 («nessun media raw persistito»), in forma
@@ -41,7 +41,7 @@ export const photos = pgTable(
       .references(() => accounts.id, { onDelete: "cascade" }),
     /** quale esemplare l'ha scattata: il pannello lo chiede, mai «va il default» */
     gosinoId: uuid("gosino_id").notNull(),
-    /** la chiave nel bucket; l'oggetto è ciphertext AES-256-GCM (ADR-109 §3) */
+    /** la chiave nel bucket; l'oggetto è ciphertext AES-256-GCM (ADR-122 §3) */
     objectKey: text("object_key").notNull(),
     /** la frase del modello vision, in chiaro perché è come si ritrova */
     caption: text("caption").notNull().default(""),
@@ -62,7 +62,7 @@ export const photos = pgTable(
     }),
     // una foto che nasce già scaduta è una foto che nessuno ha mai visto
     check("photos_expiry_after_taken", sql`${table.expiresAt} > ${table.takenAt}`),
-    // ADR-109 × ADR-099: la cartolina punta alla foto con la coppia
+    // ADR-122 × ADR-099: la cartolina punta alla foto con la coppia
     // (casa, foto), come ogni riferimento di questo schema — una chiave da
     // sola attraverserebbe il muro delle case senza che nessuno se ne accorga
     unique("photos_account_id_uq").on(table.accountId, table.id),
@@ -70,7 +70,7 @@ export const photos = pgTable(
 );
 
 /**
- * Gli scalini della durata (ADR-109 §2), in ore. `0` = non si tengono, ed è
+ * Gli scalini della durata (ADR-122 §2), in ore. `0` = non si tengono, ed è
  * il default: l'album acceso d'ufficio sarebbe una casa che comincia a
  * conservare immagini per un aggiornamento, cioè la sorpresa che la visione
  * vieta (la stessa ragione di `accounts.metabolism`).

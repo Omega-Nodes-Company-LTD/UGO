@@ -2,7 +2,7 @@ import { memories, type DbClient } from "@ugo/db";
 import { awaitGlimpse, type GlimpseBody } from "./sceneReader.js";
 
 /**
- * Lo sguardo che si ricorda (ADR-108).
+ * Lo sguardo che si ricorda (ADR-121).
  *
  * ADR-065 ha dato a UGO gli occhi per LEGGERE, e la lettura finisce dov'è
  * giusto che finisca: nella risposta, e da lì nella biografia cifrata. Ma «ti
@@ -21,7 +21,7 @@ import { awaitGlimpse, type GlimpseBody } from "./sceneReader.js";
  * 2. **Si scrive, e solo il testo.** Il ricordo nasce in chiaro (ADR-091,
  *    perché il braccio lessicale gira sul testo) e i pixel non toccano niente:
  *    finiscono nella stessa fine di sempre, consumati alla lettura. Un album
- *    è un'altra decisione, con un'altra durata (ADR-109).
+ *    è un'altra decisione, con un'altra durata (ADR-122).
  */
 
 export type KeepsakeOutcome =

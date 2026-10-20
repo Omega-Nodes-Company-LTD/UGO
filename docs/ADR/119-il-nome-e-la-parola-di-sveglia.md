@@ -1,4 +1,4 @@
-# ADR-111 — Il nome è la parola di sveglia
+# ADR-119 — Il nome è la parola di sveglia
 
 **Stato: ACCETTATA** (2026-08-21). Decisione del proprietario, in giornata. Sostituisce il
 piano «Ehi UGO con Vosk on-device» (PROGETTO §8 Fase 3); si appoggia a ADR-109 (le orecchie

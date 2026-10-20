@@ -99,7 +99,7 @@ export const accounts = pgTable(
    * dicono a nessuno se ha scelto il posto giusto.
    */
   /**
-   * ADR-109: per quante ore questa casa tiene le foto. `0` = non si tengono,
+   * ADR-122: per quante ore questa casa tiene le foto. `0` = non si tengono,
    * ed è il default — l'album non si accende da solo.
    *
    * **Prima retention per-account del progetto**: le altre quattro (impronte
@@ -125,7 +125,7 @@ export const accounts = pgTable(
   closedAt: timestamp("closed_at", { withTimezone: true }),
   },
   (table) => [
-    // ADR-109: cinque scalini o zero, e il database è dove diventa vero
+    // ADR-122: cinque scalini o zero, e il database è dove diventa vero
     check(
       "accounts_photo_retention_steps",
       sql`${table.photoRetentionHours} in (0, 6, 12, 24, 48, 72)`,

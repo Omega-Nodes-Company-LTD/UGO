@@ -19,7 +19,7 @@ const healthResponseSchema = z.object({
     mqtt: checkResult,
     ollama: checkResult,
     /**
-     * ADR-110: la seconda macchina, quella con la scheda video. `off` quando
+     * ADR-123: la seconda macchina, quella con la scheda video. `off` quando
      * non è configurata — ed è il default: una casa con un solo server è la
      * norma, non un guasto. Sta a parte da `ollama` perché sono due macchine
      * e due rimedi: qui rosso vuol dire «la tailnet o il nodo GPU», non «il
@@ -41,7 +41,7 @@ export interface HealthDeps {
   db: DbClient;
   mqtt: { url?: string | undefined; username?: string | undefined; password?: string | undefined };
   ollamaUrl: string;
-  /** ADR-110: il nodo GPU; assente = "off", come il broker */
+  /** ADR-123: il nodo GPU; assente = "off", come il broker */
   ollamaGpuUrl?: string | undefined;
   /** ADR-101: il servizio di percezione; assente = "off", come il broker */
   perceptionUrl?: string | undefined;

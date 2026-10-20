@@ -242,7 +242,7 @@ test("the whole soul can be downloaded, and a being erased for good", async ({ p
 test("the panel shows whether the machinery underneath is alive", async ({ page }) => {
   await openPanel(page);
   await goHouse(page, "sommario");
-  // ADR-110: i controlli si chiamano con parole, non con le chiavi tecniche —
+  // ADR-123: i controlli si chiamano con parole, non con le chiavi tecniche —
   // chi guarda il sommario non deve dedurre da «ollamaGpu» che esiste una
   // seconda macchina
   await expect(page.getByTestId("health")).toContainText("database");
@@ -351,7 +351,7 @@ test("each service says what it is doing in words, not only in colour", async ({
   await expect(pills.filter({ hasText: "broker" })).toContainText("non configurato");
   // ADR-101: e la percezione, spenta qui, lo dice con la stessa parola
   await expect(pills.filter({ hasText: "percezione" })).toContainText("non configurato");
-  // ADR-110: il nodo GPU è una SECONDA macchina, e ha una riga sua — «spenta»
+  // ADR-123: il nodo GPU è una SECONDA macchina, e ha una riga sua — «spenta»
   // è uno stato legittimo, ed è pure il default
   await expect(pills.filter({ hasText: "nodo GPU" })).toContainText("non configurato");
 });

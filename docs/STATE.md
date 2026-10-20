@@ -2482,12 +2482,12 @@ dell'intero monorepo verdi (21/21 task turbo); `pnpm audit` pulito sopra il MODE
 
 ## 6-quinquequadragies. La visione che ricorda: lo sguardo, l'album, il nodo GPU
 
-Il gruppo 22 del BACKLOG chiuso in un giro solo (ADR-108/109/110 + ADR-099 §7), su «fai
+Il gruppo 22 del BACKLOG chiuso in un giro solo (ADR-121/122/123 + ADR-099 §7), su «fai
 tutto» del proprietario. Nasce dalle tre domande di partenza: «cosa costava il PC rosso?»,
 «fammi vedere gli scatti del parco», «scattaci una foto e mandala al gosino di nonno
 Sandro».
 
-**Lo sguardo che si ricorda (ADR-108).** «Ricordati questo» → **un frame, due occhi**: il
+**Lo sguardo che si ricorda (ADR-121).** «Ricordati questo» → **un frame, due occhi**: il
 modello vision dice cos'era, tesseract legge le lettere, e insieme diventano una riga
 `memories` in chiaro (ADR-091) ripescabile dal braccio lessicale. Prima i due percorsi non
 si incrociavano mai — l'OCR vedeva solo il frame `fine`, il vision solo quello a 320px — e
@@ -2495,7 +2495,7 @@ nessuno dei due lasciava traccia: la risposta di «leggi» finiva fra i messaggi
 ruminazione in `events`, e la sera «quanto costava?» non trovava niente. Zero token: come
 ogni gesto, si risolve prima del provider.
 
-**L'album (ADR-109).** Riapre il vincolo 1 di ADR-016 in forma stretta. Si scatta **solo su
+**L'album (ADR-122).** Riapre il vincolo 1 di ADR-016 in forma stretta. Si scatta **solo su
 gesto**; i pixel vivono cifrati con la DEK della casa in un bucket privato (`S3_BUCKET_PHOTOS`),
 la didascalia in chiaro perché è come si ritrova; la **durata la sceglie il titolare** fra
 0/6/12/24/48/72 ore, con `0` di default e il `check` nel database. `expires_at` si scrive
@@ -2518,7 +2518,7 @@ Due cose imparate qui, e valgono oltre l'album:
    accanto. L'ha scoperto il test d'integrazione, connesso proprio come loro. Ora **ogni
    query nomina la casa** oltre a girare dentro `withAccount`.
 
-**Il nodo GPU (ADR-110), predisposto e inerte.** `OLLAMA_GPU_URL` opzionale: assente (il
+**Il nodo GPU (ADR-123), predisposto e inerte.** `OLLAMA_GPU_URL` opzionale: assente (il
 default) non cambia niente; presente, ci puntano vision, testo locale e l'anello di casa
 della catena di chat — le tre cose che degradano da sole quando il modello tace. **Gli
 embedding no, mai**: `embed()` è l'unico client locale che *lancia* invece di degradare, e
@@ -2635,10 +2635,10 @@ Il software delle Fasi 0–5 e l'intero backlog di consolidamento sono completi.
    dei modelli, cron del sogno, stack Vexa + Meet di prova. **Conseguenza operativa**: le migrazioni
    di schema non girano più su un database vuoto. Costano ancora poco a questo volume, e la finestra
    per i cambi strutturali (fra i quali la caduta dei `DEFAULT` del gruppo 5) non resterà aperta.
-4. **Per accendere l'album** (ADR-109): creare il bucket `S3_BUCKET_PHOTOS` accanto a quello
+4. **Per accendere l'album** (ADR-122): creare il bucket `S3_BUCKET_PHOTOS` accanto a quello
    dell'audio, **ricostruire il bundle del muso**, e poi — dal pannello, non da psql — scegliere
    la durata. Finché la durata resta su «non si tengono», il resto è inerte per costruzione.
-   Il nodo GPU (ADR-110) è predisposto ma nessuno l'ha comprato: senza `OLLAMA_GPU_URL` tutto
+   Il nodo GPU (ADR-123) è predisposto ma nessuno l'ha comprato: senza `OLLAMA_GPU_URL` tutto
    gira come prima, e le didascalie sono quelle che una CPU sa dare.
 5. **Col telefono**: installare la PWA (runbook §10), STT/TTS reali, MediaPipe/camera, Vosk wake
    word. Il guscio Capacitor (ADR-018 Tempo 2) parte quando serve registrare a schermo spento.

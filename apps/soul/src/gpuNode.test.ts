@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * ADR-110: il nodo con la scheda video, e cosa ci va sopra.
+ * ADR-123: il nodo con la scheda video, e cosa ci va sopra.
  *
  * La decisione non è «una macchina più veloce», è **quali modelli possono
  * dipendere da una seconda macchina**. Vision, testo locale e l'anello Ollama

@@ -38,7 +38,7 @@ export type ParcelRefusal =
   | "non-un-ricordo"
   | "gia-tenuta"
   | "illeggibile"
-  // ADR-109 × ADR-099: i tre modi in cui una foto non parte
+  // ADR-122 × ADR-099: i tre modi in cui una foto non parte
   | "foto-non-tua"
   | "album-loro-spento"
   | "loro-non-vogliono";
@@ -53,7 +53,7 @@ export interface ParcelView {
   status: string;
   createdAt: Date;
   keptAt: Date | null;
-  /** ADR-109: la foto che accompagna, se c'è — già nell'album di chi riceve */
+  /** ADR-122: la foto che accompagna, se c'è — già nell'album di chi riceve */
   photoId?: string | null;
 }
 
@@ -62,7 +62,7 @@ export class ParcelService {
     private readonly db: DbClient,
     private readonly masterKey: Buffer,
     /**
-     * ADR-109 × ADR-099: l'album, se questa installazione ne ha uno. Assente
+     * ADR-122 × ADR-099: l'album, se questa installazione ne ha uno. Assente
      * = le cartoline restano di sole parole, che è come sono nate.
      */
     private readonly album?: AlbumService | undefined,
@@ -105,7 +105,7 @@ export class ParcelService {
       toGosinoId?: string | undefined;
       kind: string;
       text: string;
-      /** ADR-109: la foto di casa MIA che la cartolina porta con sé */
+      /** ADR-122: la foto di casa MIA che la cartolina porta con sé */
       photoId?: string | undefined;
     },
   ): Promise<{ id: string } | ParcelRefusal> {
@@ -147,7 +147,7 @@ export class ParcelService {
     }
 
     /**
-     * ADR-109 × ADR-099: la foto, se c'è.
+     * ADR-122 × ADR-099: la foto, se c'è.
      *
      * Si guarda **prima di scrivere qualunque cosa**, e nell'ordine che la
      * rende onesta: è mia? la loro casa conserva foto? c'è qualcuno da loro
