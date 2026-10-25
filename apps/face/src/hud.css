@@ -198,7 +198,8 @@ body {
 #speak-text.visible {
   opacity: 1;
 }
-#app[data-log="on"] #speak-text {
+#app[data-log="on"] #speak-text,
+#app[data-mydata="on"] #speak-text {
   opacity: 0;
 }
 
@@ -320,6 +321,29 @@ body {
 }
 #app[data-chrome="nascosto"] #btn-voice-invite {
   bottom: 136px;
+}
+
+/**
+ * Un pannello aperto vuole il fondo dello schermo per sé.
+ *
+ * Dal campo, con uno screenshot: il dock di vetro sopra l'intestazione del
+ * registro, «Cosa è stato detto» tagliato a «Cosa è» e «chiudi» mezzo coperto.
+ * Non era una svista di qualche pixel ma la geometria: i pannelli sono
+ * ancorati al fondo e il dock galleggia a 26px dal fondo, cioè *dentro* di
+ * loro, e `#hud` nel markup viene dopo i pannelli — quindi dipinge sopra senza
+ * che nessuno l'abbia deciso. Misurato in Chromium a 390×844: dock a y
+ * 752-818, pannello da 766. I 52px coperti erano l'intestazione.
+ *
+ * Qui si toglie di mezzo quello che galleggia **a ogni larghezza**, perché il
+ * dock è centrato in basso e ci arriva sotto anche su uno schermo medio. Non
+ * è un vicolo cieco: il «chiudi» del pannello rimette tutto, ed è l'unico
+ * gesto che serve mentre si legge.
+ */
+#app[data-chrome="nascosto"][data-log="on"] #controls,
+#app[data-chrome="nascosto"][data-mydata="on"] #controls,
+#app[data-chrome="nascosto"][data-log="on"] #topbar-status,
+#app[data-chrome="nascosto"][data-mydata="on"] #topbar-status {
+  display: none;
 }
 
 /* ── pannelli gemelli (ADR-090): stessa scatola, veste del chiosco ───── */
@@ -631,6 +655,15 @@ body {
   }
   #app[data-chrome="nascosto"] #btn-voice-invite {
     bottom: 136px;
+  }
+
+  /* Sul telefono vanno via anche i comandi estesi: il foglio è alto ~274px e
+     il pannello gli finisce sotto **intero** (un registro vuoto è 78px). Su
+     desktop no — la colonna sta a sinistra e i pannelli a destra, non si
+     toccano, e portarla via sarebbe rompere un posto per sistemarne un altro. */
+  #app[data-log="on"] #controls,
+  #app[data-mydata="on"] #controls {
+    display: none;
   }
 
   /* i pannelli diventano fogli, come i comandi */

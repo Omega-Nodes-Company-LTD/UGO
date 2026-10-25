@@ -144,6 +144,66 @@ test("su telefono i comandi sono un foglio, e la presa lo nasconde", async ({ pa
 });
 
 /**
+ * Il dock non sta sopra il pannello.
+ *
+ * Dal campo, con lo screenshot in mano: «Cosa è stato detto» tagliato a «Cosa
+ * è», la riga «Ancora niente…» coperta e «chiudi» mezzo sotto il dock di
+ * vetro. Sul telefono finiscono in basso TUTTI E DUE — i pannelli sono fogli a
+ * `bottom: 0`, i comandi sono un foglio (esteso) o un dock a 26px dal fondo
+ * (nascosto) — e `#hud` nel markup viene dopo i pannelli, quindi dipinge sopra
+ * senza che nessuno abbia scelto che fosse così.
+ *
+ * Si misura la **geometria**, non la visibilità: nello screenshot erano
+ * visibili tutti e due, ed è esattamente il punto. Un pannello aperto vuole il
+ * fondo dello schermo per sé, e i comandi tornano col suo «chiudi».
+ */
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Via dai piedi vale sia nascosto (box nullo) sia spostato: il test non sceglie. */
+const overlap = (a: Box | null, b: Box | null): boolean =>
+  a !== null &&
+  b !== null &&
+  a.x < b.x + b.width &&
+  b.x < a.x + a.width &&
+  a.y < b.y + b.height &&
+  b.y < a.y + a.height;
+
+for (const chrome of ["esteso", "nascosto"] as const) {
+  for (const panel of ["log", "mydata"] as const) {
+    test(`telefono, chiosco ${chrome}: niente copre il pannello ${panel}`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await openFace(page);
+      if (chrome === "nascosto") {
+        await page.getByTestId("sheet-grip").click();
+        await expect(page.getByTestId("app")).toHaveAttribute("data-chrome", "nascosto");
+      }
+
+      await page.getByTestId(panel === "log" ? "btn-log" : "btn-mydata").click();
+      await expect(page.getByTestId(panel)).toBeVisible();
+      const sheet = await page.getByTestId(panel).boundingBox();
+      expect(sheet).not.toBeNull();
+
+      // i comandi, e la riga di stato che da nascosta galleggia sull'angolo
+      for (const over of ["controls", "topbar-status"] as const) {
+        expect(
+          overlap(await page.getByTestId(over).boundingBox(), sheet),
+          `${over} copre il pannello`,
+        ).toBe(false);
+      }
+
+      // e non è un vicolo cieco: il «chiudi» del pannello rimette i comandi
+      await page.getByTestId(`${panel}-close`).click();
+      await expect(page.getByTestId("controls")).toBeVisible();
+    });
+  }
+}
+
+/**
  * ADR-090: i due diritti dove vive chi li ha.
  *
  * Il pannello `/admin` li aveva già, e chi vive in questa casa il pannello non

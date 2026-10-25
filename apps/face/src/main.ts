@@ -191,6 +191,7 @@ const { remember } = mountLogPanel(
  */
 mountMyData(
   {
+    app,
     panel: requireElement("#mydata"),
     toggle: requireElement("#btn-mydata"),
     close: requireElement("#mydata-close"),
