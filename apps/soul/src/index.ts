@@ -172,19 +172,31 @@ const llmFor = (
     timezone: clock.timezone,
     locale: clock.locale,
   });
-  if (env.UGO_CHAT_LOCAL_FIRST !== "on") return remote;
+  /**
+   * ADR-124: la catena si monta se c'è qualcosa da metterci davanti —
+   * OpenRouter, o la voce di casa se la casa l'ha accesa. Senza nessuno dei
+   * due è il provider nudo, che è anche la configurazione più veloce: un
+   * anello in meno è un'attesa in meno.
+   */
+  const homeVoice = env.UGO_CHAT_HOME_VOICE === "on";
+  const hasOpenRouter =
+    env.OPENROUTER_API_KEY !== undefined && env.OPENROUTER_CHAT_MODEL !== undefined;
+  if (!homeVoice && !hasOpenRouter) return remote;
   return new ChatChain({
     db: dbFor(accountId),
     accountId,
     gosinoId,
     timezone: clock.timezone,
     locale: clock.locale,
-    local: { baseUrl: gpuUrl, model: localChatModel },
+    ...(homeVoice && {
+      local: { baseUrl: gpuUrl, model: localChatModel, timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS },
+    }),
     ...(env.OPENROUTER_API_KEY !== undefined &&
       env.OPENROUTER_CHAT_MODEL !== undefined && {
         openRouter: {
           apiKey: env.OPENROUTER_API_KEY,
           model: env.OPENROUTER_CHAT_MODEL,
+          timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS,
           ...(env.OPENROUTER_BASE_URL !== undefined && { baseUrl: env.OPENROUTER_BASE_URL }),
         },
       }),
@@ -373,6 +385,27 @@ const localText = new OllamaTextClient(
   gpuUrl,
   env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
 );
+/**
+ * ADR-124 — il guinzaglio del giudice, e perché è una costante con un nome.
+ *
+ * `localText` nasce con 45 secondi di pazienza, che sono giusti per il sogno,
+ * l'iniziativa e il cantastorie: lì nessuno aspetta davanti allo schermo. Il
+ * giudice dell'astensione (ADR-107), invece, gira **prima di ogni risposta**
+ * — e con quegli stessi 45 secondi erano 45 secondi di silenzio prima ancora
+ * di cominciare a comporre. Sommati ai 30 della catena facevano i «minuti
+ * interi» arrivati dal campo.
+ *
+ * Due secondi e mezzo si possono dare perché il giudice **fallisce aperto**:
+ * `readVerdict(undefined) === true`, quindi un giudice che non arriva in tempo
+ * lascia rispondere invece di far dire «non lo so». ADR-107 resta in piedi;
+ * costa meno.
+ */
+const JUDGE_TIMEOUT_MS = 2_500;
+const judgeText = new OllamaTextClient(
+  gpuUrl,
+  env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
+  JUDGE_TIMEOUT_MS,
+);
 let localTextUp = false;
 let localVisionUp = false;
 const probeLocal = (): void => {
@@ -436,8 +469,9 @@ const registry = await GosinoRegistry.load({
   speciesMap,
   localModelUp: () => localTextUp,
   initiativeEnabled: (accountId: string) => initiative.on(accountId),
-  // ADR-107: il giudice dell'astensione, sul modello di casa
+  // ADR-107: il giudice dell'astensione, sul modello di casa, col suo tetto
   abstain: env.UGO_ABSTAIN === "on",
+  judge: judgeText,
   hourOf,
   ...(recognition !== undefined && { recognition }),
   // ADR-057: senza bucket niente `voice_sample`, dal chiosco come dal pannello

@@ -55,13 +55,32 @@ export const soulEnvSchema = z.object({
     z.string().min(1).optional(),
   ),
   /**
-   * ADR-094: la voce di casa parla per prima, e il provider è il soccorso.
-   * Acceso per default su direttiva del proprietario — «local-first» senza
-   * l'asterisco. `off` esiste per il giorno in cui serve confrontare le due
-   * voci, non come scelta consigliata.
+   * **Ritirata** da ADR-124. Era l'interruttore di quando la voce di casa
+   * parlava per prima (ADR-094): resta qui **solo per fallire al boot** se è
+   * ancora in un file di ambiente. Un server che la tiene a `on` deve
+   * *sapere* che l'ordine della catena è cambiato, non scoprirlo dal
+   * comportamento — e il comportamento, in questo caso, erano trenta secondi
+   * di silenzio per frase.
    */
-  UGO_CHAT_LOCAL_FIRST: z
-    .preprocess((value) => (value === "" ? undefined : value), z.enum(["on", "off"]).default("on")),
+  UGO_CHAT_LOCAL_FIRST: optionalNonEmpty,
+  /**
+   * ADR-124: la voce di casa (Ollama) come anello della catena, e sta **a
+   * `off`** finché non c'è una GPU che la faccia rispondere in tempo da
+   * conversazione. Accesa, si prova DOPO OpenRouter e prima di Anthropic.
+   */
+  UGO_CHAT_HOME_VOICE: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.enum(["on", "off"]).default("off"),
+  ),
+  /**
+   * Quanto può tenere la parola UN anello intermedio. Dodici secondi, non
+   * trenta: oltre una decina chi sta parlando non distingue «sta pensando»
+   * da «è morto», e il soccorso che arriva vale più dell'anello che insiste.
+   */
+  UGO_CHAT_LINK_TIMEOUT_MS: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().int().positive().default(12_000),
+  ),
   /** il modello di casa per la CHAT; vuoto = quello del testo, poi del sogno */
   OLLAMA_CHAT_MODEL: z.preprocess(
     (value) => (value === "" ? undefined : value),
@@ -219,6 +238,20 @@ export const soulEnvSchema = z.object({
   UGO_FACE_DIR: z.preprocess((value) => (value === "" ? undefined : value), z.string().optional()),
   NODE_ENV: z.string().default("development"),
 }).superRefine((env, ctx) => {
+  // ADR-124: il nome vecchio non si ignora in silenzio. Ignorarlo vorrebbe
+  // dire che una casa convinta di avere la voce di casa davanti scopre il
+  // contrario dal comportamento, che è esattamente come il guasto è arrivato
+  // sul campo invece che in un test.
+  if (env.UGO_CHAT_LOCAL_FIRST !== undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "UGO_CHAT_LOCAL_FIRST non esiste più (ADR-124): l'ordine della catena è " +
+        "OpenRouter → casa → Anthropic, e la voce di casa si accende con " +
+        "UGO_CHAT_HOME_VOICE=on. Togli la riga, o sostituiscila.",
+      path: ["UGO_CHAT_LOCAL_FIRST"],
+    });
+  }
   // meta' configurazione non e' una configurazione: fail fast al boot (regola 4)
   if (env.OPENROUTER_API_KEY !== undefined && env.OPENROUTER_CHAT_MODEL === undefined) {
     ctx.addIssue({

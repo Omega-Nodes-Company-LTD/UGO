@@ -18,15 +18,17 @@ import { ChatChain } from "../../src/chatChain.js";
 import { DEGRADED_REPLY, HUNGRY_REPLY, LlmClient } from "../../src/llmClient.js";
 
 /**
- * La catena a più anelli (ADR-095), sul giro vero: Ollama → OpenRouter →
- * Anthropic, e OGNI anello che risponde scrive la sua riga sul ledger col suo
- * listino. Quattro server veri: un Ollama finto, un OpenRouter finto (entrambi
+ * La catena a più anelli (ADR-095) nell'ordine di ADR-124, sul giro vero:
+ * OpenRouter → casa (se accesa) → Anthropic, e OGNI anello che risponde
+ * scrive la sua riga sul ledger col suo listino. Quattro server veri: un Ollama finto, un OpenRouter finto (entrambi
  * HTTP davvero, catturano il body), lo stub Anthropic e Postgres.
  *
  * Le tre cose che contano:
  * 1. chi risponde PAGA — anche casa, a listino nominale: il metabolismo gira
  *    su ogni anello, non è più un'esenzione (supera ADR-094 §4 su direttiva);
- * 2. l'ordine è quello deciso, e un anello non configurato si salta;
+ * 2. l'ordine è quello deciso — **fuori prima**, perché casa senza GPU teneva
+ *    la parola 30 secondi per frase — e un anello non configurato si salta
+ *    senza essere sfiorato: assente non vuol dire «ha fallito»;
  * 3. i muri stanno all'INGRESSO della catena: a tetto sfondato o salvadanaio
  *    vuoto non si sfiora NESSUN anello, nemmeno quello quasi gratis —
  *    altrimenti la fame sarebbe una finzione.
@@ -105,14 +107,19 @@ afterAll(async () => {
   await pg.stop();
 });
 
-const build = (withOpenRouter = true): ChatChain =>
+/**
+ * Quali anelli ha questa casa. Di default tutti e due, perché i test che
+ * guardano l'ORDINE hanno bisogno di entrambi; la configurazione che gira
+ * davvero in produzione è `{ home: false }` (ADR-124), e ha il suo test.
+ */
+const build = ({ openRouter = true, home = true } = {}): ChatChain =>
   new ChatChain({
     db,
     accountId: PRIME_ACCOUNT_ID,
     gosinoId: PRIME_GOSINO_ID,
     timezone: "Europe/Rome",
-    local: { baseUrl: ollamaUrl, model: "qwen-test", timeoutMs: 2_000 },
-    ...(withOpenRouter && {
+    ...(home && { local: { baseUrl: ollamaUrl, model: "qwen-test", timeoutMs: 2_000 } }),
+    ...(openRouter && {
       openRouter: {
         baseUrl: openRouterUrl,
         apiKey: "or-test-key",
@@ -143,9 +150,22 @@ beforeEach(async () => {
 });
 
 describe("chi risponde paga", () => {
-  it("casa risponde: riga «ollama» a listino nominale, e nessun altro anello sfiorato", async () => {
-    ollamaPlan = { text: "Grunf, sono la voce di casa." };
+  it("fuori prima: OpenRouter parla, e casa non viene sfiorata", async () => {
+    ollamaPlan = { text: "non è il mio turno" };
+    orPlan = { text: "Primo anello, fuori casa.", cost: 0.00077 };
     const result = await build().chat({ channel: "home", userText: "ciao" });
+    expect(result.text).toContain("Primo anello");
+    // non «ha fallito»: non gli è stato chiesto niente
+    expect(ollamaSeen).toBeUndefined();
+    const rows = await db.select().from(budgetLedger);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.provider).toBe("openrouter");
+    expect(anthropic.requests).toHaveLength(0);
+  });
+
+  it("casa risponde (senza OpenRouter): riga «ollama» a listino nominale", async () => {
+    ollamaPlan = { text: "Grunf, sono la voce di casa." };
+    const result = await build({ openRouter: false }).chat({ channel: "home", userText: "ciao" });
     expect(result.text).toContain("voce di casa");
     expect(result.degraded).toBe(false);
 
@@ -164,7 +184,7 @@ describe("chi risponde paga", () => {
 
   it("e riceve il prompt VERO: identità, regole, ricordi e cronaca", async () => {
     ollamaPlan = { text: "ok" };
-    await build().chat({
+    await build({ openRouter: false }).chat({
       channel: "home",
       dynamicSystem: "Ricordi pertinenti:\n- il corriere passa il martedì",
       history: [{ role: "assistant", content: "Grunf." }],
@@ -176,11 +196,10 @@ describe("chi risponde paga", () => {
     expect(ollamaSeen?.messages?.map((m) => m.role)).toEqual(["system", "assistant", "user"]);
   });
 
-  it("casa giù: OpenRouter risponde e la riga porta il SUO costo dichiarato", async () => {
-    ollamaPlan = { status: 500 };
-    orPlan = { text: "Rispondo io, secondo anello.", cost: 0.00123 };
+  it("la riga di OpenRouter porta il SUO costo dichiarato, non un listino nostro", async () => {
+    orPlan = { text: "Rispondo io, primo anello.", cost: 0.00123 };
     const result = await build().chat({ channel: "home", userText: "ciao" });
-    expect(result.text).toContain("secondo anello");
+    expect(result.text).toContain("primo anello");
 
     const rows = await db.select().from(budgetLedger);
     expect(rows).toHaveLength(1);
@@ -194,13 +213,17 @@ describe("chi risponde paga", () => {
     expect(anthropic.requests).toHaveLength(0);
   });
 
-  it("casa troppo lenta: il timeout decide e si passa al secondo anello", async () => {
+  it("casa accesa ma muta: il timeout la taglia fuori e risponde il soccorso", async () => {
+    // è il guasto del campo in laboratorio: l'anello di casa che non risponde.
+    // Con un tetto da conversazione il silenzio finisce, e finisce dicendo
+    // qualcosa — prima durava 30 secondi e poi altri 30.
+    orPlan = { status: 503 };
     ollamaPlan = { hang: true };
-    orPlan = { text: "Soccorso rapido." };
+    anthropic.nextResponse = { text: "Arrivo io." };
     const result = await build().chat({ channel: "home", userText: "ciao" });
-    expect(result.text).toBe("Soccorso rapido.");
+    expect(result.text).toBe("Arrivo io.");
     const rows = await db.select().from(budgetLedger);
-    expect(rows[0]?.provider).toBe("openrouter");
+    expect(rows[0]?.provider).toBe("anthropic");
   });
 
   it("casa e OpenRouter giù: Anthropic risponde e paga come sempre", async () => {
@@ -218,9 +241,30 @@ describe("chi risponde paga", () => {
   it("senza OpenRouter configurato la catena lo salta: casa giù → Anthropic", async () => {
     ollamaPlan = { status: 500 };
     anthropic.nextResponse = { text: "Soccorso diretto." };
-    const result = await build(false).chat({ channel: "home", userText: "ciao" });
+    const result = await build({ openRouter: false }).chat({
+      channel: "home",
+      userText: "ciao",
+    });
     expect(result.text).toBe("Soccorso diretto.");
     expect(orSeen).toBeUndefined();
+  });
+
+  /**
+   * La configurazione che gira in produzione da ADR-124: la voce di casa
+   * spenta in attesa della GPU. L'anello **non esiste** — e la differenza fra
+   * «non esiste» e «ha fallito» qui sono i secondi di silenzio che hanno fatto
+   * nascere l'ADR.
+   */
+  it("voce di casa spenta: Ollama non viene sfiorato nemmeno quando tutto il resto cade", async () => {
+    orPlan = { status: 503 };
+    ollamaPlan = { text: "non dovrei nemmeno essere interpellato" };
+    anthropic.nextResponse = { text: "Ci sono io." };
+    const result = await build({ home: false }).chat({ channel: "home", userText: "ciao" });
+    expect(result.text).toBe("Ci sono io.");
+    expect(ollamaSeen).toBeUndefined();
+    const rows = await db.select().from(budgetLedger);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.provider).toBe("anthropic");
   });
 });
 
@@ -263,7 +307,7 @@ describe("i muri stanno all'ingresso della catena", () => {
       amountUsd: "1.00",
     });
     ollamaPlan = { text: "Grunf, pancia piena." };
-    const chain = build();
+    const chain = build({ openRouter: false });
     const result = await chain.chat({ channel: "home", userText: "ciao" });
     expect(result.text).toContain("pancia piena");
     const rows = await db.select().from(budgetLedger);
