@@ -5,6 +5,12 @@ proprietario: *«più che fallback, deve diventare la prima scelta, e remoto è 
 **§4 superato da ADR-095** lo stesso giorno: anche la risposta locale paga, a listino
 nominale, e i muri valgono per ogni anello.
 
+> **Superata nel default da ADR-124** (25 ottobre 2026). Resta vero tutto quello che c'è scritto
+> qui — compreso il perché una voce di casa sia preferibile quando c'è — ma l'ordine della catena
+> è ribaltato: fuori prima, casa quando ci sarà la GPU. La ragione non è un ripensamento, è una
+> misura: su un server senza scheda video questa voce teneva la parola fino a 30 secondi per
+> frase. `UGO_CHAT_LOCAL_FIRST` non esiste più; l'interruttore è `UGO_CHAT_HOME_VOICE`.
+
 ## Contesto
 
 Il progetto si chiama local-first e la chat — la cosa che UGO fa più spesso — viveva

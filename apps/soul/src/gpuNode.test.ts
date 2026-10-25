@@ -40,9 +40,11 @@ describe("il nodo GPU", () => {
   it("ci porta le tre cose che una GPU rende possibili, e solo quelle", () => {
     // il modello vision: uno sguardo diventa una frase
     expect(INDEX).toMatch(/new OllamaVisionClient\(\s*gpuUrl/u);
-    // il testo locale: la finestra sul mondo e l'iniziativa (ADR-027/063)
-    expect([...INDEX.matchAll(/new OllamaTextClient\(\s*gpuUrl/gu)]).toHaveLength(2);
-    // e l'anello di casa della catena di chat (ADR-095)
+    // il testo locale: la finestra sul mondo e l'iniziativa (ADR-027/063),
+    // più il giudice dell'astensione, che da ADR-124 ha un client suo col
+    // guinzaglio corto — stesso modello, stessa macchina, altra pazienza
+    expect([...INDEX.matchAll(/new OllamaTextClient\(\s*gpuUrl/gu)]).toHaveLength(3);
+    // e l'anello di casa della catena di chat (ADR-095), quando è accesa
     expect(INDEX).toMatch(/local: \{ baseUrl: gpuUrl/u);
     // nessun altro client locale ci finisce per distrazione
     const onGpu = [...INDEX.matchAll(/new (\w+)\(\s*gpuUrl/gu)].map((match) => match[1]);

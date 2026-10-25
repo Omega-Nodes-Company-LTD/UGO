@@ -12,7 +12,16 @@ import {
 import { computeLocalCostUsd } from "./pricing.js";
 
 /**
- * La catena a più anelli (ADR-095): Ollama → OpenRouter → Anthropic.
+ * La catena a più anelli (ADR-095), nell'ordine di ADR-124: OpenRouter →
+ * casa (se c'è) → Anthropic.
+ *
+ * **Perché non più casa per prima.** Dal campo, e con la misura: su un server
+ * senza GPU il modello di casa teneva la parola fino a 30 secondi per ogni
+ * frase, e `queue` serializza — tre frasi di fila facevano minuti di silenzio.
+ * Un anello che non risponde in tempo da conversazione non è un primo anello,
+ * è un ritardo con un nome gentile. Casa torna davanti quando c'è il ferro per
+ * farla rispondere (il nodo GPU di ADR-123); fino allora è un anello che si
+ * accende solo se qualcuno lo chiede, e si salta come si saltava OpenRouter.
  *
  * Evolve la voce di casa di ADR-094 su direttiva del proprietario: non più
  * un anello gratis davanti a uno a pagamento, ma una catena in cui **ogni
@@ -55,7 +64,15 @@ const openRouterResponseSchema = z.object({
 /** Un tetto per canale, come il remoto: un modello senza tetto continua. */
 const MAX_TOKENS_BY_CHANNEL = { home: 200, meeting: 300, api: 200, ticket: 400 } as const;
 
-const DEFAULT_TIMEOUT_MS = 30_000;
+/**
+ * Il tetto di UN anello intermedio, e vale 12 secondi e non 30 (com'era).
+ *
+ * Trenta secondi sono la misura di un lavoro notturno, dove nessuno aspetta;
+ * sulla strada di una risposta sono il guasto. Chi sta parlando non distingue
+ * «sta pensando» da «è morto» oltre una decina di secondi: a quel punto è
+ * meglio il soccorso che arriva.
+ */
+const DEFAULT_TIMEOUT_MS = 12_000;
 
 /** Cosa un anello intermedio riporta quando ha risposto davvero. */
 interface LinkAnswer {
@@ -74,8 +91,11 @@ export interface ChatChainOptions {
   /** il fuso della CASA (ADR-050): decide il giorno della riga sul ledger */
   timezone?: string;
   locale?: string;
-  /** il primo anello: il modello di casa su Ollama */
-  local: { baseUrl: string; model: string; timeoutMs?: number };
+  /**
+   * L'anello di casa, **solo se la casa lo vuole** (ADR-124): assente vuol
+   * dire che non esiste, non che fallisce — Ollama non viene sfiorato.
+   */
+  local?: { baseUrl: string; model: string; timeoutMs?: number };
   /** il secondo anello, solo se la casa ha una chiave OpenRouter */
   openRouter?: { baseUrl?: string; apiKey: string; model: string; timeoutMs?: number };
   /**
@@ -137,7 +157,7 @@ export class ChatChain implements ChatLlm {
       return { text: HUNGRY_REPLY, degraded: true };
     }
 
-    const answer = (await this.tryOllama(request)) ?? (await this.tryOpenRouter(request));
+    const answer = (await this.tryOpenRouter(request)) ?? (await this.tryOllama(request));
     if (answer !== undefined) {
       await this.record(answer, at);
       this.options.logger?.info(
@@ -158,7 +178,10 @@ export class ChatChain implements ChatLlm {
     }
 
     this.options.logger?.warn(
-      { local: this.options.local.model, openRouter: this.options.openRouter?.model ?? null },
+      {
+        local: this.options.local?.model ?? null,
+        openRouter: this.options.openRouter?.model ?? null,
+      },
       "no chain link answered: falling back to the provider",
     );
     return remote.chat(request, at);
@@ -182,7 +205,9 @@ export class ChatChain implements ChatLlm {
   }
 
   private async tryOllama(request: LlmChatRequest): Promise<LinkAnswer | undefined> {
-    const { baseUrl, model, timeoutMs } = this.options.local;
+    const link = this.options.local;
+    if (link === undefined) return undefined;
+    const { baseUrl, model, timeoutMs } = link;
     try {
       const response = await fetch(new URL("/api/chat", baseUrl), {
         method: "POST",

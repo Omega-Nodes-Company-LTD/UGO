@@ -356,14 +356,18 @@ container più economico dell'installazione.
    `TZ=Europe/Rome`. Facoltativa (ADR-103): `UGO_LITTER_COST_USD` (quanto costa **un cucciolo**,
    default `0.25`; si paga dal salvadanaio dei genitori e solo dalla terza generazione in poi —
    `0` dichiara «da questa casa si nasce gratis»). Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
-   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. Facoltative
-   (ADR-094 — la voce di casa parla per prima): `UGO_CHAT_LOCAL_FIRST` (`on` di default: la
-   chat prova PRIMA il modello locale su Ollama e usa Anthropic come soccorso; `off` per
-   tornare al solo provider) e `OLLAMA_CHAT_MODEL` (il modello locale della chat; assente,
-   scala su `OLLAMA_TEXT_MODEL` e poi su `OLLAMA_BATCH_MODEL`). Con ADR-095 la catena ha
-   tre anelli — casa (Ollama), poi OpenRouter se imposti `OPENROUTER_API_KEY` +
-   `OPENROUTER_CHAT_MODEL` (la chiave senza modello blocca il boot), poi Anthropic —
-   e **chi risponde paga**: ogni anello scrive la sua riga su `budget_ledger` col suo
+   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. **ADR-124 — l'ordine
+   della catena**: `OPENROUTER_API_KEY` + `OPENROUTER_CHAT_MODEL` (la chiave senza
+   modello blocca il boot) sono il **primo** anello, poi la voce di casa **se** la
+   accendi con `UGO_CHAT_HOME_VOICE=on`, poi Anthropic. `UGO_CHAT_LOCAL_FIRST` non
+   esiste più: se è ancora nelle variabili il boot si ferma e ti dice cosa metterci al
+   posto. Il ribaltamento ha una misura dietro: senza GPU il modello di casa teneva la
+   parola fino a 30 secondi per frase e il giudice dell'astensione altri 45, cioè minuti
+   di silenzio sul muso. Facoltative: `UGO_CHAT_LINK_TIMEOUT_MS` (quanto può tenere la
+   parola un anello intermedio, default 12000 ms) e `OLLAMA_CHAT_MODEL` (il modello
+   locale della chat quando la voce di casa è accesa; assente, scala su
+   `OLLAMA_TEXT_MODEL` e poi su `OLLAMA_BATCH_MODEL`). Su ogni anello
+   **chi risponde paga**: ogni anello scrive la sua riga su `budget_ledger` col suo
    listino (casa a listino nominale ~1% di haiku), quindi i totali dei conti nel
    pannello includono anche la spesa nominale locale. A salvadanaio vuoto non parla
    nessun anello: la fame vale anche per la voce di casa. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi

@@ -7,6 +7,11 @@ desiderato: ognuno di loro consuma token e scala dal portafoglio»*. Ordine chia
 scaricati da HuggingFace sul nostro ferro; da HF in forma diretta abbiamo la voce Piper e la
 percezione, e nessuno dei due chatta).
 
+> **Riordinata da ADR-124** (25 ottobre 2026). Gli anelli e la regola «chi risponde paga» restano
+> esattamente questi; cambia l'ordine — OpenRouter → casa (solo se accesa con
+> `UGO_CHAT_HOME_VOICE=on`) → Anthropic — e il tetto di un anello intermedio, da 30 secondi a 12.
+> `UGO_CHAT_LOCAL_FIRST=off` non spegne più niente: non esiste, e il boot lo dice.
+
 ## Contesto
 
 ADR-094 aveva messo la voce di casa davanti al provider, ma con un'esenzione: la risposta

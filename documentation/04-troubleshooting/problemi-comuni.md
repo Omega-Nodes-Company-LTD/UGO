@@ -1,8 +1,8 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.42.0"
-last_updated: "2026-08-19"
+version: "0.43.0"
+last_updated: "2026-10-25"
 author: "ThinkPink Studio"
 ---
 
@@ -282,6 +282,29 @@ C'è anche una terza possibilità, ed è scritta nella riga sotto il verdetto: s
 interno** di soul supera qualche decina di millisecondi, il server è occupato e **ogni** altra
 misura della pagina è gonfiata di altrettanto. Allora il problema non è nessuno dei container: è
 che il server ha troppo da fare.
+
+### Chi compone le parole, e perché conta per l'attesa
+
+Le frasi di UGO le compone un modello, e non sempre lo stesso. L'ordine è questo, e si ferma al
+primo che risponde:
+
+1. **OpenRouter**, fuori casa. È quello che risponde di solito, in un paio di secondi.
+2. **La voce di casa**, sul tuo server, **solo se l'hai accesa**. Di serie è spenta: senza una
+   scheda video dedicata ci mette decine di secondi per frase, e un'attesa così non è una
+   conversazione.
+3. **Anthropic**, come rete. Risponde quando i primi due non ci sono.
+
+Se l'attesa è lunga in modo nuovo, controlla due cose in quest'ordine.
+
+1. Guarda se la voce di casa è accesa (`UGO_CHAT_HOME_VOICE=on` fra le variabili del server) su
+   una macchina **senza GPU**. È la causa più frequente, e si spegne mettendola a `off`: dalla
+   risposta dopo, l'attesa torna di qualche secondo.
+2. Guarda se c'è la chiave di OpenRouter (`OPENROUTER_API_KEY`). Se manca, ogni risposta la
+   compone Anthropic: funziona, ma l'anello davanti non c'è.
+
+**Un minuto di attesa non è normale e non lo è mai stato.** Se lo vedi ancora dopo questi due
+controlli, il tempo se ne va in uno dei posti del paragrafo qui sopra, e la diagnostica dice in
+quale.
 
 ## Parlo dieci volte e mi risponde una
 

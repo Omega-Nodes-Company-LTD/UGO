@@ -124,6 +124,15 @@ export interface RuntimeDeps {
   initiativeEnabled: (accountId: string) => boolean;
   /** ADR-107: se il giudice dell'astensione è acceso (`UGO_ABSTAIN`) */
   abstain?: boolean;
+  /**
+   * ADR-124: il client del **giudice**, che non è quello di tutti gli altri.
+   *
+   * Il giudice sta sulla strada di ogni risposta, e `local` nasce con 45
+   * secondi di pazienza — giusti per il sogno e per l'iniziativa, dove nessuno
+   * aspetta, e fatali qui: erano 45 secondi di silenzio prima ancora di
+   * cominciare a comporre. Assente, si ricade su `local` com'era.
+   */
+  judge?: LocalTextClient;
   hourOf: (at: Date) => number;
   /**
    * ADR-045: chi sta parlando. Assente = UGO risponde senza sapere chi hai
@@ -254,7 +263,7 @@ async function buildRuntime(
     storyteller: deps.local,
     // ADR-107: lo stesso modello di casa fa anche il giudice dell'astensione.
     // Assente = spento: l'interruttore è la dipendenza che non arriva.
-    ...(deps.abstain === true && { abstain: deps.local }),
+    ...(deps.abstain === true && { abstain: deps.judge ?? deps.local }),
     ...(recognition !== undefined && {
       reader: new SceneReader({
         gateway: () => body.gateway,

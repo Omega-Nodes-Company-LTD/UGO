@@ -129,3 +129,4 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [121](./121-lo-sguardo-che-si-ricorda.md) | Lo sguardo che si ricorda: un frame, due occhi, una riga | Accettata |
 | [122](./122-l-album-di-famiglia.md) | L'album di famiglia: i pixel si conservano, per il tempo che scegli tu | Accettata |
 | [123](./123-il-nodo-gpu.md) | Il nodo GPU: una seconda macchina nostra, e la tailnet come unico muro | Accettata |
+| [124](./124-fuori-prima-casa-quando-ci-sara-la-gpu.md) | Fuori prima, casa quando ci sarà la GPU | Accettata |

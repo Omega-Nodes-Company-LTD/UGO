@@ -85,6 +85,11 @@ export function refusalMessage(status: number): string {
 }
 
 export interface MyDataElements {
+  /**
+   * Porta `data-mydata`, gemello del `data-log` di `logPanel`: con un pannello
+   * aperto i comandi si tolgono di mezzo, invece di dipingergli sopra.
+   */
+  app: HTMLElement;
   panel: HTMLElement;
   toggle: HTMLElement;
   close: HTMLElement;
@@ -173,13 +178,18 @@ export function mountMyData(elements: MyDataElements, deps: MyDataDeps): void {
     }
   };
 
+  /** Aprire e chiudere in un posto solo: il pannello e i comandi si coprono. */
+  const show = (open: boolean): void => {
+    elements.panel.hidden = !open;
+    elements.app.dataset.mydata = open ? "on" : "off";
+    if (open) void load();
+  };
+
   elements.toggle.addEventListener("click", () => {
-    const opening = elements.panel.hidden;
-    elements.panel.hidden = !opening;
-    if (opening) void load();
+    show(elements.panel.hidden);
   });
   elements.close.addEventListener("click", () => {
-    elements.panel.hidden = true;
+    show(false);
     // il token digitato non sopravvive alla chiusura: non è nostro da tenere
     elements.token.value = "";
   });
