@@ -2635,12 +2635,81 @@ dopo il salto di Fastify (`rlsRoutes` 31, `tenancy` 15, `ties` 15, `adminSurface
 `albumGates` 9); `pnpm audit --audit-level high` pulito. In CI: `integration`, `e2e`,
 `android shell` e `docker images build` verdi già prima del giro sulle dipendenze.
 
+## 6-quinquagies. Due segnalazioni dal campo: il dock che copriva il pannello, e i minuti di silenzio
+
+Due righe dal proprietario, il 25 ottobre, a distanza di pochi minuti: «UI inutilizzabile» con uno
+screenshot, e «non parla, non sento nulla per interi minuti». Cause indipendenti, nessuna delle due
+di stile.
+
+**Il dock sopra il pannello.** Nello screenshot il dock di vetro galleggia sull'intestazione del
+registro: «Cosa è stato detto» tagliato a «Cosa è», «chiudi» mezzo coperto. Non era una svista di
+qualche pixel, era la geometria — sul telefono i pannelli (`#log`, `#mydata`) sono fogli a
+`bottom: 0` e **anche** i comandi stanno in basso, foglio da esteso e dock a 26px dal fondo da
+nascosto, e `#hud` nel markup viene dopo i pannelli, quindi dipinge sopra senza che nessuno
+l'abbia deciso. Misurato in Chromium a 390×844: dock a y 752-818, pannello da 766 — i 52px coperti
+erano esattamente l'intestazione. Da esteso era peggio dello screenshot: il foglio è alto 274px e
+un registro vuoto (78px) gli finiva sotto **intero**.
+
+Chiuso completando un meccanismo che esisteva a metà: `logPanel` scriveva già `data-log` su `#app`
+(serviva solo a spegnere la nuvoletta), `myData` non scriveva niente. Adesso lo scrivono entrambi, e
+una regola CSS toglie di mezzo i comandi e la riga di stato finché un pannello è aperto — sul
+telefono sempre, su desktop solo il dock, perché là la colonna sta a sinistra e i pannelli a destra
+e portarla via sarebbe rompere un posto per sistemarne un altro. Il nuovo e2e misura i
+**rettangoli** e non la visibilità: nello screenshot erano visibili tutti e due, ed è il punto.
+
+**I minuti di silenzio, e perché nessun test li aveva presi.** Non c'era un bug. C'erano due
+attese, in due file diversi, entrambe difendibili da sole, **in sequenza sulla strada della stessa
+risposta**: il giudice dell'astensione (ADR-107) sul client locale condiviso, che nasce con 45
+secondi di pazienza, e l'anello di casa della catena, con 30. Settantacinque secondi per frase — e
+`ChatChain.queue` serializza, quindi tre frasi facevano minuti. I 45 secondi sono giusti dove sono
+nati (sogno, iniziativa, cantastorie: nessuno aspetta); i 30 erano la misura di un modello su GPU.
+Il guasto stava nel fatto che **nessuno li sommava**, su una strada dove la somma è l'unica cosa
+che conta — la stessa famiglia della giunzione di ADR-045.
+
+Deciso dal proprietario (ADR-124): **OpenRouter parla per primo**, la voce di casa **spenta** finché
+non c'è il nodo GPU di ADR-123. Fatto: ordine della catena ribaltato e anello locale diventato
+opzionale (assente non vuol dire «ha fallito» — non viene sfiorato), tetto di un anello intermedio
+da 30 a 12 secondi, `UGO_CHAT_LOCAL_FIRST` **ritirata con fail-fast al boot** invece che ignorata in
+silenzio, e il giudice con un client suo a 2,5 secondi — si può perché fallisce **aperto**
+(`readVerdict(undefined) === true`), quindi un giudice in ritardo lascia rispondere invece di far
+dire «non lo so».
+
+E soprattutto: **esiste una guardia che somma** (`apps/soul/src/chatLatency.test.ts`), verificata
+rossa contro l'assetto vecchio, dove dichiara **80 secondi** contro i 20 ammessi.
+
+Il giro completo: **BO** fatto (catena, env, montaggio, giudice, `.env.example`, runbook); **FE**
+fatto (il flag mancante e la regola); **`/admin`** non serviva e si può dire perché — il pannello
+non mostra niente della catena di chat, `localUp` alimenta solo la ruminazione e il riassunto delle
+ricerche — ma una conseguenza va detta: con ogni risposta che esce di casa la riga del budget in
+`/admin` comincia a muoversi per davvero, e `UGO_DAILY_BUDGET_USD` sta a 0,5 $/giorno di default.
+
+Verificato: `turbo build lint test` 33/33 (527 test in `soul`, 156 nel muso), `chatChain` 11 test
+su Postgres reale, `adminSurface` 12, la geometria misurata in Chromium in tutti e quattro i casi
+(due stati del chiosco × due pannelli) più il controllo che il desktop non sia stato toccato. Gli
+e2e completi e i test d'integrazione che vogliono Docker non girano in questo container: li corre
+la CI.
+
+**Tre HIGH nuove, chiuse per strada.** `pnpm audit` è tornato a segnalare tre vulnerabilità alte
+che il 20 ottobre non c'erano — avvisi pubblicati nei cinque giorni successivi, nessuno legato a
+queste modifiche: `vite` (8.2.1 → 8.3.5), `zod` (4.4.3 → 4.6.7, memoria esaurita su collezioni
+sovradimensionate — e zod sta a ogni confine, quindi il bump è stato rivalidato su tutto) e
+`body-parser` via `@modelcontextprotocol/sdk > express`, chiusa con un override
+(`body-parser@<2.4.0`). Entrambi i caret in `package.json` già ammettevano le versioni corrette:
+era il lockfile a essere fermo. Il lockfile è stato **riletto**, non creduto sulla parola — la
+lezione del 20 ottobre, quando pnpm disse «Done» tenendo le versioni vulnerabili. Dopo: 0
+critical, 0 high, 16 moderate.
+
+**Resta da fare, e non è lavoro di codice**: la chiave OpenRouter sul server (senza, la chat va
+diretta ad Anthropic: niente si rompe, manca l'anello davanti), e **il bundle del muso va
+ricostruito**, perché soul serve il muso già costruito e la regola CSS non arriva sul dispositivo
+finché il bundle non si rifà.
+
 ## 7. Debito tecnico e rischi aperti
 
 | Voce | Impatto | Piano |
 |---|---|---|
-| 14 MODERATE residue dopo il giro del 20 ottobre (fra cui esbuild via drizzle-kit, dev-only) | Basso: la CI blocca su HIGH/CRITICAL, e di quelle non ne resta nessuna | Rivedere al prossimo giro di aggiornamenti; non vale un bump forzato oggi |
-| **Undici override tengono in piedi la sicurezza dei transitivi** (`package.json`, `pnpm.overrides`) | Medio, e di natura diversa dalle altre voci: un override è un vincolo che nessuno rilegge. Il giorno che un genitore si aggiorna da solo, il nostro resta e congela una versione senza che niente lo segnali | Al prossimo giro: togliere quelli il cui genitore ha recuperato, invece di accumularne altri. La chiave porta il range vulnerabile, quindi si capisce cosa proteggeva |
+| 16 MODERATE residue al 25 ottobre (fra cui esbuild via drizzle-kit, dev-only) | Basso: la CI blocca su HIGH/CRITICAL, e di quelle non ne resta nessuna | Rivedere al prossimo giro di aggiornamenti; non vale un bump forzato oggi |
+| **Dieci override tengono in piedi la sicurezza dei transitivi** (`package.json`, `pnpm.overrides`) | Medio, e di natura diversa dalle altre voci: un override è un vincolo che nessuno rilegge. Il giorno che un genitore si aggiorna da solo, il nostro resta e congela una versione senza che niente lo segnali | Al prossimo giro: togliere quelli il cui genitore ha recuperato, invece di accumularne altri. La chiave porta il range vulnerabile, quindi si capisce cosa proteggeva |
 | **`av<19` in `ops/jobs/pyproject.toml`** | Medio: è un tetto su una dipendenza di una dipendenza, messo perché `faster-whisper` dichiara `av>=11` e passa ancora `metadata_errors`, che PyAV 19 ha rimosso | Si toglie quando faster-whisper esce con la chiamata corretta (ultima release ottobre 2025, problema aperto). Misurato su Python 3.12 entrambi i lati: 19.0.1 rompe, 18.1.0 no |
 | **Nessun lockfile Python** in `ops/jobs` | Medio, ed è la causa STRUTTURALE del punto sopra: con `faster-whisper>=1.1` e nessun lock, la CI installa l'ultima di tutto e un cambio a monte arriva senza preavviso | Decisione di toolchain, non di sicurezza: `uv.lock` o `pip-compile`. Da prendere a parte, non in coda a un giro di patch |
 | Python 3.11 nell'ambiente vs 3.12 in spec | Nullo fino a Fase 3 | Pin 3.12 nel Dockerfile di `ops/jobs` |
