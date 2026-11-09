@@ -3100,3 +3100,15 @@ sezione «Dispositivi» col codice di abbinamento appartiene al lavoro di UGO pu
 `dictation-mac.yml`), e a mano sul Mac microfono, Portachiavi, Accessibilità, incolla reale e
 notarizzazione. L'icona è provvisoria (`icons/icon.png`): va sostituita e rigenerata con
 `cargo tauri icon` prima della prima distribuzione.
+
+## 6-sexoctogies. La CI sui nostri runner (ADR-0167 della PaaS)
+
+- **Fatto**: i job Linux di `ci.yml` girano su `${{ vars.CI_RUNNER || 'ubuntu-latest' }}`.
+  Con la variabile d'organizzazione `CI_RUNNER=omega-ci` vanno sui runner nostri
+  (macchina Hetzner dedicata, un container effimero con Docker proprio per ogni job,
+  installazione in `paas-omega-space/infra/scripts/11-ci-runner.sh`); senza, restano
+  su GitHub come prima. Motivo: i minuti gratuiti finiscono prima del mese e la CI
+  si ferma.
+- **Resta su GitHub**: `dictation-mac.yml` (serve un Mac).
+- **Da sapere**: sui runner effimeri la cache dei modelli Ollama in `~/.ugo-ollama`
+  riparte da `actions/cache` a ogni job, come sui runner di GitHub.

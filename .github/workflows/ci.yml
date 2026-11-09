@@ -19,7 +19,7 @@ jobs:
   # minutes so a red build is noticed while the change is still fresh.
   static:
     name: build · lint · typecheck · unit
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -36,7 +36,7 @@ jobs:
   # MinIO and Ollama containers. ubuntu-latest ships a working Docker daemon.
   integration:
     name: integration (real containers)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -79,7 +79,7 @@ jobs:
 
   e2e:
     name: e2e (real browser vs real soul)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -118,7 +118,7 @@ jobs:
 
   jobs-python:
     name: jobs (dream, whisper on CPU)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -161,7 +161,7 @@ jobs:
     # Dockerfile that had not kept up with the workspace graph sailed through
     # every green run and only failed on the deployment server.
     name: docker images build
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - name: build soul image
@@ -223,7 +223,7 @@ jobs:
     # progetto SPM, e check_shell.py legge identità, firma, permessi, dominio e
     # supporto Mac dai file veri. La compilazione resta sul Mac (apps/face-ios/README.md).
     name: ios shell (config, no Xcode)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -244,7 +244,7 @@ jobs:
     # ADR-018 said the Android toolchain was not verifiable here, and that a
     # broken shell would be discovered on the phone instead of in the pipeline.
     name: android shell (debug apk)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: write
     steps:
