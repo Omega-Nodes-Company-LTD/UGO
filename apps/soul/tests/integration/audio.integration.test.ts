@@ -12,15 +12,14 @@ import {
 } from "@ugo/db";
 import {
   EMBED_MODEL,
-  startLlmStub,
+  openRouterKey,
   startMinio,
   startOllama,
-  type LlmStub,
   type MinioHandle,
   type OllamaHandle,
 } from "@ugo/factories";
 import { DEFAULT_SPECIES_MAP } from "@ugo/shared";
-import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import { encryptText } from "@ugo/shared";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -39,17 +38,15 @@ let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
 let minio: MinioHandle;
 let s3: S3Client;
-let stub: LlmStub;
 let db: DbClient;
 let embedder: OllamaEmbeddingsClient;
 let app: FastifyInstance;
 
 beforeAll(async () => {
-  [pg, ollama, minio, stub] = await Promise.all([
+  [pg, ollama, minio] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
     startOllama(),
     startMinio(),
-    startLlmStub(),
   ]);
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
@@ -74,10 +71,9 @@ beforeAll(async () => {
     embedder,
     llm: new LlmClient({
       db,
-      apiKey: "test",
-      model: "claude-haiku-4-5",
+      apiKey: openRouterKey(),
+      model: DEFAULT_CHAT_MODEL,
       dailyBudgetUsd: 5,
-      baseUrl: stub.baseUrl,
     }),
     psyche,
     dataKey,
@@ -106,7 +102,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close();
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop(), minio.container.stop(), stub.close()]);
+  await Promise.all([pg.stop(), ollama.container.stop(), minio.container.stop()]);
 });
 
 describe("POST /v1/audio/presign", () => {
@@ -147,7 +143,7 @@ describe("POST /v1/audio/presign", () => {
 });
 
 describe("recordings interrogable through /chat (§4.2)", () => {
-  it("feeds matching transcript segments, decrypted, into the dynamic block", async () => {
+  it("feeds matching transcript segments, decrypted, all the way to the answer", async () => {
     const [meeting] = await db
       .insert(meetings)
       .values({ gosinoId: PRIME_GOSINO_ID, platform: "ear", title: "giro-in-centro", status: "archived" })
@@ -164,17 +160,15 @@ describe("recordings interrogable through /chat (§4.2)", () => {
       embedding,
     });
 
-    stub.nextResponse = { text: "Ivan aveva detto che slitta a giovedì. Grunf." };
     const response = await app.inject({
       method: "POST",
       url: "/v1/chat",
       payload: { channel: "home", text: "cosa aveva detto Ivan sulla consegna?" },
     });
     expect(response.statusCode).toBe(200);
-    const captured = stub.requests.at(-1);
-    const dynamicBlock = captured?.body.system[2]?.text ?? "";
-    expect(dynamicBlock).toContain("Dalle registrazioni:");
-    expect(dynamicBlock).toContain("slitta a giovedì");
+    // «giovedì» esiste solo nella registrazione: se il modello lo dice, il
+    // segmento è arrivato al prompt, decifrato (ADR-125: niente richiesta catturata)
+    expect(response.json<{ reply: string }>().reply.toLowerCase()).toContain("gioved");
   });
 });
 

@@ -88,6 +88,18 @@ export const JOURNAL_PAGES = `
   </div>
 
   <div class="block">
+    <h2>Abbina un dispositivo</h2>
+    <p class="lede">Un telefono, un Mac o un altro browser entra in casa con un codice di
+       otto caratteri, valido <b>dieci minuti</b> e una volta sola. Scrivilo sul dispositivo nuovo:
+       comparirà fra le chiavi qui sopra come «dispositivo: …», e da lì si revoca.</p>
+    <div class="row">
+      <button id="pair-new" data-testid="pair-new">Genera un codice</button>
+    </div>
+    <p class="msg" id="pair-code" data-testid="pair-code" hidden></p>
+    <p class="msg" id="pair-msg"></p>
+  </div>
+
+  <div class="block">
     <h2>Cosa gli è stato detto di correggere</h2>
     <p class="lede">Le correzioni restano nel suo prompt finché non le si ritira.
        Si scrivevano e non si vedevano: una cosa che cambia il carattere e non si

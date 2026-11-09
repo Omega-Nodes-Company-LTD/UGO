@@ -130,3 +130,9 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [122](./122-l-album-di-famiglia.md) | L'album di famiglia: i pixel si conservano, per il tempo che scegli tu | Accettata |
 | [123](./123-il-nodo-gpu.md) | Il nodo GPU: una seconda macchina nostra, e la tailnet come unico muro | Accettata |
 | [124](./124-fuori-prima-casa-quando-ci-sara-la-gpu.md) | Fuori prima, casa quando ci sarà la GPU | Accettata |
+| [125](./125-openrouter-unico-varco.md) | OpenRouter, unico varco verso i modelli | Accettata |
+| [126](./126-la-voce-viene-dal-corpo.md) | La voce viene dal corpo | Accettata |
+| [127](./127-ugo-raggiungibile-dal-web.md) | UGO raggiungibile dal web | Accettata |
+| [128](./128-il-gosino-al-telefono.md) | Il gosino al telefono | Accettata |
+| [129](./129-la-dettatura-da-scrivania.md) | La dettatura da scrivania (UGO Dettatura per Mac) | Accettata |
+| [130](./130-il-guscio-ios-carica-il-muso-dal-soul.md) | Il guscio iOS carica il muso dal soul | Accettata |

@@ -39,6 +39,7 @@ export { rooms, slugOfRoom } from "./rooms.js";
 export { placedProps, propStock, PROP_KINDS_IN_DB } from "./props.js";
 export { unknownPrints, UNKNOWN_PRINT_RETENTION_DAYS } from "./prints.js";
 export { accessTokens } from "./access-tokens.js";
+export { pairingCodes, loginLinks } from "./device-access.js";
 export {
   auditLog,
   AUDIT_OUTCOMES,
@@ -70,3 +71,4 @@ export { diaryEntries, desires } from "./diary.js";
 export { checkins } from "./checkins.js";
 export { budgetLedger } from "./budget-ledger.js";
 export { PRIME_GOSINO_ID } from "./self.js";
+export { phoneCalls, PHONE_OUTCOMES } from "./phone.js";

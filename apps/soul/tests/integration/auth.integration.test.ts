@@ -236,7 +236,7 @@ describe("production boot refuses to run unguarded", () => {
     MQTT_USER: "soul",
     MQTT_PASS: "x",
     OLLAMA_URL: "http://ollama:11434",
-    ANTHROPIC_API_KEY: "k",
+    OPENROUTER_API_KEY: "k",
     UGO_DATA_KEY: "k",
   };
 
@@ -322,8 +322,8 @@ describe("GET /v1/stats", () => {
         accountId: PRIME_ACCOUNT_ID,
         gosinoId: PRIME_GOSINO_ID,
         date: today,
-        provider: "anthropic",
-        model: "claude-haiku-4-5",
+        provider: "openrouter",
+        model: "deepseek/deepseek-v4-flash",
         tokensIn: 1000,
         tokensCacheWrite: 200,
         tokensCacheRead: 700,
@@ -334,8 +334,8 @@ describe("GET /v1/stats", () => {
         accountId: PRIME_ACCOUNT_ID,
         gosinoId: PRIME_GOSINO_ID,
         date: today,
-        provider: "anthropic",
-        model: "claude-haiku-4-5",
+        provider: "openrouter",
+        model: "deepseek/deepseek-v4-flash",
         tokensIn: 1000,
         tokensCacheWrite: 0,
         tokensCacheRead: 900,
@@ -373,8 +373,8 @@ describe("GET /v1/stats", () => {
       accountId: PRIME_ACCOUNT_ID,
       gosinoId: PRIME_GOSINO_ID,
       date: today,
-      provider: "anthropic",
-      model: "claude-haiku-4-5",
+      provider: "openrouter",
+      model: "deepseek/deepseek-v4-flash",
       costUsd: "0.400000",
     });
     const body = (await open.inject({ method: "GET", url: "/v1/stats" })).json<{

@@ -12,11 +12,12 @@ import {
   accounts,
   runMigrations,
 } from "@ugo/db";
-import { startLlmStub, startOllama, type LlmStub, type OllamaHandle } from "@ugo/factories";
+import { openRouterKey, startOllama, type OllamaHandle } from "@ugo/factories";
 
 /**
  * Real backend for the reception E2E (Zero-Mock): Postgres+pgvector, real
- * Ollama embeddings, the network-level LLM stub, and soul itself as a child
+ * Ollama embeddings, the REAL OpenRouter (ADR-125: no stubs, the key comes
+ * from the environment), and soul itself as a child
  * process on the production entrypoint — the same dual-credential path the
  * public container uses. The customer, their gosino and their token are
  * seeded here and handed to the tests via env.
@@ -27,8 +28,29 @@ const RECEPTION_TOKEN = "e2e-reception-secret";
 
 let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
-let stub: LlmStub;
 let soul: ChildProcess;
+
+/**
+ * L'ambiente ereditato, senza i nomi che ADR-125 ha ritirato: soul si
+ * rifiuta di partire se li trova, e un e2e non deve dipendere da cosa c'è
+ * nella shell di chi lo lancia (un terminale con ANTHROPIC_BASE_URL era già
+ * abbastanza per un «soul did not become healthy» muto).
+ */
+const RETIRED = new Set([
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_BASE_URL",
+  "UGO_CHAT_MODEL",
+  "OPENAI_API_KEY",
+  "OPENAI_BASE_URL",
+  "UGO_TTS_MODEL",
+  "UGO_TTS_VOICE",
+  "OPENROUTER_BASE_URL",
+]);
+const inherited = (): NodeJS.ProcessEnv => {
+  const env = { ...process.env };
+  for (const name of RETIRED) Reflect.deleteProperty(env, name);
+  return env;
+};
 
 async function waitForHealth(url: string, attempts = 60): Promise<void> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -44,13 +66,13 @@ async function waitForHealth(url: string, attempts = 60): Promise<void> {
 }
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
-  [pg, ollama, stub] = await Promise.all([
+  // prima la chiave: un e2e senza fornitore vero fallisce qui, non a metà
+  const apiKey = openRouterKey();
+  [pg, ollama] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
     startOllama(),
-    startLlmStub(),
   ]);
   await runMigrations(pg.getConnectionUri());
-  stub.nextResponse = { text: "Grunf: la funzione di avvio sta in main.ts." };
 
   // the house, the exemplar, the customer, the assignment, the token — the
   // same rows the panel would write, seeded straight so the E2E stays fast
@@ -92,12 +114,11 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   soul = spawn("node", ["../soul/dist/index.js"], {
     stdio: "inherit",
     env: {
-      ...process.env,
+      ...inherited(),
       DATABASE_URL: pg.getConnectionUri(),
       OLLAMA_URL: ollama.baseUrl,
       OLLAMA_EMBED_MODEL: "nomic-embed-text",
-      ANTHROPIC_API_KEY: "e2e-key",
-      ANTHROPIC_BASE_URL: stub.baseUrl,
+      OPENROUTER_API_KEY: apiKey,
       UGO_DAILY_BUDGET_USD: "5",
       UGO_DATA_KEY: randomBytes(32).toString("base64"),
       UGO_INTERNAL_TOKEN: "e2e-internal",
@@ -120,6 +141,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
 
   return async () => {
     soul.kill("SIGTERM");
-    await Promise.all([pg.stop(), ollama.container.stop(), stub.close()]);
+    await Promise.all([pg.stop(), ollama.container.stop()]);
   };
 }

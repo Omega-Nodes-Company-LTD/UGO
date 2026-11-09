@@ -1,0 +1,3 @@
+/target
+# generati da tauri-build a ogni compilazione
+/gen/schemas

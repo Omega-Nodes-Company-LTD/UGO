@@ -2,7 +2,15 @@ export { OllamaEmbeddingsClient, type EmbeddingsClient } from "./embeddings.js";
 export { OllamaTextClient, type LocalTextClient } from "./localText.js";
 export { ChatChain, type ChatChainOptions } from "./chatChain.js";
 export { OllamaVisionClient, type LocalVisionClient } from "./localVision.js";
-export { OpenAiTtsClient, type LocalTtsClient, type TtsSpender } from "./ttsClient.js";
+export {
+  OpenRouterTtsClient,
+  DEFAULT_TTS_MODEL,
+  FALLBACK_USD_PER_CHAR,
+  type LocalTtsClient,
+  type TtsRequest,
+  type TtsSpender,
+} from "./ttsClient.js";
+export { audioTagFor, taggedText } from "./voiceTags.js";
 export {
   rerank,
   recencyFactor,
@@ -23,7 +31,17 @@ export { asksForAVerdict } from "./reporting.js";
 export { searchTranscripts, type RetrievedTranscript } from "./transcripts.js";
 export { searchCustomerChunks, type RetrievedCustomerChunk } from "./customerChunks.js";
 export { searchHouseChunks, type RetrievedHouseChunk } from "./houseChunks.js";
-export { computeCostUsd, pricingFor, type ModelPricing, type TokenUsage } from "./pricing.js";
+export { type TokenUsage } from "./pricing.js";
+export {
+  chatCompletionBody,
+  chatMessages,
+  cachedPrefix,
+  DEFAULT_CHAT_MODEL,
+  DEFAULT_PROVIDERS,
+  OPENROUTER_URL,
+  type ChatChannel,
+  type ChatMessage,
+} from "./chatRequest.js";
 export {
   LlmClient,
   DEGRADED_REPLY,

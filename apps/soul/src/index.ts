@@ -5,7 +5,7 @@ import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
   OllamaTextClient,
   OllamaVisionClient,
-  OpenAiTtsClient,
+  OpenRouterTtsClient,
 } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
@@ -41,6 +41,7 @@ import { storeVoiceSample } from "./services/voiceEnrolment.js";
 import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
+import { ResendMailer } from "./services/resendMailer.js";
 import { buildServer } from "./server.js";
 import { createAccount } from "./services/accountService.js";
 import type { Capability } from "./routes/capabilities.js";
@@ -159,47 +160,35 @@ const llmFor = (
   gosinoId: string,
   clock: HouseClock = { timezone: env.TZ, locale: DEFAULT_LOCALE },
 ): ChatLlm => {
+  const homeVoice = env.UGO_CHAT_HOME_VOICE === "on";
   const remote = new LlmClient({
     // ADR-098: il muro del budget legge il ledger DELLA casa — sulla
     // connessione nuda, sotto ugo_app, vedrebbe zero e non morderebbe mai
     db: dbFor(accountId),
-    apiKey: env.ANTHROPIC_API_KEY,
-    model: env.UGO_CHAT_MODEL,
+    apiKey: env.OPENROUTER_API_KEY,
+    model: env.OPENROUTER_CHAT_MODEL,
+    providers: env.OPENROUTER_PROVIDERS,
     dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
     accountId,
     gosinoId,
-    ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
     timezone: clock.timezone,
     locale: clock.locale,
+    // con un soccorso dietro, OpenRouter ha il tetto di un anello (ADR-124)
+    ...(homeVoice && { timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS }),
   });
   /**
-   * ADR-124: la catena si monta se c'è qualcosa da metterci davanti —
-   * OpenRouter, o la voce di casa se la casa l'ha accesa. Senza nessuno dei
-   * due è il provider nudo, che è anche la configurazione più veloce: un
-   * anello in meno è un'attesa in meno.
+   * ADR-125: OpenRouter risponde sempre per primo. La catena si monta solo se
+   * la casa ha acceso la voce di casa, che fa da soccorso quando OpenRouter
+   * non risponde; senza, è il client nudo — un anello in meno, un'attesa in meno.
    */
-  const homeVoice = env.UGO_CHAT_HOME_VOICE === "on";
-  const hasOpenRouter =
-    env.OPENROUTER_API_KEY !== undefined && env.OPENROUTER_CHAT_MODEL !== undefined;
-  if (!homeVoice && !hasOpenRouter) return remote;
+  if (!homeVoice) return remote;
   return new ChatChain({
     db: dbFor(accountId),
     accountId,
     gosinoId,
     timezone: clock.timezone,
     locale: clock.locale,
-    ...(homeVoice && {
-      local: { baseUrl: gpuUrl, model: localChatModel, timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS },
-    }),
-    ...(env.OPENROUTER_API_KEY !== undefined &&
-      env.OPENROUTER_CHAT_MODEL !== undefined && {
-        openRouter: {
-          apiKey: env.OPENROUTER_API_KEY,
-          model: env.OPENROUTER_CHAT_MODEL,
-          timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS,
-          ...(env.OPENROUTER_BASE_URL !== undefined && { baseUrl: env.OPENROUTER_BASE_URL }),
-        },
-      }),
+    local: { baseUrl: gpuUrl, model: localChatModel, timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS },
     remote,
     // pigro, e non e' un vezzo: llmFor gira al bootstrap, PRIMA che `app`
     // esista — toccare app.log qui era una TDZ che uccideva il boot vero
@@ -534,10 +523,9 @@ const capabilities = (): Capability[] => [
   {
     id: "ttsProvider",
     label: "Voce espressiva del provider",
-    on: env.OPENAI_API_KEY !== undefined,
-    ...(env.OPENAI_API_KEY === undefined && {
-      why: "manca OPENAI_API_KEY: si scende alla voce di casa (Piper) o a quella di sistema.",
-    }),
+    // ADR-125: la voce passa da OpenRouter con la stessa chiave della chat,
+    // che è obbligatoria al boot — quindi c'è sempre
+    on: true,
   },
   {
     id: "sttLocal",
@@ -575,6 +563,17 @@ const capabilities = (): Capability[] => [
   },
 ];
 
+// ADR-125: una sola voce per processo — la usano il muso e il telefono, e il
+// listino per carattere si legge una volta sola
+const tts = new OpenRouterTtsClient({
+  db,
+  dbFor,
+  apiKey: env.OPENROUTER_API_KEY,
+  dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
+  model: env.OPENROUTER_TTS_MODEL,
+  timezone: env.TZ,
+});
+
 const app = buildServer({
   db,
   capabilities,
@@ -592,6 +591,24 @@ const app = buildServer({
       }),
     }),
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
+  // ADR-127: la casa sul web — origini, proxy fidato, link dell'app, email
+  web: {
+    ...(env.UGO_PUBLIC_URL !== undefined && { publicUrl: env.UGO_PUBLIC_URL }),
+    ...(env.UGO_TRUST_PROXY !== undefined && { trustProxy: env.UGO_TRUST_PROXY }),
+    extraOrigins: (env.UGO_ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter((origin) => origin !== ""),
+    appleAppIds: env.UGO_APPLE_APP_IDS.split(",").map((id) => id.trim()).filter((id) => id !== ""),
+    ...(env.UGO_OWNER_EMAIL !== undefined &&
+      env.RESEND_API_KEY !== undefined &&
+      env.EMAIL_FROM !== undefined && {
+        magicLink: {
+          ownerEmail: env.UGO_OWNER_EMAIL,
+          mailer: new ResendMailer({ apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM }),
+        },
+      }),
+  },
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
   // ADR-123: la seconda macchina si guarda a parte. Una GPU che non risponde
@@ -651,6 +668,28 @@ const app = buildServer({
         syncTriggerUrl: env.UGO_JOBS_TRIGGER_URL,
       }),
     },
+    // ADR-128: il telefono esiste solo col suo segreto e la casa che risponde
+    ...(env.UGO_PHONE_TOKEN !== undefined &&
+      env.UGO_PHONE_ACCOUNT_ID !== undefined && {
+        phone: {
+          token: env.UGO_PHONE_TOKEN,
+          accountId: env.UGO_PHONE_ACCOUNT_ID,
+          dataKey,
+          dbFor,
+          quota: new CustomerQuota(
+            db,
+            {
+              hourlyMessages: env.UGO_CUSTOMER_HOURLY_MESSAGES,
+              dailyBudgetUsd: env.UGO_CUSTOMER_DAILY_BUDGET_USD,
+              timezone: env.TZ,
+            },
+            dbFor,
+          ),
+          llmFor,
+          tts,
+          embedder,
+        },
+      }),
     // ADR-051: the reception exists only when its dedicated secret does
     ...(env.UGO_RECEPTION_TOKEN !== undefined && {
       reception: {
@@ -692,20 +731,9 @@ const app = buildServer({
       env.UGO_HOME_LON !== undefined && {
         weather: { home: { lat: env.UGO_HOME_LAT, lon: env.UGO_HOME_LON } },
       }),
-    // gruppo 13: la voce interim — si accende con la chiave, si spegne col
-    // budget (ogni frase è una riga di budget_ledger)
-    ...(env.OPENAI_API_KEY !== undefined && {
-      tts: new OpenAiTtsClient({
-        db,
-        dbFor,
-        apiKey: env.OPENAI_API_KEY,
-        dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
-        model: env.UGO_TTS_MODEL,
-        voice: env.UGO_TTS_VOICE,
-        timezone: env.TZ,
-        ...(env.OPENAI_BASE_URL !== undefined && { baseUrl: env.OPENAI_BASE_URL }),
-      }),
-    }),
+    // ADR-125: la voce è ElevenLabs via OpenRouter, e si spegne col budget
+    // (ogni frase è una riga di budget_ledger)
+    tts,
   },
 });
 

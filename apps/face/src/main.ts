@@ -17,6 +17,8 @@ import {
 } from "@ugo/face-body";
 import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
+import { currentKey, installSoulKey, socketUrlWithKey, type KeyStore } from "./deviceKey.js";
+import { PairingScreen } from "./pairingScreen.js";
 import { myBuildId, shouldReload } from "./version.js";
 import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noiseGate.js";
 import { CHROME_STORE_KEY, mountHudChrome, type ChromeState } from "./hudChrome.js";
@@ -34,6 +36,8 @@ import { toPcm16Base64 } from "./voiceClip.js";
 import { watchSky } from "./skyWatch.js";
 import { mountVoiceInvite } from "./voiceInvite.js";
 import { FaceSocket } from "./ws.js";
+import { App as NativeApp } from "@capacitor/app";
+import { deepLinkTarget } from "./deepLinks.js";
 
 const PRESENCE_COOLDOWN_MS = 30_000;
 
@@ -65,10 +69,65 @@ const params = new URLSearchParams(location.search);
 // lives there appears on it, one or several. `?gosino=` (ADR-032) still names
 // one exactly; without either, the dock gets the eldest, which is what a
 // single-exemplar house has always shown.
-const soulUrl = resolveSoulUrl(location, params.get("soul"), params.get("gosino"), params.get("stanza"));
+// ADR-127: l'app (Capacitor, `capacitor://localhost`) non ha soul nella sua
+// origine: lo dice la build, con `VITE_SOUL_URL=wss://ugo.omeganodes.ai/v1/face`.
+// `?soul=` resta più forte di tutto, come sempre.
+const configuredSoul: unknown = import.meta.env.VITE_SOUL_URL;
+const soulUrl = resolveSoulUrl(
+  location,
+  params.get("soul") ?? (typeof configuredSoul === "string" && configuredSoul !== "" ? configuredSoul : null),
+  params.get("gosino"),
+  params.get("stanza"),
+);
 // portable mode (§4.2): NFC tag in the shell sets ?mode=portable; manual fallback
 const portableMode = params.get("mode") === "portable";
 const soulHttp = soulHttpBase(soulUrl);
+
+// ADR-127: la chiave del dispositivo. Ogni chiamata verso soul la porta; al
+// primo 401 compare «Fammi entrare». Sul web col link via email la chiave è un
+// cookie HttpOnly, che il browser manda da solo e che qui non si vede.
+const keyStore: KeyStore = (() => {
+  try {
+    return localStorage;
+  } catch {
+    const memory = new Map<string, string>();
+    return {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => void memory.set(key, value),
+      removeItem: (key: string) => void memory.delete(key),
+    };
+  }
+})();
+const pairing = new PairingScreen({
+  soulHttp,
+  store: keyStore,
+  userAgent: navigator.userAgent,
+  onPaired: () => {
+    // l'indirizzo pulito: niente segreti o codici rimasti nella barra
+    const clean = new URL(location.href);
+    clean.searchParams.delete("login");
+    clean.searchParams.delete("pair");
+    location.replace(clean.href);
+  },
+});
+installSoulKey({
+  soulHttp,
+  key: () => currentKey(params, keyStore),
+  onUnauthorized: () => {
+    pairing.show(params.get("pair") ?? undefined);
+  },
+});
+// ADR-130: dentro l'app iOS un link universale (`/pair/…`, `/login/…`) apre
+// l'app invece di Safari, e arriva qui. Nel browser il listener non scatta mai.
+NativeApp.addListener("appUrlOpen", ({ url }) => {
+  const target = deepLinkTarget(url, location.origin);
+  if (target !== undefined) location.assign(target);
+}).catch(() => {
+  // un guscio senza il plugin (Android, oggi) non ha link universali: niente da fare
+});
+const loginSecret = params.get("login");
+if (loginSecret !== null && loginSecret !== "") void pairing.redeem(loginSecret);
+else if (params.get("pair") !== null) pairing.show(params.get("pair") ?? undefined);
 
 // ADR-026: the body is 3D where the device can, 2D where it cannot. Nothing
 // below this line knows which one it got.
@@ -611,7 +670,7 @@ function onServerMessage(message: ServerToFaceMessage): void {
   }
 }
 
-const socket = new FaceSocket(soulUrl, {
+const socket = new FaceSocket(socketUrlWithKey(soulUrl, currentKey(params, keyStore)), {
   onMessage: onServerMessage,
   onConnected: (connected) => {
     app.dataset.connected = String(connected);

@@ -73,7 +73,11 @@ test("a chat round-trip from the keyboard, and the transcript shows it", async (
   await page.getByTestId("composer").fill("Dove sta la funzione di avvio?");
   await page.getByTestId("send").click();
   await expect(page.getByTestId("thread")).toContainText("Dove sta la funzione di avvio?");
-  await expect(page.getByTestId("thread")).toContainText("main.ts", { timeout: 20_000 });
+  // la risposta la scrive OpenRouter vero (ADR-125): si guarda che UGO abbia
+  // risposto con parole sue, non quali
+  await expect(page.locator('[data-testid="thread"] .bubble.ugo').last()).toHaveText(/\S/u, {
+    timeout: 30_000,
+  });
 
   // ADR-058: la mela vive sotto l'ultima risposta, e il conto scende davvero
   await expect(page.getByTestId("reward-note")).toContainText("davvero ottima");

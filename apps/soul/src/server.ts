@@ -2,7 +2,11 @@ import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import { registerAudioRoutes, type AudioStorageConfig } from "./routes/audio.js";
 import { createAuditLog } from "./services/auditLog.js";
-import { createAuthGuard, registerTenantResolution } from "./routes/guard.js";
+import { createAuthGuard, registerTenantResolution, registerTokenWall } from "./routes/guard.js";
+import { registerDeviceAccessRoutes } from "./routes/deviceAccess.js";
+import type { Mailer } from "./services/resendMailer.js";
+import { allowedOrigins, redactToken, securityHeaders } from "./services/webSecurity.js";
+
 import { registerCapabilitiesRoute, type Capability } from "./routes/capabilities.js";
 import { registerAccountRoutes } from "./routes/accounts.js";
 import { registerJobsRoutes } from "./routes/jobs.js";
@@ -57,13 +61,16 @@ import { registerTtsRoute, type TtsRouteDeps } from "./routes/tts.js";
 import { registerWeatherRoute, type WeatherDeps } from "./routes/weather.js";
 import { registerPropRoutes } from "./routes/props.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
+import { registerPhoneRoutes } from "./routes/phone.js";
+import { CallMemory, PhoneAudioStore } from "./services/phone/phoneMemory.js";
+import { PhoneService } from "./services/phone/phoneService.js";
 import { AlbumService } from "./services/albumService.js";
 import { AnswerCache } from "./services/reception/answerCache.js";
 import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
 import type { CustomerQuota } from "./services/reception/customerQuota.js";
 import { CustomerRewardService } from "./services/reception/customerReward.js";
 import type { GithubLiveService } from "./services/reception/githubLiveService.js";
-import type { ChatLlm, EmbeddingsClient } from "@ugo/memory";
+import type { ChatLlm, EmbeddingsClient, LocalTtsClient } from "@ugo/memory";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
 import { PropService } from "./services/propService.js";
 import { SceneHub } from "./services/sceneHub.js";
@@ -75,6 +82,20 @@ import type { ExportService } from "./services/privacy/exportService.js";
 import type { ForgetService } from "./services/privacy/forgetService.js";
 import type { SpeciesMap } from "@ugo/shared";
 import type { DbClient } from "@ugo/db";
+
+/** ADR-127: la casa raggiungibile dal web. */
+export interface WebOptions {
+  /** `https://ugo.omeganodes.ai`: l'origine pubblica, per CORS, HSTS e i link */
+  publicUrl?: string;
+  /** origini in più ammesse a leggere le risposte (oltre a pubblica e Capacitor) */
+  extraOrigins?: string[];
+  /** quanti proxy fidati davanti (Coolify: 1) */
+  trustProxy?: number;
+  /** `TEAMID.bundle` per apple-app-site-association */
+  appleAppIds: string[];
+  /** il link via email: assente = la porta risponde 501 */
+  magicLink?: { mailer: Mailer; ownerEmail: string };
+}
 
 export interface ServerOptions extends HealthDeps {
   logger?: boolean;
@@ -95,6 +116,11 @@ export interface ServerOptions extends HealthDeps {
    * che è il comportamento di ogni altra funzione facoltativa qui dentro.
    */
   diagnostics?: Omit<DiagnosticsDeps, "db">;
+  /**
+   * ADR-127: la casa sul web. Assente = come prima (rete di casa o tailnet),
+   * con le stesse intestazioni di sicurezza e le stesse porte di abbinamento.
+   */
+  web?: WebOptions;
   /**
    * ADR-061: far nascere una casa dal pannello.
    *
@@ -196,6 +222,21 @@ export interface ServerOptions extends HealthDeps {
       /** ADR-058: UGO_CUSTOMER_WEEKLY_REWARDS — il muro della mela */
       weeklyRewards: number;
     };
+    /**
+     * ADR-128: il gosino al telefono. Registrato solo col segreto dedicato e
+     * la casa che risponde: senza, la porta non esiste.
+     */
+    phone?: {
+      token: string;
+      accountId: string;
+      dataKey: Buffer;
+      dbFor?: (accountId: string) => DbClient;
+      quota: CustomerQuota;
+      llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => ChatLlm;
+      tts: LocalTtsClient & { usdPerChar(): Promise<number> };
+      embedder?: EmbeddingsClient;
+      github?: GithubLiveService;
+    };
     /** ADR-052: the house side — customers CRUD, assignment, tokens, triage */
     customers?: {
       dataKey: Buffer;
@@ -239,9 +280,28 @@ export interface ServerOptions extends HealthDeps {
  */
 export function buildServer(options: ServerOptions): FastifyInstance {
   // No PII and no payload contents in logs (CLAUDE.md rule 6): IDs only.
+  const web = options.web;
   const serverOptions: FastifyServerOptions = {
     logger:
-      options.logger === false ? false : { redact: ["req.headers.authorization", "req.headers.cookie"] },
+      options.logger === false
+        ? false
+        : {
+            redact: ["req.headers.authorization", "req.headers.cookie"],
+            // il token del socket viaggia in query: l'url si scrive senza
+            serializers: {
+              req: (request: { method: string; url: string }) => ({
+                method: request.method,
+                url: redactToken(request.url),
+              }),
+            },
+          },
+    // ADR-127: dietro il proxy di Coolify l'IP vero è nell'header, e il limite
+    // sui tentativi conta per IP
+    // un numero di salti, non «tutti»: fidarsi di tutti farebbe leggere l'IP che
+    // il client stesso scrive nell'header, e il limite si aggirerebbe
+    ...(web?.trustProxy !== undefined && {
+      trustProxy: (_address: string, hop: number) => hop < (web.trustProxy ?? 0),
+    }),
   };
   const app = Fastify(serverOptions);
   // In produzione il muso lo serve soul (`faceRoot`, cioè `UGO_FACE_DIR`):
@@ -254,7 +314,19 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   //
   // In dev il muso gira su Vite, su una porta diversa: lì la posizione
   // permissiva resta quella giusta, ed è l'unico posto in cui serviva.
-  app.register(cors, { origin: options.faceRoot === undefined });
+  //
+  // ADR-127: con la casa sul web le origini ammesse sono un elenco chiuso —
+  // l'indirizzo pubblico e la shell dell'app (Capacitor) — e nient'altro.
+  app.register(cors, {
+    origin:
+      options.faceRoot === undefined && web === undefined
+        ? true
+        : allowedOrigins(web?.publicUrl, web?.extraOrigins ?? []),
+  });
+  const headers = securityHeaders(web?.publicUrl);
+  app.addHook("onSend", async (_request, reply) => {
+    for (const [name, value] of Object.entries(headers)) reply.header(name, value);
+  });
   // audio arrives as bytes, not JSON: without this Fastify refuses the body
   // with a 415 before any route sees it
   app.addContentTypeParser(
@@ -300,12 +372,23 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     });
     // ADR-049: uno solo, per la stessa ragione per cui `llmClient` e' uno solo
     const audit = createAuditLog(options.db, app.log);
+    // ADR-127: subito dopo la risoluzione, prima di ogni rotta
+    registerTokenWall(app, audit);
     // ADR-056: chi guarda quale stanza, adesso. Uno per processo, come l'audit
     const scenes = new SceneHub();
     const props = new PropService(options.db);
     const guard = createAuthGuard(audit);
     // ADR-100: le chiavi di casa, le correzioni, il nome della stanza
     registerKeysRoutes(app, { db: options.db, guard, audit });
+    // ADR-127: abbinare un dispositivo, entrare con l'email, i link dell'app
+    registerDeviceAccessRoutes(app, {
+      db: options.db,
+      guard,
+      audit,
+      appleAppIds: web?.appleAppIds ?? [],
+      ...(web?.publicUrl !== undefined && { publicUrl: web.publicUrl }),
+      ...(web?.magicLink !== undefined && { magicLink: web.magicLink }),
+    });
     registerV1Routes(app, {
       db: options.db,
       ...v1,
@@ -673,6 +756,37 @@ export function buildServer(options: ServerOptions): FastifyInstance {
      * sbagliata è una rotta che a volte non c'è.
      */
     registerPlaceRoutes(app, { db: options.db, guard });
+
+    const phone = options.features.phone;
+    if (phone !== undefined) {
+      registerPhoneRoutes(app, {
+        db: options.db,
+        token: phone.token,
+        guard,
+        audio: new PhoneAudioStore(),
+        service: new PhoneService({
+          db: options.db,
+          ...(phone.dbFor !== undefined && { dbFor: phone.dbFor }),
+          dataKey: phone.dataKey,
+          accountId: phone.accountId,
+          llmFor: phone.llmFor,
+          tts: phone.tts,
+          memory: new CallMemory(),
+          // il cliente riconosciuto risponde come alla reception: stessi muri,
+          // stessa conoscenza, stessi turni cifrati (ADR-128)
+          customerChat: new CustomerChatService({
+            db: options.db,
+            ...(phone.dbFor !== undefined && { dbFor: phone.dbFor }),
+            dataKey: phone.dataKey,
+            quota: phone.quota,
+            llmFor: phone.llmFor,
+            audit,
+            ...(phone.embedder !== undefined && { embedder: phone.embedder }),
+            ...(phone.github !== undefined && { github: phone.github }),
+          }),
+        }),
+      });
+    }
 
     if (face !== undefined) {
       app.register(async (instance) => {

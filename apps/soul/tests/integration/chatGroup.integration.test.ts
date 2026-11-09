@@ -8,7 +8,8 @@ import {
   runMigrations,
   type DbClient,
 } from "@ugo/db";
-import type { EmbeddingsClient, LlmClient, LlmHistoryTurn } from "@ugo/memory";
+import { EMBED_MODEL, openRouterKey, startOllama, type OllamaHandle } from "@ugo/factories";
+import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import { encryptText } from "@ugo/shared";
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -20,31 +21,26 @@ import { PsycheService } from "../../src/services/psycheService.js";
  * La chat di gruppo (ADR-067): sul canale di CASA il filo è della stanza —
  * UGO rilegge i turni di tutti, col nome davanti, e può seguire una
  * conversazione a più voci. Sull'API resta lo scoping per persona (ADR-032).
- * Postgres vero; il provider è uno stub che cattura la history.
+ *
+ * Tutto vero (ADR-125): Postgres, Ollama per gli embedding, OpenRouter. Il
+ * filo non si legge più da una richiesta catturata: si chiede al modello
+ * qualcosa che può sapere SOLO se il filo giusto gli è arrivato.
  */
 
-const flatEmbedder: EmbeddingsClient = {
-  embed: (texts) => Promise.resolve(texts.map(() => Array.from({ length: 768 }, () => 0))),
-};
-
 let pg: StartedPostgreSqlContainer;
+let ollama: OllamaHandle;
 let db: DbClient;
 let gosinoId = "";
 let accountId = "";
 let ivan = "";
 let paola = "";
 const dataKey = randomBytes(32);
-const heardHistory: LlmHistoryTurn[][] = [];
-
-const capturingLlm = {
-  chat: (input: { history: LlmHistoryTurn[] }) => {
-    heardHistory.push(input.history);
-    return Promise.resolve({ text: "Grunf! Vi seguo tutti e due.", usage: undefined, costUsd: 0 });
-  },
-} as unknown as LlmClient;
 
 beforeAll(async () => {
-  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
+  [pg, ollama] = await Promise.all([
+    new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
+    startOllama(),
+  ]);
   const url = pg.getConnectionUri();
   await runMigrations(url);
   db = createDbClient(url);
@@ -105,14 +101,22 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$client.end();
-  await pg.stop();
+  await Promise.all([pg.stop(), ollama.container.stop()]);
 });
 
 async function chat(): Promise<ChatService> {
   return new ChatService({
     db,
-    embedder: flatEmbedder,
-    llm: capturingLlm,
+    embedder: new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL),
+    llm: new LlmClient({
+      db,
+      apiKey: openRouterKey(),
+      model: DEFAULT_CHAT_MODEL,
+      dailyBudgetUsd: 1,
+      accountId,
+      gosinoId,
+      timezone: "Europe/Rome",
+    }),
     psyche: await PsycheService.restore(db, new Date(), gosinoId),
     dataKey,
     gosinoId,
@@ -122,25 +126,33 @@ async function chat(): Promise<ChatService> {
 }
 
 describe("il filo della stanza", () => {
-  it("in casa UGO rilegge TUTTI, col nome davanti — e il filo API resta fuori", async () => {
+  it("in casa UGO rilegge TUTTI, col nome davanti", async () => {
     const service = await chat();
-    await service.handle({ channel: "home", text: "a che ora partiamo?", beingId: ivan });
-    const history = heardHistory.at(-1) ?? [];
-    const texts = history.map((turn) => turn.content);
-    expect(texts).toContain("Ivan: domani andiamo al lago");
-    expect(texts).toContain("Paola: io porto i panini");
-    // la risposta di UGO resta senza prefisso: parla lui, non un ospite
-    expect(texts).toContain("Grunf! Che bello, il lago!");
-    expect(texts.join("\n")).not.toContain("faccenda privata");
+    // lo chiede Ivan, e l'ha detto Paola: lo sa solo se il filo è della stanza
+    // e porta i nomi davanti
+    const answer = await service.handle({
+      channel: "home",
+      text: "chi di noi porta i panini? rispondi col nome",
+      beingId: ivan,
+    });
+    expect(answer.reply.toLowerCase()).toContain("paola");
   });
 
   it("sull'API lo scoping per persona di ADR-032 non si è mosso", async () => {
     const service = await chat();
-    await service.handle({ channel: "api", text: "dimmi solo le mie cose", beingId: ivan });
-    const texts = (heardHistory.at(-1) ?? []).map((turn) => turn.content);
-    expect(texts.join("\n")).toContain("faccenda privata");
-    expect(texts.join("\n")).not.toContain("panini");
-    // e niente nomi davanti: il filo è già suo
-    expect(texts.join("\n")).not.toContain("Ivan:");
+    // il filo API di Ivan c'è…
+    const own = await service.handle({
+      channel: "api",
+      text: "ripeti tra virgolette, parola per parola, il messaggio che ti ho scritto prima di questo",
+      beingId: ivan,
+    });
+    expect(own.reply.toLowerCase()).toContain("faccenda");
+    // …e la stanza no: di Paola e dei panini, sull'API, non sa niente
+    const room = await service.handle({
+      channel: "api",
+      text: "chi porta i panini? se non lo sai, dì solo «non lo so»",
+      beingId: ivan,
+    });
+    expect(room.reply.toLowerCase()).not.toContain("paola");
   });
 });

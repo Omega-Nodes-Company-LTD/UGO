@@ -1,3 +1,4 @@
+import { DEFAULT_CHAT_MODEL, DEFAULT_PROVIDERS, DEFAULT_TTS_MODEL } from "@ugo/memory";
 import { z } from "zod";
 
 /** empty string = not configured (compose passes empty defaults through) */
@@ -86,12 +87,37 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().min(1).optional(),
   ),
-  // ADR-095: il secondo anello della catena, fra casa e Anthropic. Solo con
-  // la chiave; senza, la catena lo salta e non se ne accorge nessuno.
-  OPENROUTER_API_KEY: optionalNonEmpty,
-  OPENROUTER_CHAT_MODEL: optionalNonEmpty,
-  /** override per gli stub di rete nei test; vuoto = https://openrouter.ai */
-  OPENROUTER_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  // ADR-125: OpenRouter è l'unico fornitore a pagamento — chat e voce. La
+  // chiave è obbligatoria: senza, UGO non ha parole.
+  OPENROUTER_API_KEY: z.string().min(1),
+  OPENROUTER_CHAT_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).default(DEFAULT_CHAT_MODEL),
+  ),
+  /**
+   * L'elenco chiuso e ORDINATO dei fornitori (ADR-125 §3): in testa quelli che
+   * fanno il caching del prefisso, mai uno con sede in Cina.
+   */
+  OPENROUTER_PROVIDERS: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z
+      .string()
+      .optional()
+      .transform((value) =>
+        value === undefined
+          ? [...DEFAULT_PROVIDERS]
+          : value
+              .split(",")
+              .map((name) => name.trim())
+              .filter((name) => name !== ""),
+      )
+      .pipe(z.array(z.string().min(1)).min(1)),
+  ),
+  /** il modello della voce, sempre via OpenRouter (ADR-125 §6) */
+  OPENROUTER_TTS_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).default(DEFAULT_TTS_MODEL),
+  ),
   // Initiative off by default is the wrong default for a companion, but it is
   // the right one for a machine that just learned to speak first.
   UGO_INITIATIVE: z
@@ -114,10 +140,16 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.coerce.number().int().min(1).default(4),
   ),
-  ANTHROPIC_API_KEY: z.string().min(1),
-  /** override for network-level test stubs; defaults to the official API */
-  ANTHROPIC_BASE_URL: z.url().optional(),
-  UGO_CHAT_MODEL: z.string().min(1).default("claude-haiku-4-5"),
+  // ADR-125: ritirate. Restano nello schema solo per FERMARE il boot se sono
+  // ancora in un file d'ambiente (superRefine sotto).
+  ANTHROPIC_API_KEY: optionalNonEmpty,
+  ANTHROPIC_BASE_URL: optionalNonEmpty,
+  UGO_CHAT_MODEL: optionalNonEmpty,
+  OPENAI_API_KEY: optionalNonEmpty,
+  OPENAI_BASE_URL: optionalNonEmpty,
+  UGO_TTS_MODEL: optionalNonEmpty,
+  UGO_TTS_VOICE: optionalNonEmpty,
+  OPENROUTER_BASE_URL: optionalNonEmpty,
   UGO_DAILY_BUDGET_USD: z.coerce.number().positive().default(0.5),
   /**
    * ADR-103: quanto costa un cucciolo, **per cucciolo** e dalla terza
@@ -159,6 +191,17 @@ export const soulEnvSchema = z.object({
   // interno: ruotare la superficie pubblica non deve toccare quella interna.
   // Assente = la reception non esiste e le sue rotte non vengono registrate.
   UGO_RECEPTION_TOKEN: optionalNonEmpty,
+  // ADR-128: il gosino al telefono. Il segreto che Omega HQ presenta (dedicato:
+  // ruotarlo non tocca la reception né il token interno) e la casa che
+  // risponde. Tutti e due o nessuno: assenti = la porta del telefono non esiste.
+  UGO_PHONE_TOKEN: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(32).optional(),
+  ),
+  UGO_PHONE_ACCOUNT_ID: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.uuid().optional(),
+  ),
   // Dove vive l'API GitHub dello stato vivo (ADR-054). Serve agli e2e per
   // essere ermetici: '/works' la interroga sul percorso caldo, e un test che
   // aspetta api.github.com vera è un test che fallisce quando GitHub tarda.
@@ -190,14 +233,6 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().min(16).optional(),
   ),
-  // gruppo 13: la voce interim (TTS emotivo OpenAI, finché non c'è la GPU per
-  // XTTS locale). Assente = voce di sistema, come sempre. Attenzione
-  // dichiarata in /documentation: ciò che UGO dice può contenere pezzi della
-  // vostra vita, e sintetizzarlo fuori casa è una scelta, non un default
-  OPENAI_API_KEY: optionalNonEmpty,
-  OPENAI_BASE_URL: z.url().optional(),
-  UGO_TTS_MODEL: z.string().min(1).default("gpt-4o-mini-tts"),
-  UGO_TTS_VOICE: z.string().min(1).default("alloy"),
   // preprocess: una stringa vuota NON è latitudine 0 (l'equatore per sbaglio)
   UGO_HOME_LAT: z.preprocess(
     (value) => (value === "" ? undefined : value),
@@ -236,6 +271,27 @@ export const soulEnvSchema = z.object({
   // where the built face lives inside the image (ADR-018 Tempo 1); empty in
   // development, where Vite serves it on its own port
   UGO_FACE_DIR: z.preprocess((value) => (value === "" ? undefined : value), z.string().optional()),
+  /**
+   * ADR-127 — la casa sul web. Assente = la casa resta dov'era (rete di casa o
+   * tailnet). Presente: HSTS, CORS chiuso su questa origine, link via email.
+   */
+  UGO_PUBLIC_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  /** quanti proxy fidati stanno davanti a soul: dietro Coolify (Traefik) è 1 */
+  UGO_TRUST_PROXY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().int().min(0).max(5).optional(),
+  ),
+  /** origini in più ammesse dal CORS, separate da virgole */
+  UGO_ALLOWED_ORIGINS: optionalNonEmpty,
+  /** `TEAMID.bundle` per i link universali dell'app (apple-app-site-association) */
+  UGO_APPLE_APP_IDS: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().default("8UH44UM49Z.ai.omeganodes.ugo"),
+  ),
+  /** l'indirizzo del titolare: l'unico a cui parte il link per entrare */
+  UGO_OWNER_EMAIL: z.preprocess((value) => (value === "" ? undefined : value), z.email().optional()),
+  RESEND_API_KEY: optionalNonEmpty,
+  EMAIL_FROM: optionalNonEmpty,
   NODE_ENV: z.string().default("development"),
 }).superRefine((env, ctx) => {
   // ADR-124: il nome vecchio non si ignora in silenzio. Ignorarlo vorrebbe
@@ -252,12 +308,46 @@ export const soulEnvSchema = z.object({
       path: ["UGO_CHAT_LOCAL_FIRST"],
     });
   }
-  // meta' configurazione non e' una configurazione: fail fast al boot (regola 4)
-  if (env.OPENROUTER_API_KEY !== undefined && env.OPENROUTER_CHAT_MODEL === undefined) {
+  // ADR-128: mezza porta del telefono non è una porta — fail fast (regola 4)
+  if ((env.UGO_PHONE_TOKEN === undefined) !== (env.UGO_PHONE_ACCOUNT_ID === undefined)) {
     ctx.addIssue({
       code: "custom",
-      message: "OPENROUTER_API_KEY impostata senza OPENROUTER_CHAT_MODEL: serve anche il modello",
-      path: ["OPENROUTER_CHAT_MODEL"],
+      message: "UGO_PHONE_TOKEN e UGO_PHONE_ACCOUNT_ID vanno insieme (ADR-128): o tutte e due, o nessuna",
+      path: ["UGO_PHONE_TOKEN"],
+    });
+  }
+  // ADR-125: i fornitori ritirati non si ignorano in silenzio. Una casa
+  // convinta di parlare con Anthropic deve sapere al boot che non è più così.
+  const retired: Record<string, string> = {
+    ANTHROPIC_API_KEY: "la chat passa da OpenRouter: usa OPENROUTER_API_KEY",
+    ANTHROPIC_BASE_URL: "non esiste più un indirizzo Anthropic da cambiare",
+    UGO_CHAT_MODEL: "il modello della chat è OPENROUTER_CHAT_MODEL",
+    OPENAI_API_KEY: "la voce passa da OpenRouter: usa OPENROUTER_API_KEY",
+    OPENAI_BASE_URL: "non esiste più un indirizzo OpenAI da cambiare",
+    UGO_TTS_MODEL: "il modello della voce è OPENROUTER_TTS_MODEL",
+    UGO_TTS_VOICE: "la voce è un gene del gosino, non un'impostazione (ADR-126)",
+    OPENROUTER_BASE_URL: "serviva agli stub di rete, che non esistono più",
+  };
+  for (const [name, instead] of Object.entries(retired)) {
+    if (env[name as keyof typeof env] !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: `${name} non esiste più (ADR-125): ${instead}. Togli la riga.`,
+        path: [name],
+      });
+    }
+  }
+  // ADR-127: il link via email è tre cose insieme o niente — una a metà non
+  // manda email e non lo dice a nessuno
+  const mail = [env.UGO_OWNER_EMAIL, env.RESEND_API_KEY, env.EMAIL_FROM, env.UGO_PUBLIC_URL];
+  const someMail = [env.UGO_OWNER_EMAIL, env.RESEND_API_KEY, env.EMAIL_FROM].some((v) => v !== undefined);
+  if (someMail && mail.some((v) => v === undefined)) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "il link via email (ADR-127) vuole tutte e quattro: UGO_OWNER_EMAIL, RESEND_API_KEY, " +
+        "EMAIL_FROM e UGO_PUBLIC_URL — oppure nessuna delle tre email",
+      path: ["UGO_OWNER_EMAIL"],
     });
   }
 });

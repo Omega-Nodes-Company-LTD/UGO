@@ -16,14 +16,13 @@ import {
 } from "@ugo/db";
 import {
   EMBED_MODEL,
-  startLlmStub,
+  openRouterKey,
   startOllama,
   startVexaStub,
-  type LlmStub,
   type OllamaHandle,
   type VexaStub,
 } from "@ugo/factories";
-import { LlmClient, OllamaEmbeddingsClient, writeMemory } from "@ugo/memory";
+import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient, writeMemory } from "@ugo/memory";
 import { decryptText } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -40,18 +39,16 @@ const MEET_URL = "https://meet.google.com/abc-defg-hij";
 let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
 let vexa: VexaStub;
-let llmStub: LlmStub;
 let db: DbClient;
 let service: MeetingsService;
 const spoken: string[] = []; // ADR-013: SpeakPort capture (in-room voice)
 const perturbed: string[] = []; // psyche events raised by the meeting lifecycle
 
 beforeAll(async () => {
-  [pg, ollama, vexa, llmStub] = await Promise.all([
+  [pg, ollama, vexa] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
     startOllama(),
     startVexaStub(),
-    startLlmStub(),
   ]);
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
@@ -61,12 +58,12 @@ beforeAll(async () => {
     gosinoId: PRIME_GOSINO_ID,
     accountId: PRIME_ACCOUNT_ID,
     embedder,
+    // il modello vero, su OpenRouter (ADR-125)
     llm: new LlmClient({
       db,
-      apiKey: "test",
-      model: "claude-haiku-4-5",
+      apiKey: openRouterKey(),
+      model: DEFAULT_CHAT_MODEL,
       dailyBudgetUsd: 5,
-      baseUrl: llmStub.baseUrl,
     }),
     dataKey,
     vexa: { baseUrl: vexa.baseUrl, apiKey: "vxa_test_key", ownerName: "Omega" },
@@ -87,7 +84,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop(), vexa.close(), llmStub.close()]);
+  await Promise.all([pg.stop(), ollama.container.stop(), vexa.close()]);
 });
 
 describe("url parsing", () => {
@@ -154,7 +151,6 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
       },
     );
 
-    llmStub.nextResponse = { text: "Nella scorsa call avevate scelto il PETG. Grunf." };
     const at = new Date();
     vexa.segments.push({
       speaker: "Paola",
@@ -164,9 +160,9 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
     });
     expect(await service.pollOnce(ref, at)).toBe(1);
 
-    const captured = llmStub.requests.at(-1);
-    expect(captured?.body.max_tokens).toBe(300); // canale meeting (§5.5)
-    expect(captured?.body.system[2]?.text).toContain("PETG");
+    // chi chiama OpenRouter scrive una riga: il conto delle righe è il conto delle chiamate
+    const providerCalls = (await db.select().from(budgetLedger)).length;
+    expect(providerCalls).toBeGreaterThanOrEqual(1);
 
     // second mention 30s later: rate limit 1/2min holds
     vexa.segments.push({
@@ -175,24 +171,22 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
       end: 15,
       text: "UGO, ci sei ancora? altra domanda?",
     });
-    const providerCalls = llmStub.requests.length;
     expect(await service.pollOnce(ref, new Date(at.getTime() + 30_000))).toBe(1);
-    expect(llmStub.requests.length).toBe(providerCalls); // no new provider call
+    // no new provider call
+    expect((await db.select().from(budgetLedger)).length).toBe(providerCalls);
 
     const assistantRows = await db.select().from(messages).where(eq(messages.channel, "meeting"));
     expect(assistantRows).toHaveLength(1);
-    expect(decryptText(assistantRows[0]?.text ?? "", dataKey)).toContain("PETG");
-    expect((await db.select().from(budgetLedger)).length).toBeGreaterThanOrEqual(1);
+    // il ricordo è arrivato al modello: risponde col materiale deciso
+    const answer = decryptText(assistantRows[0]?.text ?? "", dataKey);
+    expect(answer).toMatch(/petg/i);
     // ADR-013 opzione b: la risposta è stata instradata alla voce in stanza
-    expect(spoken).toEqual(["Nella scorsa call avevate scelto il PETG. Grunf."]);
+    expect(spoken).toEqual([answer]);
   });
 
   it("stop leaves the call, closes the meeting and leaves a digest behind", async () => {
     const ref = service.active()[0];
     if (ref === undefined) throw new Error("no active meeting");
-    llmStub.nextResponse = {
-      text: "Si è deciso di stampare i gusci in PETG; consegna confermata a giovedì mattina.",
-    };
     await service.stop(ref);
 
     expect(vexa.botsDeleted.at(-1)).toBe("/bots/google_meet/abc-defg-hij");
@@ -209,7 +203,9 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
     // the digest is a real memory, embedded, available before the night job
     const digests = await db.select().from(memories).where(eq(memories.kind, "insight"));
     expect(digests).toHaveLength(1);
-    expect(digests[0]?.text).toContain("PETG");
+    // il riassunto l'ha scritto il modello vero, dalla trascrizione: la
+    // consegna di giovedì c'è
+    expect(digests[0]?.text).toMatch(/gioved/i);
     expect(digests[0]?.text).toContain("riunione di prova");
     expect(digests[0]?.embedding).toHaveLength(768);
     expect(JSON.stringify(digests[0]?.sourceRefs)).toContain(ref.meetingId);
@@ -246,7 +242,6 @@ describe("chi va in call: the chosen exemplar, not the boot one", () => {
       .where(eq(transcriptSegments.meetingId, ref.meetingId));
     expect(segments[0]?.accountId).toBe(PRIME_ACCOUNT_ID);
 
-    llmStub.nextResponse = { text: "Un appunto per Silvio, nient'altro." };
     await service.stop(ref);
     const hisDigests = await db.select().from(memories).where(eq(memories.gosinoId, second.id));
     expect(hisDigests).toHaveLength(1);

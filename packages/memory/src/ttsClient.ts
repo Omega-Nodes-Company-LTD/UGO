@@ -1,32 +1,49 @@
 import { and, eq, sql } from "drizzle-orm";
 import { budgetLedger, accounts } from "@ugo/db";
 import type { DbClient } from "@ugo/db";
+import { z } from "zod";
+import { OPENROUTER_URL } from "./chatRequest.js";
+import { taggedText } from "./voiceTags.js";
 
 /**
- * La voce interim (gruppo 13): TTS emotivo via OpenAI, finché non c'è la GPU
- * per XTTS locale.
+ * La voce: ElevenLabs, sempre tramite OpenRouter (ADR-125 §6).
  *
- * Sta QUI, accanto a `llmClient`, per la stessa disciplina della regola 3:
- * è una chiamata a pagamento a un provider, quindi ogni frase sintetizzata
- * scrive la sua riga nel `budget_ledger` e rispetta il tetto giornaliero
- * della casa. A budget finito non solleva: risponde `undefined`, e il muso
- * degrada alla voce di sistema — la degradazione è dichiarata, non un guasto.
+ * Sta QUI, accanto a `llmClient`, per la stessa disciplina della regola 3: è
+ * una chiamata a pagamento, quindi ogni frase sintetizzata scrive la sua riga
+ * nel `budget_ledger` e rispetta il tetto giornaliero della casa. A budget
+ * finito non solleva: risponde `undefined`, e il muso scende alla voce di casa
+ * (Piper) o di sistema — la degradazione è dichiarata, non un guasto.
  *
- * L'emozione è il punto: `gpt-4o-mini-tts` accetta `instructions`, e la
- * psiche ha già la label da tradurre in quella riga. Niente SSML, niente
- * complessità: una POST, dell'audio.
+ * La voce (`voice`) è del gosino, non del processo: viene dal suo genoma
+ * (ADR-126). L'umore la colora con un tag audio (`voiceTags.ts`).
  */
 
+export const DEFAULT_TTS_MODEL = "elevenlabs/eleven-v4";
+
 /**
- * Stima dichiarata, non fattura: OpenAI prezza l'audio in token (~$12/1M) e
- * il parlato italiano fa ~1 token per carattere. Meglio sovrastimare di poco
- * che scoprire a fine mese che il salvadanaio mentiva.
+ * Il listino della voce ElevenLabs su OpenRouter è per CARATTERE (80 $ al
+ * milione per `eleven-v4`, 2026-11-09). Si legge vivo dal catalogo; questo è
+ * il ripiego dichiarato se il catalogo non risponde — il prezzo più alto fra
+ * i modelli ElevenLabs, perché un salvadanaio che sovrastima di poco è meglio
+ * di uno che mente.
  */
-const ESTIMATED_USD_PER_CHAR = 12e-6;
+export const FALLBACK_USD_PER_CHAR = 80e-6;
+
+const catalogSchema = z.object({
+  data: z.array(z.object({ id: z.string(), pricing: z.object({ prompt: z.string() }) })),
+});
 
 export interface TtsSpender {
   accountId: string;
   gosinoId: string;
+}
+
+export interface TtsRequest {
+  text: string;
+  /** l'etichetta della psiche (`pickLabel`): diventa un tag audio */
+  mood?: string;
+  /** la voce del gosino, dal suo genoma (ADR-126) */
+  voice: string;
 }
 
 export interface TtsClientOptions {
@@ -37,8 +54,6 @@ export interface TtsClientOptions {
   /** fallback ceiling; a house that sets its own in `accounts` overrides it */
   dailyBudgetUsd: number;
   model?: string;
-  voice?: string;
-  baseUrl?: string;
   /** il fuso della casa (ADR-050): decide il confine del giorno del ledger */
   timezone?: string;
   timeoutMs?: number;
@@ -48,16 +63,20 @@ export interface TtsClientOptions {
 
 export interface LocalTtsClient {
   /** l'audio (mp3), o undefined quando si degrada: budget finito o API giù */
-  synth(text: string, instructions: string, spender: TtsSpender): Promise<Buffer | undefined>;
+  synth(request: TtsRequest, spender: TtsSpender): Promise<Buffer | undefined>;
 }
 
-export class OpenAiTtsClient implements LocalTtsClient {
-  public constructor(private readonly options: TtsClientOptions) {}
+export class OpenRouterTtsClient implements LocalTtsClient {
+  private readonly model: string;
+  /** il listino si legge una volta per processo: la voce non cambia prezzo ogni frase */
+  private price: Promise<number> | undefined;
+
+  public constructor(private readonly options: TtsClientOptions) {
+    this.model = options.model ?? DEFAULT_TTS_MODEL;
+  }
 
   private today(at: Date): string {
-    return at.toLocaleDateString("en-CA", {
-      timeZone: this.options.timezone ?? "Europe/Rome",
-    });
+    return at.toLocaleDateString("en-CA", { timeZone: this.options.timezone ?? "Europe/Rome" });
   }
 
   /** ADR-098: la connessione della casa che spende; assente = `db` */
@@ -71,10 +90,7 @@ export class OpenAiTtsClient implements LocalTtsClient {
       .select({ total: sql<string>`coalesce(sum(${budgetLedger.costUsd}), 0)` })
       .from(budgetLedger)
       .where(
-        and(
-          eq(budgetLedger.accountId, spender.accountId),
-          eq(budgetLedger.date, this.today(at)),
-        ),
+        and(eq(budgetLedger.accountId, spender.accountId), eq(budgetLedger.date, this.today(at))),
       );
     const [house] = await db
       .select({ limit: accounts.dailyBudgetUsd })
@@ -87,63 +103,72 @@ export class OpenAiTtsClient implements LocalTtsClient {
     return Number(row?.total ?? 0) < ceiling;
   }
 
+  /** Il prezzo per carattere del modello, dal catalogo vivo di OpenRouter. */
+  public usdPerChar(): Promise<number> {
+    this.price ??= this.readPrice();
+    return this.price;
+  }
+
+  private async readPrice(): Promise<number> {
+    try {
+      const response = await fetch(
+        new URL("/api/v1/models?output_modalities=speech", OPENROUTER_URL),
+        { signal: AbortSignal.timeout(10_000) },
+      );
+      const catalog = catalogSchema.parse(await response.json());
+      const price = Number(catalog.data.find((model) => model.id === this.model)?.pricing.prompt);
+      if (Number.isFinite(price) && price > 0) return price;
+    } catch {
+      // sotto: il ripiego dichiarato
+    }
+    this.price = undefined; // si riprova alla prossima frase
+    this.options.logger?.warn({ model: this.model }, "tts price unreadable: using the declared fallback");
+    return FALLBACK_USD_PER_CHAR;
+  }
+
   public async synth(
-    text: string,
-    instructions: string,
+    request: TtsRequest,
     spender: TtsSpender,
     at: Date = new Date(),
   ): Promise<Buffer | undefined> {
-    // il muro PRIMA della chiamata: a salvadanaio vuoto non si spende, e la
-    // voce di sistema è il ripiego dichiarato, non un errore
+    // il muro PRIMA della chiamata: a salvadanaio vuoto non si spende
     if (!(await this.budgetLeft(spender, at))) return undefined;
+    const input = taggedText(request.text, request.mood);
     let audio: Buffer;
     try {
-      const response = await fetch(
-        new URL("/v1/audio/speech", this.options.baseUrl ?? "https://api.openai.com"),
-        {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${this.options.apiKey}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            model: this.options.model ?? "gpt-4o-mini-tts",
-            voice: this.options.voice ?? "alloy",
-            input: text,
-            instructions,
-            response_format: "mp3",
-          }),
-          signal: AbortSignal.timeout(this.options.timeoutMs ?? 20_000),
+      const response = await fetch(new URL("/api/v1/audio/speech", OPENROUTER_URL), {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.options.apiKey}`,
+          "content-type": "application/json",
         },
-      );
+        body: JSON.stringify({ model: this.model, voice: request.voice, input, response_format: "mp3" }),
+        signal: AbortSignal.timeout(this.options.timeoutMs ?? 20_000),
+      });
       if (!response.ok) {
         // la classe dell'errore, mai il corpo (regola 6): un 401 e un 429 si
         // curano in modi opposti, e senza questa riga erano lo stesso silenzio
         this.options.logger?.warn(
           { status: response.status, accountId: spender.accountId },
-          "tts provider refused: falling back to the system voice",
+          "tts provider refused: falling back to the home voice",
         );
         return undefined;
       }
       audio = Buffer.from(await response.arrayBuffer());
     } catch {
-      // irraggiungibile o scaduto: il muso parla con la voce di sistema
+      // irraggiungibile o scaduto: il muso scende alla voce di casa
       return undefined;
     }
 
-    // Fuori dal `try`, e di proposito. La scrittura sul registro stava DENTRO,
-    // sotto un `catch` che restituiva `undefined`: se falliva dopo che l'audio
-    // era arrivato — ed era stato pagato — si buttava via l'audio, non si
-    // segnava la spesa, e non lo sapeva nessuno. Il salvadanaio perdeva una
-    // riga in silenzio, che è il modo esatto in cui un tetto smette di essere
-    // un tetto. Qui un guasto del registro risale, invece di sparire.
-    const cost = text.length * ESTIMATED_USD_PER_CHAR;
+    // Fuori dal `try`, e di proposito: l'audio è arrivato, quindi è stato
+    // pagato, e un guasto del registro deve risalire invece di sparire.
+    const cost = input.length * (await this.usdPerChar());
     await this.dbOf(spender.accountId).insert(budgetLedger).values({
       date: this.today(at),
-      provider: "openai",
-      model: this.options.model ?? "gpt-4o-mini-tts",
-      tokensIn: text.length,
-      tokensOut: text.length,
+      provider: "openrouter",
+      model: this.model,
+      tokensIn: input.length,
+      tokensOut: 0,
       costUsd: cost.toFixed(6),
       accountId: spender.accountId,
       gosinoId: spender.gosinoId,

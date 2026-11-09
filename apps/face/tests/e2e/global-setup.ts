@@ -4,18 +4,18 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { runMigrations } from "@ugo/db";
 import {
-  startLlmStub,
+  openRouterKey,
   startMinio,
   startOllama,
-  type LlmStub,
   type MinioHandle,
   type OllamaHandle,
 } from "@ugo/factories";
 
 /**
  * Real backend for the E2E run (Zero-Mock): Postgres+pgvector container,
- * real Ollama embeddings, network-level LLM stub, and soul itself as a
- * child process running the production entrypoint (dist/index.js).
+ * real Ollama embeddings, the REAL OpenRouter (ADR-125: no stubs — the key
+ * comes from the environment), and soul itself as a child process running
+ * the production entrypoint (dist/index.js).
  */
 
 const SOUL_PORT = 3987;
@@ -24,8 +24,29 @@ const E2E_TOKEN = "e2e-operator-token";
 let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
 let minio: MinioHandle;
-let stub: LlmStub;
 let soul: ChildProcess;
+
+/**
+ * L'ambiente ereditato, senza i nomi che ADR-125 ha ritirato: soul si
+ * rifiuta di partire se li trova, e un e2e non deve dipendere da cosa c'è
+ * nella shell di chi lo lancia (un terminale con ANTHROPIC_BASE_URL era già
+ * abbastanza per un «soul did not become healthy» muto).
+ */
+const RETIRED = new Set([
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_BASE_URL",
+  "UGO_CHAT_MODEL",
+  "OPENAI_API_KEY",
+  "OPENAI_BASE_URL",
+  "UGO_TTS_MODEL",
+  "UGO_TTS_VOICE",
+  "OPENROUTER_BASE_URL",
+]);
+const inherited = (): NodeJS.ProcessEnv => {
+  const env = { ...process.env };
+  for (const name of RETIRED) Reflect.deleteProperty(env, name);
+  return env;
+};
 
 async function waitForHealth(url: string, attempts = 60): Promise<void> {
   for (let i = 0; i < attempts; i += 1) {
@@ -41,26 +62,25 @@ async function waitForHealth(url: string, attempts = 60): Promise<void> {
 }
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
-  [pg, ollama, minio, stub] = await Promise.all([
+  // prima la chiave: un e2e senza fornitore vero fallisce qui, non a metà
+  const apiKey = openRouterKey();
+  [pg, ollama, minio] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
     startOllama(),
     startMinio(),
-    startLlmStub(),
   ]);
   await runMigrations(pg.getConnectionUri());
-  stub.nextResponse = { text: "Grunf, ti sento forte e chiaro." };
 
   soul = spawn("node", ["../soul/dist/index.js"], {
     stdio: "inherit",
     env: {
-      ...process.env,
+      ...inherited(),
       DATABASE_URL: pg.getConnectionUri(),
       // deliberately unset, exactly like the real deployment: the Nano 33
       // firmware is shelved, so there is no broker and health says "off"
       OLLAMA_URL: ollama.baseUrl,
       OLLAMA_EMBED_MODEL: "nomic-embed-text",
-      ANTHROPIC_API_KEY: "e2e-key",
-      ANTHROPIC_BASE_URL: stub.baseUrl,
+      OPENROUTER_API_KEY: apiKey,
       UGO_DAILY_BUDGET_USD: "5",
       UGO_DATA_KEY: randomBytes(32).toString("base64"),
       UGO_INTERNAL_TOKEN: E2E_TOKEN,
@@ -92,6 +112,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
 
   return async () => {
     soul.kill("SIGTERM");
-    await Promise.allSettled([pg.stop(), ollama.container.stop(), minio.container.stop(), stub.close()]);
+    await Promise.allSettled([pg.stop(), ollama.container.stop(), minio.container.stop()]);
   };
 }

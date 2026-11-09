@@ -93,9 +93,16 @@ describe("il budget di silenzio di una risposta", () => {
     expect(ENV).toMatch(/UGO_CHAT_LOCAL_FIRST non esiste più/u);
   });
 
-  it("fuori parla prima di casa: è l'ordine, e sta in una riga sola", () => {
+  it("con la voce di casa accesa, OpenRouter non aspetta più di un anello (ADR-124/125)", () => {
+    // senza questa riga il client resta coi suoi 60 secondi, e il soccorso
+    // arriverebbe dopo un minuto di silenzio
+    expect(SOUL).toMatch(/\.\.\.\(homeVoice && \{ timeoutMs: env\.UGO_CHAT_LINK_TIMEOUT_MS \}\)/u);
+  });
+
+  it("fuori parla prima di casa: OpenRouter risponde, casa solo se lui solleva (ADR-125)", () => {
+    // prima OpenRouter, nel `try`; la voce di casa solo nel `catch`, come soccorso
     expect(CHAIN).toMatch(
-      /const answer = \(await this\.tryOpenRouter\(request\)\) \?\?\s*\(await this\.tryOllama\(request\)\);/u,
+      /try \{\s*return await this\.options\.remote\.chat\(request, at\);\s*\} catch \(remoteError\) \{[\s\S]{0,120}?const answer = await this\.tryHome\(request\);/u,
     );
   });
 });

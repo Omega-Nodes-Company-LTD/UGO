@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.82.0"
-last_updated: "2026-08-28"
+version: "0.83.0"
+last_updated: "2026-11-09"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -26,6 +26,14 @@ senza chiavi né database su rete dedicata), clienti assegnati ai gosini con tok
 fonti di conoscenza per cliente (clone+indice repo, IMAP in sola lettura, documenti dal
 bucket), tre muri di costo (quota oraria, tetto giornaliero, cache delle risposte), sezione
 «I clienti» nel pannello. Dettaglio in §6-octovicies; giro completo BO+`/admin`+FE dichiarato lì.
+
+**Fatto (2026-11-09): OpenRouter unico varco e la voce dal corpo (ADR-125, ADR-126)** — chat
+su `deepseek/deepseek-v4-flash`, voce ElevenLabs, tutto via OpenRouter; niente più Anthropic né
+OpenAI; niente più stub di rete per i modelli. Dettaglio in §6-unoctogies.
+
+**Fatto (2026-11-09): UGO raggiungibile dal web (ADR-127)** — token obbligatorio su ogni `/v1/*`,
+abbinamento dei dispositivi con un codice dal pannello, link via email (Resend), intestazioni di
+sicurezza, CORS chiuso, apple-app-site-association. Dettaglio in §6-duooctogies.
 
 ## 2. Contenuto attuale del repository
 
@@ -2708,6 +2716,10 @@ finché il bundle non si rifà.
 
 | Voce | Impatto | Piano |
 |---|---|---|
+| **`/v1/diagnostics` non è mai stata collegata in produzione** (trovato 2026-11-09): `index.ts` non passa l'opzione `diagnostics` a `buildServer`, quindi la rotta esiste solo nei test, e la voce «provider» del catalogo non riceveva mai il modello | Medio: la diagnostica centralizzata non è raggiungibile sul server vero | Collegarla in `index.ts` col modello di ADR-125, in un passo suo |
+| **Restano doppi di test non di rete** dopo ADR-125: `vexa-stub` (riunioni), il server GitHub locale (customerKnowledge), il server della percezione/Piper nel test TTS, `batch_stub` (Ollama del sogno, Python), il giudice `alwaysNo` (chat) e `idleEmbedder`/`idleLocal` (adminSurface) | Medio: contrari alla preferenza del proprietario («mai stub»), anche se non riguardano il fornitore dei modelli | Uno per volta, contro l'istanza vera dove esiste |
+| **OpenRouter è un punto unico di guasto** per la parola (ADR-125) | Medio: senza OpenRouter UGO tace, salvo la voce di casa accesa | La voce di casa come soccorso, col tetto di un anello su OpenRouter quando è accesa |
+| **`buildDynamicSystem` (chat e reception) e `loadHistory` sono private** | Basso: il contenuto del blocco dinamico si verifica solo dal comportamento del modello | Esportarle come funzioni pure e dar loro unit test |
 | 16 MODERATE residue al 25 ottobre (fra cui esbuild via drizzle-kit, dev-only) | Basso: la CI blocca su HIGH/CRITICAL, e di quelle non ne resta nessuna | Rivedere al prossimo giro di aggiornamenti; non vale un bump forzato oggi |
 | **Dieci override tengono in piedi la sicurezza dei transitivi** (`package.json`, `pnpm.overrides`) | Medio, e di natura diversa dalle altre voci: un override è un vincolo che nessuno rilegge. Il giorno che un genitore si aggiorna da solo, il nostro resta e congela una versione senza che niente lo segnali | Al prossimo giro: togliere quelli il cui genitore ha recuperato, invece di accumularne altri. La chiave porta il range vulnerabile, quindi si capisce cosa proteggeva |
 | **`av<19` in `ops/jobs/pyproject.toml`** | Medio: è un tetto su una dipendenza di una dipendenza, messo perché `faster-whisper` dichiara `av>=11` e passa ancora `metadata_errors`, che PyAV 19 ha rimosso | Si toglie quando faster-whisper esce con la chiamata corretta (ultima release ottobre 2025, problema aperto). Misurato su Python 3.12 entrambi i lati: 19.0.1 rompe, 18.1.0 no |
@@ -2920,3 +2932,183 @@ Il 2026-08-29, il giro «fix operativi ed evolutive» ha portato, sul ramo
 
 Verifiche: build/lint/typecheck 33/33, db 59/59, rumination+peer 21/21, test
 Python scheduler/family_backup/dialect 17/17 (locali).
+
+## 6-unoctogies. OpenRouter unico varco e la voce dal corpo (ADR-125, ADR-126)
+
+Direttive del proprietario (2026-11-09): «ElevenLabs tramite OpenRouter, sempre, è la nostra
+base»; la chat «deve andare su OpenRouter anche lei, e non deve passare da Anthropic», con
+DeepSeek V4; «la voce è un'identità di un gosino»; «mai mock o stub».
+
+**Misurato prima di scrivere** (chiamate vere): DeepSeek V4 Flash col ragionamento acceso
+risponde **vuoto** (57 token su 60 spesi a pensare) → si spegne; fra i 14 fornitori del
+modello ci sono DeepSeek, Baidu, SiliconFlow, StreamLake → elenco chiuso; il prefisso fisso di
+UGO (~1.045 token) va in cache su **DeepInfra e Azure** (seconda chiamata ÷4), non su Parasail e
+DigitalOcean → ordine `DeepInfra, Azure, Parasail, DigitalOcean`; il tag `[excited]` passa a
+ElevenLabs senza essere pronunciato (ritrascritto); 18 voci accettate per nome, misurate da 215
+Hz (`river`) a 119 Hz (`will`).
+
+| Cosa | Dove |
+|---|---|
+| Forma della richiesta come funzione pura (§5.5, fornitori, ragionamento spento) | `packages/memory/src/chatRequest.ts` + 11 unit test |
+| `LlmClient` su OpenRouter, costo dichiarato sul ledger, `timeoutMs` | `packages/memory/src/llmClient.ts` |
+| Catena accorciata: OpenRouter → voce di casa come soccorso | `packages/memory/src/chatChain.ts` |
+| Voce ElevenLabs via OpenRouter, listino vivo per carattere | `packages/memory/src/ttsClient.ts` |
+| Umore → tag audio | `packages/memory/src/voiceTags.ts` + unit test |
+| Voce dal corpo (`chonk` ¾, `snout` ¼) su 18 voci misurate | `packages/psyche/src/voice.ts` + 7 unit test |
+| Variabili ritirate che fermano il boot | `apps/soul/src/config/env.ts`, `ops/jobs/src/ugo_jobs/config.py` |
+| Ripiego del sogno via OpenRouter | `ops/jobs/src/ugo_jobs/batch.py` |
+| Stub LLM rimosso; chiave di test obbligatoria | `tests/factories/src/openrouter.helper.ts`; CI col secret `OPENROUTER_API_KEY` |
+
+**Giro regola 12.** **BO**: tutto quanto sopra, più i test Python (`ops/jobs/tests`) e le
+fixture del ledger passate a `openrouter`. **`/admin`**: nessuna modifica, e non serviva — il
+pannello mostra la spesa dal ledger senza nomi di fornitore, e la voce non ha (né deve avere)
+un'impostazione: regola 13. **FE**: nessuna modifica — il muso manda ancora `{text, mood}` a
+`/v1/tts` e riceve mp3; il contratto non è cambiato, quindi **nessun bundle da ricostruire**.
+
+**Verifiche** (2026-11-09): `pnpm turbo build typecheck lint test` 45/45 (soul 540, face 156,
+psyche 92, face-body 88, memory 71, shared 54, prompts 11, reception 3); integrazione su
+Postgres + Ollama + OpenRouter veri: memory 16/16, soul 7 file del gruppo voce/WS/tenancy
+105/105, chat+chatGroup+lifeday 21/21, reception+customerKnowledge+meetings 36/36 (due giri di
+fila); job Python `test_batch_fallback` 6/6; e2e reception 6/6. **Non eseguiti in questo
+ambiente** (MinIO non scaricabile): `audio.integration`, e2e del muso — compilano e passano il
+lint, girano in CI. `pnpm audit`: 22 MODERATE, zero HIGH/CRITICAL.
+
+**Da fare fuori dal codice**: secret `OPENROUTER_API_KEY` su GitHub (senza, la CI dei test è
+rossa); su Coolify `OPENROUTER_API_KEY` su soul e jobs, e togliere `ANTHROPIC_API_KEY`,
+`UGO_CHAT_MODEL`, `OPENAI_API_KEY`, `UGO_TTS_*` (altrimenti il boot si ferma, apposta).
+
+## 6-duooctogies. UGO raggiungibile dal web (ADR-127)
+
+Direttiva del proprietario (2026-11-09): «UGO diventa raggiungibile da web, per pura necessità».
+Dominio previsto `https://ugo.omeganodes.ai`; Tailscale resta possibile ma non è più l'unico muro.
+
+| Cosa | Dove |
+|---|---|
+| Muro su `/v1/*` e sul socket, con la riga d'audit di ogni rifiuto | `routes/guard.ts` (`registerTokenWall`) |
+| Elenco unico delle porte aperte, CSP, CORS, cookie, limite tentativi, AASA | `services/webSecurity.ts` + 34 unit test |
+| Codice di abbinamento e link via email (solo hash, uso singolo, scadenza) | `services/deviceAccess.ts`, `routes/deviceAccess.ts` |
+| Email via Resend | `services/resendMailer.ts` |
+| Tabelle `pairing_codes`, `login_links` | `packages/db/src/schema/device-access.ts`, migrazione 0061 |
+| Variabili `UGO_PUBLIC_URL`, `UGO_TRUST_PROXY`, `UGO_ALLOWED_ORIGINS`, `UGO_APPLE_APP_IDS`, `UGO_OWNER_EMAIL`, `RESEND_API_KEY`, `EMAIL_FROM` | `config/env.ts` (email: tutte o nessuna) |
+
+**La migrazione 0061.** `drizzle-kit generate` ripeteva tabelle e colonne che esistono già: lo
+snapshot era rimasto indietro rispetto alle 0057–0060 scritte a mano. Verificato su un database
+migrato da zero quali oggetti c'erano; la 0061 è ridotta alle due tabelle nuove e lo snapshot
+generato ora riallinea drizzle (`drizzle-kit generate` successivo: «No schema changes»).
+
+**Giro regola 12.** **BO**: tutto quanto sopra; nessun job Python toccato, e non serviva (i job non
+parlano HTTP con soul). **`/admin`**: sezione «Abbina un dispositivo» (`POST /v1/pairing-codes`
+via `call()`), i dispositivi compaiono e si revocano fra «Le chiavi di casa» che esistevano già
+(ADR-100); `script.test.ts` verde. **FE**: `apps/face/src/deviceKey.ts` (la chiave su ogni
+chiamata verso soul, mai su un upload firmato; il 401 apre la schermata), `pairingScreen.ts` e il
+markup `#pair-overlay` («Fammi entrare»: codice o email; `?pair=` precompila, `?login=` entra da
+solo — sono i link universali dell'app), `VITE_SOUL_URL` per la build dell'app. **Il bundle del
+muso va ricostruito al deploy.**
+
+**Verifiche**: `pnpm turbo build typecheck lint test` 45/45 (soul 582, face 165); intera suite d'integrazione di soul: 65/71 file verdi, i 6 rossi spiegati — 4 file che vogliono MinIO (non scaricabile qui: `cgr.dev` vietato, preesistente), `rooms` aggiornato (leggere le stanze ora vuole una chiave) e poi verde, `faceWs` in timeout sotto carico e verde rilanciato da solo (due volte); `publicAccess.integration` 14/14 su Postgres
+vero (muro, query solo sul socket, porte aperte, intestazioni, CORS, abbinamento, scadenza,
+revoca, solo admin, limite per IP, email a 202 per tutti, cookie, redeem dell'app). Il link via
+email è provato fino alla chiamata a Resend: senza `RESEND_API_KEY` in questo ambiente l'invio
+vero non è stato eseguito. Gli e2e del muso non girano qui (MinIO non scaricabile).
+
+**Restano**: informativa e termini (`documentation/05-legale/`) hanno i campi del titolare da
+compilare; passkey come porta successiva (ADR-127, alternative).
+
+## 6-teroctogies. Il gosino al telefono (ADR-128)
+
+Il lato UGO del contratto C4 con Omega HQ: HQ tiene Twilio, il numero, la regola «soldi e
+reclami → una persona» e l'avviso AI Act; per ogni turno chiama `POST /v1/phone/turn` col segreto
+dedicato `UGO_PHONE_TOKEN`. Parla l'esemplare più anziano di `UGO_PHONE_ACCOUNT_ID`, con le
+regole della reception e mai coi ricordi di casa; il cliente della reception si riconosce
+dall'email (`customers.contact_email_hash`, HMAC con chiave derivata da `UGO_DATA_KEY`) e riceve
+la stessa risposta che avrebbe per iscritto. Voce del gosino via OpenRouter (ADR-125/126), mp3 in
+memoria dieci minuti dietro URL firmato (`GET /v1/phone/audio/:id`). `[PASSA]` o un modello che
+non risponde → `handover: true`. Deviazione dichiarata dal contratto: `audioUrl` è `null` quando la
+voce non arriva, e HQ dice il testo con la sua.
+
+| Cosa | Dove |
+|---|---|
+| Canale `phone` (120 token, regole della reception nel prefisso cached) | `packages/memory/src/chatRequest.ts` |
+| Tabella `phone_calls` (solo numeri, CallSid come SHA-256, RLS) + `customers.contact_email_hash` | `packages/db/src/schema/phone.ts`, `drizzle/0061` |
+| Firma degli URL, impronte, segno di passaggio | `apps/soul/src/services/phone/phoneCrypto.ts` + 12 unit test |
+| Memoria breve (audio 10 min, contesto dello sconosciuto 30 min, mai su disco) | `apps/soul/src/services/phone/phoneMemory.ts` |
+| Il turno | `apps/soul/src/services/phone/phoneService.ts`, `phoneCalls.ts` |
+| Le rotte | `apps/soul/src/routes/phone.ts` |
+| Canale e istruzione opzionali, costo restituito | `apps/soul/src/services/reception/customerChatService.ts` |
+
+**Giro regola 12.** **BO**: tutto sopra, migrazione `0061` (lo snapshot di drizzle era rimasto
+indietro dopo 0055 e 0057-0060 scritte a mano: il diff è stato potato alle sole modifiche di
+questo ADR e lo snapshot nuovo riallinea il resto). **`/admin`**: pagina «Clienti» — sezione «Le
+chiamate» (ultime 30, solo numeri) e, nel dettaglio di un cliente, «Al telefono» per dargli
+l'email con cui lo si riconosce (si mostra solo SE c'è). **FE**: non riguardato — il muso non
+telefona.
+
+**Verifiche**: unit soul (phone 12, env +5), memory `chatRequest` 13; integrazione su Postgres +
+OpenRouter veri: `phone.integration` 7/7 per due giri (401, 400, risposta parlata con mp3 vero da
+URL firmato e riga di soli numeri, URL alterato/scaduto 403, handover quando il modello non
+risponde, cliente riconosciuto coi turni cifrati, pannello senza parole); `schema.integration`
+11/11 (migrazione su Postgres pulito, RLS su `phone_calls`); `reception.integration` 23/23 in due
+giri — in un terzo giro il test del digest è caduto una volta perché il modello vero non ha citato
+il commit: instabilità del test, non della modifica.
+## 6-quateroctogies. Il guscio iOS e Mac (ADR-130)
+
+Direttiva del proprietario (2026-11-09): «prima su iOS e macOS, così riesco a testarlo».
+`apps/face-ios`: Capacitor 7.6 col template ufficiale **Swift Package Manager**, generato con
+`cap add ios --packagemanager SPM` (gira anche su Linux; solo il passo `pod install` del primo
+`add` fallisce, ed è irrilevante con SPM). `appId ai.omeganodes.ugo`, team `8UH44UM49Z`,
+entitlements push + `applinks:ugo.omeganodes.ai`, `SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD`, `arm64`
+(con `armv7` del template i Mac Apple Silicon non l'avrebbero installata), permessi in italiano
+per microfono, fotocamera e riconoscimento vocale, nessuna modalità in background.
+
+**Il muso si carica dal soul** (`server.url = https://ugo.omeganodes.ai`): stessa origine del
+browser, quindi niente chiave di build per il server, niente CORS, e il muso si aggiorna col deploy.
+
+**Verificato senza Mac**: `cap sync ios` sincronizza davvero il pacchetto SPM;
+`check_shell.py` legge identità, firma, permessi, dominio e Mac dai file veri, ed è stato visto
+fallire su una configurazione sbagliata. Nuovo job CI `ios shell (config, no Xcode)`. **Da
+verificare sul Mac**: compilazione, firma automatica, avvio, permessi a runtime, TestFlight
+(passi in `apps/face-ios/README.md`).
+
+Giro regola 12: **BO** non riguardato (il soul pubblico e l'abbinamento sono di un altro passo,
+C1); **`/admin`** non riguardato; **FE** nessuna modifica a `apps/face/src` — il muso gira com'è,
+e nessun bundle da ricostruire per questo passo.
+
+## 6-quinquoctogies. La dettatura da scrivania: UGO Dettatura per Mac (ADR-129)
+
+Direttiva del proprietario: «una soluzione tipo Wispr Flow, nostra, integrata coi nostri sistemi,
+che possa anche rispondere». Fatta come **app satellite** in `apps/dictation-mac` (Tauri v2, Rust),
+fuori dal workspace pnpm (nessun `package.json`: turbo non la vede, e non deve).
+
+| Cosa | Dove |
+|---|---|
+| Audio → mono 16 kHz PCM16, tagli nei silenzi sotto gli 11 s, mai code < 0,8 s | `src-tauri/src/audio.rs` + 7 test |
+| Richieste e risposte di soul (`/v1/stt`, `/v1/pair`, `/v1/chat` canale `api`, `/v1/tts`) | `src-tauri/src/protocol.rs` + 7 test |
+| Impostazioni (https obbligatorio, scorciatoie ⌃⌥D / ⌃⌥R, modalità) | `src-tauri/src/config.rs` + 4 test |
+| Microfono in un thread suo (`cpal::Stream` non è `Send` su macOS) | `src-tauri/src/capture.rs` |
+| Incolla con ripristino degli appunti (testo e immagine), ripiego «solo appunti» senza Accessibilità | `src-tauri/src/insert.rs` |
+| Token nel Portachiavi; un 401 lo cancella e riapre l'abbinamento | `src-tauri/src/keychain.rs`, `flow.rs` |
+| CI su runner macOS: fmt, clippy `-D warnings`, test, build release | `.github/workflows/dictation-mac.yml` |
+
+**Giro regola 12.** **BO**: nessuna rotta nuova — l'app usa `/v1/stt`, `/v1/chat`, `/v1/tts` come
+sono, più `/v1/pair` del contratto di UGO pubblico (in costruzione su un altro ramo: finché non
+c'è, l'abbinamento risponde «UGO non è raggiungibile» o un codice inatteso). **`/admin`**: la
+sezione «Dispositivi» col codice di abbinamento appartiene al lavoro di UGO pubblico, non a questo.
+**FE**: il muso non è toccato.
+
+**Verifiche** (2026-11-09, Linux): `cargo build`, `cargo test` 20/20, `cargo clippy --all-targets
+-- -D warnings` pulito, `cargo fmt --check`. **Non verificato qui**: il build macOS (lo fa la CI
+`dictation-mac.yml`), e a mano sul Mac microfono, Portachiavi, Accessibilità, incolla reale e
+notarizzazione. L'icona è provvisoria (`icons/icon.png`): va sostituita e rigenerata con
+`cargo tauri icon` prima della prima distribuzione.
+
+## 6-sexoctogies. La CI sui nostri runner (ADR-0167 della PaaS)
+
+- **Fatto**: i job Linux di `ci.yml` girano su `${{ vars.CI_RUNNER || 'ubuntu-latest' }}`.
+  Con la variabile d'organizzazione `CI_RUNNER=omega-ci` vanno sui runner nostri
+  (macchina Hetzner dedicata, un container effimero con Docker proprio per ogni job,
+  installazione in `paas-omega-space/infra/scripts/11-ci-runner.sh`); senza, restano
+  su GitHub come prima. Motivo: i minuti gratuiti finiscono prima del mese e la CI
+  si ferma.
+- **Resta su GitHub**: `dictation-mac.yml` (serve un Mac).
+- **Da sapere**: sui runner effimeri la cache dei modelli Ollama in `~/.ugo-ollama`
+  riparte da `actions/cache` a ogni job, come sui runner di GitHub.

@@ -28,6 +28,14 @@ export const CUSTOMER_PAGES = `
     <div id="cust-list" data-testid="cust-list"></div>
   </div>
 
+  <div class="block">
+    <h2>Le chiamate</h2>
+    <p class="lede">Quando il gosino risponde al telefono (ADR-128): solo i numeri di ogni chiamata —
+       quanto è durata, quanti turni, quanto è costata, com'è finita. Le parole non stanno qui.</p>
+    <div id="phone-calls" data-testid="phone-calls"></div>
+    <div id="phone-msg"></div>
+  </div>
+
   <div class="block" id="cust-detail" data-testid="cust-detail" hidden>
     <h2 id="cust-title"></h2>
     <div class="because" id="cust-slug"></div>
@@ -50,6 +58,16 @@ export const CUSTOMER_PAGES = `
       <button id="cust-limits" data-testid="cust-limits">Salva i limiti</button>
     </div>
     <p class="because" id="cust-apples-given"></p>
+
+    <h3>Al telefono</h3>
+    <p class="lede">Se chiama dallo studio con questa email, il gosino lo riconosce e gli risponde
+       come alla reception (ADR-128). L'indirizzo non viene conservato: resta solo un'impronta.</p>
+    <div class="row">
+      <div><label for="cust-contact">Email di contatto (vuoto = togli)</label>
+        <input id="cust-contact" data-testid="cust-contact" type="email" maxlength="254"></div>
+      <button id="cust-contact-go" data-testid="cust-contact-go">Salva l'email</button>
+    </div>
+    <p class="because" id="cust-contact-state"></p>
 
     <h3>I token</h3>
     <div id="cust-tokens"></div>

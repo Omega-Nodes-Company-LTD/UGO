@@ -1,0 +1,21 @@
+{
+  "name": "face-ios",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "pnpm turbo build --filter=face && cap sync ios",
+    "build:ios": "pnpm run sync && cap open ios",
+    "check": "python3 check_shell.py",
+    "lint": "echo \"no sources to lint: the web app lives in apps/face\"",
+    "typecheck": "echo \"no TypeScript here: capacitor config only\""
+  },
+  "dependencies": {
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.4.4",
+    "@capacitor/ios": "^7.6.9"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.4"
+  }
+}

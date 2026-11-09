@@ -341,7 +341,7 @@ container più economico dell'installazione.
    `DATABASE_URL=postgres://ugo:<POSTGRES_PASSWORD>@<HOST_POSTGRES>:5432/ugo` ·
    `MQTT_URL` · `MQTT_USER` · `MQTT_PASS` (**lasciale vuote**: servono solo col Nano 33, §2.2) ·
    `OLLAMA_URL=http://<HOST_OLLAMA>:11434` · `OLLAMA_EMBED_MODEL=nomic-embed-text` ·
-   `ANTHROPIC_API_KEY=<ANTHROPIC_API_KEY>` · `UGO_CHAT_MODEL=claude-haiku-4-5` ·
+   `OPENROUTER_API_KEY=<OPENROUTER_API_KEY>` (ADR-125: l'unico fornitore a pagamento, chat e voce) ·
    `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY=<UGO_DATA_KEY>` ·
    `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` · `NODE_ENV=production` · `S3_ENDPOINT=<S3_ENDPOINT>` ·
    `S3_ACCESS_KEY_ID=<S3_ACCESS_KEY>` · `S3_SECRET_ACCESS_KEY=<S3_SECRET_KEY>` · `S3_BUCKET_AUDIO=ugo-audio` ·
@@ -356,12 +356,16 @@ container più economico dell'installazione.
    `TZ=Europe/Rome`. Facoltativa (ADR-103): `UGO_LITTER_COST_USD` (quanto costa **un cucciolo**,
    default `0.25`; si paga dal salvadanaio dei genitori e solo dalla terza generazione in poi —
    `0` dichiara «da questa casa si nasce gratis»). Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
-   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. **ADR-124 — l'ordine
-   della catena**: `OPENROUTER_API_KEY` + `OPENROUTER_CHAT_MODEL` (la chiave senza
-   modello blocca il boot) sono il **primo** anello, poi la voce di casa **se** la
-   accendi con `UGO_CHAT_HOME_VOICE=on`, poi Anthropic. `UGO_CHAT_LOCAL_FIRST` non
-   esiste più: se è ancora nelle variabili il boot si ferma e ti dice cosa metterci al
-   posto. Il ribaltamento ha una misura dietro: senza GPU il modello di casa teneva la
+   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. **ADR-125 — OpenRouter
+   unico varco**: chat (`OPENROUTER_CHAT_MODEL`, default `deepseek/deepseek-v4-flash`) e voce
+   (`OPENROUTER_TTS_MODEL`, default `elevenlabs/eleven-v4`) passano tutte da `OPENROUTER_API_KEY`;
+   `OPENROUTER_PROVIDERS` è l'elenco ordinato dei fornitori ammessi (default
+   `DeepInfra,Azure,Parasail,DigitalOcean`, nessuno in Cina). La voce di casa fa da soccorso solo
+   **se** la accendi con `UGO_CHAT_HOME_VOICE=on`. **Togli** `ANTHROPIC_API_KEY`,
+   `ANTHROPIC_BASE_URL`, `UGO_CHAT_MODEL`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `UGO_TTS_MODEL`,
+   `UGO_TTS_VOICE` e `UGO_CHAT_LOCAL_FIRST` se ci sono ancora: il boot si ferma e ti dice cosa
+   metterci al posto. **Sulla risorsa `jobs`** la stessa `OPENROUTER_API_KEY` sostituisce
+   `ANTHROPIC_API_KEY` (il ripiego del sogno, ADR-001). Il ribaltamento ha una misura dietro: senza GPU il modello di casa teneva la
    parola fino a 30 secondi per frase e il giudice dell'astensione altri 45, cioè minuti
    di silenzio sul muso. Facoltative: `UGO_CHAT_LINK_TIMEOUT_MS` (quanto può tenere la
    parola un anello intermedio, default 12000 ms) e `OLLAMA_CHAT_MODEL` (il modello
@@ -383,6 +387,14 @@ container più economico dell'installazione.
    registrazione: **senza `UGO_RECEPTION_TOKEN`, soul non registra affatto le rotte
    `/v1/reception/*`** e la reception risponde 404 a tutto, per progetto (ADR-051). Gli altri tre
    sono soltanto i default di casa: ogni cliente può avere i suoi dal pannello, senza redeploy.
+   **Se il gosino deve rispondere al telefono (ADR-128)**, aggiungi `UGO_PHONE_TOKEN` (Secret,
+   `openssl rand -hex 32`, **lo stesso valore** su Omega HQ) e `UGO_PHONE_ACCOUNT_ID` = l'id della
+   casa aziendale (dal pannello, pagina «Casa», o `select id, name from accounts`): parla il suo
+   esemplare più anziano. Tutte e due o nessuna, o il boot si ferma. Il dominio pubblico di soul
+   deve essere raggiungibile da Twilio, perché HQ gli passa gli URL dell'audio
+   (`https://<dominio>/v1/phone/audio/...`, firmati, validi dieci minuti). Per riconoscere un
+   cliente al telefono, dagli un'email di contatto dal pannello (pagina «Clienti»): si conserva
+   solo la sua impronta.
 5. **Le migrazioni non devi configurarle**: soul le applica da solo all'avvio e scrive
    `migrations applied` nei log. Sono additive per contratto e protette da un lock, quindi due
    container che partono insieme non si pestano i piedi. La prima applicazione semina anche
@@ -392,6 +404,39 @@ container più economico dell'installazione.
    **faccia** (`/`) e il **pannello** (`/admin`): non serve una seconda risorsa per la webapp.
    `UGO_FACE_DIR` è già impostata nel Dockerfile, non aggiungerla fra le variabili.
 7. **Deploy**. Risultato atteso: **Running (healthy)**.
+
+### 2.4-bis soul sul web: `https://ugo.omeganodes.ai` (ADR-127)
+
+Facoltativo: senza, soul resta raggiungibile solo dalla tailnet (§0) e non cambia niente. Con, ogni
+`/v1/*` vuole un token e i dispositivi entrano con un codice o col link via email.
+
+1. **DNS**: un record `A` (e `AAAA` se il server ha IPv6) `ugo.omeganodes.ai` → IP pubblico del
+   server Coolify.
+2. **Dominio sulla risorsa soul-api**: in Coolify → soul-api → *Domains* = `https://ugo.omeganodes.ai`.
+   Coolify (Traefik) chiede il certificato Let's Encrypt da solo; la porta interna resta 3000.
+   Nessun'altra risorsa di UGO prende un dominio (Postgres, Ollama, percezione restano privati).
+3. **Variabili nuove su soul-api**:
+   - `UGO_PUBLIC_URL=https://ugo.omeganodes.ai` — accende HSTS, chiude il CORS su questa origine.
+   - `UGO_TRUST_PROXY=1` — davanti c'è un solo proxy (Traefik): il limite sui tentativi conta l'IP vero.
+   - `UGO_APPLE_APP_IDS=8UH44UM49Z.ai.omeganodes.ugo` — è già il default; serve per i link dell'app.
+   - Per entrare con l'email (facoltativo, tutte e tre o nessuna): `UGO_OWNER_EMAIL=<la tua email>`,
+     `RESEND_API_KEY=<RESEND_API_KEY>` (Secret), `EMAIL_FROM=UGO <ugo@omeganodes.ai>` (un indirizzo di un
+     dominio verificato su Resend).
+   - `UGO_INTERNAL_TOKEN` c'è già (obbligatoria in produzione): è il token operatore del pannello.
+4. **Redeploy**, poi le prove (ognuna deve dare quello che c'è scritto):
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' https://ugo.omeganodes.ai/health                     # 200
+   curl -s -o /dev/null -w '%{http_code}\n' https://ugo.omeganodes.ai/v1/stats                   # 401
+   curl -s https://ugo.omeganodes.ai/.well-known/apple-app-site-association                       # il JSON con 8UH44UM49Z.ai.omeganodes.ugo
+   curl -sI https://ugo.omeganodes.ai/health | grep -i strict-transport-security                 # presente
+   ```
+5. **Il primo dispositivo**: apri `https://ugo.omeganodes.ai/admin`, entra col token operatore
+   (`UGO_INTERNAL_TOKEN`), vai su **Abbina un dispositivo** → **Genera un codice**. Sul telefono apri
+   `https://ugo.omeganodes.ai` (o l'app): compare «Fammi entrare», scrivi il codice. Il dispositivo
+   compare fra **Le chiavi di casa** come «dispositivo: iPhone», e da lì si revoca.
+6. **L'app iOS/Mac non chiede una build del muso a parte** (ADR-130): carica il muso direttamente
+   da `https://ugo.omeganodes.ai`, quindi è già sulla stessa origine del soul. Passi in
+   `apps/face-ios/README.md`.
 
 ### 2.5 jobs (il sogno, che si sveglia da solo alle 02:30)
 
@@ -494,7 +539,7 @@ può più firmarne di nuove**, e va rifondato con un'identità diversa.
    `REGISTRY_SIGNING_KEY=<REGISTRY_SIGNING_KEY>` (Secret) · `REGISTRY_NAME=<un nome tuo>` ·
    `PORT=3100` · `NODE_ENV=production`.
    **E nient'altro**: niente `UGO_DATA_KEY`, niente `DATABASE_URL` delle anime, niente
-   `ANTHROPIC_API_KEY`. Se ti trovi a incollarne una qui, hai sbagliato risorsa — e hai appena
+   `OPENROUTER_API_KEY`. Se ti trovi a incollarne una qui, hai sbagliato risorsa — e hai appena
    dato al registro la possibilità di leggere le creature che dovrebbe solo contare.
 4. Le tabelle se le crea da solo al primo avvio (non ci sono migrazioni drizzle qui: il
    registro ha uno schema suo, piccolo e stabile).
@@ -534,7 +579,7 @@ rotte `/v1/reception/*` non vengono nemmeno registrate, e la superficie pubblica
    c'è niente, perché nessuno ha bussato.
    `SOUL_URL=http://<HOST_SOUL>:3000` · `UGO_RECEPTION_TOKEN=<UGO_RECEPTION_TOKEN>` (Secret, **lo
    stesso identico valore** messo su soul al §2.4) · `NODE_ENV=production` · `PORT=3001`.
-   **E nient'altro.** Niente `DATABASE_URL`, niente `UGO_DATA_KEY`, niente `ANTHROPIC_API_KEY`,
+   **E nient'altro.** Niente `DATABASE_URL`, niente `UGO_DATA_KEY`, niente `OPENROUTER_API_KEY`,
    niente `UGO_INTERNAL_TOKEN`: se ti trovi a incollare una di queste qui, hai sbagliato risorsa —
    e hai appena messo su Internet la cosa che ADR-051 tiene fuori. Il container non le legge
    nemmeno: il suo unico segreto è il token di servizio verso soul.
@@ -1315,7 +1360,7 @@ scritte con una chiave diversa da quella attuale: **non vengono sovrascritte**, 
 prima di decidere cosa farne.
 
 ### Rotazione dei segreti (zero modifiche al codice)
-1. `ANTHROPIC_API_KEY`, `S3_*`, `MQTT_PASS`, `VEXA_API_KEY`: genera il nuovo valore, aggiorna la
+1. `OPENROUTER_API_KEY`, `S3_*`, `MQTT_PASS`, `VEXA_API_KEY`: genera il nuovo valore, aggiorna la
    variabile nella risorsa Coolify, **Redeploy**. Per MQTT rigenera anche il password file (2.2).
 2. `UGO_DATA_KEY` è speciale (cifra i dati a riposo): la rotazione richiede la ri-cifratura delle
    righe esistenti. Procedura: mantieni la vecchia chiave, decifra e ricifra `messages` e
@@ -1394,7 +1439,7 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 
 | Valore | Dove |
 |---|---|
-| `<ANTHROPIC_API_KEY>` | console Anthropic. È l'unica spesa ricorrente: il budget la tiene sotto controllo |
+| `<OPENROUTER_API_KEY>` | openrouter.ai → Keys, meglio con un tetto di spesa. È l'unica spesa ricorrente (chat e voce): il budget di UGO la tiene sotto controllo |
 | `<S3_ENDPOINT>` `<S3_ACCESS_KEY>` `<S3_SECRET_KEY>` `<S3_REGION>` | il tuo provider S3, con permessi **solo** sui due bucket (§3). I nomi standard AWS (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`) vanno bene |
 | `<VEXA_API_URL>` `<VEXA_API_KEY>` | dallo stack Vexa, se e quando lo installi (§2.6) |
 

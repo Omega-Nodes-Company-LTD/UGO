@@ -1,15 +1,19 @@
-import type { DbClient } from "@ugo/db";
+import { traitSets, type DbClient } from "@ugo/db";
 import type { LocalTtsClient } from "@ugo/memory";
+import { speakingVoice } from "@ugo/psyche";
+import { desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { characterFrom } from "../services/council/character.js";
 import { eldestExemplarOf, resolveAccount } from "./scope.js";
 
 /**
- * La voce interim (gruppo 13): il muso chiede l'audio di una frase, soul lo
- * sintetizza col TTS emotivo e lo restituisce. Il client tiene il salvadanaio
- * (regola 3: ogni frase è una riga di `budget_ledger`); qui stanno la sagoma
- * delle istruzioni, il memo per le frasi ricorrenti, e la degradazione: 204 =
- * «arrangiati con la voce di sistema», che il muso sa già fare.
+ * La voce (ADR-125, ADR-126): il muso chiede l'audio di una frase, soul lo
+ * sintetizza con ElevenLabs via OpenRouter e lo restituisce. La voce è quella
+ * del corpo di chi parla, l'umore la colora con un tag. Il client tiene il
+ * salvadanaio (regola 3: ogni frase è una riga di `budget_ledger`); qui stanno
+ * il memo per le frasi ricorrenti e la degradazione: 204 = «arrangiati con la
+ * voce di sistema», che il muso sa già fare.
  *
  * Aperta come `/v1/chat` e `/v1/weather` (ADR-007: servizio mono-utente, mai
  * pubblico): il corpo non porta un token. Il tetto sui caratteri è il
@@ -25,13 +29,19 @@ const ttsBodySchema = z.object({
   mood: z.string().max(60).optional(),
 });
 
-/** la sagoma: il carattere è fisso, l'umore del momento lo colora */
-export function instructionsFor(mood: string | undefined): string {
-  return (
-    "Sei la voce di un maialino domestico italiano: calda, giocosa, un po' fiera, " +
-    "con frasi che finiscono spesso in un piccolo grugnito." +
-    (mood === undefined || mood === "" ? "" : ` In questo momento il suo umore è: ${mood}.`)
-  );
+/**
+ * La voce di QUESTO gosino: dal corpo dell'ultima versione del genoma
+ * (ADR-126). Senza genoma è il corpo di un UGO qualunque, che è la verità su
+ * una casa che non ha ancora un esemplare nato da una cucciolata.
+ */
+export async function voiceOf(db: DbClient, gosinoId: string): Promise<string> {
+  const [row] = await db
+    .select({ traits: traitSets.traits })
+    .from(traitSets)
+    .where(eq(traitSets.gosinoId, gosinoId))
+    .orderBy(desc(traitSets.version))
+    .limit(1);
+  return speakingVoice(characterFrom(row?.traits).traits).name;
 }
 
 export interface TtsRouteDeps {
@@ -71,7 +81,10 @@ export function registerTtsRoute(app: FastifyInstance, deps: TtsRouteDeps): void
     // a tutte le case: la casa B che chiedeva la stessa frase si sentiva
     // restituire l’audio già pagato dalla casa A — contenuto di una famiglia
     // servito a un’altra, e una spesa che il salvadanaio non vedeva passare.
-    const key = `${scope.accountId}${parsed.data.mood ?? ""}${parsed.data.text}`;
+    // l'esemplare sta nella chiave insieme alla casa: due gosini della stessa
+    // casa non parlano con la stessa voce, e il memo non deve confonderli
+    const gosinoId = await eldestExemplarOf(deps.db, scope.accountId);
+    const key = `${scope.accountId}${gosinoId}${parsed.data.mood ?? ""}${parsed.data.text}`;
     const remembered = memo.get(key);
     if (remembered !== undefined) {
       return reply.type(remembered.type).send(remembered.audio);
@@ -79,10 +92,14 @@ export function registerTtsRoute(app: FastifyInstance, deps: TtsRouteDeps): void
 
     let voice: { audio: Buffer; type: string } | undefined;
     if (deps.tts !== undefined) {
-      const audio = await deps.tts.synth(parsed.data.text, instructionsFor(parsed.data.mood), {
-        accountId: scope.accountId,
-        gosinoId: await eldestExemplarOf(deps.db, scope.accountId),
-      });
+      const audio = await deps.tts.synth(
+        {
+          text: parsed.data.text,
+          ...(parsed.data.mood !== undefined && { mood: parsed.data.mood }),
+          voice: await voiceOf(deps.db, gosinoId),
+        },
+        { accountId: scope.accountId, gosinoId },
+      );
       if (audio !== undefined) voice = { audio, type: "audio/mpeg" };
     }
     if (voice === undefined && deps.local !== undefined) {

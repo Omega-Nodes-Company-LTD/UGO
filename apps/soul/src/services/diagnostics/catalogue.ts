@@ -163,7 +163,7 @@ export function catalogue(deps: DiagnosticsDeps): Spec[] {
       // che spende soldi per dire «sì, risponde» è una diagnostica che nessuno
       // apre quando serve.
       ...(chatModel === undefined
-        ? { why: "manca ANTHROPIC_API_KEY: risponde solo il modello locale." }
+        ? { why: "modello della chat non dichiarato a questa diagnostica (ADR-125: è OpenRouter)." }
         : {
             probe: () =>
               Promise.resolve({

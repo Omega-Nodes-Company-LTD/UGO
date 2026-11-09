@@ -6,20 +6,27 @@ import {
   PRIME_ACCOUNT_ID,
   type DbClient,
 } from "@ugo/db";
-import { DEFAULT_LOCALE, identityPrompt, receptionPrompt, rulesPrompt } from "@ugo/prompts";
+import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { computeCostUsd, type TokenUsage } from "./pricing.js";
+import {
+  chatCompletionBody,
+  DEFAULT_PROVIDERS,
+  OPENROUTER_URL,
+  type ChatChannel,
+  type ChatTurn,
+} from "./chatRequest.js";
+import type { TokenUsage } from "./pricing.js";
 
 /**
- * THE budget-guard chokepoint (CLAUDE.md rule 3): every LLM provider call in
- * the whole system goes through this class, records itself on budget_ledger
- * and respects UGO_DAILY_BUDGET_USD. Instantiating a provider client anywhere
+ * THE budget-guard chokepoint (CLAUDE.md rule 3): every paid chat call in the
+ * whole system goes through this class, records itself on budget_ledger and
+ * respects UGO_DAILY_BUDGET_USD. Instantiating a provider client anywhere
  * else in the repository is forbidden.
  *
- * Prompt-cache discipline (PROGETTO §5.5): the two [CACHED] blocks (identity,
- * rules) are ALWAYS first and marked cache_control; dynamic content only ever
- * comes after them. Never interpolate variable data into the cached blocks.
+ * ADR-125: the provider is OpenRouter, and only OpenRouter. The shape of the
+ * request — and with it the prompt-cache order of §5.5 — lives in
+ * `chatRequest.ts`, a pure function with its own unit tests.
  */
 
 export const DEGRADED_REPLY =
@@ -33,16 +40,10 @@ export const DEGRADED_REPLY =
 export const HUNGRY_REPLY =
   "Grunf... ho fame. Il mio salvadanaio è vuoto: dammi qualcosa e torno a parlare.";
 
-// `ticket` (ADR-052): technical answers with repo context need more room
-const MAX_TOKENS_BY_CHANNEL = { home: 200, meeting: 300, api: 200, ticket: 400 } as const;
-
-export interface LlmHistoryTurn {
-  role: "user" | "assistant";
-  content: string;
-}
+export type LlmHistoryTurn = ChatTurn;
 
 export interface LlmChatRequest {
-  channel: keyof typeof MAX_TOKENS_BY_CHANNEL;
+  channel: ChatChannel;
   /** blocks 3+4 of §5.5 (psyche + retrieved memories) — NOT cached */
   dynamicSystem?: string;
   /** block 5 — last N turns of the channel */
@@ -70,16 +71,23 @@ export interface ChatLlm {
 
 export interface LlmClientOptions {
   db: DbClient;
+  /** ours today; the house's own when it brings one (BYOK, ADR-125 §8) */
   apiKey: string;
   model: string;
+  /** closed, ordered provider list (ADR-125 §3); defaults to DEFAULT_PROVIDERS */
+  providers?: readonly string[];
   /** fallback ceiling; a house that sets its own in `accounts` overrides it */
   dailyBudgetUsd: number;
   /** whose piggy bank this is (ADR-019); defaults to the first house */
   accountId?: string;
   /** which exemplar spent it — a house may hold more than one */
   gosinoId?: string;
-  /** override for network-level test stubs and future proxies */
-  baseUrl?: string;
+  /**
+   * Quanto si aspetta OpenRouter. Sessanta secondi quando non c'è nessun
+   * soccorso dietro; con la voce di casa accesa, il tetto di un anello
+   * (ADR-124), o il soccorso arriverebbe dopo un minuto di silenzio.
+   */
+  timeoutMs?: number;
   /**
    * Il fuso della CASA (ADR-050), non del server.
    *
@@ -100,15 +108,17 @@ export interface LlmClientOptions {
  * la spesa va segnata anche quando la forma del resto è cambiata sotto i piedi.
  */
 const usageSchema = z.object({
-  input_tokens: z.number(),
-  output_tokens: z.number(),
-  cache_creation_input_tokens: z.number().optional(),
-  cache_read_input_tokens: z.number().optional(),
+  prompt_tokens: z.number(),
+  completion_tokens: z.number(),
+  cost: z.number(),
+  prompt_tokens_details: z
+    .object({ cached_tokens: z.number().optional(), cache_write_tokens: z.number().optional() })
+    .optional(),
 });
 
-const messagesResponseSchema = z.object({
-  content: z.array(z.object({ type: z.string(), text: z.string().optional() })),
-  usage: usageSchema,
+const completionResponseSchema = z.object({
+  // null quando il modello non ha scritto niente: è una risposta vuota, non un guasto
+  choices: z.array(z.object({ message: z.object({ content: z.string().nullable() }) })),
 });
 
 function localDate(timezone: string, at: Date): string {
@@ -116,7 +126,7 @@ function localDate(timezone: string, at: Date): string {
 }
 
 export class LlmClient {
-  private readonly baseUrl: string;
+  private readonly providers: readonly string[];
   private readonly timezone: string;
   private readonly locale: string;
   private readonly accountId: string;
@@ -139,7 +149,7 @@ export class LlmClient {
   private queue: Promise<unknown> = Promise.resolve();
 
   public constructor(private readonly options: LlmClientOptions) {
-    this.baseUrl = options.baseUrl ?? "https://api.anthropic.com";
+    this.providers = options.providers ?? DEFAULT_PROVIDERS;
     this.timezone = options.timezone ?? "Europe/Rome";
     this.locale = options.locale ?? DEFAULT_LOCALE;
     this.accountId = options.accountId ?? PRIME_ACCOUNT_ID;
@@ -234,40 +244,22 @@ export class LlmClient {
       return { text: HUNGRY_REPLY, degraded: true };
     }
 
-    // ADR-052: at the reception the second cached block is the reception's
-    // rules, not the house's. Still a static per-locale file — the cache
-    // discipline of rule 2 holds: two channels, two caches, zero interpolation.
-    const secondBlock =
-      request.channel === "ticket" ? receptionPrompt(this.locale) : rulesPrompt(this.locale);
-    const body = {
-      model: this.options.model,
-      max_tokens: MAX_TOKENS_BY_CHANNEL[request.channel],
-      system: [
-        {
-          type: "text",
-          text: identityPrompt(this.locale),
-          cache_control: { type: "ephemeral" },
-        },
-        { type: "text", text: secondBlock, cache_control: { type: "ephemeral" } },
-        ...(request.dynamicSystem !== undefined && request.dynamicSystem !== ""
-          ? [{ type: "text", text: request.dynamicSystem }]
-          : []),
-      ],
-      messages: [
-        ...(request.history ?? []),
-        { role: "user" as const, content: request.userText },
-      ],
-    };
+    const body = chatCompletionBody(this.options.model, this.providers, {
+      channel: request.channel,
+      locale: this.locale,
+      ...(request.dynamicSystem !== undefined && { dynamicSystem: request.dynamicSystem }),
+      ...(request.history !== undefined && { history: request.history }),
+      userText: request.userText,
+    });
 
-    const response = await fetch(new URL("/v1/messages", this.baseUrl), {
+    const response = await fetch(new URL("/api/v1/chat/completions", OPENROUTER_URL), {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": this.options.apiKey,
-        "anthropic-version": "2023-06-01",
+        authorization: `Bearer ${this.options.apiKey}`,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(this.options.timeoutMs ?? 60_000),
     });
     if (!response.ok) {
       // status only: never log/propagate bodies that could echo prompt content
@@ -282,19 +274,26 @@ export class LlmClient {
     // esattamente il guasto che il salvadanaio esiste per impedire.
     const payload: unknown = await response.json();
     const counted = usageSchema.safeParse((payload as { usage?: unknown } | null)?.usage);
+    // OpenRouter conta i token in cache DENTRO prompt_tokens: qui si separano,
+    // perché il ledger li ha in colonne distinte e il conto non va fatto due volte
+    const cacheRead = counted.success ? (counted.data.prompt_tokens_details?.cached_tokens ?? 0) : 0;
+    const cacheWrite = counted.success
+      ? (counted.data.prompt_tokens_details?.cache_write_tokens ?? 0)
+      : 0;
     const usage: TokenUsage = {
-      inputTokens: counted.success ? counted.data.input_tokens : 0,
-      outputTokens: counted.success ? counted.data.output_tokens : 0,
-      cacheCreationInputTokens: counted.success ? (counted.data.cache_creation_input_tokens ?? 0) : 0,
-      cacheReadInputTokens: counted.success ? (counted.data.cache_read_input_tokens ?? 0) : 0,
+      inputTokens: counted.success ? counted.data.prompt_tokens - cacheRead - cacheWrite : 0,
+      outputTokens: counted.success ? counted.data.completion_tokens : 0,
+      cacheCreationInputTokens: cacheWrite,
+      cacheReadInputTokens: cacheRead,
     };
-    const costUsd = computeCostUsd(this.options.model, usage);
+    // il costo lo dichiara chi incassa (ADR-125 §5): un listino copiato qui invecchia
+    const costUsd = counted.success ? counted.data.cost : 0;
 
     await this.options.db.insert(budgetLedger).values({
       accountId: this.accountId,
       gosinoId: this.gosinoId,
       date: localDate(this.timezone, at),
-      provider: "anthropic",
+      provider: "openrouter",
       model: this.options.model,
       tokensIn: usage.inputTokens + usage.cacheCreationInputTokens + usage.cacheReadInputTokens,
       tokensCacheWrite: usage.cacheCreationInputTokens,
@@ -311,8 +310,8 @@ export class LlmClient {
       );
     }
 
-    const parsed = messagesResponseSchema.parse(payload);
-    const text = parsed.content.find((block) => block.type === "text")?.text ?? "";
+    const parsed = completionResponseSchema.parse(payload);
+    const text = parsed.choices[0]?.message.content?.trim() ?? "";
 
     return { text, degraded: false, usage, costUsd };
   }

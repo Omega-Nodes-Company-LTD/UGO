@@ -19,7 +19,7 @@ jobs:
   # minutes so a red build is noticed while the change is still fresh.
   static:
     name: build · lint · typecheck · unit
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -36,7 +36,7 @@ jobs:
   # MinIO and Ollama containers. ubuntu-latest ships a working Docker daemon.
   integration:
     name: integration (real containers)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -70,6 +70,8 @@ jobs:
       - run: mkdir -p ~/.ugo-ollama
       - run: pnpm test:integration
         env:
+          # ADR-125: i modelli si testano sul fornitore vero, niente stub
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
       - name: lascia nella cache solo i pesi, e leggibili
         if: always()
@@ -77,7 +79,7 @@ jobs:
 
   e2e:
     name: e2e (real browser vs real soul)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -101,6 +103,8 @@ jobs:
       - run: mkdir -p ~/.ugo-ollama
       - run: pnpm test:e2e
         env:
+          # ADR-125: i modelli si testano sul fornitore vero, niente stub
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
       - name: lascia nella cache solo i pesi, e leggibili
         if: always()
@@ -114,7 +118,7 @@ jobs:
 
   jobs-python:
     name: jobs (dream, whisper on CPU)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -144,6 +148,8 @@ jobs:
       - working-directory: ops/jobs
         run: pytest -q
         env:
+          # ADR-125: i modelli si testano sul fornitore vero, niente stub
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
           UGO_TEST_WHISPER_MODELS: /home/runner/.ugo-whisper
       - name: lascia nella cache solo i pesi, e leggibili
@@ -155,7 +161,7 @@ jobs:
     # Dockerfile that had not kept up with the workspace graph sailed through
     # every green run and only failed on the deployment server.
     name: docker images build
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - name: build soul image
@@ -211,11 +217,34 @@ jobs:
             test \"\$(whoami)\" = ugo &&
             echo 'dream imports, scheduler imports, pg_dump new enough, non-root'"
 
+  ios-shell:
+    # Xcode non gira su Linux, e un runner macOS costa: qui si verifica tutto ciò
+    # che si può sbagliare senza compilare — Capacitor sincronizza davvero il
+    # progetto SPM, e check_shell.py legge identità, firma, permessi, dominio e
+    # supporto Mac dai file veri. La compilazione resta sul Mac (apps/face-ios/README.md).
+    name: ios shell (config, no Xcode)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo build --filter=face
+      - name: sync capacitor (Swift Package Manager)
+        working-directory: apps/face-ios
+        run: npx cap sync ios
+      - name: the shell carries identity, signing, permissions and the Mac
+        working-directory: apps/face-ios
+        run: python3 check_shell.py
+
   apk:
     # ADR-018 said the Android toolchain was not verifiable here, and that a
     # broken shell would be discovered on the phone instead of in the pipeline.
     name: android shell (debug apk)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: write
     steps:

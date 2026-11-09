@@ -45,7 +45,7 @@ Queste decisioni sono state prese consapevolmente e **non vanno rimesse in discu
 | ADR-004 | **Corpo-riunioni = Vexa self-hosted** (Apache 2.0, Docker, bot come partecipante da browser headless, trascrizione diarizzata via WebSocket, TTS per parlare in call). Fallback: Attendee (Django/Postgres/Redis). Faccia animata in call: fase successiva, canvas→`captureStream()` iniettato come webcam finta in Chromium headless. | Costruire il bot da zero è rifare Recall.ai. |
 | ADR-005 | **Lo stato è la creatura.** Tutto ciò che rende UGO "lui" vive in Postgres + bucket S3. Ogni modello (LLM, STT, TTS, embeddings) è sostituibile via env senza perdita d'identità. | Nessun lock-in su un provider. |
 | ADR-006 | **STT/TTS di casa on-device** (Android SpeechRecognizer + TTS di sistema, offline dove disponibile). Trascrizione d'archivio: batch notturno con faster-whisper su CPU + diarizzazione. | Latenza e costo zero per l'interazione quotidiana. |
-| ADR-007 | **Local-first, zero esposizione pubblica.** Tutti i servizi su rete Docker privata; accesso umano via Tailscale/WireGuard. Nessuna porta DB/MQTT/Ollama pubblicata sull'host. | Nel sistema transitano conversazioni di clienti. |
+| ADR-007 | **Local-first, zero esposizione pubblica** (superata in parte da ADR-127: soul può stare sul web, dietro token obbligatorio; i servizi interni restano privati). Tutti i servizi su rete Docker privata; accesso umano via Tailscale/WireGuard. Nessuna porta DB/MQTT/Ollama pubblicata sull'host. | Nel sistema transitano conversazioni di clienti. |
 | ADR-008 | **MQTT (Mosquitto) per il firmware.** Il Nano 33 IoT parla solo MQTT autenticato sulla LAN. | Più robusto di HTTP polling per un microcontrollore. |
 | ADR-009 | **Monorepo pnpm + Turborepo + TypeScript strict**, convenzioni allineate a Trisite. Schema DB con Drizzle; validazione runtime ai confini con Zod. | Coerenza con il resto dell'ecosistema ThinkPink. |
 | ADR-010 | **Giurisdizione: Italia/UE** (GDPR + postura NIS2). Le riunioni possono includere contatti in Uganda (Data Protection and Privacy Act 2019: minimizzazione e consenso valgono comunque). Registrare solo conversazioni a cui il proprietario partecipa; nelle call con clienti il bot è visibile e viene annunciato. | Pre-risposta alla domanda bloccante di geolocalizzazione legislativa del framework ThinkPink: non riproporla. |
@@ -311,7 +311,7 @@ ugo/
 
 ## 10. Variabili d'ambiente (`.env.example` completo in Fase 0)
 
-`DATABASE_URL` · `MQTT_URL` · `MQTT_USER/PASS` · `OLLAMA_URL` · `OLLAMA_EMBED_MODEL=nomic-embed-text` · `OLLAMA_BATCH_MODEL` · `ANTHROPIC_API_KEY` · `UGO_CHAT_MODEL=claude-haiku-4-5` · `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY` (AES-256-GCM) · `S3_ENDPOINT/ACCESS_KEY/SECRET_KEY` · `S3_BUCKET_AUDIO/S3_BUCKET_BACKUP` · `UGO_AUDIO_RETENTION_DAYS=90` · `HF_TOKEN` (pyannote) · `VEXA_API_URL/KEY` (Fase 5) · `TZ=Europe/Rome`
+`DATABASE_URL` · `MQTT_URL` · `MQTT_USER/PASS` · `OLLAMA_URL` · `OLLAMA_EMBED_MODEL=nomic-embed-text` · `OLLAMA_BATCH_MODEL` · `OPENROUTER_API_KEY` · `OPENROUTER_CHAT_MODEL=deepseek/deepseek-v4-flash` (ADR-125) · `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY` (AES-256-GCM) · `S3_ENDPOINT/ACCESS_KEY/SECRET_KEY` · `S3_BUCKET_AUDIO/S3_BUCKET_BACKUP` · `UGO_AUDIO_RETENTION_DAYS=90` · `HF_TOKEN` (pyannote) · `VEXA_API_URL/KEY` (Fase 5) · `TZ=Europe/Rome`
 
 ## 11. Rischi noti e mitigazioni
 

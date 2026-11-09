@@ -1,3 +1,4 @@
+import { DEFAULT_CHAT_MODEL, DEFAULT_PROVIDERS, DEFAULT_TTS_MODEL } from "@ugo/memory";
 import { describe, expect, it } from "vitest";
 import { appDatabaseUrl, audioStorageFromEnv, soulEnvSchema } from "./env.js";
 
@@ -11,7 +12,7 @@ import { appDatabaseUrl, audioStorageFromEnv, soulEnvSchema } from "./env.js";
 const base = {
   DATABASE_URL: "postgres://u:p@db:5432/ugo",
   OLLAMA_URL: "http://ollama:11434",
-  ANTHROPIC_API_KEY: "k",
+  OPENROUTER_API_KEY: "k",
   UGO_DATA_KEY: "x".repeat(44),
 };
 
@@ -88,5 +89,120 @@ describe("S3 configuration", () => {
     } catch (error) {
       expect((error as Error).message).not.toContain("hunter2");
     }
+  });
+});
+
+/**
+ * ADR-125: OpenRouter è l'unico fornitore a pagamento. La chiave è
+ * obbligatoria, i default sono quelli misurati, e i nomi ritirati fermano il
+ * boot invece di essere ignorati in silenzio.
+ */
+describe("OpenRouter, unico varco (ADR-125)", () => {
+  it("senza OPENROUTER_API_KEY il boot si ferma", () => {
+    const result = soulEnvSchema.safeParse({ ...base, OPENROUTER_API_KEY: undefined });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((i) => i.path[0] === "OPENROUTER_API_KEY")).toBe(true);
+  });
+
+  it("applica i default: DeepSeek V4 Flash, ElevenLabs v4, fornitori in ordine", () => {
+    const env = parse({});
+    expect(env.OPENROUTER_CHAT_MODEL).toBe(DEFAULT_CHAT_MODEL);
+    expect(env.OPENROUTER_TTS_MODEL).toBe(DEFAULT_TTS_MODEL);
+    expect(env.OPENROUTER_PROVIDERS).toEqual([...DEFAULT_PROVIDERS]);
+  });
+
+  it("una stringa vuota (i default vuoti del compose) vale come assente", () => {
+    const env = parse({ OPENROUTER_CHAT_MODEL: "", OPENROUTER_PROVIDERS: "", OPENROUTER_TTS_MODEL: "" });
+    expect(env.OPENROUTER_CHAT_MODEL).toBe(DEFAULT_CHAT_MODEL);
+    expect(env.OPENROUTER_PROVIDERS).toEqual([...DEFAULT_PROVIDERS]);
+  });
+
+  it("legge OPENROUTER_PROVIDERS come lista ORDINATA, senza spazi né voci vuote", () => {
+    const env = parse({ OPENROUTER_PROVIDERS: " Azure , DeepInfra,, Parasail " });
+    expect(env.OPENROUTER_PROVIDERS).toEqual(["Azure", "DeepInfra", "Parasail"]);
+  });
+
+  it.each([
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_BASE_URL",
+    "UGO_CHAT_MODEL",
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "UGO_TTS_MODEL",
+    "UGO_TTS_VOICE",
+    "OPENROUTER_BASE_URL",
+  ])("%s è ritirata: il boot si ferma e dice perché", (name) => {
+    const result = soulEnvSchema.safeParse({ ...base, [name]: "ancora-qui" });
+    expect(result.success).toBe(false);
+    const issue = result.error?.issues.find((i) => i.path[0] === name);
+    expect(issue?.message).toMatch(/non esiste più \(ADR-125\)/u);
+  });
+});
+
+describe("la casa sul web (ADR-127)", () => {
+  it("di serie non è sul web, e i link dell'app puntano al bundle registrato", () => {
+    const env = parse({});
+    expect(env.UGO_PUBLIC_URL).toBeUndefined();
+    expect(env.UGO_TRUST_PROXY).toBeUndefined();
+    expect(env.UGO_APPLE_APP_IDS).toBe("8UH44UM49Z.ai.omeganodes.ugo");
+  });
+
+  it("legge indirizzo pubblico e proxy fidati, e tratta il vuoto come assente", () => {
+    const env = parse({ UGO_PUBLIC_URL: "https://ugo.omeganodes.ai", UGO_TRUST_PROXY: "1", UGO_OWNER_EMAIL: "" });
+    expect(env.UGO_PUBLIC_URL).toBe("https://ugo.omeganodes.ai");
+    expect(env.UGO_TRUST_PROXY).toBe(1);
+    expect(env.UGO_OWNER_EMAIL).toBeUndefined();
+  });
+
+  it("accetta il link via email solo completo", () => {
+    const full = {
+      UGO_PUBLIC_URL: "https://ugo.omeganodes.ai",
+      UGO_OWNER_EMAIL: "io@example.com",
+      RESEND_API_KEY: "re_x",
+      EMAIL_FROM: "UGO <ugo@omeganodes.ai>",
+    };
+    expect(soulEnvSchema.safeParse({ ...base, ...full }).success).toBe(true);
+    const { EMAIL_FROM: _dropped, ...half } = full;
+    void _dropped;
+    const result = soulEnvSchema.safeParse({ ...base, ...half });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((issue) => issue.message.includes("ADR-127"))).toBe(true);
+  });
+});
+
+describe("il telefono (ADR-128)", () => {
+  const token = "p".repeat(40);
+  const account = "00000000-0000-4000-8000-000000000002";
+
+  it("si accende con segreto e casa insieme", () => {
+    const result = soulEnvSchema.safeParse({
+      ...base,
+      UGO_PHONE_TOKEN: token,
+      UGO_PHONE_ACCOUNT_ID: account,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("resta spento senza nessuno dei due, anche con stringhe vuote", () => {
+    const result = soulEnvSchema.safeParse({ ...base, UGO_PHONE_TOKEN: "", UGO_PHONE_ACCOUNT_ID: "" });
+    expect(result.success).toBe(true);
+    expect(result.data?.UGO_PHONE_TOKEN).toBeUndefined();
+  });
+
+  it.each([
+    { UGO_PHONE_TOKEN: token },
+    { UGO_PHONE_ACCOUNT_ID: account },
+  ])("mezza porta ferma il boot: %o", (half) => {
+    const result = soulEnvSchema.safeParse({ ...base, ...half });
+    expect(result.success).toBe(false);
+  });
+
+  it("rifiuta un segreto corto", () => {
+    const result = soulEnvSchema.safeParse({
+      ...base,
+      UGO_PHONE_TOKEN: "corto",
+      UGO_PHONE_ACCOUNT_ID: account,
+    });
+    expect(result.success).toBe(false);
   });
 });

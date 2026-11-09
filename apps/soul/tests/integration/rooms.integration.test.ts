@@ -49,7 +49,7 @@ const patch = async (url: string, body: object): Promise<Sent> =>
 const del = async (url: string): Promise<Sent> =>
   await app.inject({ method: "DELETE", url, headers: auth });
 const listRooms = async (): Promise<{ id: string; room: string; gosini: { name: string }[] }[]> =>
-  (await app.inject({ method: "GET", url: "/v1/rooms" })).json<{
+  (await app.inject({ method: "GET", url: "/v1/rooms", headers: auth })).json<{
     rooms: { id: string; room: string; gosini: { name: string }[] }[];
   }>().rooms;
 
@@ -147,11 +147,13 @@ describe("the rooms of the house", () => {
     expect((await post("/v1/rooms", { name: "   " })).statusCode).toBe(400);
   });
 
-  it("needs the operator token to make one, and none to read them", async () => {
+  // ADR-127: da quando la casa può stare sul web, anche leggere vuole una chiave
+  it("needs the operator token to make one, and a token to read them", async () => {
     const naked = await app.inject({ method: "POST", url: "/v1/rooms", payload: { name: "x" } });
     expect(naked.statusCode).toBe(401);
-    // the body has no token and still has to know which rooms exist
-    expect((await app.inject({ method: "GET", url: "/v1/rooms" })).statusCode).toBe(200);
+    // il muso le legge con la chiave del suo dispositivo
+    expect((await app.inject({ method: "GET", url: "/v1/rooms" })).statusCode).toBe(401);
+    expect((await app.inject({ method: "GET", url: "/v1/rooms", headers: auth })).statusCode).toBe(200);
   });
 });
 

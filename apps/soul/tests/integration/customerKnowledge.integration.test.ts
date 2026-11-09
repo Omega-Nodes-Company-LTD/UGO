@@ -3,6 +3,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
+  budgetLedger,
   createDbClient,
   customerChunks,
   customerGosini,
@@ -12,11 +13,11 @@ import {
   type DbClient,
   runMigrations,
 } from "@ugo/db";
-import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import { encryptText } from "@ugo/shared";
-import { startLlmStub, startOllama, startPostgres, type LlmStub, type OllamaHandle } from "@ugo/factories";
+import { openRouterKey, startOllama, startPostgres, type OllamaHandle } from "@ugo/factories";
 import type { FastifyInstance } from "fastify";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { issueCustomerToken } from "../../src/services/reception/customerAuth.js";
 import { CustomerQuota } from "../../src/services/reception/customerQuota.js";
@@ -27,9 +28,9 @@ import { createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 /**
  * The knowledge sources end to end (ADR-054): real Postgres, real Ollama
- * embeddings, network-level stubs for the provider and for GitHub. The chunk
- * of one customer must never reach another's prompt — that is the test that
- * makes `searchCustomerChunks`' mandatory scope real.
+ * embeddings, the real model on OpenRouter (ADR-125) and a network-level
+ * GitHub. The chunk of one customer must never reach another's answer — that
+ * is the test that makes `searchCustomerChunks`' mandatory scope real.
  */
 
 const RECEPTION_TOKEN = "reception-secret";
@@ -37,9 +38,10 @@ const dataKey = randomBytes(32);
 
 let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
-let stub: LlmStub;
 let github: Server;
 let githubUrl = "";
+/** quante volte l'adattatore GitHub ha bussato: si sveglia solo sullo stato vivo */
+let githubHits = 0;
 let db: DbClient;
 let app: FastifyInstance;
 let house: TestHouse;
@@ -79,26 +81,31 @@ async function seedChunk(customerId: string, ref: string, text: string): Promise
   });
 }
 
+/** quante chiamate pagate ha fatto la casa: chi chiama OpenRouter scrive una riga */
+async function providerCalls(): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<string>`count(*)` })
+    .from(budgetLedger)
+    .where(and(eq(budgetLedger.accountId, house.id), eq(budgetLedger.provider, "openrouter")));
+  return Number(row?.count ?? 0);
+}
+
 const headers = (token: string): Record<string, string> => ({
   authorization: `Bearer ${RECEPTION_TOKEN}`,
   "x-reception-customer": token,
 });
 
 beforeAll(async () => {
-  const [postgres, ollamaHandle, llmStub] = await Promise.all([
-    startPostgres(),
-    startOllama(),
-    startLlmStub(),
-  ]);
+  const [postgres, ollamaHandle] = await Promise.all([startPostgres(), startOllama()]);
   pg = postgres.container;
   ollama = ollamaHandle;
-  stub = llmStub;
   await runMigrations(postgres.url);
   db = createDbClient(postgres.url);
   embedder = new OllamaEmbeddingsClient(ollama.baseUrl, "nomic-embed-text");
 
   // a tiny GitHub: two GET endpoints, exactly what the adapter may touch
   github = createServer((req, res) => {
+    githubHits += 1;
     res.writeHead(200, { "content-type": "application/json" });
     if (req.url?.includes("/pulls") === true) {
       res.end(JSON.stringify([{ number: 12, title: "Aggiunge l'export CSV" }]));
@@ -123,12 +130,11 @@ beforeAll(async () => {
   const llmFor = (accountId: string, gosinoId: string): LlmClient =>
     new LlmClient({
       db,
-      apiKey: "stub",
-      model: "claude-haiku-4-5",
+      apiKey: openRouterKey(),
+      model: DEFAULT_CHAT_MODEL,
       dailyBudgetUsd: 10,
       accountId,
       gosinoId,
-      baseUrl: stub.baseUrl,
       timezone: "Europe/Rome",
     });
 
@@ -168,7 +174,7 @@ afterAll(async () => {
     });
   });
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop(), stub.close()]);
+  await Promise.all([pg.stop(), ollama.container.stop()]);
 });
 
 describe("the sources from the panel", () => {
@@ -242,44 +248,44 @@ describe("repo alla mano", () => {
       "la strategia riservata di Bianchi SPA",
     );
 
-    stub.reset();
-    stub.nextResponse = { text: "Sta in src/main.ts." };
     const response = await app.inject({
       method: "POST",
       url: "/v1/reception/chat",
       headers: headers(customerA.token),
-      payload: { gosinoId: house.gosinoId, text: "Dove parte il bottone di export CSV?" },
+      payload: {
+        gosinoId: house.gosinoId,
+        text: "In quale file del repo parte il bottone di export CSV? Dimmi il percorso.",
+      },
     });
     expect(response.statusCode).toBe(200);
-    expect(stub.requests).toHaveLength(1);
-    const dynamic = stub.requests[0]?.body.system[2]?.text ?? "";
-    expect(dynamic).toContain("src/main.ts@abc1234");
-    expect(dynamic).toContain("bottone di export CSV");
-    expect(dynamic).not.toContain("Bianchi");
-    expect(dynamic).not.toContain("strategia riservata");
+    // il pezzo di A è arrivato al modello: risponde col file che c'è scritto
+    const reply = response.json<{ reply: string }>().reply.toLowerCase();
+    expect(reply).toContain("main.ts");
+    // e quello del vicino no
+    expect(reply).not.toContain("bianchi");
+    expect(reply).not.toContain("strategia riservata");
   });
 
   it("wakes the GitHub adapter only on live-state questions", async () => {
-    stub.reset();
-    await app.inject({
+    const hitsBefore = githubHits;
+    const live = await app.inject({
       method: "POST",
       url: "/v1/reception/chat",
       headers: headers(customerA.token),
-      payload: { gosinoId: house.gosinoId, text: "Come vanno le PR aperte?" },
+      payload: { gosinoId: house.gosinoId, text: "Come vanno le PR aperte? Dimmi numero e titolo." },
     });
-    const withLive = stub.requests[0]?.body.system[2]?.text ?? "";
-    expect(withLive).toContain("PR #12");
-    expect(withLive).toContain("abc1234");
+    expect(githubHits).toBeGreaterThan(hitsBefore);
+    // lo stato vivo è arrivato al modello: conosce la PR che GitHub ha detto
+    expect(live.json<{ reply: string }>().reply).toMatch(/12|export csv/i);
 
-    stub.reset();
+    const hitsAfterLive = githubHits;
     await app.inject({
       method: "POST",
       url: "/v1/reception/chat",
       headers: headers(customerA.token),
       payload: { gosinoId: house.gosinoId, text: "Che colore ha il logo?" },
     });
-    const withoutLive = stub.requests[0]?.body.system[2]?.text ?? "";
-    expect(withoutLive).not.toContain("PR #12");
+    expect(githubHits).toBe(hitsAfterLive);
   });
 });
 
@@ -299,22 +305,21 @@ describe("the answer cache (ADR-055)", () => {
   };
 
   it("serves the repeated question from the cache: zero provider tokens", async () => {
-    stub.reset();
-    stub.nextResponse = { text: "Si usa pnpm turbo build." };
+    const callsBefore = await providerCalls();
     const first = await ask(customerA.token, "Come si compila il progetto?");
     expect(first.cached).toBe(false);
-    expect(stub.requests).toHaveLength(1);
+    expect(await providerCalls()).toBe(callsBefore + 1);
 
     // shouted and re-spaced, same question: the exact tier normalizes it
     const second = await ask(customerA.token, "COME   si compila il progetto?");
     expect(second.cached).toBe(true);
-    expect(second.reply).toBe("Si usa pnpm turbo build.");
-    expect(stub.requests).toHaveLength(1);
+    expect(second.reply).toBe(first.reply);
+    expect(await providerCalls()).toBe(callsBefore + 1);
 
     // near-identical wording lands on the semantic tier, still zero tokens
     const third = await ask(customerA.token, "Come si compila il progetto??");
     expect(third.cached).toBe(true);
-    expect(stub.requests).toHaveLength(1);
+    expect(await providerCalls()).toBe(callsBefore + 1);
 
     const rows = await db
       .select()
@@ -324,21 +329,20 @@ describe("the answer cache (ADR-055)", () => {
   });
 
   it("a knowledge reindex strands every cached answer", async () => {
-    stub.reset();
-    stub.nextResponse = { text: "Risposta aggiornata." };
+    const callsBefore = await providerCalls();
     await db
       .update(customers)
       .set({ knowledgeEpoch: sql`${customers.knowledgeEpoch} + 1` })
       .where(eq(customers.id, customerA.id));
     const again = await ask(customerA.token, "Come si compila il progetto?");
     expect(again.cached).toBe(false);
-    expect(stub.requests).toHaveLength(1);
+    expect(await providerCalls()).toBe(callsBefore + 1);
   });
 
   it("never caches a live-state answer", async () => {
-    stub.reset();
+    const callsBefore = await providerCalls();
     await ask(customerA.token, "Ci sono commit nuovi oggi?");
     await ask(customerA.token, "Ci sono commit nuovi oggi?");
-    expect(stub.requests).toHaveLength(2);
+    expect(await providerCalls()).toBe(callsBefore + 2);
   });
 });

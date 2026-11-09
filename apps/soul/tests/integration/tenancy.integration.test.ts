@@ -13,7 +13,7 @@ import {
   PRIME_ACCOUNT_ID,
   type DbClient,
 } from "@ugo/db";
-import { startPostgres } from "@ugo/factories";
+import { openRouterKey, REFUSED_MODEL, startPostgres } from "@ugo/factories";
 import { encryptText, decryptText, unwrapDataKey } from "@ugo/shared";
 import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
@@ -164,8 +164,8 @@ describe("the piggy bank belongs to the house", () => {
       accountId: casa.id,
       gosinoId: casa.gosinoId,
       date: "2026-01-15",
-      provider: "anthropic",
-      model: "claude-haiku-4-5",
+      provider: "openrouter",
+      model: "deepseek/deepseek-v4-flash",
       costUsd: "0.40",
     });
 
@@ -286,18 +286,20 @@ describe("the ceiling is the house's own", () => {
       .set({ dailyBudgetUsd: "0.10" })
       .where(eq(accounts.id, vicini.id));
 
+    // OpenRouter vero, con un modello che rifiuta (ADR-125): se il muro non
+    // mordesse, la chiamata solleverebbe invece di degradare
     const ours = new LlmClient({
       db,
-      apiKey: "unused: the budget check happens before any call",
-      model: "claude-haiku-4-5",
+      apiKey: openRouterKey(),
+      model: REFUSED_MODEL,
       dailyBudgetUsd: 1,
       accountId: casa.id,
       gosinoId: casa.gosinoId,
     });
     const theirs = new LlmClient({
       db,
-      apiKey: "unused",
-      model: "claude-haiku-4-5",
+      apiKey: openRouterKey(),
+      model: REFUSED_MODEL,
       dailyBudgetUsd: 1,
       accountId: vicini.id,
       gosinoId: vicini.gosinoId,
@@ -311,8 +313,8 @@ describe("the ceiling is the house's own", () => {
       accountId: casa.id,
       gosinoId: casa.gosinoId,
       date: today,
-      provider: "anthropic",
-      model: "claude-haiku-4-5",
+      provider: "openrouter",
+      model: "deepseek/deepseek-v4-flash",
       costUsd: "0.90",
     });
 
@@ -324,8 +326,8 @@ describe("the ceiling is the house's own", () => {
       accountId: casa.id,
       gosinoId: casa.gosinoId,
       date: today,
-      provider: "anthropic",
-      model: "claude-haiku-4-5",
+      provider: "openrouter",
+      model: "deepseek/deepseek-v4-flash",
       costUsd: "0.20",
     });
     const reply = await ours.chat({ channel: "home", userText: "ciao" });

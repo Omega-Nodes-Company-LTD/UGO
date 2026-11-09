@@ -9,8 +9,8 @@ import {
   PRIME_ACCOUNT_ID,
   runMigrations,
 } from "@ugo/db";
-import { EMBED_MODEL, startLlmStub, startOllama, type LlmStub, type OllamaHandle } from "@ugo/factories";
-import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { EMBED_MODEL, openRouterKey, startOllama, type OllamaHandle } from "@ugo/factories";
+import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 import type { ServerToFaceMessage } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -22,13 +22,12 @@ import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
 import { characterFrom } from "../../src/services/council/character.js";
 
-// Real WS over a real listening server, real Postgres, real Ollama, provider
-// stubbed at network level. The face client below is exactly what the webapp
-// does: JSON frames over ws.
+// WS vero su un server vero in ascolto, Postgres vero, Ollama vero e
+// OpenRouter vero (ADR-125: niente stub). Il client qui sotto è esattamente
+// quello che fa la webapp: frame JSON su ws.
 
 let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
-let stub: LlmStub;
 let db: DbClient;
 
 interface FaceTestClient {
@@ -50,10 +49,9 @@ async function startSoul(fakeHour: number): Promise<{ url: string; gateway: Face
     embedder: new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL),
     llm: new LlmClient({
       db,
-      apiKey: "test",
-      model: "claude-haiku-4-5",
+      apiKey: openRouterKey(),
+      model: DEFAULT_CHAT_MODEL,
       dailyBudgetUsd: 5,
-      baseUrl: stub.baseUrl,
     }),
     psyche,
     dataKey: randomBytes(32),
@@ -122,10 +120,9 @@ async function connectFace(url: string): Promise<FaceTestClient> {
 }
 
 beforeAll(async () => {
-  [pg, ollama, stub] = await Promise.all([
+  [pg, ollama] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
     startOllama(),
-    startLlmStub(),
   ]);
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
@@ -133,13 +130,12 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop(), stub.close()]);
+  await Promise.all([pg.stop(), ollama.container.stop()]);
 });
 
 afterEach(async () => {
   await app?.close();
   app = undefined;
-  stub.reset();
 });
 
 describe("WS /v1/face", () => {
@@ -226,14 +222,14 @@ describe("WS /v1/face", () => {
   });
 
   it("heard_text triggers the full chat loop: thinking → talking → speak + mood", async () => {
-    stub.nextResponse = { text: "Grunf, tutto bene qui in casa." };
     const { url } = await startSoul(15);
     const face = await connectFace(url);
     await face.waitFor("state");
 
     face.send({ type: "heard_text", text: "come va, UGO?" });
     const speak = await face.waitFor("speak");
-    expect(speak.type === "speak" && speak.text).toContain("Grunf");
+    // il testo lo scrive un modello vero: si guarda che ci sia, non cosa dice
+    expect(speak.type === "speak" && speak.text.trim().length).toBeGreaterThan(0);
     const states = face.received.filter((m) => m.type === "state").map((m) => m.state);
     expect(states).toContain("thinking");
     expect(states).toContain("talking");
