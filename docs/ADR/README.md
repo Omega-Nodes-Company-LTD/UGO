@@ -132,3 +132,4 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [124](./124-fuori-prima-casa-quando-ci-sara-la-gpu.md) | Fuori prima, casa quando ci sarà la GPU | Accettata |
 | [125](./125-openrouter-unico-varco.md) | OpenRouter, unico varco verso i modelli | Accettata |
 | [126](./126-la-voce-viene-dal-corpo.md) | La voce viene dal corpo | Accettata |
+| [130](./130-il-guscio-ios-carica-il-muso-dal-soul.md) | Il guscio iOS carica il muso dal soul | Accettata |

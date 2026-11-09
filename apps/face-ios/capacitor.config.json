@@ -1,0 +1,18 @@
+{
+  "appId": "ai.omeganodes.ugo",
+  "appName": "UGO",
+  "webDir": "../face/dist",
+  "server": {
+    "url": "https://ugo.omeganodes.ai",
+    "allowNavigation": ["ugo.omeganodes.ai"]
+  },
+  "ios": {
+    "contentInset": "never",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": false
+    }
+  }
+}

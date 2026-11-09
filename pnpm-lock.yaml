@@ -113,6 +113,19 @@ importers:
         specifier: ^7.4.4
         version: 7.6.8
 
+  apps/face-ios:
+    dependencies:
+      '@capacitor/core':
+        specifier: ^7.4.4
+        version: 7.6.8
+      '@capacitor/ios':
+        specifier: ^7.6.9
+        version: 7.6.10(@capacitor/core@7.6.8)
+    devDependencies:
+      '@capacitor/cli':
+        specifier: ^7.4.4
+        version: 7.6.8
+
   apps/reception:
     dependencies:
       '@ugo/face-body':
@@ -533,6 +546,11 @@ packages:
 
   '@capacitor/core@7.6.8':
     resolution: {integrity: sha512-x1xfxvNcTSnj6OoYaAB0n0a0HRvi5f2YjcVnMLxpMhbHDgGDAzzN9z8cnPCYV+SKTvqGF1hezHm82Op32XaAGg==}
+
+  '@capacitor/ios@7.6.10':
+    resolution: {integrity: sha512-iDXt6n6+tQq6fLMgdVNwT7dtgyqGSpGmPx1AGrUJq3YxOqpzqqtY4v4phqhys9PxPSrVyxnWGAL+SEsAHtZLkQ==}
+    peerDependencies:
+      '@capacitor/core': ^7.6.0
 
   '@dimforge/rapier3d-compat@0.12.0':
     resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
@@ -3988,6 +4006,10 @@ snapshots:
   '@capacitor/core@7.6.8':
     dependencies:
       tslib: 2.8.1
+
+  '@capacitor/ios@7.6.10(@capacitor/core@7.6.8)':
+    dependencies:
+      '@capacitor/core': 7.6.8
 
   '@dimforge/rapier3d-compat@0.12.0': {}
 
