@@ -138,3 +138,40 @@ describe("OpenRouter, unico varco (ADR-125)", () => {
     expect(issue?.message).toMatch(/non esiste più \(ADR-125\)/u);
   });
 });
+
+describe("il telefono (ADR-128)", () => {
+  const token = "p".repeat(40);
+  const account = "00000000-0000-4000-8000-000000000002";
+
+  it("si accende con segreto e casa insieme", () => {
+    const result = soulEnvSchema.safeParse({
+      ...base,
+      UGO_PHONE_TOKEN: token,
+      UGO_PHONE_ACCOUNT_ID: account,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("resta spento senza nessuno dei due, anche con stringhe vuote", () => {
+    const result = soulEnvSchema.safeParse({ ...base, UGO_PHONE_TOKEN: "", UGO_PHONE_ACCOUNT_ID: "" });
+    expect(result.success).toBe(true);
+    expect(result.data?.UGO_PHONE_TOKEN).toBeUndefined();
+  });
+
+  it.each([
+    { UGO_PHONE_TOKEN: token },
+    { UGO_PHONE_ACCOUNT_ID: account },
+  ])("mezza porta ferma il boot: %o", (half) => {
+    const result = soulEnvSchema.safeParse({ ...base, ...half });
+    expect(result.success).toBe(false);
+  });
+
+  it("rifiuta un segreto corto", () => {
+    const result = soulEnvSchema.safeParse({
+      ...base,
+      UGO_PHONE_TOKEN: "corto",
+      UGO_PHONE_ACCOUNT_ID: account,
+    });
+    expect(result.success).toBe(false);
+  });
+});

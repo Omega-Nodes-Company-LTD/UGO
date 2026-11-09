@@ -387,6 +387,14 @@ container più economico dell'installazione.
    registrazione: **senza `UGO_RECEPTION_TOKEN`, soul non registra affatto le rotte
    `/v1/reception/*`** e la reception risponde 404 a tutto, per progetto (ADR-051). Gli altri tre
    sono soltanto i default di casa: ogni cliente può avere i suoi dal pannello, senza redeploy.
+   **Se il gosino deve rispondere al telefono (ADR-128)**, aggiungi `UGO_PHONE_TOKEN` (Secret,
+   `openssl rand -hex 32`, **lo stesso valore** su Omega HQ) e `UGO_PHONE_ACCOUNT_ID` = l'id della
+   casa aziendale (dal pannello, pagina «Casa», o `select id, name from accounts`): parla il suo
+   esemplare più anziano. Tutte e due o nessuna, o il boot si ferma. Il dominio pubblico di soul
+   deve essere raggiungibile da Twilio, perché HQ gli passa gli URL dell'audio
+   (`https://<dominio>/v1/phone/audio/...`, firmati, validi dieci minuti). Per riconoscere un
+   cliente al telefono, dagli un'email di contatto dal pannello (pagina «Clienti»): si conserva
+   solo la sua impronta.
 5. **Le migrazioni non devi configurarle**: soul le applica da solo all'avvio e scrive
    `migrations applied` nei log. Sono additive per contratto e protette da un lock, quindi due
    container che partono insieme non si pestano i piedi. La prima applicazione semina anche

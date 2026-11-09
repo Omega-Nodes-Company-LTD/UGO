@@ -191,6 +191,17 @@ export const soulEnvSchema = z.object({
   // interno: ruotare la superficie pubblica non deve toccare quella interna.
   // Assente = la reception non esiste e le sue rotte non vengono registrate.
   UGO_RECEPTION_TOKEN: optionalNonEmpty,
+  // ADR-128: il gosino al telefono. Il segreto che Omega HQ presenta (dedicato:
+  // ruotarlo non tocca la reception né il token interno) e la casa che
+  // risponde. Tutti e due o nessuno: assenti = la porta del telefono non esiste.
+  UGO_PHONE_TOKEN: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(32).optional(),
+  ),
+  UGO_PHONE_ACCOUNT_ID: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.uuid().optional(),
+  ),
   // Dove vive l'API GitHub dello stato vivo (ADR-054). Serve agli e2e per
   // essere ermetici: '/works' la interroga sul percorso caldo, e un test che
   // aspetta api.github.com vera è un test che fallisce quando GitHub tarda.
@@ -274,6 +285,14 @@ export const soulEnvSchema = z.object({
         "OpenRouter → casa → Anthropic, e la voce di casa si accende con " +
         "UGO_CHAT_HOME_VOICE=on. Togli la riga, o sostituiscila.",
       path: ["UGO_CHAT_LOCAL_FIRST"],
+    });
+  }
+  // ADR-128: mezza porta del telefono non è una porta — fail fast (regola 4)
+  if ((env.UGO_PHONE_TOKEN === undefined) !== (env.UGO_PHONE_ACCOUNT_ID === undefined)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "UGO_PHONE_TOKEN e UGO_PHONE_ACCOUNT_ID vanno insieme (ADR-128): o tutte e due, o nessuna",
+      path: ["UGO_PHONE_TOKEN"],
     });
   }
   // ADR-125: i fornitori ritirati non si ignorano in silenzio. Una casa

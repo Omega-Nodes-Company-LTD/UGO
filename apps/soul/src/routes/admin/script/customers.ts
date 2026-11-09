@@ -43,6 +43,11 @@ async function loadCustomerDetail() {
   $("cust-budget").value = c.dailyBudgetUsd ?? "";
   $("cust-hourly").value = c.hourlyMessageLimit ?? "";
   $("cust-apples").value = c.weeklyRewardLimit ?? "";
+  // ADR-128: si sa SE c'è un'email di contatto, mai quale
+  $("cust-contact").value = "";
+  $("cust-contact-state").textContent = c.hasContactEmail
+    ? "Ha un'email di contatto: al telefono lo riconosce."
+    : "Nessuna email di contatto: al telefono è uno sconosciuto.";
   // ADR-058: lo stesso conteggio a finestra mobile che la reception applica
   $("cust-apples-given").textContent = c.rewardsThisWeek === 0
     ? "Non ha ancora dato mele negli ultimi 7 giorni."
@@ -166,6 +171,39 @@ $("cust-limits").addEventListener("click", async () => {
     say("cust-detail-msg", "Limiti salvati.", "ok");
   } catch (error) { say("cust-detail-msg", error.message, "err"); }
 });
+
+$("cust-contact-go").addEventListener("click", async () => {
+  const email = $("cust-contact").value.trim();
+  try {
+    await call("/v1/customers/" + encodeURIComponent(CUSTOMER), {
+      method: "PATCH",
+      body: JSON.stringify({ contactEmail: email === "" ? null : email }),
+    });
+    say("cust-detail-msg", email === "" ? "Email tolta." : "Email salvata (solo l'impronta).", "ok");
+    await loadCustomerDetail();
+  } catch (error) { say("cust-detail-msg", error.message, "err"); }
+});
+
+/** ADR-128: le chiamate, solo numeri. Senza telefono configurato la rotta non c'è. */
+async function loadPhoneCalls() {
+  let data;
+  try {
+    data = await call("/v1/phone/calls", {});
+  } catch {
+    $("phone-calls").innerHTML = '<p class="empty">Il telefono non è acceso su questo server.</p>';
+    return;
+  }
+  const outcomes = { answered: "ha risposto lui", handover: "passata a una persona", failed: "non ha risposto" };
+  const rows = data.calls ?? [];
+  $("phone-calls").innerHTML = rows.length === 0
+    ? '<p class="empty">Nessuna chiamata, per ora.</p>'
+    : rows.map((row) =>
+        '<div class="deed"><span class="when">' + escape(row.startedAt.slice(0, 16).replace("T", " ")) + "</span>" +
+        '<div class="act">' + escape(row.customer ?? "chiamante sconosciuto") + " · " +
+        row.turns + (row.turns === 1 ? " turno" : " turni") + " · " + row.seconds + " s · " +
+        escape(outcomes[row.outcome] ?? row.outcome) + " · $" + Number(row.costUsd).toFixed(4) + "</div></div>"
+      ).join("");
+}
 
 $("cust-token-go").addEventListener("click", async () => {
   const label = $("cust-token-label").value.trim();

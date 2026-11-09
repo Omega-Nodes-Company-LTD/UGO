@@ -161,6 +161,8 @@ async function openPage(page) {
     await section(loadDiagnostics, "diag-msg");
   } else if (page === "clienti") {
     await section(loadCustomers, "cust-msg");
+    // ADR-128: le chiamate a cui ha risposto un gosino
+    await section(loadPhoneCalls, "phone-msg");
   } else if (page === "arredi") {
     await section(loadProps, "prop-msg");
   } else if (page === "branco") {

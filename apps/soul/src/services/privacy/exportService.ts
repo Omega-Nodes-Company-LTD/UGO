@@ -70,6 +70,8 @@ export interface ExportBundle {
    * gioco sarebbe la prima bugia di un export che promette tutto.
    */
   games: unknown[];
+  /** ADR-128: solo i numeri delle chiamate a cui ha risposto un gosino */
+  phoneCalls: unknown[];
   /** ADR-089: la casa stessa, e tutto ciò che nessuno aveva mai portato fuori */
   account: unknown[];
   rooms: unknown[];
@@ -307,6 +309,7 @@ export class ExportService {
       unknownPrints,
       memoryBeings,
       auditLog,
+      phoneCallRows,
     ] = await Promise.all([
       rows(sql`select id, slug, name, kind, timezone, locale, daily_budget_usd, metabolism,
                       created_at
@@ -375,6 +378,11 @@ export class ExportService {
                where account_id = ${accountId} order by memory_id`),
       rows(sql`select id, at, role, verb, resource_type, resource_id, outcome from audit_log
                where account_id = ${accountId} order by at`),
+      // ADR-128: le chiamate sono della casa che ha risposto — solo numeri, e
+      // l'impronta del CallSid, che è ciò che il database conosce
+      rows(sql`select id, gosino_id, call_ref, customer_id, started_at, last_turn_at, turns,
+                      handovers, cost_usd, outcome
+               from phone_calls where account_id = ${accountId} order by started_at`),
     ]);
 
     return {
@@ -412,6 +420,7 @@ export class ExportService {
       houseDocuments: this.decryptColumn(houseDocuments, ["filename"]),
       houseChunks: this.decryptColumn(houseChunks),
       games: this.decryptColumn(gameRows, ["secret"]),
+      phoneCalls: phoneCallRows,
       account,
       places: placeRows,
       rooms,

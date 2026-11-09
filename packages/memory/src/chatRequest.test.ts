@@ -20,6 +20,19 @@ describe("the cached prefix (§5.5, rule 2)", () => {
     );
   });
 
+  it("uses the reception rules on the phone too: the caller is not family (ADR-128)", () => {
+    expect(cachedPrefix("phone", LOCALE)).toBe(cachedPrefix("ticket", LOCALE));
+  });
+
+  it("keeps a phone turn short: every character is seconds of synthesis", () => {
+    const body = chatCompletionBody("m", DEFAULT_PROVIDERS, {
+      channel: "phone",
+      locale: LOCALE,
+      userText: "pronto?",
+    });
+    expect(body.max_tokens).toBeLessThanOrEqual(150);
+  });
+
   it("stays byte-identical whatever the dynamic content", () => {
     const first = chatMessages({
       channel: "home",

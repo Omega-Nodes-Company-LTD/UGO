@@ -70,3 +70,4 @@ export { diaryEntries, desires } from "./diary.js";
 export { checkins } from "./checkins.js";
 export { budgetLedger } from "./budget-ledger.js";
 export { PRIME_GOSINO_ID } from "./self.js";
+export { phoneCalls, PHONE_OUTCOMES } from "./phone.js";

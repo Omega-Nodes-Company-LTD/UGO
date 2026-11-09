@@ -12,6 +12,7 @@ import { TICKET_STATUSES, decryptText, encryptText } from "@ugo/shared";
 import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
+import { contactEmailHash } from "../services/phone/phoneCrypto.js";
 import type { AuditLogger } from "../services/auditLog.js";
 import {
   issueCustomerToken,
@@ -42,6 +43,8 @@ const updateSchema = z.object({
   /** ADR-058: mele in sette giorni; 0 è legittimo (cliente senza mele), null = default */
   weeklyRewardLimit: z.number().int().min(0).nullable().optional(),
   archived: z.boolean().optional(),
+  /** ADR-128: come lo si riconosce al telefono — entra come hash, non esce mai */
+  contactEmail: z.email().max(254).nullable().optional(),
 });
 
 const assignSchema = z.object({ gosinoIds: z.array(z.uuid()).max(20) });
@@ -222,6 +225,8 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
       dailyBudgetUsd: customer.dailyBudgetUsd,
       hourlyMessageLimit: customer.hourlyMessageLimit,
       weeklyRewardLimit: customer.weeklyRewardLimit,
+      // ADR-128: si dice SE c'è, non quale — l'indirizzo non è conservato
+      hasContactEmail: customer.contactEmailHash !== null,
       rewardsThisWeek: Number(givenThisWeek?.count ?? 0),
       knowledgeEpoch: customer.knowledgeEpoch,
       createdAt: customer.createdAt.toISOString(),
@@ -250,6 +255,17 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
     const done = await inAdmin(request, reply, async (tx, accountId) => {
       const customer = await mine(tx, accountId, id);
       if (customer === undefined) return "missing" as const;
+      const contactHash =
+        data.contactEmail === undefined || data.contactEmail === null
+          ? data.contactEmail
+          : contactEmailHash(dataKey, data.contactEmail);
+      if (typeof contactHash === "string") {
+        const [taken] = await tx
+          .select({ id: customers.id })
+          .from(customers)
+          .where(and(eq(customers.accountId, accountId), eq(customers.contactEmailHash, contactHash)));
+        if (taken !== undefined && taken.id !== id) return "taken" as const;
+      }
       await tx
         .update(customers)
       .set({
@@ -269,12 +285,14 @@ export function registerCustomersRoutes(app: FastifyInstance, deps: CustomersDep
         ...(data.archived !== undefined && {
           archivedAt: data.archived ? new Date() : null,
         }),
+        ...(contactHash !== undefined && { contactEmailHash: contactHash }),
       })
         .where(eq(customers.id, id));
       return { accountId };
     });
     if (done === undefined) return reply;
     if (done === "missing") return problem(reply, 404, "Not Found");
+    if (done === "taken") return problem(reply, 409, "Quell'email è già di un altro cliente");
     if (data.archived === true) {
       await audit?.record({
         verb: "customer_archived",
