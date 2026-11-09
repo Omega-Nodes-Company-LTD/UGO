@@ -17,6 +17,24 @@ def _require(name: str) -> str:
     return value
 
 
+#: ADR-125 — gli stessi default di soul (`packages/memory/src/chatRequest.ts`):
+#: un modello senza ragionamento, e fornitori in ordine, mai con sede in Cina
+DEFAULT_CHAT_MODEL = "deepseek/deepseek-v4-flash"
+DEFAULT_PROVIDERS = ("DeepInfra", "Azure", "Parasail", "DigitalOcean")
+
+#: ADR-125: ritirate. Non si ignorano in silenzio: fermano il job col motivo.
+RETIRED = {
+    "ANTHROPIC_API_KEY": "il sogno passa da OpenRouter: usa OPENROUTER_API_KEY",
+    "ANTHROPIC_BASE_URL": "non esiste più un indirizzo Anthropic da cambiare",
+    "UGO_CHAT_MODEL": "il modello è OPENROUTER_CHAT_MODEL",
+}
+
+
+def _providers(raw: str) -> tuple[str, ...]:
+    names = tuple(name.strip() for name in raw.split(",") if name.strip() != "")
+    return names or DEFAULT_PROVIDERS
+
+
 @dataclass(frozen=True)
 class JobsConfig:
     database_url: str
@@ -32,10 +50,10 @@ class JobsConfig:
     s3_bucket_backup: str
     s3_bucket_audio: str
     timezone: str
-    # ADR-001 fallback: API batch when the local MoE is unreachable
-    anthropic_api_key: str = ""
-    anthropic_base_url: str = "https://api.anthropic.com"
-    anthropic_batch_model: str = "claude-haiku-4-5"
+    # ADR-001 fallback, via OpenRouter (ADR-125): when the local MoE is unreachable
+    openrouter_api_key: str = ""
+    openrouter_chat_model: str = DEFAULT_CHAT_MODEL
+    openrouter_providers: tuple[str, ...] = DEFAULT_PROVIDERS
     whisper_model: str = "large-v3"
     whisper_download_root: str = ""
     # ADR-019: whose house this run belongs to. Defaults keep a single-family
@@ -59,6 +77,9 @@ class JobsConfig:
 
     @staticmethod
     def from_env() -> "JobsConfig":
+        for name, instead in RETIRED.items():
+            if os.environ.get(name, "") != "":
+                raise ConfigError(f"{name} non esiste più (ADR-125): {instead}. Togli la riga.")
         ollama_url = _require("OLLAMA_URL")
         return JobsConfig(
             # ADR-062 tempo 2b: i job passano all'utenza applicativa quando
@@ -78,9 +99,9 @@ class JobsConfig:
             s3_bucket_backup=os.environ.get("S3_BUCKET_BACKUP", "ugo-backup"),
             s3_bucket_audio=os.environ.get("S3_BUCKET_AUDIO", "ugo-audio"),
             timezone=os.environ.get("TZ", "Europe/Rome"),
-            anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
-            anthropic_base_url=os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
-            anthropic_batch_model=os.environ.get("UGO_CHAT_MODEL", "claude-haiku-4-5"),
+            openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", ""),
+            openrouter_chat_model=os.environ.get("OPENROUTER_CHAT_MODEL") or DEFAULT_CHAT_MODEL,
+            openrouter_providers=_providers(os.environ.get("OPENROUTER_PROVIDERS", "")),
             whisper_model=os.environ.get("UGO_WHISPER_MODEL", "large-v3"),
             whisper_download_root=os.environ.get("UGO_WHISPER_DOWNLOAD_ROOT", ""),
             dream_at=os.environ.get("UGO_DREAM_AT", "02:30"),

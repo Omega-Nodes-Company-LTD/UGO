@@ -45,7 +45,7 @@ def make_config(pg_url: str, minio: dict[str, str], ollama_url: str, batch_url: 
         s3_bucket_backup="ugo-backup",
         s3_bucket_audio="ugo-audio",
         timezone="Europe/Rome",
-        anthropic_api_key="",
+        openrouter_api_key="",
         whisper_model="base",
         whisper_download_root=os.environ.get("UGO_TEST_WHISPER_MODELS", ""),
     )

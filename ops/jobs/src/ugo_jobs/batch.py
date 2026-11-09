@@ -26,18 +26,11 @@ from .config import JobsConfig
 
 TModel = TypeVar("TModel", bound=BaseModel)
 
-# Prezzo di listino, per milione di token.
-PRICE_IN_PER_MTOK = 1.0
-PRICE_OUT_PER_MTOK = 5.0
-# Lo sconto batch e' 0.5 (PROGETTO §6) e qui vale 1.0, cioe' nessuno sconto:
-# `_ask_anthropic` fa una POST **sincrona** su /v1/messages, che e' la strada
-# in tempo reale e si paga a listino. La Batches API e' un'altra cosa — si
-# accoda un lavoro e si ritira il risultato — e questo codice non la usa.
-# Scontando a meta' una chiamata a prezzo pieno il registro dichiarava la
-# meta' di quel che il sogno spendeva davvero, e `budget_left()` autorizzava
-# il doppio del consentito ogni notte. Il giorno in cui si passa davvero alle
-# Batches, questa costante torna 0.5 insieme al codice che la giustifica.
-BATCH_DISCOUNT = 1.0
+OPENROUTER_URL = "https://openrouter.ai"
+
+# Il costo non si calcola qui: lo dichiara OpenRouter in `usage.cost` (ADR-125
+# §5). Un listino copiato in questo file e' come il registro e' arrivato, una
+# volta, a dichiarare la meta' di quel che il sogno spendeva.
 
 MAX_TOKENS = 2000
 
@@ -100,8 +93,29 @@ def _ask_ollama(cfg: JobsConfig, prompt: str) -> str:
     return response.json()["message"]["content"]
 
 
-def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None) -> str:
-    """ADR-001 fallback: the API in batch-priced mode when the local MoE is
+def openrouter_body(cfg: JobsConfig, prompt: str) -> dict[str, object]:
+    """La richiesta, pura: le stesse regole del varco di soul (ADR-125) —
+    ragionamento spento, fornitori in un elenco chiuso e ordinato, nessuna
+    conservazione dei dati, costo dichiarato nella risposta."""
+    providers = list(cfg.openrouter_providers)
+    return {
+        "model": cfg.openrouter_chat_model,
+        "max_tokens": MAX_TOKENS,
+        "messages": [{"role": "user", "content": prompt}],
+        "reasoning": {"enabled": False},
+        "provider": {
+            "order": providers,
+            "only": providers,
+            "allow_fallbacks": True,
+            "zdr": True,
+            "data_collection": "deny",
+        },
+        "usage": {"include": True},
+    }
+
+
+def _ask_openrouter(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None) -> str:
+    """ADR-001 fallback, via OpenRouter (ADR-125), when the local MoE is
     unavailable. It costs money, so it goes through the same piggy bank the
     real-time path uses (CLAUDE.md rule 3) — the ledger must show every cent,
     whichever process spent it.
@@ -120,29 +134,20 @@ def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None
             "no piggy bank, no spending (CLAUDE.md rule 3)"
         )
     response = httpx.post(
-        f"{cfg.anthropic_base_url}/v1/messages",
+        f"{OPENROUTER_URL}/api/v1/chat/completions",
         headers={
-            "x-api-key": cfg.anthropic_api_key,
-            "anthropic-version": "2023-06-01",
+            "authorization": f"Bearer {cfg.openrouter_api_key}",
             "content-type": "application/json",
         },
-        json={
-            "model": cfg.anthropic_batch_model,
-            "max_tokens": MAX_TOKENS,
-            "messages": [{"role": "user", "content": prompt}],
-        },
+        json=openrouter_body(cfg, prompt),
         timeout=600,
     )
     response.raise_for_status()
     body = response.json()
-    usage = body.get("usage", {})
-    tokens_in = int(usage.get("input_tokens", 0))
-    tokens_out = int(usage.get("output_tokens", 0))
-    cost = (
-        (tokens_in * PRICE_IN_PER_MTOK + tokens_out * PRICE_OUT_PER_MTOK)
-        / 1_000_000
-        * BATCH_DISCOUNT
-    )
+    usage = body.get("usage") or {}
+    tokens_in = int(usage.get("prompt_tokens", 0))
+    tokens_out = int(usage.get("completion_tokens", 0))
+    cost = float(usage.get("cost", 0.0))
     # ADR-050: il giorno del ledger e' quello della CASA, non del server.
     # `current_date` e' la data di Postgres, mentre `LlmClient` in soul
     # calcola la propria con il fuso della famiglia: due strade che
@@ -152,11 +157,11 @@ def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None
         """
         insert into budget_ledger
           (date, provider, model, tokens_in, tokens_out, cost_usd, account_id, gosino_id)
-        values (%s, 'anthropic', %s, %s, %s, %s, %s, %s)
+        values (%s, 'openrouter', %s, %s, %s, %s, %s, %s)
         """,
         (
             _today(cfg),
-            cfg.anthropic_batch_model,
+            cfg.openrouter_chat_model,
             tokens_in,
             tokens_out,
             round(cost, 6),
@@ -165,7 +170,8 @@ def _ask_anthropic(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None
         ),
     )
     conn.commit()
-    return "".join(part.get("text", "") for part in body.get("content", []))
+    choices = body.get("choices") or [{}]
+    return (choices[0].get("message") or {}).get("content") or ""
 
 
 #: una recinzione markdown attorno a tutto il contenuto: ```json ... ``` o
@@ -204,23 +210,23 @@ def ask_batch_model(
     """
     if not cfg.ollama_batch_model:
         _refuse_if_broke(conn, cfg)
-        if not cfg.anthropic_api_key:
+        if not cfg.openrouter_api_key:
             raise RuntimeError(
-                "no OLLAMA_BATCH_MODEL and no ANTHROPIC_API_KEY: the dream has "
+                "no OLLAMA_BATCH_MODEL and no OPENROUTER_API_KEY: the dream has "
                 "nothing to reflect with (ADR-001)"
             )
-        content = _ask_anthropic(cfg, prompt, conn)
+        content = _ask_openrouter(cfg, prompt, conn)
     else:
         try:
             content = _ask_ollama(cfg, prompt)
         except Exception as ollama_error:  # noqa: BLE001 — any failure means "fall back"
             _refuse_if_broke(conn, cfg)
-            if not cfg.anthropic_api_key:
+            if not cfg.openrouter_api_key:
                 raise RuntimeError(
-                    "local batch model unreachable and no ANTHROPIC_API_KEY for the "
+                    "local batch model unreachable and no OPENROUTER_API_KEY for the "
                     f"ADR-001 fallback: {ollama_error}"
                 ) from ollama_error
-            content = _ask_anthropic(cfg, prompt, conn)
+            content = _ask_openrouter(cfg, prompt, conn)
 
     try:
         return schema.model_validate_json(bare_json(content))

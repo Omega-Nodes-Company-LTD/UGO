@@ -70,6 +70,8 @@ jobs:
       - run: mkdir -p ~/.ugo-ollama
       - run: pnpm test:integration
         env:
+          # ADR-125: i modelli si testano sul fornitore vero, niente stub
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
       - name: lascia nella cache solo i pesi, e leggibili
         if: always()
@@ -101,6 +103,8 @@ jobs:
       - run: mkdir -p ~/.ugo-ollama
       - run: pnpm test:e2e
         env:
+          # ADR-125: i modelli si testano sul fornitore vero, niente stub
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
       - name: lascia nella cache solo i pesi, e leggibili
         if: always()
@@ -144,6 +148,8 @@ jobs:
       - working-directory: ops/jobs
         run: pytest -q
         env:
+          # ADR-125: i modelli si testano sul fornitore vero, niente stub
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
           UGO_TEST_WHISPER_MODELS: /home/runner/.ugo-whisper
       - name: lascia nella cache solo i pesi, e leggibili

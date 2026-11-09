@@ -373,12 +373,12 @@ def test_it_refuses_the_paid_fallback_once_the_day_is_spent(pg_url, cfg, batch_s
             insert into budget_ledger
                 (account_id, gosino_id, date, provider, model,
                  tokens_in, tokens_out, cost_usd)
-            values (%s, %s, %s, 'anthropic', 'claude-haiku-4-5', 1, 1, 99.0)
+            values (%s, %s, %s, 'openrouter', 'deepseek/deepseek-v4-flash', 1, 1, 99.0)
             """,
             (cfg.account_id, cfg.gosino_id, _today(cfg)),
         )
         conn.commit()
 
-        broke = replace(cfg, ollama_batch_model="", anthropic_api_key="sk-test")
+        broke = replace(cfg, ollama_batch_model="", openrouter_api_key="sk-test")
         with pytest.raises(BudgetExhausted):
             run_contradictions(conn, broke, DREAM_DATE)

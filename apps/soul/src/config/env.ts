@@ -1,3 +1,4 @@
+import { DEFAULT_CHAT_MODEL, DEFAULT_PROVIDERS, DEFAULT_TTS_MODEL } from "@ugo/memory";
 import { z } from "zod";
 
 /** empty string = not configured (compose passes empty defaults through) */
@@ -86,12 +87,37 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().min(1).optional(),
   ),
-  // ADR-095: il secondo anello della catena, fra casa e Anthropic. Solo con
-  // la chiave; senza, la catena lo salta e non se ne accorge nessuno.
-  OPENROUTER_API_KEY: optionalNonEmpty,
-  OPENROUTER_CHAT_MODEL: optionalNonEmpty,
-  /** override per gli stub di rete nei test; vuoto = https://openrouter.ai */
-  OPENROUTER_BASE_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  // ADR-125: OpenRouter è l'unico fornitore a pagamento — chat e voce. La
+  // chiave è obbligatoria: senza, UGO non ha parole.
+  OPENROUTER_API_KEY: z.string().min(1),
+  OPENROUTER_CHAT_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).default(DEFAULT_CHAT_MODEL),
+  ),
+  /**
+   * L'elenco chiuso e ORDINATO dei fornitori (ADR-125 §3): in testa quelli che
+   * fanno il caching del prefisso, mai uno con sede in Cina.
+   */
+  OPENROUTER_PROVIDERS: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z
+      .string()
+      .optional()
+      .transform((value) =>
+        value === undefined
+          ? [...DEFAULT_PROVIDERS]
+          : value
+              .split(",")
+              .map((name) => name.trim())
+              .filter((name) => name !== ""),
+      )
+      .pipe(z.array(z.string().min(1)).min(1)),
+  ),
+  /** il modello della voce, sempre via OpenRouter (ADR-125 §6) */
+  OPENROUTER_TTS_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).default(DEFAULT_TTS_MODEL),
+  ),
   // Initiative off by default is the wrong default for a companion, but it is
   // the right one for a machine that just learned to speak first.
   UGO_INITIATIVE: z
@@ -114,10 +140,16 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.coerce.number().int().min(1).default(4),
   ),
-  ANTHROPIC_API_KEY: z.string().min(1),
-  /** override for network-level test stubs; defaults to the official API */
-  ANTHROPIC_BASE_URL: z.url().optional(),
-  UGO_CHAT_MODEL: z.string().min(1).default("claude-haiku-4-5"),
+  // ADR-125: ritirate. Restano nello schema solo per FERMARE il boot se sono
+  // ancora in un file d'ambiente (superRefine sotto).
+  ANTHROPIC_API_KEY: optionalNonEmpty,
+  ANTHROPIC_BASE_URL: optionalNonEmpty,
+  UGO_CHAT_MODEL: optionalNonEmpty,
+  OPENAI_API_KEY: optionalNonEmpty,
+  OPENAI_BASE_URL: optionalNonEmpty,
+  UGO_TTS_MODEL: optionalNonEmpty,
+  UGO_TTS_VOICE: optionalNonEmpty,
+  OPENROUTER_BASE_URL: optionalNonEmpty,
   UGO_DAILY_BUDGET_USD: z.coerce.number().positive().default(0.5),
   /**
    * ADR-103: quanto costa un cucciolo, **per cucciolo** e dalla terza
@@ -190,14 +222,6 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.string().min(16).optional(),
   ),
-  // gruppo 13: la voce interim (TTS emotivo OpenAI, finché non c'è la GPU per
-  // XTTS locale). Assente = voce di sistema, come sempre. Attenzione
-  // dichiarata in /documentation: ciò che UGO dice può contenere pezzi della
-  // vostra vita, e sintetizzarlo fuori casa è una scelta, non un default
-  OPENAI_API_KEY: optionalNonEmpty,
-  OPENAI_BASE_URL: z.url().optional(),
-  UGO_TTS_MODEL: z.string().min(1).default("gpt-4o-mini-tts"),
-  UGO_TTS_VOICE: z.string().min(1).default("alloy"),
   // preprocess: una stringa vuota NON è latitudine 0 (l'equatore per sbaglio)
   UGO_HOME_LAT: z.preprocess(
     (value) => (value === "" ? undefined : value),
@@ -252,13 +276,26 @@ export const soulEnvSchema = z.object({
       path: ["UGO_CHAT_LOCAL_FIRST"],
     });
   }
-  // meta' configurazione non e' una configurazione: fail fast al boot (regola 4)
-  if (env.OPENROUTER_API_KEY !== undefined && env.OPENROUTER_CHAT_MODEL === undefined) {
-    ctx.addIssue({
-      code: "custom",
-      message: "OPENROUTER_API_KEY impostata senza OPENROUTER_CHAT_MODEL: serve anche il modello",
-      path: ["OPENROUTER_CHAT_MODEL"],
-    });
+  // ADR-125: i fornitori ritirati non si ignorano in silenzio. Una casa
+  // convinta di parlare con Anthropic deve sapere al boot che non è più così.
+  const retired: Record<string, string> = {
+    ANTHROPIC_API_KEY: "la chat passa da OpenRouter: usa OPENROUTER_API_KEY",
+    ANTHROPIC_BASE_URL: "non esiste più un indirizzo Anthropic da cambiare",
+    UGO_CHAT_MODEL: "il modello della chat è OPENROUTER_CHAT_MODEL",
+    OPENAI_API_KEY: "la voce passa da OpenRouter: usa OPENROUTER_API_KEY",
+    OPENAI_BASE_URL: "non esiste più un indirizzo OpenAI da cambiare",
+    UGO_TTS_MODEL: "il modello della voce è OPENROUTER_TTS_MODEL",
+    UGO_TTS_VOICE: "la voce è un gene del gosino, non un'impostazione (ADR-126)",
+    OPENROUTER_BASE_URL: "serviva agli stub di rete, che non esistono più",
+  };
+  for (const [name, instead] of Object.entries(retired)) {
+    if (env[name as keyof typeof env] !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: `${name} non esiste più (ADR-125): ${instead}. Togli la riga.`,
+        path: [name],
+      });
+    }
   }
 });
 

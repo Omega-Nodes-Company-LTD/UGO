@@ -11,9 +11,4 @@ export {
 } from "./ollama.helper.js";
 export { startMinio, type MinioHandle } from "./minio.helper.js";
 export { startVexaStub, VexaStub, type VexaSegment } from "./vexa-stub.helper.js";
-export {
-  LlmStub,
-  startLlmStub,
-  type CapturedRequest,
-  type StubResponsePlan,
-} from "./llm-stub.helper.js";
+export { openRouterKey, REFUSED_MODEL } from "./openrouter.helper.js";

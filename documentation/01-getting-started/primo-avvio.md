@@ -1,8 +1,8 @@
 ---
 title: "Primo avvio"
 description: "Accendere UGO, metterlo nel dock e fare la prima conversazione."
-version: "0.37.0"
-last_updated: "2026-08-18"
+version: "0.38.0"
+last_updated: "2026-11-09"
 author: "ThinkPink Studio"
 ---
 
@@ -75,18 +75,18 @@ Quando sul tuo telefono i numeri reggono, dire `?stt=locale` una volta basta a f
 per quell'installazione: da lì la strada di casa parte da sola. Chi amministra il server può
 sempre decidere il contrario.
 
-> **E una sulla voce con cui risponde.** Di base la voce di UGO è quella del telefono e non esce di
-> casa. Se chi amministra il server attiva la **voce emotiva** (una chiave OpenAI nell'ambiente),
-> le frasi che UGO dice vengono sintetizzate da OpenAI: hanno un tono che segue il suo umore, ma
-> **quelle frasi escono di casa** — e possono contenere pezzi della vostra vita, perché UGO parla
-> di ciò che ricorda. È una scelta, non un default: senza chiave non parte niente, ogni frase
-> rispetta il tetto di spesa giornaliero, e a tetto raggiunto UGO torna alla voce del telefono
-> senza dire niente a nessuno.
+> **E una sulla voce con cui risponde.** La voce di UGO è **la sua**: viene dal suo corpo, come il
+> suo grugnito. Un gosino grosso parla più basso, uno minuto più chiaro, e nessuno può cambiarla —
+> se non ti somiglia, la risposta è un'altra nascita. Le frasi che dice vengono sintetizzate da
+> ElevenLabs tramite OpenRouter, con un tono che segue il suo umore: **quelle frasi escono di
+> casa**, e possono contenere pezzi della vostra vita, perché UGO parla di ciò che ricorda. Ogni
+> frase rispetta il tetto di spesa giornaliero, e a tetto raggiunto UGO scende alla voce di casa o
+> a quella del telefono senza dire niente a nessuno.
 >
-> In mezzo ai due gradini c'è la **voce di casa**: se il server di casa ha il servizio di
-> percezione acceso, le frasi si sintetizzano lì — gratis, con una voce sempre uguale, e **senza
-> che niente esca di casa**. La catena completa è: voce emotiva (se c'è la chiave e c'è budget) →
-> voce di casa → voce del telefono. Qualunque gradino manchi, UGO parla comunque.
+> In mezzo c'è la **voce di casa**: se il server di casa ha il servizio di percezione acceso, le
+> frasi si sintetizzano lì — gratis, con una voce sempre uguale, e **senza che niente esca di
+> casa**. La catena completa è: la sua voce (se c'è budget) → voce di casa → voce del telefono.
+> Qualunque gradino manchi, UGO parla comunque.
 
 ## La prima conversazione
 

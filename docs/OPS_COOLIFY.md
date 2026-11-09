@@ -341,7 +341,7 @@ container più economico dell'installazione.
    `DATABASE_URL=postgres://ugo:<POSTGRES_PASSWORD>@<HOST_POSTGRES>:5432/ugo` ·
    `MQTT_URL` · `MQTT_USER` · `MQTT_PASS` (**lasciale vuote**: servono solo col Nano 33, §2.2) ·
    `OLLAMA_URL=http://<HOST_OLLAMA>:11434` · `OLLAMA_EMBED_MODEL=nomic-embed-text` ·
-   `ANTHROPIC_API_KEY=<ANTHROPIC_API_KEY>` · `UGO_CHAT_MODEL=claude-haiku-4-5` ·
+   `OPENROUTER_API_KEY=<OPENROUTER_API_KEY>` (ADR-125: l'unico fornitore a pagamento, chat e voce) ·
    `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY=<UGO_DATA_KEY>` ·
    `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` · `NODE_ENV=production` · `S3_ENDPOINT=<S3_ENDPOINT>` ·
    `S3_ACCESS_KEY_ID=<S3_ACCESS_KEY>` · `S3_SECRET_ACCESS_KEY=<S3_SECRET_KEY>` · `S3_BUCKET_AUDIO=ugo-audio` ·
@@ -356,12 +356,16 @@ container più economico dell'installazione.
    `TZ=Europe/Rome`. Facoltativa (ADR-103): `UGO_LITTER_COST_USD` (quanto costa **un cucciolo**,
    default `0.25`; si paga dal salvadanaio dei genitori e solo dalla terza generazione in poi —
    `0` dichiara «da questa casa si nasce gratis»). Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
-   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. **ADR-124 — l'ordine
-   della catena**: `OPENROUTER_API_KEY` + `OPENROUTER_CHAT_MODEL` (la chiave senza
-   modello blocca il boot) sono il **primo** anello, poi la voce di casa **se** la
-   accendi con `UGO_CHAT_HOME_VOICE=on`, poi Anthropic. `UGO_CHAT_LOCAL_FIRST` non
-   esiste più: se è ancora nelle variabili il boot si ferma e ti dice cosa metterci al
-   posto. Il ribaltamento ha una misura dietro: senza GPU il modello di casa teneva la
+   dalla mappa di default; un JSON malformato **blocca il boot**, ed è voluto. **ADR-125 — OpenRouter
+   unico varco**: chat (`OPENROUTER_CHAT_MODEL`, default `deepseek/deepseek-v4-flash`) e voce
+   (`OPENROUTER_TTS_MODEL`, default `elevenlabs/eleven-v4`) passano tutte da `OPENROUTER_API_KEY`;
+   `OPENROUTER_PROVIDERS` è l'elenco ordinato dei fornitori ammessi (default
+   `DeepInfra,Azure,Parasail,DigitalOcean`, nessuno in Cina). La voce di casa fa da soccorso solo
+   **se** la accendi con `UGO_CHAT_HOME_VOICE=on`. **Togli** `ANTHROPIC_API_KEY`,
+   `ANTHROPIC_BASE_URL`, `UGO_CHAT_MODEL`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `UGO_TTS_MODEL`,
+   `UGO_TTS_VOICE` e `UGO_CHAT_LOCAL_FIRST` se ci sono ancora: il boot si ferma e ti dice cosa
+   metterci al posto. **Sulla risorsa `jobs`** la stessa `OPENROUTER_API_KEY` sostituisce
+   `ANTHROPIC_API_KEY` (il ripiego del sogno, ADR-001). Il ribaltamento ha una misura dietro: senza GPU il modello di casa teneva la
    parola fino a 30 secondi per frase e il giudice dell'astensione altri 45, cioè minuti
    di silenzio sul muso. Facoltative: `UGO_CHAT_LINK_TIMEOUT_MS` (quanto può tenere la
    parola un anello intermedio, default 12000 ms) e `OLLAMA_CHAT_MODEL` (il modello
@@ -494,7 +498,7 @@ può più firmarne di nuove**, e va rifondato con un'identità diversa.
    `REGISTRY_SIGNING_KEY=<REGISTRY_SIGNING_KEY>` (Secret) · `REGISTRY_NAME=<un nome tuo>` ·
    `PORT=3100` · `NODE_ENV=production`.
    **E nient'altro**: niente `UGO_DATA_KEY`, niente `DATABASE_URL` delle anime, niente
-   `ANTHROPIC_API_KEY`. Se ti trovi a incollarne una qui, hai sbagliato risorsa — e hai appena
+   `OPENROUTER_API_KEY`. Se ti trovi a incollarne una qui, hai sbagliato risorsa — e hai appena
    dato al registro la possibilità di leggere le creature che dovrebbe solo contare.
 4. Le tabelle se le crea da solo al primo avvio (non ci sono migrazioni drizzle qui: il
    registro ha uno schema suo, piccolo e stabile).
@@ -534,7 +538,7 @@ rotte `/v1/reception/*` non vengono nemmeno registrate, e la superficie pubblica
    c'è niente, perché nessuno ha bussato.
    `SOUL_URL=http://<HOST_SOUL>:3000` · `UGO_RECEPTION_TOKEN=<UGO_RECEPTION_TOKEN>` (Secret, **lo
    stesso identico valore** messo su soul al §2.4) · `NODE_ENV=production` · `PORT=3001`.
-   **E nient'altro.** Niente `DATABASE_URL`, niente `UGO_DATA_KEY`, niente `ANTHROPIC_API_KEY`,
+   **E nient'altro.** Niente `DATABASE_URL`, niente `UGO_DATA_KEY`, niente `OPENROUTER_API_KEY`,
    niente `UGO_INTERNAL_TOKEN`: se ti trovi a incollare una di queste qui, hai sbagliato risorsa —
    e hai appena messo su Internet la cosa che ADR-051 tiene fuori. Il container non le legge
    nemmeno: il suo unico segreto è il token di servizio verso soul.
@@ -1315,7 +1319,7 @@ scritte con una chiave diversa da quella attuale: **non vengono sovrascritte**, 
 prima di decidere cosa farne.
 
 ### Rotazione dei segreti (zero modifiche al codice)
-1. `ANTHROPIC_API_KEY`, `S3_*`, `MQTT_PASS`, `VEXA_API_KEY`: genera il nuovo valore, aggiorna la
+1. `OPENROUTER_API_KEY`, `S3_*`, `MQTT_PASS`, `VEXA_API_KEY`: genera il nuovo valore, aggiorna la
    variabile nella risorsa Coolify, **Redeploy**. Per MQTT rigenera anche il password file (2.2).
 2. `UGO_DATA_KEY` è speciale (cifra i dati a riposo): la rotazione richiede la ri-cifratura delle
    righe esistenti. Procedura: mantieni la vecchia chiave, decifra e ricifra `messages` e
@@ -1394,7 +1398,7 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 
 | Valore | Dove |
 |---|---|
-| `<ANTHROPIC_API_KEY>` | console Anthropic. È l'unica spesa ricorrente: il budget la tiene sotto controllo |
+| `<OPENROUTER_API_KEY>` | openrouter.ai → Keys, meglio con un tetto di spesa. È l'unica spesa ricorrente (chat e voce): il budget di UGO la tiene sotto controllo |
 | `<S3_ENDPOINT>` `<S3_ACCESS_KEY>` `<S3_SECRET_KEY>` `<S3_REGION>` | il tuo provider S3, con permessi **solo** sui due bucket (§3). I nomi standard AWS (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`) vanno bene |
 | `<VEXA_API_URL>` `<VEXA_API_KEY>` | dallo stack Vexa, se e quando lo installi (§2.6) |
 

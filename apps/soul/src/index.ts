@@ -5,7 +5,7 @@ import { DEFAULT_LOCALE } from "@ugo/prompts";
 import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
   OllamaTextClient,
   OllamaVisionClient,
-  OpenAiTtsClient,
+  OpenRouterTtsClient,
 } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
@@ -163,43 +163,28 @@ const llmFor = (
     // ADR-098: il muro del budget legge il ledger DELLA casa — sulla
     // connessione nuda, sotto ugo_app, vedrebbe zero e non morderebbe mai
     db: dbFor(accountId),
-    apiKey: env.ANTHROPIC_API_KEY,
-    model: env.UGO_CHAT_MODEL,
+    apiKey: env.OPENROUTER_API_KEY,
+    model: env.OPENROUTER_CHAT_MODEL,
+    providers: env.OPENROUTER_PROVIDERS,
     dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
     accountId,
     gosinoId,
-    ...(env.ANTHROPIC_BASE_URL !== undefined && { baseUrl: env.ANTHROPIC_BASE_URL }),
     timezone: clock.timezone,
     locale: clock.locale,
   });
   /**
-   * ADR-124: la catena si monta se c'è qualcosa da metterci davanti —
-   * OpenRouter, o la voce di casa se la casa l'ha accesa. Senza nessuno dei
-   * due è il provider nudo, che è anche la configurazione più veloce: un
-   * anello in meno è un'attesa in meno.
+   * ADR-125: OpenRouter risponde sempre per primo. La catena si monta solo se
+   * la casa ha acceso la voce di casa, che fa da soccorso quando OpenRouter
+   * non risponde; senza, è il client nudo — un anello in meno, un'attesa in meno.
    */
-  const homeVoice = env.UGO_CHAT_HOME_VOICE === "on";
-  const hasOpenRouter =
-    env.OPENROUTER_API_KEY !== undefined && env.OPENROUTER_CHAT_MODEL !== undefined;
-  if (!homeVoice && !hasOpenRouter) return remote;
+  if (env.UGO_CHAT_HOME_VOICE !== "on") return remote;
   return new ChatChain({
     db: dbFor(accountId),
     accountId,
     gosinoId,
     timezone: clock.timezone,
     locale: clock.locale,
-    ...(homeVoice && {
-      local: { baseUrl: gpuUrl, model: localChatModel, timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS },
-    }),
-    ...(env.OPENROUTER_API_KEY !== undefined &&
-      env.OPENROUTER_CHAT_MODEL !== undefined && {
-        openRouter: {
-          apiKey: env.OPENROUTER_API_KEY,
-          model: env.OPENROUTER_CHAT_MODEL,
-          timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS,
-          ...(env.OPENROUTER_BASE_URL !== undefined && { baseUrl: env.OPENROUTER_BASE_URL }),
-        },
-      }),
+    local: { baseUrl: gpuUrl, model: localChatModel, timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS },
     remote,
     // pigro, e non e' un vezzo: llmFor gira al bootstrap, PRIMA che `app`
     // esista — toccare app.log qui era una TDZ che uccideva il boot vero
@@ -534,10 +519,9 @@ const capabilities = (): Capability[] => [
   {
     id: "ttsProvider",
     label: "Voce espressiva del provider",
-    on: env.OPENAI_API_KEY !== undefined,
-    ...(env.OPENAI_API_KEY === undefined && {
-      why: "manca OPENAI_API_KEY: si scende alla voce di casa (Piper) o a quella di sistema.",
-    }),
+    // ADR-125: la voce passa da OpenRouter con la stessa chiave della chat,
+    // che è obbligatoria al boot — quindi c'è sempre
+    on: true,
   },
   {
     id: "sttLocal",
@@ -692,19 +676,15 @@ const app = buildServer({
       env.UGO_HOME_LON !== undefined && {
         weather: { home: { lat: env.UGO_HOME_LAT, lon: env.UGO_HOME_LON } },
       }),
-    // gruppo 13: la voce interim — si accende con la chiave, si spegne col
-    // budget (ogni frase è una riga di budget_ledger)
-    ...(env.OPENAI_API_KEY !== undefined && {
-      tts: new OpenAiTtsClient({
-        db,
-        dbFor,
-        apiKey: env.OPENAI_API_KEY,
-        dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
-        model: env.UGO_TTS_MODEL,
-        voice: env.UGO_TTS_VOICE,
-        timezone: env.TZ,
-        ...(env.OPENAI_BASE_URL !== undefined && { baseUrl: env.OPENAI_BASE_URL }),
-      }),
+    // ADR-125: la voce è ElevenLabs via OpenRouter, e si spegne col budget
+    // (ogni frase è una riga di budget_ledger)
+    tts: new OpenRouterTtsClient({
+      db,
+      dbFor,
+      apiKey: env.OPENROUTER_API_KEY,
+      dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
+      model: env.OPENROUTER_TTS_MODEL,
+      timezone: env.TZ,
     }),
   },
 });

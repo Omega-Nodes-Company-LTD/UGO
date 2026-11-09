@@ -1,8 +1,8 @@
 ---
 title: "Parlare con UGO"
 description: "Come funziona una conversazione: la voce, la memoria che resta, l'umore che cambia e il budget giornaliero."
-version: "0.12.0"
-last_updated: "2026-08-21"
+version: "0.13.0"
+last_updated: "2026-11-09"
 author: "ThinkPink Studio"
 ---
 
@@ -25,6 +25,15 @@ prima. Per questo la stessa domanda, fatta in due giorni diversi, può avere due
 
 Se il telefono non ti sente, torna a [Primo avvio](../01-getting-started/primo-avvio.md) e controlla
 di avere concesso il permesso al microfono.
+
+### La sua voce
+
+Ogni gosino parla con **la sua voce**, e la voce viene dal corpo: più è grosso, più parla basso;
+più il grugno è lungo, più la voce è scura. Due fratelli con corpi diversi parlano in modo diverso,
+e un cucciolo nato da un genitore grosso e da uno minuto parla a metà strada. Non c'è un'impostazione
+per cambiarla, ed è voluto: un carattere che si regola è un'impostazione, e UGO non è un prodotto.
+
+L'umore del momento colora il tono: quando è gasato lo senti, quando è mogio pure.
 
 ### Perché il nome
 
