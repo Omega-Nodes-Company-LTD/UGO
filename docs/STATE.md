@@ -31,6 +31,10 @@ bucket), tre muri di costo (quota oraria, tetto giornaliero, cache delle rispost
 su `deepseek/deepseek-v4-flash`, voce ElevenLabs, tutto via OpenRouter; niente più Anthropic né
 OpenAI; niente più stub di rete per i modelli. Dettaglio in §6-unoctogies.
 
+**Fatto (2026-11-09): UGO raggiungibile dal web (ADR-127)** — token obbligatorio su ogni `/v1/*`,
+abbinamento dei dispositivi con un codice dal pannello, link via email (Resend), intestazioni di
+sicurezza, CORS chiuso, apple-app-site-association. Dettaglio in §6-duooctogies.
+
 ## 2. Contenuto attuale del repository
 
 ```
@@ -2972,3 +2976,41 @@ lint, girano in CI. `pnpm audit`: 22 MODERATE, zero HIGH/CRITICAL.
 **Da fare fuori dal codice**: secret `OPENROUTER_API_KEY` su GitHub (senza, la CI dei test è
 rossa); su Coolify `OPENROUTER_API_KEY` su soul e jobs, e togliere `ANTHROPIC_API_KEY`,
 `UGO_CHAT_MODEL`, `OPENAI_API_KEY`, `UGO_TTS_*` (altrimenti il boot si ferma, apposta).
+
+## 6-duooctogies. UGO raggiungibile dal web (ADR-127)
+
+Direttiva del proprietario (2026-11-09): «UGO diventa raggiungibile da web, per pura necessità».
+Dominio previsto `https://ugo.omeganodes.ai`; Tailscale resta possibile ma non è più l'unico muro.
+
+| Cosa | Dove |
+|---|---|
+| Muro su `/v1/*` e sul socket, con la riga d'audit di ogni rifiuto | `routes/guard.ts` (`registerTokenWall`) |
+| Elenco unico delle porte aperte, CSP, CORS, cookie, limite tentativi, AASA | `services/webSecurity.ts` + 34 unit test |
+| Codice di abbinamento e link via email (solo hash, uso singolo, scadenza) | `services/deviceAccess.ts`, `routes/deviceAccess.ts` |
+| Email via Resend | `services/resendMailer.ts` |
+| Tabelle `pairing_codes`, `login_links` | `packages/db/src/schema/device-access.ts`, migrazione 0061 |
+| Variabili `UGO_PUBLIC_URL`, `UGO_TRUST_PROXY`, `UGO_ALLOWED_ORIGINS`, `UGO_APPLE_APP_IDS`, `UGO_OWNER_EMAIL`, `RESEND_API_KEY`, `EMAIL_FROM` | `config/env.ts` (email: tutte o nessuna) |
+
+**La migrazione 0061.** `drizzle-kit generate` ripeteva tabelle e colonne che esistono già: lo
+snapshot era rimasto indietro rispetto alle 0057–0060 scritte a mano. Verificato su un database
+migrato da zero quali oggetti c'erano; la 0061 è ridotta alle due tabelle nuove e lo snapshot
+generato ora riallinea drizzle (`drizzle-kit generate` successivo: «No schema changes»).
+
+**Giro regola 12.** **BO**: tutto quanto sopra; nessun job Python toccato, e non serviva (i job non
+parlano HTTP con soul). **`/admin`**: sezione «Abbina un dispositivo» (`POST /v1/pairing-codes`
+via `call()`), i dispositivi compaiono e si revocano fra «Le chiavi di casa» che esistevano già
+(ADR-100); `script.test.ts` verde. **FE**: `apps/face/src/deviceKey.ts` (la chiave su ogni
+chiamata verso soul, mai su un upload firmato; il 401 apre la schermata), `pairingScreen.ts` e il
+markup `#pair-overlay` («Fammi entrare»: codice o email; `?pair=` precompila, `?login=` entra da
+solo — sono i link universali dell'app), `VITE_SOUL_URL` per la build dell'app. **Il bundle del
+muso va ricostruito al deploy.**
+
+**Verifiche**: unit soul 545+34+3 (env), face 165+9; `publicAccess.integration` 14/14 su Postgres
+vero (muro, query solo sul socket, porte aperte, intestazioni, CORS, abbinamento, scadenza,
+revoca, solo admin, limite per IP, email a 202 per tutti, cookie, redeem dell'app). Il link via
+email è provato fino alla chiamata a Resend: senza `RESEND_API_KEY` in questo ambiente l'invio
+vero non è stato eseguito. Gli e2e del muso non girano qui (MinIO non scaricabile).
+
+**Restano**: informativa e termini (`documentation/05-legale/`) hanno i campi del titolare da
+compilare; passkey come porta successiva (ADR-127, alternative).
+

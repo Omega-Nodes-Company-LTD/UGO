@@ -138,3 +138,34 @@ describe("OpenRouter, unico varco (ADR-125)", () => {
     expect(issue?.message).toMatch(/non esiste più \(ADR-125\)/u);
   });
 });
+
+describe("la casa sul web (ADR-127)", () => {
+  it("di serie non è sul web, e i link dell'app puntano al bundle registrato", () => {
+    const env = parse({});
+    expect(env.UGO_PUBLIC_URL).toBeUndefined();
+    expect(env.UGO_TRUST_PROXY).toBeUndefined();
+    expect(env.UGO_APPLE_APP_IDS).toBe("8UH44UM49Z.ai.omeganodes.ugo");
+  });
+
+  it("legge indirizzo pubblico e proxy fidati, e tratta il vuoto come assente", () => {
+    const env = parse({ UGO_PUBLIC_URL: "https://ugo.omeganodes.ai", UGO_TRUST_PROXY: "1", UGO_OWNER_EMAIL: "" });
+    expect(env.UGO_PUBLIC_URL).toBe("https://ugo.omeganodes.ai");
+    expect(env.UGO_TRUST_PROXY).toBe(1);
+    expect(env.UGO_OWNER_EMAIL).toBeUndefined();
+  });
+
+  it("accetta il link via email solo completo", () => {
+    const full = {
+      UGO_PUBLIC_URL: "https://ugo.omeganodes.ai",
+      UGO_OWNER_EMAIL: "io@example.com",
+      RESEND_API_KEY: "re_x",
+      EMAIL_FROM: "UGO <ugo@omeganodes.ai>",
+    };
+    expect(soulEnvSchema.safeParse({ ...base, ...full }).success).toBe(true);
+    const { EMAIL_FROM: _dropped, ...half } = full;
+    void _dropped;
+    const result = soulEnvSchema.safeParse({ ...base, ...half });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((issue) => issue.message.includes("ADR-127"))).toBe(true);
+  });
+});

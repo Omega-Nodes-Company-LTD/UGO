@@ -736,3 +736,36 @@ body {
   /* la scrive un modello: che sia lunga non deve sfondare la colonna */
   overflow-wrap: anywhere;
 }
+
+/* ── abbinamento (ADR-127) ───────────────────────────────────────────── */
+#pair-overlay form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0 24px;
+}
+#pair-overlay input {
+  height: 48px;
+  min-width: 0;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #3a4258;
+  background: #12141c;
+  color: var(--ink);
+  font-size: 18px;
+}
+#pair-code-input {
+  width: 11ch;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+#pair-overlay button {
+  height: 48px;
+  padding: 0 20px;
+  border-radius: 10px;
+  border: 0;
+  background: #e8ecf5;
+  color: #0b0b10;
+  font-size: 16px;
+}

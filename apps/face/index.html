@@ -79,6 +79,20 @@
         <p>Modalità privacy: microfono e registrazione spenti davvero. Nessun senso è acceso finché non lo risvegli.</p>
         <button id="btn-privacy-off" data-testid="btn-privacy-off" type="button">Risveglia UGO</button>
       </div>
+      <!-- ADR-127: la casa sta sul web, e questo dispositivo non ha ancora la chiave. -->
+      <div id="pair-overlay" data-testid="pair-overlay" class="overlay" hidden>
+        <b>Fammi entrare</b>
+        <p>Chiedi un codice dal pannello, alla voce «Abbina un dispositivo», e scrivilo qui.</p>
+        <form id="pair-form" data-testid="pair-form">
+          <input id="pair-code-input" data-testid="pair-code-input" autocomplete="one-time-code" autocapitalize="characters" placeholder="ABCD-EFGH" maxlength="12" required>
+          <button id="pair-submit" data-testid="pair-submit" type="submit">Entra</button>
+        </form>
+        <form id="pair-email-form" data-testid="pair-email-form">
+          <input id="pair-email-input" data-testid="pair-email-input" type="email" autocomplete="email" placeholder="oppure la tua email">
+          <button id="pair-email-submit" data-testid="pair-email-submit" type="submit">Mandami il link</button>
+        </form>
+        <p id="pair-status" data-testid="pair-status" role="status"></p>
+      </div>
       <div id="qr-overlay" data-testid="qr-overlay" class="overlay" hidden>
         <b>Piacere, UGO</b>
         <p>Inquadra per i contatti.</p>
