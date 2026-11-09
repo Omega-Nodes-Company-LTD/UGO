@@ -339,8 +339,8 @@ describe("il pannello guarda una casa sola", () => {
         accountId: vicini.id,
         gosinoId: vicini.gosinoId,
         date: "2026-01-20",
-        provider: "anthropic",
-        model: "claude-haiku-4-5",
+        provider: "openrouter",
+        model: "deepseek/deepseek-v4-flash",
         costUsd: "9.000000",
       },
     ]);

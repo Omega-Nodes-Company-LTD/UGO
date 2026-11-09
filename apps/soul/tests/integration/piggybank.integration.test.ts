@@ -9,7 +9,7 @@ import {
   runMigrations,
   traitSets,
 } from "@ugo/db";
-import { startPostgres } from "@ugo/factories";
+import { openRouterKey, REFUSED_MODEL, startPostgres } from "@ugo/factories";
 import { HUNGRY_REPLY, LlmClient } from "@ugo/memory";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -39,24 +39,21 @@ let token: string;
 let who: string;
 
 /**
- * Il provider non deve mai essere chiamato, e la prova è questo indirizzo:
- * `127.0.0.1:1` non risponde a nessuno. Se il guard lasciasse passare la
- * chiamata, il test morirebbe con un errore di connessione invece di ottenere
- * una degradazione pulita — quindi «risposta degradata senza eccezioni» È
- * l'asserzione che il provider non è stato sfiorato. Un contatore finto
- * direbbe la stessa cosa senza garantirla.
+ * Il provider non deve mai essere chiamato, e la prova è il modello: OpenRouter
+ * VERO rifiuta `REFUSED_MODEL` con un 4xx (ADR-125, niente stub). Se il guard
+ * lasciasse passare la chiamata, il test morirebbe su quell'errore invece di
+ * ottenere una degradazione pulita — quindi «risposta degradata senza
+ * eccezioni» È l'asserzione che il provider non è stato sfiorato. Un contatore
+ * finto direbbe la stessa cosa senza garantirla.
  */
-const NEVER_CALLED = "http://127.0.0.1:1";
-
 const clientFor = (gosinoId: string): LlmClient =>
   new LlmClient({
     db,
-    apiKey: "mai-usata",
-    model: "claude-haiku-4-5",
+    apiKey: openRouterKey(),
+    model: REFUSED_MODEL,
     dailyBudgetUsd: 1,
     accountId: houseId,
     gosinoId,
-    baseUrl: NEVER_CALLED,
   });
 
 const feed = (gosinoId: string, amountUsd: number, kind = "affetto") =>
@@ -159,8 +156,8 @@ describe("il salvadanaio", () => {
       accountId: houseId,
       gosinoId: who,
       date: "2026-08-17",
-      provider: "anthropic",
-      model: "claude-haiku-4-5",
+      provider: "openrouter",
+      model: "deepseek/deepseek-v4-flash",
       costUsd: "0.400000",
     });
     const bank = (await piggyBank(who)).json<{ balanceUsd: number; hungry: boolean }>();
@@ -171,8 +168,8 @@ describe("il salvadanaio", () => {
       accountId: houseId,
       gosinoId: who,
       date: "2026-08-17",
-      provider: "anthropic",
-      model: "claude-haiku-4-5",
+      provider: "openrouter",
+      model: "deepseek/deepseek-v4-flash",
       costUsd: "0.200000",
     });
     const after = (await piggyBank(who)).json<{ balanceUsd: number; hungry: boolean }>();
@@ -196,8 +193,8 @@ describe("il salvadanaio", () => {
       accountId: houseId,
       gosinoId: who,
       date: today,
-      provider: "anthropic",
-      model: "claude-haiku-4-5",
+      provider: "openrouter",
+      model: "deepseek/deepseek-v4-flash",
       costUsd: "1.000000",
     });
 

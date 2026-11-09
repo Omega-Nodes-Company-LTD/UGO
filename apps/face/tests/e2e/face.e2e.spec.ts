@@ -42,7 +42,8 @@ test("heard text runs the full chat loop and the reply is shown", async ({ page 
   await page.evaluate(() => {
     window.__ugoFace.send({ type: "heard_text", text: "ciao UGO, mi senti?" });
   });
-  await expect(page.getByTestId("speak-text")).toContainText("Grunf", { timeout: 30_000 });
+  // il testo lo scrive OpenRouter vero (ADR-125): si guarda che ci sia, non cosa dice
+  await expect(page.getByTestId("speak-text")).toHaveText(/\S/u, { timeout: 30_000 });
   await expect(page.getByTestId("app")).toHaveAttribute("data-state", "idle");
 });
 
@@ -82,7 +83,8 @@ test("what was said stays in the scroll, and survives a reload", async ({ page }
   await page.evaluate(() => {
     window.__ugoFace.send({ type: "heard_text", text: "ciao UGO, mi senti?" });
   });
-  await expect(page.getByTestId("speak-text")).toContainText("Grunf", { timeout: 30_000 });
+  // il testo lo scrive OpenRouter vero (ADR-125): si guarda che ci sia, non cosa dice
+  await expect(page.getByTestId("speak-text")).toHaveText(/\S/u, { timeout: 30_000 });
 
   await page.getByTestId("btn-log").click();
   await expect(page.getByTestId("log")).toBeVisible();
@@ -90,7 +92,7 @@ test("what was said stays in the scroll, and survives a reload", async ({ page }
   // both halves of the exchange: what the room said, and what came back
   await expect(lines).toHaveCount(2);
   await expect(lines.first()).toContainText("ciao UGO, mi senti?");
-  await expect(lines.last()).toContainText("Grunf");
+  await expect(lines.last()).toHaveText(/\S/u);
 
   await page.reload();
   await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "true");

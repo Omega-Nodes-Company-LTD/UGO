@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.82.0"
-last_updated: "2026-08-28"
+version: "0.83.0"
+last_updated: "2026-11-09"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -26,6 +26,10 @@ senza chiavi né database su rete dedicata), clienti assegnati ai gosini con tok
 fonti di conoscenza per cliente (clone+indice repo, IMAP in sola lettura, documenti dal
 bucket), tre muri di costo (quota oraria, tetto giornaliero, cache delle risposte), sezione
 «I clienti» nel pannello. Dettaglio in §6-octovicies; giro completo BO+`/admin`+FE dichiarato lì.
+
+**Fatto (2026-11-09): OpenRouter unico varco e la voce dal corpo (ADR-125, ADR-126)** — chat
+su `deepseek/deepseek-v4-flash`, voce ElevenLabs, tutto via OpenRouter; niente più Anthropic né
+OpenAI; niente più stub di rete per i modelli. Dettaglio in §6-unoctogies.
 
 ## 2. Contenuto attuale del repository
 
@@ -2708,6 +2712,10 @@ finché il bundle non si rifà.
 
 | Voce | Impatto | Piano |
 |---|---|---|
+| **`/v1/diagnostics` non è mai stata collegata in produzione** (trovato 2026-11-09): `index.ts` non passa l'opzione `diagnostics` a `buildServer`, quindi la rotta esiste solo nei test, e la voce «provider» del catalogo non riceveva mai il modello | Medio: la diagnostica centralizzata non è raggiungibile sul server vero | Collegarla in `index.ts` col modello di ADR-125, in un passo suo |
+| **Restano doppi di test non di rete** dopo ADR-125: `vexa-stub` (riunioni), il server GitHub locale (customerKnowledge), il server della percezione/Piper nel test TTS, `batch_stub` (Ollama del sogno, Python), il giudice `alwaysNo` (chat) e `idleEmbedder`/`idleLocal` (adminSurface) | Medio: contrari alla preferenza del proprietario («mai stub»), anche se non riguardano il fornitore dei modelli | Uno per volta, contro l'istanza vera dove esiste |
+| **OpenRouter è un punto unico di guasto** per la parola (ADR-125) | Medio: senza OpenRouter UGO tace, salvo la voce di casa accesa | La voce di casa come soccorso, col tetto di un anello su OpenRouter quando è accesa |
+| **`buildDynamicSystem` (chat e reception) e `loadHistory` sono private** | Basso: il contenuto del blocco dinamico si verifica solo dal comportamento del modello | Esportarle come funzioni pure e dar loro unit test |
 | 16 MODERATE residue al 25 ottobre (fra cui esbuild via drizzle-kit, dev-only) | Basso: la CI blocca su HIGH/CRITICAL, e di quelle non ne resta nessuna | Rivedere al prossimo giro di aggiornamenti; non vale un bump forzato oggi |
 | **Dieci override tengono in piedi la sicurezza dei transitivi** (`package.json`, `pnpm.overrides`) | Medio, e di natura diversa dalle altre voci: un override è un vincolo che nessuno rilegge. Il giorno che un genitore si aggiorna da solo, il nostro resta e congela una versione senza che niente lo segnali | Al prossimo giro: togliere quelli il cui genitore ha recuperato, invece di accumularne altri. La chiave porta il range vulnerabile, quindi si capisce cosa proteggeva |
 | **`av<19` in `ops/jobs/pyproject.toml`** | Medio: è un tetto su una dipendenza di una dipendenza, messo perché `faster-whisper` dichiara `av>=11` e passa ancora `metadata_errors`, che PyAV 19 ha rimosso | Si toglie quando faster-whisper esce con la chiamata corretta (ultima release ottobre 2025, problema aperto). Misurato su Python 3.12 entrambi i lati: 19.0.1 rompe, 18.1.0 no |
@@ -2920,3 +2928,47 @@ Il 2026-08-29, il giro «fix operativi ed evolutive» ha portato, sul ramo
 
 Verifiche: build/lint/typecheck 33/33, db 59/59, rumination+peer 21/21, test
 Python scheduler/family_backup/dialect 17/17 (locali).
+
+## 6-unoctogies. OpenRouter unico varco e la voce dal corpo (ADR-125, ADR-126)
+
+Direttive del proprietario (2026-11-09): «ElevenLabs tramite OpenRouter, sempre, è la nostra
+base»; la chat «deve andare su OpenRouter anche lei, e non deve passare da Anthropic», con
+DeepSeek V4; «la voce è un'identità di un gosino»; «mai mock o stub».
+
+**Misurato prima di scrivere** (chiamate vere): DeepSeek V4 Flash col ragionamento acceso
+risponde **vuoto** (57 token su 60 spesi a pensare) → si spegne; fra i 14 fornitori del
+modello ci sono DeepSeek, Baidu, SiliconFlow, StreamLake → elenco chiuso; il prefisso fisso di
+UGO (~1.045 token) va in cache su **DeepInfra e Azure** (seconda chiamata ÷4), non su Parasail e
+DigitalOcean → ordine `DeepInfra, Azure, Parasail, DigitalOcean`; il tag `[excited]` passa a
+ElevenLabs senza essere pronunciato (ritrascritto); 18 voci accettate per nome, misurate da 215
+Hz (`river`) a 119 Hz (`will`).
+
+| Cosa | Dove |
+|---|---|
+| Forma della richiesta come funzione pura (§5.5, fornitori, ragionamento spento) | `packages/memory/src/chatRequest.ts` + 11 unit test |
+| `LlmClient` su OpenRouter, costo dichiarato sul ledger, `timeoutMs` | `packages/memory/src/llmClient.ts` |
+| Catena accorciata: OpenRouter → voce di casa come soccorso | `packages/memory/src/chatChain.ts` |
+| Voce ElevenLabs via OpenRouter, listino vivo per carattere | `packages/memory/src/ttsClient.ts` |
+| Umore → tag audio | `packages/memory/src/voiceTags.ts` + unit test |
+| Voce dal corpo (`chonk` ¾, `snout` ¼) su 18 voci misurate | `packages/psyche/src/voice.ts` + 7 unit test |
+| Variabili ritirate che fermano il boot | `apps/soul/src/config/env.ts`, `ops/jobs/src/ugo_jobs/config.py` |
+| Ripiego del sogno via OpenRouter | `ops/jobs/src/ugo_jobs/batch.py` |
+| Stub LLM rimosso; chiave di test obbligatoria | `tests/factories/src/openrouter.helper.ts`; CI col secret `OPENROUTER_API_KEY` |
+
+**Giro regola 12.** **BO**: tutto quanto sopra, più i test Python (`ops/jobs/tests`) e le
+fixture del ledger passate a `openrouter`. **`/admin`**: nessuna modifica, e non serviva — il
+pannello mostra la spesa dal ledger senza nomi di fornitore, e la voce non ha (né deve avere)
+un'impostazione: regola 13. **FE**: nessuna modifica — il muso manda ancora `{text, mood}` a
+`/v1/tts` e riceve mp3; il contratto non è cambiato, quindi **nessun bundle da ricostruire**.
+
+**Verifiche** (2026-11-09): `pnpm turbo build typecheck lint test` 45/45 (soul 540, face 156,
+psyche 92, face-body 88, memory 71, shared 54, prompts 11, reception 3); integrazione su
+Postgres + Ollama + OpenRouter veri: memory 16/16, soul 7 file del gruppo voce/WS/tenancy
+105/105, chat+chatGroup+lifeday 21/21, reception+customerKnowledge+meetings 36/36 (due giri di
+fila); job Python `test_batch_fallback` 6/6; e2e reception 6/6. **Non eseguiti in questo
+ambiente** (MinIO non scaricabile): `audio.integration`, e2e del muso — compilano e passano il
+lint, girano in CI. `pnpm audit`: 22 MODERATE, zero HIGH/CRITICAL.
+
+**Da fare fuori dal codice**: secret `OPENROUTER_API_KEY` su GitHub (senza, la CI dei test è
+rossa); su Coolify `OPENROUTER_API_KEY` su soul e jobs, e togliere `ANTHROPIC_API_KEY`,
+`UGO_CHAT_MODEL`, `OPENAI_API_KEY`, `UGO_TTS_*` (altrimenti il boot si ferma, apposta).

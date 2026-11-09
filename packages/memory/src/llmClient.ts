@@ -83,6 +83,12 @@ export interface LlmClientOptions {
   /** which exemplar spent it — a house may hold more than one */
   gosinoId?: string;
   /**
+   * Quanto si aspetta OpenRouter. Sessanta secondi quando non c'è nessun
+   * soccorso dietro; con la voce di casa accesa, il tetto di un anello
+   * (ADR-124), o il soccorso arriverebbe dopo un minuto di silenzio.
+   */
+  timeoutMs?: number;
+  /**
    * Il fuso della CASA (ADR-050), non del server.
    *
    * Decide il confine del giorno del `budget_ledger`, ed e' il punto in cui una
@@ -253,7 +259,7 @@ export class LlmClient {
         authorization: `Bearer ${this.options.apiKey}`,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(this.options.timeoutMs ?? 60_000),
     });
     if (!response.ok) {
       // status only: never log/propagate bodies that could echo prompt content

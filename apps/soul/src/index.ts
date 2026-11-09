@@ -159,6 +159,7 @@ const llmFor = (
   gosinoId: string,
   clock: HouseClock = { timezone: env.TZ, locale: DEFAULT_LOCALE },
 ): ChatLlm => {
+  const homeVoice = env.UGO_CHAT_HOME_VOICE === "on";
   const remote = new LlmClient({
     // ADR-098: il muro del budget legge il ledger DELLA casa — sulla
     // connessione nuda, sotto ugo_app, vedrebbe zero e non morderebbe mai
@@ -171,13 +172,15 @@ const llmFor = (
     gosinoId,
     timezone: clock.timezone,
     locale: clock.locale,
+    // con un soccorso dietro, OpenRouter ha il tetto di un anello (ADR-124)
+    ...(homeVoice && { timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS }),
   });
   /**
    * ADR-125: OpenRouter risponde sempre per primo. La catena si monta solo se
    * la casa ha acceso la voce di casa, che fa da soccorso quando OpenRouter
    * non risponde; senza, è il client nudo — un anello in meno, un'attesa in meno.
    */
-  if (env.UGO_CHAT_HOME_VOICE !== "on") return remote;
+  if (!homeVoice) return remote;
   return new ChatChain({
     db: dbFor(accountId),
     accountId,
