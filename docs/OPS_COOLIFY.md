@@ -434,8 +434,9 @@ Facoltativo: senza, soul resta raggiungibile solo dalla tailnet (§0) e non camb
    (`UGO_INTERNAL_TOKEN`), vai su **Abbina un dispositivo** → **Genera un codice**. Sul telefono apri
    `https://ugo.omeganodes.ai` (o l'app): compare «Fammi entrare», scrivi il codice. Il dispositivo
    compare fra **Le chiavi di casa** come «dispositivo: iPhone», e da lì si revoca.
-6. **La build del muso per l'app** (non per il web): `VITE_SOUL_URL=wss://ugo.omeganodes.ai/v1/face
-   pnpm --filter face build`. Il muso servito da soul non ne ha bisogno: è già sulla stessa origine.
+6. **L'app iOS/Mac non chiede una build del muso a parte** (ADR-130): carica il muso direttamente
+   da `https://ugo.omeganodes.ai`, quindi è già sulla stessa origine del soul. Passi in
+   `apps/face-ios/README.md`.
 
 ### 2.5 jobs (il sogno, che si sveglia da solo alle 02:30)
 
