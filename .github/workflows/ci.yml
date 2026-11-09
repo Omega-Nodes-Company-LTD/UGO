@@ -217,6 +217,29 @@ jobs:
             test \"\$(whoami)\" = ugo &&
             echo 'dream imports, scheduler imports, pg_dump new enough, non-root'"
 
+  ios-shell:
+    # Xcode non gira su Linux, e un runner macOS costa: qui si verifica tutto ciò
+    # che si può sbagliare senza compilare — Capacitor sincronizza davvero il
+    # progetto SPM, e check_shell.py legge identità, firma, permessi, dominio e
+    # supporto Mac dai file veri. La compilazione resta sul Mac (apps/face-ios/README.md).
+    name: ios shell (config, no Xcode)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo build --filter=face
+      - name: sync capacitor (Swift Package Manager)
+        working-directory: apps/face-ios
+        run: npx cap sync ios
+      - name: the shell carries identity, signing, permissions and the Mac
+        working-directory: apps/face-ios
+        run: python3 check_shell.py
+
   apk:
     # ADR-018 said the Android toolchain was not verifiable here, and that a
     # broken shell would be discovered on the phone instead of in the pipeline.

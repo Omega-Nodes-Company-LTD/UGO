@@ -3050,3 +3050,26 @@ risponde, cliente riconosciuto coi turni cifrati, pannello senza parole); `schem
 11/11 (migrazione su Postgres pulito, RLS su `phone_calls`); `reception.integration` 23/23 in due
 giri — in un terzo giro il test del digest è caduto una volta perché il modello vero non ha citato
 il commit: instabilità del test, non della modifica.
+## 6-duooctogies. Il guscio iOS e Mac (ADR-130)
+
+Direttiva del proprietario (2026-11-09): «prima su iOS e macOS, così riesco a testarlo».
+`apps/face-ios`: Capacitor 7.6 col template ufficiale **Swift Package Manager**, generato con
+`cap add ios --packagemanager SPM` (gira anche su Linux; solo il passo `pod install` del primo
+`add` fallisce, ed è irrilevante con SPM). `appId ai.omeganodes.ugo`, team `8UH44UM49Z`,
+entitlements push + `applinks:ugo.omeganodes.ai`, `SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD`, `arm64`
+(con `armv7` del template i Mac Apple Silicon non l'avrebbero installata), permessi in italiano
+per microfono, fotocamera e riconoscimento vocale, nessuna modalità in background.
+
+**Il muso si carica dal soul** (`server.url = https://ugo.omeganodes.ai`): stessa origine del
+browser, quindi niente chiave di build per il server, niente CORS, e il muso si aggiorna col deploy.
+
+**Verificato senza Mac**: `cap sync ios` sincronizza davvero il pacchetto SPM;
+`check_shell.py` legge identità, firma, permessi, dominio e Mac dai file veri, ed è stato visto
+fallire su una configurazione sbagliata. Nuovo job CI `ios shell (config, no Xcode)`. **Da
+verificare sul Mac**: compilazione, firma automatica, avvio, permessi a runtime, TestFlight
+(passi in `apps/face-ios/README.md`).
+
+Giro regola 12: **BO** non riguardato (il soul pubblico e l'abbinamento sono di un altro passo,
+C1); **`/admin`** non riguardato; **FE** nessuna modifica a `apps/face/src` — il muso gira com'è,
+e nessun bundle da ricostruire per questo passo.
+

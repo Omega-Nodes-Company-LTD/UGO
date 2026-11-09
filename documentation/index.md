@@ -33,6 +33,7 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 
 - [Primo avvio](./01-getting-started/primo-avvio.md) — accendere UGO e dirgli la prima cosa.
 - [Entrare da fuori casa](./01-getting-started/entrare-da-fuori-casa.md) — abbinare telefono, Mac o browser con un codice o col link via email.
+- [Installare UGO su iPhone e Mac](./01-getting-started/installare-su-iphone-e-mac.md) — l'app da TestFlight, e cosa serve.
 - [Il corpo di UGO](./02-core-features/il-corpo-di-ugo.md) — posture, gesti, la stanza in cui sta, gli arredi, la carezza e la mela.
 - [Quando comincia lui](./02-core-features/quando-comincia-lui.md) — si fa vivo, ti chiama, ti fa domande sue.
 - [Il pannello](./02-core-features/il-pannello.md) — come sta e perché, cosa ha deciso da solo, il consiglio.
