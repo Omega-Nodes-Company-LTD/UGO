@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <title>UGO Dettatura</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>UGO Dettatura</h1>
+      <p id="status" class="status" role="status">pronta</p>
+    </header>
+
+    <section id="pair" hidden>
+      <h2>Abbina questo Mac a UGO</h2>
+      <p>Nel pannello di UGO apri «Dispositivi» e chiedi un codice: vale dieci minuti.</p>
+      <form id="pair-form">
+        <label for="pair-code">Codice</label>
+        <input
+          id="pair-code"
+          autocomplete="off"
+          spellcheck="false"
+          maxlength="11"
+          placeholder="ABCD-1234"
+          required
+        />
+        <button type="submit">Abbina</button>
+      </form>
+      <p id="pair-result" class="result" role="alert"></p>
+    </section>
+
+    <section id="permissions" hidden>
+      <h2>Un permesso, una volta sola</h2>
+      <p>
+        Per scrivere il testo nell'app che stai usando, macOS chiede di autorizzare UGO Dettatura in
+        <b>Impostazioni di Sistema → Privacy e sicurezza → Accessibilità</b>. Senza, il testo
+        finisce negli appunti e lo incolli tu con ⌘V.
+      </p>
+      <button id="ask-accessibility" type="button">Apri la richiesta di permesso</button>
+    </section>
+
+    <section id="settings" hidden>
+      <h2>Impostazioni</h2>
+      <form id="settings-form">
+        <fieldset>
+          <legend>Come si usa la scorciatoia</legend>
+          <label
+            ><input type="radio" name="mode" id="mode-hold" value="hold" /> Tieni premuto mentre
+            parli</label
+          >
+          <label
+            ><input type="radio" name="mode" id="mode-toggle" value="toggle" /> Premi per
+            cominciare, premi per finire</label
+          >
+        </fieldset>
+        <label for="dictate-shortcut">Detta</label>
+        <input id="dictate-shortcut" spellcheck="false" />
+        <label for="answer-shortcut">Chiedi a UGO</label>
+        <input id="answer-shortcut" spellcheck="false" />
+        <label for="device-label">Nome di questo Mac (lo vedi nel pannello)</label>
+        <input id="device-label" maxlength="60" />
+        <label for="base-url">Indirizzo di UGO</label>
+        <input id="base-url" spellcheck="false" />
+        <button type="submit">Salva</button>
+      </form>
+      <p id="settings-result" class="result" role="alert"></p>
+      <button id="unpair" type="button" class="quiet">Scollega questo Mac</button>
+    </section>
+
+    <section id="reply" hidden>
+      <h2>UGO risponde</h2>
+      <p id="reply-question" class="question"></p>
+      <p id="reply-text" class="reply"></p>
+    </section>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,41 @@
+name: dictation-mac
+
+# ADR-129: l'app di dettatura si compila davvero solo su macOS. Linux (ci.yml)
+# non la vede; qui la si costruisce, si provano le parti pure e si guarda clippy.
+on:
+  push:
+    paths:
+      - "apps/dictation-mac/**"
+      - ".github/workflows/dictation-mac.yml"
+  pull_request:
+    paths:
+      - "apps/dictation-mac/**"
+      - ".github/workflows/dictation-mac.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: build, test, clippy (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/dictation-mac/src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/dictation-mac/src-tauri/target
+          key: dictation-mac-${{ hashFiles('apps/dictation-mac/src-tauri/Cargo.lock') }}
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+      - run: cargo build --release --locked

@@ -1,8 +1,8 @@
 ---
 title: "UGO — Manuale"
 description: "Cos'è UGO, come parlargli e cosa ricorda: la guida per chi lo usa, non per chi lo sviluppa."
-version: "0.43.0"
-last_updated: "2026-08-19"
+version: "0.44.0"
+last_updated: "2026-11-09"
 author: "ThinkPink Studio"
 ---
 
@@ -39,6 +39,7 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 - [Le parentele](./02-core-features/le-parentele.md) — legare la casa a quella dei nonni, e spedirsi cartoline: solo su tua azione, mai da sole.
 - [L'album](./02-core-features/l-album.md) — le foto: si scattano solo se le chiedi, e durano per il tempo che scegli tu (o zero).
 - [Parlare con UGO](./02-core-features/parlare-con-ugo.md) — voce, memoria, umore.
+- [Dettare in qualunque app dal Mac](./02-core-features/dettare-dal-mac.md) — tieni premuto, parla, il testo compare dove sta il cursore.
 - [In giro](./02-core-features/in-giro.md) — registrare a vista, privacy, biglietto da visita.
 - [Le facce](./02-core-features/le-facce.md) — come impara a riconoscerti, cosa conserva di chi non conosce, come si cancella.
 - [I tuoi dati](./02-core-features/i-tuoi-dati.md) — esportare tutto, far dimenticare una persona.
