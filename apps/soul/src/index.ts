@@ -41,6 +41,7 @@ import { storeVoiceSample } from "./services/voiceEnrolment.js";
 import { InitiativeSwitch } from "./services/volition/initiativeSwitch.js";
 import { CustomerQuota } from "./services/reception/customerQuota.js";
 import { GithubLiveService } from "./services/reception/githubLiveService.js";
+import { ResendMailer } from "./services/resendMailer.js";
 import { buildServer } from "./server.js";
 import { createAccount } from "./services/accountService.js";
 import type { Capability } from "./routes/capabilities.js";
@@ -579,6 +580,24 @@ const app = buildServer({
       }),
     }),
   ...(env.UGO_FACE_DIR !== undefined && { faceRoot: resolve(env.UGO_FACE_DIR) }),
+  // ADR-127: la casa sul web — origini, proxy fidato, link dell'app, email
+  web: {
+    ...(env.UGO_PUBLIC_URL !== undefined && { publicUrl: env.UGO_PUBLIC_URL }),
+    ...(env.UGO_TRUST_PROXY !== undefined && { trustProxy: env.UGO_TRUST_PROXY }),
+    extraOrigins: (env.UGO_ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter((origin) => origin !== ""),
+    appleAppIds: env.UGO_APPLE_APP_IDS.split(",").map((id) => id.trim()).filter((id) => id !== ""),
+    ...(env.UGO_OWNER_EMAIL !== undefined &&
+      env.RESEND_API_KEY !== undefined &&
+      env.EMAIL_FROM !== undefined && {
+        magicLink: {
+          ownerEmail: env.UGO_OWNER_EMAIL,
+          mailer: new ResendMailer({ apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM }),
+        },
+      }),
+  },
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
   ollamaUrl: env.OLLAMA_URL,
   // ADR-123: la seconda macchina si guarda a parte. Una GPU che non risponde
