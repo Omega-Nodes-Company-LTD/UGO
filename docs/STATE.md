@@ -3014,7 +3014,7 @@ vero non è stato eseguito. Gli e2e del muso non girano qui (MinIO non scaricabi
 **Restano**: informativa e termini (`documentation/05-legale/`) hanno i campi del titolare da
 compilare; passkey come porta successiva (ADR-127, alternative).
 
-## 6-duoctogies. Il gosino al telefono (ADR-128)
+## 6-teroctogies. Il gosino al telefono (ADR-128)
 
 Il lato UGO del contratto C4 con Omega HQ: HQ tiene Twilio, il numero, la regola «soldi e
 reclami → una persona» e l'avviso AI Act; per ogni turno chiama `POST /v1/phone/turn` col segreto
@@ -3050,7 +3050,7 @@ risponde, cliente riconosciuto coi turni cifrati, pannello senza parole); `schem
 11/11 (migrazione su Postgres pulito, RLS su `phone_calls`); `reception.integration` 23/23 in due
 giri — in un terzo giro il test del digest è caduto una volta perché il modello vero non ha citato
 il commit: instabilità del test, non della modifica.
-## 6-duooctogies. Il guscio iOS e Mac (ADR-130)
+## 6-quateroctogies. Il guscio iOS e Mac (ADR-130)
 
 Direttiva del proprietario (2026-11-09): «prima su iOS e macOS, così riesco a testarlo».
 `apps/face-ios`: Capacitor 7.6 col template ufficiale **Swift Package Manager**, generato con
@@ -3073,3 +3073,30 @@ Giro regola 12: **BO** non riguardato (il soul pubblico e l'abbinamento sono di 
 C1); **`/admin`** non riguardato; **FE** nessuna modifica a `apps/face/src` — il muso gira com'è,
 e nessun bundle da ricostruire per questo passo.
 
+## 6-quinquoctogies. La dettatura da scrivania: UGO Dettatura per Mac (ADR-129)
+
+Direttiva del proprietario: «una soluzione tipo Wispr Flow, nostra, integrata coi nostri sistemi,
+che possa anche rispondere». Fatta come **app satellite** in `apps/dictation-mac` (Tauri v2, Rust),
+fuori dal workspace pnpm (nessun `package.json`: turbo non la vede, e non deve).
+
+| Cosa | Dove |
+|---|---|
+| Audio → mono 16 kHz PCM16, tagli nei silenzi sotto gli 11 s, mai code < 0,8 s | `src-tauri/src/audio.rs` + 7 test |
+| Richieste e risposte di soul (`/v1/stt`, `/v1/pair`, `/v1/chat` canale `api`, `/v1/tts`) | `src-tauri/src/protocol.rs` + 7 test |
+| Impostazioni (https obbligatorio, scorciatoie ⌃⌥D / ⌃⌥R, modalità) | `src-tauri/src/config.rs` + 4 test |
+| Microfono in un thread suo (`cpal::Stream` non è `Send` su macOS) | `src-tauri/src/capture.rs` |
+| Incolla con ripristino degli appunti (testo e immagine), ripiego «solo appunti» senza Accessibilità | `src-tauri/src/insert.rs` |
+| Token nel Portachiavi; un 401 lo cancella e riapre l'abbinamento | `src-tauri/src/keychain.rs`, `flow.rs` |
+| CI su runner macOS: fmt, clippy `-D warnings`, test, build release | `.github/workflows/dictation-mac.yml` |
+
+**Giro regola 12.** **BO**: nessuna rotta nuova — l'app usa `/v1/stt`, `/v1/chat`, `/v1/tts` come
+sono, più `/v1/pair` del contratto di UGO pubblico (in costruzione su un altro ramo: finché non
+c'è, l'abbinamento risponde «UGO non è raggiungibile» o un codice inatteso). **`/admin`**: la
+sezione «Dispositivi» col codice di abbinamento appartiene al lavoro di UGO pubblico, non a questo.
+**FE**: il muso non è toccato.
+
+**Verifiche** (2026-11-09, Linux): `cargo build`, `cargo test` 20/20, `cargo clippy --all-targets
+-- -D warnings` pulito, `cargo fmt --check`. **Non verificato qui**: il build macOS (lo fa la CI
+`dictation-mac.yml`), e a mano sul Mac microfono, Portachiavi, Accessibilità, incolla reale e
+notarizzazione. L'icona è provvisoria (`icons/icon.png`): va sostituita e rigenerata con
+`cargo tauri icon` prima della prima distribuzione.
