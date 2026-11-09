@@ -55,10 +55,12 @@ def _config(pg_url: str, **overrides: object) -> JobsConfig:
     return replace(base, **overrides)
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _require_key() -> None:
+@pytest.fixture
+def real_provider_key() -> str:
+    """Only for the tests that call OpenRouter: the pure ones run without a key."""
     if API_KEY == "":
-        pytest.fail("OPENROUTER_API_KEY is required: these tests call the real provider (ADR-125)")
+        pytest.fail("OPENROUTER_API_KEY is required: this test calls the real provider (ADR-125)")
+    return API_KEY
 
 
 def test_the_request_follows_the_gateway_rules() -> None:
@@ -75,7 +77,7 @@ def test_the_request_follows_the_gateway_rules() -> None:
         assert banned not in provider["only"]
 
 
-def test_falls_back_to_openrouter_and_records_the_real_spend(pg_url: str) -> None:
+def test_falls_back_to_openrouter_and_records_the_real_spend(pg_url: str, real_provider_key: str) -> None:
     cfg = _config(pg_url)
     with psycopg.connect(pg_url) as conn:
         conn.execute("delete from budget_ledger")
@@ -95,7 +97,7 @@ def test_falls_back_to_openrouter_and_records_the_real_spend(pg_url: str) -> Non
         assert float(cost) > 0
 
 
-def test_without_a_local_model_it_goes_straight_to_openrouter(pg_url: str) -> None:
+def test_without_a_local_model_it_goes_straight_to_openrouter(pg_url: str, real_provider_key: str) -> None:
     """A server with no local reflection model is a normal deployment, not a
     broken one: the dream must not fire a doomed request at Ollama first, and
     the spend still has to land in the ledger."""
@@ -116,7 +118,9 @@ def test_without_an_api_key_it_fails_loudly_instead_of_silently(pg_url: str) -> 
 
 
 def test_the_paid_path_refuses_to_spend_without_the_ledger(pg_url: str) -> None:
-    cfg = _config(pg_url, ollama_batch_model="")
+    # a key is present, so the refusal can only come from the missing ledger;
+    # it is never sent: the paid path stops before any request
+    cfg = _config(pg_url, ollama_batch_model="", openrouter_api_key="never-sent")
     with pytest.raises(RuntimeError, match="ledger"):
         ask_batch_model(cfg, DAY_PROMPT, ReflectionOutput, None)
 
