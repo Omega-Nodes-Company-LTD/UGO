@@ -2,6 +2,7 @@ import type { DbClient } from "@ugo/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AuditLogger } from "../services/auditLog.js";
 import { TenantResolver, type TenantContext } from "../services/tenantAuth.js";
+import { cookieValue, needsToken, SESSION_COOKIE } from "../services/webSecurity.js";
 
 /**
  * Who is asking, and may they (ADR-019, SECURITY_COMPLIANCE §9).
@@ -45,9 +46,37 @@ export interface TenantAuthOptions {
   legacyAccountId?: string | undefined;
 }
 
+/**
+ * Il token di chi bussa, da dove può arrivare (ADR-127): l'header, il cookie
+ * del web (il link via email), o la query del socket — un browser non può
+ * mettere header su un WebSocket, e quella query non finisce mai nel log
+ * (`redactToken`).
+ */
 function bearerOf(request: FastifyRequest): string {
   const header = request.headers.authorization ?? "";
-  return header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
+  if (header.startsWith("Bearer ")) return header.slice("Bearer ".length);
+  const cookie = cookieValue(request.headers.cookie, SESSION_COOKIE);
+  if (cookie !== undefined && cookie !== "") return cookie;
+  if (request.url.startsWith("/v1/face")) {
+    const query = request.query as { token?: unknown } | undefined;
+    if (typeof query?.token === "string") return query.token;
+  }
+  return "";
+}
+
+/**
+ * Il muro della casa sul web (ADR-127): ogni `/v1/*` vuole un token, salvo le
+ * porte che si difendono da sole (`needsToken`). Dopo la risoluzione, prima di
+ * qualunque rotta. In sviluppo — nessun segreto configurato — la risoluzione
+ * dà già un contesto a tutti, quindi il muro c'è e non morde, com'è sempre stato.
+ */
+export function registerTokenWall(app: FastifyInstance, audit?: AuditLogger): void {
+  const refuse = createAuthGuard(audit);
+  app.addHook("onRequest", async (request, reply) => {
+    if (request.tenant !== null || !needsToken(request.url)) return;
+    // lo stesso rifiuto della guardia, con la stessa riga nel giornale (ADR-049)
+    await refuse(request, reply);
+  });
 }
 
 /**

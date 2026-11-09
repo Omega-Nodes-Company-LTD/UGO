@@ -397,6 +397,38 @@ container più economico dell'installazione.
    `UGO_FACE_DIR` è già impostata nel Dockerfile, non aggiungerla fra le variabili.
 7. **Deploy**. Risultato atteso: **Running (healthy)**.
 
+### 2.4-bis soul sul web: `https://ugo.omeganodes.ai` (ADR-127)
+
+Facoltativo: senza, soul resta raggiungibile solo dalla tailnet (§0) e non cambia niente. Con, ogni
+`/v1/*` vuole un token e i dispositivi entrano con un codice o col link via email.
+
+1. **DNS**: un record `A` (e `AAAA` se il server ha IPv6) `ugo.omeganodes.ai` → IP pubblico del
+   server Coolify.
+2. **Dominio sulla risorsa soul-api**: in Coolify → soul-api → *Domains* = `https://ugo.omeganodes.ai`.
+   Coolify (Traefik) chiede il certificato Let's Encrypt da solo; la porta interna resta 3000.
+   Nessun'altra risorsa di UGO prende un dominio (Postgres, Ollama, percezione restano privati).
+3. **Variabili nuove su soul-api**:
+   - `UGO_PUBLIC_URL=https://ugo.omeganodes.ai` — accende HSTS, chiude il CORS su questa origine.
+   - `UGO_TRUST_PROXY=1` — davanti c'è un solo proxy (Traefik): il limite sui tentativi conta l'IP vero.
+   - `UGO_APPLE_APP_IDS=8UH44UM49Z.ai.omeganodes.ugo` — è già il default; serve per i link dell'app.
+   - Per entrare con l'email (facoltativo, tutte e tre o nessuna): `UGO_OWNER_EMAIL=<la tua email>`,
+     `RESEND_API_KEY=<RESEND_API_KEY>` (Secret), `EMAIL_FROM=UGO <ugo@omeganodes.ai>` (un indirizzo di un
+     dominio verificato su Resend).
+   - `UGO_INTERNAL_TOKEN` c'è già (obbligatoria in produzione): è il token operatore del pannello.
+4. **Redeploy**, poi le prove (ognuna deve dare quello che c'è scritto):
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' https://ugo.omeganodes.ai/health                     # 200
+   curl -s -o /dev/null -w '%{http_code}\n' https://ugo.omeganodes.ai/v1/stats                   # 401
+   curl -s https://ugo.omeganodes.ai/.well-known/apple-app-site-association                       # il JSON con 8UH44UM49Z.ai.omeganodes.ugo
+   curl -sI https://ugo.omeganodes.ai/health | grep -i strict-transport-security                 # presente
+   ```
+5. **Il primo dispositivo**: apri `https://ugo.omeganodes.ai/admin`, entra col token operatore
+   (`UGO_INTERNAL_TOKEN`), vai su **Abbina un dispositivo** → **Genera un codice**. Sul telefono apri
+   `https://ugo.omeganodes.ai` (o l'app): compare «Fammi entrare», scrivi il codice. Il dispositivo
+   compare fra **Le chiavi di casa** come «dispositivo: iPhone», e da lì si revoca.
+6. **La build del muso per l'app** (non per il web): `VITE_SOUL_URL=wss://ugo.omeganodes.ai/v1/face
+   pnpm --filter face build`. Il muso servito da soul non ne ha bisogno: è già sulla stessa origine.
+
 ### 2.5 jobs (il sogno, che si sveglia da solo alle 02:30)
 
 1. Tipo: **Application → Dockerfile**. Stesso repo, Dockerfile: `ops/docker/jobs.Dockerfile`.

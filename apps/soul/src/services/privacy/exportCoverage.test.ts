@@ -30,6 +30,8 @@ const NOT_PERSONAL: Readonly<Record<string, string>> = {
   // esportare l'hash di un token è consegnare le credenziali di casa dentro
   // il file che si manda per email al Garante o a sé stessi
   access_tokens: "credenziali: sono hash di token, non dati della famiglia",
+  pairing_codes: "credenziali: hash di codici di abbinamento a uso singolo (ADR-127)",
+  login_links: "credenziali: hash di link di accesso a uso singolo (ADR-127)",
 };
 
 function tablesInSchema(): string[] {

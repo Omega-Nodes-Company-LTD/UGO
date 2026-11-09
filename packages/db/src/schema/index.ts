@@ -39,6 +39,7 @@ export { rooms, slugOfRoom } from "./rooms.js";
 export { placedProps, propStock, PROP_KINDS_IN_DB } from "./props.js";
 export { unknownPrints, UNKNOWN_PRINT_RETENTION_DAYS } from "./prints.js";
 export { accessTokens } from "./access-tokens.js";
+export { pairingCodes, loginLinks } from "./device-access.js";
 export {
   auditLog,
   AUDIT_OUTCOMES,

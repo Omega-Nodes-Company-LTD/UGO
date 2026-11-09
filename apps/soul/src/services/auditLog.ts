@@ -100,6 +100,10 @@ export const AUDIT_VERBS = [
   "album_retention_set",
   /** ADR-122: le foto scadute, portate via dalla durata scelta. Il conteggio */
   "photos_expired",
+  /** ADR-127: un codice di abbinamento chiesto dal pannello — mai il codice */
+  "pairing_code_issued",
+  /** ADR-127: un dispositivo entrato con un codice — l'id della chiave nata */
+  "device_paired",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

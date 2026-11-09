@@ -1,8 +1,8 @@
 ---
 title: "UGO — Manuale"
 description: "Cos'è UGO, come parlargli e cosa ricorda: la guida per chi lo usa, non per chi lo sviluppa."
-version: "0.43.0"
-last_updated: "2026-08-19"
+version: "0.44.0"
+last_updated: "2026-11-09"
 author: "ThinkPink Studio"
 ---
 
@@ -32,6 +32,7 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 ## Prossimi Passi
 
 - [Primo avvio](./01-getting-started/primo-avvio.md) — accendere UGO e dirgli la prima cosa.
+- [Entrare da fuori casa](./01-getting-started/entrare-da-fuori-casa.md) — abbinare telefono, Mac o browser con un codice o col link via email.
 - [Il corpo di UGO](./02-core-features/il-corpo-di-ugo.md) — posture, gesti, la stanza in cui sta, gli arredi, la carezza e la mela.
 - [Quando comincia lui](./02-core-features/quando-comincia-lui.md) — si fa vivo, ti chiama, ti fa domande sue.
 - [Il pannello](./02-core-features/il-pannello.md) — come sta e perché, cosa ha deciso da solo, il consiglio.
@@ -45,3 +46,4 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 - [Il confidente inviolabile](./02-core-features/il-confidente-inviolabile.md) — le tre promesse: le chiavi sono tue, lo stato esce per intero, il trasloco è sempre possibile.
 - [La reception](./02-core-features/la-reception.md) — UGO coi tuoi clienti: token, ticket, fonti, costi.
 - [Problemi comuni](./04-troubleshooting/problemi-comuni.md)
+- [Informativa sulla privacy](./05-legale/informativa-privacy.md) e [Termini d'uso](./05-legale/termini-d-uso.md)

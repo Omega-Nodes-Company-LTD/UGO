@@ -144,6 +144,17 @@ $("key-new").addEventListener("click", () => {
   }, "key-msg");
 });
 
+$("pair-new").addEventListener("click", () => {
+  void section(async () => {
+    const made = await call("/v1/pairing-codes", { method: "POST", body: JSON.stringify({}) });
+    const until = new Date(made.expiresAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    $("pair-code").hidden = false;
+    $("pair-code").className = "msg ok";
+    $("pair-code").textContent = "Codice: " + made.code + " — vale fino alle " + until + ", una volta sola.";
+    await loadKeys();
+  }, "pair-msg");
+});
+
 $("key-rows").addEventListener("click", (event) => {
   const id = event.target.dataset ? event.target.dataset.burn : undefined;
   if (!id) return;

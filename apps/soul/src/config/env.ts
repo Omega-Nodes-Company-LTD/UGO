@@ -260,6 +260,27 @@ export const soulEnvSchema = z.object({
   // where the built face lives inside the image (ADR-018 Tempo 1); empty in
   // development, where Vite serves it on its own port
   UGO_FACE_DIR: z.preprocess((value) => (value === "" ? undefined : value), z.string().optional()),
+  /**
+   * ADR-127 — la casa sul web. Assente = la casa resta dov'era (rete di casa o
+   * tailnet). Presente: HSTS, CORS chiuso su questa origine, link via email.
+   */
+  UGO_PUBLIC_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
+  /** quanti proxy fidati stanno davanti a soul: dietro Coolify (Traefik) è 1 */
+  UGO_TRUST_PROXY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().int().min(0).max(5).optional(),
+  ),
+  /** origini in più ammesse dal CORS, separate da virgole */
+  UGO_ALLOWED_ORIGINS: optionalNonEmpty,
+  /** `TEAMID.bundle` per i link universali dell'app (apple-app-site-association) */
+  UGO_APPLE_APP_IDS: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().default("8UH44UM49Z.ai.omeganodes.ugo"),
+  ),
+  /** l'indirizzo del titolare: l'unico a cui parte il link per entrare */
+  UGO_OWNER_EMAIL: z.preprocess((value) => (value === "" ? undefined : value), z.email().optional()),
+  RESEND_API_KEY: optionalNonEmpty,
+  EMAIL_FROM: optionalNonEmpty,
   NODE_ENV: z.string().default("development"),
 }).superRefine((env, ctx) => {
   // ADR-124: il nome vecchio non si ignora in silenzio. Ignorarlo vorrebbe
@@ -296,6 +317,19 @@ export const soulEnvSchema = z.object({
         path: [name],
       });
     }
+  }
+  // ADR-127: il link via email è tre cose insieme o niente — una a metà non
+  // manda email e non lo dice a nessuno
+  const mail = [env.UGO_OWNER_EMAIL, env.RESEND_API_KEY, env.EMAIL_FROM, env.UGO_PUBLIC_URL];
+  const someMail = [env.UGO_OWNER_EMAIL, env.RESEND_API_KEY, env.EMAIL_FROM].some((v) => v !== undefined);
+  if (someMail && mail.some((v) => v === undefined)) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "il link via email (ADR-127) vuole tutte e quattro: UGO_OWNER_EMAIL, RESEND_API_KEY, " +
+        "EMAIL_FROM e UGO_PUBLIC_URL — oppure nessuna delle tre email",
+      path: ["UGO_OWNER_EMAIL"],
+    });
   }
 });
 
