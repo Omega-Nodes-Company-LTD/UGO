@@ -123,6 +123,13 @@ export function registerDeviceAccessRoutes(app: FastifyInstance, deps: DeviceAcc
     return reply.code(201).send({ token: issued.token });
   });
 
+  // ADR-130: il link universale d'abbinamento, aperto senza l'app (Safari):
+  // il codice non si consuma qui, si precompila nel muso
+  app.get("/pair/:code", async (request, reply) => {
+    const { code } = request.params as { code: string };
+    return reply.redirect(`/?pair=${encodeURIComponent(code)}`, 302);
+  });
+
   // il browser apre il link: diventa un cookie, e si torna al muso
   app.get("/login/:secret", async (request, reply) => {
     if (tooMany(request.ip, reply)) return reply;

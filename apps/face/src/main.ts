@@ -36,6 +36,8 @@ import { toPcm16Base64 } from "./voiceClip.js";
 import { watchSky } from "./skyWatch.js";
 import { mountVoiceInvite } from "./voiceInvite.js";
 import { FaceSocket } from "./ws.js";
+import { App as NativeApp } from "@capacitor/app";
+import { deepLinkTarget } from "./deepLinks.js";
 
 const PRESENCE_COOLDOWN_MS = 30_000;
 
@@ -114,6 +116,14 @@ installSoulKey({
   onUnauthorized: () => {
     pairing.show(params.get("pair") ?? undefined);
   },
+});
+// ADR-130: dentro l'app iOS un link universale (`/pair/…`, `/login/…`) apre
+// l'app invece di Safari, e arriva qui. Nel browser il listener non scatta mai.
+NativeApp.addListener("appUrlOpen", ({ url }) => {
+  const target = deepLinkTarget(url, location.origin);
+  if (target !== undefined) location.assign(target);
+}).catch(() => {
+  // un guscio senza il plugin (Android, oggi) non ha link universali: niente da fare
 });
 const loginSecret = params.get("login");
 if (loginSecret !== null && loginSecret !== "") void pairing.redeem(loginSecret);

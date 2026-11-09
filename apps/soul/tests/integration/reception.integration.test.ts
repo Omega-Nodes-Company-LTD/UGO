@@ -290,12 +290,18 @@ describe("the conversation", () => {
       method: "POST",
       url: "/v1/reception/chat",
       headers: receptionHeaders(customerA.token),
-      payload: { gosinoId: houseA.gosinoId, text: "A che punto siamo con i lavori?" },
+      payload: {
+        gosinoId: houseA.gosinoId,
+        // la domanda resta quella che accende il digest, e chiede un fatto
+        // che solo il digest contiene: un modello vero sceglie da sé cosa
+        // citare, e «a che punto siamo» da solo lo lasciava libero di tacerlo
+        text: "A che punto siamo con i lavori? Quanti ticket aperti ci sono e qual è l'ultimo commit?",
+      },
     });
     expect(response.statusCode).toBe(200);
-    // il digest è arrivato al modello: risponde col commit che c'è scritto
-    const reply = response.json<{ reply: string }>().reply;
-    expect(reply.toLowerCase()).toContain("abc1234");
+    // il digest è arrivato al modello: risponde con un fatto che c'è scritto solo lì
+    const reply = response.json<{ reply: string }>().reply.toLowerCase();
+    expect(/abc1234|\b2 ticket|\bdue ticket/u.test(reply)).toBe(true);
     // e resta un ripiego: il ciphertext non entra mai nel prompt
     expect(reply).not.toContain("v1:");
   });

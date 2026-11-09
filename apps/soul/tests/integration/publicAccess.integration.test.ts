@@ -199,6 +199,12 @@ describe("pairing a device", () => {
     expect(row?.role).toBe("member");
   });
 
+  it("sends the universal pairing link opened in Safari to the face, code untouched (ADR-130)", async () => {
+    const response = await app.inject({ method: "GET", url: "/pair/K7Q2M9XD" });
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("/?pair=K7Q2M9XD");
+  });
+
   it("refuses an expired code", async () => {
     const code = await newCode();
     await db.update(pairingCodes).set({ expiresAt: new Date(Date.now() - 1000) });
