@@ -133,3 +133,4 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [125](./125-openrouter-unico-varco.md) | OpenRouter, unico varco verso i modelli | Accettata |
 | [126](./126-la-voce-viene-dal-corpo.md) | La voce viene dal corpo | Accettata |
 | [127](./127-ugo-raggiungibile-dal-web.md) | UGO raggiungibile dal web | Accettata |
+| [128](./128-il-gosino-al-telefono.md) | Il gosino al telefono | Accettata |

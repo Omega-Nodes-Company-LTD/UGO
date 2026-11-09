@@ -58,12 +58,21 @@ export const customers = pgTable(
      */
     digest: text("digest"),
     digestAt: timestamp("digest_at", { withTimezone: true }),
+    /**
+     * ADR-128: come lo si riconosce al telefono. NON l'indirizzo: un HMAC
+     * dell'indirizzo normalizzato con una chiave derivata da `UGO_DATA_KEY`.
+     * Basta per dire «questa email è di questo cliente» e non basta per
+     * risalire all'email da un dump — né con un dizionario, perché la chiave
+     * non è nel database.
+     */
+    contactEmailHash: text("contact_email_hash"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (table) => [
     index("customers_account_idx").on(table.accountId),
     unique("customers_account_slug_uq").on(table.accountId, table.slug),
+    unique("customers_account_contact_uq").on(table.accountId, table.contactEmailHash),
     // the target of the composite keys that pin a ticket to one house
     unique("customers_account_id_uq").on(table.accountId, table.id),
   ],

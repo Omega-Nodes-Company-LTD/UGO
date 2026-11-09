@@ -133,12 +133,18 @@ export type CustomerChatResult =
       guide?: boolean;
       /** ADR-115: come sta, attaccato alla risposta e non a un canale aperto */
       mood?: { label: string; vars: Record<string, number> };
+      /** ADR-128: quanto è costata QUESTA risposta (zero da cache e muri) */
+      costUsd?: number;
     };
 
 export interface CustomerChatRequest {
   context: CustomerContext;
   gosinoId: string;
   text: string;
+  /** ADR-128: al telefono la risposta si dice a voce, e dev'essere breve */
+  channel?: "ticket" | "phone";
+  /** ADR-128: un'istruzione in più nel blocco DINAMICO (il prefisso cached non cambia) */
+  instruction?: string;
 }
 
 export class CustomerChatService {
@@ -260,12 +266,15 @@ export class CustomerChatService {
 
     const llm = this.deps.llmFor(context.accountId, gosinoId, clock);
     const dynamicSystem = await this.buildDynamicSystem(request, at);
+    const extra = [guide ? GUIDE_INSTRUCTION : "", request.instruction ?? ""].filter(
+      (part) => part !== "",
+    );
     const result = await llm.chat(
       {
-        channel: "ticket",
-        // l'istruzione della guida vive QUI, nel dinamico: il prefisso
-        // cached non cambia di un byte (regola 2)
-        dynamicSystem: guide ? `${dynamicSystem}\n\n${GUIDE_INSTRUCTION}` : dynamicSystem,
+        channel: request.channel ?? "ticket",
+        // le istruzioni (guida, telefono) vivono QUI, nel dinamico: il
+        // prefisso cached non cambia di un byte (regola 2)
+        dynamicSystem: [dynamicSystem, ...extra].join("\n\n"),
         history: await this.loadHistory(request, at),
         userText: request.text,
       },
@@ -291,6 +300,7 @@ export class CustomerChatService {
       // degradata = la voce del muro, non una guida: niente PDF da offrire
       ...(guide && !result.degraded && { guide }),
       ...this.mood(gosinoId),
+      ...(result.costUsd !== undefined && { costUsd: result.costUsd }),
     };
   }
 

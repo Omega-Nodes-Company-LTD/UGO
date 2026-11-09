@@ -45,5 +45,6 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 - [I tuoi dati](./02-core-features/i-tuoi-dati.md) — esportare tutto, far dimenticare una persona.
 - [Il confidente inviolabile](./02-core-features/il-confidente-inviolabile.md) — le tre promesse: le chiavi sono tue, lo stato esce per intero, il trasloco è sempre possibile.
 - [La reception](./02-core-features/la-reception.md) — UGO coi tuoi clienti: token, ticket, fonti, costi.
+- [Al telefono](./02-core-features/al-telefono.md) — il gosino risponde alle chiamate dello studio: chi riconosce, quando passa a una persona, cosa resta.
 - [Problemi comuni](./04-troubleshooting/problemi-comuni.md)
 - [Informativa sulla privacy](./05-legale/informativa-privacy.md) e [Termini d'uso](./05-legale/termini-d-uso.md)

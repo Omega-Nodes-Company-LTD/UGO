@@ -61,13 +61,16 @@ import { registerTtsRoute, type TtsRouteDeps } from "./routes/tts.js";
 import { registerWeatherRoute, type WeatherDeps } from "./routes/weather.js";
 import { registerPropRoutes } from "./routes/props.js";
 import { registerReceptionRoutes } from "./routes/reception.js";
+import { registerPhoneRoutes } from "./routes/phone.js";
+import { CallMemory, PhoneAudioStore } from "./services/phone/phoneMemory.js";
+import { PhoneService } from "./services/phone/phoneService.js";
 import { AlbumService } from "./services/albumService.js";
 import { AnswerCache } from "./services/reception/answerCache.js";
 import { CustomerChatService, type HouseClock } from "./services/reception/customerChatService.js";
 import type { CustomerQuota } from "./services/reception/customerQuota.js";
 import { CustomerRewardService } from "./services/reception/customerReward.js";
 import type { GithubLiveService } from "./services/reception/githubLiveService.js";
-import type { ChatLlm, EmbeddingsClient } from "@ugo/memory";
+import type { ChatLlm, EmbeddingsClient, LocalTtsClient } from "@ugo/memory";
 import { registerV1Routes, type V1Deps } from "./routes/v1.js";
 import { PropService } from "./services/propService.js";
 import { SceneHub } from "./services/sceneHub.js";
@@ -218,6 +221,21 @@ export interface ServerOptions extends HealthDeps {
       github?: GithubLiveService;
       /** ADR-058: UGO_CUSTOMER_WEEKLY_REWARDS — il muro della mela */
       weeklyRewards: number;
+    };
+    /**
+     * ADR-128: il gosino al telefono. Registrato solo col segreto dedicato e
+     * la casa che risponde: senza, la porta non esiste.
+     */
+    phone?: {
+      token: string;
+      accountId: string;
+      dataKey: Buffer;
+      dbFor?: (accountId: string) => DbClient;
+      quota: CustomerQuota;
+      llmFor: (accountId: string, gosinoId: string, clock?: HouseClock) => ChatLlm;
+      tts: LocalTtsClient & { usdPerChar(): Promise<number> };
+      embedder?: EmbeddingsClient;
+      github?: GithubLiveService;
     };
     /** ADR-052: the house side — customers CRUD, assignment, tokens, triage */
     customers?: {
@@ -738,6 +756,37 @@ export function buildServer(options: ServerOptions): FastifyInstance {
      * sbagliata è una rotta che a volte non c'è.
      */
     registerPlaceRoutes(app, { db: options.db, guard });
+
+    const phone = options.features.phone;
+    if (phone !== undefined) {
+      registerPhoneRoutes(app, {
+        db: options.db,
+        token: phone.token,
+        guard,
+        audio: new PhoneAudioStore(),
+        service: new PhoneService({
+          db: options.db,
+          ...(phone.dbFor !== undefined && { dbFor: phone.dbFor }),
+          dataKey: phone.dataKey,
+          accountId: phone.accountId,
+          llmFor: phone.llmFor,
+          tts: phone.tts,
+          memory: new CallMemory(),
+          // il cliente riconosciuto risponde come alla reception: stessi muri,
+          // stessa conoscenza, stessi turni cifrati (ADR-128)
+          customerChat: new CustomerChatService({
+            db: options.db,
+            ...(phone.dbFor !== undefined && { dbFor: phone.dbFor }),
+            dataKey: phone.dataKey,
+            quota: phone.quota,
+            llmFor: phone.llmFor,
+            audit,
+            ...(phone.embedder !== undefined && { embedder: phone.embedder }),
+            ...(phone.github !== undefined && { github: phone.github }),
+          }),
+        }),
+      });
+    }
 
     if (face !== undefined) {
       app.register(async (instance) => {

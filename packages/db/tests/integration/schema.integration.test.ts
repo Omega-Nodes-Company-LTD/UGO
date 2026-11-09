@@ -95,6 +95,8 @@ describe("migrations on a pristine postgres", () => {
       "customer_mail_accounts",
       "customer_chunks",
       "customer_answer_cache",
+      // ADR-128: le chiamate sono di una casa come i messaggi dei clienti
+      "phone_calls",
     ];
     const rows = await db.execute<{ tablename: string; policyname: string }>(sql`
       select tablename, policyname from pg_policies where schemaname = 'public'

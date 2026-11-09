@@ -20,8 +20,16 @@ export const DEFAULT_CHAT_MODEL = "deepseek/deepseek-v4-flash";
  */
 export const DEFAULT_PROVIDERS: readonly string[] = ["DeepInfra", "Azure", "Parasail", "DigitalOcean"];
 
-// `ticket` (ADR-052): technical answers with repo context need more room
-export const MAX_TOKENS_BY_CHANNEL = { home: 200, meeting: 300, api: 200, ticket: 400 } as const;
+// `ticket` (ADR-052): technical answers with repo context need more room.
+// `phone` (ADR-128): a telephone turn is SPOKEN — two or three short
+// sentences, because every character becomes seconds of synthesis and cents.
+export const MAX_TOKENS_BY_CHANNEL = {
+  home: 200,
+  meeting: 300,
+  api: 200,
+  ticket: 400,
+  phone: 120,
+} as const;
 
 export type ChatChannel = keyof typeof MAX_TOKENS_BY_CHANNEL;
 
@@ -48,8 +56,10 @@ export interface ChatMessage {
 
 /** Il prefisso che la cache riconosce: dipende SOLO da lingua e canale. */
 export function cachedPrefix(channel: ChatChannel, locale: string): string {
-  // ADR-052: alla reception il secondo blocco sono le sue regole, non quelle di casa
-  const second = channel === "ticket" ? receptionPrompt(locale) : rulesPrompt(locale);
+  // ADR-052: alla reception il secondo blocco sono le sue regole, non quelle di
+  // casa; ADR-128: al telefono parla con un esterno, quindi le stesse
+  const outward = channel === "ticket" || channel === "phone";
+  const second = outward ? receptionPrompt(locale) : rulesPrompt(locale);
   return `${identityPrompt(locale)}\n\n${second}`;
 }
 

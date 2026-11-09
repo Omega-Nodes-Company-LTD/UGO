@@ -3014,3 +3014,39 @@ vero non è stato eseguito. Gli e2e del muso non girano qui (MinIO non scaricabi
 **Restano**: informativa e termini (`documentation/05-legale/`) hanno i campi del titolare da
 compilare; passkey come porta successiva (ADR-127, alternative).
 
+## 6-duoctogies. Il gosino al telefono (ADR-128)
+
+Il lato UGO del contratto C4 con Omega HQ: HQ tiene Twilio, il numero, la regola «soldi e
+reclami → una persona» e l'avviso AI Act; per ogni turno chiama `POST /v1/phone/turn` col segreto
+dedicato `UGO_PHONE_TOKEN`. Parla l'esemplare più anziano di `UGO_PHONE_ACCOUNT_ID`, con le
+regole della reception e mai coi ricordi di casa; il cliente della reception si riconosce
+dall'email (`customers.contact_email_hash`, HMAC con chiave derivata da `UGO_DATA_KEY`) e riceve
+la stessa risposta che avrebbe per iscritto. Voce del gosino via OpenRouter (ADR-125/126), mp3 in
+memoria dieci minuti dietro URL firmato (`GET /v1/phone/audio/:id`). `[PASSA]` o un modello che
+non risponde → `handover: true`. Deviazione dichiarata dal contratto: `audioUrl` è `null` quando la
+voce non arriva, e HQ dice il testo con la sua.
+
+| Cosa | Dove |
+|---|---|
+| Canale `phone` (120 token, regole della reception nel prefisso cached) | `packages/memory/src/chatRequest.ts` |
+| Tabella `phone_calls` (solo numeri, CallSid come SHA-256, RLS) + `customers.contact_email_hash` | `packages/db/src/schema/phone.ts`, `drizzle/0061` |
+| Firma degli URL, impronte, segno di passaggio | `apps/soul/src/services/phone/phoneCrypto.ts` + 12 unit test |
+| Memoria breve (audio 10 min, contesto dello sconosciuto 30 min, mai su disco) | `apps/soul/src/services/phone/phoneMemory.ts` |
+| Il turno | `apps/soul/src/services/phone/phoneService.ts`, `phoneCalls.ts` |
+| Le rotte | `apps/soul/src/routes/phone.ts` |
+| Canale e istruzione opzionali, costo restituito | `apps/soul/src/services/reception/customerChatService.ts` |
+
+**Giro regola 12.** **BO**: tutto sopra, migrazione `0061` (lo snapshot di drizzle era rimasto
+indietro dopo 0055 e 0057-0060 scritte a mano: il diff è stato potato alle sole modifiche di
+questo ADR e lo snapshot nuovo riallinea il resto). **`/admin`**: pagina «Clienti» — sezione «Le
+chiamate» (ultime 30, solo numeri) e, nel dettaglio di un cliente, «Al telefono» per dargli
+l'email con cui lo si riconosce (si mostra solo SE c'è). **FE**: non riguardato — il muso non
+telefona.
+
+**Verifiche**: unit soul (phone 12, env +5), memory `chatRequest` 13; integrazione su Postgres +
+OpenRouter veri: `phone.integration` 7/7 per due giri (401, 400, risposta parlata con mp3 vero da
+URL firmato e riga di soli numeri, URL alterato/scaduto 403, handover quando il modello non
+risponde, cliente riconosciuto coi turni cifrati, pannello senza parole); `schema.integration`
+11/11 (migrazione su Postgres pulito, RLS su `phone_calls`); `reception.integration` 23/23 in due
+giri — in un terzo giro il test del digest è caduto una volta perché il modello vero non ha citato
+il commit: instabilità del test, non della modifica.

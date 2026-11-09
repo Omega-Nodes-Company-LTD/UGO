@@ -563,6 +563,17 @@ const capabilities = (): Capability[] => [
   },
 ];
 
+// ADR-125: una sola voce per processo — la usano il muso e il telefono, e il
+// listino per carattere si legge una volta sola
+const tts = new OpenRouterTtsClient({
+  db,
+  dbFor,
+  apiKey: env.OPENROUTER_API_KEY,
+  dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
+  model: env.OPENROUTER_TTS_MODEL,
+  timezone: env.TZ,
+});
+
 const app = buildServer({
   db,
   capabilities,
@@ -657,6 +668,28 @@ const app = buildServer({
         syncTriggerUrl: env.UGO_JOBS_TRIGGER_URL,
       }),
     },
+    // ADR-128: il telefono esiste solo col suo segreto e la casa che risponde
+    ...(env.UGO_PHONE_TOKEN !== undefined &&
+      env.UGO_PHONE_ACCOUNT_ID !== undefined && {
+        phone: {
+          token: env.UGO_PHONE_TOKEN,
+          accountId: env.UGO_PHONE_ACCOUNT_ID,
+          dataKey,
+          dbFor,
+          quota: new CustomerQuota(
+            db,
+            {
+              hourlyMessages: env.UGO_CUSTOMER_HOURLY_MESSAGES,
+              dailyBudgetUsd: env.UGO_CUSTOMER_DAILY_BUDGET_USD,
+              timezone: env.TZ,
+            },
+            dbFor,
+          ),
+          llmFor,
+          tts,
+          embedder,
+        },
+      }),
     // ADR-051: the reception exists only when its dedicated secret does
     ...(env.UGO_RECEPTION_TOKEN !== undefined && {
       reception: {
@@ -700,14 +733,7 @@ const app = buildServer({
       }),
     // ADR-125: la voce è ElevenLabs via OpenRouter, e si spegne col budget
     // (ogni frase è una riga di budget_ledger)
-    tts: new OpenRouterTtsClient({
-      db,
-      dbFor,
-      apiKey: env.OPENROUTER_API_KEY,
-      dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
-      model: env.OPENROUTER_TTS_MODEL,
-      timezone: env.TZ,
-    }),
+    tts,
   },
 });
 

@@ -435,6 +435,13 @@
       "when": 1794233006064,
       "tag": "0061_l-abbinamento-dei-dispositivi",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794234686367,
+      "tag": "0062_il-gosino-al-telefono",
+      "breakpoints": true
     }
   ]
 }
