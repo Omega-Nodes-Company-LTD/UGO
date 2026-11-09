@@ -3005,7 +3005,7 @@ markup `#pair-overlay` («Fammi entrare»: codice o email; `?pair=` precompila, 
 solo — sono i link universali dell'app), `VITE_SOUL_URL` per la build dell'app. **Il bundle del
 muso va ricostruito al deploy.**
 
-**Verifiche**: unit soul 545+34+3 (env), face 165+9; `publicAccess.integration` 14/14 su Postgres
+**Verifiche**: `pnpm turbo build typecheck lint test` 45/45 (soul 582, face 165); intera suite d'integrazione di soul: 65/71 file verdi, i 6 rossi spiegati — 4 file che vogliono MinIO (non scaricabile qui: `cgr.dev` vietato, preesistente), `rooms` aggiornato (leggere le stanze ora vuole una chiave) e poi verde, `faceWs` in timeout sotto carico e verde rilanciato da solo (due volte); `publicAccess.integration` 14/14 su Postgres
 vero (muro, query solo sul socket, porte aperte, intestazioni, CORS, abbinamento, scadenza,
 revoca, solo admin, limite per IP, email a 202 per tutti, cookie, redeem dell'app). Il link via
 email è provato fino alla chiamata a Resend: senza `RESEND_API_KEY` in questo ambiente l'invio
