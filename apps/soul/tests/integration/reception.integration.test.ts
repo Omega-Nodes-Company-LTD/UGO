@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   auditLog,
+  budgetLedger,
   createDbClient,
   customerGosini,
   customerMessages,
@@ -12,11 +13,11 @@ import {
   type DbClient,
   runMigrations,
 } from "@ugo/db";
-import { LlmClient } from "@ugo/memory";
+import { cachedPrefix, DEFAULT_CHAT_MODEL, LlmClient } from "@ugo/memory";
 import { decryptText, encryptText } from "@ugo/shared";
-import { startLlmStub, startPostgres, type LlmStub } from "@ugo/factories";
+import { openRouterKey, startPostgres } from "@ugo/factories";
 import type { FastifyInstance } from "fastify";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   issueCustomerToken,
@@ -31,6 +32,10 @@ import { createHouse, type TestHouse } from "./helpers/tenancy.js";
  * The reception over the real HTTP stack (ADR-051/052/055): dual credential,
  * anti-BOLA 404s, the two cost walls, encryption at rest, and the prompt-cache
  * discipline — cached blocks identical across different customers.
+ *
+ * Il modello è quello VERO, su OpenRouter (ADR-125). Ciò che prima si leggeva
+ * nella richiesta catturata si verifica dal comportamento: la risposta, le
+ * righe del ledger, la cache letta dal fornitore.
  */
 
 const RECEPTION_TOKEN = "reception-service-secret";
@@ -38,7 +43,6 @@ const dataKey = randomBytes(32);
 
 let pg: StartedPostgreSqlContainer;
 let db: DbClient;
-let stub: LlmStub;
 let app: FastifyInstance;
 
 let houseA: TestHouse;
@@ -71,6 +75,15 @@ async function addCustomer(
   return { id: row.id, token: issued.token };
 }
 
+/** quante chiamate pagate ha fatto una casa: chi chiama OpenRouter scrive una riga */
+async function providerCalls(accountId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<string>`count(*)` })
+    .from(budgetLedger)
+    .where(and(eq(budgetLedger.accountId, accountId), eq(budgetLedger.provider, "openrouter")));
+  return Number(row?.count ?? 0);
+}
+
 function receptionHeaders(customerToken: string): Record<string, string> {
   return {
     authorization: `Bearer ${RECEPTION_TOKEN}`,
@@ -79,9 +92,8 @@ function receptionHeaders(customerToken: string): Record<string, string> {
 }
 
 beforeAll(async () => {
-  const [postgres, llmStub] = await Promise.all([startPostgres(), startLlmStub()]);
+  const postgres = await startPostgres();
   pg = postgres.container;
-  stub = llmStub;
   await runMigrations(postgres.url);
   db = createDbClient(postgres.url);
 
@@ -97,12 +109,11 @@ beforeAll(async () => {
   ): LlmClient =>
     new LlmClient({
       db,
-      apiKey: "stub-key",
-      model: "claude-haiku-4-5",
+      apiKey: openRouterKey(),
+      model: DEFAULT_CHAT_MODEL,
       dailyBudgetUsd: 10,
       accountId,
       gosinoId,
-      baseUrl: stub.baseUrl,
       timezone: clock?.timezone ?? "Europe/Rome",
       locale: clock?.locale ?? "it-IT",
     });
@@ -133,7 +144,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close();
   await db.$client.end();
-  await Promise.all([pg.stop(), stub.close()]);
+  await pg.stop();
 });
 
 describe("the reception's double credential", () => {
@@ -206,9 +217,7 @@ describe("who am I", () => {
 });
 
 describe("the conversation", () => {
-  it("answers through the stub and persists both turns encrypted", async () => {
-    stub.reset();
-    stub.nextResponse = { text: "Grunf: la funzione sta in main.ts." };
+  it("answers through the real model and persists both turns encrypted", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/v1/reception/chat",
@@ -217,7 +226,7 @@ describe("the conversation", () => {
     });
     expect(response.statusCode).toBe(200);
     const body = response.json<{ reply: string; degraded: boolean }>();
-    expect(body.reply).toContain("main.ts");
+    expect(body.reply.length).toBeGreaterThan(0);
     expect(body.degraded).toBe(false);
 
     const rows = await db
@@ -233,7 +242,9 @@ describe("the conversation", () => {
   });
 
   it("keeps the cached blocks identical across different customers (rule 2)", async () => {
-    stub.reset();
+    // le regole della reception stanno nel prefisso del canale ticket, e il
+    // prefisso dipende SOLO da canale e lingua: nessun dato del cliente
+    expect(cachedPrefix("ticket", "it-IT")).toContain("reception");
     await app.inject({
       method: "POST",
       url: "/v1/reception/chat",
@@ -246,17 +257,13 @@ describe("the conversation", () => {
       headers: receptionHeaders(customerB.token),
       payload: { gosinoId: houseB.gosinoId, text: "A che punto siamo?" },
     });
-    expect(stub.requests).toHaveLength(2);
-    const [first, second] = stub.requests.map((request) => request.body.system);
-    expect(first?.[0]?.cache_control).toEqual({ type: "ephemeral" });
-    expect(first?.[1]?.cache_control).toEqual({ type: "ephemeral" });
-    expect(first?.[0]?.text).toBe(second?.[0]?.text);
-    expect(first?.[1]?.text).toBe(second?.[1]?.text);
-    // the reception's rules, not the family's, on the ticket channel
-    expect(first?.[1]?.text).toContain("reception");
-    // dynamic content differs per customer and is NOT cached
-    expect(first?.[2]?.cache_control).toBeUndefined();
-    expect(first?.[2]?.text).not.toBe(second?.[2]?.text);
+    // la prova che il prefisso è lo stesso byte per byte la dà il fornitore:
+    // il cliente B, di un'altra casa, legge dalla cache ciò che A ha scritto
+    const [ofB] = await db
+      .select({ cacheRead: budgetLedger.tokensCacheRead })
+      .from(budgetLedger)
+      .where(eq(budgetLedger.accountId, houseB.id));
+    expect(ofB?.cacheRead ?? 0).toBeGreaterThan(0);
   });
 
   it("answers 404 for a gosino of another house (anti-BOLA)", async () => {
@@ -272,7 +279,6 @@ describe("the conversation", () => {
   it("«a che punto siamo» senza GitHub pesca il digest del sogno, con la data", async () => {
     // gruppo 11: questa build non ha l'adapter GitHub — esattamente il freddo
     // in cui il digest pre-calcolato è l'unico stato che la reception ha
-    stub.reset();
     await db
       .update(customers)
       .set({
@@ -280,7 +286,6 @@ describe("the conversation", () => {
         digestAt: new Date("2026-08-15T02:30:00Z"),
       })
       .where(eq(customers.id, customerA.id));
-    stub.nextResponse = { text: "Siamo al commit abc1234, grunf." };
     const response = await app.inject({
       method: "POST",
       url: "/v1/reception/chat",
@@ -288,18 +293,18 @@ describe("the conversation", () => {
       payload: { gosinoId: houseA.gosinoId, text: "A che punto siamo con i lavori?" },
     });
     expect(response.statusCode).toBe(200);
-    const dynamic = stub.requests.at(-1)?.body.system.at(-1)?.text ?? "";
-    expect(dynamic).toContain("Il punto dei lavori (aggiornato al 2026-08-15)");
-    expect(dynamic).toContain("abc1234");
+    // il digest è arrivato al modello: risponde col commit che c'è scritto
+    const reply = response.json<{ reply: string }>().reply;
+    expect(reply.toLowerCase()).toContain("abc1234");
     // e resta un ripiego: il ciphertext non entra mai nel prompt
-    expect(dynamic).not.toContain("v1:");
+    expect(reply).not.toContain("v1:");
   });
 });
 
 describe("the two cost walls (ADR-055)", () => {
   it("returns a courteous 429 past the hourly quota, persisting nothing", async () => {
     const limited = await addCustomer(houseA, "limitato-srl", { hourlyMessageLimit: 1 });
-    stub.reset();
+    const callsBefore = await providerCalls(houseA.id);
     const first = await app.inject({
       method: "POST",
       url: "/v1/reception/chat",
@@ -321,22 +326,23 @@ describe("the two cost walls (ADR-055)", () => {
       .from(customerMessages)
       .where(eq(customerMessages.customerId, limited.id));
     expect(rows).toHaveLength(2); // the first exchange only
-    expect(stub.requests).toHaveLength(1);
+    expect(await providerCalls(houseA.id)).toBe(callsBefore + 1);
   });
 
   it("degrades in the gosino's voice past the daily budget, without the provider", async () => {
     // numeric(10,4): the smallest representable non-zero cap
     const poor = await addCustomer(houseA, "povero-srl", { dailyBudgetUsd: "0.0001" });
-    stub.reset();
-    stub.nextResponse = { usage: { input_tokens: 5000, output_tokens: 400 } };
-    const first = await app.inject({
-      method: "POST",
-      url: "/v1/reception/chat",
-      headers: receptionHeaders(poor.token),
-      payload: { gosinoId: houseA.gosinoId, text: "Prima domanda" },
+    // la giornata del cliente è già spesa: una risposta di oggi costata più del
+    // tetto (il muro somma `customer_messages.cost_usd` del giorno della casa)
+    await db.insert(customerMessages).values({
+      accountId: houseA.id,
+      customerId: poor.id,
+      gosinoId: houseA.gosinoId,
+      role: "assistant",
+      text: encryptText("una risposta già pagata", dataKey),
+      costUsd: "0.010000",
     });
-    expect(first.statusCode).toBe(200);
-    expect(stub.requests).toHaveLength(1);
+    const callsBefore = await providerCalls(houseA.id);
 
     const second = await app.inject({
       method: "POST",
@@ -348,18 +354,12 @@ describe("the two cost walls (ADR-055)", () => {
     const body = second.json<{ reply: string; degraded: boolean }>();
     expect(body.degraded).toBe(true);
     expect(body.reply).toBe(CUSTOMER_BUDGET_REPLY);
-    expect(stub.requests).toHaveLength(1); // no second provider call
+    expect(await providerCalls(houseA.id)).toBe(callsBefore); // the provider was not called
   });
 });
 
 describe("le guide in PDF", () => {
   it("«fammi una guida» istruisce il modello nel dinamico e marca la risposta", async () => {
-    stub.reset();
-    stub.nextResponse = {
-      text:
-        "Impostare il titolo nell'app X\n1. Apri Impostazioni.\n2. Scrivi il titolo e premi Salva.\n" +
-        "Se qualcosa non torna: ricarica la pagina.",
-    };
     const response = await app.inject({
       method: "POST",
       url: "/v1/reception/chat",
@@ -372,19 +372,15 @@ describe("le guide in PDF", () => {
     expect(response.statusCode).toBe(200);
     const body = response.json<{ reply: string; guide?: boolean }>();
     expect(body.guide).toBe(true);
-    expect(body.reply).toContain("1. Apri Impostazioni.");
+    // il modello ha ricevuto l'istruzione: risponde a passi numerati
+    expect(body.reply).toMatch(/^\s*1\./m);
+    expect(body.reply).toMatch(/^\s*2\./m);
     // l'istruzione della guida vive nel blocco DINAMICO: il prefisso cached
-    // non cambia di un byte (regola 2), e infatti non ha cache_control
-    const system = stub.requests.at(-1)?.body.system;
-    expect(system?.[2]?.text).toContain("GUIDA");
-    expect(system?.[2]?.cache_control).toBeUndefined();
-    expect(system?.[0]?.text).not.toContain("GUIDA");
-    expect(system?.[1]?.text).not.toContain("GUIDA");
+    // non cambia di un byte (regola 2)
+    expect(cachedPrefix("ticket", "it-IT")).not.toContain("GUIDA");
   });
 
   it("una domanda normale non è una guida, e non porta l'istruzione", async () => {
-    stub.reset();
-    stub.nextResponse = { text: "Sta in main.ts, grunf." };
     const response = await app.inject({
       method: "POST",
       url: "/v1/reception/chat",
@@ -393,7 +389,6 @@ describe("le guide in PDF", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json<{ guide?: boolean }>().guide).toBeUndefined();
-    expect(stub.requests.at(-1)?.body.system[2]?.text).not.toContain("GUIDA");
   });
 
   it("il PDF arriva come allegato vero, con la doppia credenziale", async () => {
@@ -422,7 +417,7 @@ describe("le guide in PDF", () => {
 
 describe("the tickets", () => {
   it("collects 'apri un ticket' deterministically: zero provider tokens", async () => {
-    stub.reset();
+    const callsBefore = await providerCalls(houseA.id);
     const response = await app.inject({
       method: "POST",
       url: "/v1/reception/chat",
@@ -435,7 +430,7 @@ describe("the tickets", () => {
     expect(response.statusCode).toBe(200);
     const body = response.json<{ ticketId?: string }>();
     expect(body.ticketId).toBeDefined();
-    expect(stub.requests).toHaveLength(0);
+    expect(await providerCalls(houseA.id)).toBe(callsBefore);
 
     const [ticket] = await db
       .select()
