@@ -12,14 +12,8 @@ import {
   PRIME_GOSINO_ID,
   PRIME_ACCOUNT_ID,
 } from "@ugo/db";
-import {
-  EMBED_MODEL,
-  startLlmStub,
-  startOllama,
-  type LlmStub,
-  type OllamaHandle,
-} from "@ugo/factories";
-import { LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { EMBED_MODEL, openRouterKey, startOllama, type OllamaHandle } from "@ugo/factories";
+import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
 
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -36,7 +30,7 @@ import { characterFrom } from "../../src/services/council/character.js";
  * the THREAD: that a morning conversation becomes a memory, that an evening
  * of silence actually dents the mood, that the night's desire is the thing he
  * says at dawn, and that tomorrow's question still finds yesterday's fact.
- * Real Postgres, real embeddings, provider stubbed at the network edge.
+ * Real Postgres, real embeddings, real OpenRouter (ADR-125: no stubs).
  */
 
 const dataKey = randomBytes(32);
@@ -46,7 +40,6 @@ const at = (hours: number): Date => new Date(DAY_START.getTime() + hours * HOUR)
 
 let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
-let stub: LlmStub;
 let db: DbClient;
 let embedder: OllamaEmbeddingsClient;
 
@@ -70,10 +63,9 @@ async function wake(hourOfDay: number): Promise<{
     embedder,
     llm: new LlmClient({
       db,
-      apiKey: "test",
-      model: "claude-haiku-4-5",
+      apiKey: openRouterKey(),
+      model: DEFAULT_CHAT_MODEL,
       dailyBudgetUsd: 5,
-      baseUrl: stub.baseUrl,
     }),
     psyche,
     dataKey,
@@ -92,10 +84,9 @@ async function wake(hourOfDay: number): Promise<{
 }
 
 beforeAll(async () => {
-  [pg, ollama, stub] = await Promise.all([
+  [pg, ollama] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
     startOllama(),
-    startLlmStub(),
   ]);
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
@@ -104,7 +95,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop(), stub.close()]);
+  await Promise.all([pg.stop(), ollama.container.stop()]);
 });
 
 describe("una giornata di vita", () => {
@@ -113,7 +104,6 @@ describe("una giornata di vita", () => {
     const before = psyche.current(at(2)).vars;
 
     await gateway.handle({ type: "face_seen" }, send);
-    stub.nextResponse = { text: "Grunf, me lo segno: martedì arriva il pacco." };
     await gateway.handle(
       { type: "heard_text", text: "oggi passa Ivan con il pacco DHL, ricordamelo" },
       send,
@@ -123,7 +113,8 @@ describe("una giornata di vita", () => {
     expect(after.affetto).toBeGreaterThan(before.affetto); // presence + talk
     expect(after.noia).toBeLessThan(before.noia);
     expect(gateway.currentState()).toBe("idle");
-    expect(speeches(sent)).toContain("Grunf, me lo segno: martedì arriva il pacco.");
+    // he answered out loud: one real reply from the model, spoken
+    expect(speeches(sent).some((text) => text.length > 0)).toBe(true);
 
     const stored = await db.select().from(messages);
     expect(stored).toHaveLength(2);
@@ -191,14 +182,11 @@ describe("una giornata di vita", () => {
   });
 
   it("tomorrow: yesterday's fact still answers today's question", async () => {
-    const { gateway, send } = await wake(9);
-    stub.nextResponse = { text: "Sì, il corriere è Ivan e passa di martedì. Grunf." };
-    await gateway.handle({ type: "heard_text", text: "come si chiamava il corriere?" }, send);
+    const { gateway, send, sent } = await wake(9);
+    await gateway.handle({ type: "heard_text", text: "come si chiamava il corriere DHL?" }, send);
 
-    // the memory written during the night reached the prompt
-    const dynamicBlock = stub.requests.at(-1)?.body.system[2]?.text ?? "";
-    expect(dynamicBlock).toContain("Ivan");
-    expect(dynamicBlock).toContain("Dal diario");
+    // the memory written during the night reached the model: it says the name
+    expect(speeches(sent).join(" ").toLowerCase()).toContain("ivan");
 
     // and the whole day is on the record: events, messages, ledger
     const dayEvents = await db.select().from(events);

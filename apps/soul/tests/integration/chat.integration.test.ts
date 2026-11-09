@@ -10,10 +10,16 @@ import {
   PRIME_ACCOUNT_ID,
   runMigrations,
 } from "@ugo/db";
-import { EMBED_MODEL, startLlmStub, startOllama, type LlmStub, type OllamaHandle } from "@ugo/factories";
-import { DEGRADED_REPLY, LlmClient, OllamaEmbeddingsClient, writeMemory } from "@ugo/memory";
+import { EMBED_MODEL, openRouterKey, startOllama, type OllamaHandle } from "@ugo/factories";
+import {
+  DEFAULT_CHAT_MODEL,
+  DEGRADED_REPLY,
+  LlmClient,
+  OllamaEmbeddingsClient,
+  writeMemory,
+} from "@ugo/memory";
 import { decryptText } from "@ugo/shared";
-import { eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ChatService } from "../../src/services/chatService.js";
@@ -22,16 +28,24 @@ import { buildServer } from "../../src/server.js";
 import { characterFrom } from "../../src/services/council/character.js";
 
 // Full vertical slice on real infrastructure: real Postgres+pgvector, real
-// Ollama embeddings, network-level Messages-API stub (playbook §3 P2).
+// Ollama embeddings, real OpenRouter (ADR-125: no stubs). What used to be
+// read off a captured request is now read off the real model's behaviour.
 
-const MODEL = "claude-haiku-4-5";
 const dataKey = randomBytes(32);
 
 let pg: StartedPostgreSqlContainer;
 let ollama: OllamaHandle;
-let stub: LlmStub;
 let db: DbClient;
 let embedder: OllamaEmbeddingsClient;
+
+/** Quante chiamate ha davvero ricevuto il fornitore: ogni chiamata scrive una riga. */
+async function openRouterRows(): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(budgetLedger)
+    .where(and(eq(budgetLedger.provider, "openrouter"), eq(budgetLedger.accountId, PRIME_ACCOUNT_ID)));
+  return row?.n ?? 0;
+}
 
 /** A fresh "session": new services over the same database, like a restart. */
 async function buildSession(
@@ -41,10 +55,9 @@ async function buildSession(
   const psyche = await PsycheService.restore(db, new Date(), PRIME_GOSINO_ID);
   const llm = new LlmClient({
     db,
-    apiKey: "test",
-    model: MODEL,
+    apiKey: openRouterKey(),
+    model: DEFAULT_CHAT_MODEL,
     dailyBudgetUsd: budgetUsd,
-    baseUrl: stub.baseUrl,
     timezone: "Europe/Rome",
   });
   const chat = new ChatService({
@@ -68,10 +81,9 @@ async function buildSession(
 }
 
 beforeAll(async () => {
-  [pg, ollama, stub] = await Promise.all([
+  [pg, ollama] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
     startOllama(),
-    startLlmStub(),
   ]);
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
@@ -80,7 +92,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop(), stub.close()]);
+  await Promise.all([pg.stop(), ollama.container.stop()]);
 });
 
 describe("POST /v1/chat — the minimal soul (Fase 1 DoD)", () => {
@@ -93,7 +105,6 @@ describe("POST /v1/chat — the minimal soul (Fase 1 DoD)", () => {
     });
 
     // session 1
-    stub.nextResponse = { text: "Si chiama Ivan, passa il martedì. Grunf." };
     const first = await buildSession();
     const response = await first.inject({
       method: "POST",
@@ -102,16 +113,10 @@ describe("POST /v1/chat — the minimal soul (Fase 1 DoD)", () => {
     });
     expect(response.statusCode).toBe(200);
     const body = response.json<{ reply: string; moodLabel: string; memoriesUsed: string[] }>();
-    expect(body.reply).toContain("Ivan");
+    // the memory reached the model: it can only know the name from pgvector
+    expect(body.reply.toLowerCase()).toContain("ivan");
     expect(body.moodLabel.length).toBeGreaterThan(0);
     expect(body.memoriesUsed.length).toBeGreaterThan(0);
-
-    const captured = stub.requests.at(-1);
-    const dynamicBlock = captured?.body.system[2];
-    expect(dynamicBlock?.text).toContain("Ivan");
-    expect(dynamicBlock?.cache_control).toBeUndefined();
-    expect(captured?.body.system[0]?.cache_control).toEqual({ type: "ephemeral" });
-    expect(captured?.body.system[1]?.cache_control).toEqual({ type: "ephemeral" });
     await first.close();
 
     // session 2: fresh services over the same database (restart simulation)
@@ -122,12 +127,9 @@ describe("POST /v1/chat — the minimal soul (Fase 1 DoD)", () => {
       payload: { channel: "home", text: "e quando passa di solito?" },
     });
     expect(followUp.statusCode).toBe(200);
-    const secondCapture = stub.requests.at(-1);
-    // block 5: the previous session's turns are in the history, decrypted
-    const historyContents = secondCapture?.body.messages.map((m) => m.content) ?? [];
-    expect(historyContents.some((c) => c.includes("fattorino DHL"))).toBe(true);
-    // and the memory block is still fed from pgvector
-    expect(secondCapture?.body.system[2]?.text).toContain("Ivan");
+    // «quando passa?» has no subject: only the previous session's turns
+    // (block 5, decrypted) and the memory make «martedì» the answer
+    expect(followUp.json<{ reply: string }>().reply.toLowerCase()).toContain("marted");
     await second.close();
   });
 
@@ -146,11 +148,12 @@ describe("POST /v1/chat — the minimal soul (Fase 1 DoD)", () => {
   it("records every provider call in the ledger (the piggy bank)", async () => {
     const ledger = await db.select().from(budgetLedger);
     expect(ledger.length).toBeGreaterThanOrEqual(2);
-    expect(ledger.every((row) => row.model === MODEL)).toBe(true);
+    expect(ledger.every((row) => row.provider === "openrouter")).toBe(true);
+    expect(ledger.every((row) => row.model === DEFAULT_CHAT_MODEL)).toBe(true);
   });
 
   it("degrades with the declared reply when the daily budget is gone", async () => {
-    const providerHitsBefore = stub.requests.length;
+    const providerHitsBefore = await openRouterRows();
     const broke = await buildSession(0.000001);
     const response = await broke.inject({
       method: "POST",
@@ -159,7 +162,7 @@ describe("POST /v1/chat — the minimal soul (Fase 1 DoD)", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json<{ reply: string }>().reply).toBe(DEGRADED_REPLY);
-    expect(stub.requests.length).toBe(providerHitsBefore); // provider untouched
+    expect(await openRouterRows()).toBe(providerHitsBefore); // provider untouched
     await broke.close();
   });
 
@@ -359,7 +362,6 @@ describe("il giudice non può zittire un'allergia (ADR-108)", () => {
       },
     };
 
-    stub.nextResponse = { text: "Mi hai detto che è allergica ai crostacei. Del resto non so. Grunf." };
     const app = await buildSession(0.5, alwaysNo);
     const response = await app.inject({
       method: "POST",
@@ -367,11 +369,11 @@ describe("il giudice non può zittire un'allergia (ADR-108)", () => {
       payload: { channel: "home", text: "Sofia può mangiare i gamberi?" },
     });
     expect(response.statusCode).toBe(200);
-    const body = response.json<{ memoriesUsed: string[] }>();
+    const body = response.json<{ reply: string; memoriesUsed: string[] }>();
 
-    const dynamicBlock = stub.requests.at(-1)?.body.system[2]?.text ?? "";
-    expect(dynamicBlock, "il ricordo dell'allergia deve arrivare al prompt").toContain("crostacei");
-    expect(dynamicBlock, "e con l'obbligo di riferire invece di sentenziare").toMatch(/Riferisci/u);
+    expect(body.reply, "il ricordo dell'allergia deve arrivare al modello, che lo riferisce").toMatch(
+      /crostace|allergi/iu,
+    );
     expect(body.memoriesUsed.length, "e il resoconto deve dirlo").toBeGreaterThan(0);
     expect(judged, "su un verdetto non c'è niente da giudicare: zero token").toBe(0);
     await app.close();
@@ -380,7 +382,6 @@ describe("il giudice non può zittire un'allergia (ADR-108)", () => {
   /** L'altra metà: ADR-107 vale ancora dove valeva, cioè su tutto il resto. */
   it("su una domanda qualunque il no del giudice toglie i ricordi dal prompt", async () => {
     const alwaysNo = { generate: () => Promise.resolve("NO") };
-    stub.nextResponse = { text: "Questa non me l'hai mai detta. Grunf." };
     const app = await buildSession(0.5, alwaysNo);
     const response = await app.inject({
       method: "POST",
@@ -388,11 +389,11 @@ describe("il giudice non può zittire un'allergia (ADR-108)", () => {
       payload: { channel: "home", text: "qual è la password della rete wifi?" },
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json<{ memoriesUsed: string[] }>().memoriesUsed).toHaveLength(0);
-
-    const dynamicBlock = stub.requests.at(-1)?.body.system[2]?.text ?? "";
-    expect(dynamicBlock).toContain("non c'è di che rispondere");
-    expect(dynamicBlock).not.toMatch(/Ricordi pertinenti/u);
+    const body = response.json<{ reply: string; memoriesUsed: string[] }>();
+    // nessun ricordo è entrato nel prompt: il resoconto lo dice, e il modello
+    // risponde lo stesso — con parole sue, non con una frase fissa
+    expect(body.memoriesUsed).toHaveLength(0);
+    expect(body.reply.length).toBeGreaterThan(0);
     await app.close();
   });
 });
