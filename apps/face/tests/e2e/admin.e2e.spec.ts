@@ -119,7 +119,8 @@ test("a minor is registered with no voice profile ever offered", async ({ page }
   // ADR-101 ha tolto la variante col presign: la porta che resta è quella per
   // cui passa il pannello — audio nostro, muro PRIMA del bucket
   const response = await page.evaluate(async (bearer) => {
-    const pack = (await (await fetch("/v1/pack")).json()) as {
+    const auth = { authorization: `Bearer ${bearer}` };
+    const pack = (await (await fetch("/v1/pack", { headers: auth })).json()) as {
       beings: { id: string; displayName: string }[];
     };
     const sofia = pack.beings.find((being) => being.displayName === "Sofia");
@@ -144,10 +145,10 @@ test("recording a voice queues an enrollment for tonight's dream", async ({ page
   await expect(page.getByTestId("enroll-msg-text")).toHaveText(/Me lo segno/, { timeout: 30_000 });
 
   // the request is on record, waiting for the night job
-  const queued = await page.evaluate(async () => {
-    const res = await fetch("/v1/pack");
+  const queued = await page.evaluate(async (bearer) => {
+    const res = await fetch("/v1/pack", { headers: { authorization: `Bearer ${bearer}` } });
     return ((await res.json()) as { beings: unknown[] }).beings.length;
-  });
+  }, token());
   expect(queued).toBeGreaterThan(0);
 });
 
@@ -175,12 +176,13 @@ test("withdrawing consent destroys the voiceprint, it does not just stop using i
   await addBeing(page, "Giulia Ferri");
 
   // give her a voiceprint the way the night job would
-  const beingId = await page.evaluate(async () => {
-    const pack = (await (await fetch("/v1/pack")).json()) as {
+  const beingId = await page.evaluate(async (bearer) => {
+    const headers = { authorization: `Bearer ${bearer}` };
+    const pack = (await (await fetch("/v1/pack", { headers })).json()) as {
       beings: { id: string; displayName: string }[];
     };
     return pack.beings.find((b) => b.displayName === "Giulia Ferri")?.id ?? "";
-  });
+  }, token());
   await seedVoiceProfile(beingId);
   await page.getByTestId("refresh").click();
   const row = page.getByTestId("pack-row").filter({ hasText: "Giulia" });
@@ -194,11 +196,14 @@ test("withdrawing consent destroys the voiceprint, it does not just stop using i
   );
 
   // and it is gone from the database, not merely ignored
-  const left = await page.evaluate(async (id) => {
-    const res = await fetch(`/v1/pack`);
-    const pack = (await res.json()) as { beings: { id: string; hasVoiceProfile: boolean }[] };
-    return pack.beings.find((b) => b.id === id)?.hasVoiceProfile;
-  }, beingId);
+  const left = await page.evaluate(
+    async ({ id, bearer }) => {
+      const res = await fetch(`/v1/pack`, { headers: { authorization: `Bearer ${bearer}` } });
+      const pack = (await res.json()) as { beings: { id: string; hasVoiceProfile: boolean }[] };
+      return pack.beings.find((b) => b.id === id)?.hasVoiceProfile;
+    },
+    { id: beingId, bearer: token() },
+  );
   expect(left).toBe(false);
 });
 
@@ -254,13 +259,13 @@ test("what UGO remembers can be read, and searched the way he would", async ({ p
   await goGosino(page, "memoria");
 
   // give him something to remember, through the front door
-  await page.evaluate(async () => {
+  await page.evaluate(async (bearer) => {
     await fetch("/v1/chat", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", authorization: `Bearer ${bearer}` },
       body: JSON.stringify({ channel: "home", text: "il corriere DHL si chiama Ivan" }),
     });
-  });
+  }, token());
 
   await page.getByTestId("mem-go").click();
   await expect(page.getByTestId("mem-msg-text")).toHaveText(/ultimi che ha scritto|Ecco cosa/);
@@ -342,18 +347,15 @@ test("each service says what it is doing in words, not only in colour", async ({
   await openPanel(page);
   await goHouse(page, "sommario");
   const pills = page.getByTestId("health").locator(".pill");
-  // database, broker, modelli in casa, nodo GPU, percezione: il conto è qui
-  // apposta, perché un servizio che sparisce dal sommario si legge come un
-  // servizio che sta bene
-  await expect(pills).toHaveCount(5);
+  // database, broker, percezione (ADR-131: niente più modelli in casa né nodo
+  // GPU): il conto è qui apposta, perché un servizio che sparisce dal sommario
+  // si legge come un servizio che sta bene
+  await expect(pills).toHaveCount(3);
   await expect(pills.filter({ hasText: "database" })).toContainText("risponde");
   // mqtt is deliberately unconfigured on this deployment, and says so
   await expect(pills.filter({ hasText: "broker" })).toContainText("non configurato");
   // ADR-101: e la percezione, spenta qui, lo dice con la stessa parola
   await expect(pills.filter({ hasText: "percezione" })).toContainText("non configurato");
-  // ADR-123: il nodo GPU è una SECONDA macchina, e ha una riga sua — «spenta»
-  // è uno stato legittimo, ed è pure il default
-  await expect(pills.filter({ hasText: "nodo GPU" })).toContainText("non configurato");
 });
 
 /**

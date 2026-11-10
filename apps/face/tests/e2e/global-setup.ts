@@ -72,6 +72,9 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       // deliberately unset, exactly like the real deployment: the Nano 33
       // firmware is shelved, so there is no broker and health says "off"
       OPENROUTER_API_KEY: apiKey,
+      // ADR-127: il muso di prova sta su vite preview, un'origine diversa da
+      // soul — come la shell dell'app, va dichiarata o il CORS la respinge
+      UGO_ALLOWED_ORIGINS: "http://127.0.0.1:4173",
       UGO_DAILY_BUDGET_USD: "5",
       UGO_DATA_KEY: randomBytes(32).toString("base64"),
       UGO_INTERNAL_TOKEN: E2E_TOKEN,

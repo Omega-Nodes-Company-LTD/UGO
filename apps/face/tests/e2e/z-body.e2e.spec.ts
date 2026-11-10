@@ -21,7 +21,9 @@ const soulWs = (): string => {
 };
 
 const open = async (page: Page, extra = ""): Promise<void> => {
-  await page.goto(`/?soul=${encodeURIComponent(soulWs())}${extra}`);
+  // ADR-127: il socket vuole la chiave, come per ogni chiosco vero
+  const token = encodeURIComponent(process.env.UGO_E2E_TOKEN ?? "");
+  await page.goto(`/?soul=${encodeURIComponent(soulWs())}&token=${token}${extra}`);
   await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "true");
 };
 

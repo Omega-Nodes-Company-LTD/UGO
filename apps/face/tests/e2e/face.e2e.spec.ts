@@ -9,8 +9,15 @@ const soulWs = (): string => {
   return url;
 };
 
+/**
+ * ADR-127: ogni rotta e il socket del muso vogliono una chiave. Il chiosco la
+ * prende da `?token=` nell'indirizzo, la stessa strada di un chiosco vero.
+ */
+const faceUrl = (): string =>
+  `/?soul=${encodeURIComponent(soulWs())}&token=${encodeURIComponent(process.env.UGO_E2E_TOKEN ?? "")}`;
+
 const openFace = async (page: Page): Promise<void> => {
-  await page.goto(`/?soul=${encodeURIComponent(soulWs())}`);
+  await page.goto(faceUrl());
   await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "true");
 };
 
@@ -68,7 +75,7 @@ test("messages sent while offline survive a kiosk reload and flush on reconnect"
   await expect.poll(() => page.evaluate(() => window.__ugoFace.queuedFresh())).toBe(2);
 
   // reconnect to a live soul: the backlog drains and the queue empties
-  await page.goto(`/?soul=${encodeURIComponent(soulWs())}`);
+  await page.goto(faceUrl());
   await expect(page.getByTestId("app")).toHaveAttribute("data-connected", "true");
   await expect.poll(() => page.evaluate(() => window.__ugoFace.queuedFresh())).toBe(0);
 });
