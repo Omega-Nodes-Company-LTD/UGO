@@ -61,7 +61,12 @@ describe("write + semantic search on real infrastructure", () => {
     const results = await searchMemories(db, embedder, "come si chiama il gatto?", 3);
     expect(results.length).toBeGreaterThan(0);
     expect(results[0]?.text).toContain("Bruno");
-    expect(results[0]?.similarity).toBeGreaterThan(results.at(-1)?.similarity ?? 1);
+    // the cat outscores every other memory that made it through: with ADR-131's
+    // embedder the unrelated ones mostly fall under MIN_SIMILARITY and never
+    // come back at all, which is the stronger form of the same claim
+    const best = results[0]?.similarity ?? 0;
+    for (const other of results.slice(1)) expect(other.similarity).toBeLessThan(best);
+    expect(results.some((result) => result.text.includes("lavatrice"))).toBe(false);
 
     const touched = await db
       .select({ lastAccessed: memories.lastAccessed })

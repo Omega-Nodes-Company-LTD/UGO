@@ -461,24 +461,36 @@ describe("banco di prova della memoria", () => {
   }, 180_000);
 
   it("still cannot abstain: the similarity bands overlap (ADR-022)", async () => {
-    // Measured, not assumed. Across this corpus the best similarity for a
-    // question with no answer reaches 0.604, 0.637 and 0.672, while a question
-    // with an answer starts at 0.624 — the two ranges overlap, so no absolute
-    // cut separates them. MIN_SIMILARITY sits at 0.6 to drop obvious noise, and
-    // deliberately not at the 0.675 that would "pass" this corpus by four
-    // thousandths of fitted margin.
+    // Measured, not assumed, and asserted as the claim itself rather than on
+    // one question. With nomic-embed-text the unanswerable questions reached
+    // 0.604, 0.637 and 0.672 while answerable ones started at 0.624. ADR-131
+    // moved the embedder to openai/text-embedding-3-small and the levels moved
+    // with it (first run, 2026-11-10: unanswerable up to 0.7047, answerable
+    // from 0.5127) — but the two ranges still overlap, so no absolute cut on
+    // cosine separates them. The IBAN question this test used to probe now
+    // falls under MIN_SIMILARITY: one question abstaining by luck is not a
+    // mechanism, the overlap is what decides.
     //
     // Abstention therefore needs a mechanism that is not a threshold on cosine.
     // It stays open in the backlog, and this test holds the evidence.
-    const found = await searchMemories(
-      db,
-      embedder,
-      "qual e il codice IBAN del conto corrente?",
-      K,
-      NOW,
-    );
-    await db.update(memories).set({ lastAccessed: null });
-    expect(found.length).toBeGreaterThan(0);
+    const top1 = async (query: string): Promise<number | undefined> => {
+      const found = await searchMemories(db, embedder, query, K, NOW);
+      await db.update(memories).set({ lastAccessed: null });
+      return found[0]?.similarity;
+    };
+    const answered: number[] = [];
+    const unanswered: number[] = [];
+    for (const question of corpus.questions) {
+      if (question.verdetto === true) continue;
+      const best = await top1(question.query);
+      if (best === undefined) continue;
+      (question.family === "astensione" ? unanswered : answered).push(best);
+    }
+    expect(answered.length).toBeGreaterThan(0);
+    expect(unanswered.length, "every unanswerable question abstained: ADR-022 is outdated").toBeGreaterThan(0);
+    // the overlap: the best-scoring question WITHOUT an answer beats the
+    // worst-scoring question WITH one
+    expect(Math.max(...unanswered)).toBeGreaterThan(Math.min(...answered));
   });
 
   it("finds a code and a proper noun that similarity alone missed (ADR-022)", async () => {
