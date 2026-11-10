@@ -44,7 +44,10 @@ bussare. È gratis fino a 100 dispositivi e non richiede di toccare il router n�
 5. Rendilo permanente: `tailscale up --ssh=false --accept-routes` non serve; basta verificare che il
    servizio parta da solo con `systemctl is-enabled tailscaled` → atteso `enabled`.
 
-### 0.2-bis Il secondo server, quello con la scheda video (opzionale, ADR-123)
+### 0.2-bis Il secondo server, quello con la scheda video (SUPERATO da ADR-131)
+
+> **Non serve più.** Da ADR-131 ogni modello passa da OpenRouter e UGO non chiama Ollama da nessuna
+> parte: questa sezione resta solo come storia. **Salta.**
 
 Solo se hai preso un nodo GPU. **Se non ce l'hai, salta**: senza `OLLAMA_GPU_URL` tutto gira come
 prima, solo più lentamente — non è un guasto e il pannello lo dice con quelle parole.
@@ -156,60 +159,21 @@ salute riporterà `mqtt: "off"` — non configurato, che non è un guasto — e 
 
 </details>
 
-### 2.3 ollama (CPU) — riusa quello che hai già
+### 2.3 ollama — non serve più (ADR-131)
 
-Ollama è già installato come container in Coolify: **non crearne un altro**. Due Ollama sullo stesso
-server si contendono RAM e riscaricano gli stessi modelli. Serve solo renderlo raggiungibile da UGO.
+**Ogni modello passa da OpenRouter**: chat, voce, embedding dei ricordi, foto, dettatura, il sogno.
+UGO non chiama Ollama in nessun punto, quindi:
 
-1. Apri la risorsa Ollama esistente → **General** → spunta **Connect To Predefined Network**.
-   È l'unico passo indispensabile perché soul possa parlarci.
-2. Ricava il **nome esatto del container**: non è il nome che leggi nella pagina (quello è lo stack).
-   Dal **Terminal** del server: `docker ps --format '{{.Names}}' | grep -i ollama`. La riga che
-   contiene `ollama-api` (non `open-webui`) è il tuo `<HOST_OLLAMA>`, e va in
-   `OLLAMA_URL=http://<HOST_OLLAMA>:11434`.
-   Verifica subito che sia quello giusto: `docker exec <HOST_OLLAMA> ollama --version`.
-3. Verifica che **non** sia pubblicamente esposta: nessun dominio assegnato, e in **Ports** nessuna
-   mappatura su `0.0.0.0`. Se una c'è, toglila: un endpoint Ollama aperto è un modello che chiunque
-   può interrogare a spese tue.
+1. **Non creare** una risorsa Ollama per UGO. Se ne hai una solo per lui, puoi fermarla.
+2. Su `soul-api` e su `jobs` **togli** le variabili `OLLAMA_*` (`OLLAMA_URL`,
+   `OLLAMA_EMBED_MODEL`, `OLLAMA_GPU_URL`, `OLLAMA_TEXT_MODEL`, `OLLAMA_CHAT_MODEL`,
+   `OLLAMA_BATCH_MODEL`, `OLLAMA_BATCH_URL`, `OLLAMA_VISION_MODEL`) e `UGO_CHAT_HOME_VOICE` /
+   `UGO_CHAT_LINK_TIMEOUT_MS`. Lasciarle non rompe niente — vengono ignorate — ma confondono chi
+   legge la configurazione fra sei mesi.
+3. Se l'Ollama che hai è lo stack «with Open WebUI», ricorda che di default Coolify dà alla web UI
+   un dominio pubblico `…sslip.io`: una chat raggiungibile da Internet. Se non ti serve, fermala.
 
-> **Se hai installato Ollama come stack "with Open WebUI"**, controlla il servizio *Open Webui*: di
-> default Coolify gli dà un dominio pubblico `…sslip.io`. È una chat sul tuo Ollama raggiungibile da
-> Internet. Se non ti serve, cancella il dominio o ferma proprio quel servizio — a UGO serve solo
-> *Ollama Api*, mai la web UI.
-4. Volume persistente su `/root/.ollama`: se non c'è, aggiungilo ora. I modelli pesano gigabyte e
-   senza volume li riscarichi a ogni redeploy.
-5. Scarica gli embeddings, che sono l'indispensabile: `ollama pull nomic-embed-text` (~274 MB).
-   Senza, la chat va in errore e la memoria non funziona.
-6. Se il server ha RAM da spendere (≥32 GB liberi), scarica anche il modello della riflessione
-   notturna: `ollama pull qwen3:30b-a3b` (~18 GB). È un **MoE**: ha 30 miliardi di parametri ma ne
-   attiva ~3 per token, quindi su CPU va a una velocità sensata, che un modello denso della stessa
-   taglia non avrebbe. Il sogno gira alle 02:30 e non ha fretta, ma "non ha fretta" non vuol dire
-   "può metterci sei ore".
-7. Verifica cosa c'è: `ollama list` → devi vedere entrambi.
-8. Prova dalla shell di soul: `curl -s http://<HOST_OLLAMA>:11434/api/tags` → deve elencare
-   `nomic-embed-text`.
-
-### 2.3-quater · ollama-gpu (il nodo con la scheda video, ADR-123)
-
-Solo se hai fatto §0.2-bis. Non è una risorsa di Coolify: è una macchina a parte, e a soul si dice
-soltanto dove trovarla.
-
-1. Sul nodo GPU scarica i modelli che ci devono girare:
-   `ollama pull <il-tuo-modello-vision>` (per esempio `qwen2.5vl:7b` o `moondream`) e, se vuoi che
-   anche l'iniziativa e la chat di casa girino lì, il modello di testo che usi già.
-2. In `soul-api` → **Environment Variables** aggiungi
-   `OLLAMA_GPU_URL=http://<TAILSCALE_IP_GPU>:11434`. **Lascia `OLLAMA_URL` com'è**: continua a
-   servire, ed è lì che restano gli embeddings.
-3. Redeploy di `soul-api`. Verifica: `curl -s http://<TAILSCALE_IP>:3000/health | jq .checks` →
-   deve comparire `"ollamaGpu": "ok"`. Se leggi `"off"` la variabile non è arrivata; se leggi
-   `"error"` la macchina o la tailnet non rispondono.
-4. Nel pannello, **Sommario** → la riga «nodo GPU» dice la stessa cosa a parole.
-
-> **Cosa ci va e cosa no**: il modello vision, il testo locale e l'anello di casa della catena di
-> chat. **Gli embeddings restano sulla macchina di casa, sempre** — sono l'unico pezzo che *si
-> ferma* invece di degradare quando il modello non risponde, e metterli di là vorrebbe dire che la
-> tailnet giù = i ricordi non si scrivono (ADR-123 §3). Non provare a "uniformare": c'è un test che
-> lo impedisce.
+> Il nodo GPU di ADR-123 (§0.2-bis) non ha più niente da fare per UGO: è superato da ADR-131.
 
 ### 2.3-bis · percezione (riconoscimento, dettatura, voce di casa, lettura)
 
@@ -226,7 +190,7 @@ restano in coda e si riprovano la notte dopo.
 2. **Nessun dominio e nessuna porta pubblicata.** Parla solo con soul e coi job, sulla rete
    interna: un servizio che dice chi sei non deve essere raggiungibile da fuori. Deve stare
    sulla **stessa rete Docker** di soul e jobs (in Coolify: stesso «network» delle altre
-   risorse, come postgres e ollama).
+   risorse, come postgres).
 3. **Volume persistente su `/models`**, scrivibile. In Coolify: **Storages → + Add → Volume**,
    Destination Path `/models` (il nome lo genera lui, la Source Path resta vuota). È l'unica
    cosa da ricordare: il container si scarica i pesi da solo al primo avvio e li verifica;
@@ -340,8 +304,10 @@ container più economico dell'installazione.
 4. Variabili d'ambiente (tutte come **Secret** dove sensibili), riferite a `.env.example`:
    `DATABASE_URL=postgres://ugo:<POSTGRES_PASSWORD>@<HOST_POSTGRES>:5432/ugo` ·
    `MQTT_URL` · `MQTT_USER` · `MQTT_PASS` (**lasciale vuote**: servono solo col Nano 33, §2.2) ·
-   `OLLAMA_URL=http://<HOST_OLLAMA>:11434` · `OLLAMA_EMBED_MODEL=nomic-embed-text` ·
-   `OPENROUTER_API_KEY=<OPENROUTER_API_KEY>` (ADR-125: l'unico fornitore a pagamento, chat e voce) ·
+   `OPENROUTER_API_KEY=<OPENROUTER_API_KEY>` (ADR-125/131: l'unico fornitore di modelli. **Copiala
+   dalla pagina delle chiavi di OpenRouter e scrivila senza passare da note o chat**: il 2026-11-09
+   un carattere invisibile in coda ha fermato tutto. Soul toglie gli invisibili ai bordi e si rifiuta
+   di partire se ne trova dentro la chiave) ·
    `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY=<UGO_DATA_KEY>` ·
    `UGO_INTERNAL_TOKEN=<UGO_INTERNAL_TOKEN>` · `NODE_ENV=production` · `S3_ENDPOINT=<S3_ENDPOINT>` ·
    `S3_ACCESS_KEY_ID=<S3_ACCESS_KEY>` · `S3_SECRET_ACCESS_KEY=<S3_SECRET_KEY>` · `S3_BUCKET_AUDIO=ugo-audio` ·
@@ -351,8 +317,8 @@ container più economico dell'installazione.
    ricordi ripescati nel prompt, il **modello di casa** guarda se rispondono davvero alla domanda;
    se no UGO dice che non lo sa con parole sue, invece di ricevere cinque ricordi che non c'entrano
    e inventare. Misurato: evita dieci confabulazioni su dieci e costa un «non lo so» ogni dieci
-   risposte vere. `off` torna al comportamento di prima. **Serve un modello di testo su Ollama**
-   (`OLLAMA_CHAT_MODEL` o `OLLAMA_TEXT_MODEL`): senza, il giudice non si accende e non è un errore.
+   risposte vere. `off` torna al comportamento di prima. Il giudice passa da OpenRouter (ADR-131)
+   con un guinzaglio di 2,5 secondi: se non arriva, UGO risponde lo stesso.
    `TZ=Europe/Rome`. Facoltativa (ADR-103): `UGO_LITTER_COST_USD` (quanto costa **un cucciolo**,
    default `0.25`; si paga dal salvadanaio dei genitori e solo dalla terza generazione in poi —
    `0` dichiara «da questa casa si nasce gratis»). Facoltativa: `UGO_SPECIES_MAP` (JSON) solo se il tuo branco ha specie fuori
@@ -360,21 +326,20 @@ container più economico dell'installazione.
    unico varco**: chat (`OPENROUTER_CHAT_MODEL`, default `deepseek/deepseek-v4-flash`) e voce
    (`OPENROUTER_TTS_MODEL`, default `elevenlabs/eleven-v4`) passano tutte da `OPENROUTER_API_KEY`;
    `OPENROUTER_PROVIDERS` è l'elenco ordinato dei fornitori ammessi (default
-   `DeepInfra,Azure,Parasail,DigitalOcean`, nessuno in Cina). La voce di casa fa da soccorso solo
-   **se** la accendi con `UGO_CHAT_HOME_VOICE=on`. **Togli** `ANTHROPIC_API_KEY`,
+   `DeepInfra,Azure,Parasail,DigitalOcean`, nessuno in Cina). **ADR-131 — anche tutto il resto**:
+   `OPENROUTER_EMBED_MODEL` (default `openai/text-embedding-3-small` a 768 dimensioni: **lo stesso
+   sulla risorsa `jobs`**), `OPENROUTER_VISION_MODEL` (default
+   `mistralai/mistral-small-3.2-24b-instruct`), `OPENROUTER_STT_MODEL` (default
+   `openai/gpt-4o-mini-transcribe`). Lasciale vuote per i default. `UGO_RUMINATION` e la nuova
+   `UGO_GLANCES` nascono **spente**: ogni pensiero da fermo e ogni occhiata alla stanza adesso
+   costano ed escono di casa; accendile con `on` se le vuoi. **Togli** `ANTHROPIC_API_KEY`,
    `ANTHROPIC_BASE_URL`, `UGO_CHAT_MODEL`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `UGO_TTS_MODEL`,
    `UGO_TTS_VOICE` e `UGO_CHAT_LOCAL_FIRST` se ci sono ancora: il boot si ferma e ti dice cosa
-   metterci al posto. **Sulla risorsa `jobs`** la stessa `OPENROUTER_API_KEY` sostituisce
-   `ANTHROPIC_API_KEY` (il ripiego del sogno, ADR-001). Il ribaltamento ha una misura dietro: senza GPU il modello di casa teneva la
-   parola fino a 30 secondi per frase e il giudice dell'astensione altri 45, cioè minuti
-   di silenzio sul muso. Facoltative: `UGO_CHAT_LINK_TIMEOUT_MS` (quanto può tenere la
-   parola un anello intermedio, default 12000 ms) e `OLLAMA_CHAT_MODEL` (il modello
-   locale della chat quando la voce di casa è accesa; assente, scala su
-   `OLLAMA_TEXT_MODEL` e poi su `OLLAMA_BATCH_MODEL`). Su ogni anello
-   **chi risponde paga**: ogni anello scrive la sua riga su `budget_ledger` col suo
-   listino (casa a listino nominale ~1% di haiku), quindi i totali dei conti nel
-   pannello includono anche la spesa nominale locale. A salvadanaio vuoto non parla
-   nessun anello: la fame vale anche per la voce di casa. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
+   metterci al posto. **Sulla risorsa `jobs`** serve la stessa `OPENROUTER_API_KEY`: il sogno e gli
+   embedding notturni passano da lì. Ogni chiamata — anche un embedding o una dettatura — scrive
+   la sua riga su `budget_ledger`; il tetto del giorno ferma chat, testo e foto, non gli embedding
+   e la dettatura (costano un millesimo di un turno, e fermarli romperebbe la risposta dichiarata
+   «ho finito le parole»). A salvadanaio vuoto non parla. (I nomi `<HOST_*>` sono i nomi dei container sulla rete `ugo-backend`: li leggi
    nella pagina di ogni risorsa.)
    **Se farai il libro genealogico (§2.6-bis)**, aggiungi qui anche:
    `UGO_REGISTRY_URL=http://<HOST_REGISTRY>:3100` · `UGO_REGISTRY_TOKEN=<UGO_REGISTRY_TOKEN>`
@@ -414,7 +379,7 @@ Facoltativo: senza, soul resta raggiungibile solo dalla tailnet (§0) e non camb
    server Coolify.
 2. **Dominio sulla risorsa soul-api**: in Coolify → soul-api → *Domains* = `https://ugo.omeganodes.ai`.
    Coolify (Traefik) chiede il certificato Let's Encrypt da solo; la porta interna resta 3000.
-   Nessun'altra risorsa di UGO prende un dominio (Postgres, Ollama, percezione restano privati).
+   Nessun'altra risorsa di UGO prende un dominio (Postgres e percezione restano privati).
 3. **Variabili nuove su soul-api**:
    - `UGO_PUBLIC_URL=https://ugo.omeganodes.ai` — accende HSTS, chiude il CORS su questa origine.
    - `UGO_TRUST_PROXY=1` — davanti c'è un solo proxy (Traefik): il limite sui tentativi conta l'IP vero.
@@ -443,8 +408,9 @@ Facoltativo: senza, soul resta raggiungibile solo dalla tailnet (§0) e non camb
 1. Tipo: **Application → Dockerfile**. Stesso repo, Dockerfile: `ops/docker/jobs.Dockerfile`.
    Vale anche qui, e per le stesse ragioni, la regola del §2.4.3: **Available at Buildtime spenta
    su tutte le variabili**. Nessuna serve a build time, e questa risorsa maneggia `UGO_DATA_KEY`.
-2. Variabili: `DATABASE_URL` (come soul) · `OLLAMA_URL` · `OLLAMA_EMBED_MODEL=nomic-embed-text` ·
-   `OLLAMA_BATCH_MODEL` (**lascialo vuoto**, vedi sotto) · `UGO_DATA_KEY=<UGO_DATA_KEY>` · `S3_ENDPOINT` ·
+2. Variabili: `DATABASE_URL` (come soul) · `OPENROUTER_API_KEY` (la stessa di soul, ADR-131) ·
+   `OPENROUTER_EMBED_MODEL` (vuota = `openai/text-embedding-3-small`; **deve essere uguale a quella
+   di soul**) · `UGO_DATA_KEY=<UGO_DATA_KEY>` · `S3_ENDPOINT` ·
    `S3_ACCESS_KEY` · `S3_SECRET_KEY` · `S3_BUCKET_AUDIO=ugo-audio` · `S3_BUCKET_BACKUP=ugo-backup` ·
    `UGO_WHISPER_MODEL=large-v3` · `UGO_AUDIO_RETENTION_DAYS=90` · `TZ=Europe/Rome` ·
    `UGO_DREAM_AT=02:30` (facoltativa: è già il default).
@@ -458,16 +424,10 @@ Facoltativo: senza, soul resta raggiungibile solo dalla tailnet (§0) e non camb
    quel percorso: i cloni dei repo dei clienti vivono lì e non nell'immagine (ADR-054); senza
    volume, ogni redeploy riparte da un clone completo. È lo stesso thread del sogno, a cadenza
    propria: non aggiungere una risorsa né una Scheduled Task.
-3. **Chi fa la riflessione notturna.** Ogni notte UGO rilegge la giornata e ne ricava ricordi, diario
-   e desideri. Serve un modello linguistico, e hai due strade:
-   - **`OLLAMA_BATCH_MODEL=qwen3:30b-a3b`** (scaricato al §2.3) → la riflessione è **gratis** e non
-     esce dal nostro ferro: la parte più intima della giornata — cosa ha capito, cosa si è segnato —
-     non passa da nessuna API. Vuole ~24 GB di RAM per Ollama. **Se hai la RAM, è questa.**
-   - **`OLLAMA_BATCH_MODEL` vuoto** → usa l'API Anthropic in batch (metà prezzo), passando dal
-     salvadanaio come tutto il resto. Pochi centesimi a notte, niente da scaricare.
-   In entrambi i casi la rete di sicurezza c'è: se il modello locale non risponde, il sogno passa
-   all'API da solo e la notte non salta. È una variabile d'ambiente, non una decisione strutturale:
-   puoi cambiare idea quando vuoi.
+3. **Chi fa la riflessione notturna.** Ogni notte UGO rilegge la giornata e ne ricava ricordi,
+   diario e desideri. Da ADR-131 lo fa il modello di chat via OpenRouter, passando dal salvadanaio
+   come tutto il resto: pochi centesimi a notte, niente da scaricare. A tetto del giorno esaurito i
+   passi che chiamano il modello si fermano e riprovano la notte dopo.
 4. **Non serve nessuna Scheduled Task.** Il container si sveglia da solo alle 02:30 del fuso che
    gli hai dato in `TZ`. Se vuoi un'altra ora, imposta `UGO_DREAM_AT=03:15` — formato `HH:MM`, e un
    valore che non si legge blocca l'avvio invece di essere ignorato.
@@ -584,10 +544,10 @@ rotte `/v1/reception/*` non vengono nemmeno registrate, e la superficie pubblica
    e hai appena messo su Internet la cosa che ADR-051 tiene fuori. Il container non le legge
    nemmeno: il suo unico segreto è il token di servizio verso soul.
 5. **La rete, e cosa Coolify non sa fare da solo.** In compose la reception sta su `reception-net`,
-   una rete dedicata dove ci sono solo lei e soul: Postgres, Ollama e Mosquitto le restano
+   una rete dedicata dove ci sono solo lei e soul: Postgres e Mosquitto le restano
    irraggiungibili anche da compromessa. Su Coolify hai due strade, e la differenza va detta:
    - **semplice** — spunta **Connect To Predefined Network** come le altre risorse. Funziona
-     subito, ma la reception si trova sulla stessa rete di Postgres e Ollama: la segregazione di
+     subito, ma la reception si trova sulla stessa rete di Postgres: la segregazione di
      rete di ADR-051 **non è riprodotta**. Resta comunque vero che non ha credenziali per nessuno
      dei due, che Postgres chiede una password che lei non ha, e che nessuna delle loro porte è
      pubblicata sull'host. È il compromesso accettabile per partire;
@@ -683,7 +643,7 @@ si aggiunge la sua sezione a §2 con lo stesso ordine.
 Esegui dalla tailnet (sostituisci `<TAILSCALE_IP>`):
 
 1. `curl -s http://<TAILSCALE_IP>:3000/health` → atteso:
-   `{"status":"ok","checks":{"db":"ok","mqtt":"off","ollama":"ok","perception":"off"}}`.
+   `{"status":"ok","checks":{"db":"ok","mqtt":"off","perception":"off"}}`.
    I due `"off"` sono **corretti e diversi da un guasto**: significano non configurato — il
    Nano 33 è accantonato (§2.2) e la percezione è opzionale (§2.3-bis). Se hai fatto §2.3-bis
    ti aspetti `"perception":"ok"`; se leggi `"error"` il container c'è e non risponde, e la
@@ -821,7 +781,7 @@ cache dei prompt, quanti ricordi ha e quando ha sognato l'ultima volta. Se *risp
 zero dopo diverse conversazioni, il prefisso cached si sta invalidando: è la cosa da indagare prima
 di qualunque altra, perché è la differenza tra pochi euro al mese e un ordine di grandezza in più.
 
-Sotto, i semafori di **db**, **mqtt**, **ollama** e **percezione**: verde tutto a posto, giallo degrada
+Sotto, i semafori di **db**, **mqtt** e **percezione**: verde tutto a posto, giallo degrada
 ma vive, rosso guarda i log della risorsa. «Non configurato» non è un guasto — è una scelta. Sono gli
 stessi controlli di `/health`, senza doverli interrogare a mano.
 
@@ -1062,34 +1022,19 @@ La strada lunga, che resta valida da una shell senza pannello:
 3. Ricorda sempre il terzo posto: `.env.example` e il foglio dei valori (§9) servono al TE del
    prossimo deploy, non a questo.
 
-### «Ho preso il nodo GPU e va tutto come prima»
-
-Prima domanda, e nel 90% dei casi è finita lì: `curl -s http://<TAILSCALE_IP>:3000/health | jq
-.checks.ollamaGpu`.
-
-- `"off"` → **`OLLAMA_GPU_URL` non è arrivata a soul.** Aggiungila in *soul-api* → Environment
-  Variables e **redeploy**: le variabili si leggono all'avvio. È lo stesso equivoco della voce qui
-  sopra, e si distingue allo stesso modo.
-- `"error"` → la variabile c'è e la macchina non risponde. Nell'ordine: il nodo GPU è acceso?
-  `tailscale status` da casa lo vede? `curl http://<TAILSCALE_IP_GPU>:11434/api/tags` **dalla
-  macchina di casa** risponde? Se l'ultima fallisce ma le prime due no, quasi sempre `OLLAMA_HOST`
-  sul nodo è rimasto su `127.0.0.1` e Ollama ascolta solo sé stesso (§0.2-bis punto 3).
-- `"ok"` → il nodo c'è e risponde, ma **il modello che serve non è stato scaricato lì**. Un modello
-  assente non è un errore per Ollama, è un 404 su quella richiesta: il vision degrada in silenzio e
-  UGO dice che non riesce a vedere. `ollama list` **sul nodo GPU** deve contenere il valore di
-  `OLLAMA_VISION_MODEL`.
-
-E la cosa che non è un guasto: gli **embeddings restano lenti come prima**, perché girano ancora
-sulla macchina di casa e ci restano per scelta (ADR-123 §3). Se la memoria è lenta, il rimedio è
-un'altra cosa, non questo.
-
 ### UGO sente ma non risponde
 
 Le orecchie che si muovono sono una reazione **locale** della faccia al rumore: dimostrano che il
 microfono funziona, non che UGO abbia capito o risposto. Per capire dove si ferma, in ordine:
 
-1. **`/health`** dal browser: se `ollama` è `error`, la chat non può funzionare — gli embeddings
-   servono a ogni messaggio. Rimetti in piedi Ollama (§2.3) e riprova.
+1. **I log di `soul-api`** mentre gli parli (o il registro «Cosa è stato detto» sul muso, che ora
+   scrive il codice d'errore vero). Le due cause viste in produzione il 2026-11-09:
+   - `Cannot convert argument to a ByteString … value of 8232` → la `OPENROUTER_API_KEY` ha un
+     carattere invisibile incollato. Riscrivila copiandola dalla pagina delle chiavi di OpenRouter.
+     Dalla versione con ADR-131 soul toglie da solo gli invisibili ai bordi e non parte se ne trova
+     dentro la chiave, dicendo quale variabile.
+   - `LLM provider error (status 401)` → OpenRouter non riconosce la chiave: sbagliata, troncata o
+     revocata. Creane una nuova su openrouter.ai → Keys. (Con `402` invece sono finiti i crediti.)
 2. **`/debug/chat`**: una pagina dove si scrive invece di parlare. Se qui UGO risponde, il problema
    è il riconoscimento vocale del browser e non il server; se non risponde nemmeno qui, guarda i log
    di `soul-api` mentre premi Invio.
@@ -1143,10 +1088,10 @@ docker exec -it <NOME_CONTAINER_POSTGRES> psql -U ugo -d ugo -c 'select version(
 > Se il messaggio è ancora il vecchio `pg_dump failed (exit 1)` **senza spiegazione**, stai girando
 > un'immagine precedente: fai il redeploy di `jobs` e riprova.
 
-### Ollama non risponde o il sogno fallisce in riflessione
-RAM insufficiente per il modello batch: nei log di ollama compare `out of memory` o il container
-viene ucciso (OOMKilled). Alza `<OLLAMA_RAM_LIMIT>` o scegli un MoE più piccolo; gli embeddings da
-soli richiedono pochissimo.
+### Il sogno fallisce in riflessione
+Da ADR-131 la riflessione passa da OpenRouter: guarda i log di `jobs` per lo status. `401` = chiave
+sbagliata sulla risorsa `jobs` (è una variabile sua, non quella di soul); tetto del giorno esaurito =
+non è un guasto, riprova la notte dopo.
 
 ### soul non parte e nei log c'è `UGO_INTERNAL_TOKEN is required`
 Con `NODE_ENV=production` il token è obbligatorio: soul si rifiuta di esporre oblio, export,
@@ -1431,7 +1376,7 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 | `<IP_HETZNER>` | l'IP pubblico del server: serve **solo** per il primo SSH, prima di Tailscale |
 | `<NOME_SERVER>` `<NOME_TAILNET>` | li stampa `sudo tailscale serve status` (§10.1): compongono `https://<NOME_SERVER>.<NOME_TAILNET>.ts.net`, l'indirizzo di UGO dal telefono |
 | `<UTENTE>` | l'utente SSH che usi già (spesso `root`) |
-| `<HOST_POSTGRES>` `<HOST_OLLAMA>` | il nome **del container**, non dello stack: `docker ps --format '{{.Names}}'` sul server |
+| `<HOST_POSTGRES>` | il nome **del container**, non dello stack: `docker ps --format '{{.Names}}'` sul server |
 | `<CONTAINER_POSTGRES>` | `docker ps` sul server, per i comandi `psql` di verifica |
 | `<REPO_URL>` | l'URL del repo Git di UGO |
 
@@ -1449,10 +1394,8 @@ adesso; quelli che si leggono dopo, lasciali vuoti e torna a riempirli quando il
 |---|---|
 | `<OWNER_NAME>` | come UGO chiama casa tua |
 | `<DOMINIO_RECEPTION>` | il dominio dei tuoi clienti, es. `reception.tuostudio.it` — record A verso `<IP_HETZNER>`. **L'unico dominio pubblico dell'installazione** (§2.7); vuoto se non fai la reception |
-| `<OLLAMA_RAM_LIMIT>` | 4 GB se Ollama fa solo embeddings; **24 GB** se ci gira anche il MoE del sogno |
 | `<HOST_SEARXNG>` | il nome della risorsa searxng, se fai la finestra sul mondo (§2.3-ter); vuoto se non la fai |
 | `<HOST_PERCEZIONE>` | il nome della risorsa percezione, se accendi volto/voce (§2.3-bis) |
-| `<OLLAMA_BATCH_MODEL>` | `qwen3:30b-a3b` se hai ≥32 GB di RAM libera, altrimenti vuoto (§2.5) |
 | `<IP_LAN_IOT>` | l'IP su cui esporre MQTT, solo se userai il Nano 33 |
 
 I segnaposto rimanenti (`<DATA>`, `<DATA_PERSA>`, `<IERI>`) sono date che scriverai al momento, nel

@@ -11,7 +11,6 @@ import { appDatabaseUrl, audioStorageFromEnv, soulEnvSchema } from "./env.js";
 
 const base = {
   DATABASE_URL: "postgres://u:p@db:5432/ugo",
-  OLLAMA_URL: "http://ollama:11434",
   OPENROUTER_API_KEY: "k",
   UGO_DATA_KEY: "x".repeat(44),
 };
@@ -204,5 +203,36 @@ describe("il telefono (ADR-128)", () => {
       UGO_PHONE_ACCOUNT_ID: account,
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("segreti che finiscono in un header (2026-11-09: U+2028 in coda alla chiave)", () => {
+  it("toglie gli invisibili ai bordi: la chiave incollata funziona", () => {
+    const env = parse({ OPENROUTER_API_KEY: "sk-or-v1-abc ", UGO_INTERNAL_TOKEN: " tok\n" });
+    expect(env.OPENROUTER_API_KEY).toBe("sk-or-v1-abc");
+    expect(env.UGO_INTERNAL_TOKEN).toBe("tok");
+  });
+
+  it("ferma il boot se l'invisibile sta DENTRO la chiave, senza ripeterne il valore", () => {
+    const result = soulEnvSchema.safeParse({ ...base, OPENROUTER_API_KEY: "sk-or v1-abc" });
+    expect(result.success).toBe(false);
+    const issue = result.error?.issues[0];
+    expect(issue?.path).toEqual(["OPENROUTER_API_KEY"]);
+    expect(issue?.message).toContain("carattere invisibile");
+    expect(issue?.message).not.toContain("sk-or");
+  });
+
+  it("una chiave fatta solo di spazi è una chiave mancante", () => {
+    expect(soulEnvSchema.safeParse({ ...base, OPENROUTER_API_KEY: "   " }).success).toBe(false);
+  });
+
+  it("i segreti facoltativi vuoti restano assenti", () => {
+    expect(parse({ RESEND_API_KEY: "" }).RESEND_API_KEY).toBeUndefined();
+  });
+});
+
+describe("OPENROUTER_VISION_MODEL (ADR-131)", () => {
+  it("ha un default servito dai fornitori dichiarati", () => {
+    expect(parse({}).OPENROUTER_VISION_MODEL).toBe("mistralai/mistral-small-3.2-24b-instruct");
   });
 });

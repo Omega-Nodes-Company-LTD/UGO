@@ -79,7 +79,7 @@ export function registerDowryRoutes(app: FastifyInstance, deps: DowryRoutesDeps)
   app.post("/v1/dowries/adopt", { preHandler: deps.guard }, async (request, reply) => {
     const parsed = adoptSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: "invalid body" });
-    // l'embedder chiama Ollama: sta DENTRO adopt, quindi la transazione lo
+    // l'embedder chiama OpenRouter: sta DENTRO adopt, quindi la transazione lo
     // attraversa — accettato per ora: è una chiamata locale con timeout, e
     // spezzarla vorrebbe dire spezzare l'atomicita' dell'adozione
     const adopted = await inAccount(

@@ -66,21 +66,10 @@ export function catalogue(deps: DiagnosticsDeps): Spec[] {
       hint: "Credenziali o file passwd: `ops/docker/mosquitto/generate-passwd.sh`, poi riavvia il broker.",
     },
     {
-      id: "ollama",
-      label: "I modelli in casa",
-      container: "ollama",
-      what: "embedding per ripescare i ricordi, e testo locale (consiglio, riflessione notturna)",
-      weight: "supporting",
-      probe: () => httpProbe(deps.ollama.url, "/api/version", { read: versionOf }),
-      hint:
-        "Se è lento, il modello non è caldo e la prima richiesta lo carica da disco — sono le decine di " +
-        "secondi che sembrano lentezza della creatura. Tienilo residente (OLLAMA_KEEP_ALIVE) o prendine uno più piccolo.",
-    },
-    {
       id: "percezione",
       label: "Volto, voce, dettatura",
       container: "percezione",
-      what: "riconosce chi parla e chi si vede, detta con whisper, legge con l'OCR, parla con Piper",
+      what: "riconosce chi parla e chi si vede, legge con l'OCR, parla con Piper (la dettatura passa da OpenRouter, ADR-131)",
       weight: "supporting",
       ...(perceptionUrl === undefined
         ? {
@@ -178,8 +167,3 @@ export function catalogue(deps: DiagnosticsDeps): Spec[] {
     },
   ];
 }
-
-const versionOf = (body: unknown): string | undefined => {
-  const version = (body as { version?: unknown } | null)?.version;
-  return typeof version === "string" ? `versione ${version}` : undefined;
-};

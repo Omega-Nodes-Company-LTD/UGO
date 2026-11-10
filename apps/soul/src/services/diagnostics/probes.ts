@@ -158,27 +158,3 @@ export async function probeEventLoop(): Promise<number> {
   return Math.round(performance.now() - started);
 }
 
-/**
- * I modelli che Ollama tiene DAVVERO in memoria adesso.
- *
- * È la differenza fra «rispondo in due secondi» e «rispondo in cinquanta»:
- * un modello non residente va caricato da disco alla prima richiesta, e quel
- * caricamento è il minuto che una persona attribuisce alla creatura. Lo si
- * scopre solo chiedendolo, e fino a oggi non lo chiedeva nessuno.
- */
-export async function probeOllamaResident(
-  baseUrl: string,
-  thresholds = DEFAULT_THRESHOLDS,
-): Promise<string[]> {
-  try {
-    const response = await fetch(new URL("/api/ps", baseUrl), {
-      signal: AbortSignal.timeout(thresholds.timeoutMs),
-    });
-    if (!response.ok) return [];
-    const body: unknown = await response.json();
-    const models = (body as { models?: { name?: string }[] } | null)?.models ?? [];
-    return models.map((m) => m.name).filter((name): name is string => typeof name === "string");
-  } catch {
-    return [];
-  }
-}

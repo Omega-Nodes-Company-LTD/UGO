@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.83.0"
-last_updated: "2026-11-09"
+version: "0.84.0"
+last_updated: "2026-11-10"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -19,6 +19,25 @@ reale. ADR-012 e ADR-013 **accettati e implementati**; runbook di deploy pronto 
 [`OPS_COOLIFY.md`](./OPS_COOLIFY.md) (mancano solo i valori dei placeholder). Col device/server: validazioni on-device (Fase 2/4), deploy
 Vexa + Meet di prova (Fase 5), gusci (Fase 6 — il proprietario ha design da una sessione chat
 precedente, da integrare in `hardware/shell/`). Firmware Arduino accantonato (decisione proprietario).
+
+**Fatto (2026-11-10): tutto su OpenRouter, Ollama non esiste più (ADR-131)** — nato da un guasto in
+produzione: `ugo.omeganodes.ai` rispondeva, ma foto, voce e testo morivano tutti. Due cause, una
+sopra l'altra: (1) la `OPENROUTER_API_KEY` su Coolify aveva U+2028 incollato in coda («Cannot
+convert argument to a ByteString … 8232», poi 401 con una chiave sbagliata); (2) soul chiamava
+ancora Ollama per gli embedding a ogni turno, e Ollama in produzione non c'è. Direttiva del
+proprietario: **tutto su OpenRouter**. Fatto: `LlmClient` guadagna `generate()` e `describeImage()`
+(stessa coda, tetto, salvadanaio, riga sul registro); nuovi `OpenRouterTextClient`,
+`OpenRouterVisionClient`, `OpenRouterEmbeddingsClient` (`openai/text-embedding-3-small` a 768d,
+schema invariato), `OpenRouterSttClient` (`gpt-4o-mini-transcribe`, PCM→WAV puro); `ledger.ts`
+con `readUsage` puro; cancellati i client Ollama e `ChatChain`; `/health` e diagnostica senza
+Ollama; `UGO_RUMINATION` e la nuova `UGO_GLANCES` nascono spente (ora costano ed escono);
+segreti-header ripuliti ai bordi e rifiutati al boot se contengono invisibili. Job Python portati
+su OpenRouter (embedding + sogno). Giro regola 12: **BO** memory + soul + `ops/jobs` + test
+d'integrazione; **`/admin`** semafori di salute senza «modelli in casa», capacità senza nodo GPU
+e con «occhiate»; **FE** casella **«scrivigli…»** (manda `heard_text` sul socket, stessa porta
+della voce — nessun contratto nuovo) e l'errore della foto col codice vero invece di «soul non
+risponde». **Il muso va ricostruito**: arriva col redeploy di soul. Limiti dichiarati in ADR-131:
+dettatura senza ZDR (OpenAI), testo/occhiate pagati dall'esemplare d'avvio, tre code per esemplare.
 
 **Fatta: la reception (gruppo 8 del backlog, ADR-051…055)** — UGO assistente ticket per i
 clienti dello studio: suite pubblica isolata (`apps/reception`, Next.js voice-first, container

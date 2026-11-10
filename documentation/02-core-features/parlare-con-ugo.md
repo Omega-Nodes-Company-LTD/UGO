@@ -1,8 +1,8 @@
 ---
 title: "Parlare con UGO"
 description: "Come funziona una conversazione: la voce, la memoria che resta, l'umore che cambia e il budget giornaliero."
-version: "0.13.0"
-last_updated: "2026-11-09"
+version: "0.14.0"
+last_updated: "2026-11-10"
 author: "ThinkPink Studio"
 ---
 
@@ -25,6 +25,13 @@ prima. Per questo la stessa domanda, fatta in due giorni diversi, può avere due
 
 Se il telefono non ti sente, torna a [Primo avvio](../01-getting-started/primo-avvio.md) e controlla
 di avere concesso il permesso al microfono.
+
+### Scrivergli
+
+Se non puoi parlare — in ufficio, di notte, o senza microfono — **scrivigli**. Apri i comandi in
+basso: sotto «Sensi» c'è la casella **scrivigli…**. Scrivi e premi **Invia** (o Invio sulla
+tastiera). Quello che scrivi è per lui: non serve chiamarlo per nome, e ti risponde come se
+gliel'avessi detto, a voce e per iscritto. Lo trovi anche nel registro «Cosa è stato detto».
 
 ### La sua voce
 
@@ -186,9 +193,11 @@ le cose, non un telecomando che le esegue.
 ## Fargli vedere una foto
 
 Tocca **📷** in basso e scegli una foto dal telefono: UGO la guarda e la commenta. La foto
-viene rimpicciolita sul tuo dispositivo, la «vede» il modello di casa, e **non esce mai
-verso servizi esterni né viene salvata**: resta solo il suo commento nella conversazione.
-Se il server di casa non ha gli occhi accesi, te lo dice invece di inventare.
+viene rimpicciolita sul tuo dispositivo e la «vede» un modello attraverso **OpenRouter**, con
+la richiesta di non conservarla e non usarla per addestramento; **non viene salvata**: resta
+solo il suo commento nella conversazione. Costa poco, e passa dal budget della giornata. Se il
+modello non risponde, te lo dice invece di inventare. Se qualcosa va storto, nel registro «Cosa
+è stato detto» compare il codice dell'errore, che è la prima cosa da guardare.
 
 ## L'umore
 
@@ -341,9 +350,8 @@ domande che gli fai tornare.
 - **«raccontami una storia sul mare»** — se il tema lo dici, parla di quello.
 
 È l'unica cosa che UGO **inventa** invece di ricordare, e per questo è l'unica che ha bisogno
-di un modello. La scrive quello **che gira in casa tua**, non quello a pagamento: una favola
-ogni sera si mangerebbe il budget della giornata in una settimana, e non deve essere il gesto
-per addormentarsi a lasciarlo senza parole.
+di un modello. Come ogni altra parola, passa da **OpenRouter** e dal budget della giornata:
+una favola costa qualche decimillesimo di dollaro, e se il budget è finito te lo dice.
 
 La racconta **lui**, col suo carattere, e spesso comincia da com'è andata la giornata — se ha
 piovuto, nella storia può piovere. La senti a voce come ogni altra cosa che dice.

@@ -135,10 +135,9 @@ async function loadHealth() {
   const res = await fetch("/health");
   const body = await res.json();
   const WORD = { ok: "risponde", degraded: "arranca", error: "non risponde", off: "non configurato" };
-  // i nomi dei controlli sono chiavi tecniche: chi guarda il pannello non
-  // deve dedurre da «ollamaGpu» che c'è una seconda macchina (ADR-123)
-  const CHECK_NAME = { db: "database", mqtt: "broker", ollama: "modelli in casa",
-    ollamaGpu: "nodo GPU", perception: "percezione" };
+  // i nomi dei controlli sono chiavi tecniche, chi guarda il pannello no
+  // (ADR-131: i modelli stanno su OpenRouter, non c'è più niente «in casa»)
+  const CHECK_NAME = { db: "database", mqtt: "broker", perception: "percezione" };
   const MARK = { ok: "●", degraded: "▲", error: "■", off: "○" };
   // status never rides on colour alone: a word AND a shape travel with it
   $("health").innerHTML = Object.entries(body.checks ?? {}).map(([name, state]) =>

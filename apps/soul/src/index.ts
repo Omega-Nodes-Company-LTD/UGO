@@ -2,9 +2,13 @@ import { resolve } from "node:path";
 import { createDbClient, createScopedDbClient, gosini, accounts, runMigrations, traitSets, type DbClient } from "@ugo/db";
 import { asc, desc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE } from "@ugo/prompts";
-import { LlmClient, ChatChain, type ChatLlm, OllamaEmbeddingsClient,
-  OllamaTextClient,
-  OllamaVisionClient,
+import {
+  LlmClient,
+  type ChatLlm,
+  OpenRouterEmbeddingsClient,
+  OpenRouterSttClient,
+  OpenRouterTextClient,
+  OpenRouterVisionClient,
   OpenRouterTtsClient,
 } from "@ugo/memory";
 import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
@@ -134,75 +138,72 @@ const psyche = await PsycheService.restore(dbFor(bootstrapAccountId), new Date()
 // ADR-050: l'orologio e la lingua arrivano dalla CASA. `env.TZ` resta il
 // ripiego per l'apparato di avvio, che nasce prima che una casa sia risolta.
 /**
- * ADR-094/095: la catena — casa (Ollama), poi OpenRouter se c'è la chiave,
- * poi Anthropic. Ogni anello che risponde scrive la sua riga sul ledger col
- * suo listino, e il metabolismo gira su tutti: anche la voce di casa mangia,
- * a listino nominale. I muri (tetto, salvadanaio) stanno all'ingresso della
- * catena. Il modello locale: `OLLAMA_CHAT_MODEL`, o quello del testo
- * dell'iniziativa, o quello del sogno — la casa ne ha sempre almeno uno.
- */
-/**
- * ADR-123: dove girano i modelli che vale la pena mettere su una GPU.
+ * ADR-131: ogni modello passa da OpenRouter, dietro l'unico varco (regola 3):
+ * `LlmClient` col tetto della casa, il salvadanaio e la riga sul registro.
+ * Ollama non esiste più — niente catena, niente voce di casa, niente sonde.
  *
- * Una sola costante, e passa **solo** al vision, al testo locale e all'anello
- * Ollama della catena di chat. Gli embedding restano su `OLLAMA_URL` per
- * scelta: sono l'unico client locale che lancia invece di degradare, e una
- * seconda macchina in mezzo li renderebbe una dipendenza dura.
- *
- * Senza `OLLAMA_GPU_URL` questa riga vale `env.OLLAMA_URL` e il sistema è
- * identico a com'era.
+ * Il logger è pigro, e non è un vezzo: questi client nascono al bootstrap,
+ * PRIMA che `app` esista — toccare app.log qui era una TDZ che uccideva il
+ * boot vero.
  */
-const gpuUrl = env.OLLAMA_GPU_URL ?? env.OLLAMA_URL;
-
-const localChatModel = env.OLLAMA_CHAT_MODEL ?? env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL;
-const llmFor = (
+const providerLog = {
+  warn: (o: Record<string, unknown>, m: string): void => {
+    app.log.warn(o, m);
+  },
+};
+const openRouterFor = (
   accountId: string,
   gosinoId: string,
+  model: string,
   clock: HouseClock = { timezone: env.TZ, locale: DEFAULT_LOCALE },
-): ChatLlm => {
-  const homeVoice = env.UGO_CHAT_HOME_VOICE === "on";
-  const remote = new LlmClient({
+  timeoutMs?: number,
+): LlmClient =>
+  new LlmClient({
     // ADR-098: il muro del budget legge il ledger DELLA casa — sulla
     // connessione nuda, sotto ugo_app, vedrebbe zero e non morderebbe mai
     db: dbFor(accountId),
     apiKey: env.OPENROUTER_API_KEY,
-    model: env.OPENROUTER_CHAT_MODEL,
+    model,
     providers: env.OPENROUTER_PROVIDERS,
     dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD,
     accountId,
     gosinoId,
     timezone: clock.timezone,
     locale: clock.locale,
-    // con un soccorso dietro, OpenRouter ha il tetto di un anello (ADR-124)
-    ...(homeVoice && { timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS }),
+    logger: providerLog,
+    ...(timeoutMs !== undefined && { timeoutMs }),
   });
-  /**
-   * ADR-125: OpenRouter risponde sempre per primo. La catena si monta solo se
-   * la casa ha acceso la voce di casa, che fa da soccorso quando OpenRouter
-   * non risponde; senza, è il client nudo — un anello in meno, un'attesa in meno.
-   */
-  if (!homeVoice) return remote;
-  return new ChatChain({
+const llmFor = (accountId: string, gosinoId: string, clock?: HouseClock): ChatLlm =>
+  openRouterFor(accountId, gosinoId, env.OPENROUTER_CHAT_MODEL, clock);
+/**
+ * Il «modello di casa» di prima (iniziativa, ruminazione, cantastorie,
+ * consiglio, giudice): stessa porta, ora su OpenRouter. Si paga dal
+ * salvadanaio dell'esemplare d'avvio — limite dichiarato in ADR-131: oggi la
+ * casa è una, e questi servizi non portano con sé chi li ha chiesti.
+ */
+const textFor = (timeoutMs?: number): OpenRouterTextClient =>
+  new OpenRouterTextClient(
+    openRouterFor(bootstrapAccountId, bootstrapExemplar.id, env.OPENROUTER_CHAT_MODEL, undefined, timeoutMs),
+    providerLog,
+  );
+const localText = textFor();
+const visionFor = (accountId: string, gosinoId: string): OpenRouterVisionClient =>
+  new OpenRouterVisionClient(
+    openRouterFor(accountId, gosinoId, env.OPENROUTER_VISION_MODEL),
+    env.OPENROUTER_VISION_MODEL,
+    providerLog,
+  );
+const localVision = visionFor(bootstrapAccountId, bootstrapExemplar.id);
+const embedderFor = (accountId: string, gosinoId: string): OpenRouterEmbeddingsClient =>
+  new OpenRouterEmbeddingsClient({
     db: dbFor(accountId),
+    apiKey: env.OPENROUTER_API_KEY,
+    model: env.OPENROUTER_EMBED_MODEL,
+    providers: env.OPENROUTER_PROVIDERS,
     accountId,
     gosinoId,
-    timezone: clock.timezone,
-    locale: clock.locale,
-    local: { baseUrl: gpuUrl, model: localChatModel, timeoutMs: env.UGO_CHAT_LINK_TIMEOUT_MS },
-    remote,
-    // pigro, e non e' un vezzo: llmFor gira al bootstrap, PRIMA che `app`
-    // esista — toccare app.log qui era una TDZ che uccideva il boot vero
-    // (l'ha detto l'e2e, non i test d'integrazione, che montano buildServer)
-    logger: {
-      info: (o, m) => {
-        app.log.info(o, m);
-      },
-      warn: (o, m) => {
-        app.log.warn(o, m);
-      },
-    },
+    timezone: env.TZ,
   });
-};
 const speciesMap = loadSpeciesMap(env.UGO_SPECIES_MAP);
 
 // ADR-063: la finestra sul mondo — solo se SearXNG è configurato. Un'istanza
@@ -212,8 +213,8 @@ const web =
     ? undefined
     : new WebWindow({
         searx: new SearxClient({ baseUrl: env.SEARXNG_URL }),
-        local: new OllamaTextClient(gpuUrl, env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL),
-        localUp: () => localTextUp,
+        local: localText,
+        localUp: () => true,
       });
 
 
@@ -241,11 +242,11 @@ const bootstrapPercezione =
         token: env.UGO_INTERNAL_TOKEN,
         accountId: bootstrapAccountId,
       });
-// gruppo 12: gli occhi che raccontano — il modello vision locale, se c'è
-const localVision =
-  env.OLLAMA_VISION_MODEL === undefined
-    ? undefined
-    : new OllamaVisionClient(gpuUrl, env.OLLAMA_VISION_MODEL);
+/** ADR-131: le foto mandate in chat le paga l'esemplare che le guarda */
+const photoVisionFor = (
+  accountId: string,
+  gosinoId: string,
+): { describe: (image: string) => Promise<string | undefined> } => visionFor(accountId, gosinoId);
 // ADR-064: le spinte — il servizio nasce PRIMA di ogni chat (l'apparato di
 // avvio e i runtime lo vogliono fra le dipendenze) e legge il registro al
 // momento del gesto, quando esiste da un pezzo
@@ -275,7 +276,7 @@ const albumService = new AlbumService({
 
 const chat: ChatService = new ChatService({
   db: dbFor(bootstrapAccountId),
-  embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
+  embedder: embedderFor(bootstrapAccountId, bootstrapExemplar.id),
   llm,
   psyche,
   dataKey: parseDataKey(env.UGO_DATA_KEY),
@@ -293,7 +294,7 @@ const chat: ChatService = new ChatService({
   // ADR-121: «ricordati questo», anche per l'apparato di avvio — la rotta
   // /v1/chat parla con QUESTA istanza, e il gesto deve valere da lì come dal
   // chiosco (la lezione di ADR-065, che il lettore l'aveva imparata)
-  ...((bootstrapPercezione !== undefined || localVision !== undefined) && {
+  ...({
     keepsake: new SceneMemory({
       gateway: (): FaceGateway => face,
       db,
@@ -301,16 +302,12 @@ const chat: ChatService = new ChatService({
       ...(bootstrapPercezione !== undefined && {
         ocr: (image: string) => bootstrapPercezione.ocr(image),
       }),
-      ...(localVision !== undefined && {
-        vision: { describe: (image: string) => localVision.describe(image) },
-      }),
-      embedder: new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL),
+      vision: localVision,
+      embedder: embedderFor(bootstrapAccountId, bootstrapExemplar.id),
     }),
   }),
   nudges: { answer: (text, at) => nudges.answer(bootstrapExemplar.id, text, at) },
-  ...(localVision !== undefined && {
-    vision: { describe: (image: string) => localVision.describe(image) },
-  }),
+  vision: photoVisionFor(bootstrapAccountId, bootstrapExemplar.id),
   // ADR-099: la cartolina a voce anche per l'apparato di avvio
   postcards: {
     ties: new TieService(db),
@@ -339,7 +336,7 @@ const face: FaceGateway = new FaceGateway({
   }),
 });
 const dataKey = parseDataKey(env.UGO_DATA_KEY);
-const embedder = new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL);
+const embedder = embedderFor(bootstrapAccountId, bootstrapExemplar.id);
 // ADR-062: fabbriche — l'oblio e l'export girano sulla transazione che ha
 // dichiarato la casa, non sulla connessione nuda del processo
 const privacy = {
@@ -369,55 +366,13 @@ const meetings =
       })
     : undefined;
 
-// ADR-027: initiative. Until now every single thing UGO said was a reply.
-const localText = new OllamaTextClient(
-  gpuUrl,
-  env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
-);
 /**
- * ADR-124 — il guinzaglio del giudice, e perché è una costante con un nome.
- *
- * `localText` nasce con 45 secondi di pazienza, che sono giusti per il sogno,
- * l'iniziativa e il cantastorie: lì nessuno aspetta davanti allo schermo. Il
- * giudice dell'astensione (ADR-107), invece, gira **prima di ogni risposta**
- * — e con quegli stessi 45 secondi erano 45 secondi di silenzio prima ancora
- * di cominciare a comporre. Sommati ai 30 della catena facevano i «minuti
- * interi» arrivati dal campo.
- *
- * Due secondi e mezzo si possono dare perché il giudice **fallisce aperto**:
- * `readVerdict(undefined) === true`, quindi un giudice che non arriva in tempo
- * lascia rispondere invece di far dire «non lo so». ADR-107 resta in piedi;
- * costa meno.
+ * ADR-124 — il guinzaglio del giudice dell'astensione (ADR-107), che gira
+ * **prima di ogni risposta**. Fallisce aperto (`readVerdict(undefined) ===
+ * true`): un giudice che non arriva in tempo lascia rispondere.
  */
 const JUDGE_TIMEOUT_MS = 2_500;
-const judgeText = new OllamaTextClient(
-  gpuUrl,
-  env.OLLAMA_TEXT_MODEL ?? env.OLLAMA_BATCH_MODEL,
-  JUDGE_TIMEOUT_MS,
-);
-let localTextUp = false;
-let localVisionUp = false;
-const probeLocal = (): void => {
-  localText
-    .available()
-    .then((up) => {
-      localTextUp = up;
-    })
-    .catch(() => {
-      localTextUp = false;
-    });
-  localVision
-    ?.available()
-    .then((up) => {
-      localVisionUp = up;
-    })
-    .catch(() => {
-      localVisionUp = false;
-    });
-};
-probeLocal();
-const localProbeTimer = setInterval(probeLocal, 10 * 60_000);
-localProbeTimer.unref();
+const judgeText = textFor(JUDGE_TIMEOUT_MS);
 
 const hourOf = (at: Date): number =>
   Number(at.toLocaleString("it-IT", { hour: "2-digit", hour12: false, timeZone: env.TZ }));
@@ -456,7 +411,7 @@ const registry = await GosinoRegistry.load({
   dataKey,
   timezone: env.TZ,
   speciesMap,
-  localModelUp: () => localTextUp,
+  localModelUp: () => true,
   initiativeEnabled: (accountId: string) => initiative.on(accountId),
   // ADR-107: il giudice dell'astensione, sul modello di casa, col suo tetto
   abstain: env.UGO_ABSTAIN === "on",
@@ -467,10 +422,10 @@ const registry = await GosinoRegistry.load({
   ...(audio !== undefined && { audio }),
   ...(web !== undefined && { web }),
   nudges: { answer: (gosinoId, text, at) => nudges.answer(gosinoId, text, at) },
-  // gruppo 4 — input immagini: gli stessi occhi locali delle occhiate
-  ...(localVision !== undefined && {
-    vision: { describe: (image: string) => localVision.describe(image) },
-  }),
+  // ADR-131: album e ricordi della stanza guardano con questi occhi; le foto
+  // mandate in chat con quelli dell'esemplare (`photoVision`), che le paga
+  vision: localVision,
+  photoVision: photoVisionFor,
   album: albumService,
 });
 registryRef = registry;
@@ -479,7 +434,7 @@ registryRef = registry;
  * Cosa è acceso e cosa no, con il perché scritto accanto.
  *
  * Tre volte di fila una funzione spenta si è presentata come una funzione
- * rotta — «la camera non mi funziona» senza `OLLAMA_VISION_MODEL`, un cielo
+ * rotta — «la camera non mi funziona» senza un modello vision, un cielo
  * sereno durante un temporale senza le coordinate della casa, un «cerca:»
  * inesistente senza `SEARXNG_URL` — e ogni volta la diagnosi è costata una
  * lettura del codice. Spenta è uno stato legittimo; spenta che finge di
@@ -489,19 +444,15 @@ const capabilities = (): Capability[] => [
   {
     id: "vision",
     label: "Guardare le foto che gli mandi",
-    on: localVision !== undefined,
-    ...(localVision === undefined && {
-      why: "manca OLLAMA_VISION_MODEL (e il modello va scaricato in Ollama). Senza, alle foto risponde che non riesce a vederle.",
-    }),
+    // ADR-131: c'è sempre, via OpenRouter, e costa dal salvadanaio
+    on: true,
   },
   {
-    id: "gpuNode",
-    label: "Il nodo con la scheda video",
-    on: env.OLLAMA_GPU_URL !== undefined,
-    ...(env.OLLAMA_GPU_URL === undefined && {
-      // ADR-123: spenta è uno stato legittimo, e qui è pure il default. Senza
-      // nodo GPU tutto gira sulla macchina di casa, solo più lentamente
-      why: "manca OLLAMA_GPU_URL: vision e testo locale girano sulla stessa macchina di tutto il resto. Non è un guasto — è più lento, e basta.",
+    id: "glances",
+    label: "Dare un'occhiata alla stanza da solo",
+    on: env.UGO_GLANCES === "on",
+    ...(env.UGO_GLANCES !== "on" && {
+      why: "UGO_GLANCES è spenta: ogni occhiata manderebbe un fotogramma della stanza a OpenRouter e costerebbe. Si accende, non si subisce.",
     }),
   },
   {
@@ -610,11 +561,6 @@ const app = buildServer({
       }),
   },
   mqtt: { url: env.MQTT_URL, username: env.MQTT_USER, password: env.MQTT_PASS },
-  ollamaUrl: env.OLLAMA_URL,
-  // ADR-123: la seconda macchina si guarda a parte. Una GPU che non risponde
-  // e un Ollama di casa che non risponde sono due guasti diversi e si
-  // rimediano in due posti diversi
-  ...(env.OLLAMA_GPU_URL !== undefined && { ollamaGpuUrl: env.OLLAMA_GPU_URL }),
   // ADR-101: volto e voce dipendono dalla percezione, e /health non la guardava
   ...(env.UGO_RECOGNITION_URL !== undefined && { perceptionUrl: env.UGO_RECOGNITION_URL }),
   features: {
@@ -719,12 +665,21 @@ const app = buildServer({
     // ADR-057: rivendicare un'impronta ignota passa dallo stesso servizio che
     // tiene gli encoder, e con lo stesso client per casa
     ...(recognition !== undefined && { prints: recognition }),
-    // gruppo 13: la dettatura locale passa dallo stesso servizio di percezione
-    ...(recognition !== undefined && { stt: recognition }),
+    // ADR-131: la dettatura passa da OpenRouter, pagata dall'esemplare della casa
+    stt: (accountId: string) =>
+      new OpenRouterSttClient({
+        db: dbFor(accountId),
+        apiKey: env.OPENROUTER_API_KEY,
+        model: env.OPENROUTER_STT_MODEL,
+        accountId,
+        gosinoId: registry.resolve(undefined, accountId)?.id ?? bootstrapExemplar.id,
+        timezone: env.TZ,
+        logger: providerLog,
+      }),
     // decisione 2026-08-16: la voce di casa (Piper) sta sullo stesso servizio
     ...(recognition !== undefined && { ttsLocal: recognition }),
     // backlog gruppo 3: la memoria interrogabile da altri agenti (MCP, sola
-    // lettura, token di casa). Gli embedding sono quelli di Ollama: zero provider
+    // lettura, token di casa). Gli embedding passano da OpenRouter (ADR-131)
     mcp: { embedder, dataKey },
     // gruppo 12: il meteo vero — solo se la casa ha detto dove sta
     ...(env.UGO_HOME_LAT !== undefined &&
@@ -769,16 +724,17 @@ const sleepTalk = new SleepTalk({ dbFor, hourOf });
 
 // gruppo 12, secondo taglio della visione: ogni tanto UGO dà un'occhiata —
 // lo sguardo si chiede al chiosco, il modello locale lo racconta, la frase
-// entra nella ruminazione. Solo se il modello vision è configurato.
+// entra nella ruminazione. ADR-131: ogni occhiata esce di casa e costa, quindi
+// solo con UGO_GLANCES=on.
 const sceneGlance =
-  localVision === undefined
-    ? undefined
-    : new SceneGlance({ dbFor, vision: localVision, visionUp: () => localVisionUp, hourOf });
+  env.UGO_GLANCES === "on"
+    ? new SceneGlance({ dbFor, vision: localVision, visionUp: () => true, hourOf })
+    : undefined;
 
 const rumination = new RuminationService({
   dbFor,
   local: localText,
-  localUp: () => localTextUp,
+  localUp: () => true,
   hourOf,
   enabled: () => env.UGO_RUMINATION === "on",
   gapMin: env.UGO_RUMINATION_GAP_MIN,
@@ -977,7 +933,6 @@ const shutdown = (signal: NodeJS.Signals): void => {
   clearInterval(snapshotTimer);
   clearInterval(solitudeTimer);
   clearInterval(volitionTimer);
-  clearInterval(localProbeTimer);
   for (const timer of periodic) clearInterval(timer);
   void Promise.allSettled([app.close(), db.$client.end()]).then(() => {
     process.exit(0);

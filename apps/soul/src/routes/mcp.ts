@@ -14,7 +14,7 @@ import { eldestExemplarOf, accountScope } from "./scope.js";
  * SOLA LETTURA, ed è il perimetro intero: tre strumenti che leggono ciò che il
  * proprietario può già leggere dal pannello — i ricordi, il diario, il branco.
  * Nessuno strumento scrive, nessuno tocca il provider (la ricerca passa dagli
- * embedding di Ollama, come la chat), e la biometria non esiste qui nemmeno
+ * embedding via OpenRouter, come la chat — ADR-131), e la biometria non esiste qui nemmeno
  * come conteggio.
  *
  * L'autenticazione è quella di casa: il token della famiglia nel Bearer, la

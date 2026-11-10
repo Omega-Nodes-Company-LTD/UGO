@@ -1,5 +1,5 @@
 import { catalogue } from "./catalogue.js";
-import { probeEventLoop, probeOllamaResident, type ProbeReading } from "./probes.js";
+import { probeEventLoop, type ProbeReading } from "./probes.js";
 import type { DiagnosticsDeps } from "./deps.js";
 import type { TurnLogSnapshot } from "./turnLog.js";
 import { DEFAULT_THRESHOLDS, stateOf, verdictOf, type ProbeState, type Verdict, type Weight } from "./verdict.js";
@@ -64,10 +64,9 @@ const OFF: ProbeReading = { ms: 0, reached: false };
 
 export async function runDiagnostics(deps: DiagnosticsDeps): Promise<DiagnosticsReport> {
   const specs = catalogue(deps);
-  const [readings, eventLoopMs, resident] = await Promise.all([
+  const [readings, eventLoopMs] = await Promise.all([
     Promise.all(specs.map(async (spec) => (spec.probe === undefined ? OFF : spec.probe()))),
     probeEventLoop(),
-    probeOllamaResident(deps.ollama.url),
   ]);
 
   const services = specs.map((spec, index): ServiceReport => {
@@ -77,8 +76,7 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
     const state =
       reading.state ??
       stateOf({ ms: reading.ms, reached: reading.reached, configured }, DEFAULT_THRESHOLDS);
-    const detail =
-      spec.id === "ollama" && state !== "off" ? residentLine(resident, deps.ollama.embedModel) : reading.detail;
+    const detail = reading.detail;
     return {
       id: spec.id,
       label: spec.label,
@@ -111,15 +109,3 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
   };
 }
 
-/**
- * Quali modelli Ollama tiene caldi adesso, e se fra questi c'è quello che
- * serve a ripescare i ricordi.
- *
- * Un modello non residente costa il caricamento da disco alla PRIMA
- * richiesta: decine di secondi, che chi aspetta addebita alla creatura.
- */
-function residentLine(resident: string[], embedModel: string): string {
-  if (resident.length === 0) return "nessun modello caldo: la prima richiesta paga il caricamento";
-  const embed = resident.some((name) => name.startsWith(embedModel));
-  return `caldi: ${resident.join(", ")}${embed ? "" : ` — ${embedModel} NON è fra questi`}`;
-}

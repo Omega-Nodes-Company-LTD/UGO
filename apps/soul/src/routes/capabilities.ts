@@ -6,7 +6,7 @@ import type { PreHandler } from "./guard.js";
  *
  * Tre volte di fila il proprietario ha trovato una funzione che non c'era, e
  * tre volte il prodotto gli ha risposto qualcosa di educato invece della
- * verità: «la camera non mi funziona» quando manca `OLLAMA_VISION_MODEL`, un
+ * verità: «la camera non mi funziona» quando mancava il modello vision, un
  * cielo sereno durante un temporale quando la casa non ha coordinate, un
  * «cerca:» che non esisteva quando manca `SEARXNG_URL`. Ogni volta la
  * diagnosi è finita in una sessione di lettura del codice.

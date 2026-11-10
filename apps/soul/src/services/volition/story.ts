@@ -3,10 +3,9 @@
  *
  * È l'unico gesto di questa famiglia che **non** è a costo zero, e non poteva
  * esserlo: una storia va inventata, e inventare è l'unica cosa che un parser
- * non sa fare. Ma non costa nemmeno un centesimo — la scrive il modello di
- * casa (Ollama), come le domande dell'iniziativa (ADR-027), e non passa dal
- * provider a pagamento: una storia della buonanotte chiesta ogni sera
- * consumerebbe il budget di una famiglia in un mese.
+ * non sa fare. La scrive il «modello di casa», che da ADR-131 passa da
+ * OpenRouter come tutto il resto: costa qualche decimillesimo di dollaro a
+ * storia, segnato sul `budget_ledger` e fermato dal tetto del giorno.
  *
  * La parte pura è qui: riconoscere la richiesta, costruire il prompt, e le
  * parole per quando il modello di casa non risponde. Il resto è una chiamata.

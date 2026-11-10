@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import { createDbClient, accounts, type DbClient } from "@ugo/db";
-import { OllamaEmbeddingsClient } from "@ugo/memory";
+import { OpenRouterEmbeddingsClient } from "@ugo/memory";
 import { EnvValidationError, parseDataKey, parseEnv } from "@ugo/shared";
 import { eq, isNull, or } from "drizzle-orm";
 import { z } from "zod";
@@ -25,8 +25,16 @@ import { plainTextMemories } from "./services/privacy/plainTextMemories.js";
 const cliEnvSchema = z.object({
   DATABASE_URL: z.url(),
   UGO_DATA_KEY: z.string().min(1),
-  OLLAMA_URL: z.url().optional(),
-  OLLAMA_EMBED_MODEL: z.string().min(1).default("nomic-embed-text"),
+  // ADR-131: gli embedding passano da OpenRouter; senza chiave l'oblio cancella
+  // lo stesso, ma non ricalcola i vettori delle memorie anonimizzate
+  OPENROUTER_API_KEY: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() || undefined : value),
+    z.string().optional(),
+  ),
+  OPENROUTER_EMBED_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
 });
 
 const USAGE = `uso:
@@ -111,11 +119,16 @@ async function main(): Promise<number> {
         console.error("errore: l'oblio è irreversibile — ripeti con --yes per confermare");
         return 1;
       }
-      const embedder =
-        env.OLLAMA_URL !== undefined
-          ? new OllamaEmbeddingsClient(env.OLLAMA_URL, env.OLLAMA_EMBED_MODEL)
-          : undefined;
       const accountId = await resolveAccount(db, values.account);
+      const embedder =
+        env.OPENROUTER_API_KEY !== undefined
+          ? new OpenRouterEmbeddingsClient({
+              db,
+              apiKey: env.OPENROUTER_API_KEY,
+              ...(env.OPENROUTER_EMBED_MODEL !== undefined && { model: env.OPENROUTER_EMBED_MODEL }),
+              accountId,
+            })
+          : undefined;
       const report = await new ForgetService({
         db,
         dataKey,
@@ -132,7 +145,7 @@ async function main(): Promise<number> {
         resourceId: values.being,
       });
       if (embedder === undefined) {
-        console.error("attenzione: OLLAMA_URL assente — memorie non re-embeddate");
+        console.error("attenzione: OPENROUTER_API_KEY assente — memorie non re-embeddate");
       }
       console.log(JSON.stringify({ forget_report: report }, null, 2));
       return 0;

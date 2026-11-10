@@ -1,10 +1,42 @@
-import { DEFAULT_CHAT_MODEL, DEFAULT_PROVIDERS, DEFAULT_TTS_MODEL } from "@ugo/memory";
+import {
+  DEFAULT_CHAT_MODEL,
+  DEFAULT_EMBED_MODEL,
+  DEFAULT_PROVIDERS,
+  DEFAULT_STT_MODEL,
+  DEFAULT_TTS_MODEL,
+  DEFAULT_VISION_MODEL,
+} from "@ugo/memory";
 import { z } from "zod";
 
 /** empty string = not configured (compose passes empty defaults through) */
 const optionalNonEmpty = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.string().min(1).optional(),
+);
+
+/**
+ * Un segreto che finisce in un header HTTP (`Bearer …`, `x-api-key`).
+ *
+ * Incollato da una nota o da una pagina web, un valore può portarsi dietro un
+ * carattere invisibile — il 2026-11-09 è stato U+2028 in coda alla chiave di
+ * OpenRouter — e Node lo scopre solo alla prima chiamata, con un 500 che
+ * parla di ByteString. Gli spazi ai bordi non fanno mai parte di una chiave e
+ * si tolgono; qualunque altro carattere fuori dall'ASCII stampabile ferma il
+ * boot col nome della variabile (mai il valore), invece di ogni messaggio.
+ */
+const HEADER_SAFE = /^[\x21-\x7E]+$/u;
+const headerSecretMessage =
+  "contiene un carattere invisibile o non ASCII (spesso arriva incollando): riscrivila a mano";
+const headerSecret = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() : value),
+  z.string().min(1).regex(HEADER_SAFE, headerSecretMessage),
+);
+const optionalHeaderSecret = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() : value),
+  z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().regex(HEADER_SAFE, headerSecretMessage).optional(),
+  ),
 );
 
 /** Environment contract for soul-api (Fasi 0-4). Boot fails fast if unmet. */
@@ -23,73 +55,40 @@ export const soulEnvSchema = z.object({
   MQTT_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
   MQTT_USER: optionalNonEmpty,
   MQTT_PASS: optionalNonEmpty,
-  OLLAMA_URL: z.url(),
   /**
-   * ADR-123: la seconda macchina, quella con la scheda video.
-   *
-   * Quando c'è, ci puntano **il modello vision, il testo locale e l'anello
-   * Ollama della catena di chat** — cioè le tre cose che con una GPU
-   * diventano possibili invece che lente. Quando manca, tutto resta su
-   * `OLLAMA_URL` e non cambia una riga di comportamento: è il precedente
-   * esatto di `OLLAMA_BATCH_URL` nei job.
-   *
-   * **Gli embedding NO, mai** (ADR-123 §3): `OllamaEmbeddingsClient.embed()`
-   * è l'unico client locale che *lancia* invece di degradare. Spostarlo su
-   * una seconda macchina introdurrebbe una dipendenza dura che oggi nessun
-   * componente di questo sistema ha.
-   *
-   * **Il muro è la tailnet, e solo quella**: Ollama non ha autenticazione, e
-   * fra due macchine la rete Docker `internal: true` non esiste più
-   * (OPS_COOLIFY §2.3). Un indirizzo qui che non sia dentro la tailnet
-   * pubblica il modello a chiunque.
-   */
-  OLLAMA_GPU_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
-  OLLAMA_EMBED_MODEL: z.string().min(1).default("nomic-embed-text"),
-  // ADR-027: the model that gives UGO the words for a question of his own.
-  // Local on purpose — an initiative must never be able to spend the API
-  // budget. Falls back to the dream's model, already pulled on the server.
-  // the dream's model is already pulled on the server, so it is the default
-  // here too; point TEXT at something smaller for snappier questions
-  OLLAMA_BATCH_MODEL: z.string().min(1).default("qwen3:30b-a3b"),
-  OLLAMA_TEXT_MODEL: z.preprocess(
-    (value) => (value === "" ? undefined : value),
-    z.string().min(1).optional(),
-  ),
-  /**
-   * **Ritirata** da ADR-124. Era l'interruttore di quando la voce di casa
-   * parlava per prima (ADR-094): resta qui **solo per fallire al boot** se è
-   * ancora in un file di ambiente. Un server che la tiene a `on` deve
-   * *sapere* che l'ordine della catena è cambiato, non scoprirlo dal
-   * comportamento — e il comportamento, in questo caso, erano trenta secondi
-   * di silenzio per frase.
+   * **Ritirata** da ADR-124. Resta qui **solo per fallire al boot** se è
+   * ancora in un file di ambiente (superRefine sotto).
    */
   UGO_CHAT_LOCAL_FIRST: optionalNonEmpty,
   /**
-   * ADR-124: la voce di casa (Ollama) come anello della catena, e sta **a
-   * `off`** finché non c'è una GPU che la faccia rispondere in tempo da
-   * conversazione. Accesa, si prova DOPO OpenRouter e prima di Anthropic.
+   * ADR-131: Ollama non esiste più — tutto passa da OpenRouter. Le variabili
+   * OLLAMA_* rimaste in un ambiente vengono semplicemente ignorate (lo schema
+   * non le conosce): toglierle è pulizia, non una condizione per partire.
+   *
+   * Gli embedding: lo stesso modello e le stesse 768 dimensioni dei job, o i
+   * vettori del sogno e quelli della chat non sarebbero confrontabili.
    */
-  UGO_CHAT_HOME_VOICE: z.preprocess(
+  OPENROUTER_EMBED_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).default(DEFAULT_EMBED_MODEL),
+  ),
+  /** ADR-131: la dettatura (`/v1/stt`), al posto di whisper sulla percezione */
+  OPENROUTER_STT_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).default(DEFAULT_STT_MODEL),
+  ),
+  /**
+   * ADR-131: le occhiate spontanee alla stanza (SceneGlance) mandavano i
+   * fotogrammi al modello di casa, gratis. Via OpenRouter ogni occhiata
+   * esce di casa e costa: spente finché non le accendi tu.
+   */
+  UGO_GLANCES: z.preprocess(
     (value) => (value === "" ? undefined : value),
     z.enum(["on", "off"]).default("off"),
   ),
-  /**
-   * Quanto può tenere la parola UN anello intermedio. Dodici secondi, non
-   * trenta: oltre una decina chi sta parlando non distingue «sta pensando»
-   * da «è morto», e il soccorso che arriva vale più dell'anello che insiste.
-   */
-  UGO_CHAT_LINK_TIMEOUT_MS: z.preprocess(
-    (value) => (value === "" ? undefined : value),
-    z.coerce.number().int().positive().default(12_000),
-  ),
-  /** il modello di casa per la CHAT; vuoto = quello del testo, poi del sogno */
-  OLLAMA_CHAT_MODEL: z.preprocess(
-    (value) => (value === "" ? undefined : value),
-    z.string().min(1).optional(),
-  ),
   // ADR-125: OpenRouter è l'unico fornitore a pagamento — chat e voce. La
   // chiave è obbligatoria: senza, UGO non ha parole.
-  OPENROUTER_API_KEY: z.string().min(1),
+  OPENROUTER_API_KEY: headerSecret,
   OPENROUTER_CHAT_MODEL: z.preprocess(
     (value) => (value === "" ? undefined : value),
     z.string().min(1).default(DEFAULT_CHAT_MODEL),
@@ -112,6 +111,15 @@ export const soulEnvSchema = z.object({
               .filter((name) => name !== ""),
       )
       .pipe(z.array(z.string().min(1)).min(1)),
+  ),
+  /**
+   * ADR-131: chi guarda le foto — quelle mandate in chat, l'album, i ricordi
+   * della stanza e (se accese) le occhiate. Servito dai fornitori di
+   * `OPENROUTER_PROVIDERS`: cambiandolo, controlla che almeno uno lo serva.
+   */
+  OPENROUTER_VISION_MODEL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).default(DEFAULT_VISION_MODEL),
   ),
   /** il modello della voce, sempre via OpenRouter (ADR-125 §6) */
   OPENROUTER_TTS_MODEL: z.preprocess(
@@ -181,16 +189,16 @@ export const soulEnvSchema = z.object({
   S3_REGION: z.string().min(1).default("us-east-1"),
   // Fase 5 — meetings: the feature activates only when both are set
   VEXA_API_URL: optionalNonEmpty,
-  VEXA_API_KEY: optionalNonEmpty,
+  VEXA_API_KEY: optionalHeaderSecret,
   UGO_OWNER_NAME: z.string().min(1).default("casa"),
   // Bearer token for destructive/expensive routes (see routes/guard.ts).
   // Mandatory in production: an unguarded erasure endpoint is not a risk
   // worth carrying just because the tailnet is usually enough.
-  UGO_INTERNAL_TOKEN: optionalNonEmpty,
+  UGO_INTERNAL_TOKEN: optionalHeaderSecret,
   // ADR-051: il segreto di servizio della reception — dedicato, NON il token
   // interno: ruotare la superficie pubblica non deve toccare quella interna.
   // Assente = la reception non esiste e le sue rotte non vengono registrate.
-  UGO_RECEPTION_TOKEN: optionalNonEmpty,
+  UGO_RECEPTION_TOKEN: optionalHeaderSecret,
   // ADR-128: il gosino al telefono. Il segreto che Omega HQ presenta (dedicato:
   // ruotarlo non tocca la reception né il token interno) e la casa che
   // risponde. Tutti e due o nessuno: assenti = la porta del telefono non esiste.
@@ -212,17 +220,17 @@ export const soulEnvSchema = z.object({
   UGO_CUSTOMER_DAILY_BUDGET_USD: z.coerce.number().positive().default(0.25),
   /** ADR-058: mele per cliente in sette giorni; `customers.weekly_reward_limit` scavalca */
   UGO_CUSTOMER_WEEKLY_REWARDS: z.coerce.number().int().min(0).default(2),
-  /** ADR-059: la ruminazione sui modelli locali — zero token del provider */
-  UGO_RUMINATION: z.enum(["on", "off"]).default("on"),
+  /**
+   * ADR-059: la ruminazione. ADR-131: senza modelli locali ogni pensiero esce
+   * su OpenRouter e costa, quindi nasce spenta — si accende, non si subisce.
+   */
+  UGO_RUMINATION: z.enum(["on", "off"]).default("off"),
   /** minuti fra un pensiero e l'altro, per gosino (tentativi, non successi) */
   UGO_RUMINATION_GAP_MIN: z.coerce.number().int().positive().default(45),
   // gruppo 12: dove sta la casa, per il meteo vero e il cielo di stanotte.
   // Facoltative: senza, /v1/weather risponde «non disponibile» e il cielo del
   // recinto resta quello di sempre. Coordinate, non un indirizzo: open-meteo
   // non vuole chiavi e non riceve altro.
-  // gruppo 12: il modello vision locale (moondream, llava…). Assente = UGO
-  // non dà occhiate: la visione si accende, non si subisce
-  OLLAMA_VISION_MODEL: optionalNonEmpty,
   // ADR-063: la finestra sul mondo — SearXNG in casa. Assente = il prefisso
   // «cerca:» non esiste e niente esce verso i motori
   SEARXNG_URL: z.preprocess((value) => (value === "" ? undefined : value), z.url().optional()),
@@ -290,7 +298,7 @@ export const soulEnvSchema = z.object({
   ),
   /** l'indirizzo del titolare: l'unico a cui parte il link per entrare */
   UGO_OWNER_EMAIL: z.preprocess((value) => (value === "" ? undefined : value), z.email().optional()),
-  RESEND_API_KEY: optionalNonEmpty,
+  RESEND_API_KEY: optionalHeaderSecret,
   EMAIL_FROM: optionalNonEmpty,
   NODE_ENV: z.string().default("development"),
 }).superRefine((env, ctx) => {
@@ -303,8 +311,7 @@ export const soulEnvSchema = z.object({
       code: "custom",
       message:
         "UGO_CHAT_LOCAL_FIRST non esiste più (ADR-124): l'ordine della catena è " +
-        "OpenRouter → casa → Anthropic, e la voce di casa si accende con " +
-        "UGO_CHAT_HOME_VOICE=on. Togli la riga, o sostituiscila.",
+        "solo OpenRouter (ADR-131). Togli la riga.",
       path: ["UGO_CHAT_LOCAL_FIRST"],
     });
   }
