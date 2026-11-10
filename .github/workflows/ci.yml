@@ -47,6 +47,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # ADR-131: i test dei client OpenRouter generano l'immagine e convertono
+      # la voce con ffmpeg vero (input sintetici, mai file di fixture). I runner
+      # nostri (`vars.CI_RUNNER`) non lo hanno di serie come ubuntu-latest.
+      - uses: ./.github/actions/apt-ready
+      - name: ffmpeg per i test di visione e dettatura
+        timeout-minutes: 12
+        run: command -v ffmpeg || sudo apt-get install -y --no-install-recommends -o Acquire::Retries=2 ffmpeg
       - run: pnpm test:integration
         env:
           # ADR-125/131: i modelli si testano sul fornitore vero, niente stub
