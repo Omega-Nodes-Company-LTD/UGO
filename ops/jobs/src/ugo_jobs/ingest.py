@@ -161,7 +161,7 @@ def _ingest_one(conn: psycopg.Connection, cfg: JobsConfig, client, key: str, enc
     key_bytes = parse_data_key(cfg.data_key_b64)
     vectors = embed(cfg, [text for _t0, _t1, text in pieces])
     # `strict=True` e non per pedanteria: `zip` senza tronca in silenzio, e qui
-    # subito dopo si CANCELLA l'audio sorgente. Se Ollama restituiva meno
+    # subito dopo si CANCELLA l'audio sorgente. Se il fornitore restituiva meno
     # embedding dei testi (un lotto parziale, un timeout su un pezzo), i
     # segmenti in eccesso non venivano mai scritti, l'originale spariva lo
     # stesso, e `IngestResult.segments` riportava un numero plausibile. Una

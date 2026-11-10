@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 
 import psycopg
 from pydantic import BaseModel, Field
@@ -27,8 +28,8 @@ from .config import JobsConfig
 #: revisable without ever being false.
 JUDGEABLE_KINDS = ("fact", "preference")
 
-#: Below this the pair is left alone. A small model with `format: json` returns
-#: plausible and wrong verdicts, and the cost of a wrong `true` (knowledge
+#: Below this the pair is left alone. A language model returns plausible and
+#: wrong verdicts, and the cost of a wrong `true` (knowledge
 #: quietly retired at night) is far higher than the cost of a wrong `false`.
 CONFIDENCE_THRESHOLD = 0.75
 
@@ -84,8 +85,8 @@ class ContradictionResult:
 class _Candidate:
     memory_id: str
     text: str
-    valid_from: object
-    created_at: object
+    valid_from: datetime
+    created_at: datetime
 
 
 def _fresh_memories(
@@ -152,38 +153,39 @@ def _older_of(a: _Candidate, b: _Candidate) -> tuple[_Candidate, _Candidate] | N
     return None
 
 
-def run_contradictions(
-    conn: psycopg.Connection, cfg: JobsConfig, dream_date: str
-) -> ContradictionResult:
+@dataclass
+class Docket:
+    """What the judge is asked about: the pairs, and every memory they name."""
+
+    pairs: dict[tuple[str, str], tuple[_Candidate, _Candidate]]
+    by_id: dict[str, _Candidate]
+
+
+def collect_pairs(conn: psycopg.Connection, cfg: JobsConfig, dream_date: str) -> Docket:
     fresh = _fresh_memories(conn, cfg, dream_date)
-
-    pairs: dict[tuple[str, str], tuple[_Candidate, _Candidate]] = {}
-    by_id: dict[str, _Candidate] = {}
+    docket = Docket(pairs={}, by_id={})
     for memory in fresh:
-        by_id[memory.memory_id] = memory
+        docket.by_id[memory.memory_id] = memory
         for neighbour in _neighbours(conn, cfg, memory.memory_id):
-            by_id[neighbour.memory_id] = neighbour
+            docket.by_id[neighbour.memory_id] = neighbour
             key = tuple(sorted((memory.memory_id, neighbour.memory_id)))
-            pairs.setdefault(key, (memory, neighbour))
+            docket.pairs.setdefault((key[0], key[1]), (memory, neighbour))
+    return docket
 
-    if not pairs:
-        # nothing to judge: not a reason to wake a language model
-        return ContradictionResult(pairs_examined=0, superseded=0)
 
-    rendered = "\n".join(
-        f'- a_id={a.memory_id} "{a.text}" | b_id={b.memory_id} "{b.text}"'
-        for a, b in pairs.values()
-    )
-    output = ask_batch_model(
-        cfg, PROMPT.format(pairs=rendered), ContradictionOutput, conn
-    )
-
+def apply_verdicts(
+    conn: psycopg.Connection, cfg: JobsConfig, docket: Docket, verdicts: list[Verdict]
+) -> int:
+    """The judgement, turned into retirements. Separate from the question so
+    that what the system does with a verdict — threshold, direction, ids it
+    never asked about — is tested on the real database with the verdict as
+    plain data, while the question itself goes to the real model."""
     superseded = 0
-    for verdict in output.verdicts:
+    for verdict in verdicts:
         if not verdict.contradicts or verdict.confidence < CONFIDENCE_THRESHOLD:
             continue
-        a = by_id.get(verdict.a_id)
-        b = by_id.get(verdict.b_id)
+        a = docket.by_id.get(verdict.a_id)
+        b = docket.by_id.get(verdict.b_id)
         if a is None or b is None:
             continue  # a verdict about memories we never asked about
         ordered = _older_of(a, b)
@@ -192,9 +194,27 @@ def run_contradictions(
         loser, winner = ordered
         if _retire(conn, loser, winner, verdict, cfg.gosino_id):
             superseded += 1
-
     conn.commit()
-    return ContradictionResult(pairs_examined=len(pairs), superseded=superseded)
+    return superseded
+
+
+def run_contradictions(
+    conn: psycopg.Connection, cfg: JobsConfig, dream_date: str
+) -> ContradictionResult:
+    docket = collect_pairs(conn, cfg, dream_date)
+    if not docket.pairs:
+        # nothing to judge: not a reason to wake a language model
+        return ContradictionResult(pairs_examined=0, superseded=0)
+
+    rendered = "\n".join(
+        f'- a_id={a.memory_id} "{a.text}" | b_id={b.memory_id} "{b.text}"'
+        for a, b in docket.pairs.values()
+    )
+    output = ask_batch_model(
+        cfg, PROMPT.format(pairs=rendered), ContradictionOutput, conn
+    )
+    superseded = apply_verdicts(conn, cfg, docket, output.verdicts)
+    return ContradictionResult(pairs_examined=len(docket.pairs), superseded=superseded)
 
 
 def _retire(

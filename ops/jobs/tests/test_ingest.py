@@ -25,8 +25,8 @@ AUDIO_KEY = "inbox/2026-08-06_1530_riunione-gusci.wav"
 
 
 @pytest.fixture(scope="module")
-def audio_env(pg_url: str, minio: dict[str, str], ollama_url: str, batch_stub, tmp_path_factory):  # noqa: ANN001
-    cfg = make_config(pg_url, minio, ollama_url, batch_stub.base_url)
+def audio_env(pg_url: str, minio: dict[str, str], tmp_path_factory):  # noqa: ANN001
+    cfg = make_config(pg_url, minio)
     wav_path = tmp_path_factory.mktemp("audio") / "speech.wav"
     subprocess.run(["espeak-ng", "-v", "it", PHRASE, "-w", str(wav_path)], check=True, timeout=60)
 

@@ -19,8 +19,8 @@ SECRET_FACT = "Il coupon di calibrazione va stampato prima dei gusci."
 
 
 @pytest.fixture(scope="module")
-def seeded_backup(pg_url: str, minio: dict[str, str], ollama_url: str, batch_stub):  # noqa: ANN001
-    cfg = make_config(pg_url, minio, ollama_url, batch_stub.base_url)
+def seeded_backup(pg_url: str, minio: dict[str, str]):  # noqa: ANN001
+    cfg = make_config(pg_url, minio)
     with psycopg.connect(pg_url) as conn:
         conn.execute(
             "insert into memories (gosino_id, kind, text, importance)"

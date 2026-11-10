@@ -22,12 +22,45 @@ def _require(name: str) -> str:
 DEFAULT_CHAT_MODEL = "deepseek/deepseek-v4-flash"
 DEFAULT_PROVIDERS = ("DeepInfra", "Azure", "Parasail", "DigitalOcean")
 
+#: Lo stesso modello e le stesse dimensioni di soul (`packages/memory`,
+#: `packages/shared`): un vettore scritto di notte e uno scritto di giorno
+#: vivono nella stessa colonna e si confrontano fra loro, quindi devono venire
+#: dallo stesso spazio. `test_shared_constants.py` li tiene uguali.
+DEFAULT_EMBED_MODEL = "openai/text-embedding-3-small"
+EMBEDDING_DIMENSIONS = 768
+
 #: ADR-125: ritirate. Non si ignorano in silenzio: fermano il job col motivo.
 RETIRED = {
     "ANTHROPIC_API_KEY": "il sogno passa da OpenRouter: usa OPENROUTER_API_KEY",
     "ANTHROPIC_BASE_URL": "non esiste più un indirizzo Anthropic da cambiare",
     "UGO_CHAT_MODEL": "il modello è OPENROUTER_CHAT_MODEL",
+    # direttiva del 2026-11-09: Ollama non esiste piu', da nessuna parte
+    "OLLAMA_URL": "Ollama non esiste più: embedding e sogno passano da OpenRouter",
+    "OLLAMA_EMBED_MODEL": "il modello degli embedding è OPENROUTER_EMBED_MODEL",
+    "OLLAMA_BATCH_URL": "il sogno pensa solo via OpenRouter",
+    "OLLAMA_BATCH_MODEL": "il modello del sogno è OPENROUTER_CHAT_MODEL",
 }
+
+
+def _openrouter_key() -> str:
+    """La chiave di OpenRouter, obbligatoria e ripulita (ADR-125).
+
+    Il sogno non ha piu' un modello di casa a cui ripiegare: senza chiave non
+    riflette, non embedda, non ricorda — quindi si ferma subito, col nome della
+    variabile. ``strip()`` toglie anche gli spazi Unicode (U+2028 compreso):
+    l'interruzione in produzione del 2026-11-09 era un U+2028 incollato in coda
+    alla chiave, che httpx rifiuta in un'intestazione. Quel che resta dopo deve
+    essere ASCII stampabile; altrimenti si dice dove guardare, mai il valore.
+    """
+    key = _require("OPENROUTER_API_KEY").strip()
+    if key == "":
+        raise ConfigError("missing required environment variable: OPENROUTER_API_KEY")
+    if not all(0x21 <= ord(char) <= 0x7E for char in key):
+        raise ConfigError(
+            "OPENROUTER_API_KEY contiene caratteri non stampabili o non ASCII "
+            "(spesso un a-capo o uno spazio incollato in mezzo): ricopiala"
+        )
+    return key
 
 
 def _providers(raw: str) -> tuple[str, ...]:
@@ -38,11 +71,6 @@ def _providers(raw: str) -> tuple[str, ...]:
 @dataclass(frozen=True)
 class JobsConfig:
     database_url: str
-    ollama_url: str
-    ollama_embed_model: str
-    ollama_batch_url: str
-    """empty = no local reflection model here; the dream uses the API fallback"""
-    ollama_batch_model: str
     data_key_b64: str
     s3_endpoint: str
     s3_access_key: str
@@ -50,9 +78,12 @@ class JobsConfig:
     s3_bucket_backup: str
     s3_bucket_audio: str
     timezone: str
-    # ADR-001 fallback, via OpenRouter (ADR-125): when the local MoE is unreachable
+    # ADR-125, direttiva del proprietario del 2026-11-09: Ollama non esiste
+    # piu'. Il sogno pensa ed embedda solo via OpenRouter; `from_env` rende la
+    # chiave obbligatoria, il default vuoto serve solo ai test che non spendono
     openrouter_api_key: str = ""
     openrouter_chat_model: str = DEFAULT_CHAT_MODEL
+    openrouter_embed_model: str = DEFAULT_EMBED_MODEL
     openrouter_providers: tuple[str, ...] = DEFAULT_PROVIDERS
     whisper_model: str = "large-v3"
     whisper_download_root: str = ""
@@ -76,22 +107,14 @@ class JobsConfig:
     daily_budget_usd: float = 0.50
 
     @staticmethod
-    def from_env() -> "JobsConfig":
+    def from_env() -> JobsConfig:
         for name, instead in RETIRED.items():
             if os.environ.get(name, "") != "":
                 raise ConfigError(f"{name} non esiste più (ADR-125): {instead}. Togli la riga.")
-        ollama_url = _require("OLLAMA_URL")
         return JobsConfig(
             # ADR-062 tempo 2b: i job passano all'utenza applicativa quando
             # DATABASE_URL_APP e' impostata; le migrazioni non girano da qui
             database_url=os.environ.get("DATABASE_URL_APP") or _require("DATABASE_URL"),
-            ollama_url=ollama_url,
-            ollama_embed_model=os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
-            # the batch model may live behind a different endpoint (API batch fallback, ADR-001)
-            ollama_batch_url=os.environ.get("OLLAMA_BATCH_URL", ollama_url),
-            # empty = no local reflection model on this box; the dream goes
-            # straight to the API fallback (ADR-001), still through the ledger
-            ollama_batch_model=os.environ.get("OLLAMA_BATCH_MODEL", ""),
             data_key_b64=_require("UGO_DATA_KEY"),
             s3_endpoint=_require("S3_ENDPOINT"),
             s3_access_key=_require("S3_ACCESS_KEY"),
@@ -99,8 +122,9 @@ class JobsConfig:
             s3_bucket_backup=os.environ.get("S3_BUCKET_BACKUP", "ugo-backup"),
             s3_bucket_audio=os.environ.get("S3_BUCKET_AUDIO", "ugo-audio"),
             timezone=os.environ.get("TZ", "Europe/Rome"),
-            openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", ""),
+            openrouter_api_key=_openrouter_key(),
             openrouter_chat_model=os.environ.get("OPENROUTER_CHAT_MODEL") or DEFAULT_CHAT_MODEL,
+            openrouter_embed_model=os.environ.get("OPENROUTER_EMBED_MODEL") or DEFAULT_EMBED_MODEL,
             openrouter_providers=_providers(os.environ.get("OPENROUTER_PROVIDERS", "")),
             whisper_model=os.environ.get("UGO_WHISPER_MODEL", "large-v3"),
             whisper_download_root=os.environ.get("UGO_WHISPER_DOWNLOAD_ROOT", ""),

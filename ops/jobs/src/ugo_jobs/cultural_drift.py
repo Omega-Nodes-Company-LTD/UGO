@@ -11,20 +11,28 @@ and blends them into the genome via a new trait_sets version, creating memetic d
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 
 import psycopg
+from pydantic import BaseModel, Field
 
 from .batch import ask_batch_model
 from .config import JobsConfig
-
 
 # The three cultural genes (must match GENE_KEYS in genes.ts)
 CULTURAL_GENE_KEYS = ("grunt_repertoire", "dialect", "dream_style")
 
 # Only process events from recent encounters (last 7 days by default)
 CULTURAL_EVENT_WINDOW_DAYS = 7
+
+class MutationsOutput(BaseModel):
+    """La risposta del sogno. Stava in fondo al file e veniva importata da
+    `batch`, dove non è mai esistita: il passo moriva con ImportError alla
+    prima casa con eventi culturali (trovato nel giro di ADR-131)."""
+
+    mutations: dict[str, float] = Field(default_factory=dict)
+
 
 # The dream's prompt to synthesize cultural mutations
 SYNTHESIS_PROMPT = """Sei il sognatore di UGO. Hai ricevuto frammenti di cultura da altri gosini
@@ -114,14 +122,13 @@ def run_cultural_drift(
         else:
             received_avg[key] = current_values[key]
     
-    # 3. Ask the dream (local model) to synthesize mutations
+    # 3. Ask the dream (OpenRouter, ADR-125) to synthesize mutations
     prompt = SYNTHESIS_PROMPT.format(
         current=json.dumps(current_values, ensure_ascii=False),
         received=json.dumps(received_avg, ensure_ascii=False),
     )
     
-    from .batch import BatchOutput
-    output = ask_batch_model(cfg, prompt, BatchOutput, conn)
+    output = ask_batch_model(cfg, prompt, MutationsOutput, conn)
     
     mutations = output.mutations if output and output.mutations else {}
     
@@ -194,11 +201,3 @@ def run_cultural_drift(
     
     conn.commit()
     return CulturalDriftResult(genes_mutated=genes_mutated, events_processed=len(event_rows))
-
-
-# Need a simple output model for the batch call
-from pydantic import BaseModel, Field
-
-
-class BatchOutput(BaseModel):
-    mutations: dict[str, float] = Field(default_factory=dict)

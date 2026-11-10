@@ -19,8 +19,9 @@ I paletti, che sono il progetto:
   vive solo nel desiderio del gosino di CASA: non esce mai in reception;
 - un consiglio al giorno per casa, al massimo: meglio uno a settimana buono
   che tre al giorno tirati. E un item consigliato non si riconsiglia mai;
-- zero token del provider: fetch HTTP, embedding Ollama, incrocio pgvector,
-  frase da sagoma deterministica. Il ``budget_ledger`` non vede passare nulla.
+- nessuna chiamata alla chat: fetch HTTP, embedding OpenRouter, incrocio pgvector,
+  frase da sagoma deterministica. Il ``budget_ledger`` vede solo gli
+  embedding, intestati alla casa del feed.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ import sys
 import time
 import urllib.request
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from typing import Callable
@@ -43,8 +44,10 @@ from .config import JobsConfig
 from .embeddings import embed
 
 #: sopra questa distanza coseno il nesso è tirato, e un consiglio tirato è
-#: peggio di nessun consiglio. Taratura da banco: nomic-embed mette i testi
-#: davvero affini sotto ~0.4 e il rumore sopra ~0.55.
+#: peggio di nessun consiglio. Taratura da banco fatta su nomic-embed (testi
+#: affini sotto ~0.4, rumore sopra ~0.55). DA RITARARE su
+#: openai/text-embedding-3-small (direttiva 2026-11-09): lo spazio e' cambiato
+#: e la soglia non e' stata rimisurata — vedi docs/STATE.md.
 ADVISE_MAX_DISTANCE = 0.40
 #: quante novità per giro di fetch: un feed che ne pubblica cento non deve
 #: mangiarsi il thread
@@ -150,7 +153,7 @@ def run_feeds(
 
     ``download`` e ``vectorize`` sono iniettabili per i test (server HTTP
     locale e vettori da seme, come le factory TS); in produzione sono il
-    fetch vero e l'Ollama vero.
+    fetch vero e gli embedding veri di OpenRouter.
     """
     owned = conn is None
     connection = conn or psycopg.connect(cfg.database_url)
@@ -233,7 +236,8 @@ def run_feeds(
             ).fetchall()
             if pending:
                 texts = [f"{title}\n{summary}".strip() for _, title, summary in pending]
-                vectors = vectorize(cfg, texts)
+                # la riga di spesa va alla casa del feed (ADR-019)
+                vectors = vectorize(replace(cfg, account_id=str(house_id)), texts)
                 for (item_id, _, _), vector in zip(pending, vectors, strict=True):
                     connection.execute(
                         "update feed_items set embedding = %s::vector where id = %s",
