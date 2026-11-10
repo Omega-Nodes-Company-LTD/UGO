@@ -3,17 +3,12 @@ import { randomBytes } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { runMigrations } from "@ugo/db";
-import {
-  openRouterKey,
-  startMinio,
-  startOllama,
-  type MinioHandle,
-  type OllamaHandle,
-} from "@ugo/factories";
+import { openRouterKey, startMinio, type MinioHandle } from "@ugo/factories";
 
 /**
  * Real backend for the E2E run (Zero-Mock): Postgres+pgvector container,
- * real Ollama embeddings, the REAL OpenRouter (ADR-125: no stubs — the key
+ * the REAL OpenRouter for every model, embeddings included (ADR-125/131: no
+ * stubs — the key
  * comes from the environment), and soul itself as a child process running
  * the production entrypoint (dist/index.js).
  */
@@ -22,7 +17,6 @@ const SOUL_PORT = 3987;
 const E2E_TOKEN = "e2e-operator-token";
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let minio: MinioHandle;
 let soul: ChildProcess;
 
@@ -64,9 +58,8 @@ async function waitForHealth(url: string, attempts = 60): Promise<void> {
 export default async function globalSetup(): Promise<() => Promise<void>> {
   // prima la chiave: un e2e senza fornitore vero fallisce qui, non a metà
   const apiKey = openRouterKey();
-  [pg, ollama, minio] = await Promise.all([
+  [pg, minio] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
     startMinio(),
   ]);
   await runMigrations(pg.getConnectionUri());
@@ -78,8 +71,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       DATABASE_URL: pg.getConnectionUri(),
       // deliberately unset, exactly like the real deployment: the Nano 33
       // firmware is shelved, so there is no broker and health says "off"
-      OLLAMA_URL: ollama.baseUrl,
-      OLLAMA_EMBED_MODEL: "nomic-embed-text",
       OPENROUTER_API_KEY: apiKey,
       UGO_DAILY_BUDGET_USD: "5",
       UGO_DATA_KEY: randomBytes(32).toString("base64"),
@@ -112,6 +103,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
 
   return async () => {
     soul.kill("SIGTERM");
-    await Promise.allSettled([pg.stop(), ollama.container.stop(), minio.container.stop()]);
+    await Promise.allSettled([pg.stop(), minio.container.stop()]);
   };
 }

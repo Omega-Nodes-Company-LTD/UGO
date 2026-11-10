@@ -13,7 +13,8 @@ export interface RetrievedTranscript {
 }
 
 /** Ignore segments below this cosine similarity: noise, not an answer. */
-const MIN_SIMILARITY = 0.5;
+// ADR-131: same floor as memories, measured on text-embedding-3-small
+const MIN_SIMILARITY = 0.35;
 
 /**
  * Semantic retrieval over recorded speech (PROGETTO §4.2: "cosa aveva detto

@@ -30,7 +30,8 @@ export interface RetrievedHouseChunk {
  * UGO che cita un documento che non c'entra — e citare un documento suona
  * autorevole anche quando è sbagliato.
  */
-const MIN_SIMILARITY = 0.5;
+// ADR-131: same floor as memories, measured on text-embedding-3-small
+const MIN_SIMILARITY = 0.35;
 
 export async function searchHouseChunks(
   db: DbClient,

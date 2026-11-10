@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Real browser → real WS → real soul (child process) → real Postgres/Ollama,
+// Real browser → real WS → real soul (child process) → real Postgres/OpenRouter,
 // provider stubbed at network level. Selectors are data-testid only.
 
 const soulWs = (): string => {

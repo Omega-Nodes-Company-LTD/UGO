@@ -20,7 +20,8 @@ export interface RetrievedCustomerChunk {
 }
 
 /** Below this cosine similarity a chunk is noise, not an answer. */
-const MIN_SIMILARITY = 0.45;
+// ADR-131: same floor as memories, measured on text-embedding-3-small
+const MIN_SIMILARITY = 0.35;
 
 export async function searchCustomerChunks(
   db: DbClient,

@@ -87,11 +87,16 @@ ogni codice d'errore, scriveva «soul non risponde».
   da chiudere quando arriverà la seconda casa.
 - Il servizio di percezione resta per ciò che è biometria (volto, voce: ADR-016 la vuole in
   casa) e per OCR e Piper; la dettatura non passa più da lì.
-- **Le soglie di somiglianza erano tarate su `nomic-embed-text`.** Misurato col modello nuovo: le
-  contraddizioni vere stanno fra 0,55 e 0,89 («Marco vive a Roma» / «si è trasferito a Milano» =
-  0,558, sotto `MIN_PAIR_SIMILARITY = 0.6`), frasi estranee intorno a 0,23. Ogni errore fa fare a
-  UGO *meno*, mai qualcosa di sbagliato, quindi i numeri restano e la ritaratura è un lavoro a parte
-  (contraddizioni, consigli dei feed, cache delle risposte della reception).
+- **Le soglie di somiglianza erano tarate su `nomic-embed-text`, e si ritarano qui.** Misurato
+  col modello nuovo: le domande di seguito vere stanno fra 0,398 e 0,459 («e quando passa di
+  solito?», «chi consegna i pacchi?» contro il ricordo del fattorino; «cosa si è rotto in casa?»
+  contro la lavatrice, 0,403), le frasi estranee intorno a 0,23. Con la soglia a 0,5 la chat
+  **dimenticava quello che sapeva** (quattro test d'integrazione rossi): `MIN_SIMILARITY` scende a
+  **0,35** per ricordi, trascrizioni, documenti di casa e conoscenza dei clienti — un modello, una
+  soglia. Le contraddizioni del sogno (`MIN_PAIR_SIMILARITY`) scendono da 0,6 a **0,5**: la coppia
+  «vive a Roma» / «si è trasferito a Milano» misura 0,558 e prima non veniva mai giudicata. La
+  distanza dei consigli dei feed (`ADVISE_MAX_DISTANCE`) resta da ritarare a parte: sbagliando,
+  UGO consiglia di meno, mai qualcosa di sbagliato.
 - **I centesimi più piccoli si arrotondano a zero.** `budget_ledger.cost_usd` è `numeric(10,6)`: un
   embedding di pochi token (~2·10⁻⁷ $) si scrive 0,000000. La riga c'è, il costo è sottostimato di
   frazioni di millesimo al giorno. Allargare la scala è una migrazione, non un ritocco.

@@ -12,11 +12,11 @@ import {
   accounts,
   runMigrations,
 } from "@ugo/db";
-import { openRouterKey, startOllama, type OllamaHandle } from "@ugo/factories";
+import { openRouterKey } from "@ugo/factories";
 
 /**
- * Real backend for the reception E2E (Zero-Mock): Postgres+pgvector, real
- * Ollama embeddings, the REAL OpenRouter (ADR-125: no stubs, the key comes
+ * Real backend for the reception E2E (Zero-Mock): Postgres+pgvector and the
+ * REAL OpenRouter for every model (ADR-125/131: no stubs, the key comes
  * from the environment), and soul itself as a child
  * process on the production entrypoint — the same dual-credential path the
  * public container uses. The customer, their gosino and their token are
@@ -27,7 +27,6 @@ const SOUL_PORT = 3988;
 const RECEPTION_TOKEN = "e2e-reception-secret";
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let soul: ChildProcess;
 
 /**
@@ -68,10 +67,7 @@ async function waitForHealth(url: string, attempts = 60): Promise<void> {
 export default async function globalSetup(): Promise<() => Promise<void>> {
   // prima la chiave: un e2e senza fornitore vero fallisce qui, non a metà
   const apiKey = openRouterKey();
-  [pg, ollama] = await Promise.all([
-    new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
-  ]);
+  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
   await runMigrations(pg.getConnectionUri());
 
   // the house, the exemplar, the customer, the assignment, the token — the
@@ -116,8 +112,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     env: {
       ...inherited(),
       DATABASE_URL: pg.getConnectionUri(),
-      OLLAMA_URL: ollama.baseUrl,
-      OLLAMA_EMBED_MODEL: "nomic-embed-text",
       OPENROUTER_API_KEY: apiKey,
       UGO_DAILY_BUDGET_USD: "5",
       UGO_DATA_KEY: randomBytes(32).toString("base64"),
@@ -141,6 +135,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
 
   return async () => {
     soul.kill("SIGTERM");
-    await Promise.all([pg.stop(), ollama.container.stop()]);
+    await pg.stop();
   };
 }

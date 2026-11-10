@@ -35,7 +35,10 @@ CONFIDENCE_THRESHOLD = 0.75
 
 #: Contradiction lives between "clearly related" and "so alike that hygiene
 #: will merge them anyway" (`DEDUP_SIMILARITY` in hygiene.py).
-MIN_PAIR_SIMILARITY = 0.6
+#: ADR-131: re-measured on text-embedding-3-small — real contradictions score
+#: 0.55–0.89 («Marco vive a Roma» / «si è trasferito a Milano» = 0.558),
+#: unrelated sentences ~0.23. At 0.6 the Rome/Milan pair was never judged.
+MIN_PAIR_SIMILARITY = 0.5
 MAX_PAIR_SIMILARITY = 0.95
 
 #: How many older memories each fresh one is compared against.
