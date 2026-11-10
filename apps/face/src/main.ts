@@ -18,6 +18,7 @@ import {
 import { Sensors } from "./sensors.js";
 import { resolveSoulUrl, soulHttpBase } from "./soulUrl.js";
 import { currentKey, installSoulKey, socketUrlWithKey, type KeyStore } from "./deviceKey.js";
+import { wireTypedLine } from "./typedLine.js";
 import { PairingScreen } from "./pairingScreen.js";
 import { myBuildId, shouldReload } from "./version.js";
 import { DEFAULT_SENSITIVITY, SENSITIVITIES, type NoiseSensitivity } from "./noiseGate.js";
@@ -544,7 +545,12 @@ photoFile.addEventListener("change", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ channel: "home", text: "guarda questa foto!", imageBase64: image }),
       });
-      if (!response.ok) throw new Error(String(response.status));
+      if (!response.ok) {
+        // il codice vero, non «non risponde»: soul HA risposto, con un errore,
+        // e senza il numero la diagnosi costa una console aperta (2026-11-09)
+        trouble(`la foto non è arrivata: soul ha risposto ${String(response.status)}`);
+        return;
+      }
       const body = (await response.json()) as { reply?: string };
       if (typeof body.reply === "string" && body.reply !== "") {
         remember({ who: residents[0]?.name ?? "UGO", text: body.reply, at: Date.now(), mine: false });
@@ -552,7 +558,7 @@ photoFile.addEventListener("change", () => {
         speech.speak(body.reply, undefined);
       }
     } catch {
-      trouble("la foto non è arrivata: soul non risponde");
+      trouble("la foto non è arrivata: soul non si raggiunge");
     } finally {
       setLocalState("idle");
     }
@@ -695,6 +701,15 @@ function sendToSoul(message: FaceToServerMessage): void {
   }
   socket.send(message);
 }
+
+wireTypedLine(
+  requireElement("#say-form") as HTMLFormElement,
+  requireElement("#say-input") as HTMLInputElement,
+  (text) => {
+    setLocalState("thinking");
+    sendToSoul({ type: "heard_text", text });
+  },
+);
 
 // local zero-token reactions: startle immediately, tell soul right after
 const sensors = new Sensors(
