@@ -12,8 +12,8 @@ import {
   PRIME_GOSINO_ID,
   PRIME_ACCOUNT_ID,
 } from "@ugo/db";
-import { EMBED_MODEL, openRouterKey, startOllama, type OllamaHandle } from "@ugo/factories";
-import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { openRouterKey } from "@ugo/factories";
+import { DEFAULT_CHAT_MODEL, LlmClient, OpenRouterEmbeddingsClient } from "@ugo/memory";
 
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -39,9 +39,8 @@ const DAY_START = new Date("2026-08-09T07:00:00Z");
 const at = (hours: number): Date => new Date(DAY_START.getTime() + hours * HOUR);
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let db: DbClient;
-let embedder: OllamaEmbeddingsClient;
+let embedder: OpenRouterEmbeddingsClient;
 
 const speeches = (sent: { type: string; text?: string }[]): string[] =>
   sent.filter((message) => message.type === "speak").map((message) => message.text ?? "");
@@ -84,18 +83,15 @@ async function wake(hourOfDay: number): Promise<{
 }
 
 beforeAll(async () => {
-  [pg, ollama] = await Promise.all([
-    new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
-  ]);
+  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
-  embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
+  embedder = new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() });
 });
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop()]);
+  await pg.stop();
 });
 
 describe("una giornata di vita", () => {

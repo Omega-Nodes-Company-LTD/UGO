@@ -47,7 +47,6 @@ describe("GET /health", () => {
     const app = buildServer({
       db,
       mqtt: { url: mqttUrl },
-      ollamaUrl: `http://${UNREACHABLE}`,
       logger: false,
     });
     try {
@@ -57,65 +56,19 @@ describe("GET /health", () => {
         status: string;
         checks: Record<string, string>;
       }>();
-      expect(body.checks.db).toBe("ok");
-      expect(body.checks.mqtt).toBe("ok");
-      expect(body.checks.ollama).toBe("error");
-      expect(body.status).toBe("degraded");
+      // ADR-131: niente più Ollama da sondare, e OpenRouter non si sonda da
+      // qui (una sonda a pagamento ogni trenta secondi): restano tre righe
+      expect(body.checks).toEqual({ db: "ok", mqtt: "ok", perception: "off" });
+      expect(body.status).toBe("ok");
     } finally {
       await app.close();
     }
   });
 
-  /**
-   * ADR-123: il nodo GPU è una seconda macchina, e `/health` deve saper dire
-   * quale delle due è caduta. «Spenta» resta uno stato legittimo — con una
-   * casa sola non c'è nessun nodo GPU, ed è il caso normale.
-   */
-  it("dice «off» per il nodo GPU quando non è configurato, senza degradare", async () => {
-    const app = buildServer({
-      db,
-      mqtt: { url: mqttUrl },
-      // ollama di casa raggiungibile non lo è mai in questo test: si guarda
-      // solo la riga del nodo GPU, che è quella che questa prova aggiunge
-      ollamaUrl: `http://${UNREACHABLE}`,
-      logger: false,
-    });
-    try {
-      const body = (await app.inject({ method: "GET", url: "/health" })).json<{
-        checks: Record<string, string>;
-      }>();
-      expect(body.checks.ollamaGpu).toBe("off");
-    } finally {
-      await app.close();
-    }
-  });
-
-  it("e «error» quando c'è ma non risponde: due macchine, due righe", async () => {
-    const app = buildServer({
-      db,
-      mqtt: { url: mqttUrl },
-      ollamaUrl: `http://${UNREACHABLE}`,
-      ollamaGpuUrl: `http://${UNREACHABLE}`,
-      logger: false,
-    });
-    try {
-      const response = await app.inject({ method: "GET", url: "/health" });
-      const body = response.json<{ status: string; checks: Record<string, string> }>();
-      expect(body.checks.ollamaGpu).toBe("error");
-      // un nodo GPU giù è una degradazione, non un servizio morto: senza di
-      // lui il vision e il testo locale tornano a girare come prima
-      expect(body.status).toBe("degraded");
-      expect(response.statusCode).toBe(200);
-    } finally {
-      await app.close();
-    }
-  });
-
-  it("degrades without failing when mqtt and ollama are down", async () => {
+  it("degrades without failing when mqtt is down", async () => {
     const app = buildServer({
       db,
       mqtt: { url: `mqtt://${UNREACHABLE}` },
-      ollamaUrl: `http://${UNREACHABLE}`,
       logger: false,
     });
     try {
@@ -125,7 +78,6 @@ describe("GET /health", () => {
       expect(body.status).toBe("degraded");
       expect(body.checks.db).toBe("ok");
       expect(body.checks.mqtt).toBe("error");
-      expect(body.checks.ollama).toBe("error");
     } finally {
       await app.close();
     }
@@ -136,7 +88,6 @@ describe("GET /health", () => {
     const app = buildServer({
       db: deadDb,
       mqtt: { url: mqttUrl },
-      ollamaUrl: `http://${UNREACHABLE}`,
       logger: false,
     });
     try {
@@ -155,7 +106,6 @@ describe("GET /health", () => {
     const app = buildServer({
       db,
       mqtt: { url: mqttUrl, username: "soul", password: "supersecretpassword" },
-      ollamaUrl: `http://${UNREACHABLE}`,
       logger: false,
     });
     try {
@@ -188,7 +138,6 @@ describe("the face bundle served by soul", () => {
       db,
       faceRoot,
       mqtt: { url: mqttUrl },
-      ollamaUrl: `http://${UNREACHABLE}`,
       logger: false,
     });
     try {
@@ -214,7 +163,6 @@ describe("the face bundle served by soul", () => {
       db,
       faceRoot: join(faceRoot, "nowhere"),
       mqtt: { url: mqttUrl },
-      ollamaUrl: `http://${UNREACHABLE}`,
       logger: false,
     });
     try {
@@ -237,12 +185,14 @@ describe("the face bundle served by soul", () => {
  */
 describe("GET /health e la percezione (ADR-101)", () => {
   it("non configurata è «off», e non degrada niente", async () => {
-    const app = buildServer({ db, mqtt: { url: mqttUrl }, ollamaUrl: `http://${UNREACHABLE}`, logger: false });
+    const app = buildServer({ db, mqtt: { url: mqttUrl }, logger: false });
     try {
       const body = (await app.inject({ method: "GET", url: "/health" })).json<{
+        status: string;
         checks: Record<string, string>;
       }>();
       expect(body.checks.perception).toBe("off");
+      expect(body.status).toBe("ok");
     } finally {
       await app.close();
     }
@@ -252,7 +202,6 @@ describe("GET /health e la percezione (ADR-101)", () => {
     const app = buildServer({
       db,
       mqtt: { url: mqttUrl },
-      ollamaUrl: `http://${UNREACHABLE}`,
       perceptionUrl: `http://${UNREACHABLE}`,
       logger: false,
     });

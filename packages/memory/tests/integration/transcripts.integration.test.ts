@@ -9,14 +9,14 @@ import {
   transcriptSegments,
   type DbClient,
 } from "@ugo/db";
-import { EMBED_MODEL, startOllama, type OllamaHandle } from "@ugo/factories";
+import { openRouterKey } from "@ugo/factories";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { OllamaEmbeddingsClient } from "../../src/embeddings.js";
+import { OpenRouterEmbeddingsClient } from "../../src/openRouterEmbeddings.js";
 import { searchTranscripts } from "../../src/transcripts.js";
 
 /**
  * Il confine fra due case, provato sul database vero (Zero-Mock: Postgres con
- * pgvector e gli embedding veri di nomic-embed-text).
+ * pgvector e gli embedding veri, su OpenRouter — ADR-131).
  *
  * `searchTranscripts` girava senza scope: la `where` era solo
  * `embedding is not null`, e chi chiamava decifrava il risultato con la
@@ -26,9 +26,8 @@ import { searchTranscripts } from "../../src/transcripts.js";
  */
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let db: DbClient;
-let embedder: OllamaEmbeddingsClient;
+let embedder: OpenRouterEmbeddingsClient;
 
 const OTHER_ACCOUNT = "00000000-0000-4000-8000-0000000000ff";
 
@@ -61,13 +60,10 @@ async function houseWithRecording(
 }
 
 beforeAll(async () => {
-  [pg, ollama] = await Promise.all([
-    new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
-  ]);
+  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
-  embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
+  embedder = new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() });
 
   // due case che hanno registrato la STESSA cosa: senza scope la ricerca di
   // una pescava il segmento dell'altra, ed erano indistinguibili
@@ -85,7 +81,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop()]);
+  await pg.stop();
 });
 
 describe("searchTranscripts si ferma al tetto della casa", () => {

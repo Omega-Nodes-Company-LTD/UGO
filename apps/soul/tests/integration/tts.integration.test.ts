@@ -56,7 +56,6 @@ beforeAll(async () => {
   app = buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
-    ollamaUrl: "http://127.0.0.1:1",
     logger: false,
     features: {
       chat: undefined as never,
@@ -194,7 +193,6 @@ describe("POST /v1/tts — la catena con la voce di casa", () => {
     const chained = buildServer({
       db,
       mqtt: { url: "mqtt://127.0.0.1:1" },
-      ollamaUrl: "http://127.0.0.1:1",
       logger: false,
       features: {
         chat: undefined as never,
@@ -227,7 +225,6 @@ describe("POST /v1/tts — la catena con la voce di casa", () => {
     const deaf = buildServer({
       db,
       mqtt: { url: "mqtt://127.0.0.1:1" },
-      ollamaUrl: "http://127.0.0.1:1",
       logger: false,
       features: {
         chat: undefined as never,

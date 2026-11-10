@@ -10,16 +10,9 @@ import {
   runMigrations,
   transcriptSegments,
 } from "@ugo/db";
-import {
-  EMBED_MODEL,
-  openRouterKey,
-  startMinio,
-  startOllama,
-  type MinioHandle,
-  type OllamaHandle,
-} from "@ugo/factories";
+import { openRouterKey, startMinio, type MinioHandle } from "@ugo/factories";
 import { DEFAULT_SPECIES_MAP } from "@ugo/shared";
-import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { DEFAULT_CHAT_MODEL, LlmClient, OpenRouterEmbeddingsClient } from "@ugo/memory";
 import { encryptText } from "@ugo/shared";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -29,28 +22,27 @@ import { buildServer } from "../../src/server.js";
 import { characterFrom } from "../../src/services/council/character.js";
 
 // Fase 4 soul side, on real infrastructure: presigned upload to real MinIO,
-// and recordings interrogable through /chat (real pgvector + real embeddings).
+// and recordings interrogable through /chat (real pgvector + real OpenRouter
+// embeddings, ADR-131).
 
 const dataKey = randomBytes(32);
 const BUCKET = "ugo-audio";
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let minio: MinioHandle;
 let s3: S3Client;
 let db: DbClient;
-let embedder: OllamaEmbeddingsClient;
+let embedder: OpenRouterEmbeddingsClient;
 let app: FastifyInstance;
 
 beforeAll(async () => {
-  [pg, ollama, minio] = await Promise.all([
+  [pg, minio] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
     startMinio(),
   ]);
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
-  embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
+  embedder = new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() });
 
   s3 = new S3Client({
     endpoint: minio.endpoint,
@@ -81,7 +73,6 @@ beforeAll(async () => {
   app = buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
-    ollamaUrl: ollama.baseUrl,
     logger: false,
     features: {
       chat,
@@ -102,7 +93,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close();
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop(), minio.container.stop()]);
+  await Promise.all([pg.stop(), minio.container.stop()]);
 });
 
 describe("POST /v1/audio/presign", () => {

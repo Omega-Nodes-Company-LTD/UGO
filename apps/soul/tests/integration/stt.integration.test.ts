@@ -35,7 +35,6 @@ beforeAll(async () => {
   const base = {
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
-    ollamaUrl: "http://127.0.0.1:1",
     logger: false as const,
   };
   app = buildServer({

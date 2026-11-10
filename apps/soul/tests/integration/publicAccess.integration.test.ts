@@ -40,7 +40,6 @@ function build(): FastifyInstance {
   return buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
-    ollamaUrl: "http://127.0.0.1:1",
     logger: false,
     web: {
       publicUrl: PUBLIC_URL,

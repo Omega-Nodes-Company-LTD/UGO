@@ -9,8 +9,8 @@ import {
   PRIME_ACCOUNT_ID,
   runMigrations,
 } from "@ugo/db";
-import { EMBED_MODEL, openRouterKey, startOllama, type OllamaHandle } from "@ugo/factories";
-import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { openRouterKey } from "@ugo/factories";
+import { DEFAULT_CHAT_MODEL, LlmClient, OpenRouterEmbeddingsClient } from "@ugo/memory";
 import type { ServerToFaceMessage } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -22,12 +22,11 @@ import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
 import { characterFrom } from "../../src/services/council/character.js";
 
-// WS vero su un server vero in ascolto, Postgres vero, Ollama vero e
-// OpenRouter vero (ADR-125: niente stub). Il client qui sotto è esattamente
+// WS vero su un server vero in ascolto, Postgres vero e OpenRouter vero per
+// embedding e chat (ADR-125/131: niente stub). Il client qui sotto è esattamente
 // quello che fa la webapp: frame JSON su ws.
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let db: DbClient;
 
 interface FaceTestClient {
@@ -46,7 +45,7 @@ async function startSoul(fakeHour: number): Promise<{ url: string; gateway: Face
     accountId: PRIME_ACCOUNT_ID,
     character: characterFrom({}),
     db,
-    embedder: new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL),
+    embedder: new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() }),
     llm: new LlmClient({
       db,
       apiKey: openRouterKey(),
@@ -60,7 +59,6 @@ async function startSoul(fakeHour: number): Promise<{ url: string; gateway: Face
   app = buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
-    ollamaUrl: ollama.baseUrl,
     logger: false,
     features: { chat, psyche, face: gateway },
   });
@@ -120,17 +118,14 @@ async function connectFace(url: string): Promise<FaceTestClient> {
 }
 
 beforeAll(async () => {
-  [pg, ollama] = await Promise.all([
-    new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
-  ]);
+  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
 });
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop()]);
+  await pg.stop();
 });
 
 afterEach(async () => {

@@ -9,8 +9,8 @@ import { TurnLog } from "../../src/services/diagnostics/turnLog.js";
 /**
  * La diagnostica, contro roba vera (regola 1).
  *
- * Postgres e Mosquitto sono container davvero accesi; Ollama, il registro e la
- * percezione puntano alla porta 1, dove non ascolta nessuno — cioè un guasto
+ * Postgres e Mosquitto sono container davvero accesi; la percezione punta
+ * alla porta 1, dove non ascolta nessuno — cioè un guasto
  * di rete vero e non uno stub che finge di esserlo. È esattamente la
  * situazione che questa pagina esiste per descrivere, e l'unico modo di
  * sapere che la descrive bene è metterla in quella situazione.
@@ -47,11 +47,9 @@ beforeAll(async () => {
   app = buildServer({
     db,
     mqtt: { url: `mqtt://${broker.getHost()}:${String(broker.getMappedPort(1883))}` },
-    ollamaUrl: NOWHERE,
     logger: false,
     diagnostics: {
       mqtt: { url: `mqtt://${broker.getHost()}:${String(broker.getMappedPort(1883))}` },
-      ollama: { url: NOWHERE, embedModel: "nomic-embed-text" },
       // percezione e registro accesi nella configurazione ma irraggiungibili:
       // è il caso che `/health` non sapeva raccontare
       perceptionUrl: NOWHERE,
@@ -117,10 +115,9 @@ describe("GET /v1/diagnostics", () => {
 
   it("dice «non risponde» di un container acceso in configurazione e irraggiungibile", async () => {
     const report = (await ask()).json<Report>();
-    expect(byId(report, "ollama").state).toBe("down");
     expect(byId(report, "percezione").state).toBe("down");
     // e dice cosa fare, che è la parte per cui si apre la pagina
-    expect(byId(report, "ollama").hint).toBeTruthy();
+    expect(byId(report, "percezione").hint).toBeTruthy();
     expect(report.verdict).toBe("degraded");
   });
 
@@ -138,9 +135,9 @@ describe("GET /v1/diagnostics", () => {
   it("nomina ogni container del compose, col nome che si scrive in docker logs", async () => {
     const report = (await ask()).json<Report>();
     // la lista di ops/docker/compose.dev.yml, meno i due database dei servizi
-    // che si sondano attraverso il servizio che li usa
+    // che si sondano attraverso il servizio che li usa. ADR-131: niente ollama
     expect(report.services.map((s) => s.id).sort()).toEqual(
-      ["jobs", "mosquitto", "ollama", "percezione", "postgres", "provider", "reception", "registry", "searxng"].sort(),
+      ["jobs", "mosquitto", "percezione", "postgres", "provider", "reception", "registry", "searxng"].sort(),
     );
     expect(byId(report, "postgres").container).toBe("postgres");
   });
