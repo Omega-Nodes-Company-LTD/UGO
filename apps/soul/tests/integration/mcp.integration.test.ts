@@ -16,12 +16,12 @@ import { createHouse, type TestHouse } from "./helpers/tenancy.js";
  * client MCP VERO dell'SDK sopra — la giunzione provata è quella che userà
  * chiunque punti un agente a `/v1/mcp`.
  *
- * L'embedder è registrato e deterministico (dichiarato): Ollama nei test gira
- * solo in CI, e qui si prova il SERVER, non l'embedding — la matematica del
- * recupero ha i suoi test in packages/memory.
+ * L'embedder è registrato e deterministico (dichiarato): qui si prova il
+ * SERVER, non l'embedding — gli embedding veri (OpenRouter, ADR-131) e la
+ * matematica del recupero hanno i loro test in packages/memory.
  */
 
-/** 768 dimensioni come nomic-embed-text; chiave sulla parola, non sul caso */
+/** 768 dimensioni come lo schema; chiave sulla parola, non sul caso */
 function fakeVector(text: string): number[] {
   const seed = text.toLowerCase().includes("mel") ? 7 : 3;
   return Array.from({ length: 768 }, (_v, i) => Math.sin(i * seed));

@@ -234,7 +234,6 @@ describe("production boot refuses to run unguarded", () => {
     MQTT_URL: "mqtt://mosquitto:1883",
     MQTT_USER: "soul",
     MQTT_PASS: "x",
-    OLLAMA_URL: "http://ollama:11434",
     OPENROUTER_API_KEY: "k",
     UGO_DATA_KEY: "k",
   };

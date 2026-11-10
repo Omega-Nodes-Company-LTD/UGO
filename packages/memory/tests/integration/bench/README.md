@@ -7,8 +7,9 @@ building a local-first companion — so here is the bench, open.
 
 ## What it measures
 
-Real infrastructure, not mocks: Postgres 16 + pgvector, a real `nomic-embed-text`
-Ollama model, 22 Italian memories, 13 questions, `k = 5`, clock frozen at
+Real infrastructure, not mocks: Postgres 16 + pgvector, real embeddings
+(`openai/text-embedding-3-small` at 768d through OpenRouter since ADR-131; the
+measurements before 2026-11-10 used `nomic-embed-text` on Ollama), 22 Italian memories, 13 questions, `k = 5`, clock frozen at
 2026-08-11T12:00:00Z. Families:
 
 | Family | Question | Why it exists |
@@ -24,13 +25,12 @@ Full baseline and history of the measurements live in [`BASELINE.md`](./BASELINE
 ## How to run it
 
 ```bash
-# first time on a machine without the models cached
-mkdir -p ~/.ugo-ollama
-UGO_TEST_OLLAMA_MODELS=~/.ugo-ollama pnpm --filter @ugo/memory test:integration
+OPENROUTER_API_KEY=<key> pnpm --filter @ugo/memory test:integration
 ```
 
-The run needs Docker (Postgres) and Ollama (the embedder). On CI the models are
-cached between runs; the cache key is `ollama-nomic-embed-text-v1`.
+The run needs Docker (Postgres) and a real OpenRouter key: the embedder and the
+abstention judge are the provider's (ADR-131). Each run costs a fraction of a
+cent and writes its rows on the test database's `budget_ledger`.
 
 ## How to add a family
 

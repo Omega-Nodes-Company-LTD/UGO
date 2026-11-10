@@ -9,8 +9,9 @@ import type { SttOutcome } from "../../src/routes/stt.js";
 import { createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 /**
- * Il ponte della dettatura locale (gruppo 13). Whisper vero sta nel servizio
- * di percezione e si prova col deploy; qui si prova il PONTE: 501 quando la
+ * Il ponte della dettatura (gruppo 13). ADR-131: la trascrizione vera passa
+ * da OpenRouter e si prova contro il fornitore vero in packages/memory
+ * (`openRouterClients.integration.test.ts`); qui si prova il PONTE: 501 quando la
  * dettatura non è configurata (il muso resta sul browser), 503 quando whisper
  * è giù (il muso decide lui), il testo quando c'è, e il tetto sull'audio.
  */
