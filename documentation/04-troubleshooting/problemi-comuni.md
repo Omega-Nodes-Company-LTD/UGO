@@ -1,8 +1,8 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.44.0"
-last_updated: "2026-11-09"
+version: "0.45.0"
+last_updated: "2026-11-10"
 author: "ThinkPink Studio"
 ---
 
@@ -28,12 +28,16 @@ direttamente a [Il telefono non trova UGO](#il-telefono-non-trova-ugo).
 5. Su alcuni Android il riconoscimento vocale del telefono non riesce a restare acceso (si
    spaventa ai rumori ma non trascrive quello che dici, e ogni tentativo suona il bip del
    microfono). UGO ci prova qualche volta, poi **passa da solo alla dettatura di casa**: ascolta
-   dal microfono già aperto, senza più bip, e la voce viene trascritta dal server di casa invece
-   che dal telefono. Se lo vedi nel registro (`passo alla dettatura in casa`), è tutto normale —
+   dal microfono già aperto, senza più bip, e la voce viene trascritta dal server (attraverso
+   OpenRouter) invece che dal telefono. Se lo vedi nel registro (`passo alla dettatura in casa`), è tutto normale —
    e se lo ricorda: dalla prossima accensione parte direttamente così, senza rifare i bip.
 6. Se il bottone è passato da solo a **orecchie spente**, nemmeno la dettatura di casa era
    disponibile (il server non la offre, o non risponde). Un tocco sul bottone riprova; tutto il
-   resto (rumori, luce, camera) continua a funzionare.
+   resto (rumori, luce, camera) continua a funzionare. E puoi sempre **scrivergli** dalla casella
+   «scrivigli…» nei comandi.
+7. Se nel registro compare `soul ha risposto 500` (o un altro numero), il problema è sul server, non
+   sul telefono: chi gestisce il server trova la causa nei log di soul. Le due più comuni: la chiave
+   di OpenRouter incollata con un carattere invisibile, o una chiave non valida (`401`).
 
 ## Il microfono non si apre, e UGO lo dice
 
@@ -269,11 +273,9 @@ parlato — vedi la sezione qui sopra.
 Non tirare a indovinare: apri `/admin` → **La diagnostica**. La pagina risponde alla domanda
 esatta, in due blocchi.
 
-1. **I container** — se una riga è ▲ *lento*, il ritardo è suo e accanto c'è cosa fare. Il caso
-   più frequente ha un nome: i modelli di casa (Ollama) non tengono il modello **caldo**, e la
-   prima richiesta se lo carica da disco. Sono decine di secondi che sembrano lentezza della
-   creatura e non lo sono. La riga te lo dice in chiaro: `nessun modello caldo: la prima
-   richiesta paga il caricamento`.
+1. **I container** — se una riga è ▲ *lento*, il ritardo è suo e accanto c'è cosa fare. I
+   modelli non stanno più in casa: passano tutti da OpenRouter, quindi non c'è un modello da
+   tenere «caldo».
 2. **Dove se ne va il tempo** — gli ultimi turni spezzati in fasi. Se il minuto sta tutto in
    *modello*, il ritardo è fuori casa (il provider, o la rete per arrivarci) e nei container non
    c'è niente da riparare. Se sta in *ripescaggio*, è la macchina di casa.

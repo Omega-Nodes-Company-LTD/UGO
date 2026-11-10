@@ -1,10 +1,11 @@
 """ADR-023: the dream recognises that a new memory contradicts an old one and
 retires the old one by itself.
 
-Zero-Mock: real Postgres+pgvector, real Ollama embeddings, and a real HTTP
-batch model at the other end of a socket. What is scripted is the *verdict* —
-the judgement a language model would return — because that is the input to the
-logic under test, not the logic itself.
+Zero-Mock: real Postgres+pgvector, real OpenRouter embeddings, and the real
+batch model on OpenRouter (ADR-125). There is no scripted model any more: what
+the system does WITH a verdict — threshold, direction, idempotence — is tested
+by handing `apply_verdicts` the verdict as plain data, on pairs the real
+`collect_pairs` found; the question itself goes to the real model.
 """
 
 from __future__ import annotations
@@ -14,18 +15,19 @@ import json
 import psycopg
 import pytest
 
-from ugo_jobs.batch import BudgetExhausted
 from ugo_jobs.contradictions import (
     CONFIDENCE_THRESHOLD,
     REASON_PREFIX,
+    Docket,
+    Verdict,
+    apply_verdicts,
+    collect_pairs,
     run_contradictions,
 )
 from ugo_jobs.embeddings import embed
-from test_dream import DREAM_DATE, make_config
-
-# The marker the contradiction prompt carries, so the stub can tell the two
-# questions apart (conftest routes on it).
-PROMPT_MARKER = "si contraddicono"
+from ugo_jobs.ledger import BudgetExhausted, today
+from conftest import db_only_config, require_provider_key
+from test_dream import DREAM_DATE
 
 
 def _write_memory(
@@ -67,21 +69,39 @@ def _clean(conn: psycopg.Connection) -> None:
 
 
 @pytest.fixture()
-def cfg(pg_url, minio, ollama_url, batch_stub):
+def cfg(pg_url):
     """The Postgres container is session-scoped and shared with the golden-day
     dream test, so this file has to leave the database as it found it — on the
     way out as much as on the way in."""
-    config = make_config(pg_url, minio, ollama_url, batch_stub.base_url)
-    batch_stub.routes = []
-    batch_stub.calls = []
-    yield config
-    batch_stub.routes = []
-    batch_stub.calls = []
+    require_provider_key()
+    yield db_only_config(pg_url)
     with psycopg.connect(pg_url) as conn:
         _clean(conn)
 
 
-def test_a_new_fact_retires_the_old_one_it_contradicts(pg_url, cfg, batch_stub):
+def _docket_for(conn, cfg, old: str, new: str) -> Docket:
+    """The real candidate search, and proof it found THIS pair: a verdict
+    about a pair nobody asked about is ignored by design, so a test whose
+    pair fell outside the similarity window would pass for the wrong reason."""
+    docket = collect_pairs(conn, cfg, DREAM_DATE)
+    assert tuple(sorted((old, new))) in docket.pairs, "the pair was never collected"
+    return docket
+
+
+def _verdict(a: str, b: str, *, contradicts: bool = True, confidence: float, reason: str) -> Verdict:
+    return Verdict(a_id=a, b_id=b, contradicts=contradicts, confidence=confidence, reason=reason)
+
+
+def _chat_rows(conn, cfg) -> int:
+    """Calls to the batch model leave a ledger row each (rule 3): zero rows
+    for the chat model means the model was never woken."""
+    row = conn.execute(
+        "select count(*) from budget_ledger where model = %s", (cfg.openrouter_chat_model,)
+    ).fetchone()
+    return int(row[0])
+
+
+def test_a_new_fact_retires_the_old_one_it_contradicts(pg_url, cfg):
     with psycopg.connect(pg_url) as conn:
         _clean(conn)
         old = _write_memory(
@@ -94,25 +114,11 @@ def test_a_new_fact_retires_the_old_one_it_contradicts(pg_url, cfg, batch_stub):
             valid_from="2026-03-01",
             dream_date=DREAM_DATE,
         )
-        batch_stub.routes = [
-            (
-                PROMPT_MARKER,
-                {
-                    "verdicts": [
-                        {
-                            "a_id": old,
-                            "b_id": new,
-                            "contradicts": True,
-                            "confidence": 0.9,
-                            "reason": "ha cambiato lavoro",
-                        }
-                    ]
-                },
-            )
-        ]
-
-        result = run_contradictions(conn, cfg, DREAM_DATE)
-        assert result.superseded == 1
+        docket = _docket_for(conn, cfg, old, new)
+        superseded = apply_verdicts(
+            conn, cfg, docket, [_verdict(old, new, confidence=0.9, reason="ha cambiato lavoro")]
+        )
+        assert superseded == 1
 
         row = conn.execute(
             "select invalidated_at, invalidated_reason, superseded_by from memories where id = %s",
@@ -129,7 +135,39 @@ def test_a_new_fact_retires_the_old_one_it_contradicts(pg_url, cfg, batch_stub):
         assert still[0] is None
 
 
-def test_the_event_carries_ids_and_confidence_but_never_the_text(pg_url, cfg, batch_stub):
+def test_the_real_judge_is_asked_and_its_spend_recorded(pg_url, cfg):
+    """The whole step against the real model. What a model answers is not
+    ours to assert; what the system does with ANY answer is: the question is
+    asked once, paid for in the ledger, and nothing it says can retire the
+    newer memory."""
+    with psycopg.connect(pg_url) as conn:
+        _clean(conn)
+        old = _write_memory(
+            conn, cfg, text="Il gatto dorme sempre in cucina.", valid_from="2025-02-01"
+        )
+        new = _write_memory(
+            conn,
+            cfg,
+            text="Da maggio il gatto non dorme più in cucina: dorme solo in salotto.",
+            valid_from="2026-05-01",
+            dream_date=DREAM_DATE,
+        )
+        _docket_for(conn, cfg, old, new)
+        result = run_contradictions(conn, cfg, DREAM_DATE)
+        assert result.pairs_examined >= 1
+        assert _chat_rows(conn, cfg) == 1
+        survivor = conn.execute(
+            "select invalidated_at from memories where id = %s", (new,)
+        ).fetchone()
+        assert survivor[0] is None, "the newer memory can never be the one retired"
+        if result.superseded:
+            loser = conn.execute(
+                "select superseded_by from memories where id = %s", (old,)
+            ).fetchone()
+            assert str(loser[0]) == new
+
+
+def test_the_event_carries_ids_and_confidence_but_never_the_text(pg_url, cfg):
     with psycopg.connect(pg_url) as conn:
         _clean(conn)
         old = _write_memory(conn, cfg, text="Il gatto dorme in cucina.", valid_from="2025-02-01")
@@ -140,23 +178,10 @@ def test_the_event_carries_ids_and_confidence_but_never_the_text(pg_url, cfg, ba
             valid_from="2026-05-01",
             dream_date=DREAM_DATE,
         )
-        batch_stub.routes = [
-            (
-                PROMPT_MARKER,
-                {
-                    "verdicts": [
-                        {
-                            "a_id": old,
-                            "b_id": new,
-                            "contradicts": True,
-                            "confidence": 0.85,
-                            "reason": "ha cambiato posto",
-                        }
-                    ]
-                },
-            )
-        ]
-        run_contradictions(conn, cfg, DREAM_DATE)
+        docket = _docket_for(conn, cfg, old, new)
+        apply_verdicts(
+            conn, cfg, docket, [_verdict(old, new, confidence=0.85, reason="ha cambiato posto")]
+        )
 
         payload = conn.execute(
             "select payload from events where type = 'memory_superseded' order by ts desc limit 1"
@@ -169,44 +194,36 @@ def test_the_event_carries_ids_and_confidence_but_never_the_text(pg_url, cfg, ba
         assert "gatto" not in blob and "cucina" not in blob and "salotto" not in blob
 
 
-def test_a_memory_that_merely_refines_another_is_left_alone(pg_url, cfg, batch_stub):
+def test_a_memory_that_merely_refines_another_is_left_alone(pg_url, cfg):
     """The test that matters most: an over-eager resolver deletes knowledge in
     silence, at night, with nobody watching."""
     with psycopg.connect(pg_url) as conn:
         _clean(conn)
-        old = _write_memory(conn, cfg, text="Il gatto di casa si chiama Bruno.", valid_from="2025-01-01")
+        old = _write_memory(
+            conn, cfg, text="Il gatto di casa si chiama Bruno.", valid_from="2025-01-01"
+        )
         new = _write_memory(
             conn,
             cfg,
-            text="Bruno dorme sempre sopra il router.",
+            text="Il gatto di casa, Bruno, dorme sempre sopra il router.",
             valid_from="2026-06-01",
             dream_date=DREAM_DATE,
         )
-        batch_stub.routes = [
-            (
-                PROMPT_MARKER,
-                {
-                    "verdicts": [
-                        {
-                            "a_id": old,
-                            "b_id": new,
-                            "contradicts": False,
-                            "confidence": 0.9,
-                            "reason": "si completano",
-                        }
-                    ]
-                },
-            )
-        ]
-        result = run_contradictions(conn, cfg, DREAM_DATE)
-        assert result.superseded == 0
+        docket = _docket_for(conn, cfg, old, new)
+        superseded = apply_verdicts(
+            conn,
+            cfg,
+            docket,
+            [_verdict(old, new, contradicts=False, confidence=0.9, reason="si completano")],
+        )
+        assert superseded == 0
         alive = conn.execute(
             "select count(*) from memories where invalidated_at is null"
         ).fetchone()[0]
         assert alive == 2
 
 
-def test_a_verdict_below_the_threshold_changes_nothing(pg_url, cfg, batch_stub):
+def test_a_verdict_below_the_threshold_changes_nothing(pg_url, cfg):
     with psycopg.connect(pg_url) as conn:
         _clean(conn)
         old = _write_memory(conn, cfg, text="La riunione è di martedì.", valid_from="2025-03-01")
@@ -217,26 +234,12 @@ def test_a_verdict_below_the_threshold_changes_nothing(pg_url, cfg, batch_stub):
             valid_from="2026-07-01",
             dream_date=DREAM_DATE,
         )
-        batch_stub.routes = [
-            (
-                PROMPT_MARKER,
-                {
-                    "verdicts": [
-                        {
-                            "a_id": old,
-                            "b_id": new,
-                            "contradicts": True,
-                            "confidence": CONFIDENCE_THRESHOLD - 0.01,
-                            "reason": "forse",
-                        }
-                    ]
-                },
-            )
-        ]
-        assert run_contradictions(conn, cfg, DREAM_DATE).superseded == 0
+        docket = _docket_for(conn, cfg, old, new)
+        below = _verdict(old, new, confidence=CONFIDENCE_THRESHOLD - 0.01, reason="forse")
+        assert apply_verdicts(conn, cfg, docket, [below]) == 0
 
 
-def test_the_older_fact_never_retires_the_newer_one(pg_url, cfg, batch_stub):
+def test_the_older_fact_never_retires_the_newer_one(pg_url, cfg):
     """`valid_from` decides the direction, not the model and not `created_at`:
     a fact can be written down late and still be the older truth."""
     with psycopg.connect(pg_url) as conn:
@@ -252,23 +255,13 @@ def test_the_older_fact_never_retires_the_newer_one(pg_url, cfg, batch_stub):
         recent = _write_memory(
             conn, cfg, text="Ivan lavora in magazzino dal 2026.", valid_from="2026-01-01"
         )
-        batch_stub.routes = [
-            (
-                PROMPT_MARKER,
-                {
-                    "verdicts": [
-                        {
-                            "a_id": late_but_old,
-                            "b_id": recent,
-                            "contradicts": True,
-                            "confidence": 0.95,
-                            "reason": "lavori diversi",
-                        }
-                    ]
-                },
-            )
-        ]
-        run_contradictions(conn, cfg, DREAM_DATE)
+        docket = _docket_for(conn, cfg, late_but_old, recent)
+        apply_verdicts(
+            conn,
+            cfg,
+            docket,
+            [_verdict(late_but_old, recent, confidence=0.95, reason="lavori diversi")],
+        )
 
         assert (
             conn.execute(
@@ -284,7 +277,7 @@ def test_the_older_fact_never_retires_the_newer_one(pg_url, cfg, batch_stub):
         )
 
 
-def test_episodes_are_never_candidates(pg_url, cfg, batch_stub):
+def test_episodes_are_never_candidates(pg_url, cfg):
     """«Oggi un tuono mi ha spaventato» cannot be made false by a later day."""
     with psycopg.connect(pg_url) as conn:
         _clean(conn)
@@ -307,10 +300,10 @@ def test_episodes_are_never_candidates(pg_url, cfg, batch_stub):
         assert result.pairs_examined == 0
         assert result.superseded == 0
         # no pairs means no reason to spend a single token
-        assert batch_stub.calls == []
+        assert _chat_rows(conn, cfg) == 0
 
 
-def test_a_second_run_supersedes_nothing_twice(pg_url, cfg, batch_stub):
+def test_a_second_run_supersedes_nothing_twice(pg_url, cfg):
     with psycopg.connect(pg_url) as conn:
         _clean(conn)
         old = _write_memory(conn, cfg, text="Il pane si compra dal fornaio.", valid_from="2025-05-01")
@@ -321,53 +314,28 @@ def test_a_second_run_supersedes_nothing_twice(pg_url, cfg, batch_stub):
             valid_from="2026-05-01",
             dream_date=DREAM_DATE,
         )
-        batch_stub.routes = [
-            (
-                PROMPT_MARKER,
-                {
-                    "verdicts": [
-                        {
-                            "a_id": old,
-                            "b_id": new,
-                            "contradicts": True,
-                            "confidence": 0.9,
-                            "reason": "cambiato negozio",
-                        }
-                    ]
-                },
-            )
-        ]
-        assert run_contradictions(conn, cfg, DREAM_DATE).superseded == 1
+        verdicts = [_verdict(old, new, confidence=0.9, reason="cambiato negozio")]
+        assert apply_verdicts(conn, cfg, _docket_for(conn, cfg, old, new), verdicts) == 1
         # the retired one is no longer alive, so it is not a candidate again
-        assert run_contradictions(conn, cfg, DREAM_DATE).superseded == 0
+        second = collect_pairs(conn, cfg, DREAM_DATE)
+        assert second.pairs == {}
+        assert apply_verdicts(conn, cfg, second, verdicts) == 0
         events = conn.execute(
             "select count(*) from events where type = 'memory_superseded'"
         ).fetchone()[0]
         assert events == 1
 
 
-def test_it_refuses_the_paid_fallback_once_the_day_is_spent(pg_url, cfg, batch_stub):
-    """ADR-023: with the local model gone the fallback costs money, and the
-    budget guard applies to the night path too (CLAUDE.md rule 3)."""
-    from dataclasses import replace
-
+def test_it_refuses_to_think_for_money_once_the_day_is_spent(pg_url, cfg):
+    """ADR-023: the budget guard applies to the night path too (CLAUDE.md
+    rule 3). The embeddings that wrote the memories are recorded but never
+    blocked — only the judge is."""
     with psycopg.connect(pg_url) as conn:
         _clean(conn)
-        conn.execute("delete from budget_ledger")
-        _write_memory(conn, cfg, text="Il pane si compra dal fornaio.", valid_from="2025-05-01")
-        _write_memory(
-            conn,
-            cfg,
-            text="Il pane adesso lo compriamo al supermercato.",
-            valid_from="2026-05-01",
-            dream_date=DREAM_DATE,
-        )
         # il giorno della CASA, non `current_date` di Postgres (che vive in
         # UTC): fra le 22 e le 24 UTC Roma e' gia' domani, la riga finiva su
         # ieri e il muro non la vedeva — test rosso solo a cavallo della
         # mezzanotte, che e' il modo peggiore di essere rosso
-        from ugo_jobs.batch import _today
-
         conn.execute(
             """
             insert into budget_ledger
@@ -375,10 +343,18 @@ def test_it_refuses_the_paid_fallback_once_the_day_is_spent(pg_url, cfg, batch_s
                  tokens_in, tokens_out, cost_usd)
             values (%s, %s, %s, 'openrouter', 'deepseek/deepseek-v4-flash', 1, 1, 99.0)
             """,
-            (cfg.account_id, cfg.gosino_id, _today(cfg)),
+            (cfg.account_id, cfg.gosino_id, today(cfg)),
         )
         conn.commit()
+        old = _write_memory(conn, cfg, text="Il pane si compra dal fornaio.", valid_from="2025-05-01")
+        new = _write_memory(
+            conn,
+            cfg,
+            text="Il pane adesso lo compriamo al supermercato.",
+            valid_from="2026-05-01",
+            dream_date=DREAM_DATE,
+        )
+        _docket_for(conn, cfg, old, new)
 
-        broke = replace(cfg, ollama_batch_model="", openrouter_api_key="sk-test")
         with pytest.raises(BudgetExhausted):
-            run_contradictions(conn, broke, DREAM_DATE)
+            run_contradictions(conn, cfg, DREAM_DATE)

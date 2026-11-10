@@ -1,8 +1,8 @@
 ---
 title: "Informativa sulla privacy"
 description: "Quali dati tratta UGO quando è raggiungibile dal web, perché, dove, per quanto tempo, e quali diritti hai."
-version: "1.0.0"
-last_updated: "2026-11-09"
+version: "1.1.0"
+last_updated: "2026-11-10"
 author: "ThinkPink Studio"
 ---
 
@@ -47,7 +47,8 @@ responsabili del trattamento:
 
 | Fornitore | Cosa riceve | Perché | Dove |
 |---|---|---|---|
-| **OpenRouter** e i fornitori del modello che sceglie fra quelli ammessi (DeepInfra, Azure, Parasail, DigitalOcean) | il testo necessario a una risposta e le frasi da dire a voce | comporre le risposte e sintetizzare la voce | USA/UE; mai fornitori con sede in Cina; richieste con «nessuna conservazione» (zero data retention) |
+| **OpenRouter** e i fornitori del modello che sceglie fra quelli ammessi (DeepInfra, Azure, Parasail, DigitalOcean) | il testo necessario a una risposta, le frasi da dire a voce, il testo dei ricordi da indicizzare e le foto che mandi o che lui guarda | comporre le risposte, ritrovare i ricordi, descrivere le foto, sintetizzare la voce | USA/UE; mai fornitori con sede in Cina; richieste con «nessuna conservazione» (zero data retention) e senza uso per addestramento |
+| **OpenAI** (tramite OpenRouter) | l'audio di quello che dici, quando UGO ti ascolta col riconoscimento del server | trascriverlo in testo | USA; richieste **senza uso per addestramento**, ma su questo servizio la «nessuna conservazione» **non è disponibile**: se non vuoi che l'audio esca, usa il riconoscimento del browser |
 | **ElevenLabs** (tramite OpenRouter) | le frasi che UGO dice ad alta voce | la voce | come sopra |
 | **Resend** | l'email del titolare e il link per entrare | l'email «Entra in UGO» | USA |
 | **Hetzner** (archivio S3) | audio, foto e backup, cifrati | conservarli | UE |

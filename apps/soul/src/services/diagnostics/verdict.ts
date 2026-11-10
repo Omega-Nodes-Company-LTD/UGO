@@ -52,7 +52,7 @@ export const DEFAULT_THRESHOLDS: Thresholds = { slowMs: 1_000, timeoutMs: 4_000 
  * Quanto pesa una sonda sul verdetto complessivo.
  *
  * `vital` = senza di lui non c'è prodotto (il database). `supporting` = la
- * casa gira lo stesso, peggio (Ollama, la percezione). `optional` = spento è
+ * casa gira lo stesso, peggio (la percezione). `optional` = spento è
  * uno stato legittimo e non deve tingere di rosso il pannello — è la lezione
  * di `capabilities.ts`, portata qui: una funzione spenta che finge di essere
  * rotta manda a cercare un guasto dove c'è solo una configurazione.

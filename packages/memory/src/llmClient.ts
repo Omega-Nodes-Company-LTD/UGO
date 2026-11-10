@@ -16,7 +16,10 @@ import {
   type ChatChannel,
   type ChatTurn,
 } from "./chatRequest.js";
+import { recordSpend } from "./ledger.js";
 import type { TokenUsage } from "./pricing.js";
+import { textCompletionBody } from "./textRequest.js";
+import { visionCompletionBody } from "./visionRequest.js";
 
 /**
  * THE budget-guard chokepoint (CLAUDE.md rule 3): every paid chat call in the
@@ -102,19 +105,6 @@ export interface LlmClientOptions {
   locale?: string;
   logger?: { warn: (data: Record<string, unknown>, message: string) => void };
 }
-
-/**
- * Il conteggio, da solo: si legge PRIMA e indipendentemente dal resto, perché
- * la spesa va segnata anche quando la forma del resto è cambiata sotto i piedi.
- */
-const usageSchema = z.object({
-  prompt_tokens: z.number(),
-  completion_tokens: z.number(),
-  cost: z.number(),
-  prompt_tokens_details: z
-    .object({ cached_tokens: z.number().optional(), cache_write_tokens: z.number().optional() })
-    .optional(),
-});
 
 const completionResponseSchema = z.object({
   // null quando il modello non ha scritto niente: è una risposta vuota, non un guasto
@@ -206,25 +196,64 @@ export class LlmClient {
     return own === null || own === undefined ? this.options.dailyBudgetUsd : Number(own);
   }
 
+  public async chat(request: LlmChatRequest, at: Date = new Date()): Promise<LlmChatResult> {
+    const body = chatCompletionBody(this.options.model, this.providers, {
+      channel: request.channel,
+      locale: this.locale,
+      ...(request.dynamicSystem !== undefined && { dynamicSystem: request.dynamicSystem }),
+      ...(request.history !== undefined && { history: request.history }),
+      userText: request.userText,
+    });
+    return this.enqueue(() => this.paidCompletion(body, this.options.model, at));
+  }
+
+  /**
+   * ADR-131: una foto diventa UNA frase, e la paga lo stesso salvadanaio della
+   * chat — stessa coda, stesso tetto, stessa riga sul registro. Un secondo
+   * varco con un secondo tetto sarebbe un tetto che si scavalca.
+   */
+  public async describeImage(
+    jpegBase64: string,
+    model: string,
+    at: Date = new Date(),
+  ): Promise<LlmChatResult> {
+    const body = visionCompletionBody(model, this.providers, jpegBase64);
+    return this.enqueue(() => this.paidCompletion(body, model, at));
+  }
+
+  /**
+   * ADR-131: un testo breve da un prompt solo — il lavoro che faceva il
+   * modello di casa. Stesso varco, stessa coda, stesso tetto.
+   */
+  public async generate(
+    prompt: string,
+    maxTokens: number,
+    temperature: number,
+    at: Date = new Date(),
+  ): Promise<LlmChatResult> {
+    const body = textCompletionBody(this.options.model, this.providers, prompt, maxTokens, temperature);
+    return this.enqueue(() => this.paidCompletion(body, this.options.model, at));
+  }
+
   /**
    * Accoda: la prossima chiamata comincia quando la precedente ha finito di
    * segnare la spesa, comprese le chiamate finite male.
    */
-  public async chat(request: LlmChatRequest, at: Date = new Date()): Promise<LlmChatResult> {
-    const mine = this.queue.then(
-      () => this.chatSerialized(request, at),
-      () => this.chatSerialized(request, at),
-    );
+  private enqueue(call: () => Promise<LlmChatResult>): Promise<LlmChatResult> {
+    const mine = this.queue.then(call, call);
     // la coda non deve mai restare "rifiutata", o inghiottirebbe le successive
     this.queue = mine.catch(() => undefined);
     return mine;
   }
 
-  private async chatSerialized(request: LlmChatRequest, at: Date): Promise<LlmChatResult> {
-    const [spent, budgetUsd] = await Promise.all([this.spentTodayUsd(at), this.dailyBudgetUsd()]);
-    if (spent >= budgetUsd) {
+  private async paidCompletion(body: object, model: string, at: Date): Promise<LlmChatResult> {
+    const [spentToday, budgetUsd] = await Promise.all([
+      this.spentTodayUsd(at),
+      this.dailyBudgetUsd(),
+    ]);
+    if (spentToday >= budgetUsd) {
       this.options.logger?.warn(
-        { spentUsd: spent, budgetUsd, accountId: this.accountId },
+        { spentUsd: spentToday, budgetUsd, accountId: this.accountId },
         "daily LLM budget exceeded: declared degradation",
       );
       return { text: DEGRADED_REPLY, degraded: true };
@@ -243,14 +272,6 @@ export class LlmClient {
       );
       return { text: HUNGRY_REPLY, degraded: true };
     }
-
-    const body = chatCompletionBody(this.options.model, this.providers, {
-      channel: request.channel,
-      locale: this.locale,
-      ...(request.dynamicSystem !== undefined && { dynamicSystem: request.dynamicSystem }),
-      ...(request.history !== undefined && { history: request.history }),
-      userText: request.userText,
-    });
 
     const response = await fetch(new URL("/api/v1/chat/completions", OPENROUTER_URL), {
       method: "POST",
@@ -273,39 +294,17 @@ export class LlmClient {
     // una riga, e `UGO_DAILY_BUDGET_USD` smettesse di limitare in silenzio —
     // esattamente il guasto che il salvadanaio esiste per impedire.
     const payload: unknown = await response.json();
-    const counted = usageSchema.safeParse((payload as { usage?: unknown } | null)?.usage);
-    // OpenRouter conta i token in cache DENTRO prompt_tokens: qui si separano,
-    // perché il ledger li ha in colonne distinte e il conto non va fatto due volte
-    const cacheRead = counted.success ? (counted.data.prompt_tokens_details?.cached_tokens ?? 0) : 0;
-    const cacheWrite = counted.success
-      ? (counted.data.prompt_tokens_details?.cache_write_tokens ?? 0)
-      : 0;
-    const usage: TokenUsage = {
-      inputTokens: counted.success ? counted.data.prompt_tokens - cacheRead - cacheWrite : 0,
-      outputTokens: counted.success ? counted.data.completion_tokens : 0,
-      cacheCreationInputTokens: cacheWrite,
-      cacheReadInputTokens: cacheRead,
-    };
-    // il costo lo dichiara chi incassa (ADR-125 §5): un listino copiato qui invecchia
-    const costUsd = counted.success ? counted.data.cost : 0;
-
-    await this.options.db.insert(budgetLedger).values({
+    const spent = await recordSpend(this.options.db, payload, {
       accountId: this.accountId,
       gosinoId: this.gosinoId,
       date: localDate(this.timezone, at),
-      provider: "openrouter",
-      model: this.options.model,
-      tokensIn: usage.inputTokens + usage.cacheCreationInputTokens + usage.cacheReadInputTokens,
-      tokensCacheWrite: usage.cacheCreationInputTokens,
-      tokensCacheRead: usage.cacheReadInputTokens,
-      tokensOut: usage.outputTokens,
-      costUsd: costUsd.toFixed(6),
+      model,
     });
-    if (!counted.success) {
+    if (!spent.counted) {
       // segnata a zero e dichiarata: una riga a costo zero è una bugia più
       // piccola di nessuna riga, e questo log è il solo modo di accorgersene
       this.options.logger?.warn(
-        { accountId: this.accountId, model: this.options.model },
+        { accountId: this.accountId, model },
         "provider usage unreadable: ledger row written with zero tokens",
       );
     }
@@ -313,6 +312,6 @@ export class LlmClient {
     const parsed = completionResponseSchema.parse(payload);
     const text = parsed.choices[0]?.message.content?.trim() ?? "";
 
-    return { text, degraded: false, usage, costUsd };
+    return { text, degraded: false, usage: spent.usage, costUsd: spent.costUsd };
   }
 }

@@ -15,7 +15,7 @@ E sempre, a inizio sessione: `docs/PROGETTO.md` (spec) + `docs/STATE.md` (stato 
 Giurisdizione definita in **ADR-010** (`docs/PROGETTO.md §2`): Italia/UE (GDPR, postura NIS2); possibili interlocutori in Uganda (Data Protection and Privacy Act 2019). Utente unico: il proprietario. **Non porre la domanda di geolocalizzazione legislativa**: applica direttamente i vincoli (minimizzazione, cifratura PII a riposo AES-256-GCM, retention audio, diritto all'oblio, audit log senza PII).
 
 ## STACK
-pnpm workspaces + Turborepo · TypeScript `strict:true` (zero `any`) · Fastify (apps/soul) · Drizzle ORM (packages/db) · Zod a ogni confine · Postgres 16 + pgvector · MQTT/Mosquitto · Ollama (embeddings + batch) · OpenRouter, unico fornitore a pagamento (ADR-125: chat `deepseek/deepseek-v4-flash`, voce ElevenLabs) · Python 3.12 in `ops/jobs` (faster-whisper, whisperX/pyannote) · PlatformIO (firmware) · build123d (hardware) · Vitest + Testcontainers + Playwright.
+pnpm workspaces + Turborepo · TypeScript `strict:true` (zero `any`) · Fastify (apps/soul) · Drizzle ORM (packages/db) · Zod a ogni confine · Postgres 16 + pgvector · MQTT/Mosquitto · OpenRouter, unico fornitore di modelli (ADR-125/131: chat `deepseek/deepseek-v4-flash`, voce ElevenLabs, embedding `openai/text-embedding-3-small` a 768d, visione, dettatura, sogno — **Ollama non esiste più**) · Python 3.12 in `ops/jobs` (faster-whisper, whisperX/pyannote) · PlatformIO (firmware) · build123d (hardware) · Vitest + Testcontainers + Playwright.
 
 ## COMANDI
 ```bash
@@ -33,8 +33,8 @@ Dopo ogni modifica: `tsc --noEmit`, `eslint . --max-warnings=0`, build. Se rosso
 ## REGOLE NON NEGOZIABILI DI PROGETTO
 1. **Zero-Mock, zero stub**: logica DB/HTTP/MQTT testata contro istanze reali (Testcontainers / broker effimero / fornitore vero). I modelli si testano su **OpenRouter vero** (ADR-125): niente stub di rete, niente server finti. Unit test solo per funzioni pure (`packages/psyche`, `packages/memory` re-rank, la forma del prompt).
 2. **Ordine prompt & caching** (PROGETTO §5.5): identità+regole SEMPRE nel primo messaggio di sistema, identico byte per byte, prima di ogni contenuto dinamico. La cache di OpenRouter è a prefisso automatico: un dato variabile interpolato lì la azzera senza errore.
-3. **Budget guard**: nessuna chiamata a pagamento fuori da `packages/memory` (`llmClient` per la chat, `ttsClient` per la voce), entrambi verso **OpenRouter**, con riga su `budget_ledger` e rispetto di `UGO_DAILY_BUDGET_USD`. Vietato istanziare client verso altri fornitori.
-4. **Rete**: nessuna porta di DB/MQTT/Ollama pubblicata sull'host in alcun compose; container non-root; niente segreti nel repo (`.env.example` sempre aggiornato, fail-fast su env mancanti).
+3. **Budget guard**: nessuna chiamata a pagamento fuori da `packages/memory` (`llmClient` per chat, testo e visione; `ttsClient` per la voce; i client di embedding e dettatura via `recordSpend`), tutti verso **OpenRouter**, con riga su `budget_ledger` e rispetto di `UGO_DAILY_BUDGET_USD` (embedding e dettatura si segnano ma non si fermano, ADR-131). Vietato istanziare client verso altri fornitori.
+4. **Rete**: nessuna porta di DB/MQTT pubblicata sull'host in alcun compose; container non-root; niente segreti nel repo (`.env.example` sempre aggiornato, fail-fast su env mancanti).
 5. **Migrazioni** solo via drizzle-kit, mai SQL a mano in produzione; ogni cambio schema = ADR se strutturale.
 6. **Dati**: testo di trascrizioni/messaggi cifrato a riposo (AES-256-GCM via `UGO_DATA_KEY`); niente PII né contenuti nei log; ID ovunque.
 7. **Firmware & hardware**: non toccare `firmware/` o `hardware/` se il task non li riguarda esplicitamente. I relè restano su carichi a bassissima tensione (vincolo di sicurezza fisica, ADR in PROGETTO §4.4).

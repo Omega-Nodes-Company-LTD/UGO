@@ -49,7 +49,7 @@ export const DIAGNOSTICS_PAGE = `
   <div class="block">
     <h2>Dove se ne va il tempo</h2>
     <p class="lede">Gli ultimi turni, spezzati in fasi. <b>ripescaggio</b> &egrave; quel che
-       succede in casa prima di uscire (umore, ricordi, embedding di Ollama);
+       succede in casa prima di uscire (umore, ricordi, embedding);
        <b>modello</b> &egrave; il tempo passato fuori, dal provider; <b>scrittura</b> &egrave;
        la biografia. Un turno senza fasi &egrave; un gesto risolto in casa, che non ha mai
        visto il provider &mdash; e infatti costa niente.</p>

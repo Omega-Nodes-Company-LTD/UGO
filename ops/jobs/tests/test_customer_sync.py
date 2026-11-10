@@ -1,6 +1,6 @@
 """The customer's sources against real infrastructure (ADR-054, Zero-Mock):
 a real git repository over ``file://``, a real IMAP server (GreenMail), the
-real MinIO bucket, real Ollama embeddings, and the same drizzle migrations
+real MinIO bucket, real OpenRouter embeddings (ADR-125), and the same drizzle migrations
 production runs.
 """
 
@@ -75,9 +75,9 @@ def fixture_repo(tmp_path: Path) -> Path:
     return repo
 
 
-def test_repo_clone_index_and_skip(pg_url, ollama_url, fixture_repo, tmp_path, monkeypatch):  # noqa: ANN001
+def test_repo_clone_index_and_skip(pg_url, fixture_repo, tmp_path, monkeypatch):  # noqa: ANN001
     monkeypatch.setenv("UGO_REPOS_DIR", str(tmp_path / "clones"))
-    cfg = db_only_config(pg_url, ollama_url=ollama_url)
+    cfg = db_only_config(pg_url)
     with psycopg.connect(pg_url) as conn:
         house = make_house(conn, "casa-sync-repo")
         make_gosino(conn, house, "ugo-sync")
@@ -112,7 +112,7 @@ def test_repo_clone_index_and_skip(pg_url, ollama_url, fixture_repo, tmp_path, m
         assert epoch_of(conn, customer) == epoch_before + 1
 
 
-def test_mail_readonly_ingestion(pg_url, ollama_url):  # noqa: ANN001
+def test_mail_readonly_ingestion(pg_url):  # noqa: ANN001
     container = (
         DockerContainer("greenmail/standalone:2.1.3")
         .with_exposed_ports(3143, 3025)
@@ -150,7 +150,7 @@ def test_mail_readonly_ingestion(pg_url, ollama_url):  # noqa: ANN001
         else:
             pytest.fail("greenmail smtp never came up")
 
-        cfg = db_only_config(pg_url, ollama_url=ollama_url)
+        cfg = db_only_config(pg_url)
         with psycopg.connect(pg_url) as conn:
             house = make_house(conn, "casa-sync-mail")
             make_gosino(conn, house, "ugo-mail")
@@ -180,10 +180,9 @@ def test_mail_readonly_ingestion(pg_url, ollama_url):  # noqa: ANN001
             assert again[0].get("messages", 0) == 0
 
 
-def test_docs_from_bucket(pg_url, ollama_url, minio):  # noqa: ANN001
+def test_docs_from_bucket(pg_url, minio):  # noqa: ANN001
     cfg = db_only_config(
         pg_url,
-        ollama_url=ollama_url,
         s3_endpoint=minio["endpoint"],
         s3_access_key=minio["access_key"],
         s3_secret_key=minio["secret_key"],

@@ -55,8 +55,16 @@ export async function writeMemory(
  * here, so it should not try: its only job is dropping obvious noise, and a
  * conservative value does that without discarding true answers. At 0.6 it was
  * already cutting the right episodic answer.
+ *
+ * ADR-131: the embedder is now `openai/text-embedding-3-small` and its cosines
+ * sit lower. Measured on the real model: true follow-ups score 0.398–0.459
+ * («e quando passa di solito?», «chi consegna i pacchi?» against the DHL
+ * memory; «cosa si è rotto in casa?» against the washing machine at 0.403),
+ * unrelated sentences around 0.23. At 0.5 the chat forgot what it knew; 0.35
+ * keeps the noise floor between the two bands. The same value is used by
+ * transcripts, house docs and customer chunks — one model, one floor.
  */
-export const MIN_SIMILARITY = 0.5;
+export const MIN_SIMILARITY = 0.35;
 
 /**
  * Top-k hybrid retrieval (PROGETTO §5.4, ADR-022): vector and lexical arms,

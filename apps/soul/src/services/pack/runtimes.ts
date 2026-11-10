@@ -156,6 +156,15 @@ export interface RuntimeDeps {
   nudges?: { answer: (gosinoId: string, text: string, at: Date) => Promise<string | undefined> };
   /** gruppo 4 — input immagini: il vision locale, condiviso come `web` */
   vision?: { describe: (jpegBase64: string) => Promise<string | undefined> };
+  /**
+   * ADR-131: gli occhi per le foto che la casa MANDA in chat, per esemplare
+   * (la spesa va sul suo salvadanaio). Solo per quelle: occhiate, album e
+   * ricordi della stanza restano su `vision`, mai verso un fornitore.
+   */
+  photoVision?: (
+    accountId: string,
+    gosinoId: string,
+  ) => { describe: (jpegBase64: string) => Promise<string | undefined> };
   /** ADR-122: l'album della casa; assente = i gesti dell'album non esistono */
   album?: AlbumService;
 }
@@ -235,6 +244,7 @@ async function buildRuntime(
   const psyche = await PsycheService.restore(hdb, new Date(), row.id);
   const recognition = deps.recognition?.(row.accountId);
   const nudges = deps.nudges;
+  const chatVision = deps.photoVision?.(row.accountId, row.id) ?? deps.vision;
   // ADR-065: il lettore ha bisogno del gateway, che nasce DOPO la chat (il
   // gateway ha bisogno della chat). La scatola scioglie il cerchio: la chat
   // legge il corpo solo al momento del gesto, quando esiste da un pezzo.
@@ -307,7 +317,7 @@ async function buildRuntime(
     // partita porta `account_id` e `gosino_id`, e il servizio sa chi sta
     // giocando. Il `dataKey` della casa cifra il segreto a riposo.
     games: { answer: (text: string, at: Date) => new GameService({ db: deps.db, accountId: row.accountId, gosinoId: row.id, dataKey: deps.dataKey }).answer(text, at) },
-    ...(deps.vision !== undefined && { vision: deps.vision }),
+    ...(chatVision !== undefined && { vision: chatVision }),
     // ADR-099: la cartolina a voce — il gesto esiste per ogni esemplare,
     // perché la porta vera è il consenso della parentela, non il cablaggio
     postcards: {

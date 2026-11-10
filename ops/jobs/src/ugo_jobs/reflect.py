@@ -1,7 +1,7 @@
 """Dream step 2 — reflection (PROGETTO §5.6.2): the batch model re-reads the
 day and distills candidate memories, the diary entry and 1-3 desires.
-Embeddings are real (Ollama nomic-embed-text); the batch model is reachable
-at OLLAMA_BATCH_URL (local MoE, or the API-batch fallback of ADR-001).
+Both the batch model and the embeddings go through OpenRouter (ADR-125; Ollama
+no longer exists, owner directive 2026-11-09), each call with its ledger row.
 """
 
 from __future__ import annotations

@@ -8,8 +8,8 @@ import {
   runMigrations,
   type DbClient,
 } from "@ugo/db";
-import { EMBED_MODEL, openRouterKey, startOllama, type OllamaHandle } from "@ugo/factories";
-import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { openRouterKey } from "@ugo/factories";
+import { DEFAULT_CHAT_MODEL, LlmClient, OpenRouterEmbeddingsClient } from "@ugo/memory";
 import { encryptText } from "@ugo/shared";
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -22,13 +22,12 @@ import { PsycheService } from "../../src/services/psycheService.js";
  * UGO rilegge i turni di tutti, col nome davanti, e può seguire una
  * conversazione a più voci. Sull'API resta lo scoping per persona (ADR-032).
  *
- * Tutto vero (ADR-125): Postgres, Ollama per gli embedding, OpenRouter. Il
+ * Tutto vero (ADR-125/131): Postgres, OpenRouter per embedding e chat. Il
  * filo non si legge più da una richiesta catturata: si chiede al modello
  * qualcosa che può sapere SOLO se il filo giusto gli è arrivato.
  */
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let db: DbClient;
 let gosinoId = "";
 let accountId = "";
@@ -37,10 +36,7 @@ let paola = "";
 const dataKey = randomBytes(32);
 
 beforeAll(async () => {
-  [pg, ollama] = await Promise.all([
-    new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
-  ]);
+  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
   const url = pg.getConnectionUri();
   await runMigrations(url);
   db = createDbClient(url);
@@ -101,13 +97,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop()]);
+  await pg.stop();
 });
 
 async function chat(): Promise<ChatService> {
   return new ChatService({
     db,
-    embedder: new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL),
+    embedder: new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey(), accountId, gosinoId }),
     llm: new LlmClient({
       db,
       apiKey: openRouterKey(),

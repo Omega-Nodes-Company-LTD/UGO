@@ -8,7 +8,7 @@ import { and, cosineDistance, eq, gt, sql } from "drizzle-orm";
  * The third cost wall (ADR-055): the repeated question is the reception's
  * normal case, not abuse — it deserves an answer at zero provider cost.
  * Two tiers: exact hash of the normalized question, then semantic (local
- * Ollama, free) above a strict threshold. Entries die with their TTL or the
+ * via OpenRouter, ADR-131) above a strict threshold. Entries die with their TTL or the
  * moment the knowledge epoch moves (ADR-054): a cached answer about
  * yesterday's code is worse than no answer.
  */

@@ -9,13 +9,15 @@ import type { PsycheService } from "./psycheService.js";
  * Da fermo UGO non era vuoto — volizione, solitudine, sogno — ma non ruminava:
  * fra un tick e l'altro la sua testa era una funzione matematica del tempo.
  * Questo servizio gli dà il pensiero di mezzo: ogni tanto, quando è idle e
- * l'Ollama di casa è acceso, pesca due ricordi e prova un accostamento, si fa
+ * il modello risponde, pesca due ricordi e prova un accostamento, si fa
  * venire una domanda da farti, o scambia due battute con l'altro gosino.
  *
  * Le regole dure, che sono la ragione per cui questo può girare sempre:
  *
- * - **mai il provider**: solo `LocalTextClient`. Il `budget_ledger` non deve
- *   nemmeno vederlo passare — ruminare è gratis o non è;
+ * - **costa, quindi si accende** (ADR-131): il `LocalTextClient` ora passa da
+ *   OpenRouter, ogni pensiero è una riga sul `budget_ledger` e il tetto del
+ *   giorno lo ferma. Per questo `UGO_RUMINATION` nasce spenta: una testa che
+ *   spende da sola si accende, non si subisce;
  * - **ciò che produce passa dal vaglio del sogno**: l'accostamento finisce in
  *   `events` (che `reflect` legge già, riga per riga) e diventa memoria solo
  *   se il sogno lo distilla. Un modello piccolo che rumina male non deve

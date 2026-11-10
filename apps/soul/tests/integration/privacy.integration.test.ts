@@ -14,8 +14,8 @@ import {
   runMigrations,
   transcriptSegments,
 } from "@ugo/db";
-import { EMBED_MODEL, startOllama, startPostgres, type OllamaHandle } from "@ugo/factories";
-import { OllamaEmbeddingsClient, searchMemories, writeMemory } from "@ugo/memory";
+import { openRouterKey, startPostgres } from "@ugo/factories";
+import { OpenRouterEmbeddingsClient, searchMemories, writeMemory } from "@ugo/memory";
 import { decryptText, encryptText } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -25,24 +25,22 @@ import { REDACTION } from "../../src/services/privacy/redaction.js";
 import { addBeing, createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 // GDPR erasure on real infrastructure: real Postgres+pgvector and real
-// embeddings, because the whole point is that nothing identifying survives —
+// OpenRouter embeddings (ADR-131), because the whole point is that nothing identifying survives —
 // including inside the vectors.
 
 const dataKey = randomBytes(32);
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let db: DbClient;
-let embedder: OllamaEmbeddingsClient;
+let embedder: OpenRouterEmbeddingsClient;
 let beingId: string;
 let strangerId: string;
 
 beforeAll(async () => {
-  const [postgres, ollamaHandle] = await Promise.all([startPostgres(), startOllama()]);
+  const postgres = await startPostgres();
   pg = postgres.container;
-  ollama = ollamaHandle;
   await runMigrations(postgres.url);
   db = createDbClient(postgres.url);
-  embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
+  embedder = new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() });
 
   const [ivan] = await db
     .insert(beings)
@@ -105,7 +103,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop()]);
+  await pg.stop();
 });
 
 describe("forgetBeing — anonimizzazione irreversibile (§7)", () => {

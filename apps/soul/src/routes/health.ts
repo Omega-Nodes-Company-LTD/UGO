@@ -17,15 +17,6 @@ const healthResponseSchema = z.object({
   checks: z.object({
     db: checkResult,
     mqtt: checkResult,
-    ollama: checkResult,
-    /**
-     * ADR-123: la seconda macchina, quella con la scheda video. `off` quando
-     * non è configurata — ed è il default: una casa con un solo server è la
-     * norma, non un guasto. Sta a parte da `ollama` perché sono due macchine
-     * e due rimedi: qui rosso vuol dire «la tailnet o il nodo GPU», non «il
-     * container di casa».
-     */
-    ollamaGpu: checkResult,
     /**
      * ADR-101: la percezione. Da lei dipendono volto e voce — cioè metà di
      * quello che rende UGO un compagno e non una chat — e `/health` non la
@@ -40,9 +31,6 @@ export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export interface HealthDeps {
   db: DbClient;
   mqtt: { url?: string | undefined; username?: string | undefined; password?: string | undefined };
-  ollamaUrl: string;
-  /** ADR-123: il nodo GPU; assente = "off", come il broker */
-  ollamaGpuUrl?: string | undefined;
   /** ADR-101: il servizio di percezione; assente = "off", come il broker */
   perceptionUrl?: string | undefined;
 }
@@ -79,20 +67,8 @@ async function checkMqtt(target: HealthDeps["mqtt"]): Promise<CheckResult> {
   }
 }
 
-async function checkOllama(baseUrl: string): Promise<CheckResult> {
-  try {
-    const response = await fetch(new URL("/api/version", baseUrl), {
-      signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
-    });
-    return response.ok ? "ok" : "error";
-  } catch {
-    return "error";
-  }
-}
-
 /**
- * Il servizio di percezione risponde? Stessa forma del controllo di Ollama:
- * una GET con timeout corto, e "off" quando non è configurato — perché una
+ * Il servizio di percezione risponde? Una GET con timeout corto, e "off" quando non è configurato — perché una
  * casa senza riconoscimento è una scelta, non un guasto.
  */
 async function checkPerception(baseUrl: string | undefined): Promise<CheckResult> {
@@ -107,24 +83,24 @@ async function checkPerception(baseUrl: string | undefined): Promise<CheckResult
   }
 }
 
-/** Liveness + readiness (PROGETTO §5.7): db is vital, mqtt/ollama/percezione degradano. */
+/**
+ * Liveness + readiness (PROGETTO §5.7): db is vital, mqtt/percezione degradano.
+ * ADR-131: Ollama non c'è più, e OpenRouter non si sonda da qui — una sonda
+ * a pagamento ogni trenta secondi sarebbe una spesa per guardarsi allo specchio.
+ */
 export function registerHealthRoute(app: FastifyInstance, deps: HealthDeps): void {
   app.get("/health", async (_request, reply) => {
-    const [db, broker, ollama, ollamaGpu, perception] = await Promise.all([
+    const [db, broker, perception] = await Promise.all([
       checkDb(deps.db),
       checkMqtt(deps.mqtt),
-      checkOllama(deps.ollamaUrl),
-      deps.ollamaGpuUrl === undefined
-        ? Promise.resolve<CheckResult>("off")
-        : checkOllama(deps.ollamaGpuUrl),
       checkPerception(deps.perceptionUrl),
     ]);
-    const checks = { db, mqtt: broker, ollama, ollamaGpu, perception };
+    const checks = { db, mqtt: broker, perception };
     const off = (result: CheckResult): boolean => result === "ok" || result === "off";
     const status: HealthResponse["status"] =
       db === "error"
         ? "unavailable"
-        : off(broker) && ollama === "ok" && off(ollamaGpu) && off(perception)
+        : off(broker) && off(perception)
           ? "ok"
           : "degraded";
     const body = healthResponseSchema.parse({ status, checks });

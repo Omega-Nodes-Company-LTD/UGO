@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import replace
 
 import psycopg
 
@@ -56,7 +57,8 @@ def _replace_chunks(
         batch = capped[start : start + EMBED_BATCH]
         # il `ref` viaggia DENTRO l'embedding e resta in chiaro accanto: e un
         # identificatore (pagina, finestra), non contenuto
-        vectors = embed(cfg, [f"{ref}\n{piece}" for ref, piece in batch])
+        # la spesa e' di questa casa, non di quella del processo
+        vectors = embed(replace(cfg, account_id=account_id), [f"{ref}\n{piece}" for ref, piece in batch])
         for (ref, piece), vector in zip(batch, vectors, strict=True):
             conn.execute(
                 """

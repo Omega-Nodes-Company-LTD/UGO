@@ -10,8 +10,8 @@ from __future__ import annotations
 import psycopg
 
 from ugo_jobs.dialect import best_candidate, candidate_words, run_dialect
-from test_dream import DREAM_DATE, make_config
-from conftest import PRIME_GOSINO_ID
+from test_dream import DREAM_DATE
+from conftest import PRIME_GOSINO_ID, db_only_config, require_provider_key
 
 
 def _transcript(conn: psycopg.Connection, text: str) -> None:
@@ -49,10 +49,9 @@ def test_best_candidate_returns_none_without_repetition() -> None:
     assert best_candidate(["il gatto è sul divano"], min_occurrences=3) is None
 
 
-def test_run_dialect_writes_one_memory_when_the_house_has_a_word(
-    pg_url, minio, ollama_url, batch_stub
-) -> None:  # noqa: ANN001
-    cfg = make_config(pg_url, minio, ollama_url, batch_stub.base_url)
+def test_run_dialect_writes_one_memory_when_the_house_has_a_word(pg_url) -> None:  # noqa: ANN001
+    require_provider_key()
+    cfg = db_only_config(pg_url)
     with psycopg.connect(pg_url) as conn:
         # pulizia iniziale: lo stesso database gira per tutta la sessione
         conn.execute("delete from memories where source_refs->>'dialect' = 'true'")
@@ -77,8 +76,8 @@ def test_run_dialect_writes_one_memory_when_the_house_has_a_word(
     assert "suoceri" in rows[0][1]
 
 
-def test_run_dialect_writes_nothing_without_repetition(pg_url, minio, ollama_url, batch_stub) -> None:  # noqa: ANN001
-    cfg = make_config(pg_url, minio, ollama_url, batch_stub.base_url)
+def test_run_dialect_writes_nothing_without_repetition(pg_url) -> None:  # noqa: ANN001
+    cfg = db_only_config(pg_url)
     with psycopg.connect(pg_url) as conn:
         # pulizia: lo stesso database gira per tutta la sessione, e i test
         # precedenti hanno già scritto memory e transcript dello stesso giorno

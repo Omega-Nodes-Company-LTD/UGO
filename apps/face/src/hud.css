@@ -59,6 +59,30 @@ body {
 #controls svg {
   flex-shrink: 0;
 }
+/* scrivergli: la casella sta accanto ai sensi, con la stessa ricetta */
+#say-form {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+#say-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 13px;
+  border-radius: 10px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px; /* sotto i 16px iOS ingrandisce la pagina al tocco */
+}
+#say-input::placeholder {
+  color: var(--ink-faint);
+}
+#controls #say-submit {
+  justify-content: center;
+}
 #controls .section {
   font-size: 11px;
   font-weight: 700;
@@ -286,6 +310,16 @@ body {
 }
 #app[data-chrome="nascosto"] #controls button .lbl {
   display: none;
+}
+#app[data-chrome="nascosto"] #say-input {
+  width: min(220px, 40vw);
+  min-height: 40px;
+  background: transparent;
+}
+#app[data-chrome="nascosto"] #controls #say-submit {
+  width: auto;
+  padding: 0 12px;
+  border-radius: 999px;
 }
 #app[data-chrome="nascosto"] #controls button:not(#btn-ears):not(#btn-rec) {
   width: 46px;

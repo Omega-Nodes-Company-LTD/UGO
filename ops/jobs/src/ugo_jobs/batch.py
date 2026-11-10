@@ -1,124 +1,75 @@
 """The one way a night job may talk to a language model (ADR-023).
 
 Was inlined in `reflect.py` and hardwired to its output schema. It moved here
-the moment a second step needed it, because a second copy of "local MoE first,
-API fallback, write the ledger" is exactly how the budget guard stops being a
-chokepoint (CLAUDE.md rule 3).
+the moment a second step needed it, because a second copy of "call the model,
+write the ledger" is exactly how the budget guard stops being a chokepoint
+(CLAUDE.md rule 3).
 
-It also closes a gap that was here before: the Python path *recorded* what it
-spent but never *checked* the ceiling, unlike `LlmClient.chat` on the
-TypeScript side. With one nightly consumer that was survivable; ADR-023 makes
-it two.
+Direttiva del proprietario del 2026-11-09: Ollama non esiste piu'. Non c'e'
+un modello di casa da provare prima e un ripiego da prendere dopo: il sogno
+pensa via OpenRouter e basta (ADR-125), sempre dietro il tetto giornaliero e
+sempre con la sua riga nel registro (`ledger.py`).
 """
 
 from __future__ import annotations
 
 import re
-from datetime import datetime
 from typing import TypeVar
-from zoneinfo import ZoneInfo
 
 import httpx
 import psycopg
 from pydantic import BaseModel, ValidationError
 
 from .config import JobsConfig
+from .ledger import BudgetExhausted, Spend, budget_left, record_spend
+
+__all__ = [
+    "OPENROUTER_URL",
+    "BudgetExhausted",
+    "ask_batch_model",
+    "bare_json",
+    "openrouter_body",
+    "provider_routing",
+]
 
 TModel = TypeVar("TModel", bound=BaseModel)
 
 OPENROUTER_URL = "https://openrouter.ai"
 
-# Il costo non si calcola qui: lo dichiara OpenRouter in `usage.cost` (ADR-125
-# §5). Un listino copiato in questo file e' come il registro e' arrivato, una
-# volta, a dichiarare la meta' di quel che il sogno spendeva.
-
 MAX_TOKENS = 2000
 
 
-class BudgetExhausted(RuntimeError):
-    """The house has spent its day. Not a failure — a declared degradation."""
-
-
-def _today(cfg: JobsConfig) -> str:
-    """Oggi, per questa casa. Lo scheduler mette in `cfg.timezone` il fuso della
-    famiglia prima di svegliare il sogno, quindi qui e' gia' quello giusto."""
-    return datetime.now(ZoneInfo(cfg.timezone)).date().isoformat()
-
-
-def spent_today_usd(conn: psycopg.Connection, cfg: JobsConfig) -> float:
-    """This house's ledger for today, always summed server-side (ADR-019).
-
-    «Oggi» e' il giorno della **casa** (ADR-050), non di Postgres. Correggere la
-    sola scrittura avrebbe fatto di peggio che lasciare tutto com'era: la spesa
-    su un giorno e il controllo del tetto su un altro, cioe' un limite che non
-    limita e non lo dice.
-    """
-    row = conn.execute(
-        """
-        select coalesce(sum(cost_usd), 0)::float from budget_ledger
-        where account_id = %s and date = %s
-        """,
-        (cfg.account_id, _today(cfg)),
-    ).fetchone()
-    return float(row[0]) if row else 0.0
-
-
-def daily_budget_usd(conn: psycopg.Connection, cfg: JobsConfig) -> float:
-    """The house's own ceiling when it has one, the process default otherwise."""
-    row = conn.execute(
-        "select daily_budget_usd from accounts where id = %s",
-        (cfg.account_id,),
-    ).fetchone()
-    if row is not None and row[0] is not None:
-        return float(row[0])
-    return cfg.daily_budget_usd
-
-
-def budget_left(conn: psycopg.Connection, cfg: JobsConfig) -> bool:
-    return spent_today_usd(conn, cfg) < daily_budget_usd(conn, cfg)
-
-
-def _ask_ollama(cfg: JobsConfig, prompt: str) -> str:
-    response = httpx.post(
-        f"{cfg.ollama_batch_url}/api/chat",
-        json={
-            "model": cfg.ollama_batch_model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "format": "json",
-        },
-        timeout=600,
-    )
-    response.raise_for_status()
-    return response.json()["message"]["content"]
+def provider_routing(cfg: JobsConfig) -> dict[str, object]:
+    """Fornitori in un elenco chiuso e ordinato, nessuna conservazione dei
+    dati: la stessa regola per la chat e per gli embedding (ADR-125)."""
+    providers = list(cfg.openrouter_providers)
+    return {
+        "order": providers,
+        "only": providers,
+        "allow_fallbacks": True,
+        "zdr": True,
+        "data_collection": "deny",
+    }
 
 
 def openrouter_body(cfg: JobsConfig, prompt: str) -> dict[str, object]:
     """La richiesta, pura: le stesse regole del varco di soul (ADR-125) —
     ragionamento spento, fornitori in un elenco chiuso e ordinato, nessuna
     conservazione dei dati, costo dichiarato nella risposta."""
-    providers = list(cfg.openrouter_providers)
     return {
         "model": cfg.openrouter_chat_model,
         "max_tokens": MAX_TOKENS,
         "messages": [{"role": "user", "content": prompt}],
         "reasoning": {"enabled": False},
-        "provider": {
-            "order": providers,
-            "only": providers,
-            "allow_fallbacks": True,
-            "zdr": True,
-            "data_collection": "deny",
-        },
+        "provider": provider_routing(cfg),
         "usage": {"include": True},
     }
 
 
 def _ask_openrouter(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | None) -> str:
-    """ADR-001 fallback, via OpenRouter (ADR-125), when the local MoE is
-    unavailable. It costs money, so it goes through the same piggy bank the
-    real-time path uses (CLAUDE.md rule 3) — the ledger must show every cent,
-    whichever process spent it.
+    """The only way the dream thinks (ADR-125). It costs money, so it goes
+    through the same piggy bank the real-time path uses (CLAUDE.md rule 3) —
+    the ledger must show every cent, whichever process spent it.
 
     Senza connessione non si spende. Il registro stava sotto un
     ``if conn is not None`` e ``conn`` ha il valore predefinito ``None``:
@@ -130,7 +81,7 @@ def _ask_openrouter(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | Non
     """
     if conn is None:
         raise RuntimeError(
-            "the paid ADR-001 fallback needs the ledger connection: "
+            "the paid model call needs the ledger connection: "
             "no piggy bank, no spending (CLAUDE.md rule 3)"
         )
     response = httpx.post(
@@ -144,31 +95,7 @@ def _ask_openrouter(cfg: JobsConfig, prompt: str, conn: psycopg.Connection | Non
     )
     response.raise_for_status()
     body = response.json()
-    usage = body.get("usage") or {}
-    tokens_in = int(usage.get("prompt_tokens", 0))
-    tokens_out = int(usage.get("completion_tokens", 0))
-    cost = float(usage.get("cost", 0.0))
-    # ADR-050: il giorno del ledger e' quello della CASA, non del server.
-    # `current_date` e' la data di Postgres, mentre `LlmClient` in soul
-    # calcola la propria con il fuso della famiglia: due strade che
-    # scrivono sulla stessa colonna e in fusi diversi rispondevano date
-    # diverse, cioe' un tetto giornaliero che si azzera due volte o mai.
-    conn.execute(
-        """
-        insert into budget_ledger
-          (date, provider, model, tokens_in, tokens_out, cost_usd, account_id, gosino_id)
-        values (%s, 'openrouter', %s, %s, %s, %s, %s, %s)
-        """,
-        (
-            _today(cfg),
-            cfg.openrouter_chat_model,
-            tokens_in,
-            tokens_out,
-            round(cost, 6),
-            cfg.account_id,
-            cfg.gosino_id,
-        ),
-    )
+    record_spend(conn, cfg, Spend.from_usage(cfg.openrouter_chat_model, body.get("usage")))
     conn.commit()
     choices = body.get("choices") or [{}]
     return (choices[0].get("message") or {}).get("content") or ""
@@ -182,8 +109,8 @@ _FENCE = re.compile(r"^\s*```(?:json)?\s*\n?(.*?)\n?\s*```\s*$", re.DOTALL)
 def bare_json(content: str) -> str:
     """Il JSON, sbucciato dalla recinzione markdown se il modello ce l'ha messa.
 
-    Il percorso Ollama chiede ``format: "json"`` e non recinta mai; l'API del
-    fallback (ADR-001) non ha l'equivalente, e una notte ha risposto con
+    Il vecchio modello di casa chiedeva ``format: "json"`` e non recintava
+    mai; OpenRouter non ha l'equivalente, e una notte ha risposto con
     ```` ```json {...} ``` ```` — sogno fermo su un errore di *confezione*, non
     di contenuto. Qui si toglie SOLO una recinzione che avvolge l'intero corpo:
     un JSON già nudo passa intatto, e qualunque altra sbavatura resta un errore
@@ -199,35 +126,18 @@ def ask_batch_model(
     schema: type[TModel],
     conn: psycopg.Connection | None = None,
 ) -> TModel:
-    """Local MoE first (free, private); the API only if the local one is down.
+    """OpenRouter, dietro il tetto giornaliero e col registro (ADR-125).
 
-    With OLLAMA_BATCH_MODEL unset there is no local model on this box at all —
-    a perfectly normal deployment — so we go straight to the API rather than
-    firing a request that can only fail.
-
-    The budget is checked only on the paths that can spend: the local model is
-    free, and refusing to think for free would be a bug, not a guard.
+    L'ordine dei controlli e' quello che non spende per sbaglio: prima il
+    tetto, poi la chiave, poi la connessione del registro — tutti PRIMA della
+    richiesta.
     """
-    if not cfg.ollama_batch_model:
-        _refuse_if_broke(conn, cfg)
-        if not cfg.openrouter_api_key:
-            raise RuntimeError(
-                "no OLLAMA_BATCH_MODEL and no OPENROUTER_API_KEY: the dream has "
-                "nothing to reflect with (ADR-001)"
-            )
-        content = _ask_openrouter(cfg, prompt, conn)
-    else:
-        try:
-            content = _ask_ollama(cfg, prompt)
-        except Exception as ollama_error:  # noqa: BLE001 — any failure means "fall back"
-            _refuse_if_broke(conn, cfg)
-            if not cfg.openrouter_api_key:
-                raise RuntimeError(
-                    "local batch model unreachable and no OPENROUTER_API_KEY for the "
-                    f"ADR-001 fallback: {ollama_error}"
-                ) from ollama_error
-            content = _ask_openrouter(cfg, prompt, conn)
-
+    _refuse_if_broke(conn, cfg)
+    if not cfg.openrouter_api_key:
+        raise RuntimeError(
+            "no OPENROUTER_API_KEY: the dream has nothing to reflect with (ADR-125)"
+        )
+    content = _ask_openrouter(cfg, prompt, conn)
     try:
         return schema.model_validate_json(bare_json(content))
     except ValidationError as error:
@@ -241,5 +151,5 @@ def _refuse_if_broke(conn: psycopg.Connection | None, cfg: JobsConfig) -> None:
         return
     if not budget_left(conn, cfg):
         raise BudgetExhausted(
-            "daily LLM budget exhausted: the paid fallback is not taken tonight"
+            "daily LLM budget exhausted: the dream does not think for money tonight"
         )

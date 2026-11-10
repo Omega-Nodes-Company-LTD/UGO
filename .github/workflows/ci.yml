@@ -33,7 +33,8 @@ jobs:
         run: pnpm audit --audit-level high
 
   # Real infrastructure, per TESTING_PLAYBOOK: Postgres+pgvector, Mosquitto,
-  # MinIO and Ollama containers. ubuntu-latest ships a working Docker daemon.
+  # MinIO containers; every model is OpenRouter (ADR-131). ubuntu-latest ships
+  # a working Docker daemon.
   integration:
     name: integration (real containers)
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
@@ -46,36 +47,17 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Questa cache non ha MAI funzionato: `Cache not found` in ingresso a ogni
-      # run, e in uscita `tar: Cannot open: Permission denied` su due file che
-      # il container di Ollama crea con l'uid suo — `id_ed25519` e
-      # `cache/model-recommendations.json`. Un file solo illeggibile fa uscire
-      # tar con 2, e actions/cache scarta l'intero archivio: risultato, ogni
-      # run riscaricava i pesi da capo e nessuno se ne accorgeva, perché il
-      # fallimento è un `warning` in fondo al job.
-      #
-      # I due file non sono pesi e non servono a niente qui (uno è per giunta
-      # una chiave privata, che in una cache non ci deve stare): si buttano
-      # prima del passo di salvataggio, e resta solo ciò che vale la pena
-      # tenere. Lo stesso passo sta nei tre job che condividono la cache.
-      - name: cache the embedding model between runs
-        uses: actions/cache@v4
-        with:
-          path: ~/.ugo-ollama
-          # ADR-107: questo job vuole anche il modello di TESTO per il giudice
-          # dell'astensione, quindi ha una chiave sua. Condividerla con e2e —
-          # che il testo non lo usa — faceva correre i due job per la stessa
-          # chiave, e chi arrivava secondo non salvava niente.
-          key: ollama-nomic-qwen15-v1
-      - run: mkdir -p ~/.ugo-ollama
+      # ADR-131: i test dei client OpenRouter generano l'immagine e convertono
+      # la voce con ffmpeg vero (input sintetici, mai file di fixture). I runner
+      # nostri (`vars.CI_RUNNER`) non lo hanno di serie come ubuntu-latest.
+      - uses: ./.github/actions/apt-ready
+      - name: ffmpeg per i test di visione e dettatura
+        timeout-minutes: 12
+        run: command -v ffmpeg || sudo apt-get install -y --no-install-recommends -o Acquire::Retries=2 ffmpeg
       - run: pnpm test:integration
         env:
-          # ADR-125: i modelli si testano sul fornitore vero, niente stub
+          # ADR-125/131: i modelli si testano sul fornitore vero, niente stub
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
-      - name: lascia nella cache solo i pesi, e leggibili
-        if: always()
-        run: sudo rm -rf ~/.ugo-ollama/cache ~/.ugo-ollama/id_ed25519 ~/.ugo-ollama/id_ed25519.pub
 
   e2e:
     name: e2e (real browser vs real soul)
@@ -96,19 +78,10 @@ jobs:
       - uses: ./.github/actions/apt-ready
       - run: pnpm --filter face exec playwright install --with-deps chromium
         timeout-minutes: 12
-      - uses: actions/cache@v4
-        with:
-          path: ~/.ugo-ollama
-          key: ollama-nomic-embed-text-v1
-      - run: mkdir -p ~/.ugo-ollama
       - run: pnpm test:e2e
         env:
-          # ADR-125: i modelli si testano sul fornitore vero, niente stub
+          # ADR-125/131: i modelli si testano sul fornitore vero, niente stub
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
-      - name: lascia nella cache solo i pesi, e leggibili
-        if: always()
-        run: sudo rm -rf ~/.ugo-ollama/cache ~/.ugo-ollama/id_ed25519 ~/.ugo-ollama/id_ed25519.pub
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -138,23 +111,17 @@ jobs:
         run: sudo apt-get install -y --no-install-recommends -o Acquire::Retries=2 espeak-ng
       - uses: actions/cache@v4
         with:
-          path: |
-            ~/.ugo-ollama
-            ~/.ugo-whisper
-          key: models-nomic-whisperbase-v1
-      - run: mkdir -p ~/.ugo-ollama ~/.ugo-whisper
+          path: ~/.ugo-whisper
+          key: models-whisperbase-v1
+      - run: mkdir -p ~/.ugo-whisper
       - working-directory: ops/jobs
         run: pip install -e ".[test]"
       - working-directory: ops/jobs
         run: pytest -q
         env:
-          # ADR-125: i modelli si testano sul fornitore vero, niente stub
+          # ADR-125/131: i modelli si testano sul fornitore vero, niente stub
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          UGO_TEST_OLLAMA_MODELS: /home/runner/.ugo-ollama
           UGO_TEST_WHISPER_MODELS: /home/runner/.ugo-whisper
-      - name: lascia nella cache solo i pesi, e leggibili
-        if: always()
-        run: sudo rm -rf ~/.ugo-ollama/cache ~/.ugo-ollama/id_ed25519 ~/.ugo-ollama/id_ed25519.pub
 
   images:
     # The pipeline validated the source but never the artefacts, so a

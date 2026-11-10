@@ -1,32 +1,35 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { createDbClient, memories, PRIME_GOSINO_ID, runMigrations, type DbClient } from "@ugo/db";
-import { EMBED_MODEL, MemoryFactory, startOllama, type OllamaHandle } from "@ugo/factories";
+import {
+  budgetLedger,
+  createDbClient,
+  memories,
+  PRIME_GOSINO_ID,
+  runMigrations,
+  type DbClient,
+} from "@ugo/db";
+import { MemoryFactory, openRouterKey, REFUSED_MODEL } from "@ugo/factories";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { OllamaEmbeddingsClient } from "../../src/embeddings.js";
+import { DEFAULT_EMBED_MODEL, OpenRouterEmbeddingsClient } from "../../src/openRouterEmbeddings.js";
 import { searchMemories, writeMemory } from "../../src/retrieval.js";
 
-// Zero-Mock: real Postgres+pgvector AND real Ollama embeddings — semantic
-// similarity below is produced by the actual nomic-embed-text model.
+// Zero-Mock: real Postgres+pgvector AND real OpenRouter embeddings (ADR-131) —
+// semantic similarity below is produced by the actual embedding model.
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let db: DbClient;
-let embedder: OllamaEmbeddingsClient;
+let embedder: OpenRouterEmbeddingsClient;
 
 beforeAll(async () => {
-  [pg, ollama] = await Promise.all([
-    new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
-  ]);
+  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
-  embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
+  embedder = new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() });
 });
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop()]);
+  await pg.stop();
 });
 
 describe("write + semantic search on real infrastructure", () => {
@@ -58,7 +61,12 @@ describe("write + semantic search on real infrastructure", () => {
     const results = await searchMemories(db, embedder, "come si chiama il gatto?", 3);
     expect(results.length).toBeGreaterThan(0);
     expect(results[0]?.text).toContain("Bruno");
-    expect(results[0]?.similarity).toBeGreaterThan(results.at(-1)?.similarity ?? 1);
+    // the cat outscores every other memory that made it through: with ADR-131's
+    // embedder the unrelated ones mostly fall under MIN_SIMILARITY and never
+    // come back at all, which is the stronger form of the same claim
+    const best = results[0]?.similarity ?? 0;
+    for (const other of results.slice(1)) expect(other.similarity).toBeLessThan(best);
+    expect(results.some((result) => result.text.includes("lavatrice"))).toBe(false);
 
     const touched = await db
       .select({ lastAccessed: memories.lastAccessed })
@@ -96,12 +104,48 @@ describe("write + semantic search on real infrastructure", () => {
 
   });
 
-  it("rejects embeddings of the wrong dimension at the client boundary", async () => {
-    const bad = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
-    // factory data is fine, but the dimension check is on real responses:
-    // simulate a wrong-dim expectation by asking a bogus model name
-    await expect(bad.embed([MemoryFactory.create({ gosinoId: PRIME_GOSINO_ID }).text])).resolves.toHaveLength(1);
-    const wrongModel = new OllamaEmbeddingsClient(ollama.baseUrl, "no-such-model");
-    await expect(wrongModel.embed(["x"])).rejects.toThrow();
+  it("returns one 768d vector per input, in input order", async () => {
+    const texts = [
+      MemoryFactory.create({ gosinoId: PRIME_GOSINO_ID }).text,
+      "Il gatto di casa si chiama Bruno.",
+    ];
+    const vectors = await embedder.embed(texts);
+    expect(vectors).toHaveLength(2);
+    for (const vector of vectors) expect(vector).toHaveLength(768);
+    // order is the input's: the second vector is the cat, not the factory text
+    const [cat] = await embedder.embed([texts[1] ?? ""]);
+    const cosine = (a: number[], b: number[]): number =>
+      a.reduce((sum, v, i) => sum + v * (b[i] ?? 0), 0) /
+      (Math.hypot(...a) * Math.hypot(...b));
+    expect(cosine(vectors[1] ?? [], cat ?? [])).toBeGreaterThan(0.99);
+  });
+
+  /**
+   * ADR-131: ogni embedding è una chiamata pagata, quindi scrive la sua riga
+   * sul registro (regola 3) — col modello degli embedding, non con quello
+   * della chat, e col costo che dichiara chi incassa.
+   */
+  it("writes a budget_ledger row per call, under the embedding model", async () => {
+    const before = await db.select().from(budgetLedger).where(eq(budgetLedger.model, DEFAULT_EMBED_MODEL));
+    await embedder.embed(["una riga sul registro"]);
+    const after = await db.select().from(budgetLedger).where(eq(budgetLedger.model, DEFAULT_EMBED_MODEL));
+    expect(after).toHaveLength(before.length + 1);
+    const row = after.find((candidate) => !before.some((old) => old.id === candidate.id));
+    expect(row?.provider).toBe("openrouter");
+    expect(row?.tokensIn).toBeGreaterThan(0);
+    expect(Number(row?.costUsd)).toBeGreaterThanOrEqual(0);
+  });
+
+  it("an empty batch costs nothing: no call, no row", async () => {
+    const before = (await db.select().from(budgetLedger)).length;
+    await expect(embedder.embed([])).resolves.toEqual([]);
+    expect((await db.select().from(budgetLedger)).length).toBe(before);
+  });
+
+  it("a model the provider refuses throws, and nothing is booked", async () => {
+    const before = (await db.select().from(budgetLedger)).length;
+    const refused = new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey(), model: REFUSED_MODEL });
+    await expect(refused.embed(["x"])).rejects.toThrow(/embeddings request failed/);
+    expect((await db.select().from(budgetLedger)).length).toBe(before);
   });
 });

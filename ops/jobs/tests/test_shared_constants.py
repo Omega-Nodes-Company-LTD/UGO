@@ -17,11 +17,14 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from ugo_jobs import hygiene
+from ugo_jobs import config, hygiene
 
 REPO = Path(__file__).resolve().parents[3]
 LIFE_TS = REPO / "packages" / "psyche" / "src" / "life.ts"
 EFFICACY_TS = REPO / "packages" / "db" / "src" / "schema" / "efficacy.ts"
+SHARED_CONSTANTS_TS = REPO / "packages" / "shared" / "src" / "constants.ts"
+EMBEDDINGS_TS = REPO / "packages" / "memory" / "src" / "openRouterEmbeddings.ts"
+CHAT_REQUEST_TS = REPO / "packages" / "memory" / "src" / "chatRequest.ts"
 
 
 def _number(source: Path, name: str) -> float:
@@ -29,6 +32,36 @@ def _number(source: Path, name: str) -> float:
     match = re.search(rf"{name}\s*=\s*(-?[\d.]+)", text)
     assert match is not None, f"{name} non si trova più in {source.name}"
     return float(match.group(1))
+
+
+def _string(source: Path, name: str) -> str:
+    text = source.read_text(encoding="utf-8")
+    match = re.search(rf"{name}\s*(?::[^=]+)?=\s*\"([^\"]+)\"", text)
+    assert match is not None, f"{name} non si trova più in {source.name}"
+    return match.group(1)
+
+
+def _strings(source: Path, name: str) -> tuple[str, ...]:
+    text = source.read_text(encoding="utf-8")
+    match = re.search(rf"{name}\s*(?::[^=]+)?=\s*\[([^\]]*)\]", text)
+    assert match is not None, f"{name} non si trova più in {source.name}"
+    return tuple(re.findall(r'"([^"]+)"', match.group(1)))
+
+
+def test_the_embedding_space_is_the_same_in_both_languages() -> None:
+    """Un vettore del sogno e uno della chat stanno nella stessa colonna e si
+    confrontano fra loro: se il modello o le dimensioni divergessero, ogni
+    ricerca sbaglierebbe in silenzio (ADR-125, direttiva del 2026-11-09)."""
+    assert _string(EMBEDDINGS_TS, "DEFAULT_EMBED_MODEL") == config.DEFAULT_EMBED_MODEL
+    assert _number(SHARED_CONSTANTS_TS, "EMBEDDING_DIMENSIONS") == config.EMBEDDING_DIMENSIONS
+
+
+def test_the_paid_gateway_routes_the_same_way_in_both_languages() -> None:
+    """Stesso modello di chat, stessi fornitori nello stesso ordine: un
+    fornitore aggiunto da una parte sola sarebbe una porta che l'elenco
+    chiuso di ADR-125 non vede."""
+    assert _string(CHAT_REQUEST_TS, "DEFAULT_CHAT_MODEL") == config.DEFAULT_CHAT_MODEL
+    assert _strings(CHAT_REQUEST_TS, "DEFAULT_PROVIDERS") == config.DEFAULT_PROVIDERS
 
 
 def test_the_life_curve_is_the_same_in_both_languages() -> None:

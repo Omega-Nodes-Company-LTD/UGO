@@ -13,9 +13,9 @@ import {
   type DbClient,
   runMigrations,
 } from "@ugo/db";
-import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient } from "@ugo/memory";
+import { DEFAULT_CHAT_MODEL, LlmClient, OpenRouterEmbeddingsClient } from "@ugo/memory";
 import { encryptText } from "@ugo/shared";
-import { openRouterKey, startOllama, startPostgres, type OllamaHandle } from "@ugo/factories";
+import { openRouterKey, startPostgres } from "@ugo/factories";
 import type { FastifyInstance } from "fastify";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -27,8 +27,8 @@ import { buildServer } from "../../src/server.js";
 import { createHouse, type TestHouse } from "./helpers/tenancy.js";
 
 /**
- * The knowledge sources end to end (ADR-054): real Postgres, real Ollama
- * embeddings, the real model on OpenRouter (ADR-125) and a network-level
+ * The knowledge sources end to end (ADR-054): real Postgres, real embeddings
+ * and the real model, both on OpenRouter (ADR-125/131), and a network-level
  * GitHub. The chunk of one customer must never reach another's answer — that
  * is the test that makes `searchCustomerChunks`' mandatory scope real.
  */
@@ -37,7 +37,6 @@ const RECEPTION_TOKEN = "reception-secret";
 const dataKey = randomBytes(32);
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let github: Server;
 let githubUrl = "";
 /** quante volte l'adattatore GitHub ha bussato: si sveglia solo sullo stato vivo */
@@ -45,7 +44,7 @@ let githubHits = 0;
 let db: DbClient;
 let app: FastifyInstance;
 let house: TestHouse;
-let embedder: OllamaEmbeddingsClient;
+let embedder: OpenRouterEmbeddingsClient;
 let ownerToken = "";
 let customerA: { id: string; token: string };
 let customerB: { id: string; token: string };
@@ -81,12 +80,22 @@ async function seedChunk(customerId: string, ref: string, text: string): Promise
   });
 }
 
-/** quante chiamate pagate ha fatto la casa: chi chiama OpenRouter scrive una riga */
+/**
+ * quante risposte pagate ha chiesto la casa: chi chiama OpenRouter scrive una
+ * riga. ADR-131: anche gli embedding ne scrivono una, quindi si contano solo
+ * quelle del modello di chat — è lui che la quota deve tenere fermo.
+ */
 async function providerCalls(): Promise<number> {
   const [row] = await db
     .select({ count: sql<string>`count(*)` })
     .from(budgetLedger)
-    .where(and(eq(budgetLedger.accountId, house.id), eq(budgetLedger.provider, "openrouter")));
+    .where(
+      and(
+        eq(budgetLedger.accountId, house.id),
+        eq(budgetLedger.provider, "openrouter"),
+        eq(budgetLedger.model, DEFAULT_CHAT_MODEL),
+      ),
+    );
   return Number(row?.count ?? 0);
 }
 
@@ -96,12 +105,11 @@ const headers = (token: string): Record<string, string> => ({
 });
 
 beforeAll(async () => {
-  const [postgres, ollamaHandle] = await Promise.all([startPostgres(), startOllama()]);
+  const postgres = await startPostgres();
   pg = postgres.container;
-  ollama = ollamaHandle;
   await runMigrations(postgres.url);
   db = createDbClient(postgres.url);
-  embedder = new OllamaEmbeddingsClient(ollama.baseUrl, "nomic-embed-text");
+  embedder = new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() });
 
   // a tiny GitHub: two GET endpoints, exactly what the adapter may touch
   github = createServer((req, res) => {
@@ -141,7 +149,6 @@ beforeAll(async () => {
   app = buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
-    ollamaUrl: ollama.baseUrl,
     logger: false,
     features: {
       chat: undefined as never,
@@ -174,7 +181,7 @@ afterAll(async () => {
     });
   });
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop()]);
+  await pg.stop();
 });
 
 describe("the sources from the panel", () => {

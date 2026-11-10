@@ -1,6 +1,6 @@
 """The customer knowledge index, written from the jobs side (ADR-054).
 
-One writer for every source: chunks are embedded with local Ollama, encrypted
+One writer for every source: chunks are embedded via OpenRouter (ADR-125), encrypted
 with the data key, and swapped transactionally per source — the index never
 half-updates. Every write bumps the customer's ``knowledge_epoch``, which is
 what invalidates the answer cache (ADR-055).
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import replace
 
 import psycopg
 
@@ -75,7 +76,8 @@ def replace_chunks(
     for start in range(0, len(capped), EMBED_BATCH):
         batch = capped[start : start + EMBED_BATCH]
         # the ref is embedded WITH the text (ADR-054), stored beside it in clear
-        vectors = embed(cfg, [f"{ref}\n{piece}" for ref, piece in batch])
+        # la spesa e' della casa del cliente, non di quella del processo
+        vectors = embed(replace(cfg, account_id=account_id), [f"{ref}\n{piece}" for ref, piece in batch])
         for (ref, piece), vector in zip(batch, vectors, strict=True):
             conn.execute(
                 """

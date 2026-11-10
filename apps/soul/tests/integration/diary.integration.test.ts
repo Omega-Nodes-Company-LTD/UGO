@@ -96,7 +96,6 @@ beforeAll(async () => {
   app = buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
-    ollamaUrl: "http://127.0.0.1:1",
     logger: false,
     features: {
       chat: undefined as never,

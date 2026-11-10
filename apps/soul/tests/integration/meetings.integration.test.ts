@@ -14,15 +14,8 @@ import {
   PRIME_ACCOUNT_ID,
   type DbClient,
 } from "@ugo/db";
-import {
-  EMBED_MODEL,
-  openRouterKey,
-  startOllama,
-  startVexaStub,
-  type OllamaHandle,
-  type VexaStub,
-} from "@ugo/factories";
-import { DEFAULT_CHAT_MODEL, LlmClient, OllamaEmbeddingsClient, writeMemory } from "@ugo/memory";
+import { openRouterKey, startVexaStub, type VexaStub } from "@ugo/factories";
+import { DEFAULT_CHAT_MODEL, LlmClient, OpenRouterEmbeddingsClient, writeMemory } from "@ugo/memory";
 import { decryptText } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -30,29 +23,28 @@ import { MeetingsService, parseMeetingUrl } from "../../src/services/meetingsSer
 
 // Fase 5 integration side on the REAL Vexa open-core v0.12 contract
 // (ADR-013): the Vexa stack itself is a network-level stub (a real stack
-// needs a headless-Chrome fleet joining a live Meet); Postgres, pgvector and
-// the embeddings are real.
+// needs a headless-Chrome fleet joining a live Meet); Postgres, pgvector,
+// the embeddings and the chat model are real (OpenRouter, ADR-125/131).
 
 const dataKey = randomBytes(32);
 const MEET_URL = "https://meet.google.com/abc-defg-hij";
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let vexa: VexaStub;
 let db: DbClient;
 let service: MeetingsService;
+let embedder: OpenRouterEmbeddingsClient;
 const spoken: string[] = []; // ADR-013: SpeakPort capture (in-room voice)
 const perturbed: string[] = []; // psyche events raised by the meeting lifecycle
 
 beforeAll(async () => {
-  [pg, ollama, vexa] = await Promise.all([
+  [pg, vexa] = await Promise.all([
     new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
     startVexaStub(),
   ]);
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
-  const embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
+  embedder = new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() });
   service = new MeetingsService({
     db,
     gosinoId: PRIME_GOSINO_ID,
@@ -84,7 +76,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop(), vexa.close()]);
+  await Promise.all([pg.stop(), vexa.close()]);
 });
 
 describe("url parsing", () => {
@@ -140,16 +132,12 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
   it("answers a name+question mention once, with meeting limits and rate-limit", async () => {
     const ref = service.active()[0];
     if (ref === undefined) throw new Error("no active meeting");
-    await writeMemory(
-      db,
-      new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL),
-      {
-        gosinoId: PRIME_GOSINO_ID,
-        kind: "fact",
-        text: "La scorsa riunione si era deciso di stampare i gusci in PETG.",
-        importance: 0.9,
-      },
-    );
+    await writeMemory(db, embedder, {
+      gosinoId: PRIME_GOSINO_ID,
+      kind: "fact",
+      text: "La scorsa riunione si era deciso di stampare i gusci in PETG.",
+      importance: 0.9,
+    });
 
     const at = new Date();
     vexa.segments.push({
@@ -160,8 +148,14 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
     });
     expect(await service.pollOnce(ref, at)).toBe(1);
 
-    // chi chiama OpenRouter scrive una riga: il conto delle righe è il conto delle chiamate
-    const providerCalls = (await db.select().from(budgetLedger)).length;
+    // chi chiama OpenRouter scrive una riga: il conto delle righe è il conto delle
+    // chiamate. ADR-131: anche gli embedding dei segmenti scrivono la loro, e
+    // il segmento nuovo va comunque indicizzato — si contano le risposte, cioè
+    // le righe del modello di chat
+    const chatCalls = async (): Promise<number> =>
+      (await db.select().from(budgetLedger).where(eq(budgetLedger.model, DEFAULT_CHAT_MODEL)))
+        .length;
+    const providerCalls = await chatCalls();
     expect(providerCalls).toBeGreaterThanOrEqual(1);
 
     // second mention 30s later: rate limit 1/2min holds
@@ -173,7 +167,7 @@ describe("join → poll → answer → stop (Vexa open-core contract)", () => {
     });
     expect(await service.pollOnce(ref, new Date(at.getTime() + 30_000))).toBe(1);
     // no new provider call
-    expect((await db.select().from(budgetLedger)).length).toBe(providerCalls);
+    expect(await chatCalls()).toBe(providerCalls);
 
     const assistantRows = await db.select().from(messages).where(eq(messages.channel, "meeting"));
     expect(assistantRows).toHaveLength(1);

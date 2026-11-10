@@ -1,7 +1,28 @@
-export { OllamaEmbeddingsClient, type EmbeddingsClient } from "./embeddings.js";
-export { OllamaTextClient, type LocalTextClient } from "./localText.js";
-export { ChatChain, type ChatChainOptions } from "./chatChain.js";
-export { OllamaVisionClient, type LocalVisionClient } from "./localVision.js";
+export { type EmbeddingsClient } from "./embeddings.js";
+export { type GenerateOptions, type LocalTextClient } from "./localText.js";
+export { type LocalVisionClient } from "./localVision.js";
+export { OpenRouterVisionClient } from "./openRouterVision.js";
+export { OpenRouterTextClient } from "./openRouterText.js";
+export {
+  OpenRouterEmbeddingsClient,
+  DEFAULT_EMBED_MODEL,
+  type OpenRouterEmbeddingsOptions,
+} from "./openRouterEmbeddings.js";
+export {
+  OpenRouterSttClient,
+  DEFAULT_STT_MODEL,
+  type OpenRouterSttOptions,
+  type TranscriptOutcome,
+} from "./openRouterStt.js";
+export { pcm16ToWav, PCM_SAMPLE_RATE } from "./wav.js";
+export { readUsage, recordSpend, type RecordedSpend, type SpendRow } from "./ledger.js";
+export { textCompletionBody, type TextCompletionBody } from "./textRequest.js";
+export {
+  DEFAULT_VISION_MODEL,
+  VISION_PROMPT,
+  visionCompletionBody,
+  type VisionCompletionBody,
+} from "./visionRequest.js";
 export {
   OpenRouterTtsClient,
   DEFAULT_TTS_MODEL,

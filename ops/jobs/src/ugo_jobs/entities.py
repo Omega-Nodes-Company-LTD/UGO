@@ -161,9 +161,20 @@ def _infer_relations(
         for mid, people in interesting.items()
     )
     output = ask_batch_model(cfg, PROMPT.format(memories=rendered), LinkOutput, conn)
+    return apply_links(conn, cfg, known_ids, output.links)
 
+
+def apply_links(
+    conn: psycopg.Connection,
+    cfg: JobsConfig,
+    known_ids: set[str],
+    links: list[InferredLink],
+) -> int:
+    """The model's links, filtered and written. Separate from the question so
+    that the filter — threshold, closed vocabulary, never a being outside the
+    prompt — is tested on the real database with the links as plain data."""
     written = 0
-    for link in output.links:
+    for link in links:
         if link.type not in RELATION_TYPES or link.confidence < CONFIDENCE_THRESHOLD:
             continue
         if link.a_id not in known_ids or link.b_id not in known_ids:

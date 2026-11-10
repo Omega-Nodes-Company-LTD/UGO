@@ -37,7 +37,6 @@ function build(token: string | undefined): FastifyInstance {
   return buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
-    ollamaUrl: "http://127.0.0.1:1",
     logger: false,
     features: {
       chat: undefined as never, // unused by the routes under test
@@ -235,7 +234,6 @@ describe("production boot refuses to run unguarded", () => {
     MQTT_URL: "mqtt://mosquitto:1883",
     MQTT_USER: "soul",
     MQTT_PASS: "x",
-    OLLAMA_URL: "http://ollama:11434",
     OPENROUTER_API_KEY: "k",
     UGO_DATA_KEY: "k",
   };

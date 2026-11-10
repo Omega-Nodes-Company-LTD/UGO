@@ -2,21 +2,23 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { createDbClient, memories, PRIME_GOSINO_ID, runMigrations, type DbClient } from "@ugo/db";
-import { EMBED_MODEL, startOllama, TEXT_MODEL, type OllamaHandle } from "@ugo/factories";
+import { openRouterKey } from "@ugo/factories";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { OllamaEmbeddingsClient } from "../../src/embeddings.js";
+import { OpenRouterEmbeddingsClient } from "../../src/openRouterEmbeddings.js";
 import { benchReport, type BenchCase, type BenchReport } from "../../src/metrics.js";
 import { searchMemories } from "../../src/retrieval.js";
 import { canAnswer } from "../../src/abstain.js";
-import { OllamaTextClient } from "../../src/localText.js";
+import { DEFAULT_CHAT_MODEL } from "../../src/chatRequest.js";
+import { LlmClient } from "../../src/llmClient.js";
+import { OpenRouterTextClient } from "../../src/openRouterText.js";
 
 /**
  * Banco di prova della memoria (backlog, gruppo 1).
  *
- * Zero-Mock: real Postgres+pgvector and real Ollama embeddings — the numbers
- * below come from the actual nomic-embed-text model ranking actual Italian.
+ * Zero-Mock: real Postgres+pgvector and real OpenRouter embeddings (ADR-131) —
+ * the numbers below come from the actual embedding model ranking actual Italian.
  *
  * It measures `searchMemories` and does not touch it. In particular the bench
  * applies no threshold of its own: retrieval today always returns k rows, so
@@ -115,25 +117,24 @@ const corpusPath = fileURLToPath(new URL("./bench/corpus.it.json", import.meta.u
 const corpus: Corpus = corpusSchema.parse(JSON.parse(readFileSync(corpusPath, "utf8")));
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let db: DbClient;
-let embedder: OllamaEmbeddingsClient;
-let judge: OllamaTextClient;
+let embedder: OpenRouterEmbeddingsClient;
+let judge: OpenRouterTextClient;
 /** corpus key → the uuid it was seeded under */
 const idByKey = new Map<string, string>();
 const keyById = new Map<string, string>();
 
 beforeAll(async () => {
-  [pg, ollama] = await Promise.all([
-    new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama({ models: [EMBED_MODEL, TEXT_MODEL] }),
-  ]);
+  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
-  embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
-  // ADR-107: il giudice dell'astensione. Modello di casa, mai il provider
-  // (regola 3), e piccolo perché deve rispondere una parola sola.
-  judge = new OllamaTextClient(ollama.baseUrl, TEXT_MODEL);
+  embedder = new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() });
+  // ADR-107: il giudice dell'astensione. ADR-131: il «modello di casa» ora è
+  // OpenRouter, dietro l'unico varco pagato (`LlmClient`, regola 3) — la
+  // stessa porta `LocalTextClient` che usa soul.
+  judge = new OpenRouterTextClient(
+    new LlmClient({ db, apiKey: openRouterKey(), model: DEFAULT_CHAT_MODEL, dailyBudgetUsd: 5 }),
+  );
 
   // one embed call for the whole corpus: every memory is a real network round
   // trip and the CI integration job has 30 minutes for every suite together
@@ -166,7 +167,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop()]);
+  await pg.stop();
 });
 
 /**
@@ -413,7 +414,7 @@ describe("banco di prova della memoria", () => {
     ).length;
     const con = corpus.questions.length - senza - verdetti;
     console.log(
-      `giudice dell'astensione (${TEXT_MODEL})\n` +
+      `giudice dell'astensione (${DEFAULT_CHAT_MODEL})\n` +
         JSON.stringify(
           {
             riconosciute: `${String(riconosciute)}/${String(senza)}`,
@@ -435,7 +436,7 @@ describe("banco di prova della memoria", () => {
      * `perse` ha un TETTO invece di un pavimento perché è l'errore che pesa di
      * più. Il termine di paragone non è un numero fissato a mano sul "misurato"
      * (che lega il semaforo alla singola estrazione di un modello quantizzato e
-     * lo rende flaky al primo cambio di ollama), ma il **baseline del giudice
+     * lo rende flaky al primo cambio di modello), ma il **baseline del giudice
      * che non esiste**: astenersi SEMPRE quando i bracci non concordano. Sotto
      * quel numero il giudice guadagna qualcosa; sopra sta facendo peggio del
      * non averlo — ed è la cosa che il banco deve poter dire da solo.
@@ -460,24 +461,36 @@ describe("banco di prova della memoria", () => {
   }, 180_000);
 
   it("still cannot abstain: the similarity bands overlap (ADR-022)", async () => {
-    // Measured, not assumed. Across this corpus the best similarity for a
-    // question with no answer reaches 0.604, 0.637 and 0.672, while a question
-    // with an answer starts at 0.624 — the two ranges overlap, so no absolute
-    // cut separates them. MIN_SIMILARITY sits at 0.6 to drop obvious noise, and
-    // deliberately not at the 0.675 that would "pass" this corpus by four
-    // thousandths of fitted margin.
+    // Measured, not assumed, and asserted as the claim itself rather than on
+    // one question. With nomic-embed-text the unanswerable questions reached
+    // 0.604, 0.637 and 0.672 while answerable ones started at 0.624. ADR-131
+    // moved the embedder to openai/text-embedding-3-small and the levels moved
+    // with it (first run, 2026-11-10: unanswerable up to 0.7047, answerable
+    // from 0.5127) — but the two ranges still overlap, so no absolute cut on
+    // cosine separates them. The IBAN question this test used to probe now
+    // falls under MIN_SIMILARITY: one question abstaining by luck is not a
+    // mechanism, the overlap is what decides.
     //
     // Abstention therefore needs a mechanism that is not a threshold on cosine.
     // It stays open in the backlog, and this test holds the evidence.
-    const found = await searchMemories(
-      db,
-      embedder,
-      "qual e il codice IBAN del conto corrente?",
-      K,
-      NOW,
-    );
-    await db.update(memories).set({ lastAccessed: null });
-    expect(found.length).toBeGreaterThan(0);
+    const top1 = async (query: string): Promise<number | undefined> => {
+      const found = await searchMemories(db, embedder, query, K, NOW);
+      await db.update(memories).set({ lastAccessed: null });
+      return found[0]?.similarity;
+    };
+    const answered: number[] = [];
+    const unanswered: number[] = [];
+    for (const question of corpus.questions) {
+      if (question.verdetto === true) continue;
+      const best = await top1(question.query);
+      if (best === undefined) continue;
+      (question.family === "astensione" ? unanswered : answered).push(best);
+    }
+    expect(answered.length).toBeGreaterThan(0);
+    expect(unanswered.length, "every unanswerable question abstained: ADR-022 is outdated").toBeGreaterThan(0);
+    // the overlap: the best-scoring question WITHOUT an answer beats the
+    // worst-scoring question WITH one
+    expect(Math.max(...unanswered)).toBeGreaterThan(Math.min(...answered));
   });
 
   it("finds a code and a proper noun that similarity alone missed (ADR-022)", async () => {

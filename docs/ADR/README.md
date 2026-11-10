@@ -136,3 +136,4 @@ Questa directory accoglie le **nuove** decisioni, a partire da **ADR-012**.
 | [128](./128-il-gosino-al-telefono.md) | Il gosino al telefono | Accettata |
 | [129](./129-la-dettatura-da-scrivania.md) | La dettatura da scrivania (UGO Dettatura per Mac) | Accettata |
 | [130](./130-il-guscio-ios-carica-il-muso-dal-soul.md) | Il guscio iOS carica il muso dal soul | Accettata |
+| [131](./131-tutto-su-openrouter.md) | Tutto su OpenRouter: Ollama non esiste più | Accettata |

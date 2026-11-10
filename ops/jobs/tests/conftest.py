@@ -1,24 +1,23 @@
 """Real infrastructure for the dream tests (Zero-Mock): Postgres+pgvector,
-MinIO (real S3 API), real Ollama embeddings, and a network-level stub for the
-batch model (TESTING_PLAYBOOK §3 P2 — a 30B MoE does not fit a CI box).
+MinIO (real S3 API), and the real OpenRouter for both the batch model and the
+embeddings (ADR-125; Ollama no longer exists, owner directive 2026-11-09).
+No network stub is left for the models: what a model *would* answer is tested
+by handing the verdict to the code as plain data (`apply_verdicts`,
+`apply_links`), and the question itself goes to the real provider.
 Migrations applied are the same drizzle SQL files production uses.
 """
 
 from __future__ import annotations
 
 import base64
-import json
 import os
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import secrets
+from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import httpx
 import psycopg
 import pytest
-from testcontainers.core.container import DockerContainer
-from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.minio import MinioContainer
 from testcontainers.postgres import PostgresContainer
 
@@ -27,7 +26,10 @@ if TYPE_CHECKING:
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DRIZZLE_DIR = REPO_ROOT / "packages" / "db" / "drizzle"
-EMBED_MODEL = "nomic-embed-text"
+#: La chiave del fornitore vero (ADR-125). Nella sandbox remota il proxy di
+#: rete inietta l'autorizzazione per openrouter.ai, quindi basta un valore
+#: qualunque; altrove serve quella vera. Mai stampata.
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "").strip()
 # MinIO vero, ricostruito e patchato: `minio/minio` su Docker Hub è stato
 # cancellato e `quay.io/minio/minio` non serve pull anonimi. Tenuta uguale a
 # `tests/factories/src/minio.helper.ts`, dove sta la spiegazione per intero.
@@ -67,16 +69,13 @@ def db_only_config(database_url: str, **overrides: object) -> "JobsConfig":
 
     ADR-019 fase 3: `run_hygiene` now takes the whole config instead of a
     hardcoded `PRIME_GOSINO_ID`, and the tests of those steps have no business
-    standing up MinIO and Ollama to say which exemplar they mean.
+    standing up MinIO to say which exemplar they mean. The OpenRouter key is
+    the real one: a step that embeds or thinks does it for real.
     """
     from ugo_jobs.config import JobsConfig
 
     base = dict(
         database_url=database_url,
-        ollama_url="http://127.0.0.1:1",
-        ollama_embed_model="nomic-embed-text",
-        ollama_batch_url="http://127.0.0.1:1",
-        ollama_batch_model="",
         data_key_b64=TEST_DATA_KEY,
         s3_endpoint="http://127.0.0.1:1",
         s3_access_key="x",
@@ -84,6 +83,7 @@ def db_only_config(database_url: str, **overrides: object) -> "JobsConfig":
         s3_bucket_backup="ugo-backup",
         s3_bucket_audio="ugo-audio",
         timezone="Europe/Rome",
+        openrouter_api_key=OPENROUTER_API_KEY,
     )
     base.update(overrides)
     return JobsConfig(**base)  # type: ignore[arg-type]
@@ -123,13 +123,51 @@ def make_being(conn: psycopg.Connection, account_id: str, name: str) -> str:
     )
 
 
+def require_provider_key() -> str:
+    """Per i test che chiamano OpenRouter: senza chiave si fallisce, non si
+    salta — un test che passa perche' non ha girato e' peggio di uno rosso."""
+    if OPENROUTER_API_KEY == "":
+        pytest.fail("OPENROUTER_API_KEY is required: this test calls the real provider (ADR-125)")
+    return OPENROUTER_API_KEY
+
+
 @pytest.fixture(scope="session")
-def pg_url() -> str:
+def pg_url() -> Iterator[str]:
+    local = os.environ.get("UGO_TEST_PG_URL", "")
+    if local:
+        yield from _throwaway_database(local)
+        return
     with PostgresContainer("pgvector/pgvector:pg16", driver=None) as container:
         url = container.get_connection_url()
         with psycopg.connect(url) as conn:
             apply_drizzle_migrations(conn)
         yield url
+
+
+def _throwaway_database(server_url: str) -> Iterator[str]:
+    """Il ripiego per gli ambienti senza Docker, gemello di `startPostgres()`
+    in `tests/factories/src/postgres.helper.ts`: un Postgres 16 + pgvector
+    GIA' ACCESO, dichiarato in `UGO_TEST_PG_URL` con un ruolo che puo' creare
+    database. Un database usa-e-getta per sessione — l'isolamento che il
+    container dava col processo, qui lo da' il database — buttato via alla
+    fine. Resta Zero-Mock: e' lo stesso Postgres, acceso da fuori."""
+    name = f"ugo_jobs_test_{secrets.token_hex(6)}"
+    with psycopg.connect(server_url, autocommit=True) as admin:
+        admin.execute(f'create database "{name}"')  # type: ignore[arg-type]
+    base, _, _ = server_url.rpartition("/")
+    url = f"{base}/{name}"
+    try:
+        with psycopg.connect(url) as conn:
+            apply_drizzle_migrations(conn)
+        yield url
+    finally:
+        with psycopg.connect(server_url, autocommit=True) as admin:
+            admin.execute(
+                "select pg_terminate_backend(pid) from pg_stat_activity"
+                " where datname = %s and pid <> pg_backend_pid()",
+                (name,),
+            )
+            admin.execute(f'drop database if exists "{name}"')  # type: ignore[arg-type]
 
 
 @pytest.fixture(scope="session")
@@ -148,65 +186,3 @@ def minio() -> dict[str, str]:
             "access_key": cfg["access_key"],
             "secret_key": cfg["secret_key"],
         }
-
-
-@pytest.fixture(scope="session")
-def ollama_url() -> str:
-    container = DockerContainer("ollama/ollama").with_exposed_ports(11434)
-    models_dir = os.environ.get("UGO_TEST_OLLAMA_MODELS", "")
-    if models_dir:
-        container = container.with_volume_mapping(models_dir, "/root/.ollama", "rw")
-    with container as started:
-        wait_for_logs(started, "Listening on", timeout=60)
-        url = f"http://{started.get_container_host_ip()}:{started.get_exposed_port(11434)}"
-        tags = httpx.get(f"{url}/api/tags", timeout=30).json()
-        if not any(m["name"].startswith(EMBED_MODEL) for m in tags.get("models", [])):
-            exit_code, _ = started.exec(f"ollama pull {EMBED_MODEL}")
-            assert exit_code == 0, "ollama pull failed: set UGO_TEST_OLLAMA_MODELS or allow network"
-        yield url
-
-
-class _BatchModelHandler(BaseHTTPRequestHandler):
-    reflection: dict[str, object] = {}
-    calls: list[dict[str, object]] = []
-    # ADR-023: the dream asks more than one kind of question now. Each route is
-    # (marker found in the prompt, answer); anything unmatched still gets
-    # `reflection`, so the tests written before this existed are untouched.
-    routes: list[tuple[str, dict[str, object]]] = []
-
-    def _answer_for(self, body: dict[str, object]) -> dict[str, object]:
-        messages = body.get("messages", [])
-        prompt = messages[0].get("content", "") if messages else ""
-        for marker, answer in type(self).routes:
-            if marker in prompt:
-                return answer
-        return type(self).reflection
-
-    def do_POST(self) -> None:  # noqa: N802 — http.server API
-        length = int(self.headers.get("content-length", "0"))
-        body = json.loads(self.rfile.read(length))
-        type(self).calls.append(body)
-        payload = {
-            "model": body.get("model", ""),
-            "message": {"role": "assistant", "content": json.dumps(self._answer_for(body))},
-            "done": True,
-        }
-        data = json.dumps(payload).encode()
-        self.send_response(200)
-        self.send_header("content-type", "application/json")
-        self.send_header("content-length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
-
-    def log_message(self, *_args: object) -> None:
-        pass
-
-
-@pytest.fixture(scope="session")
-def batch_stub() -> type[_BatchModelHandler]:
-    server = HTTPServer(("127.0.0.1", 0), _BatchModelHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    _BatchModelHandler.base_url = f"http://127.0.0.1:{server.server_port}"  # type: ignore[attr-defined]
-    yield _BatchModelHandler
-    server.shutdown()

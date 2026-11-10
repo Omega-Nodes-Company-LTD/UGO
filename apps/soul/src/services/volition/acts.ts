@@ -9,9 +9,9 @@ import type { PressureId } from "./pressures.js";
  *
  * Note what is nearly free and what is not. Almost everything here costs zero
  * tokens and no network: a grunt, an ear flick, coming over to where you are.
- * Only `askQuestion` invents words, and it does it on the local model
- * (Ollama), never on the paid provider — an initiative must never be able to
- * spend the day's budget by itself.
+ * Only `askQuestion` invents words. ADR-131: it now does it through
+ * OpenRouter like everything else, behind the same daily ceiling — so an
+ * initiative can spend, but never past the house's budget.
  */
 
 export type ActKind =

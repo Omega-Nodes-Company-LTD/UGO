@@ -14,7 +14,6 @@ import type { TurnLog } from "./turnLog.js";
 export interface DiagnosticsDeps {
   db: DbClient;
   mqtt: MqttTarget;
-  ollama: { url: string; embedModel: string };
   perceptionUrl?: string | undefined;
   searxngUrl?: string | undefined;
   registry?: { baseUrl: string; token: string } | undefined;

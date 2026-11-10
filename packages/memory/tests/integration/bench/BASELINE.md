@@ -3,10 +3,13 @@
 Comando, identico per ogni misura:
 
 ```bash
-UGO_TEST_OLLAMA_MODELS=<cache> pnpm --filter @ugo/memory test:integration
+OPENROUTER_API_KEY=<chiave> pnpm --filter @ugo/memory test:integration
 ```
 
-Postgres 16 + pgvector reali, Ollama reale, modello `nomic-embed-text` (768d). Corpus fisso:
+(Fino al 2026-11-10: `UGO_TEST_OLLAMA_MODELS=<cache>`, Ollama reale, modello `nomic-embed-text`
+768d — le misure qui sotto sono di quel modello, salvo l'ultima sezione.)
+
+Postgres 16 + pgvector reali. Corpus fisso:
 22 ricordi in italiano, 13 domande, `k = 5`, orologio fermo al 2026-08-11T12:00:00Z.
 
 ## Le misure
@@ -227,3 +230,28 @@ Misura, run 32233419266, `qwen2.5:1.5b`, temperatura 0:
 
 Le chiamate scendono da 14/20 a 13/21 con una domanda in più nel corpus: le due di verdetto non
 passano dal giudice, quindi non costano niente (ADR-095).
+
+## ADR-131: l'embedder cambia, e con lui i livelli (2026-11-10)
+
+Ollama non c'è più: embedding `openai/text-embedding-3-small` a 768d e giudice
+`deepseek/deepseek-v4-flash`, entrambi su OpenRouter. Stesso corpus, stesso comando, prima misura
+in sandbox:
+
+| famiglia | recall@5 | MRR |
+|---|---|---|
+| temporale | 1 | 1 |
+| contraddizione | 1 | 1 |
+| semantica | 1 | 1 |
+| lessicale | 1 | 1 |
+| episodica | **0** | 0 |
+| astensione | — | — (abstentionRate 0.36) |
+
+Giudice: riconosciute 10/10, inventate 0/10, **perse 3/10**, riferite 2/2, chiamate 10/22.
+
+**Il problema aperto: `MIN_SIMILARITY = 0.5` è tarato sul modello vecchio.** Coi coseni di
+`text-embedding-3-small` le domande con risposta partono da 0.5127, e alcune corrispondenze vere
+finiscono sotto la soglia: «cosa si è rotto in casa?» non ripesca più niente (0 risultati, fa
+fallire «still lets an episode fade»), e in `apps/soul` «chi consegna i pacchi?» contro «Il
+fattorino DHL si chiama Ivan…» vale 0.459. Le bande con e senza risposta si sovrappongono ancora
+(senza risposta fino a 0.7047, con risposta da 0.5127): la conclusione di ADR-022 regge, i numeri
+no. La soglia è codice di `packages/memory/src`, e si ritara con una decisione, non da un test.

@@ -10,12 +10,13 @@ import {
   PRIME_ACCOUNT_ID,
   runMigrations,
 } from "@ugo/db";
-import { EMBED_MODEL, openRouterKey, startOllama, type OllamaHandle } from "@ugo/factories";
+import { openRouterKey } from "@ugo/factories";
 import {
   DEFAULT_CHAT_MODEL,
+  DEFAULT_EMBED_MODEL,
   DEGRADED_REPLY,
   LlmClient,
-  OllamaEmbeddingsClient,
+  OpenRouterEmbeddingsClient,
   writeMemory,
 } from "@ugo/memory";
 import { decryptText } from "@ugo/shared";
@@ -28,22 +29,31 @@ import { buildServer } from "../../src/server.js";
 import { characterFrom } from "../../src/services/council/character.js";
 
 // Full vertical slice on real infrastructure: real Postgres+pgvector, real
-// Ollama embeddings, real OpenRouter (ADR-125: no stubs). What used to be
+// OpenRouter for embeddings and chat (ADR-125/131: no stubs). What used to be
 // read off a captured request is now read off the real model's behaviour.
 
 const dataKey = randomBytes(32);
 
 let pg: StartedPostgreSqlContainer;
-let ollama: OllamaHandle;
 let db: DbClient;
-let embedder: OllamaEmbeddingsClient;
+let embedder: OpenRouterEmbeddingsClient;
 
-/** Quante chiamate ha davvero ricevuto il fornitore: ogni chiamata scrive una riga. */
+/**
+ * Quante chiamate di CHAT ha davvero ricevuto il fornitore: ogni chiamata
+ * scrive una riga. ADR-131: anche gli embedding scrivono la loro (e non sono
+ * fermati dal tetto), quindi si contano solo le righe del modello di chat.
+ */
 async function openRouterRows(): Promise<number> {
   const [row] = await db
     .select({ n: count() })
     .from(budgetLedger)
-    .where(and(eq(budgetLedger.provider, "openrouter"), eq(budgetLedger.accountId, PRIME_ACCOUNT_ID)));
+    .where(
+      and(
+        eq(budgetLedger.provider, "openrouter"),
+        eq(budgetLedger.accountId, PRIME_ACCOUNT_ID),
+        eq(budgetLedger.model, DEFAULT_CHAT_MODEL),
+      ),
+    );
   return row?.n ?? 0;
 }
 
@@ -74,25 +84,21 @@ async function buildSession(
   return buildServer({
     db,
     mqtt: { url: "mqtt://127.0.0.1:1" },
-    ollamaUrl: ollama.baseUrl,
     logger: false,
     features: { chat, psyche },
   });
 }
 
 beforeAll(async () => {
-  [pg, ollama] = await Promise.all([
-    new PostgreSqlContainer("pgvector/pgvector:pg16").start(),
-    startOllama(),
-  ]);
+  pg = await new PostgreSqlContainer("pgvector/pgvector:pg16").start();
   await runMigrations(pg.getConnectionUri());
   db = createDbClient(pg.getConnectionUri());
-  embedder = new OllamaEmbeddingsClient(ollama.baseUrl, EMBED_MODEL);
+  embedder = new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() });
 });
 
 afterAll(async () => {
   await db.$client.end();
-  await Promise.all([pg.stop(), ollama.container.stop()]);
+  await pg.stop();
 });
 
 describe("POST /v1/chat — the minimal soul (Fase 1 DoD)", () => {
@@ -149,7 +155,12 @@ describe("POST /v1/chat — the minimal soul (Fase 1 DoD)", () => {
     const ledger = await db.select().from(budgetLedger);
     expect(ledger.length).toBeGreaterThanOrEqual(2);
     expect(ledger.every((row) => row.provider === "openrouter")).toBe(true);
-    expect(ledger.every((row) => row.model === DEFAULT_CHAT_MODEL)).toBe(true);
+    // ADR-131: due modelli soltanto, entrambi pagati — la chat e gli embedding
+    expect(ledger.every((row) => [DEFAULT_CHAT_MODEL, DEFAULT_EMBED_MODEL].includes(row.model))).toBe(
+      true,
+    );
+    expect(ledger.filter((row) => row.model === DEFAULT_CHAT_MODEL).length).toBeGreaterThanOrEqual(2);
+    expect(ledger.some((row) => row.model === DEFAULT_EMBED_MODEL)).toBe(true);
   });
 
   it("degrades with the declared reply when the daily budget is gone", async () => {
