@@ -1,0 +1,222 @@
+[
+ {
+  "id": "P001",
+  "name": "Patrizia",
+  "age": 39,
+  "segment": "Artigiano o piccola impresa di servizi tecnici",
+  "income": 32000,
+  "behaviour": "Attento ai costi",
+  "behaviour_how": "Ogni spesa fissa nuova deve ripagarsi entro pochi mesi.",
+  "objection": "I dati dei miei clienti dove vanno? Il GDPR?",
+  "habit": "apri la giornata svuotando la casella email"
+ },
+ {
+  "id": "P002",
+  "name": "Greta",
+  "age": 59,
+  "segment": "Titolare di ambulatorio, studio medico/dentistico o centro benessere",
+  "income": 124000,
+  "behaviour": "Ha provato un chatbot e l'ha tolto",
+  "behaviour_how": "Il cliente si arrabbiava con risposte sbagliate e robotiche.",
+  "objection": "39 € al mese per qualcosa che non so se usano",
+  "habit": "hai una segretaria part-time o nessuna"
+ },
+ {
+  "id": "P003",
+  "name": "Giulia",
+  "age": 46,
+  "segment": "Titolare di negozio o e-commerce",
+  "income": 25000,
+  "behaviour": "Preoccupato per privacy e GDPR",
+  "behaviour_how": "Tratta dati sensibili dei clienti e teme sanzioni.",
+  "objection": "Ho già WhatsApp Business con le risposte rapide",
+  "habit": "i picchi di richieste arrivano a scadenze precise dell'anno"
+ },
+ {
+  "id": "P004",
+  "name": "Tiziana",
+  "age": 51,
+  "segment": "Artigiano o piccola impresa di servizi tecnici",
+  "income": 52000,
+  "behaviour": "Fa da sé",
+  "behaviour_how": "Usa già strumenti gratuiti (WhatsApp Business, risposte automatiche, ChatGPT).",
+  "objection": "Il personaggio con un carattere suo non è professionale",
+  "habit": "rispondi ai messaggi WhatsApp dei clienti anche la sera"
+ },
+ {
+  "id": "P005",
+  "name": "Margherita",
+  "age": 60,
+  "segment": "Titolare di negozio o e-commerce",
+  "income": 77000,
+  "behaviour": "Attento ai costi",
+  "behaviour_how": "Ogni spesa fissa nuova deve ripagarsi entro pochi mesi.",
+  "objection": "I miei clienti vogliono parlare con una persona, non con un maialino",
+  "habit": "il sito web te l'ha fatto un'agenzia anni fa"
+ },
+ {
+  "id": "P006",
+  "name": "Silvia",
+  "age": 63,
+  "segment": "Titolare di studio professionale (commercialista, avvocato, architetto, agenzia)",
+  "income": 64000,
+  "behaviour": "Fa da sé",
+  "behaviour_how": "Usa già strumenti gratuiti (WhatsApp Business, risposte automatiche, ChatGPT).",
+  "objection": "Ho già WhatsApp Business con le risposte rapide",
+  "habit": "il sito web te l'ha fatto un'agenzia anni fa"
+ },
+ {
+  "id": "P007",
+  "name": "Davide",
+  "age": 34,
+  "segment": "Artigiano o piccola impresa di servizi tecnici",
+  "income": 47000,
+  "behaviour": "Cura l'immagine del brand",
+  "behaviour_how": "Vuole che tutto ciò che il cliente vede sia coerente e serio.",
+  "objection": "Ho già WhatsApp Business con le risposte rapide",
+  "habit": "apri la giornata svuotando la casella email"
+ },
+ {
+  "id": "P008",
+  "name": "Ginevra",
+  "age": 40,
+  "segment": "Titolare di studio professionale (commercialista, avvocato, architetto, agenzia)",
+  "income": 40000,
+  "behaviour": "Delega al consulente IT",
+  "behaviour_how": "Decide solo dopo aver sentito il tecnico o l'agenzia web di fiducia.",
+  "objection": "I dati dei miei clienti dove vanno? Il GDPR?",
+  "habit": "il sito web te l'ha fatto un'agenzia anni fa"
+ },
+ {
+  "id": "P009",
+  "name": "Elisa",
+  "age": 38,
+  "segment": "Titolare di ambulatorio, studio medico/dentistico o centro benessere",
+  "income": 55000,
+  "behaviour": "Attento ai costi",
+  "behaviour_how": "Ogni spesa fissa nuova deve ripagarsi entro pochi mesi.",
+  "objection": "I miei clienti vogliono parlare con una persona, non con un maialino",
+  "habit": "apri la giornata svuotando la casella email"
+ },
+ {
+  "id": "P010",
+  "name": "Ahmed",
+  "age": 28,
+  "segment": "Titolare di studio professionale (commercialista, avvocato, architetto, agenzia)",
+  "income": 78000,
+  "behaviour": "Delega al consulente IT",
+  "behaviour_how": "Decide solo dopo aver sentito il tecnico o l'agenzia web di fiducia.",
+  "objection": "E se risponde una cosa sbagliata a un cliente?",
+  "habit": "hai una segretaria part-time o nessuna"
+ },
+ {
+  "id": "P011",
+  "name": "Irene",
+  "age": 29,
+  "segment": "Titolare di negozio o e-commerce",
+  "income": 29000,
+  "behaviour": "Sommerso dalle domande ripetitive",
+  "behaviour_how": "Passa ore a rispondere sempre alle stesse cose al telefono e su WhatsApp.",
+  "objection": "I dati dei miei clienti dove vanno? Il GDPR?",
+  "habit": "i picchi di richieste arrivano a scadenze precise dell'anno"
+ },
+ {
+  "id": "P012",
+  "name": "Claudio",
+  "age": 52,
+  "segment": "Titolare di studio professionale (commercialista, avvocato, architetto, agenzia)",
+  "income": 46000,
+  "behaviour": "Fa da sé",
+  "behaviour_how": "Usa già strumenti gratuiti (WhatsApp Business, risposte automatiche, ChatGPT).",
+  "objection": "Non ho tempo di caricargli documenti e insegnargli",
+  "habit": "hai una segretaria part-time o nessuna"
+ },
+ {
+  "id": "P013",
+  "name": "Gabriele",
+  "age": 51,
+  "segment": "Titolare di ambulatorio, studio medico/dentistico o centro benessere",
+  "income": 90000,
+  "behaviour": "Ha provato un chatbot e l'ha tolto",
+  "behaviour_how": "Il cliente si arrabbiava con risposte sbagliate e robotiche.",
+  "objection": "E se risponde una cosa sbagliata a un cliente?",
+  "habit": "il sito web te l'ha fatto un'agenzia anni fa"
+ },
+ {
+  "id": "P014",
+  "name": "Miriam",
+  "age": 57,
+  "segment": "Titolare di negozio o e-commerce",
+  "income": 51000,
+  "behaviour": "Delega al consulente IT",
+  "behaviour_how": "Decide solo dopo aver sentito il tecnico o l'agenzia web di fiducia.",
+  "objection": "Non ho tempo di caricargli documenti e insegnargli",
+  "habit": "apri la giornata svuotando la casella email"
+ },
+ {
+  "id": "P015",
+  "name": "Riccardo",
+  "age": 37,
+  "segment": "Titolare di ambulatorio, studio medico/dentistico o centro benessere",
+  "income": 55000,
+  "behaviour": "Preoccupato per privacy e GDPR",
+  "behaviour_how": "Tratta dati sensibili dei clienti e teme sanzioni.",
+  "objection": "Il personaggio con un carattere suo non è professionale",
+  "habit": "lavori spesso fuori sede o in appuntamento"
+ },
+ {
+  "id": "P016",
+  "name": "Federica",
+  "age": 44,
+  "segment": "Titolare di studio professionale (commercialista, avvocato, architetto, agenzia)",
+  "income": 71000,
+  "behaviour": "Sommerso dalle domande ripetitive",
+  "behaviour_how": "Passa ore a rispondere sempre alle stesse cose al telefono e su WhatsApp.",
+  "objection": "39 € al mese per qualcosa che non so se usano",
+  "habit": "i picchi di richieste arrivano a scadenze precise dell'anno"
+ },
+ {
+  "id": "P017",
+  "name": "Raffaele",
+  "age": 29,
+  "segment": "Titolare di studio professionale (commercialista, avvocato, architetto, agenzia)",
+  "income": 50000,
+  "behaviour": "Sommerso dalle domande ripetitive",
+  "behaviour_how": "Passa ore a rispondere sempre alle stesse cose al telefono e su WhatsApp.",
+  "objection": "Il personaggio con un carattere suo non è professionale",
+  "habit": "rispondi ai messaggi WhatsApp dei clienti anche la sera"
+ },
+ {
+  "id": "P018",
+  "name": "Francesca",
+  "age": 62,
+  "segment": "Titolare di ambulatorio, studio medico/dentistico o centro benessere",
+  "income": 132000,
+  "behaviour": "Preoccupato per privacy e GDPR",
+  "behaviour_how": "Tratta dati sensibili dei clienti e teme sanzioni.",
+  "objection": "Non ho tempo di caricargli documenti e insegnargli",
+  "habit": "lavori spesso fuori sede o in appuntamento"
+ },
+ {
+  "id": "P019",
+  "name": "Lorenzo",
+  "age": 33,
+  "segment": "Titolare di studio professionale (commercialista, avvocato, architetto, agenzia)",
+  "income": 87000,
+  "behaviour": "Cura l'immagine del brand",
+  "behaviour_how": "Vuole che tutto ciò che il cliente vede sia coerente e serio.",
+  "objection": "Non ho tempo di caricargli documenti e insegnargli",
+  "habit": "i picchi di richieste arrivano a scadenze precise dell'anno"
+ },
+ {
+  "id": "P020",
+  "name": "Arianna",
+  "age": 51,
+  "segment": "Titolare di negozio o e-commerce",
+  "income": 75000,
+  "behaviour": "Sommerso dalle domande ripetitive",
+  "behaviour_how": "Passa ore a rispondere sempre alle stesse cose al telefono e su WhatsApp.",
+  "objection": "Il personaggio con un carattere suo non è professionale",
+  "habit": "rispondi ai messaggi WhatsApp dei clienti anche la sera"
+ }
+]

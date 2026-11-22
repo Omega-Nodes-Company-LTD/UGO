@@ -1,0 +1,13 @@
+{
+  "id": "P045",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Ho il segreto professionale sui dati dei miei clienti: non do la mia casella email e i loro documenti a un porcellino digitale di cui non conosco il fornitore. E per le domande ripetitive sotto scadenza mi bastano già le risposte automatiche di WhatsApp Business e ChatGPT, gratis.",
+  "objection": "Dove finiscono davvero i dati dei clienti e chi ci mette le mani: 'in UE e cifrati' scritto così non mi basta, e se sbaglia una risposta su una scadenza fiscale la responsabilità è mia. In più un maialino con un carattere suo non è l'immagine seria che voglio dare allo studio.",
+  "would_change_my_mind": "Un contratto di nomina a responsabile del trattamento (art. 28 GDPR) chiaro, con l'elenco dei sub-fornitori e dove girano i modelli, più una prova gratuita durante un periodo di scadenze per vedere se mi toglie davvero telefonate.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

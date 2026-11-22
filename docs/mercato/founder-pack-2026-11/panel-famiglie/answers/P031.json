@@ -1,0 +1,13 @@
+{
+  "id": "P031",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Ho già il cane che mi fa compagnia davvero, e la sera c'è la TV. Settantanove euro subito più un altro abbonamento ogni mese per un porcellino sul telefono, con quello che guadagno, non me lo posso permettere per una curiosità.",
+  "objection": "Un altro canone mensile che si somma agli altri, e se smetto di pagare che fine fa il porcellino? Mi sembra di pagare il riscatto per una cosa a cui mi sono affezionato.",
+  "would_change_my_mind": "Provarlo gratis per un mese senza dare la carta, e niente canone fisso dopo, solo il costo iniziale.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

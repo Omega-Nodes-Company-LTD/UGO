@@ -1,0 +1,13 @@
+{
+  "id": "P045",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "È una cosa che ascolta in casa, riconosce me e i miei figli e si ricorda della famiglia, e la sua 'anima' sta su un server loro. Io le app che ascoltano non le installo, figuriamoci una che lo fa di mestiere, e per di più pago 79 euro e poi un canone ogni mese.",
+  "objection": "Che le voci e le cose dette in casa, anche dai bambini, finiscano da qualche parte. Scrivono 'cifrata' e 'in UE', ma l'ho letto anche di altri e poi le chat sono finite in giro. In più non ho né una stampante 3D né un telefono vecchio, quindi dovrei metterlo sul mio telefono, che è proprio quello che non voglio.",
+  "would_change_my_mind": "Che funzioni tutto in casa senza mandare niente su internet, con un dispositivo già pronto che mi danno loro, e che qualcuno di fidato, non loro, garantisca che non registra e non conserva le voci.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

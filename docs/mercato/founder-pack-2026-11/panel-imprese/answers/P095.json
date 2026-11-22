@@ -1,0 +1,13 @@
+{
+  "id": "P095",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Ai miei clienti do un'immagine seria: un porcellino digitale col suo carattere che non posso nemmeno regolare in reception allo studio non ce lo metto. E poi non ho tempo di caricargli documenti e stargli dietro.",
+  "objection": "Se il cliente mi chiede di una scadenza fiscale o di una pratica e il porcellino risponde in modo approssimativo o con un tono fuori luogo, la faccia ce la perdo io. Che il carattere non si possa configurare per me non è un pregio: vuol dire che non controllo come parla a nome mio.",
+  "would_change_my_mind": "Una versione dall'aspetto sobrio e professionale, che parla col tono dello studio, e che mi configurino loro senza che io debba caricare niente, con una prova di un mese sui miei clienti veri.",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 60,
+  "price_too_expensive": 100
+}

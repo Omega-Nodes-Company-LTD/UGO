@@ -1,0 +1,13 @@
+{
+  "id": "P022",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "L'idea mi incuriosisce, sono uno che prova le cose nuove, ma qui parliamo di un microfono che ascolta me e la mia famiglia in casa tutto il giorno. 'Cifrata in UE' è una frase che ho letto mille volte: prima di pagare 79 euro voglio capire cosa registra, cosa manda fuori e chi può leggerlo.",
+  "objection": "Dove finiscono le cose che diciamo in casa? Ascolta sempre o solo quando gli parlo? Le voci dei miei nipoti e di mia moglie vengono trascritte e tenute sui vostri server? 'Puoi portarla a casa tua' suona bene, ma non so se è una cosa che riesco a fare davvero o solo una promessa sulla carta.",
+  "would_change_my_mind": "Una prova gratuita di un paio di settimane, più una pagina chiara e verificabile su cosa viene registrato, per quanto tempo e come si cancella tutto con un tasto; se poi l'anima si può davvero tenere sul mio computer senza mandare niente fuori, lo prenderei.",
+  "price_too_cheap": 2,
+  "price_cheap": 4,
+  "price_expensive": 8,
+  "price_too_expensive": 12
+}

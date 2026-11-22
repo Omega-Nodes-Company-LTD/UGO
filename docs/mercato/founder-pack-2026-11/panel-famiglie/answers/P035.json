@@ -1,0 +1,13 @@
+{
+  "id": "P035",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Il guscio da stampare in 3D mi stuzzica parecchio, lo ammetto, ma il punto è che invecchia e ha una vita intera: se ai miei figli do un animale che poi muore, voglio che almeno sia vero. Un porcellino digitale che muore mi sembra solo un dispiacere in più, e per giunta a pagamento.",
+  "objection": "Non voglio comprare ai bambini un lutto programmato. In più, se smetto di pagare i 7,90 al mese cosa succede, muore di fame? Così il canone diventa un ricatto affettivo.",
+  "would_change_my_mind": "Sapere chiaramente come finisce la sua vita: che la fine sia dolce e spiegata bene ai bambini, e che non muoia o non stia male se salto un pagamento, con l'anima che posso davvero portarmi a casa e tenere in vita sul mio server.",
+  "price_too_cheap": 1,
+  "price_cheap": 3,
+  "price_expensive": 6,
+  "price_too_expensive": 10
+}

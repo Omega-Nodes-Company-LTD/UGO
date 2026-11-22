@@ -1,0 +1,13 @@
+{
+  "id": "P070",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Io tratto dati dei clienti coperti da segreto professionale: far leggere documenti e casella email a un'IA di cui non so chi è il fornitore dei modelli, chi è il responsabile del trattamento e dove passano davvero i dati, non me lo posso permettere. E un porcellino digitale che risponde ai miei clienti in studio non mi sembra un'immagine seria.",
+  "objection": "\"Dati in UE, cifrati\" è una frase, non una garanzia: voglio sapere chi elabora le richieste, se i testi finiscono a un fornitore di modelli fuori UE, e chi risponde se l'assistente dice qualcosa di sbagliato a un cliente su una pratica.",
+  "would_change_my_mind": "Un contratto di nomina a responsabile del trattamento (art. 28 GDPR) con l'elenco dei sub-responsabili tutti in UE, una DPIA già pronta e la possibilità di usarlo senza accesso all'email, solo sulle domande generiche (orari, documenti da portare, scadenze).",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 60,
+  "price_too_expensive": 100
+}

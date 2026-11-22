@@ -1,0 +1,13 @@
+{
+  "id": "P083",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho già il cane che mi aspetta alla porta e mi scalda i piedi sul divano: un porcellino nel telefono non lo sostituisce. E se voglio parlare con qualcosa sul telefono, ChatGPT è gratis.",
+  "objection": "Pagare 79 euro più quasi 8 euro al mese per sempre per un animale che non esiste, con due figli da mantenere, mi sembra buttare soldi. E se l'azienda chiude, il porcellino che fine fa?",
+  "would_change_my_mind": "Se i miei figli lo provassero gratis per un mese e se ne innamorassero davvero, senza dover pagare l'adozione all'inizio.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

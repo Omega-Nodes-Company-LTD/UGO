@@ -1,0 +1,13 @@
+{
+  "id": "P047",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Settantanove euro per un porcellino sul telefono più otto euro al mese per sempre? Io gli abbonamenti li taglio, non li aggiungo, e per due chiacchiere la sera ChatGPT ce l'ho già gratis.",
+  "objection": "È l'ennesimo canone che dopo due mesi non uso più e mi ritrovo sull'estratto conto; e se l'allevamento chiude, il porcellino che fine fa?",
+  "would_change_my_mind": "Provarlo gratis un mese senza dare la carta e vedere che davvero mi tiene compagnia la sera più della TV.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

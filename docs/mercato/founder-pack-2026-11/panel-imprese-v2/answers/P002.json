@@ -1,0 +1,13 @@
+{
+  "id": "P002",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Il chatbot l'ho già messo e tolto: i pazienti si arrabbiavano e poi chiamavano comunque, arrabbiati il doppio. I miei pazienti telefonano, e questo al telefono non risponde, quindi rischio di pagare 29 € al mese per qualcosa che non usa nessuno.",
+  "objection": "Un paziente che chiede di un dolore o di un appuntamento non vuole un ticket, vuole una persona. Se risponde male anche una volta sola, ci rimette la faccia lo studio, non il software.",
+  "would_change_my_mind": "Che un collega con uno studio come il mio mi dica che lo usa da mesi e che i pazienti non si lamentano, e che mi prenda davvero gli appuntamenti invece di passarmi le domande.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 40,
+  "price_too_expensive": 70
+}

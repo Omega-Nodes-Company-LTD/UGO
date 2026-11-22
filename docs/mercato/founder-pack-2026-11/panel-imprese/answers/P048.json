@@ -1,0 +1,13 @@
+{
+  "id": "P048",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Il chatbot l'ho già tolto una volta perché i clienti si arrabbiavano, e non metto un porcellino col carattere suo a rispondere a chi mi affida pratiche fiscali o legali. Il prezzo non è il problema: il problema è la figura che faccio io se sbaglia tono o dice una cosa sbagliata.",
+  "objection": "Leggere la mia casella email vuol dire leggere dati dei clienti coperti da segreto professionale: 'in UE e cifrati' non mi basta, voglio sapere chi è il responsabile del trattamento, che modelli ci girano sopra e chi firma la nomina ex art. 28. E un maialino che non posso nemmeno rendere più sobrio non è adatto a uno studio.",
+  "would_change_my_mind": "Una prova gratuita di un mese su un sottoinsieme di clienti, con un DPA firmato e la possibilità di tenerlo serio e professionale, senza il personaggio.",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 60,
+  "price_too_expensive": 100
+}

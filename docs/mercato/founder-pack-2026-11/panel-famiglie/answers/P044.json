@@ -1,0 +1,13 @@
+{
+  "id": "P044",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Sì, la sera mi sento sola, ma parlare con un porcellino sul telefono mi farebbe sentire più sola, non meno. Con 17.000 euro l'anno, 79 euro più 7,90 al mese per un giocattolo che sembra fatto per bambini non li spendo.",
+  "objection": "Mi sembra una cosa da bambini, e un po' triste: compagnia finta che però pago ogni mese, e se smetto di pagare il 'cibo' che succede, muore?",
+  "would_change_my_mind": "Provarlo gratis per qualche settimana senza i 79 euro d'ingresso, e vedere che si ricorda davvero di me e non mi fa sentire ridicola.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

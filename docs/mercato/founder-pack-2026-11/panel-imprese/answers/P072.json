@@ -1,0 +1,13 @@
+{
+  "id": "P072",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Sono quasi sempre fuori dall'ufficio, e non posso star dietro a cosa dice a mio nome un porcellino digitale. Se dà un prezzo sbagliato o promette un intervento che non posso fare, il cliente se la prende con me. E i miei clienti mi chiamano al telefono, che lui non copre, quindi pagherei 290 più 39 al mese per una parte sola del problema.",
+  "objection": "E se risponde una cosa sbagliata a un cliente? Un ticket aperto non mi basta, perché il danno l'ha già fatto prima che io lo legga.",
+  "would_change_my_mind": "Provarlo un mese gratis sulle mie domande vere, potendo vedere e approvare le sue risposte prima che arrivino ai clienti, senza i 290 euro iniziali.",
+  "price_too_cheap": 8,
+  "price_cheap": 19,
+  "price_expensive": 35,
+  "price_too_expensive": 55
+}

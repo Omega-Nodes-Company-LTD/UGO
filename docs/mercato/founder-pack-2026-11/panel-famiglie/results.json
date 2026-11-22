@@ -1,0 +1,260 @@
+{
+ "business": "UGO — adozione di un gosino (compagno AI che nasce, con genoma e pedigree)",
+ "seed": 7,
+ "dealt": 100,
+ "answered": 100,
+ "skipped": [],
+ "buys": 2,
+ "passes": 98,
+ "buy_rate": 0.02,
+ "by_segment": [
+  [
+   "Appassionato tech/maker con stampante 3D",
+   15,
+   0.06666666666666667
+  ],
+  [
+   "Persona sola over 60 (pensione o lavoro)",
+   25,
+   0.04
+  ],
+  [
+   "Famiglia con figli (reddito familiare)",
+   35,
+   0.0
+  ],
+  [
+   "Giovane adulto single o in coppia, curioso di tecnologia",
+   25,
+   0.0
+  ]
+ ],
+ "by_behaviour": [
+  [
+   "Early adopter",
+   14,
+   0.14285714285714285
+  ],
+  [
+   "Ha già un animale vero",
+   18,
+   0.0
+  ],
+  [
+   "Diffidente su AI e privacy",
+   16,
+   0.0
+  ],
+  [
+   "Cerca compagnia",
+   14,
+   0.0
+  ],
+  [
+   "Usa già ChatGPT ogni giorno",
+   14,
+   0.0
+  ],
+  [
+   "Genitore attento agli schermi",
+   12,
+   0.0
+  ],
+  [
+   "Taglia-abbonamenti",
+   12,
+   0.0
+  ]
+ ],
+ "by_income": [
+  [
+   "under $26,000",
+   28,
+   0.03571428571428571
+  ],
+  [
+   "$42,000 and up",
+   35,
+   0.02857142857142857
+  ],
+  [
+   "$26,000 to $42,000",
+   37,
+   0.0
+  ]
+ ],
+ "why_not": [
+  [
+   "need",
+   32,
+   [
+    "La tecnologia nuova mi piace provarla, ma un maialino che mi parla dal telefono mi sembra roba da bambini, e i miei figli sono grandi. Quando cucino ho i miei podcast, non sento il bisogno di qualcuno che mi chieda come sto.",
+    "Ho già il mio cane che mi aspetta alla porta e mi fa compagnia davvero, non mi serve un porcellino nel telefono. E pagare 79 euro più quasi 8 al mese per una cosa che poi invecchia e muore, con la pensione che ho, non mi va proprio."
+   ],
+   [
+    "P001",
+    "P009"
+   ]
+  ],
+  [
+   "trust",
+   25,
+   [
+    "Ho già la mia cagnolina che mi aspetta quando lavoro da casa e si ricorda di me senza abbonamento. Non vedo perché dovrei pagare 79 euro più un canone per un porcellino sul telefono di un'azienda che non conosco.",
+    "Una cosa che mi ascolta in casa, mi riconosce e si ricorda della mia famiglia, con l'anima che vive sul server di qualcun altro? No. Il guscio da stampare mi incuriosisce, ma 79 euro più l'ennesimo abbonamento per farmi registrare in salotto non li spendo."
+   ],
+   [
+    "P002",
+    "P003"
+   ]
+  ],
+  [
+   "values",
+   20,
+   [
+    "Alla mia età mettermi a parlare con un porcellino sul telefono mi farebbe sentire ridicola, è un giocattolo per nipoti. La compagnia ce l'ho già col mio cane, e quando voglio sentire una voce accendo la TV o chiamo mia sorella.",
+    "Passo la giornata a tenere i bambini lontani dagli schermi, e questo mi porta in casa un altro motivo per stare sul telefono, che pure si fa voler bene. E poi invecchia e muore: non voglio spiegare ai miei figli un lutto per un porcellino che ho pagato io."
+   ],
+   [
+    "P004",
+    "P007"
+   ]
+  ],
+  [
+   "price",
+   20,
+   [
+    "Ho già ChatGPT gratis sul telefono che mi risponde a voce quando voglio; 79 euro più quasi 8 al mese per un porcellino che vive sempre sullo stesso telefono mi sembrano soldi buttati, con quello che guadagno.",
+    "L'idea del porcellino col pedigree e del guscio stampato in 3D mi incuriosisce, lo ammetto, ma 79 euro al buio più 7,90 al mese per una cosa che parla a voce e si ricorda di me... ChatGPT in modalità voce lo fa già gratis mentre cucino."
+   ],
+   [
+    "P005",
+    "P019"
+   ]
+  ],
+  [
+   "habit",
+   1,
+   [
+    "Parlo già tutti i giorni con ChatGPT gratis sul telefono, e mentre cucino ho i miei podcast. Con 16 mila euro l'anno non spendo 79 euro più 7,90 al mese per un porcellino che fa più o meno la stessa cosa."
+   ],
+   [
+    "P006"
+   ]
+  ]
+ ],
+ "why_yes": [
+  [
+   "other",
+   1,
+   [
+    "Il guscio da stampare in 3D su un vecchio telefono è proprio il mio genere di progetto del weekend, e il fatto che l'anima si possa portare a casa risponde alla mia paura principale. 79 € li spendo per curiosità, poi vedo se il canone vale."
+   ],
+   [
+    "P008"
+   ]
+  ],
+  [
+   "need",
+   1,
+   [
+    "Vivo da sola e le novità tech le provo sempre per prime: un porcellino che si ricorda di me e mi parla la sera mi incuriosisce davvero, e se gira sul telefono che ho già non mi servono né stampante 3D né un telefono vecchio. Lo prendo, ma con l'idea di vedere nel primo mese se vale il canone."
+   ],
+   [
+    "P052"
+   ]
+  ]
+ ],
+ "flip": [
+  "Vederlo funzionare davvero a casa di un amico, con una conversazione da adulto e non da cartone animato, e poterlo provare un mese gratis senza pagare l'adozione.",
+  "Una garanzia scritta e chiara che se l'azienda chiude il gosino continua a vivere sul mio telefono senza di loro, spiegata in modo che la capisca anche io, e magari vederlo funzionare da un'amica prima di pagare.",
+  "Poterlo far girare tutto in casa mia fin dal primo giorno, senza canone e senza che la voce esca dalla rete di casa, con il codice da poter controllare.",
+  "Se un'amica della mia età lo usasse davvero e me lo facesse provare gratis per un mese, e vedessi che mi tiene compagnia la sera senza farmi sentire scema.",
+  "Una prova gratuita di un mese senza dover pagare l'adozione prima, così vedo se davvero mi fa compagnia la sera più di ChatGPT.",
+  "Niente quota di adozione e un mese di prova gratis, per vedere se mi ricorda davvero le cose meglio di ChatGPT.",
+  "Sapere da altri genitori o da un pediatra che non crea dipendenza e che la morte è gestita in modo dolce, con tempi limitati d'uso decisi da me.",
+  "Se funzionasse senza abbonamento, su un dispositivo che resta in casa e non sul telefono, con limiti di tempo che decido io come genitore.",
+  "Se il mio cane non ci fosse più e i figli me lo regalassero già pagato, magari lo proverei; altrimenti no.",
+  "Che giri tutto in casa, sul telefono vecchio, senza mandare niente fuori, verificato da qualcuno di indipendente, e che i bambini se ne innamorino provandolo gratis prima.",
+  "Se me lo regalassero già pronto, in un oggetto da mettere sul mobile senza stampanti né telefoni da sistemare, e lo provassi gratis per un mese vedendo che mi fa davvero compagnia la sera.",
+  "Niente canone mensile: un prezzo unico e l'anima subito a casa mia, senza dipendere dall'allevamento.",
+  "Provarlo gratis per qualche settimana, tutto in locale a casa mia fin dal primo giorno senza che niente esca dal telefono, e vedere che mi fa davvero compagnia invece di stancarmi dopo una settimana.",
+  "Una prova gratuita di un mese senza pagare l'adozione, per vedere se i ragazzi ci si affezionano davvero prima di spendere.",
+  "Che funzioni tutto in locale sul mio vecchio telefono, senza mandare la mia voce a nessuno, verificato da qualcuno di indipendente e non solo promesso da loro.",
+  "Una prova gratuita di un paio di settimane senza pagare l'adozione, o almeno una demo vera da ascoltare, per sentire se sembra davvero una presenza e non un chatbot travestito.",
+  "Poterlo provare gratis per un mese e vedere che funziona tutto in casa mia, senza canone, anche se l'azienda sparisce, con un controllo chiaro su quanto tempo ci passano i bambini.",
+  "Una prova gratuita di un paio di settimane, più una pagina chiara e verificabile su cosa viene registrato, per quanto tempo e come si cancella tutto con un tasto; se poi l'anima si può davvero tenere sul mio computer senza mandare niente fuori, lo prenderei.",
+  "Provarlo gratis per un mese tenendolo tutto sul mio telefono, senza che niente esca di casa, e sentire da un'amica che lo usa davvero che le fa compagnia.",
+  "Vederlo funzionare da un'amica per qualche settimana, e la garanzia scritta e semplice che se chiudono lui resta sul mio telefono senza che io debba fare niente di tecnico.",
+  "Che giri tutto in locale sul vecchio telefono, senza mandare voci fuori casa, con una verifica indipendente che lo dimostri.",
+  "Che funzioni tutto in casa senza mandare niente fuori, verificato da qualcuno di indipendente, e con un modo semplice per spegnere microfono e riconoscimento dei bambini.",
+  "Sapere con chiarezza, prima di adottarlo, come va a finire: che la vecchiaia sia dolce e senza agonia, e che ai bambini venga raccontata con delicatezza, magari lasciando dei cuccioli o un ricordo. Lo proverei se me lo facesse vedere un'amica che ce l'ha già.",
+  "Poterlo far vivere tutto in casa mia dal primo giorno, senza abbonamento e senza mandare niente fuori, e la garanzia scritta che se chiudono continua a funzionare.",
+  "Vedere per scritto che posso far girare l'anima interamente sul mio hardware, senza canone e senza il loro server, con il codice pubblico se l'azienda chiude.",
+  "Provarlo gratis per un mese senza dare la carta, e niente canone fisso dopo, solo il costo iniziale.",
+  "Provarlo gratis per un mese e accorgermi che si ricorda davvero di me e mi fa compagnia meglio della TV accesa, senza i 79 euro iniziali.",
+  "Una prova gratuita di qualche settimana sul mio telefono, senza i 79 euro di adozione anticipati.",
+  "Un periodo di prova gratuito di un mese, oppure niente canone se porto l'anima a casa mia sul mio vecchio telefono pagando solo l'adozione.",
+  "Sapere chiaramente come finisce la sua vita: che la fine sia dolce e spiegata bene ai bambini, e che non muoia o non stia male se salto un pagamento, con l'anima che posso davvero portarmi a casa e tenere in vita sul mio server.",
+  "Poterlo far girare tutto in locale su un mio dispositivo fin dal primo giorno, senza microfono sempre aperto verso l'esterno, con codice verificabile da qualcuno indipendente.",
+  "Niente canone mensile: un solo pagamento basso, sotto i 30 euro, e poi vive sul vecchio telefono a casa senza dover pagare nient'altro.",
+  "Codice e protocollo aperti, con una guida vera per portarmi l'anima sul mio server di casa dal primo giorno, e una recensione tecnica indipendente che confermi dove va l'audio.",
+  "Vederlo usato da una famiglia vera con bambini e scoprire che li fa stare meno sullo schermo, non di più, magari con una prova gratuita di un mese senza pagare l'adozione.",
+  "Che funzioni tutto in casa mia dal primo giorno, senza mandare niente fuori, e che lo dica e lo controlli qualcuno di cui mi fido, non chi lo vende.",
+  "Che funzioni davvero tutto in casa mia, senza mandare la voce a nessuno, con una verifica indipendente sulla privacy e la garanzia scritta che se chiudete l'anima resta a me e continua a funzionare.",
+  "Poterlo far girare tutto in casa mia sul mio hardware fin dal primo giorno, senza canone, con un controllo vero su chi in famiglia ci parla e quando, e una prova gratuita per vedere come reagiscono i ragazzi.",
+  "Se fosse gratis da provare per un mese sul mio telefono e i bambini lo usassero per imparare qualcosa o per staccarsi dallo schermo, non per starci di più.",
+  "Provarlo gratis per qualche settimana senza i 79 euro d'ingresso, e vedere che si ricorda davvero di me e non mi fa sentire ridicola.",
+  "Che funzioni tutto in casa senza mandare niente su internet, con un dispositivo già pronto che mi danno loro, e che qualcuno di fidato, non loro, garantisca che non registra e non conserva le voci.",
+  "Provarlo gratis un mese senza dare la carta e vedere che davvero mi tiene compagnia la sera più della TV.",
+  "Una prova gratuita di un mese senza i 79 euro iniziali, e vedere che i miei figli ci si affezionano davvero.",
+  "Sapere chiaramente come finisce la sua vita e che si può vivere senza traumi per i bambini, magari provandolo gratis qualche settimana sul vecchio telefono nel guscio stampato da me.",
+  "Sapere chiaramente che non soffre e non muore se un mese non pago, e una prova gratuita senza i 79 euro iniziali per capire se lo userei davvero.",
+  "Che giri tutto in locale sul mio vecchio telefono senza mandare la voce a nessun server, con un audit indipendente che lo dimostri, e un prezzo senza canone.",
+  "Una prova gratuita di un mese senza pagare l'adozione, per vedere se in casa qualcuno ci parla davvero dopo la novità iniziale.",
+  "Una prova gratuita di qualche settimana senza i 79 euro di adozione, e la prova concreta che l'anima esportata gira in locale sul mio vecchio telefono senza canone.",
+  "Una prova gratuita di un mese senza i 79 euro d'adozione, e la garanzia chiara che se disdico non 'muore' per colpa mia.",
+  "Vederlo dal vivo a casa di qualcuno e accorgermi che i ragazzi ci parlano davvero dopo un mese, con il guscio già pronto da comprare invece che da stampare.",
+  "Provarlo gratis per un mese e accorgermi che si ricorda davvero di me e mi fa compagnia meglio di ChatGPT, con un prezzo al mese più basso.",
+  "Una garanzia scritta e chiara che se smetto di pagare o se l'azienda chiude il gosino continua a vivere sul mio telefono di casa senza costi, magari con un mese di prova gratis prima dei 79 euro.",
+  "Una prova gratuita di un paio di settimane senza i 79 euro iniziali, per vedere se si ricorda davvero di me e se dopo una settimana mi va ancora di parlarci.",
+  "Provarlo gratis per un mese senza dover pagare i 79 euro subito, e vedere che fa davvero qualcosa che ChatGPT non fa.",
+  "Una prova gratuita di qualche settimana senza i 79 euro iniziali, così vedo se mi affeziono davvero prima di pagare.",
+  "Che funzioni tutto in casa mia, senza mandare niente fuori, e che lo confermi qualcuno di indipendente, non l'azienda stessa.",
+  "Niente canone mensile: un solo pagamento basso e poi resta mio sul telefono, senza costi fissi.",
+  "Se fosse pensato per i bambini e me lo facessero provare gratis un mese senza i 79 euro dell'adozione, vedendo che i miei figli ci si affezionano davvero.",
+  "Una prova gratuita di un mese senza pagare l'adozione, per vedere se i ragazzi ci parlano davvero ancora dopo la terza settimana.",
+  "Sapere che non muore, o che posso scegliere io che resti com'è, e vederlo prima dal vivo da qualcuno che conosco.",
+  "Se un giorno restassi davvero sola in casa e uno dei miei figli me lo regalasse già pagato e già funzionante, forse lo proverei.",
+  "Sapere esattamente come finisce la sua vita, che non è una morte da far piangere i bambini, e che posso tenerlo per sempre in casa mia senza dipendere da voi.",
+  "Provarlo gratis per qualche settimana su un vecchio telefono nel guscio stampato da me, e scoprire che fa cose utili in casa, non solo chiacchiere.",
+  "Pagarlo una volta sola, anche un po' di più, e farlo vivere tutto a casa mia sul vecchio telefono senza canone.",
+  "Provarlo gratis per un mese e accorgermi che si ricorda davvero di me e mi fa compagnia meglio di ChatGPT, senza i 79 euro iniziali.",
+  "Una prova gratuita di un mese, e vedere con i miei occhi che l'anima si esporta e gira a casa mia anche senza di loro.",
+  "Poterlo provare gratis per un mese con i ragazzi e vedere che ci tengono davvero, senza canone o con un prezzo unico tutto compreso.",
+  "Una versione che funzioni senza schermo, solo a voce, su un oggetto già pronto da comprare, senza abbonamento mensile.",
+  "Poterlo far girare tutto in casa mia fin dal primo giorno, con codice verificabile e niente audio che esce dalla rete di casa, senza canone obbligatorio.",
+  "Una prova gratuita di un mese senza carta, che funzioni tutta in locale sul vecchio telefono senza canone mensile.",
+  "Poterlo provare gratis per un mese senza pagare l'adozione, così vedo se davvero mi tiene compagnia quando sono sola la sera.",
+  "Poterlo far girare davvero tutto in locale fin dal primo giorno, con codice aperto e verificabile, senza che niente di audio o volto esca di casa.",
+  "Se un giorno il cane non ci fosse più e i miei figli me lo installassero e me lo regalassero loro, forse lo proverei.",
+  "Se i miei figli lo provassero gratis per un mese e se ne innamorassero davvero, senza dover pagare l'adozione all'inizio.",
+  "Che funzioni tutto in casa, senza internet, e che un'associazione di consumatori o qualcuno di cui mi fido abbia controllato che non esce niente.",
+  "Poterlo provare gratis per un mese a casa, sera dopo sera, e vedere che si ricorda davvero di me e mi fa compagnia meglio della TV accesa.",
+  "Che funzioni tutto dentro casa senza mandare niente fuori, e che me lo consigli qualcuno di cui mi fido che lo usa davvero da mesi.",
+  "Provarlo gratis per un mese con i ragazzi e vedere che lo usano davvero tutti i giorni, e che costi meno di un caffè a settimana senza i 79 euro iniziali.",
+  "Se i bambini lo vedessero da un amico e me lo chiedessero insistentemente, e ci fosse una prova gratuita di un mese senza dover pagare l'adozione prima.",
+  "Se fosse per mia madre anziana che vive da sola e si potesse provare gratis un mese senza i 79 euro iniziali, ci penserei.",
+  "Che funzioni tutto in locale sul telefono, senza mandare la voce da nessuna parte e senza canone, e che qualcuno indipendente l'abbia verificato.",
+  "Provarlo gratis per un mese senza dover pagare l'adozione, e vedere che mi fa davvero compagnia più di quello che uso già.",
+  "Se i ragazzi me lo chiedessero insistentemente e ci fosse una prova gratuita di un mese senza pagare l'adozione.",
+  "Provarlo gratis per un mese e vedere che si ricorda davvero di me meglio di ChatGPT, senza dover spendere 79 euro all'inizio.",
+  "Niente canone mensile: un solo pagamento basso e basta, oppure un mese di prova gratis per vedere se i bambini ci stanno dietro davvero.",
+  "Niente canone: una cifra sola, piccola, e poi è mio per sempre senza pagare ogni mese.",
+  "Che funzioni tutto in casa senza mandare niente fuori, verificato da qualcuno di indipendente tipo un'associazione di consumatori, e che si possa provare gratis prima di pagare.",
+  "Se non morisse, o se fosse chiaro come gestisce la fine con i bambini, e un mese di prova gratis per vedere se i ragazzi ci si affezionano davvero senza farsi male.",
+  "Niente canone: se pagando l'adozione una volta potessi portarmelo subito sul mio vecchio telefono senza pagare altro ogni mese, per curiosità tecnologica forse ci proverei."
+ ],
+ "purchases_first_month_per_buyer": 1.0,
+ "price_answers": 100
+}

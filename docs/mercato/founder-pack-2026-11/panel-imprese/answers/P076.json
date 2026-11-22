@@ -1,0 +1,13 @@
+{
+  "id": "P076",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Il chatbot l'ho già provato e l'ho tolto perché i clienti si arrabbiavano. Un porcellino digitale con un carattere suo, in uno studio professionale, mi sembra ancora più rischioso: i miei clienti vogliono una risposta seria, non una mascotte.",
+  "objection": "Non ho tempo di caricargli documenti e insegnargli, e se sbaglia una risposta su una scadenza o un adempimento la faccia ce la metto io. Poi la personalità non si sceglie: e se il carattere non va bene per i miei clienti?",
+  "would_change_my_mind": "Una prova gratuita di un mese fatta su uno studio come il mio, dove qualcuno lo imposta per me e vedo coi miei occhi che i clienti non si lamentano e che i ticket mi fanno risparmiare tempo vero.",
+  "price_too_cheap": 9,
+  "price_cheap": 19,
+  "price_expensive": 39,
+  "price_too_expensive": 60
+}

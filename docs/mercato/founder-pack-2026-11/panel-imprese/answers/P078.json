@@ -1,0 +1,13 @@
+{
+  "id": "P078",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei clienti mi chiamano e mi scrivono su WhatsApp, non vanno su una pagina web con un accesso personale: se non risponde al telefono e non sta su WhatsApp, le stesse domande continuano ad arrivarmi da lì. Poi dovrei trovare il tempo di caricargli documenti e controllare che risponda giusto, proprio quando sono nei picchi.",
+  "objection": "Non ho tempo di caricargli documenti e insegnargli, e ai miei clienti non posso chiedere di fare un login per sapere una cosa che oggi mi chiedono con un vocale.",
+  "would_change_my_mind": "Che risponda direttamente sul mio numero WhatsApp e si prepari da solo leggendo le mie risposte passate, senza che io debba caricare niente.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 35,
+  "price_too_expensive": 60
+}

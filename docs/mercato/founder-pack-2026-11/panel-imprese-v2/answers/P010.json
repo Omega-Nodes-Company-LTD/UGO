@@ -1,0 +1,13 @@
+{
+  "id": "P010",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Il prezzo non è il problema, ma in uno studio professionale una risposta sbagliata a un cliente mi costa molto più di 29 € al mese. Non attivo niente su WhatsApp dello studio senza che il mio consulente IT l'abbia guardato, e questa settimana non lo chiamo per questo.",
+  "objection": "Che un cliente riceva un'indicazione sbagliata su una scadenza o un adempimento e la responsabilità ricada su di me, anche se 'stava nei documenti': i documenti invecchiano e le domande dei clienti raramente sono quelle standard.",
+  "would_change_my_mind": "Che il mio consulente IT lo provi e mi dica che è affidabile, magari con un periodo in cui le risposte le approvo io prima che partano.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 60,
+  "price_too_expensive": 120
+}

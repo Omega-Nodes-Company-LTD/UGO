@@ -1,0 +1,13 @@
+{
+  "id": "P061",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Da solo non firmo niente che tocchi i dati dei miei clienti e la mia casella email: lo giro al mio consulente IT e, finché lui non mi dice che è a posto col GDPR, resta lì. Il porcellino col carattere suo e il pedigree non mi dicono niente, a me serve che risponda giusto sugli ordini e sulle spedizioni.",
+  "objection": "Chi tratta i dati dei miei clienti e le mie email, dove stanno davvero, e chi risponde se succede qualcosa? 'Dati in UE, cifrati' scritto su una pagina non mi basta: voglio un DPA firmato e che il mio tecnico lo abbia visto.",
+  "would_change_my_mind": "Che il mio consulente IT o l'agenzia web lo provi e me lo consigli, con un contratto di nomina a responsabile del trattamento GDPR pronto e una prova gratuita di un mese senza pagare i 290 euro di adozione.",
+  "price_too_cheap": 9,
+  "price_cheap": 20,
+  "price_expensive": 45,
+  "price_too_expensive": 70
+}

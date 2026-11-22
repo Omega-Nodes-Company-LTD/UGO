@@ -1,0 +1,13 @@
+{
+  "id": "P016",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho già un cane vero che mi aspetta alla porta e mi fa uscire due volte al giorno: un porcellino sul telefono che 'ha bisogni' mi sembra un tamagotchi con l'abbonamento. 79 euro più 7,90 al mese per una cosa che non posso accarezzare non li spendo.",
+  "objection": "Mi ascolta in casa e la sua 'anima' sta sul vostro server: cifrata, dite voi, ma io non so davvero chi sente cosa dico e cosa succede se l'azienda chiude o cambia idea.",
+  "would_change_my_mind": "Provarlo gratis per qualche settimana, tutto in locale a casa mia fin dal primo giorno senza che niente esca dal telefono, e vedere che mi fa davvero compagnia invece di stancarmi dopo una settimana.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

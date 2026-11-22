@@ -1,0 +1,13 @@
+{
+  "id": "P062",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho già un cane vero che mi aspetta due volte al giorno, e per chiacchierare con un'AI uso ChatGPT gratis sul telefono. 79 euro più quasi 8 al mese per un porcellino digitale, con quello che guadagno, non li spendo.",
+  "objection": "Mi ci affeziono e poi l'azienda chiude e lo perdo. Dite che posso portarmi l'anima a casa, ma io non so dove metterla né come farla girare, quindi per me resta una promessa.",
+  "would_change_my_mind": "Provarlo gratis per un mese senza dover pagare i 79 euro subito, e vedere che fa davvero qualcosa che ChatGPT non fa.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

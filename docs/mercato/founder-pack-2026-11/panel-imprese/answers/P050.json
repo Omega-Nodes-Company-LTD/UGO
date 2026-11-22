@@ -1,0 +1,13 @@
+{
+  "id": "P050",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I miei clienti mi chiamano o mi scrivono su WhatsApp, non vanno su una pagina web a parlare con un porcellino. Se non risponde al telefono e non sta su WhatsApp, le domande ripetitive me le becco lo stesso e pago 290 più 39 al mese per niente.",
+  "objection": "39 euro al mese per qualcosa che non so se i miei clienti useranno mai: gente abituata a telefonarmi non cambia canale perché lo dico io, e il porcellino con il carattere a me non serve, mi serve che qualcuno risponda.",
+  "would_change_my_mind": "Che risponda direttamente su WhatsApp, dove i clienti già mi scrivono, con un mese di prova gratis senza i 290 di adozione per vedere se toglie davvero telefonate.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P099",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Abbiamo già il cane, e lui invecchierà e un giorno morirà: è un dolore che accetto perché è vero. Pagare per un porcellino sul telefono che invecchia e muore apposta, e far piangere i bambini per un'app, non ha senso per me.",
+  "objection": "Una creatura che invecchia e muore: non voglio soffrire né far soffrire i miei figli per qualcosa che sta su uno schermo. E 7,90 al mese per sempre, più 79 euro, per una cosa che il cane fa già meglio.",
+  "would_change_my_mind": "Se non morisse, o se fosse chiaro come gestisce la fine con i bambini, e un mese di prova gratis per vedere se i ragazzi ci si affezionano davvero senza farsi male.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 5,
+  "price_too_expensive": 8
+}

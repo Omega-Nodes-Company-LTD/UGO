@@ -1,0 +1,13 @@
+{
+  "id": "P007",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I miei clienti mi scrivono su WhatsApp e lì ho già le risposte rapide: non li sposto su una pagina web per parlare con un porcellino. E per uno studio professionale un maialino col suo carattere che risponde ai clienti mi sembra poco serio.",
+  "objection": "Leggere la mia casella email e i documenti dello studio: ci sono dati fiscali e riservati dei clienti, e se dà una risposta sbagliata su una scadenza la responsabilità è mia. Senza il parere del mio tecnico non lo tocco nemmeno.",
+  "would_change_my_mind": "Che il mio consulente IT lo provi e mi dica che è sicuro e conforme, e che funzioni dentro WhatsApp, dove i clienti già mi scrivono, togliendomi davvero i messaggi della sera.",
+  "price_too_cheap": 9,
+  "price_cheap": 19,
+  "price_expensive": 35,
+  "price_too_expensive": 60
+}

@@ -1,0 +1,67 @@
+{
+ "business": "UGO famiglie — abbonamento 'pensione e cibo' di un gosino — VARIANTE: voce di casa (Piper, ADR-047) invece di ElevenLabs",
+ "unit": "gosino-mese (un abbonato attivo per un mese; 'per day' = per mese, days_per_month=1)",
+ "price": 6.48,
+ "variable": [
+  {
+   "label": "Chat (OpenRouter, deepseek-v4-flash) — STIMA da PROGETTO §5: 1-3 €/mese",
+   "cost": 2.0
+  },
+  {
+   "label": "Embedding + dettatura — STIMA",
+   "cost": 0.3
+  },
+  {
+   "label": "Quota hosting/backup per gosino — STIMA",
+   "cost": 0.5
+  },
+  {
+   "label": "Commissioni pagamento (Stripe EU 1,5% + 0,25 €) su 7,90 €",
+   "cost": 0.37
+  }
+ ],
+ "fixed_monthly": [
+  {
+   "label": "Server dedicato Hetzner (Coolify) — STIMA listino",
+   "cost": 60
+  },
+  {
+   "label": "Supporto clienti + manutenzione, 0,25 FTE — STIMA",
+   "cost": 1000
+  },
+  {
+   "label": "Strumenti, dominio, email (Resend) — STIMA",
+   "cost": 30
+  }
+ ],
+ "startup": [
+  {
+   "label": "Marchio UE (EUIPO, 1 classe online)",
+   "cost": 850
+  },
+  {
+   "label": "Legale: termini, privacy, DPIA, verifica età — STIMA",
+   "cost": 2500
+  },
+  {
+   "label": "Annunci di lancio — STIMA",
+   "cost": 1500
+  }
+ ],
+ "days_per_month": 1,
+ "plan_per_day": 300,
+ "ramp_per_day": [
+  5,
+  10,
+  15,
+  20,
+  25,
+  30,
+  35,
+  40,
+  45,
+  50,
+  55,
+  60
+ ]
+}

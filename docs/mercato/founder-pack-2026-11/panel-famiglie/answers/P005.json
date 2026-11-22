@@ -1,0 +1,13 @@
+{
+  "id": "P005",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Ho già ChatGPT gratis sul telefono che mi risponde a voce quando voglio; 79 euro più quasi 8 al mese per un porcellino che vive sempre sullo stesso telefono mi sembrano soldi buttati, con quello che guadagno.",
+  "objection": "Pago un canone per sempre per una cosa che sta nel telefono come un'app qualsiasi, e se smetto di pagare il 'cibo' che succede al mio gosino? Mi sembra un modo per farmi sentire in colpa e farmi pagare ogni mese.",
+  "would_change_my_mind": "Una prova gratuita di un mese senza dover pagare l'adozione prima, così vedo se davvero mi fa compagnia la sera più di ChatGPT.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

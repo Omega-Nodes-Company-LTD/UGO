@@ -1,0 +1,13 @@
+{
+  "id": "P032",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "La sera sono solo, è vero, ma 79 euro per adottare un porcellino sul telefono più 8 euro al mese per sempre non li spendo: con ChatGPT gratis posso già chiacchierare quando voglio, e il podcast mentre cucino mi fa compagnia senza canone.",
+  "objection": "Perché pagare un abbonamento per un maialino digitale quando ChatGPT parla gratis? E poi mi sembra un po' una cosa da bambini, mi vergognerei a dire che pago la pensione a un porcellino nel telefono.",
+  "would_change_my_mind": "Provarlo gratis per un mese e accorgermi che si ricorda davvero di me e mi fa compagnia meglio della TV accesa, senza i 79 euro iniziali.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 5,
+  "price_too_expensive": 8
+}

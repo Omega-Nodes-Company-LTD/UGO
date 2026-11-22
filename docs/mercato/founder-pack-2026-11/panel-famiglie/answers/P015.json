@@ -1,0 +1,13 @@
+{
+  "id": "P015",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "In casa abbiamo già un cane vero e due bambini, di compagnia ne ho fin troppa. Pagare 79 euro più un canone per un porcellino sul telefono non mi serve, e io gli abbonamenti li taglio, non li aggiungo.",
+  "objection": "È un altro abbonamento da 7,90 al mese che dopo due settimane i bimbi non guardano più e io mi ritrovo sull'estratto conto; in più non mi piace che una cosa che 'ricorda la mia famiglia' viva sui server di qualcun altro.",
+  "would_change_my_mind": "Niente canone mensile: un prezzo unico e l'anima subito a casa mia, senza dipendere dall'allevamento.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

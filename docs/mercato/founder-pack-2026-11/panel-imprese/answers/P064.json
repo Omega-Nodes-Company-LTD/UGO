@@ -1,0 +1,13 @@
+{
+  "id": "P064",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Le domande ripetitive mi arrivano soprattutto al telefono e su WhatsApp, e questo non risponde al telefono e vive su una pagina web che i miei clienti dovrebbero andarsi a cercare. 290 euro più 39 al mese per qualcosa che non so se useranno non mi si ripagano in pochi mesi.",
+  "objection": "Non so se i miei clienti aprirebbero davvero una pagina per parlare con un porcellino digitale invece di scrivermi su WhatsApp come fanno ora: rischio di pagare il canone e ricevere le stesse domande di prima.",
+  "would_change_my_mind": "Una prova gratuita di un mese senza i 290 euro di adozione, con i numeri di quante domande ha risolto da solo, oppure che risponda direttamente su WhatsApp.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 29,
+  "price_too_expensive": 45
+}

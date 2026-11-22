@@ -1,0 +1,13 @@
+{
+  "id": "P084",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Una cosa che mi ascolta, mi riconosce e si ricorda della mia famiglia, con l'anima che sta sui server di qualcun altro? No grazie, ho letto troppe storie di chat finite in giro. E poi non ho né la stampante 3D né un telefono vecchio, quindi starebbe sul mio telefono ad ascoltare tutto.",
+  "objection": "Dicono cifrata, ma è comunque un microfono sempre attento che manda la mia voce e le cose di casa mia a un'azienda che non conosco. Se domani chiudono o li bucano, i miei ricordi dove finiscono?",
+  "would_change_my_mind": "Che funzioni tutto in casa, senza internet, e che un'associazione di consumatori o qualcuno di cui mi fido abbia controllato che non esce niente.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 5,
+  "price_too_expensive": 8
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P040",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Ho un obbligo di riservatezza verso i miei clienti: dare a un porcellino digitale la mia casella email, anche in sola lettura, non lo faccio senza capire esattamente chi tratta quei dati. E per le domande ripetitive mi arrangio già gratis con WhatsApp Business e qualche risposta pronta.",
+  "objection": "Chi è il responsabile del trattamento, dove stanno i server e chi può leggere le email dei miei clienti? \"Dati in UE, cifrati\" scritto in una riga non mi basta, e il fatto che non risponda al telefono toglie proprio il canale che mi fa perdere più tempo.",
+  "would_change_my_mind": "Un DPA firmabile con nomina a responsabile del trattamento, elenco dei sub-responsabili e una prova gratuita di un mese senza i 290 € di adozione, usando solo documenti e non la mia email.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

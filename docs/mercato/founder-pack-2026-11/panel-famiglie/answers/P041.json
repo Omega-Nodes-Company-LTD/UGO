@@ -1,0 +1,13 @@
+{
+  "id": "P041",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Una cosa che ascolta in casa, riconosce i miei figli e si ricorda tutto della famiglia, con l'anima su un server di un'azienda che non conosco: è proprio quello che non installo. Poi i bambini ci si affezionano e se l'allevamento chiude o alza il canone chi glielo spiega?",
+  "objection": "Ascolta e ricorda la voce e la vita dei miei figli e tiene tutto sui suoi server; dicono che è cifrato, ma le chat finite in giro erano 'sicure' anche loro. E se l'azienda chiude, il porcellino a cui i bambini vogliono bene muore con lei.",
+  "would_change_my_mind": "Che funzioni davvero tutto in casa mia, senza mandare la voce a nessuno, con una verifica indipendente sulla privacy e la garanzia scritta che se chiudete l'anima resta a me e continua a funzionare.",
+  "price_too_cheap": 1.5,
+  "price_cheap": 3,
+  "price_expensive": 6,
+  "price_too_expensive": 10
+}

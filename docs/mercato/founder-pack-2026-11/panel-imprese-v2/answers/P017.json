@@ -1,0 +1,13 @@
+{
+  "id": "P017",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Il prezzo non è il problema, 29 euro li spendo senza pensarci. Ma i miei clienti scrivono a me perché si fidano di me, e un assistente con un suo 'carattere' che risponde a nome dello studio, anche se formale, mi sembra roba da e-commerce, non da studio professionale.",
+  "objection": "Se dà una risposta sbagliata o fuori contesto su una scadenza o un adempimento, la responsabilità è mia e il cliente se la prende con me. E le domande 'ripetitive' dei miei clienti spesso dipendono dalla loro pratica specifica, non da un documento generico.",
+  "would_change_my_mind": "Un collega del mio settore che lo usa da mesi e mi mostra che chiude davvero le domande banali (orari, documenti da portare, stato della pratica) senza mai rispondere nel merito, e senza nessun 'personaggio': solo risposte asciutte firmate dallo studio.",
+  "price_too_cheap": 5,
+  "price_cheap": 19,
+  "price_expensive": 59,
+  "price_too_expensive": 120
+}

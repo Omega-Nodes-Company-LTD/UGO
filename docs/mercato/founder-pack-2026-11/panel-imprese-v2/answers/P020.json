@@ -1,0 +1,13 @@
+{
+  "id": "P020",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "need",
+  "reason": "La sera sto ancora a rispondere su WhatsApp a orari, spedizioni e resi, sempre le stesse cose: se a 29 euro me ne toglie anche solo metà, mi ripaga in una settimana. Con 30 giorni gratis e senza attivazione la prova la faccio, poi decido guardando il conto delle domande chiuse.",
+  "objection": "Ho paura che risponda male o in modo freddo a un cliente affezionato e che io me ne accorga tardi; e poi devo trovare il tempo di preparargli i documenti, che è proprio il tempo che non ho. Il telefono resta comunque tutto mio.",
+  "would_change_my_mind": "Se nella prova sbaglia anche una sola risposta importante a un cliente, o se metterlo su mi costa più di un paio d'ore, lo disdico prima che parta il pagamento.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 49,
+  "price_too_expensive": 90
+}

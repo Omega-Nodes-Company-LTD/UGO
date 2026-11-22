@@ -1,0 +1,13 @@
+{
+  "id": "P013",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Il chatbot l'ho già messo e l'ho tolto perché i pazienti si arrabbiavano: 29 euro non sono il problema, il problema è che se sbaglia una risposta su una preparazione o un appuntamento la faccia ce la metto io. Dirmi che non inventa me l'avevano detto anche l'altra volta, e rimettermi a caricare documenti e a chiamare l'agenzia per il sito questa settimana non lo faccio.",
+  "objection": "E se risponde una cosa sbagliata a un paziente? Qui parliamo di salute, non di orari di un negozio, e non ho modo di sapere prima che lo faccia.",
+  "would_change_my_mind": "Vederlo funzionare da un collega con uno studio come il mio, con le domande vere dei suoi pazienti, e che qualcuno me lo installi sul sito e su WhatsApp senza che debba perderci io le serate.",
+  "price_too_cheap": 9,
+  "price_cheap": 19,
+  "price_expensive": 60,
+  "price_too_expensive": 120
+}

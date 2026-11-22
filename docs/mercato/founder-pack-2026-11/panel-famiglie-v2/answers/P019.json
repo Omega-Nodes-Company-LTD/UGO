@@ -1,0 +1,13 @@
+{
+  "id": "P019",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei figli vogliono un cane vero da accarezzare e portare fuori, non un altro motivo per stare attaccati al mio telefono. Al massimo farei la prova gratis per curiosità, ma pagare 4,90 al mese per un porcellino digitale non mi convince.",
+  "objection": "Un microfono che ascolta in casa e parla con i miei bambini: anche se dite cifrato in UE, non so davvero chi sente cosa, e non mi va che i figli si affezionino a una cosa che vive dentro un abbonamento.",
+  "would_change_my_mind": "Un dispositivo suo, separato dal mio telefono, che funzioni senza mandare la voce dei bambini su internet, magari consigliato da qualcuno che conosco che lo usa da mesi.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 6,
+  "price_too_expensive": 10
+}

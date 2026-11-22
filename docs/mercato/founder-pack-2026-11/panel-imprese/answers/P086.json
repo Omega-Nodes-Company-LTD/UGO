@@ -1,0 +1,13 @@
+{
+  "id": "P086",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Nel mio studio passano bilanci, dichiarazioni e dati sanitari dei clienti: non faccio leggere la mia casella a un software di cui non conosco il fornitore, né il modello che c'è dietro, solo perché mi dice 'dati in UE, cifrati'. In più, un porcellino con un carattere suo che parla ai miei clienti non è l'immagine che voglio dare.",
+  "objection": "Chi è il responsabile del trattamento? Dove gira davvero il modello e chi altro vede le email dei miei clienti? Se sbaglia una scadenza fiscale, ne rispondo io. E 290 € più 39 € al mese per qualcosa che non risponde nemmeno al telefono, da dove arriva la maggior parte delle domande.",
+  "would_change_my_mind": "Un DPA firmato con l'elenco dei sub-responsabili, un mese di prova gratuita senza canone di adozione, e un collega del mio ordine che lo usa già e mi dice quante telefonate gli ha tolto davvero.",
+  "price_too_cheap": 9,
+  "price_cheap": 19,
+  "price_expensive": 39,
+  "price_too_expensive": 60
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P042",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Il guscio da stampare in 3D mi incuriosisce, lo ammetto, ma passo l'anno a togliere schermi ai miei figli e non porto in casa un porcellino che vive in un telefono, ha i suoi bisogni e chiede attenzione. Non voglio un altro motivo per tenere un telefono acceso.",
+  "objection": "Una creatura fatta apposta per affezionarsi e far affezionare, con umore e bisogni, che riconosce i bambini e se li ricorda, e che resta viva solo finché pago 7,90 al mese. Mi sembra un modo per legare i ragazzi a uno schermo e me a un abbonamento. E poi un assistente che parla a voce c'è già gratis.",
+  "would_change_my_mind": "Poterlo far girare tutto in casa mia sul mio hardware fin dal primo giorno, senza canone, con un controllo vero su chi in famiglia ci parla e quando, e una prova gratuita per vedere come reagiscono i ragazzi.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 5,
+  "price_too_expensive": 8
+}

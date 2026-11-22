@@ -1,0 +1,13 @@
+{
+  "id": "P082",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho già il mio cane, che porto fuori due volte al giorno e che mi tiene compagnia davvero. Un porcellino sul telefono a 79 euro più 7,90 al mese, alla mia età, non mi serve: la sera ho la TV e il cane sul divano.",
+  "objection": "Un animale finto non sostituisce quello vero, e non mi va di pagare ogni mese per dar da mangiare a una cosa che sta dentro il telefono. Poi non mi fido tanto di dare la mia voce e i fatti della mia famiglia a un allevamento su internet.",
+  "would_change_my_mind": "Se un giorno il cane non ci fosse più e i miei figli me lo installassero e me lo regalassero loro, forse lo proverei.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

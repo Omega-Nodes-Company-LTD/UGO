@@ -1,0 +1,13 @@
+{
+  "id": "P068",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Ho già il mio cane che mi fa compagnia davvero, e alla mia età non ho voglia di affezionarmi a un porcellino finto che poi invecchia e muore. Per i nipoti, la domenica, sarebbe solo un dispiacere in più da spiegare.",
+  "objection": "Che muoia. Ho già pianto abbastanza per gli animali veri, non voglio pagare ogni mese per soffrire per uno sul telefono, né far soffrire i bambini.",
+  "would_change_my_mind": "Sapere che non muore, o che posso scegliere io che resti com'è, e vederlo prima dal vivo da qualcuno che conosco.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

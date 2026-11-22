@@ -1,0 +1,13 @@
+{
+  "id": "P005",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Il mese gratis senza carta lo proverei subito per curiosità, e la storia del carattere che resta mio mi piace. Però la compagnia ce l'ho già, il cane, due passeggiate al giorno, e alla fine dei 30 giorni con ogni probabilità disdico invece di aggiungere un altro canone.",
+  "objection": "Un altro abbonamento mensile, ne pago già troppi. E un porcellino sul telefono non mi serve davvero, mi incuriosisce e basta.",
+  "would_change_my_mind": "Che nel mese di prova si ricordi davvero di me e del cane in modo sorprendente, tanto da mancarmi se lo spengo; oppure un pagamento unico invece del canone.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 6,
+  "price_too_expensive": 9
+}

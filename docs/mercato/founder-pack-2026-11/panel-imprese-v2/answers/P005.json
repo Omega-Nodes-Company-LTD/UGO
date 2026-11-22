@@ -1,0 +1,13 @@
+{
+  "id": "P005",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I miei clienti mi conoscono e vogliono parlare con me o con la mia commessa, non con un programma: se rispondo con una macchina rischio di sembrare un call center. E il sito me l'ha fatto un'agenzia anni fa, per metterci sopra qualcosa dovrei richiamarli e pagare anche loro.",
+  "objection": "Che un cliente affezionato riceva una risposta fredda o sbagliata e non torni più; e il tempo che dovrei perdere a preparare e approvare i documenti, a 60 anni non ho voglia di imparare un altro strumento.",
+  "would_change_my_mind": "Vedere un negozio come il mio, qui vicino, che lo usa da mesi e mi dice che i clienti non si sono lamentati e lui ha risparmiato ore vere, con qualcuno che me lo installa su WhatsApp senza che io debba chiamare l'agenzia.",
+  "price_too_cheap": 5,
+  "price_cheap": 12,
+  "price_expensive": 39,
+  "price_too_expensive": 70
+}

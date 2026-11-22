@@ -1,0 +1,13 @@
+{
+  "id": "P011",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho già il mio cane che mi aspetta sul divano e si ricorda di me senza che io paghi un canone: un porcellino nel telefono per me è un tamagotchi con l'abbonamento. Magari lo scarico per curiosità perché la prova è gratis e senza carta, ma dopo 30 giorni non attivo l'ennesimo addebito mensile.",
+  "objection": "Un altro abbonamento mensile per una cosa che il mio animale vero mi dà già, e che dopo la novità delle prime settimane probabilmente smetterei di aprire.",
+  "would_change_my_mind": "Un acquisto una tantum invece del canone, oppure vedere che dopo il mese di prova ci parlo ancora ogni sera senza sforzo.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 3.99,
+  "price_too_expensive": 5.99
+}

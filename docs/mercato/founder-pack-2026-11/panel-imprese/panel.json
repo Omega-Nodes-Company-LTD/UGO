@@ -1,0 +1,103 @@
+{
+ "n": 100,
+ "seed": 7,
+ "customer": {
+  "business": "UGO — gosino da lavoro per la reception (assistente AI con carattere per i clienti di una piccola attività)",
+  "target": "Titolari di piccole attività in Italia (1-15 persone) che ricevono domande ripetitive dai clienti per telefono, email e WhatsApp",
+  "where": "Italia, online",
+  "age": [
+   28,
+   65
+  ],
+  "segments": [
+   {
+    "name": "Titolare di studio professionale (commercialista, avvocato, architetto, agenzia)",
+    "share": 0.35,
+    "income": [
+     35000,
+     110000
+    ]
+   },
+   {
+    "name": "Titolare di negozio o e-commerce",
+    "share": 0.25,
+    "income": [
+     25000,
+     80000
+    ]
+   },
+   {
+    "name": "Titolare di ambulatorio, studio medico/dentistico o centro benessere",
+    "share": 0.25,
+    "income": [
+     45000,
+     140000
+    ]
+   },
+   {
+    "name": "Artigiano o piccola impresa di servizi tecnici",
+    "share": 0.15,
+    "income": [
+     25000,
+     70000
+    ]
+   }
+  ],
+  "behaviours": [
+   {
+    "name": "Sommerso dalle domande ripetitive",
+    "share": 0.2,
+    "how": "Passa ore a rispondere sempre alle stesse cose al telefono e su WhatsApp."
+   },
+   {
+    "name": "Attento ai costi",
+    "share": 0.18,
+    "how": "Ogni spesa fissa nuova deve ripagarsi entro pochi mesi."
+   },
+   {
+    "name": "Fa da sé",
+    "share": 0.14,
+    "how": "Usa già strumenti gratuiti (WhatsApp Business, risposte automatiche, ChatGPT)."
+   },
+   {
+    "name": "Delega al consulente IT",
+    "share": 0.14,
+    "how": "Decide solo dopo aver sentito il tecnico o l'agenzia web di fiducia."
+   },
+   {
+    "name": "Preoccupato per privacy e GDPR",
+    "share": 0.14,
+    "how": "Tratta dati sensibili dei clienti e teme sanzioni."
+   },
+   {
+    "name": "Cura l'immagine del brand",
+    "share": 0.1,
+    "how": "Vuole che tutto ciò che il cliente vede sia coerente e serio."
+   },
+   {
+    "name": "Ha provato un chatbot e l'ha tolto",
+    "share": 0.1,
+    "how": "Il cliente si arrabbiava con risposte sbagliate e robotiche."
+   }
+  ],
+  "objections": [
+   "I miei clienti vogliono parlare con una persona, non con un maialino",
+   "E se risponde una cosa sbagliata a un cliente?",
+   "39 € al mese per qualcosa che non so se usano",
+   "I dati dei miei clienti dove vanno? Il GDPR?",
+   "Non ho tempo di caricargli documenti e insegnargli",
+   "Il personaggio con un carattere suo non è professionale",
+   "Ho già WhatsApp Business con le risposte rapide",
+   "Non risponde al telefono, e i miei clienti chiamano"
+  ],
+  "habits": [
+   "apri la giornata svuotando la casella email",
+   "rispondi ai messaggi WhatsApp dei clienti anche la sera",
+   "hai una segretaria part-time o nessuna",
+   "il sito web te l'ha fatto un'agenzia anni fa",
+   "i picchi di richieste arrivano a scadenze precise dell'anno",
+   "lavori spesso fuori sede o in appuntamento"
+  ]
+ },
+ "pitch": "Un gosino da lavoro per la reception della tua attività: un porcellino digitale con un carattere suo che risponde ai tuoi clienti a voce o per iscritto, a qualunque ora, da una pagina web.\nConosce la tua attività: legge i documenti che gli dai e, se vuoi, la tua casella email in sola lettura. Quando non sa, non inventa: apre un ticket per te.\nOgni cliente ha il suo accesso personale; i dati restano in UE, cifrati. Non risponde al telefono.\nAdozione: 290 € una tantum. Canone: 39 € al mese, con tetto di spesa giornaliero incluso.\nSi sceglie fra i gosini nati nell'allevamento, ognuno con carattere e pedigree; la personalità non si configura.\n(Per le domande sul prezzo, rispondi pensando al canone mensile in euro.)"
+}

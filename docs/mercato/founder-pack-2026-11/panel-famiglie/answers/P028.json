@@ -1,0 +1,13 @@
+{
+  "id": "P028",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Le novità tecnologiche mi piacciono e le provo volentieri, ma una bestiolina che invecchia e muore no: ai nipoti la domenica non voglio dover spiegare perché il porcellino del telefono se n'è andato. Ho già visto morire abbastanza animali veri in famiglia.",
+  "objection": "Che soffra lui e che soffriamo noi: ci si affeziona, i bambini ancora di più, e poi lo vedi spegnersi. In più pago 7,90 al mese per tenerlo in vita, e se un giorno smetto di pagare mi sentirei di averlo lasciato morire io.",
+  "would_change_my_mind": "Sapere con chiarezza, prima di adottarlo, come va a finire: che la vecchiaia sia dolce e senza agonia, e che ai bambini venga raccontata con delicatezza, magari lasciando dei cuccioli o un ricordo. Lo proverei se me lo facesse vedere un'amica che ce l'ha già.",
+  "price_too_cheap": 1.5,
+  "price_cheap": 3,
+  "price_expensive": 7,
+  "price_too_expensive": 12
+}

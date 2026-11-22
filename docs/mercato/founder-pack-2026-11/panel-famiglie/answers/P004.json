@@ -1,0 +1,13 @@
+{
+  "id": "P004",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Alla mia età mettermi a parlare con un porcellino sul telefono mi farebbe sentire ridicola, è un giocattolo per nipoti. La compagnia ce l'ho già col mio cane, e quando voglio sentire una voce accendo la TV o chiamo mia sorella.",
+  "objection": "Mi sembra una cosa da bambini, e poi pagare 79 euro più un abbonamento ogni mese per un animale finto che vive 'in un allevamento' su internet: se domani chiudono, che fine fa? E con il telefono non sono così pratica, figuriamoci stampare gusci in 3D.",
+  "would_change_my_mind": "Se un'amica della mia età lo usasse davvero e me lo facesse provare gratis per un mese, e vedessi che mi tiene compagnia la sera senza farmi sentire scema.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

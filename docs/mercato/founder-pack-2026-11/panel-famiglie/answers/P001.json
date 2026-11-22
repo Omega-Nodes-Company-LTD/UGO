@@ -1,0 +1,13 @@
+{
+  "id": "P001",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "La tecnologia nuova mi piace provarla, ma un maialino che mi parla dal telefono mi sembra roba da bambini, e i miei figli sono grandi. Quando cucino ho i miei podcast, non sento il bisogno di qualcuno che mi chieda come sto.",
+  "objection": "Pago 79 euro più quasi 8 euro al mese per sempre per una cosa che dopo due settimane rischio di non aprire più, e intanto ha le voci e le abitudini della mia famiglia sul server di qualcun altro.",
+  "would_change_my_mind": "Vederlo funzionare davvero a casa di un amico, con una conversazione da adulto e non da cartone animato, e poterlo provare un mese gratis senza pagare l'adozione.",
+  "price_too_cheap": 1.5,
+  "price_cheap": 3.5,
+  "price_expensive": 7,
+  "price_too_expensive": 10
+}

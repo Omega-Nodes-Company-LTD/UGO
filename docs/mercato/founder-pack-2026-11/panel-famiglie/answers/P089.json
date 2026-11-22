@@ -1,0 +1,13 @@
+{
+  "id": "P089",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho già il mio cane, che porto fuori due volte al giorno e che mi tiene compagnia davvero. Un porcellino sul telefono che mi parla non mi serve, e con la pensione che ho non spendo 79 euro più un canone ogni mese per una cosa così.",
+  "objection": "È un animale finto che vive su un server da qualche parte e mi chiede soldi ogni mese per il 'cibo': il compagno vero ce l'ho già, e questo mi sembra un abbonamento travestito da affetto.",
+  "would_change_my_mind": "",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

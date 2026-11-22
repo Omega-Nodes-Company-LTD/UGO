@@ -1,0 +1,13 @@
+{
+  "id": "P019",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei pazienti chiamano al telefono, e questo il telefono non lo prende: mi resterebbe la segretaria occupata come adesso più un'altra cosa da curare. E un porcellino con il suo carattere che risponde ai pazienti di uno studio medico non mi sembra un'immagine seria.",
+  "objection": "Non ho tempo di caricargli documenti e insegnargli, e se un paziente gli chiede qualcosa sulla salute o sui suoi dati non voglio dover controllare io cosa ha risposto.",
+  "would_change_my_mind": "Che rispondesse anche al telefono nei periodi di picco e fosse già pronto senza che io debba preparargli niente, con una prova gratuita di un mese per vedere se mi toglie davvero chiamate.",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 50,
+  "price_too_expensive": 80
+}

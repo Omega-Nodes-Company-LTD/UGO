@@ -1,0 +1,13 @@
+{
+  "id": "P009",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I miei pazienti chiamano, vogliono sentire la segretaria e fissare l'appuntamento: questo non risponde al telefono e non prenota, quindi mi toglie poco lavoro. E in un ambulatorio un bot che scrive ai pazienti a mezzanotte mi preoccupa più di quanto mi aiuti.",
+  "objection": "Che un paziente gli chieda qualcosa sui sintomi o su una terapia e si senta liquidato da una macchina, o peggio che la risposta sembri un consiglio medico. Sono dati sanitari, e la responsabilità resta mia, non del software.",
+  "would_change_my_mind": "Se prenotasse e spostasse gli appuntamenti direttamente nella mia agenda e una collega con un ambulatorio come il mio mi mostrasse che le ha davvero tolto ore di telefono e WhatsApp.",
+  "price_too_cheap": 9,
+  "price_cheap": 19,
+  "price_expensive": 49,
+  "price_too_expensive": 80
+}

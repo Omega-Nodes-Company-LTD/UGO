@@ -1,0 +1,13 @@
+{
+  "id": "P023",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Il chatbot l'ho già provato e l'ho dovuto togliere perché i clienti si arrabbiavano: un porcellino con il carattere non mi convince che risponda meglio. E 290 € più 39 € al mese per una cosa che non so se i miei clienti userebbero, da una pagina web e non dal telefono, non li spendo a scatola chiusa.",
+  "objection": "Che risponda male o in modo robotico e mi faccia perdere clienti mentre sono fuori in appuntamento e non posso controllare, e che i clienti non la usino proprio perché mi scrivono su WhatsApp o mi chiamano.",
+  "would_change_my_mind": "Una prova gratuita di un mese sui miei clienti veri, senza i 290 € iniziali, con un resoconto di quante domande ha risolto da solo e quanti ticket ha aperto.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

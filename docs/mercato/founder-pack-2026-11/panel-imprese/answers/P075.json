@@ -1,0 +1,13 @@
+{
+  "id": "P075",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei clienti mi chiamano al telefono o mi scrivono su WhatsApp, non vanno a cercare una pagina web per parlare con un porcellino. Se non risponde al telefono non mi toglie il problema vero, e un maialino digitale alla reception di uno studio professionale mi sembra poco serio.",
+  "objection": "Non risponde al telefono, e i miei clienti chiamano. In più devo dargli documenti e magari l'email dello studio, con dati riservati dei clienti, e se sbaglia una risposta su una scadenza la responsabilità è mia.",
+  "would_change_my_mind": "Che risponda al telefono e su WhatsApp con un tono professionale, e che dopo un mese di prova gratis mi dimostri di aver tolto davvero ore di chiamate alla segreteria.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

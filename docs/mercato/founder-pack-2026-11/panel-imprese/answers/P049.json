@@ -1,0 +1,13 @@
+{
+  "id": "P049",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Le domande mi arrivano al telefono e su WhatsApp, e questo al telefono non risponde e vive su una pagina web che i miei clienti non aprono. Per di più ognuno deve avere il suo accesso: già il sito non lo guarda nessuno, figurati se si registrano per chiedere l'orario a un porcellino.",
+  "objection": "Pago 290 € più 39 € al mese per una cosa che non so se i clienti useranno, e intanto il telefono e WhatsApp continuano a squillare uguale.",
+  "would_change_my_mind": "Se rispondesse direttamente su WhatsApp, sul mio numero, senza far registrare nessuno, e con un mese di prova gratis per vedere quante domande mi toglie davvero.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

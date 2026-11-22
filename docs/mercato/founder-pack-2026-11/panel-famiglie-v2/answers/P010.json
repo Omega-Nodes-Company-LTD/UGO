@@ -1,0 +1,13 @@
+{
+  "id": "P010",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Le serate da solo le passo con un podcast o la TV in sottofondo, ma parlare con un porcellino digitale mi sembra una cosa da bambini. Magari i miei figli ci giocherebbero per qualche giorno, ma io non pago un canone per questo.",
+  "objection": "Mi sentirei ridicolo a parlare con un maialino sul telefono, e ho paura che per i bambini diventi solo un'altra app che li tiene attaccati allo schermo.",
+  "would_change_my_mind": "Vederlo usare da un amico adulto e capire che ci fa davvero conversazioni serie, non cose da cartone animato.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 3.99,
+  "price_too_expensive": 6
+}

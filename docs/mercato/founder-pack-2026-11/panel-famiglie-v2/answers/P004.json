@@ -1,0 +1,13 @@
+{
+  "id": "P004",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "La garanzia dell'anima scaricabile col software libero è la prima cosa sensata che leggo su questi prodotti, ma resta un'app che mi ascolta in casa e manda la mia voce e quella della mia famiglia ai loro server. Il telefono con il microfono sempre pronto non lo metto in salotto per 4,90 al mese.",
+  "objection": "Parla a voce e si ricorda di tutti: vuol dire che le nostre conversazioni passano dai loro server. 'Cifrati in UE, mai per pubblicità' è una frase che ho già letto da altri, poi le chat sono finite in giro lo stesso.",
+  "would_change_my_mind": "Poter farlo girare da subito sul mio computer di casa con il software libero, codice che posso guardare, e microfono che si attiva solo quando premo io: allora lo provo, anche pagando.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 7,
+  "price_too_expensive": 12
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P053",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Una cosa che mi ascolta, mi riconosce e si ricorda di me e della mia famiglia, con l'anima che vive sui server di qualcun altro, è esattamente quello che non installo. E poi un maialino digitale che parla mi sembra roba da bambini: ho già un cane vero che porto fuori due volte al giorno.",
+  "objection": "Mi ascolta e tiene memoria di tutto quello che diciamo in casa: dire 'cifrata, in UE' non mi basta, ho letto troppe storie di chat finite in giro. E pagare 7,90 al mese per sempre per una cosa che non mi serve.",
+  "would_change_my_mind": "Che giri tutto in locale sul mio vecchio telefono senza mandare la voce a nessun server, con un audit indipendente che lo dimostri, e un prezzo senza canone.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

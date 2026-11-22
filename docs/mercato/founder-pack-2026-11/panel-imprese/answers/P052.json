@@ -1,0 +1,13 @@
+{
+  "id": "P052",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "Ho già WhatsApp Business con le risposte rapide e per le domande ripetitive mi basta. I miei pazienti chiamano soprattutto al telefono, e questo al telefono non risponde: 290 euro più 39 al mese per una pagina web che pochi aprirebbero non si ripagano in pochi mesi.",
+  "objection": "Non risponde al telefono, che è dove arrivano davvero le richieste nei miei periodi di picco. E non mi fido a mettere un porcellino digitale che parla con i pazienti di uno studio medico: se dice una cosa sbagliata ci rimetto io.",
+  "would_change_my_mind": "Se rispondesse direttamente su WhatsApp e al telefono e gestisse le prenotazioni nei periodi di picco, con una prova gratuita di un mese senza costo di adozione.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

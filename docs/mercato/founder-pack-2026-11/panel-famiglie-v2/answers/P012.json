@@ -1,0 +1,13 @@
+{
+  "id": "P012",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "È un'app che ascolta in casa e parla con i miei figli: proprio il tipo di cosa che non installo, prova gratis o no. E poi i bambini vogliono un cane vero, non un maialino sul telefono.",
+  "objection": "Un microfono sempre pronto che registra le voci dei miei figli e quello che si dice in famiglia. Scrivere 'cifrato in UE' non mi basta: ho già letto di chat finite in giro.",
+  "would_change_my_mind": "Che funzioni tutto in locale sul telefono senza mandare la voce a nessun server, verificato da un ente indipendente o da una testata seria, e magari che me lo consigli un amico che lo usa già con i figli.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

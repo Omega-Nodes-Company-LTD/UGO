@@ -1,0 +1,13 @@
+{
+  "id": "P002",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "I miei clienti mi affidano bilanci, cause, questioni delicate: non posso metterli a parlare con un porcellino con un carattere suo, mi farebbe sembrare poco seria. E poi le domande mi arrivano al telefono e su WhatsApp, non su una pagina web: il problema vero resterebbe lì.",
+  "objection": "Un personaggio con una personalità che non posso nemmeno scegliere né regolare non è professionale per uno studio come il mio. In più dargli in lettura la mia casella email, con il segreto professionale di mezzo, non me la sento.",
+  "would_change_my_mind": "Una versione sobria, senza personaggio, che risponda direttamente su WhatsApp con il tono dello studio, e che un collega del mio ordine mi dica che funziona davvero e non crea problemi di riservatezza.",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 80,
+  "price_too_expensive": 150
+}

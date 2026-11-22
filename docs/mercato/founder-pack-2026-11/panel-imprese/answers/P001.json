@@ -1,0 +1,13 @@
+{
+  "id": "P001",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei clienti, quando c'è una scadenza, telefonano o scrivono su WhatsApp alla segretaria: dubito che andrebbero su una pagina web a parlare con un porcellino. 290 € più 39 al mese per una cosa che forse usano in tre, sotto scadenza, non me li ripaga.",
+  "objection": "Non so se i miei clienti lo userebbero davvero, e non risponde al telefono, che è proprio dove arrivano le domande. In più un porcellino col carattere per uno studio professionale mi sembra poco serio.",
+  "would_change_my_mind": "Una prova gratuita di un paio di mesi a cavallo di una scadenza vera, con i numeri di quante telefonate e email mi ha tolto davvero.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

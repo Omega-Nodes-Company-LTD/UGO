@@ -1,0 +1,13 @@
+{
+  "id": "P038",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei clienti mi chiamano o mi scrivono su WhatsApp, non vanno sul sito che mi ha fatto l'agenzia anni fa. Se non risponde al telefono e non sta su WhatsApp, le stesse domande continuano ad arrivare a me, e in più pago 290 euro e 39 al mese per un porcellino.",
+  "objection": "E se a un cliente dice un prezzo o un tempo d'intervento sbagliato? Poi ci litigo io. E un maialino con il carattere suo che parla ai miei clienti non so quanto mi faccia sembrare seria.",
+  "would_change_my_mind": "Che risponda direttamente su WhatsApp con il mio numero, e farlo provare un mese gratis per vedere cosa dice ai clienti prima di pagare l'adozione.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

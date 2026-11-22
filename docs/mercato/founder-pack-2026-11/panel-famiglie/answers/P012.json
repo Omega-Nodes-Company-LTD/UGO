@@ -1,0 +1,13 @@
+{
+  "id": "P012",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Un coso che ascolta tutto quello che si dice in casa mia, con i bambini, e manda tutto su un server di qualcuno che non conosco: no. E poi ChatGPT ce l'ho già gratis, 79 euro più 7,90 al mese per un porcellino sul telefono non li tiro fuori.",
+  "objection": "Dove finiscono le voci dei miei figli e le cose che diciamo a cena? 'Cifrata' e 'in UE' sono parole, chi mi garantisce chi la legge davvero e cosa succede se l'azienda chiude?",
+  "would_change_my_mind": "Che giri tutto in casa, sul telefono vecchio, senza mandare niente fuori, verificato da qualcuno di indipendente, e che i bambini se ne innamorino provandolo gratis prima.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 4.5,
+  "price_too_expensive": 7
+}

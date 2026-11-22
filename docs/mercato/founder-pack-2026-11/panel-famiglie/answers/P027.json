@@ -1,0 +1,13 @@
+{
+  "id": "P027",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Una cosa che ascolta in casa, riconosce i miei figli e si ricorda di tutti noi, con l'anima su un server loro: è esattamente il tipo di app che non installo. Che sia un porcellino carino non cambia niente, anzi ai bambini piacerebbe e quindi parlerebbero ancora di più.",
+  "objection": "Le voci e le cose che dicono i miei figli finiscono su un server di un'azienda che non conosco. 'Cifrata' lo scrivono tutti, poi leggi delle chat finite in giro. E non ho né un telefono vecchio né una stampante 3D, quindi starebbe sul mio telefono, che è proprio dove non lo voglio.",
+  "would_change_my_mind": "Che funzioni tutto in casa senza mandare niente fuori, verificato da qualcuno di indipendente, e con un modo semplice per spegnere microfono e riconoscimento dei bambini.",
+  "price_too_cheap": 1,
+  "price_cheap": 3,
+  "price_expensive": 6,
+  "price_too_expensive": 10
+}

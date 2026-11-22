@@ -1,0 +1,13 @@
+{
+  "id": "P003",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Passo la giornata a togliere schermi ai miei figli, non ne porto in casa uno nuovo che parla, ha bisogni e chiede attenzione. In più una creatura che invecchia e muore: non voglio che i bambini ci si affezionino per poi piangere per un porcellino sul telefono.",
+  "objection": "Che invecchi e muoia. È fatto apposta per farti affezionare, e poi o soffri tu quando se ne va o continui a pagare per non farlo soffrire. Il limite di tempo per i bambini è un buon gesto, però resta comunque un'altra cosa sul telefono che li chiama.",
+  "would_change_my_mind": "Sapere in modo chiaro che non muore e non si 'ammala' se lo trascuri, e che funziona anche solo a voce, senza che i bambini debbano guardare lo schermo.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

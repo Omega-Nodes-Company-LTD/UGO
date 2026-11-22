@@ -1,0 +1,13 @@
+{
+  "id": "P069",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Nel mio studio passano dati fiscali e sanitari dei clienti: non affido a un porcellino digitale l'accesso alla mia casella email e ai documenti, e i miei clienti vogliono parlare con me o con la mia segretaria, non con un personaggio. Rischio di fare una brutta figura e di prendermi una sanzione per 39 euro al mese di risparmio che non vedo.",
+  "objection": "Chi è il responsabile del trattamento se il gosino legge un'email con dati sensibili e risponde alla persona sbagliata? 'Dati in UE, cifrati' non mi basta: voglio un DPA firmato, sapere quali fornitori e quali modelli vedono i testi, e un registro dei trattamenti che il Garante accetti. E il tono da mascotte per uno studio professionale mi sembra poco serio.",
+  "would_change_my_mind": "Un DPA completo con elenco dei sub-responsabili e una valutazione d'impatto già pronta, più una versione sobria senza personaggio, limitata a orari, appuntamenti e scadenze senza toccare email e documenti dei clienti, provata gratis per un mese da un collega che conosco.",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 60,
+  "price_too_expensive": 100
+}

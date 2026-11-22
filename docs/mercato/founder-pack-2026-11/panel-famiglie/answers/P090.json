@@ -1,0 +1,13 @@
+{
+  "id": "P090",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho una famiglia vera intorno, la domenica siamo in dodici a tavola: un porcellino sul telefono non mi serve. E ogni mese passo l'estratto conto a disdire quello che non uso, figurati se ne aggiungo uno da 7,90 più 79 euro per entrare.",
+  "objection": "Dopo la curiosità delle prime settimane finirebbe dimenticato, ma i 7,90 al mese continuerebbero a uscire. E non ho né la stampante 3D né un telefono vecchio da metterci dentro.",
+  "would_change_my_mind": "Se fosse per mia madre anziana che vive da sola e si potesse provare gratis un mese senza i 79 euro iniziali, ci penserei.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 4.5,
+  "price_too_expensive": 7
+}

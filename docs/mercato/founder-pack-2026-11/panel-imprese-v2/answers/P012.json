@@ -1,0 +1,13 @@
+{
+  "id": "P012",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "Con WhatsApp Business, le risposte rapide e ChatGPT me la cavo già gratis. Le domande dei miei clienti sono quasi sempre sul loro caso specifico, e quelle un assistente che legge solo i documenti non le chiude: finirebbe per passarle tutte a me.",
+  "objection": "Non ho tempo di preparargli i documenti, approvarli e tenerli aggiornati. I 30 giorni di prova li passerei a configurarlo invece che a vedere se funziona.",
+  "would_change_my_mind": "Che me lo impostino loro in mezz'ora partendo dalle mie chat WhatsApp e dalle email già esistenti, senza che io debba scrivere o caricare niente.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 35,
+  "price_too_expensive": 60
+}

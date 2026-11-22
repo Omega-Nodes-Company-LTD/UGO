@@ -1,0 +1,13 @@
+{
+  "id": "P027",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Le domande ripetitive le gestisco già con le risposte rapide di WhatsApp Business, che non mi costa niente, e i miei clienti chiamano al telefono, che questo non copre. Un porcellino digitale che parla di scadenze fiscali o pratiche davanti ai miei clienti non mi sembra un'immagine seria per uno studio.",
+  "objection": "Non risponde al telefono, che è da dove arrivano davvero le chiamate, e dare a un software l'accesso alla mia email e ai documenti dei clienti, con il segreto professionale che ho, mi preoccupa anche se dite che è cifrato in UE.",
+  "would_change_my_mind": "Vedere su numeri veri di uno studio come il mio che toglie almeno qualche ora di telefono a settimana alla segretaria, con una prova gratuita di un mese e un aspetto sobrio adatto a una clientela professionale.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

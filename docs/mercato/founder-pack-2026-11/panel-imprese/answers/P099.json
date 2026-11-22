@@ -1,0 +1,13 @@
+{
+  "id": "P099",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "convenience",
+  "reason": "I miei clienti mi scrivono su WhatsApp e mi chiamano: questo non risponde al telefono e sta su una pagina web dove nessuno di loro andrebbe mai. Pago 290 più 39 al mese per una cosa che continuerebbero a scavalcare per scrivermi la sera come sempre.",
+  "objection": "Non so se i clienti lo userebbero davvero, e un porcellino digitale con un carattere suo che risponde per lo studio non mi sembra una cosa seria per chi ci affida dichiarazioni e pratiche; in più leggere la mia casella, anche in sola lettura, con dentro dati riservati dei clienti, mi fa pensare due volte.",
+  "would_change_my_mind": "Che risponda direttamente sul numero WhatsApp dello studio, con un mese di prova gratis per vedere quante domande toglie davvero.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

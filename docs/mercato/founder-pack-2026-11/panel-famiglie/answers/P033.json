@@ -1,0 +1,13 @@
+{
+  "id": "P033",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "L'idea mi incuriosisce e la proverei volentieri, ma 79 euro subito più 7,90 al mese per un porcellino sul telefono, con quello che guadagno, è troppo per una cosa che non so se dopo due settimane userei ancora. Il guscio stampato in 3D per me non conta, non ho né stampante né telefono vecchio.",
+  "objection": "Pago 79 euro a scatola chiusa e poi un abbonamento a vita: se mi stufa o l'allevamento chiude, ho buttato i soldi e pure il gosino.",
+  "would_change_my_mind": "Una prova gratuita di qualche settimana sul mio telefono, senza i 79 euro di adozione anticipati.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 5.99,
+  "price_too_expensive": 9.99
+}

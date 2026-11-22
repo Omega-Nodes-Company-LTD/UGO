@@ -1,0 +1,13 @@
+{
+  "id": "P063",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "L'idea mi incuriosisce e la sera un po' di compagnia la vorrei, ma 79 euro subito più 7,90 al mese per un porcellino che alla fine vive nel mio stesso telefono, accanto a mille app gratis, mi sembra tanto. Senza un vecchio telefono né una stampante 3D il guscio non lo avrei, quindi sarebbe un'app in più.",
+  "objection": "Pagare 79 euro di adozione prima ancora di sapere se dopo due settimane ci parlo ancora, e poi un canone che si somma a Netflix, Spotify e il resto.",
+  "would_change_my_mind": "Una prova gratuita di qualche settimana senza i 79 euro iniziali, così vedo se mi affeziono davvero prima di pagare.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.99,
+  "price_expensive": 5.99,
+  "price_too_expensive": 9.99
+}

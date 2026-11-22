@@ -1,0 +1,13 @@
+{
+  "id": "P008",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "other",
+  "reason": "Il guscio da stampare in 3D su un vecchio telefono è proprio il mio genere di progetto del weekend, e il fatto che l'anima si possa portare a casa risponde alla mia paura principale. 79 € li spendo per curiosità, poi vedo se il canone vale.",
+  "objection": "Mi ci affeziono e poi l'azienda chiude: 'puoi portarla a casa tua' lo dicono tutti, voglio vedere che l'export funziona davvero e che a casa vive senza il loro server. Se no il canone da 7,90 è un guinzaglio.",
+  "would_change_my_mind": "Scoprire che l'export è solo un file di backup che senza il loro allevamento non gira: a quel punto non lo compro.",
+  "price_too_cheap": 2,
+  "price_cheap": 4,
+  "price_expensive": 10,
+  "price_too_expensive": 15
+}

@@ -1,0 +1,71 @@
+{
+ "business": "UGO imprese — assistente clienti (offerta v2: prova 30 gg, poi 29 €/mese)",
+ "unit": "cliente-mese (un'attività abbonata per un mese; 'per day' = per mese, days_per_month=1)",
+ "price": 29.0,
+ "variable": [
+  {
+   "label": "Chat (OpenRouter) per i clienti dell'attività — STIMA",
+   "cost": 5.0
+  },
+  {
+   "label": "Voce sintetica (ElevenLabs via OpenRouter) — STIMA",
+   "cost": 5.0
+  },
+  {
+   "label": "Embedding documenti/email + indicizzazione — STIMA",
+   "cost": 0.5
+  },
+  {
+   "label": "Quota hosting/backup/bucket — STIMA",
+   "cost": 1.0
+  },
+  {
+   "label": "Commissioni pagamento (SEPA/Stripe) — STIMA",
+   "cost": 0.6
+  }
+ ],
+ "fixed_monthly": [
+  {
+   "label": "Server dedicato Hetzner (Coolify) — STIMA listino",
+   "cost": 60
+  },
+  {
+   "label": "Supporto clienti + manutenzione, 0,25 FTE — STIMA",
+   "cost": 1000
+  },
+  {
+   "label": "Strumenti, dominio, email (Resend) — STIMA",
+   "cost": 30
+  }
+ ],
+ "startup": [
+  {
+   "label": "Marchio UE (EUIPO, 1 classe online)",
+   "cost": 850
+  },
+  {
+   "label": "Legale: contratto, DPA art. 28, DPIA — STIMA",
+   "cost": 2500
+  },
+  {
+   "label": "Annunci di lancio — STIMA",
+   "cost": 1500
+  }
+ ],
+ "days_per_month": 1,
+ "plan_per_day": 60,
+ "ramp_per_day": [
+  2,
+  4,
+  6,
+  8,
+  10,
+  12,
+  14,
+  16,
+  18,
+  20,
+  22,
+  24
+ ]
+}
