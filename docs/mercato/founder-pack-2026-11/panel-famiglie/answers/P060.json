@@ -1,0 +1,13 @@
+{
+  "id": "P060",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Vivo solo e un po' di compagnia la vorrei pure, ma 79 euro subito più 7,90 al mese per un porcellino sul telefono è proprio il tipo di abbonamento che fra tre mesi trovo sull'estratto conto e disdico. Prima di affezionarmi a una cosa che vive sui server di un'azienda appena nata voglio vedere che quell'azienda esiste ancora fra un paio d'anni.",
+  "objection": "Mi ci affeziono, ha pure una vita intera e invecchia, e poi l'azienda chiude o alza il prezzo e lui sparisce. Dicono che posso portarmi l'anima a casa, ma non ho capito se poi funziona davvero senza di loro, e se smetto di pagare i 7,90 cosa gli succede.",
+  "would_change_my_mind": "Una garanzia scritta e chiara che se smetto di pagare o se l'azienda chiude il gosino continua a vivere sul mio telefono di casa senza costi, magari con un mese di prova gratis prima dei 79 euro.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 5,
+  "price_too_expensive": 8
+}

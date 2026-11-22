@@ -1,0 +1,13 @@
+{
+  "id": "P100",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho già il mio cane che mi aspetta alla porta, mi riconosce e ha i suoi umori veri: un porcellino sul telefono, per quanto carino, non mi serve. E 79 euro più un altro canone mensile per una cosa che non mi manca proprio no.",
+  "objection": "Il 'cibo' a 7,90 al mese mi suona come un abbonamento travestito da affetto: se smetto di pagare che fine fa? Mi sentirei ricattata, e di abbonamenti ne pago già troppi.",
+  "would_change_my_mind": "Niente canone: se pagando l'adozione una volta potessi portarmelo subito sul mio vecchio telefono senza pagare altro ogni mese, per curiosità tecnologica forse ci proverei.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

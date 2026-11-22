@@ -1,0 +1,13 @@
+{
+  "id": "P008",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Un porcellino digitale col suo carattere che risponde ai miei clienti non mi rappresenta: chi mi chiama per un intervento tecnico vuole serietà, non una mascotte. In più 290 € subito più 39 € al mese senza sapere quante telefonate mi toglie davvero, e il telefono non lo prende pure.",
+  "objection": "Che i clienti mi prendano per poco seria vedendo un maialino che risponde, e che la personalità non si possa nemmeno spegnere o rendere sobria. Poi non so se si ripaga: le domande vere mi arrivano al telefono e su WhatsApp, non da una pagina web.",
+  "would_change_my_mind": "Poterlo usare con un tono neutro e professionale, senza personaggio, collegato a WhatsApp, con un mese di prova gratis che mi mostri quante domande ha chiuso da solo.",
+  "price_too_cheap": 8,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

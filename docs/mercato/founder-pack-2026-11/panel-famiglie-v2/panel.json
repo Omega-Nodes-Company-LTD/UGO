@@ -1,0 +1,103 @@
+{
+ "n": 20,
+ "seed": 7,
+ "customer": {
+  "business": "UGO — adozione di un gosino (compagno AI che nasce, con genoma e pedigree)",
+  "target": "Persone e famiglie in Italia, 25-75 anni, che vivono in casa con uno smartphone e vorrebbero una presenza di compagnia che si ricordi di loro",
+  "where": "Italia, online",
+  "age": [
+   25,
+   75
+  ],
+  "segments": [
+   {
+    "name": "Famiglia con figli (reddito familiare)",
+    "share": 0.35,
+    "income": [
+     25000,
+     65000
+    ]
+   },
+   {
+    "name": "Giovane adulto single o in coppia, curioso di tecnologia",
+    "share": 0.25,
+    "income": [
+     16000,
+     38000
+    ]
+   },
+   {
+    "name": "Persona sola over 60 (pensione o lavoro)",
+    "share": 0.25,
+    "income": [
+     12000,
+     30000
+    ]
+   },
+   {
+    "name": "Appassionato tech/maker con stampante 3D",
+    "share": 0.15,
+    "income": [
+     28000,
+     70000
+    ]
+   }
+  ],
+  "behaviours": [
+   {
+    "name": "Ha già un animale vero",
+    "share": 0.18,
+    "how": "Ha un cane o un gatto e paragona tutto a lui."
+   },
+   {
+    "name": "Early adopter",
+    "share": 0.14,
+    "how": "Prova le novità tech appena escono e ne parla agli amici."
+   },
+   {
+    "name": "Diffidente su AI e privacy",
+    "share": 0.16,
+    "how": "Ha letto delle chat finite in giro e non installa app che ascoltano."
+   },
+   {
+    "name": "Cerca compagnia",
+    "share": 0.14,
+    "how": "Passa molte serate da solo/a e la TV accesa fa da sottofondo."
+   },
+   {
+    "name": "Genitore attento agli schermi",
+    "share": 0.12,
+    "how": "Limita tablet e telefono ai figli e decide tutto ciò che entra in casa."
+   },
+   {
+    "name": "Taglia-abbonamenti",
+    "share": 0.12,
+    "how": "Controlla l'estratto conto e disdice ogni abbonamento che non usa."
+   },
+   {
+    "name": "Usa già ChatGPT ogni giorno",
+    "share": 0.14,
+    "how": "Chiede tutto all'assistente AI gratuito sul telefono."
+   }
+  ],
+  "objections": [
+   "Un altro abbonamento mensile? Ne pago già troppi",
+   "Dove finiscono le cose che dico in casa?",
+   "Parlare con un maialino digitale mi sembra una cosa da bambini",
+   "Non ho una stampante 3D né un telefono vecchio da usare",
+   "Perché pagare se ChatGPT è gratis?",
+   "Mi ci affeziono e poi l'azienda chiude e lo perdo",
+   "Una creatura che invecchia e muore? Non voglio soffrire o far soffrire i bambini",
+   "Ho già un animale vero, non mi serve"
+  ],
+  "habits": [
+   "la sera guardi la TV sul divano con il telefono in mano",
+   "lavori da casa due o tre giorni a settimana",
+   "la domenica pranzi con i parenti",
+   "porti fuori il cane due volte al giorno",
+   "ascolti podcast mentre cucini",
+   "i figli ti chiedono un animale da mesi"
+  ]
+ },
+ "pitch": "UGO: un gosino, un porcellino digitale che nasce da due genitori e ha un carattere suo. Lo scegli fra i cuccioli nati; nessun aggiornamento cambierà mai il suo carattere.\nTi parla a voce, si ricorda di te e della tua famiglia, ha umore e bisogni propri; cresce e invecchia con te.\nGira sul telefono che hai già. Il genitore decide per quanto tempo al giorno i bambini possono parlarci.\nAffido di prova: 30 giorni gratis, senza carta. Poi 4,90 € al mese, disdici quando vuoi. Nessuna quota di adozione.\nGaranzia scritta: l'anima è tua. In ogni momento scarichi tutto (ricordi e carattere) e puoi farla vivere su un tuo computer con il software libero; se l'azienda chiude, il gosino resta con te. Dati cifrati in UE, mai usati per pubblicità.\n(Per le domande sul prezzo, rispondi pensando al canone mensile in euro.)"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P001",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "convenience",
+  "reason": "Pensavo servisse una stampante 3D o un telefono dedicato, invece gira sul mio: 30 giorni gratis senza carta li attivo stasera dal divano. La storia dell'anima scaricabile e del software libero per farlo girare su un mio computer è proprio la cosa da maker che mi fa dire 'provo'.",
+  "objection": "Ho paura che sia una novità che mi diverte due settimane e poi diventa l'ennesima app che apre la notifica e io ignoro: vivo da sola col telefono in mano, non ho bambini da far parlare con un porcellino, e non so se dopo il mese gratis 4,90 al mese li vale davvero.",
+  "would_change_my_mind": "Se dopo una settimana non si ricorda davvero le cose che gli ho detto o se la voce suona finta, disdico prima che parta il canone.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 6.99,
+  "price_too_expensive": 10
+}

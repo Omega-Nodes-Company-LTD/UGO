@@ -1,0 +1,13 @@
+{
+  "id": "P080",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho già il mio animale vero che mi fa compagnia, e la domenica sto coi parenti: un porcellino sul telefono non mi serve. Le novità tech mi incuriosiscono, ma con quello che guadagno 79 euro più un canone ogni mese per una cosa di cui non ho bisogno non li spendo.",
+  "objection": "Ho già un animale vero, non mi serve. E poi è un altro abbonamento che non finisce mai: se smetto di pagare, che fine fa?",
+  "would_change_my_mind": "Poterlo provare gratis per un mese senza pagare l'adozione, così vedo se davvero mi tiene compagnia quando sono sola la sera.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 5,
+  "price_too_expensive": 8
+}

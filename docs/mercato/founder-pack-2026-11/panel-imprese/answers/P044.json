@@ -1,0 +1,13 @@
+{
+  "id": "P044",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "In uno studio medico i pazienti telefonano, e questo non risponde al telefono; in più un porcellino con il suo carattere che parla ai miei pazienti non mi sembra serio, e io non ho tempo di caricargli documenti e insegnargli. Non lo prenderei comunque senza che il mio consulente IT mi dica che va bene.",
+  "objection": "Parliamo di pazienti e di dati sanitari: chi mi garantisce che non dica una cosa sbagliata a un paziente, e chi lo configura e lo tiene aggiornato, visto che io non ho il tempo?",
+  "would_change_my_mind": "Che il mio consulente IT lo installi e lo gestisca lui, caricandogli i documenti al posto mio, e mi confermi per iscritto che è conforme al GDPR per i dati sanitari.",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 80,
+  "price_too_expensive": 150
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P011",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "need",
+  "reason": "Su WhatsApp rispondo cento volte alle stesse cose, e 29 euro al mese costano meno di un'ora del mio tempo nei periodi di picco. Lo provo gratis prima di un picco e, se chiude davvero le domande da solo, lo tengo.",
+  "objection": "Il telefono resta tutto a me, ed è lì che perdo più tempo. E prima di fidarmi voglio sapere chi c'è davvero dietro: 'cifrati in UE' va bene, ma il modello AI che legge i messaggi dei miei clienti di chi è e dove gira?",
+  "would_change_my_mind": "Se nella prova mi accorgo che devo passare ore a preparare e sistemare i documenti, o che sbaglia anche una sola risposta su prezzi o tempi di consegna, disdico subito.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 45,
+  "price_too_expensive": 70
+}

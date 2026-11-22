@@ -1,0 +1,13 @@
+{
+  "id": "P055",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Il guscio da stampare in 3D mi stuzzica parecchio, però 79 euro più 7,90 al mese per un porcellino che alla fine è un LLM con un carattere sopra non me li giustifico: ChatGPT a voce lo ho già gratis. E di compagnia in casa ho già il cane, che è vero.",
+  "objection": "Pago un abbonamento a vita per qualcosa che dipende dai loro server e dai loro modelli: se l'allevamento chiude o alza il prezzo, il mio gosino muore o diventa un ricatto. Il 'puoi portarla a casa' non mi dice se a casa poi gira davvero senza di loro.",
+  "would_change_my_mind": "Una prova gratuita di qualche settimana senza i 79 euro di adozione, e la prova concreta che l'anima esportata gira in locale sul mio vecchio telefono senza canone.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.99,
+  "price_expensive": 4.99,
+  "price_too_expensive": 8
+}

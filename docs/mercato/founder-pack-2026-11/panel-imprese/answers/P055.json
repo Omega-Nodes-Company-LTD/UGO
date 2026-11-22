@@ -1,0 +1,13 @@
+{
+  "id": "P055",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Un porcellino con un carattere suo che risponde ai miei clienti non mi sembra serio per un'attività tecnica, e se non risponde al telefono non mi toglie proprio le chiamate che mi intasano nei periodi di scadenza. 290 € più 39 € al mese per qualcosa che lavora davvero solo qualche settimana l'anno non si ripagano in pochi mesi.",
+  "objection": "Non posso scegliere come parla: se ai miei clienti il tono non piace ci faccio una brutta figura io, e i miei clienti chiamano, non vanno su una pagina web.",
+  "would_change_my_mind": "Che risponda anche al telefono con un tono neutro e professionale, senza costo di adozione, con un canone che posso attivare solo nei mesi di picco.",
+  "price_too_cheap": 8,
+  "price_cheap": 15,
+  "price_expensive": 29,
+  "price_too_expensive": 45
+}

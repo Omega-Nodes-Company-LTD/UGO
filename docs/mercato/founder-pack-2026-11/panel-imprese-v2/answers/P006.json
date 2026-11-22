@@ -1,0 +1,13 @@
+{
+  "id": "P006",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "Ho già WhatsApp Business con le risposte rapide e per il resto rispondo io o la segretaria: i miei clienti vogliono parlare con lo studio, non con un robot. Mettermi a preparare e approvare documenti perché lo legga una macchina è un lavoro in più che non ho tempo di fare.",
+  "objection": "Nel mio mestiere una risposta sbagliata o detta male a un cliente è un problema serio, anche se cita la fonte; e la maggior parte delle domande vere arriva per telefono, che tanto non gestisce.",
+  "would_change_my_mind": "Che me lo configuri qualcuno di fiducia, tipo l'agenzia del sito, e che un collega mi dimostri che gli toglie davvero mezz'ora di messaggi al giorno senza figuracce con i clienti.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 40,
+  "price_too_expensive": 70
+}

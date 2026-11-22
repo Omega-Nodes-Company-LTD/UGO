@@ -1,0 +1,13 @@
+{
+  "id": "P034",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "L'idea mi incuriosisce davvero, il porcellino che nasce da due genitori e il guscio stampato in 3D sono cose che racconterei agli amici. Ma 79 euro subito più quasi 8 euro al mese per un animaletto digitale, col mio stipendio, mi sembra tanto per una cosa che magari dopo due mesi smetto di guardare.",
+  "objection": "Un altro abbonamento mensile, e per di più legato a una creatura che 'mangia': se un mese smetto di pagare che succede al gosino? Mi sento quasi ricattata affettivamente, e non so se dopo l'entusiasmo iniziale lo userei davvero.",
+  "would_change_my_mind": "Un periodo di prova gratuito di un mese, oppure niente canone se porto l'anima a casa mia sul mio vecchio telefono pagando solo l'adozione.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 4.99,
+  "price_too_expensive": 7.9
+}

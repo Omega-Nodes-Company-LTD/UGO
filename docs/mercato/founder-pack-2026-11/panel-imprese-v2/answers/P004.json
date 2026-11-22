@@ -1,0 +1,13 @@
+{
+  "id": "P004",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "Le risposte automatiche di WhatsApp Business le ho già e quando serve mi aiuto con ChatGPT, gratis. Che la sera rispondo ai clienti è vero, ma per pagare un altro abbonamento e mettermi a preparare e approvare documenti dovrei vedere che mi toglie davvero lavoro, e non lo vedo.",
+  "objection": "Nel mio lavoro le domande dei clienti sono quasi sempre su un caso preciso: quel guasto, quel preventivo, quando passo. Ho paura che finisca per aprire ticket su quasi tutto e io alla sera mi ritrovo a rispondere lo stesso, solo con un passaggio in più. E comunque un assistente con un suo carattere ai miei clienti non lo metto davanti, anche se lo chiamano calmo e formale.",
+  "would_change_my_mind": "Un collega del mio settore che lo usa e mi fa vedere il resoconto del mese: se da solo chiude almeno metà delle domande senza che io debba intervenire, allora lo provo.",
+  "price_too_cheap": 5,
+  "price_cheap": 12,
+  "price_expensive": 25,
+  "price_too_expensive": 40
+}

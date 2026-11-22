@@ -1,0 +1,13 @@
+{
+  "id": "P022",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I miei clienti mi affidano bilanci, contenziosi, dati sanitari a volte: non metto un porcellino digitale a rispondere al posto mio, e tantomeno gli do da leggere la mia casella email. 39 euro al mese non sono il problema, il problema è che se sbaglia una risposta o fa uscire un dato ne rispondo io, deontologicamente e col Garante.",
+  "objection": "Chi è il titolare e chi il responsabile del trattamento, dove gira esattamente il modello che legge i documenti dei miei clienti, e chi paga se risponde una cosa sbagliata a un cliente. 'Dati in UE, cifrati' scritto in una riga non mi basta, e un maialino col carattere suo in uno studio professionale mi fa sembrare poco serio.",
+  "would_change_my_mind": "Un DPA firmabile con elenco dei sub-responsabili e server tutti in UE, niente accesso alla posta, e una versione dall'aspetto sobrio che risponda solo a domande pratiche (orari, documenti da portare, scadenze) senza toccare le pratiche dei clienti, con un mese di prova gratuita per vedere quante telefonate mi toglie davvero.",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 60,
+  "price_too_expensive": 100
+}

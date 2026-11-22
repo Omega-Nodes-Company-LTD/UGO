@@ -1,0 +1,13 @@
+{
+  "id": "P025",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Nel mio mestiere una risposta sbagliata a un cliente su una scadenza o un adempimento è un problema di responsabilità professionale, e io non metto la mia firma dietro a un programma che parla al posto mio. E un porcellino digitale con un carattere suo sulla pagina dello studio, onestamente, non è l'immagine che voglio dare.",
+  "objection": "Se dice una cosa sbagliata a un cliente il danno è mio, non suo. 'Quando non sa apre un ticket' va bene, ma il guaio è quando crede di sapere e invece sbaglia, e io lo scopro dopo.",
+  "would_change_my_mind": "Provarlo un mese gratis sulle sole domande pratiche (orari, documenti da portare, stato della pratica) e vedere nero su bianco quante telefonate e email mi toglie, con ogni risposta che posso controllare e un aspetto sobrio adatto a uno studio professionale.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 35,
+  "price_too_expensive": 60
+}

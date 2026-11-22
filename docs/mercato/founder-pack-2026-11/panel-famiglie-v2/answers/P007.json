@@ -1,0 +1,13 @@
+{
+  "id": "P007",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "In casa un animale vero ce l'abbiamo già, e i miei figli vogliono un cane da accarezzare, non un porcellino sul telefono. Magari scarico la prova gratis per curiosità da smanettone, ma al trentesimo giorno lo disdico come faccio con tutto quello che non usiamo.",
+  "objection": "Dopo due settimane i ragazzi lo mollano e io mi ritrovo un altro canone da 4,90 al mese sull'estratto conto per una cosa che nessuno apre. E se il software è libero e gira su un mio computer, perché dovrei pagare un abbonamento?",
+  "would_change_my_mind": "Se finita la prova potessi farlo girare sul mio server di casa senza canone, o con un acquisto una tantum, lo terrei per smanettarci.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 7
+}

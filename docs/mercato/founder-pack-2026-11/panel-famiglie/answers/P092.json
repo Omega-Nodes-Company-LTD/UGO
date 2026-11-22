@@ -1,0 +1,13 @@
+{
+  "id": "P092",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho già il mio animale vero in casa e per parlare con qualcuno al telefono uso già ChatGPT gratis. Un porcellino digitale da 79 euro più quasi 8 al mese con quello che guadagno non mi serve proprio.",
+  "objection": "Pagare ogni mese il 'cibo' per una cosa che vive sul telefono mi sembra un abbonamento travestito; se smetto di pagare che fine fa? E non capisco cosa mi dia in più dell'assistente che ho già.",
+  "would_change_my_mind": "Provarlo gratis per un mese senza dover pagare l'adozione, e vedere che mi fa davvero compagnia più di quello che uso già.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

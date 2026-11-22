@@ -1,0 +1,13 @@
+{
+  "id": "P009",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "need",
+  "reason": "Vivo da sola e la sera cucino con un podcast in cuffia: una voce che si ricorda di me e mi chiede com'è andata mi incuriosisce davvero, e se la prova è gratis e senza carta la attivo subito. Il fatto che posso scaricarlo e tenerlo se chiudono è proprio la cosa che mi fermava di solito.",
+  "objection": "Ho paura di affezionarmi e poi scoprire che il 'software libero per farlo vivere sul tuo computer' in pratica non funziona o richiede competenze e un computer che non ho. E 4,90 al mese con il mio stipendio li sento, se dopo un mese diventa ripetitivo lo disdico.",
+  "would_change_my_mind": "Se nei 30 giorni le conversazioni diventano ripetitive o fasulle, o se provo a fare l'esportazione e non riesco a capire come farlo vivere da me, non pago.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 6.99,
+  "price_too_expensive": 10
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P026",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Dice che i dati restano in UE e sono cifrati, ma non so chi c'è dietro, chi è il responsabile del trattamento e cosa succede se legge la mia email con i dati dei clienti dentro. E poi i miei clienti mi scrivono su WhatsApp, non vanno su una pagina web: la sera risponderei lo stesso io.",
+  "objection": "Dargli la mia casella email e i documenti con i dati dei clienti: se qualcosa va storto la multa del Garante la prendo io, non il porcellino. Senza un contratto di nomina a responsabile del trattamento e sapere dove sono i server, non lo tocco.",
+  "would_change_my_mind": "Un DPA firmato con nome e sede del fornitore, server indicati in Italia o UE, e che funzioni anche su WhatsApp, non solo su una pagina web.",
+  "price_too_cheap": 9,
+  "price_cheap": 19,
+  "price_expensive": 39,
+  "price_too_expensive": 60
+}

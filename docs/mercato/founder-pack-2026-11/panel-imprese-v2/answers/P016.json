@@ -1,0 +1,13 @@
+{
+  "id": "P016",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Le domande che mi mangiano le giornate sono al telefono e riguardano la posizione del singolo cliente: 'hai ricevuto il mio F24?', 'quanto devo pagare a giugno?'. Un assistente che legge solo i documenti generali e non risponde al telefono mi aprirebbe ticket invece di togliermi lavoro, proprio sotto scadenza.",
+  "objection": "Non so se i miei clienti lo userebbero davvero: sono abituati a chiamarmi o a scrivermi direttamente, e se l'assistente dice una cosa imprecisa su una scadenza fiscale la responsabilità è comunque mia.",
+  "would_change_my_mind": "Vederlo funzionare durante un picco vero, per esempio la prova fatta a ridosso di una scadenza, con il resoconto che mi dimostra che almeno metà delle domande su WhatsApp le ha chiuse da solo senza errori.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 39,
+  "price_too_expensive": 60
+}

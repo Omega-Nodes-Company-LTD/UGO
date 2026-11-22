@@ -1,0 +1,13 @@
+{
+  "id": "P091",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Una cosa che mi ascolta, mi riconosce e si ricorda di me e della mia famiglia è proprio quello che non metto in casa: ho letto troppe storie di chat finite in giro. E sopra ci sono pure 79 euro e un altro abbonamento mensile, che ne pago già troppi.",
+  "objection": "Dici 'cifrata, in UE', ma sono parole: l'anima vive sui server vostri e ascolta tutto quello che si dice in casa, anche la domenica quando ci sono i parenti. Chi mi garantisce che non finisce da qualche parte?",
+  "would_change_my_mind": "Che funzioni tutto in locale sul telefono, senza mandare la voce da nessuna parte e senza canone, e che qualcuno indipendente l'abbia verificato.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

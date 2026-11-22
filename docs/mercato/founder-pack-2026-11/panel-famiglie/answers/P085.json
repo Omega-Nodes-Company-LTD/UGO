@@ -1,0 +1,13 @@
+{
+  "id": "P085",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Con 19.000 euro l'anno, 79 euro subito più 7,90 al mese per un porcellino sul telefono mi sembrano tanti, quando sul telefono posso già chiacchierare gratis con ChatGPT. E i figli un animale lo vogliono vero, da accarezzare, non un altro schermo.",
+  "objection": "Pago un canone per sempre per qualcosa che vive sui server di qualcun altro: se l'azienda chiude o alza i prezzi, il mio porcellino che fine fa? E in cosa è tanto diverso da un'app gratis che mi risponde?",
+  "would_change_my_mind": "Poterlo provare gratis per un mese a casa, sera dopo sera, e vedere che si ricorda davvero di me e mi fa compagnia meglio della TV accesa.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 5,
+  "price_too_expensive": 8
+}

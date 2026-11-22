@@ -1,0 +1,13 @@
+{
+  "id": "P013",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "Parlo già tutti i giorni con ChatGPT gratis sul telefono, e per la compagnia ho il cane che mi porta fuori due volte al giorno. Magari la prova gratuita la faccio per curiosità, ma pagare 4,90 al mese per un porcellino digitale non mi viene naturale.",
+  "objection": "Non vedo cosa mi dia in più rispetto all'assistente gratis che uso già. E la garanzia di farlo vivere su un mio computer con il software libero sulla carta è bella, ma io non saprei da dove cominciare: se l'azienda chiude, per uno come me lo perdo lo stesso.",
+  "would_change_my_mind": "Se dopo la prova gratuita mi accorgessi davvero che si ricorda di me meglio di ChatGPT e mi manca quando non c'è, e il canone scendesse verso i 2-3 euro al mese.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 3.99,
+  "price_too_expensive": 6.99
+}

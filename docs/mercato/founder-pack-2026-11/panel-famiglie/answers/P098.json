@@ -1,0 +1,13 @@
+{
+  "id": "P098",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Una cosa che mi ascolta a voce, mi riconosce e si ricorda di tutta la famiglia, con l'anima su un server loro: è proprio quello che non metto in casa. E se i ragazzi vogliono un animale, ne vogliono uno vero, non un porcellino sul telefono a 79 euro più il canone.",
+  "objection": "Ascolta e registra noi e i bambini, e queste conversazioni finiscono su un server che non conosco. Ho letto di chat finite in giro, e 'cifrata' lo dicono tutti.",
+  "would_change_my_mind": "Che funzioni tutto in casa senza mandare niente fuori, verificato da qualcuno di indipendente tipo un'associazione di consumatori, e che si possa provare gratis prima di pagare.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

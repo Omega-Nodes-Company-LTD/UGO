@@ -1,0 +1,13 @@
+{
+  "id": "P025",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Un coso che ascolta la mia famiglia, riconosce le voci dei miei figli e manda tutto sui server di qualcun altro, in casa mia non entra. E poi un cane vero ce l'ho già, non mi serve un porcellino sul telefono.",
+  "objection": "Dite 'cifrata' e 'in UE', ma è sempre un microfono acceso in casa con le voci dei bambini che finisce sui vostri server. Ho già letto di chat finite in giro: chi mi garantisce che non succede anche qui?",
+  "would_change_my_mind": "Che giri tutto in locale sul vecchio telefono, senza mandare voci fuori casa, con una verifica indipendente che lo dimostri.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

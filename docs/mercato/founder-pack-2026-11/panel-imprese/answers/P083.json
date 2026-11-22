@@ -1,0 +1,13 @@
+{
+  "id": "P083",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Ho un obbligo di segreto professionale: far leggere la mia casella email a un porcellino digitale e lasciarlo rispondere ai miei clienti non me la sento, per quanto dicano UE e cifrato. E poi le domande mi arrivano al telefono e su WhatsApp, non su una pagina web: i miei clienti lì non ci vanno.",
+  "objection": "Chi è il responsabile del trattamento, dove gira esattamente, chi può leggere le email e i documenti dei miei clienti? Se sbaglia una risposta su una scadenza fiscale o una pratica, la responsabilità è mia. E un maialino con il carattere suo non è l'immagine che voglio dare allo studio.",
+  "would_change_my_mind": "Un DPA firmato con nomina a responsabile del trattamento, nessun accesso alla casella email, e che risponda direttamente su WhatsApp con un tono serio e neutro.",
+  "price_too_cheap": 10,
+  "price_cheap": 20,
+  "price_expensive": 60,
+  "price_too_expensive": 120
+}

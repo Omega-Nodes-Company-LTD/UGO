@@ -1,0 +1,13 @@
+{
+  "id": "P030",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Il guscio da stampare mi incuriosisce davvero, ho anche un vecchio telefono nel cassetto. Però 79 euro più un canone fisso per una creatura che vive sul server di qualcun altro, no: io gli abbonamenti li disdico, e qui disdire vuol dire lasciarlo morire.",
+  "objection": "Mi ci affeziono e poi l'azienda chiude e lo perdo. Dicono che posso portarlo a casa, ma non c'è scritto come, né se poi funziona senza di loro e senza pagare.",
+  "would_change_my_mind": "Vedere per scritto che posso far girare l'anima interamente sul mio hardware, senza canone e senza il loro server, con il codice pubblico se l'azienda chiude.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 4.5,
+  "price_too_expensive": 7
+}

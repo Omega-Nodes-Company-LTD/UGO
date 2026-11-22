@@ -1,0 +1,13 @@
+{
+  "id": "P051",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Tratto dati dei clienti e già ho paura delle sanzioni: dare a un porcellino digitale la mia casella email e i miei documenti, gestito da qualcuno che non conosco, non mi fa dormire tranquilla. In più non ho il tempo di caricargli tutto e stare a controllare cosa risponde.",
+  "objection": "Chi è il titolare del trattamento e chi vede davvero le conversazioni dei miei clienti? \"Dati in UE, cifrati\" è una frase: voglio un DPA firmato, sapere dove passano i dati per generare le risposte e chi risponde se sbaglia. E 290 euro solo per l'adozione mi sembrano soldi per una mascotte, non per il servizio.",
+  "would_change_my_mind": "Un DPA chiaro con nomi dei sub-responsabili, più l'impostazione fatta da loro (caricano loro i documenti e le FAQ in un'ora di chiamata), con un mese di prova senza pagare l'adozione.",
+  "price_too_cheap": 9,
+  "price_cheap": 19,
+  "price_expensive": 39,
+  "price_too_expensive": 60
+}

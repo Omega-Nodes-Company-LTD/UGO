@@ -1,0 +1,13 @@
+{
+  "id": "P048",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Con i bambini e i soldi contati, 79 euro più quasi 8 al mese per un porcellino digitale non ci stanno. Per parlare con qualcuno al telefono uso già ChatGPT gratis tutti i giorni.",
+  "objection": "Pagare un canone fisso per sempre per una cosa che sul telefono assomiglia a un'app, e se poi mi stanco o i bambini lo trascurano i soldi sono buttati. Il guscio stampato in 3D per me non esiste: non ho la stampante né un telefono vecchio.",
+  "would_change_my_mind": "Una prova gratuita di un mese senza i 79 euro iniziali, e vedere che i miei figli ci si affezionano davvero.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 4.5,
+  "price_too_expensive": 7
+}

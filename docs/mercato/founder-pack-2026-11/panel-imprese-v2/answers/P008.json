@@ -1,0 +1,13 @@
+{
+  "id": "P008",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Da sola non attivo niente che tocchi i dati dei miei clienti: lo giro al mio consulente IT e finché lui non mi dice che è a posto resta lì. Poi i miei clienti fanno domande delicate, e non mi va che una macchina risponda a nome dello studio, anche se cita i documenti.",
+  "objection": "Dove finiscono davvero le conversazioni WhatsApp dei miei clienti, chi è il sub-responsabile del modello AI e chi risponde se dice una cosa sbagliata a nome dello studio. Il contratto art. 28 pronto da firmare non mi basta se non lo legge qualcuno di cui mi fido.",
+  "would_change_my_mind": "Che il mio consulente IT o l'agenzia del sito lo verifichi, mi dica che è conforme e me lo installi lui, magari con un altro studio come il mio che lo usa già.",
+  "price_too_cheap": 10,
+  "price_cheap": 20,
+  "price_expensive": 60,
+  "price_too_expensive": 120
+}

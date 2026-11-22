@@ -1,0 +1,13 @@
+{
+  "id": "P035",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei clienti mi chiamano al telefono o mi scrivono su WhatsApp mentre sono in cantiere, e questo non risponde al telefono: dovrei pure convincerli ad andare su una pagina web a parlare con un porcellino. Per me non risolve il problema vero, e comunque senza il parere del mio tecnico di fiducia non tiro fuori 290 euro più il canone.",
+  "objection": "I miei clienti vogliono parlare con una persona, non con un maialino: se rispondo con un pupazzo digitale faccio la figura di quello che non ha tempo per loro, e se sbaglia un preventivo o un appuntamento la faccia ce la metto io.",
+  "would_change_my_mind": "Che risponda su WhatsApp e al telefono dove mi cercano già i clienti, e che il mio consulente IT me lo installi e mi garantisca che funziona.",
+  "price_too_cheap": 5,
+  "price_cheap": 12,
+  "price_expensive": 25,
+  "price_too_expensive": 40
+}

@@ -1,0 +1,186 @@
+{
+ "business": "UGO — adozione di un gosino (compagno AI che nasce, con genoma e pedigree)",
+ "seed": 7,
+ "dealt": 20,
+ "answered": 20,
+ "skipped": [],
+ "buys": 2,
+ "passes": 18,
+ "buy_rate": 0.1,
+ "by_segment": [
+  [
+   "Appassionato tech/maker con stampante 3D",
+   3,
+   0.3333333333333333
+  ],
+  [
+   "Persona sola over 60 (pensione o lavoro)",
+   5,
+   0.2
+  ],
+  [
+   "Giovane adulto single o in coppia, curioso di tecnologia",
+   5,
+   0.0
+  ],
+  [
+   "Famiglia con figli (reddito familiare)",
+   7,
+   0.0
+  ]
+ ],
+ "by_behaviour": [
+  [
+   "Early adopter",
+   3,
+   0.6666666666666666
+  ],
+  [
+   "Usa già ChatGPT ogni giorno",
+   3,
+   0.0
+  ],
+  [
+   "Genitore attento agli schermi",
+   2,
+   0.0
+  ],
+  [
+   "Diffidente su AI e privacy",
+   3,
+   0.0
+  ],
+  [
+   "Taglia-abbonamenti",
+   2,
+   0.0
+  ],
+  [
+   "Cerca compagnia",
+   3,
+   0.0
+  ],
+  [
+   "Ha già un animale vero",
+   4,
+   0.0
+  ]
+ ],
+ "by_income": [
+  [
+   "under $27,000",
+   5,
+   0.2
+  ],
+  [
+   "$27,000 to $37,000",
+   8,
+   0.125
+  ],
+  [
+   "$37,000 and up",
+   7,
+   0.0
+  ]
+ ],
+ "why_not": [
+  [
+   "need",
+   9,
+   [
+    "Ho già ChatGPT sul telefono, gratis, e gli chiedo tutto quando voglio. Un porcellino che parla con la voce e ha i suoi umori mi sembra un giocattolo per bambini, non una cosa per una donna di 56 anni.",
+    "Il mese gratis senza carta lo proverei subito per curiosità, e la storia del carattere che resta mio mi piace. Però la compagnia ce l'ho già, il cane, due passeggiate al giorno, e alla fine dei 30 giorni con ogni probabilità disdico invece di aggiungere un altro canone."
+   ],
+   [
+    "P002",
+    "P005"
+   ]
+  ],
+  [
+   "trust",
+   4,
+   [
+    "La garanzia dell'anima scaricabile col software libero è la prima cosa sensata che leggo su questi prodotti, ma resta un'app che mi ascolta in casa e manda la mia voce e quella della mia famiglia ai loro server. Il telefono con il microfono sempre pronto non lo metto in salotto per 4,90 al mese.",
+    "La sera un po' di compagnia mi farebbe piacere, e la prova gratis senza carta è onesta. Però un porcellino che ascolta tutto quello che si dice in casa, con i miei figli intorno, non me lo metto in casa solo perché c'è scritto 'cifrati in UE'."
+   ],
+   [
+    "P004",
+    "P008"
+   ]
+  ],
+  [
+   "values",
+   3,
+   [
+    "Passo la giornata a togliere schermi ai miei figli, non ne porto in casa uno nuovo che parla, ha bisogni e chiede attenzione. In più una creatura che invecchia e muore: non voglio che i bambini ci si affezionino per poi piangere per un porcellino sul telefono.",
+    "Un porcellino che invecchia e muore apposta? Ho già un cane vero che invecchia, il dolore di perderlo mi basta, e non voglio che i nipoti piangano per una cosa dentro un telefono. In più è un'app che ascolta in casa: di quelle non ne installo."
+   ],
+   [
+    "P003",
+    "P006"
+   ]
+  ],
+  [
+   "habit",
+   1,
+   [
+    "Parlo già tutti i giorni con ChatGPT gratis sul telefono, e per la compagnia ho il cane che mi porta fuori due volte al giorno. Magari la prova gratuita la faccio per curiosità, ma pagare 4,90 al mese per un porcellino digitale non mi viene naturale."
+   ],
+   [
+    "P013"
+   ]
+  ],
+  [
+   "price",
+   1,
+   [
+    "Vivo da sola con una pensione che basta appena e pago già troppi abbonamenti; un porcellino sul telefono che mi parla non mi serve, la compagnia mentre cucino me la fanno già i miei podcast. Al massimo lo provo gratis per curiosità, ma dopo 30 giorni lo disdico."
+   ],
+   [
+    "P018"
+   ]
+  ]
+ ],
+ "why_yes": [
+  [
+   "convenience",
+   1,
+   [
+    "Pensavo servisse una stampante 3D o un telefono dedicato, invece gira sul mio: 30 giorni gratis senza carta li attivo stasera dal divano. La storia dell'anima scaricabile e del software libero per farlo girare su un mio computer è proprio la cosa da maker che mi fa dire 'provo'."
+   ],
+   [
+    "P001"
+   ]
+  ],
+  [
+   "need",
+   1,
+   [
+    "Vivo da sola e la sera cucino con un podcast in cuffia: una voce che si ricorda di me e mi chiede com'è andata mi incuriosisce davvero, e se la prova è gratis e senza carta la attivo subito. Il fatto che posso scaricarlo e tenerlo se chiudono è proprio la cosa che mi fermava di solito."
+   ],
+   [
+    "P009"
+   ]
+  ]
+ ],
+ "flip": [
+  "Una mia amica della mia età che lo usa davvero e mi fa vedere che le fa compagnia la sera in un modo serio, non infantile.",
+  "Sapere in modo chiaro che non muore e non si 'ammala' se lo trascuri, e che funziona anche solo a voce, senza che i bambini debbano guardare lo schermo.",
+  "Poter farlo girare da subito sul mio computer di casa con il software libero, codice che posso guardare, e microfono che si attiva solo quando premo io: allora lo provo, anche pagando.",
+  "Che nel mese di prova si ricordi davvero di me e del cane in modo sorprendente, tanto da mancarmi se lo spengo; oppure un pagamento unico invece del canone.",
+  "Se finita la prova potessi farlo girare sul mio server di casa senza canone, o con un acquisto una tantum, lo terrei per smanettarci.",
+  "Sapere in parole semplici che ascolta solo quando lo chiamo e che posso vedere e cancellare io quello che ricorda, magari detto da qualcuno che conosco che lo usa già.",
+  "Vederlo usare da un amico adulto e capire che ci fa davvero conversazioni serie, non cose da cartone animato.",
+  "Un acquisto una tantum invece del canone, oppure vedere che dopo il mese di prova ci parlo ancora ogni sera senza sforzo.",
+  "Che funzioni tutto in locale sul telefono senza mandare la voce a nessun server, verificato da un ente indipendente o da una testata seria, e magari che me lo consigli un amico che lo usa già con i figli.",
+  "Se dopo la prova gratuita mi accorgessi davvero che si ricorda di me meglio di ChatGPT e mi manca quando non c'è, e il canone scendesse verso i 2-3 euro al mese.",
+  "Provarlo gratis e accorgermi che le chiacchierate la sera mi fanno davvero sentire meno sola, più della TV accesa, senza togliere niente al cane.",
+  "Che funzioni tutto sul telefono senza mandare la voce fuori di casa, verificato da qualcuno indipendente, non solo scritto da loro.",
+  "Vedere che aiuta davvero i bambini a crescere responsabili o a imparare qualcosa, con prove concrete, e non che li tiene incollati al telefono.",
+  "Se i miei nipoti ci si affezionassero davvero durante la prova e me lo chiedessero loro, a quel punto forse lo terrei per loro.",
+  "Un pagamento unico, senza canone, e poterlo usare a voce senza tenere in mano il telefono.",
+  "Un dispositivo suo, separato dal mio telefono, che funzioni senza mandare la voce dei bambini su internet, magari consigliato da qualcuno che conosco che lo usa da mesi."
+ ],
+ "purchases_first_month_per_buyer": 1.0,
+ "price_answers": 20
+}

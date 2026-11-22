@@ -1,0 +1,13 @@
+{
+  "id": "P073",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei clienti mi chiamano al telefono o mi scrivono su WhatsApp, mica vanno su una pagina web a parlare con un porcellino. Se non risponde al telefono non mi toglie il problema che ho, e 290 euro più 39 al mese per una cosa che i miei clienti non userebbero non li spendo.",
+  "objection": "Non risponde al telefono e non sta su WhatsApp: io perdo le ore lì. Un cliente di sessant'anni che mi chiama per sapere se passo martedì non lo mando su un sito con un maialino.",
+  "would_change_my_mind": "Che risponda lui al mio numero di telefono o sul mio WhatsApp, dove i clienti mi cercano già.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 30,
+  "price_too_expensive": 50
+}

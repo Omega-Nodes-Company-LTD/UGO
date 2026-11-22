@@ -1,0 +1,13 @@
+{
+  "id": "P081",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei clienti mi chiamano o mi scrivono su WhatsApp mentre sono in cantiere, e questo non risponde al telefono e vive su una pagina web dove nessuno andrà. Per le domande ripetitive mi bastano già le risposte automatiche di WhatsApp Business e ChatGPT, gratis.",
+  "objection": "Non ho tempo di caricargli documenti e insegnargli come lavoro; e 290 euro più 39 al mese per un porcellino digitale su un sito, quando la gente mi telefona, non li spendo.",
+  "would_change_my_mind": "Che risponda direttamente su WhatsApp o al telefono e funzioni da subito senza che io debba preparargli niente.",
+  "price_too_cheap": 5,
+  "price_cheap": 10,
+  "price_expensive": 20,
+  "price_too_expensive": 35
+}

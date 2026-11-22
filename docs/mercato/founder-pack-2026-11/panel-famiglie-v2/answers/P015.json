@@ -1,0 +1,13 @@
+{
+  "id": "P015",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Un porcellino sul telefono che ascolta tutto quello che dico in casa, mentre lavoro da casa e vivo da solo: la garanzia scritta è bella, ma non posso controllare io dove vanno davvero le mie parole. E comunque un abbonamento così lo disdirei al secondo estratto conto, appena smetto di aprirlo.",
+  "objection": "Parlo a voce e lui si ricorda di me: vuol dire che le mie conversazioni passano dai loro server. Scaricarle dopo non mi dice chi le ha sentite prima.",
+  "would_change_my_mind": "Che funzioni tutto sul telefono senza mandare la voce fuori di casa, verificato da qualcuno indipendente, non solo scritto da loro.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P074",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Con l'assistente gratuito sul telefono ci parlo già tutte le sere e mi risponde su tutto. Pagare 79 euro più 7,90 al mese per un porcellino che fa compagnia mi sembra un gioco per bambini, non una cosa per me.",
+  "objection": "Ho già ChatGPT gratis che mi ascolta: che cosa mi dà in più un maialino digitale, a parte un canone da pagare ogni mese per sempre? E se l'azienda chiude, che fine fa?",
+  "would_change_my_mind": "Provarlo gratis per un mese e accorgermi che si ricorda davvero di me e mi fa compagnia meglio di ChatGPT, senza i 79 euro iniziali.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 7
+}

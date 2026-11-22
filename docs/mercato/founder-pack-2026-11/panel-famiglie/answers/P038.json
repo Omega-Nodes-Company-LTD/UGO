@@ -1,0 +1,13 @@
+{
+  "id": "P038",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Il guscio da stampare mi intriga parecchio e 79 euro li spenderei per giocarci, ma un microfono sempre in casa che manda la mia voce a un server di un'azienda che non conosco non lo metto senza aver capito bene cosa succede. E sinceramente di compagnia non ne sento il bisogno: la domenica sono a tavola con i parenti.",
+  "objection": "\"Cifrata in UE\" lo scrivono tutti. Chi ascolta quello che dico in salotto? La voce passa da loro per essere capita, e se l'azienda chiude il porcellino muore e io ho pagato per un affetto in affitto.",
+  "would_change_my_mind": "Codice e protocollo aperti, con una guida vera per portarmi l'anima sul mio server di casa dal primo giorno, e una recensione tecnica indipendente che confermi dove va l'audio.",
+  "price_too_cheap": 2,
+  "price_cheap": 4,
+  "price_expensive": 9,
+  "price_too_expensive": 14
+}

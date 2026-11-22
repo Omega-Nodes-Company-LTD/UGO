@@ -1,0 +1,13 @@
+{
+  "id": "P004",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei pazienti telefonano o scrivono su WhatsApp, dove ho già le risposte automatiche gratis: una pagina web col porcellino non la aprirebbe quasi nessuno, e non risponde nemmeno al telefono. 290 € più 39 € al mese per qualcosa che non so se usano non li spendo.",
+  "objection": "Che nessun paziente vada davvero su quella pagina, e che un porcellino con il suo carattere in uno studio medico sembri poco serio; in più mi preoccupa cosa risponde su temi sanitari, anche se dice che apre un ticket.",
+  "would_change_my_mind": "Se rispondesse direttamente su WhatsApp Business, dove i pazienti mi scrivono già, con una prova gratuita di un mese senza costo di adozione per vedere quante domande toglie davvero alla segreteria.",
+  "price_too_cheap": 5,
+  "price_cheap": 12,
+  "price_expensive": 25,
+  "price_too_expensive": 45
+}

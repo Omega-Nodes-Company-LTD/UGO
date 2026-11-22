@@ -1,0 +1,13 @@
+{
+  "id": "P008",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "La sera un po' di compagnia mi farebbe piacere, e la prova gratis senza carta è onesta. Però un porcellino che ascolta tutto quello che si dice in casa, con i miei figli intorno, non me lo metto in casa solo perché c'è scritto 'cifrati in UE'.",
+  "objection": "Dove finiscono le cose che diciamo in casa? 'Cifrati' e 'mai per pubblicità' va bene, ma chi può ascoltarle, chi le legge per migliorare il servizio, e se ascolta sempre o solo quando gli parlo? Poi a 50 anni un maialino che parla mi sembra un gioco per bambini.",
+  "would_change_my_mind": "Sapere in parole semplici che ascolta solo quando lo chiamo e che posso vedere e cancellare io quello che ricorda, magari detto da qualcuno che conosco che lo usa già.",
+  "price_too_cheap": 1,
+  "price_cheap": 3,
+  "price_expensive": 6,
+  "price_too_expensive": 10
+}

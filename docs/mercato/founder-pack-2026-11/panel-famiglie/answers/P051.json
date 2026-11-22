@@ -1,0 +1,13 @@
+{
+  "id": "P051",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Una creatura che invecchia e muore e che va pure nutrita a 7,90 al mese non mi va. Mi affeziono, poi soffro, e intanto pago un altro abbonamento che tra tre mesi disdirei guardando l'estratto conto.",
+  "objection": "Non voglio prendermi in casa un lutto programmato. In più c'è l'idea che se smetto di pagare il 'cibo' lui ne risenta: mi sembra un ricatto affettivo travestito da canone.",
+  "would_change_my_mind": "Sapere chiaramente che non soffre e non muore se un mese non pago, e una prova gratuita senza i 79 euro iniziali per capire se lo userei davvero.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 5,
+  "price_too_expensive": 8
+}

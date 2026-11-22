@@ -1,0 +1,13 @@
+{
+  "id": "P098",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "I miei clienti vogliono parlare con una persona, e un porcellino digitale che risponde al posto mio rischia di farmi sembrare poco seria. In più 290 € subito più 39 € al mese per una cosa che non risponde nemmeno al telefono, dove arriva metà delle domande, non vedo come si ripaghi in pochi mesi.",
+  "objection": "Che i clienti si sentano liquidati da un maialino invece che da me, e che io paghi un canone fisso senza sapere quante domande toglie davvero dal mio WhatsApp e dal telefono.",
+  "would_change_my_mind": "Una prova gratuita di un mese sul mio WhatsApp, senza i 290 € di adozione, con un conto chiaro di quante domande ha chiuso da solo senza lamentele dei clienti.",
+  "price_too_cheap": 8,
+  "price_cheap": 15,
+  "price_expensive": 29,
+  "price_too_expensive": 45
+}

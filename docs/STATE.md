@@ -20,6 +20,15 @@ reale. ADR-012 e ADR-013 **accettati e implementati**; runbook di deploy pronto 
 Vexa + Meet di prova (Fase 5), gusci (Fase 6 — il proprietario ha design da una sessione chat
 precedente, da integrare in `hardware/shell/`). Firmware Arduino accantonato (decisione proprietario).
 
+**Fatto (2026-11-22): validazione di mercato con il Founder pack** — eseguite le 11 skill su
+due mercati (famiglie, imprese), panel da 100 compratori simulati ciascuno + re-test dell'offerta.
+Verdetto del piano: **NOT YET** per entrambi (famiglie 2% → 10%, imprese 0% → 10%; soglia 25%).
+Emersi: la voce ElevenLabs azzera il margine del canone famiglie (serve Piper di default); il nome
+«UGO» è già usato da UGO Care S.r.l. per compagnia agli anziani; mancano pagamento automatico,
+verifica dell'età e test di regressione del carattere. Dettaglio e raccomandazioni in
+[`mercato/README.md`](./mercato/README.md); i compiti sono sul progetto HQ «UGO — Validazione
+mercato». Nessuna modifica al codice: giro regola 12 non necessario (BO, `/admin`, FE intatti).
+
 **Fatto (2026-11-10): tutto su OpenRouter, Ollama non esiste più (ADR-131)** — nato da un guasto in
 produzione: `ugo.omeganodes.ai` rispondeva, ma foto, voce e testo morivano tutti. Due cause, una
 sopra l'altra: (1) la `OPENROUTER_API_KEY` su Coolify aveva U+2028 incollato in coda («Cannot

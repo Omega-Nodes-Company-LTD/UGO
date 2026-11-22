@@ -1,0 +1,13 @@
+{
+  "id": "P090",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Il mio problema è il telefono: quando sono fuori o in appuntamento i clienti chiamano e nessuno risponde, e questo non risponde al telefono. In più un porcellino digitale con un carattere suo davanti ai clienti di uno studio professionale non è l'immagine seria che voglio dare.",
+  "objection": "Non risolve le chiamate perse, che è l'unica cosa che mi serve davvero, e non posso nemmeno decidere come si presenta: se il tono non è adatto ai miei clienti, ci metto la faccia io.",
+  "would_change_my_mind": "Che risponda al telefono con una voce sobria e professionale, coerente con lo studio, e mi passi un riepilogo delle chiamate.",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 60,
+  "price_too_expensive": 100
+}

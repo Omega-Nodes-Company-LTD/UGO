@@ -1,0 +1,13 @@
+{
+  "id": "P065",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Con 15.000 euro l'anno, 79 euro subito più 7,90 al mese sono soldi che contano, e un altro abbonamento proprio non me lo posso tenere. La compagnia vera ce l'ho già: il cane, che porto fuori due volte al giorno e mi fa incontrare gente.",
+  "objection": "Pago per sempre la 'pensione e cibo' di un porcellino che vive sul telefono: se un mese smetto di pagare che fine fa? Mi sembra un modo per legarmi a un canone.",
+  "would_change_my_mind": "Niente canone mensile: un solo pagamento basso e poi resta mio sul telefono, senza costi fissi.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

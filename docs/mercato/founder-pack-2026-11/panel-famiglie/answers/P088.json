@@ -1,0 +1,13 @@
+{
+  "id": "P088",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Ho già un cane vero e due figli che mi riempiono la casa, e per parlare con un'AI uso già ChatGPT gratis tutti i giorni. Pagare 79 euro più un abbonamento per un porcellino sul telefono non mi serve.",
+  "objection": "Un altro abbonamento mensile per qualcosa che fa compagnia: la compagnia in casa ce l'ho già, e l'assistente gratuito sul telefono mi basta per tutto il resto.",
+  "would_change_my_mind": "Se i bambini lo vedessero da un amico e me lo chiedessero insistentemente, e ci fosse una prova gratuita di un mese senza dover pagare l'adozione prima.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

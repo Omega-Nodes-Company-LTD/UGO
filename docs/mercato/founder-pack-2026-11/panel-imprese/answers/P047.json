@@ -1,0 +1,13 @@
+{
+  "id": "P047",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Il mio studio deve dare un'immagine seria e coerente: un porcellino con un carattere suo che risponde ai pazienti non è quello che voglio che vedano. E per le domande ripetitive ho già WhatsApp Business con le risposte rapide, che i pazienti usano già.",
+  "objection": "Un personaggio buffo che non posso nemmeno configurare parla a nome del mio studio con pazienti che chiedono di salute: se dice una cosa fuori tono, ci rimetto io la faccia. E la maggior parte dei miei pazienti telefona, e lui al telefono non risponde.",
+  "would_change_my_mind": "Una versione sobria, senza mascotte, con aspetto e tono coerenti col mio studio, che risponda anche dentro WhatsApp e al telefono nei periodi di picco.",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 60,
+  "price_too_expensive": 100
+}

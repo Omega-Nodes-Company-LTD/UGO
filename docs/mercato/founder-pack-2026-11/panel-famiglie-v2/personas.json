@@ -1,0 +1,222 @@
+[
+ {
+  "id": "P001",
+  "name": "Patrizia",
+  "age": 36,
+  "segment": "Appassionato tech/maker con stampante 3D",
+  "income": 34000,
+  "behaviour": "Early adopter",
+  "behaviour_how": "Prova le novità tech appena escono e ne parla agli amici.",
+  "objection": "Non ho una stampante 3D né un telefono vecchio da usare",
+  "habit": "la sera guardi la TV sul divano con il telefono in mano"
+ },
+ {
+  "id": "P002",
+  "name": "Greta",
+  "age": 56,
+  "segment": "Persona sola over 60 (pensione o lavoro)",
+  "income": 27000,
+  "behaviour": "Usa già ChatGPT ogni giorno",
+  "behaviour_how": "Chiede tutto all'assistente AI gratuito sul telefono.",
+  "objection": "Parlare con un maialino digitale mi sembra una cosa da bambini",
+  "habit": "la domenica pranzi con i parenti"
+ },
+ {
+  "id": "P003",
+  "name": "Giulia",
+  "age": 43,
+  "segment": "Giovane adulto single o in coppia, curioso di tecnologia",
+  "income": 16000,
+  "behaviour": "Genitore attento agli schermi",
+  "behaviour_how": "Limita tablet e telefono ai figli e decide tutto ciò che entra in casa.",
+  "objection": "Una creatura che invecchia e muore? Non voglio soffrire o far soffrire i bambini",
+  "habit": "ascolti podcast mentre cucini"
+ },
+ {
+  "id": "P004",
+  "name": "Tiziana",
+  "age": 48,
+  "segment": "Appassionato tech/maker con stampante 3D",
+  "income": 54000,
+  "behaviour": "Diffidente su AI e privacy",
+  "behaviour_how": "Ha letto delle chat finite in giro e non installa app che ascoltano.",
+  "objection": "Mi ci affeziono e poi l'azienda chiude e lo perdo",
+  "habit": "lavori da casa due o tre giorni a settimana"
+ },
+ {
+  "id": "P005",
+  "name": "Margherita",
+  "age": 69,
+  "segment": "Giovane adulto single o in coppia, curioso di tecnologia",
+  "income": 35000,
+  "behaviour": "Early adopter",
+  "behaviour_how": "Prova le novità tech appena escono e ne parla agli amici.",
+  "objection": "Un altro abbonamento mensile? Ne pago già troppi",
+  "habit": "porti fuori il cane due volte al giorno"
+ },
+ {
+  "id": "P006",
+  "name": "Silvia",
+  "age": 74,
+  "segment": "Famiglia con figli (reddito familiare)",
+  "income": 63000,
+  "behaviour": "Diffidente su AI e privacy",
+  "behaviour_how": "Ha letto delle chat finite in giro e non installa app che ascoltano.",
+  "objection": "Una creatura che invecchia e muore? Non voglio soffrire o far soffrire i bambini",
+  "habit": "porti fuori il cane due volte al giorno"
+ },
+ {
+  "id": "P007",
+  "name": "Davide",
+  "age": 50,
+  "segment": "Appassionato tech/maker con stampante 3D",
+  "income": 45000,
+  "behaviour": "Taglia-abbonamenti",
+  "behaviour_how": "Controlla l'estratto conto e disdice ogni abbonamento che non usa.",
+  "objection": "Ho già un animale vero, non mi serve",
+  "habit": "i figli ti chiedono un animale da mesi"
+ },
+ {
+  "id": "P008",
+  "name": "Ginevra",
+  "age": 50,
+  "segment": "Famiglia con figli (reddito familiare)",
+  "income": 27000,
+  "behaviour": "Cerca compagnia",
+  "behaviour_how": "Passa molte serate da solo/a e la TV accesa fa da sottofondo.",
+  "objection": "Dove finiscono le cose che dico in casa?",
+  "habit": "lavori da casa due o tre giorni a settimana"
+ },
+ {
+  "id": "P009",
+  "name": "Elisa",
+  "age": 53,
+  "segment": "Persona sola over 60 (pensione o lavoro)",
+  "income": 15000,
+  "behaviour": "Early adopter",
+  "behaviour_how": "Prova le novità tech appena escono e ne parla agli amici.",
+  "objection": "Mi ci affeziono e poi l'azienda chiude e lo perdo",
+  "habit": "ascolti podcast mentre cucini"
+ },
+ {
+  "id": "P010",
+  "name": "Ahmed",
+  "age": 28,
+  "segment": "Famiglia con figli (reddito familiare)",
+  "income": 29000,
+  "behaviour": "Cerca compagnia",
+  "behaviour_how": "Passa molte serate da solo/a e la TV accesa fa da sottofondo.",
+  "objection": "Parlare con un maialino digitale mi sembra una cosa da bambini",
+  "habit": "ascolti podcast mentre cucini"
+ },
+ {
+  "id": "P011",
+  "name": "Irene",
+  "age": 31,
+  "segment": "Giovane adulto single o in coppia, curioso di tecnologia",
+  "income": 37000,
+  "behaviour": "Ha già un animale vero",
+  "behaviour_how": "Ha un cane o un gatto e paragona tutto a lui.",
+  "objection": "Un altro abbonamento mensile? Ne pago già troppi",
+  "habit": "la sera guardi la TV sul divano con il telefono in mano"
+ },
+ {
+  "id": "P012",
+  "name": "Claudio",
+  "age": 38,
+  "segment": "Famiglia con figli (reddito familiare)",
+  "income": 50000,
+  "behaviour": "Diffidente su AI e privacy",
+  "behaviour_how": "Ha letto delle chat finite in giro e non installa app che ascoltano.",
+  "objection": "Parlare con un maialino digitale mi sembra una cosa da bambini",
+  "habit": "i figli ti chiedono un animale da mesi"
+ },
+ {
+  "id": "P013",
+  "name": "Gabriele",
+  "age": 41,
+  "segment": "Persona sola over 60 (pensione o lavoro)",
+  "income": 29000,
+  "behaviour": "Usa già ChatGPT ogni giorno",
+  "behaviour_how": "Chiede tutto all'assistente AI gratuito sul telefono.",
+  "objection": "Mi ci affeziono e poi l'azienda chiude e lo perdo",
+  "habit": "porti fuori il cane due volte al giorno"
+ },
+ {
+  "id": "P014",
+  "name": "Miriam",
+  "age": 32,
+  "segment": "Giovane adulto single o in coppia, curioso di tecnologia",
+  "income": 19000,
+  "behaviour": "Cerca compagnia",
+  "behaviour_how": "Passa molte serate da solo/a e la TV accesa fa da sottofondo.",
+  "objection": "Ho già un animale vero, non mi serve",
+  "habit": "porti fuori il cane due volte al giorno"
+ },
+ {
+  "id": "P015",
+  "name": "Riccardo",
+  "age": 55,
+  "segment": "Persona sola over 60 (pensione o lavoro)",
+  "income": 21000,
+  "behaviour": "Taglia-abbonamenti",
+  "behaviour_how": "Controlla l'estratto conto e disdice ogni abbonamento che non usa.",
+  "objection": "Dove finiscono le cose che dico in casa?",
+  "habit": "lavori da casa due o tre giorni a settimana"
+ },
+ {
+  "id": "P016",
+  "name": "Federica",
+  "age": 31,
+  "segment": "Famiglia con figli (reddito familiare)",
+  "income": 55000,
+  "behaviour": "Ha già un animale vero",
+  "behaviour_how": "Ha un cane o un gatto e paragona tutto a lui.",
+  "objection": "Perché pagare se ChatGPT è gratis?",
+  "habit": "porti fuori il cane due volte al giorno"
+ },
+ {
+  "id": "P017",
+  "name": "Raffaele",
+  "age": 69,
+  "segment": "Famiglia con figli (reddito familiare)",
+  "income": 31000,
+  "behaviour": "Ha già un animale vero",
+  "behaviour_how": "Ha un cane o un gatto e paragona tutto a lui.",
+  "objection": "Un altro abbonamento mensile? Ne pago già troppi",
+  "habit": "lavori da casa due o tre giorni a settimana"
+ },
+ {
+  "id": "P018",
+  "name": "Francesca",
+  "age": 58,
+  "segment": "Persona sola over 60 (pensione o lavoro)",
+  "income": 19000,
+  "behaviour": "Genitore attento agli schermi",
+  "behaviour_how": "Limita tablet e telefono ai figli e decide tutto ciò che entra in casa.",
+  "objection": "Un altro abbonamento mensile? Ne pago già troppi",
+  "habit": "ascolti podcast mentre cucini"
+ },
+ {
+  "id": "P019",
+  "name": "Lorenzo",
+  "age": 44,
+  "segment": "Famiglia con figli (reddito familiare)",
+  "income": 64000,
+  "behaviour": "Usa già ChatGPT ogni giorno",
+  "behaviour_how": "Chiede tutto all'assistente AI gratuito sul telefono.",
+  "objection": "Dove finiscono le cose che dico in casa?",
+  "habit": "i figli ti chiedono un animale da mesi"
+ },
+ {
+  "id": "P020",
+  "name": "Arianna",
+  "age": 41,
+  "segment": "Giovane adulto single o in coppia, curioso di tecnologia",
+  "income": 27000,
+  "behaviour": "Ha già un animale vero",
+  "behaviour_how": "Ha un cane o un gatto e paragona tutto a lui.",
+  "objection": "Parlare con un maialino digitale mi sembra una cosa da bambini",
+  "habit": "la domenica pranzi con i parenti"
+ }
+]

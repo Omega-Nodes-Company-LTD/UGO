@@ -1,0 +1,13 @@
+{
+  "id": "P088",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Il mio studio vive di immagine seria: un porcellino digitale col suo carattere che risponde ai miei clienti stona con tutto quello che costruisco. E comunque non ho tempo di caricargli documenti e stare a controllare cosa dice.",
+  "objection": "Che un cliente che mi affida questioni delicate si trovi davanti un maialino che risponde al posto mio, e che io risponda di quello che dice. Il tono non lo posso nemmeno scegliere, quindi non lo controllo.",
+  "would_change_my_mind": "Un aspetto sobrio e professionale che si adatta al mio brand, e qualcuno che lo imposta per me sui miei documenti senza che io ci perda ore.",
+  "price_too_cheap": 10,
+  "price_cheap": 20,
+  "price_expensive": 60,
+  "price_too_expensive": 100
+}

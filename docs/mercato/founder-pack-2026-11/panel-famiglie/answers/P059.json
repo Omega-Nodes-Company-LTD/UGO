@@ -1,0 +1,13 @@
+{
+  "id": "P059",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "La sera sono solo e un po' di compagnia mi farebbe piacere, ma 79 euro subito più 7,90 al mese per un maialino sul telefono non li spendo, con quello che guadagno. Se voglio due chiacchiere con una macchina c'è ChatGPT gratis, e la TV resta accesa lo stesso.",
+  "objection": "Pagare un abbonamento per sempre, il cibo e la pensione per un porcellino che non esiste, mi sembra una trovata per spennare chi è solo. E se smetto di pagare che succede, muore?",
+  "would_change_my_mind": "Provarlo gratis per un mese e accorgermi che si ricorda davvero di me e mi fa compagnia meglio di ChatGPT, con un prezzo al mese più basso.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 4.5,
+  "price_too_expensive": 7
+}

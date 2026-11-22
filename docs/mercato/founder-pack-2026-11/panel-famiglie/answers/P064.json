@@ -1,0 +1,13 @@
+{
+  "id": "P064",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Una cosa che mi ascolta in casa, mi riconosce e si ricorda di me e dei miei parenti è proprio quello che non voglio. Che sia cifrata in un allevamento in UE me lo dicono loro, ma io non ho modo di verificarlo.",
+  "objection": "Dove finiscono le cose che dico in casa? Le voci, le facce, i discorsi del pranzo della domenica stanno su un server di qualcun altro, e se l'azienda chiude o viene bucata io non posso farci niente.",
+  "would_change_my_mind": "Che funzioni tutto in casa mia, senza mandare niente fuori, e che lo confermi qualcuno di indipendente, non l'azienda stessa.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

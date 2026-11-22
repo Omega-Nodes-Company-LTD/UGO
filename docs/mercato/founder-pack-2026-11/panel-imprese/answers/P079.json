@@ -1,0 +1,13 @@
+{
+  "id": "P079",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei clienti chiamano al telefono, e questo il telefono non lo prende: mi resterebbe lo stesso problema più un canone da pagare. E un porcellino con il carattere suo che parla coi miei clienti, a 64 anni, non me lo vedo proprio.",
+  "objection": "Dargli i documenti e la casella email, anche in sola lettura, vuol dire mettere i dati dei miei clienti in mano a qualcun altro: se succede qualcosa la sanzione del Garante la pago io, non loro. 'Dati in UE, cifrati' lo scrivono tutti.",
+  "would_change_my_mind": "Che risponda al telefono, con un contratto da responsabile del trattamento (art. 28 GDPR) firmato e chiaro su chi risponde se qualcosa va storto.",
+  "price_too_cheap": 10,
+  "price_cheap": 20,
+  "price_expensive": 35,
+  "price_too_expensive": 50
+}

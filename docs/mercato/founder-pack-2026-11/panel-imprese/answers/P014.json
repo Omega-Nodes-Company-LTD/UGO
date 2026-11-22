@@ -1,0 +1,13 @@
+{
+  "id": "P014",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Io tratto dati sanitari dei pazienti: non faccio leggere la mia casella email a un porcellino digitale di cui non so chi c'è dietro, e se il Garante mi chiede conto rischio io, non loro. E poi i miei pazienti telefonano, e questo al telefono non risponde.",
+  "objection": "Dati sanitari: chi è il responsabile del trattamento, dove finiscono esattamente le domande dei pazienti, chi le legge e se un'intelligenza artificiale le manda fuori. 'Restano in UE, cifrati' scritto così non mi basta.",
+  "would_change_my_mind": "Un contratto da responsabile del trattamento firmato, una valutazione d'impatto già fatta per studi medici e il parere del mio consulente privacy, più la risposta al telefono.",
+  "price_too_cheap": 10,
+  "price_cheap": 20,
+  "price_expensive": 50,
+  "price_too_expensive": 80
+}

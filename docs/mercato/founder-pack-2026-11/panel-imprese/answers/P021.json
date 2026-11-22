@@ -1,0 +1,13 @@
+{
+  "id": "P021",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Un porcellino con un carattere suo che risponde ai miei clienti non mi sembra serio per un negozio: voglio risposte pulite e professionali, non un personaggio che non posso nemmeno regolare. E comunque una cosa che legge la mia email non la prendo senza che il mio consulente IT l'abbia vista.",
+  "objection": "Il carattere non si configura: se il porcellino dice una cosa fuori tono a un cliente, la figuraccia la faccio io e non posso farci niente.",
+  "would_change_my_mind": "Che il mio consulente IT lo provi e mi dica che il tono resta sobrio e professionale con i clienti, magari con una prova gratuita di un mese.",
+  "price_too_cheap": 9,
+  "price_cheap": 19,
+  "price_expensive": 39,
+  "price_too_expensive": 60
+}

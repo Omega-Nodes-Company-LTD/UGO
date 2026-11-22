@@ -1,0 +1,13 @@
+{
+  "id": "P001",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "Le domande ripetitive a me arrivano soprattutto per telefono e per email, e questo non risponde al telefono e non legge la posta: mi coprirebbe solo WhatsApp e il sito, cioè la parte che mi pesa meno. Per 29 € al mese più il tempo di preparare e approvare i documenti, non vedo come si ripaghi in pochi mesi.",
+  "objection": "Dovrei passare ore a scrivere e approvare i documenti su cui risponde, e alla fine i clienti mi chiamano lo stesso. Sul GDPR il contratto art. 28 mi tranquillizza un po', ma i dati dei miei clienti finiscono comunque da qualcun altro e io ne resto responsabile.",
+  "would_change_my_mind": "Che rispondesse anche alle email dei clienti (dove inizia la mia giornata), così vedrei davvero meno lavoro già nel mese di prova.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 39,
+  "price_too_expensive": 60
+}

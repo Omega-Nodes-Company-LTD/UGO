@@ -1,0 +1,13 @@
+{
+  "id": "P087",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "79 euro subito più quasi 8 al mese per un porcellino nel telefono, con il reddito che abbiamo, non me li sento di spendere. I ragazzi vogliono un animale vero da accarezzare, non un altro schermo, e per fare due chiacchiere la sera c'è già ChatGPT gratis.",
+  "objection": "Perché dovrei pagare un abbonamento per una cosa che parla nel telefono quando ChatGPT lo fa gratis? E se smetto di pagare il 'cibo', che fine fa? Sembra fatto apposta per farmi sentire in colpa e non farmi mai disdire.",
+  "would_change_my_mind": "Provarlo gratis per un mese con i ragazzi e vedere che lo usano davvero tutti i giorni, e che costi meno di un caffè a settimana senza i 79 euro iniziali.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 5,
+  "price_too_expensive": 8
+}

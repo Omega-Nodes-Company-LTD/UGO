@@ -1,0 +1,13 @@
+{
+  "id": "P061",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "L'idea mi incuriosisce, ma 79 euro più 7,90 al mese per un porcellino sul telefono, quando con ChatGPT gratis ci parlo già a voce la sera, non mi tornano. Sembra un Tamagotchi con l'abbonamento.",
+  "objection": "Pago 79 euro per adottarlo e poi un canone per sempre: se smetto di pagare il 'cibo' che fine fa? Sembra un modo per farmi sentire in colpa e tenermi legato all'abbonamento.",
+  "would_change_my_mind": "Una prova gratuita di un paio di settimane senza i 79 euro iniziali, per vedere se si ricorda davvero di me e se dopo una settimana mi va ancora di parlarci.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.99,
+  "price_expensive": 5,
+  "price_too_expensive": 9
+}

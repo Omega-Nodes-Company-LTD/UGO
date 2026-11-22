@@ -1,0 +1,13 @@
+{
+  "id": "P026",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "values",
+  "reason": "Ho già un cane vero che porto fuori due volte al giorno, e in casa decido io cosa entra: un porcellino sul telefono che chiede attenzioni è proprio lo schermo in più che cerco di tenere lontano dai bambini. E una creatura fatta apposta per invecchiare e morire non la voglio, né per me né per loro.",
+  "objection": "Che sia progettato per farti affezionare e poi farti soffrire quando invecchia e muore, e intanto ti tiene attaccato al telefono pagando ogni mese la pensione e il cibo.",
+  "would_change_my_mind": "",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

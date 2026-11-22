@@ -1,0 +1,13 @@
+{
+  "id": "P011",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I miei clienti mi scrivono su WhatsApp e mi chiamano: non andranno mai su una pagina web con un accesso personale per chiedere a un porcellino quando scade l'F24. Pagherei 290 più 39 al mese per una cosa che resta lì vuota mentre il telefono continua a squillare.",
+  "objection": "Non risponde al telefono e non sta su WhatsApp, cioè proprio dove arrivano le domande. E in uno studio professionale un maialino con il suo carattere che parla ai clienti non lo vedo serio: se sbaglia una risposta su una scadenza la responsabilità è mia.",
+  "would_change_my_mind": "Che risponda direttamente sul numero WhatsApp dello studio, con un mese di prova gratis che mi dimostri quante domande mi ha davvero tolto.",
+  "price_too_cheap": 9,
+  "price_cheap": 19,
+  "price_expensive": 49,
+  "price_too_expensive": 89
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P097",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Con dodicimila euro l'anno, 79 euro subito più quasi 8 al mese per un porcellino sul telefono non me li posso permettere, e la compagnia vera ce l'ho già: il mio cane, che porto fuori due volte al giorno.",
+  "objection": "Un altro abbonamento mensile che non finisce mai, e se smetto di pagare la 'pensione' che fine fa? Mi sembra di pagare per non sentirmi in colpa.",
+  "would_change_my_mind": "Niente canone: una cifra sola, piccola, e poi è mio per sempre senza pagare ogni mese.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.5,
+  "price_expensive": 4.5,
+  "price_too_expensive": 7
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P082",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei clienti telefonano, non vanno su una pagina web a parlare con un porcellino. Se non risponde al telefono non mi risolve il problema che ho, e comunque senza il parere del mio tecnico non firmo niente.",
+  "objection": "Non risponde al telefono. E poi un porcellino con il carattere suo che parla ai clienti di uno studio professionale mi sembra poco serio; dargli da leggere la mia casella email, anche in sola lettura, con dati riservati dei clienti, mi preoccupa.",
+  "would_change_my_mind": "Che risponda al telefono dello studio con un tono sobrio, e che il mio consulente IT me lo installi e mi garantisca che sui dati dei clienti è tutto a posto.",
+  "price_too_cheap": 10,
+  "price_cheap": 20,
+  "price_expensive": 50,
+  "price_too_expensive": 80
+}

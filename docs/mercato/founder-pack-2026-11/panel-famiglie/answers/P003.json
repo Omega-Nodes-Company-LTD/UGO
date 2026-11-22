@@ -1,0 +1,13 @@
+{
+  "id": "P003",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Una cosa che mi ascolta in casa, mi riconosce e si ricorda della mia famiglia, con l'anima che vive sul server di qualcun altro? No. Il guscio da stampare mi incuriosisce, ma 79 euro più l'ennesimo abbonamento per farmi registrare in salotto non li spendo.",
+  "objection": "Dove vanno a finire le voci e le cose che diciamo in casa. 'Cifrata in UE' lo scrivono tutti, poi leggi delle chat finite in giro. E se l'allevamento chiude, il porcellino muore con lui.",
+  "would_change_my_mind": "Poterlo far girare tutto in casa mia fin dal primo giorno, senza canone e senza che la voce esca dalla rete di casa, con il codice da poter controllare.",
+  "price_too_cheap": 1.5,
+  "price_cheap": 3,
+  "price_expensive": 5,
+  "price_too_expensive": 8
+}

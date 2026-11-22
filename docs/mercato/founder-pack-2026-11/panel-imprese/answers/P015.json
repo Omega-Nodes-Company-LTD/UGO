@@ -1,0 +1,13 @@
+{
+  "id": "P015",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I miei clienti nei periodi di scadenza mi chiamano, non vanno su una pagina web a parlare con un porcellino: se non risponde al telefono non mi toglie il problema vero. E far rispondere un'AI su questioni fiscali o legali dei clienti, leggendo la mia casella email, è un rischio che non mi prendo per 39 euro al mese.",
+  "objection": "Dare accesso alla mia email, piena di dati sensibili dei clienti, a un sistema che risponde da solo: se sbaglia una risposta o se c'è un problema di dati, la responsabilità e la sanzione GDPR sono mie, non sue. 'Dati in UE, cifrati' non mi basta senza una nomina a responsabile del trattamento e garanzie scritte.",
+  "would_change_my_mind": "Che risponda al telefono durante i picchi delle scadenze, con un contratto di nomina a responsabile del trattamento (art. 28 GDPR) chiaro e senza bisogno di accedere alla mia email.",
+  "price_too_cheap": 10,
+  "price_cheap": 25,
+  "price_expensive": 80,
+  "price_too_expensive": 150
+}

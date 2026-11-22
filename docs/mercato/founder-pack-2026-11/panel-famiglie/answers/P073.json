@@ -1,0 +1,13 @@
+{
+  "id": "P073",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Il guscio da stampare mi incuriosisce, ce l'ho la stampante e un vecchio telefono nel cassetto. Però 79 euro più altri 7,90 al mese per sempre per un porcellino sullo schermo, quando ho già il cane vero che mangia e mi fa compagnia, no: è l'ennesimo abbonamento.",
+  "objection": "Il canone mensile che non finisce mai: se smetto di pagare il 'cibo' che succede, me lo fanno morire? Mi sembra un modo per tenermi legata, e il mio cane non mi manda la fattura ogni mese.",
+  "would_change_my_mind": "Pagarlo una volta sola, anche un po' di più, e farlo vivere tutto a casa mia sul vecchio telefono senza canone.",
+  "price_too_cheap": 1,
+  "price_cheap": 2,
+  "price_expensive": 4,
+  "price_too_expensive": 6
+}

@@ -1,0 +1,253 @@
+{
+ "business": "UGO — gosino da lavoro per la reception (assistente AI con carattere per i clienti di una piccola attività)",
+ "seed": 7,
+ "dealt": 100,
+ "answered": 100,
+ "skipped": [],
+ "buys": 0,
+ "passes": 100,
+ "buy_rate": 0.0,
+ "by_segment": [
+  [
+   "Titolare di studio professionale (commercialista, avvocato, architetto, agenzia)",
+   35,
+   0.0
+  ],
+  [
+   "Artigiano o piccola impresa di servizi tecnici",
+   15,
+   0.0
+  ],
+  [
+   "Titolare di ambulatorio, studio medico/dentistico o centro benessere",
+   25,
+   0.0
+  ],
+  [
+   "Titolare di negozio o e-commerce",
+   25,
+   0.0
+  ]
+ ],
+ "by_behaviour": [
+  [
+   "Attento ai costi",
+   18,
+   0.0
+  ],
+  [
+   "Sommerso dalle domande ripetitive",
+   20,
+   0.0
+  ],
+  [
+   "Fa da sé",
+   14,
+   0.0
+  ],
+  [
+   "Ha provato un chatbot e l'ha tolto",
+   10,
+   0.0
+  ],
+  [
+   "Delega al consulente IT",
+   14,
+   0.0
+  ],
+  [
+   "Cura l'immagine del brand",
+   10,
+   0.0
+  ],
+  [
+   "Preoccupato per privacy e GDPR",
+   14,
+   0.0
+  ]
+ ],
+ "by_income": [
+  [
+   "$75,000 and up",
+   34,
+   0.0
+  ],
+  [
+   "$50,000 to $75,000",
+   37,
+   0.0
+  ],
+  [
+   "under $50,000",
+   29,
+   0.0
+  ]
+ ],
+ "why_not": [
+  [
+   "need",
+   37,
+   [
+    "I miei clienti, quando c'è una scadenza, telefonano o scrivono su WhatsApp alla segretaria: dubito che andrebbero su una pagina web a parlare con un porcellino. 290 € più 39 al mese per una cosa che forse usano in tre, sotto scadenza, non me li ripaga.",
+    "I miei pazienti telefonano o scrivono su WhatsApp, dove ho già le risposte automatiche gratis: una pagina web col porcellino non la aprirebbe quasi nessuno, e non risponde nemmeno al telefono. 290 € più 39 € al mese per qualcosa che non so se usano non li spendo."
+   ],
+   [
+    "P001",
+    "P004"
+   ]
+  ],
+  [
+   "trust",
+   36,
+   [
+    "Ho già tolto un chatbot perché i pazienti si arrabbiavano, e in un ambulatorio le domande toccano spesso dati sanitari: non metto un porcellino digitale a parlare coi miei pazienti e a leggere la mia email senza sapere esattamente chi tratta quei dati. Il prezzo non è il problema, il rischio sì.",
+    "Il chatbot l'ho già tolto una volta perché i pazienti si arrabbiavano, e adesso dovrei rimettere davanti a loro un porcellino con un carattere suo che non posso nemmeno regolare? In uno studio medico i pazienti chiamano al telefono, e questo il telefono non lo prende: il grosso del lavoro resta alla mia segretaria."
+   ],
+   [
+    "P005",
+    "P006"
+   ]
+  ],
+  [
+   "values",
+   16,
+   [
+    "I miei clienti mi affidano bilanci, cause, questioni delicate: non posso metterli a parlare con un porcellino con un carattere suo, mi farebbe sembrare poco seria. E poi le domande mi arrivano al telefono e su WhatsApp, non su una pagina web: il problema vero resterebbe lì.",
+    "Un porcellino digitale col suo carattere che risponde ai miei clienti non mi rappresenta: chi mi chiama per un intervento tecnico vuole serietà, non una mascotte. In più 290 € subito più 39 € al mese senza sapere quante telefonate mi toglie davvero, e il telefono non lo prende pure."
+   ],
+   [
+    "P002",
+    "P008"
+   ]
+  ],
+  [
+   "habit",
+   8,
+   [
+    "Le domande ripetitive le sbrigo già con WhatsApp Business e le risposte automatiche, gratis. E i miei clienti, quando chiamano, vogliono me, non un porcellino su una pagina web che il telefono non lo prende neanche.",
+    "I miei clienti mi scrivono su WhatsApp e lì ho già le risposte rapide: non li sposto su una pagina web per parlare con un porcellino. E per uno studio professionale un maialino col suo carattere che risponde ai clienti mi sembra poco serio."
+   ],
+   [
+    "P003",
+    "P007"
+   ]
+  ],
+  [
+   "convenience",
+   3,
+   [
+    "I miei clienti mi scrivono su WhatsApp e mi chiamano, non vanno su una pagina web con un loro accesso personale: dovrei convincerli io a cambiare abitudine, e intanto pago 290 € più 39 € al mese. E un porcellino digitale col suo carattere davanti ai clienti di uno studio professionale non mi convince.",
+    "Non ho tempo di caricargli documenti, controllare cosa risponde e insegnargli come lavora lo studio: tra 290 euro subito e 39 al mese, non vedo come si ripaghi in pochi mesi se poi devo starci dietro io. E un porcellino digitale che parla ai miei clienti non mi sembra adatto a uno studio professionale."
+   ],
+   [
+    "P041",
+    "P054"
+   ]
+  ]
+ ],
+ "why_yes": [],
+ "flip": [
+  "Una prova gratuita di un paio di mesi a cavallo di una scadenza vera, con i numeri di quante telefonate e email mi ha tolto davvero.",
+  "Una versione sobria, senza personaggio, che risponda direttamente su WhatsApp con il tono dello studio, e che un collega del mio ordine mi dica che funziona davvero e non crea problemi di riservatezza.",
+  "Che risponda su WhatsApp, dove i clienti mi scrivono già, con un aspetto sobrio, e provarlo un mese gratis senza pagare l'adozione.",
+  "Se rispondesse direttamente su WhatsApp Business, dove i pazienti mi scrivono già, con una prova gratuita di un mese senza costo di adozione per vedere quante domande toglie davvero alla segreteria.",
+  "Un contratto di nomina a responsabile del trattamento con DPIA già pronta per studi medici, più una prova gratuita di un mese su domande vere (orari, prenotazioni, preparazione esami) senza accesso all'email, con le risposte che vedo io prima.",
+  "Un mese di prova gratis su un altro studio medico come il mio, con un DPA scritto e conforme per dati sanitari, che dimostri che nei picchi dell'anno ha davvero tolto chiamate e messaggi alla segreteria senza far arrabbiare nessuno.",
+  "Che il mio consulente IT lo provi e mi dica che è sicuro e conforme, e che funzioni dentro WhatsApp, dove i clienti già mi scrivono, togliendomi davvero i messaggi della sera.",
+  "Poterlo usare con un tono neutro e professionale, senza personaggio, collegato a WhatsApp, con un mese di prova gratis che mi mostri quante domande ha chiuso da solo.",
+  "Che rispondesse al telefono e fissasse gli appuntamenti nel mio gestionale, con un aspetto serio, senza il porcellino.",
+  "Che il mio consulente IT lo verifichi e mi garantisca per iscritto sicurezza e trattamento dati, e una versione dall'aspetto sobrio e professionale senza il porcellino.",
+  "Che risponda direttamente sul numero WhatsApp dello studio, con un mese di prova gratis che mi dimostri quante domande mi ha davvero tolto.",
+  "Una versione dall'aspetto sobrio e professionale, che risponda solo con frasi tratte dai documenti che approvo io e me lo faccia vedere, provata gratis per un mese di picco senza errori.",
+  "Che risponda su WhatsApp (e magari smisti le chiamate) con un tono sobrio da segreteria, provandolo gratis per qualche settimana sul mio studio.",
+  "Un contratto da responsabile del trattamento firmato, una valutazione d'impatto già fatta per studi medici e il parere del mio consulente privacy, più la risposta al telefono.",
+  "Che risponda al telefono durante i picchi delle scadenze, con un contratto di nomina a responsabile del trattamento (art. 28 GDPR) chiaro e senza bisogno di accedere alla mia email.",
+  "Che risponda direttamente su WhatsApp Business, dove già mi scrivono, senza che il cliente debba aprire un accesso personale su un sito, e una prova gratuita di un mese per vedere quante domande toglie davvero.",
+  "Una prova gratuita di un mese su un gruppo ristretto di clienti, con un DPA firmato che dica dove finiscono i dati, e un aspetto sobrio adatto a uno studio professionale, senza il porcellino in primo piano.",
+  "Che risponda alle chiamate, e che si possa pagare solo nei mesi di picco invece di tenerlo acceso tutto l'anno.",
+  "Che rispondesse anche al telefono nei periodi di picco e fosse già pronto senza che io debba preparargli niente, con una prova gratuita di un mese per vedere se mi toglie davvero chiamate.",
+  "Che risponda direttamente su WhatsApp, dove mi scrivono già, con un mese di prova gratis che mi faccia vedere quante telefonate mi ha tolto davvero.",
+  "Che il mio consulente IT lo provi e mi dica che il tono resta sobrio e professionale con i clienti, magari con una prova gratuita di un mese.",
+  "Un DPA firmabile con elenco dei sub-responsabili e server tutti in UE, niente accesso alla posta, e una versione dall'aspetto sobrio che risponda solo a domande pratiche (orari, documenti da portare, scadenze) senza toccare le pratiche dei clienti, con un mese di prova gratuita per vedere quante telefonate mi toglie davvero.",
+  "Una prova gratuita di un mese sui miei clienti veri, senza i 290 € iniziali, con un resoconto di quante domande ha risolto da solo e quanti ticket ha aperto.",
+  "Se rispondesse direttamente su WhatsApp al mio numero, e me lo facessero provare un mese gratis senza i 290 euro iniziali, per vedere se davvero mi toglie le chiamate.",
+  "Provarlo un mese gratis sulle sole domande pratiche (orari, documenti da portare, stato della pratica) e vedere nero su bianco quante telefonate e email mi toglie, con ogni risposta che posso controllare e un aspetto sobrio adatto a uno studio professionale.",
+  "Un DPA firmato con nome e sede del fornitore, server indicati in Italia o UE, e che funzioni anche su WhatsApp, non solo su una pagina web.",
+  "Vedere su numeri veri di uno studio come il mio che toglie almeno qualche ora di telefono a settimana alla segretaria, con una prova gratuita di un mese e un aspetto sobrio adatto a una clientela professionale.",
+  "Una versione sobria, senza personaggio, con un tono neutro e professionale che posso approvare io, e che risponda anche al telefono o su WhatsApp, dove arrivano davvero le domande.",
+  "Che risponda al telefono dello studio e prenda gli appuntamenti, e che me lo faccia provare gratis un mese prima di pagare l'adozione.",
+  "Vederlo rispondere in modo sobrio e professionale ai miei clienti veri, con un aspetto coerente col mio marchio, e la configurazione iniziale fatta da voi partendo dal mio sito senza che io perda ore.",
+  "Il mio tecnico di fiducia che lo verifica e mi porta un contratto di nomina a responsabile del trattamento con DPIA per dati sanitari, più l'integrazione con l'agenda appuntamenti.",
+  "Che funzioni direttamente su WhatsApp con un tono professionale, e che il mio consulente IT lo verifichi e mi confermi per iscritto che è a norma per i dati sanitari.",
+  "Che risponda direttamente dentro il mio WhatsApp Business, con una prova gratuita di un mese senza i 290 euro di adozione, così vedo coi numeri quante risposte mi toglie.",
+  "Che risponda alle chiamate sul mio numero, o almeno su WhatsApp, dove i clienti mi scrivono già.",
+  "Che risponda su WhatsApp e al telefono dove mi cercano già i clienti, e che il mio consulente IT me lo installi e mi garantisca che funziona.",
+  "Che funzioni dentro WhatsApp o risponda al telefono, senza costo iniziale, con un mese di prova gratis in cui vedo cosa ha risposto ai miei clienti.",
+  "Una versione sobria, senza mascotte, con l'aspetto e il tono del mio studio, che risponda anche al telefono e prenda gli appuntamenti senza che io debba insegnargli niente.",
+  "Che risponda direttamente su WhatsApp con il mio numero, e farlo provare un mese gratis per vedere cosa dice ai clienti prima di pagare l'adozione.",
+  "Che rispondesse direttamente dentro WhatsApp Business senza far registrare i clienti, con un DPA chiaro, e una prova gratuita di un mese senza i 290 euro di adozione.",
+  "Un DPA firmabile con nomina a responsabile del trattamento, elenco dei sub-responsabili e una prova gratuita di un mese senza i 290 € di adozione, usando solo documenti e non la mia email.",
+  "Che risponda direttamente su WhatsApp, con una prova gratuita di un mese senza costo di adozione, così vedo se davvero mi toglie messaggi la sera.",
+  "Un DPA firmato con l'elenco dei sub-responsabili, una DPIA già pronta da consegnare al mio consulente privacy, e la possibilità di provarlo un mese solo sui documenti, senza email, prima di pagare l'adozione.",
+  "Che risponda su WhatsApp, cioè dove i clienti mi scrivono già, senza dover entrare in una pagina, e poterlo provare gratis un mese per vedere se lo usano davvero.",
+  "Che il mio consulente IT lo installi e lo gestisca lui, caricandogli i documenti al posto mio, e mi confermi per iscritto che è conforme al GDPR per i dati sanitari.",
+  "Un contratto di nomina a responsabile del trattamento (art. 28 GDPR) chiaro, con l'elenco dei sub-fornitori e dove girano i modelli, più una prova gratuita durante un periodo di scadenze per vedere se mi toglie davvero telefonate.",
+  "Che risponda davvero al telefono dello studio, con nomina a responsabile del trattamento firmata, DPIA già pronta e una prova da qualche collega commercialista che lo usa senza problemi.",
+  "Una versione sobria, senza mascotte, con aspetto e tono coerenti col mio studio, che risponda anche dentro WhatsApp e al telefono nei periodi di picco.",
+  "Una prova gratuita di un mese su un sottoinsieme di clienti, con un DPA firmato e la possibilità di tenerlo serio e professionale, senza il personaggio.",
+  "Se rispondesse direttamente su WhatsApp, sul mio numero, senza far registrare nessuno, e con un mese di prova gratis per vedere quante domande mi toglie davvero.",
+  "Che risponda direttamente su WhatsApp, dove i clienti già mi scrivono, con un mese di prova gratis senza i 290 di adozione per vedere se toglie davvero telefonate.",
+  "Un DPA chiaro con nomi dei sub-responsabili, più l'impostazione fatta da loro (caricano loro i documenti e le FAQ in un'ora di chiamata), con un mese di prova senza pagare l'adozione.",
+  "Se rispondesse direttamente su WhatsApp e al telefono e gestisse le prenotazioni nei periodi di picco, con una prova gratuita di un mese senza costo di adozione.",
+  "Che funzioni direttamente dentro il mio WhatsApp Business e impari da solo dalle mie email in pochi minuti, senza costo d'ingresso, con una prova gratuita di un mese.",
+  "Che qualcuno me lo installi e lo addestri al posto mio sui miei documenti, senza che io ci perda ore, e che mi faccia vedere, numeri alla mano, quante telefonate mi toglie già nel primo mese.",
+  "Che risponda anche al telefono con un tono neutro e professionale, senza costo di adozione, con un canone che posso attivare solo nei mesi di picco.",
+  "Vederlo rispondere in modo serio su WhatsApp, con il tono del mio negozio, imparando da solo dalle mie risposte senza che debba caricargli niente.",
+  "Che risponda direttamente su WhatsApp con un tono sobrio e professionale, togliendomi davvero le chiamate ripetitive.",
+  "Un contratto di nomina a responsabile del trattamento (art. 28) con l'elenco dei sub-responsabili tutti in UE, una DPIA già fatta per l'uso in ambito sanitario e la possibilità di escludere la lettura delle email, magari con un mese di prova gratuito.",
+  "Che il mio consulente IT lo provi, mi confermi per iscritto che è a norma per i dati sanitari e che risponde solo su orari, indirizzo e documenti per le visite, girando tutto il resto a me, e magari un collega che lo usa già senza problemi.",
+  "Un contratto di nomina a responsabile del trattamento con DPIA pronta per studi medici, nessun accesso alla mia email, e un aspetto sobrio e professionale invece del maialino, magari consigliato dal mio commercialista o dall'ordine.",
+  "Che il mio consulente IT o l'agenzia web lo provi e me lo consigli, con un contratto di nomina a responsabile del trattamento GDPR pronto e una prova gratuita di un mese senza pagare i 290 euro di adozione.",
+  "Un mese di prova gratis senza i 290 euro di adozione, con i numeri veri di quanti clienti l'hanno usato e quanti ticket ha aperto invece di inventare.",
+  "Che rispondesse sul mio numero WhatsApp Business (o al telefono) e che il mio consulente IT l'avesse provato e mi dicesse che funziona e che i dati sono a posto.",
+  "Una prova gratuita di un mese senza i 290 euro di adozione, con i numeri di quante domande ha risolto da solo, oppure che risponda direttamente su WhatsApp.",
+  "Una prova gratuita di un paio di mesi proprio nel mio periodo di picco, con il numero di pazienti che l'hanno usato e le telefonate che mi ha evitato.",
+  "Un aspetto sobrio e professionale coerente con il mio studio, e vedere un collega del mio settore che lo usa da mesi senza lamentele dei clienti.",
+  "Un contratto di nomina a responsabile del trattamento firmato, con server in Italia o UE nominati, una DPIA già fatta e qualcuno in carne e ossa che conosco, magari il mio consulente, che mi dice che è a posto; e che risponda anche su WhatsApp.",
+  "Che risponda direttamente su WhatsApp con un tono sobrio da negozio, e che si possa provare gratis un mese senza pagare l'adozione.",
+  "Un DPA completo con elenco dei sub-responsabili e una valutazione d'impatto già pronta, più una versione sobria senza personaggio, limitata a orari, appuntamenti e scadenze senza toccare email e documenti dei clienti, provata gratis per un mese da un collega che conosco.",
+  "Un contratto di nomina a responsabile del trattamento (art. 28 GDPR) con l'elenco dei sub-responsabili tutti in UE, una DPIA già pronta e la possibilità di usarlo senza accesso all'email, solo sulle domande generiche (orari, documenti da portare, scadenze).",
+  "Provarlo gratis un mese sulle mie domande vere e vedere che non sbaglia mai, e che funzioni dentro WhatsApp, dove i miei clienti mi scrivono già, senza che debbano andare su una pagina web.",
+  "Provarlo un mese gratis sulle mie domande vere, potendo vedere e approvare le sue risposte prima che arrivino ai clienti, senza i 290 euro iniziali.",
+  "Che risponda lui al mio numero di telefono o sul mio WhatsApp, dove i clienti mi cercano già.",
+  "Un mese di prova gratis senza pagare l'adozione, con DPA firmato e nomina a responsabile del trattamento, e la possibilità di vedere io ogni risposta data ai pazienti prima di lasciarlo andare da solo.",
+  "Che risponda al telefono e su WhatsApp con un tono professionale, e che dopo un mese di prova gratis mi dimostri di aver tolto davvero ore di chiamate alla segreteria.",
+  "Una prova gratuita di un mese fatta su uno studio come il mio, dove qualcuno lo imposta per me e vedo coi miei occhi che i clienti non si lamentano e che i ticket mi fanno risparmiare tempo vero.",
+  "Che il mio consulente IT lo installi lui, mi confermi per iscritto che è a norma per dati sanitari, e che risponda anche su WhatsApp dove i pazienti già mi scrivono.",
+  "Che risponda direttamente sul mio numero WhatsApp e si prepari da solo leggendo le mie risposte passate, senza che io debba caricare niente.",
+  "Che risponda al telefono, con un contratto da responsabile del trattamento (art. 28 GDPR) firmato e chiaro su chi risponde se qualcosa va storto.",
+  "Che rispondesse anche al telefono per appuntamenti e orari, e un mese di prova gratis nel mio studio senza l'adozione da 290 € per vedere coi miei occhi che non sbaglia.",
+  "Che risponda direttamente su WhatsApp o al telefono e funzioni da subito senza che io debba preparargli niente.",
+  "Che risponda al telefono dello studio con un tono sobrio, e che il mio consulente IT me lo installi e mi garantisca che sui dati dei clienti è tutto a posto.",
+  "Un DPA firmato con nomina a responsabile del trattamento, nessun accesso alla casella email, e che risponda direttamente su WhatsApp con un tono serio e neutro.",
+  "Che funzioni direttamente dentro WhatsApp con un tono neutro e professionale, e una prova gratuita di un mese senza i 290 euro iniziali per vedere se davvero mi toglie lavoro.",
+  "Che risponda anche alle telefonate dei clienti.",
+  "Un DPA firmato con l'elenco dei sub-responsabili, un mese di prova gratuita senza canone di adozione, e un collega del mio ordine che lo usa già e mi dice quante telefonate gli ha tolto davvero.",
+  "Che il mio consulente IT me lo configuri lui, caricando i documenti al posto mio, e mi garantisca per iscritto che risponde solo alle domande pratiche (orari, documenti da portare) senza mai dare pareri.",
+  "Un aspetto sobrio e professionale che si adatta al mio brand, e qualcuno che lo imposta per me sui miei documenti senza che io ci perda ore.",
+  "Che risponda al telefono dello studio per prenotazioni e orari, con un DPA firmato e la nomina a responsabile del trattamento ex art. 28 GDPR, senza accesso alle cartelle cliniche.",
+  "Che risponda al telefono con una voce sobria e professionale, coerente con lo studio, e mi passi un riepilogo delle chiamate.",
+  "Una prova gratuita di un mese senza quota di adozione, con i numeri di quanti pazienti l'hanno usato davvero e quante telefonate mi ha tolto.",
+  "Provarlo un mese gratis sui miei veri clienti, senza pagare i 290 euro prima, e vedere io tutte le risposte che ha dato prima di decidere.",
+  "Una versione sobria, senza mascotte e con un tono neutro e formale, che risponda anche a WhatsApp e al telefono.",
+  "Una prova gratuita di un mese su un altro studio medico come il mio, con un contratto di nomina a responsabile del trattamento GDPR in regola e la garanzia che non dia mai indicazioni cliniche ma solo orari, prenotazioni e informazioni pratiche.",
+  "Una versione dall'aspetto sobrio e professionale, che parla col tono dello studio, e che mi configurino loro senza che io debba caricare niente, con una prova di un mese sui miei clienti veri.",
+  "Poter avere un aspetto e un tono sobri, coerenti con lo studio, e vederlo funzionare per un mese di scadenze in prova gratuita senza figuracce.",
+  "Che risponda al telefono e prenda gli appuntamenti nel mio gestionale, con il via libera scritto del mio consulente IT su privacy e dati sanitari.",
+  "Una prova gratuita di un mese sul mio WhatsApp, senza i 290 € di adozione, con un conto chiaro di quante domande ha chiuso da solo senza lamentele dei clienti.",
+  "Che risponda direttamente sul numero WhatsApp dello studio, con un mese di prova gratis per vedere quante domande toglie davvero.",
+  "Che risponda direttamente su WhatsApp con un tono sobrio e professionale, e che me lo faccia provare gratis per un mese."
+ ],
+ "purchases_first_month_per_buyer": null,
+ "price_answers": 100
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P092",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Il chatbot l'ho già tolto una volta perché i clienti si arrabbiavano, e non ho voglia di rifare la stessa figura con un porcellino. Dicono che quando non sa apre un ticket, ma io non so come fa a capire da solo di non sapere: e intanto il telefono, dove arrivano metà delle domande, resta comunque a me.",
+  "objection": "E se risponde una cosa sbagliata a un cliente, magari su un prezzo o una spedizione, con una vocina da maialino simpatico? Il cliente se la prende con me, non con lui.",
+  "would_change_my_mind": "Provarlo un mese gratis sui miei veri clienti, senza pagare i 290 euro prima, e vedere io tutte le risposte che ha dato prima di decidere.",
+  "price_too_cheap": 10,
+  "price_cheap": 20,
+  "price_expensive": 35,
+  "price_too_expensive": 55
+}

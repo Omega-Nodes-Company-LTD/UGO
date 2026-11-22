@@ -1,0 +1,13 @@
+{
+  "id": "P080",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "In uno studio medico una risposta sbagliata a un paziente non è un fastidio, è un problema serio, e non affido la reception a un porcellino digitale. In più i miei pazienti chiamano al telefono, e questo al telefono non risponde: allora pago 290 € più 39 € al mese per una cosa che copre solo il canale che mi serve meno.",
+  "objection": "E se a un paziente dice una cosa sbagliata su una terapia, un orario o un costo? Il ticket per quando non sa va bene, ma il guaio vero è quando crede di sapere. E il porcellino con il carattere suo in uno studio medico mi sembra poco serio.",
+  "would_change_my_mind": "Che rispondesse anche al telefono per appuntamenti e orari, e un mese di prova gratis nel mio studio senza l'adozione da 290 € per vedere coi miei occhi che non sbaglia.",
+  "price_too_cheap": 9,
+  "price_cheap": 19,
+  "price_expensive": 45,
+  "price_too_expensive": 70
+}
