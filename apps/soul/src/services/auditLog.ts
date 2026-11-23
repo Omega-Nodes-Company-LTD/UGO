@@ -104,6 +104,10 @@ export const AUDIT_VERBS = [
   "pairing_code_issued",
   /** ADR-127: un dispositivo entrato con un codice — l'id della chiave nata */
   "device_paired",
+  /** ADR-132: l'anima di una creatura esportata in un archivio .ugosoul — mai la frase, mai il contenuto */
+  "soul_export",
+  /** ADR-132: un archivio .ugosoul caricato in questa installazione — l'id della casa, mai il contenuto */
+  "soul_import",
 ] as const;
 export type AuditVerb = (typeof AUDIT_VERBS)[number];
 

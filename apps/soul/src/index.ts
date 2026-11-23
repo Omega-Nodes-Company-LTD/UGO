@@ -11,7 +11,13 @@ import {
   OpenRouterVisionClient,
   OpenRouterTtsClient,
 } from "@ugo/memory";
-import { EnvValidationError, loadSpeciesMap, parseDataKey, parseEnv } from "@ugo/shared";
+import {
+  EMBEDDING_DIMENSIONS,
+  EnvValidationError,
+  loadSpeciesMap,
+  parseDataKey,
+  parseEnv,
+} from "@ugo/shared";
 import { RecognitionClient } from "./services/recognitionClient.js";
 import { NudgeService } from "./services/nudges.js";
 import { SceneMemory } from "./services/sceneMemory.js";
@@ -26,6 +32,9 @@ import { FaceGateway } from "./services/faceGateway.js";
 import { MeetingsService } from "./services/meetingsService.js";
 import { PackService } from "./services/packService.js";
 import { ExportService } from "./services/privacy/exportService.js";
+import type { SoulExportRun } from "./routes/soulExport.js";
+import { exportSoulArchive } from "./services/soulExport/exportSoul.js";
+import { generatorVersion } from "./services/soulExport/version.js";
 import { ForgetService } from "./services/privacy/forgetService.js";
 import { PsycheService } from "./services/psycheService.js";
 import { IdleConsolidation } from "./services/idleConsolidation.js";
@@ -343,6 +352,22 @@ const privacy = {
   forget: (tx: DbClient) => new ForgetService({ db: tx, dataKey, embedder }),
   exporter: (tx: DbClient) => new ExportService(tx, dataKey),
 };
+// ADR-132: l'anima in un archivio .ugosoul. Nasce spenta (UGO_SOUL_EXPORT).
+const soulExport: SoulExportRun | undefined =
+  env.UGO_SOUL_EXPORT === "on"
+    ? (request, sink) =>
+        exportSoulArchive(
+          db,
+          {
+            masterKey: dataKey,
+            generatorVersion: generatorVersion(),
+            embeddingModel: env.OPENROUTER_EMBED_MODEL,
+            embeddingDimensions: EMBEDDING_DIMENSIONS,
+          },
+          request,
+          sink,
+        )
+    : undefined;
 const meetings =
   env.VEXA_API_URL !== undefined && env.VEXA_API_KEY !== undefined
     ? new MeetingsService({
@@ -588,6 +613,7 @@ const app = buildServer({
     psyche,
     face,
     privacy,
+    ...(soulExport !== undefined && { soulExport }),
     speciesMap,
     stats: { dailyBudgetUsd: env.UGO_DAILY_BUDGET_USD, timezone: env.TZ },
     registry,

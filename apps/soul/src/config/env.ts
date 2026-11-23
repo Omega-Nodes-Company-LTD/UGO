@@ -27,7 +27,7 @@ const optionalNonEmpty = z.preprocess(
 const HEADER_SAFE = /^[\x21-\x7E]+$/u;
 const headerSecretMessage =
   "contiene un carattere invisibile o non ASCII (spesso arriva incollando): riscrivila a mano";
-const headerSecret = z.preprocess(
+export const headerSecret = z.preprocess(
   (value) => (typeof value === "string" ? value.trim() : value),
   z.string().min(1).regex(HEADER_SAFE, headerSecretMessage),
 );
@@ -225,6 +225,13 @@ export const soulEnvSchema = z.object({
    * su OpenRouter e costa, quindi nasce spenta — si accende, non si subisce.
    */
   UGO_RUMINATION: z.enum(["on", "off"]).default("off"),
+  /**
+   * ADR-132 («A casa tua»): l'export dell'anima in un archivio .ugosoul. Nasce
+   * SPENTO: finché l'importatore e l'installazione non esistono (MKT-10.5…10.7)
+   * un bottone che produce un file che nessuno sa installare promette più di
+   * quanto si può mantenere. Si accende, non si subisce.
+   */
+  UGO_SOUL_EXPORT: z.enum(["on", "off"]).default("off"),
   /** minuti fra un pensiero e l'altro, per gosino (tentativi, non successi) */
   UGO_RUMINATION_GAP_MIN: z.coerce.number().int().positive().default(45),
   // gruppo 12: dove sta la casa, per il meteo vero e il cielo di stanotte.
