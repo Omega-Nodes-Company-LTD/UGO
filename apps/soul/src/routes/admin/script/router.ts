@@ -115,6 +115,9 @@ async function openPage(page) {
     await section(loadPackMood, "pack-mood-msg");
     await section(showPlace, "place-msg");
     await section(loadCapabilities, "stats-msg");
+  } else if (page === "dati") {
+    // ADR-132: «A casa tua» — il blocco compare solo se l'export dell'anima è acceso
+    await section(loadSoulExport, "soul-msg");
   } else if (page === "account") {
     await section(loadAccountsPage, "account-msg");
   } else if (page === "conti") {
