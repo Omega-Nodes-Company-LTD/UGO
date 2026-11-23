@@ -129,6 +129,24 @@
           </button>
           <span class="lede">Un file con ogni riga che ti riguarda.</span>
         </div>
+        <!-- ADR-132: compare solo se soul ha la funzione accesa (la rotta c'è) -->
+        <div class="mydata-act" id="mydata-soul" data-testid="mydata-soul" hidden>
+          <b>Porta l'anima a casa</b>
+          <span class="lede">Un file cifrato con tutto ciò che fa di una creatura quella
+             creatura. Nessun canone per tenerla viva. Non ci sono impronte, chiavi, né i
+             file di foto e audio.</span>
+          <select id="mydata-soul-who" data-testid="mydata-soul-who"></select>
+          <input id="mydata-soul-confirm" data-testid="mydata-soul-confirm" type="text"
+                 autocomplete="off" placeholder="scrivi il suo nome per confermare">
+          <button id="mydata-soul-export" data-testid="mydata-soul-export" type="button">
+            Scarica l'archivio
+          </button>
+          <div id="mydata-soul-codebox" data-testid="mydata-soul-codebox" hidden>
+            <p class="lede">Codice di recupero: compare una volta sola, e senza non si apre niente.</p>
+            <p id="mydata-soul-code" data-testid="mydata-soul-code"></p>
+            <p class="lede">Scrivilo su carta. Non lo teniamo e non si può recuperare.</p>
+          </div>
+        </div>
         <div class="mydata-act">
           <label for="mydata-who">Dimentica qualcuno</label>
           <select id="mydata-who" data-testid="mydata-who"></select>

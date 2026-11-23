@@ -17,6 +17,9 @@
  *    attrito giusto: è la differenza fra una porta e un buco nel muro.
  */
 
+import { nameMatches } from "./names.js";
+import { mountSoulExport, type SoulExportElements } from "./soulExportPanel.js";
+
 export interface DataSummary {
   beings: number;
   protected: number;
@@ -57,18 +60,8 @@ export function summaryLines(summary: DataSummary): SummaryLine[] {
   ];
 }
 
-/**
- * Il nome scritto combacia con quello scelto?
- *
- * Stesso patto del congedo (ADR-075): **un click solo non è un consenso a una
- * cosa irreversibile**. Tollerante sugli spazi e sulle maiuscole, perché una
- * tastiera a schermo le sbaglia; intollerante su tutto il resto, perché è
- * l'ultimo passo prima di una cosa che non si torna indietro.
- */
-export function nameMatches(typed: string, chosen: string): boolean {
-  const clean = (value: string): string => value.trim().toLowerCase().replace(/\s+/gu, " ");
-  return clean(typed) !== "" && clean(typed) === clean(chosen);
-}
+// il patto del congedo (ADR-075) vive in names.ts: ora lo usano due pannelli
+export { nameMatches };
 
 /** Cosa si dice quando manca il token: non «errore», ma cosa fare. */
 export function needTokenMessage(): string {
@@ -100,6 +93,8 @@ export interface MyDataElements {
   forget: HTMLElement;
   exportAll: HTMLElement;
   message: HTMLElement;
+  /** ADR-132: «porta l'anima a casa». Assente = il chiosco non lo sa fare. */
+  soul?: SoulExportElements;
 }
 
 export interface MyDataDeps {
@@ -137,6 +132,13 @@ export function mountMyData(elements: MyDataElements, deps: MyDataDeps): void {
     const typed = elements.token.value.trim();
     return typed === "" ? deps.kioskToken : typed;
   };
+
+  const soulPanel =
+    elements.soul === undefined ? undefined : mountSoulExport(elements.soul, { soulHttp: deps.soulHttp, acting, say });
+  // il token appena digitato può cambiare chi si può portare (e se si può)
+  elements.token.addEventListener("change", () => {
+    void soulPanel?.refresh();
+  });
 
   const drawLines = (summary: DataSummary): void => {
     elements.lines.replaceChildren();
@@ -182,7 +184,10 @@ export function mountMyData(elements: MyDataElements, deps: MyDataDeps): void {
   const show = (open: boolean): void => {
     elements.panel.hidden = !open;
     elements.app.dataset.mydata = open ? "on" : "off";
-    if (open) void load();
+    if (open) {
+      void load();
+      void soulPanel?.refresh();
+    }
   };
 
   elements.toggle.addEventListener("click", () => {
@@ -190,8 +195,10 @@ export function mountMyData(elements: MyDataElements, deps: MyDataDeps): void {
   });
   elements.close.addEventListener("click", () => {
     show(false);
-    // il token digitato non sopravvive alla chiusura: non è nostro da tenere
+    // il token digitato non sopravvive alla chiusura: non è nostro da tenere,
+    // e nemmeno il codice di recupero di un archivio
     elements.token.value = "";
+    soulPanel?.reset();
   });
 
   elements.exportAll.addEventListener("click", () => {

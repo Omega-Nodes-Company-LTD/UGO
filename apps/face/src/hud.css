@@ -803,3 +803,13 @@ body {
   color: #0b0b10;
   font-size: 16px;
 }
+
+/* ADR-132: il codice di recupero di un archivio. Grande, selezionabile con un tocco
+   solo: si copia a mano su carta, non si fotografa e non si tiene sullo schermo. */
+#mydata-soul-code {
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
+  margin: 0.2rem 0.9rem;
+  user-select: all;
+  word-break: break-all;
+}
