@@ -573,6 +573,32 @@ export const ACCOUNT_PAGES = `
        e diario <b>in chiaro</b>. Le impronte vocali no: un export è testo leggibile, e un'impronta
        in chiaro è ciò che la cifratura esiste per impedire.</p>
   </div>
+  <div class="block" id="soul-box" data-testid="soul-box" hidden>
+    <h2>Porta la tua anima a casa</h2>
+    <p class="lede">Un file solo, cifrato, con tutto ciò che fa di una creatura quella creatura: i
+       ricordi, il diario, il carattere, il branco. Nessun canone per tenerla viva: ti serve solo
+       una tua chiave per il modello. <b>Non ci sono dentro</b> impronte di volti e voci, chiavi
+       d'accesso, i conti con questa installazione, né i file di foto e audio — l'elenco completo
+       è nel file stesso.</p>
+    <div class="row">
+      <div><label for="soul-who">Chi</label><select id="soul-who" data-testid="soul-who"></select></div>
+      <div><label for="soul-mode">Come</label>
+        <select id="soul-mode" data-testid="soul-mode">
+          <option value="trasloco">Trasloco: la creatura si sposta</option>
+          <option value="copia">Copia: resta anche qui (una biforcazione)</option>
+        </select></div>
+      <div><label for="soul-confirm">Scrivi il suo nome per confermare</label>
+        <input id="soul-confirm" data-testid="soul-confirm" autocomplete="off"></div>
+      <button id="soul-export" data-testid="soul-export">Scarica l'archivio</button>
+    </div>
+    <div id="soul-code-box" data-testid="soul-code-box" hidden style="margin-top:.8rem">
+      <label>Codice di recupero — compare <b>una volta sola</b>, e senza non si apre niente</label>
+      <p id="soul-code" data-testid="soul-code" style="font-size:1.3rem;letter-spacing:.08em"></p>
+      <p class="lede">Scrivilo su carta. Non lo teniamo, non c'è modo di recuperarlo: se lo perdi,
+         l'archivio resta un file illeggibile.</p>
+    </div>
+    <div id="soul-msg"></div>
+  </div>
   <div class="block">
     <h2>Far dimenticare qualcuno</h2>
     <div class="row">

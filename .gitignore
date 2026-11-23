@@ -27,3 +27,8 @@ __pycache__/
 .next/
 next-env.d.ts
 apps/face/test-results/
+
+# casa locale (ADR-132): segreti e archivi in arrivo
+.ugo-home/
+ops/home/.env
+ops/home/backups/

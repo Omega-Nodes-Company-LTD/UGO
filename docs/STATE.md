@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.84.0"
-last_updated: "2026-11-10"
+version: "0.90.0"
+last_updated: "2026-11-23"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -3131,3 +3131,202 @@ notarizzazione. L'icona è provvisoria (`icons/icon.png`): va sostituita e rigen
 - **Resta su GitHub**: `dictation-mac.yml` (serve un Mac).
 - **Da sapere**: sui runner effimeri la cache dei modelli Ollama in `~/.ugo-ollama`
   riparte da `actions/cache` a ogni job, come sui runner di GitHub.
+
+## 6-septoctogies. «A casa tua» (UGOMKT-10): decisioni prese, codice non ancora scritto (ADR-132)
+
+- **Fatto (MKT-10.0, 2026-11-23)**: [ADR-132](./ADR/132-a-casa-tua.md) — tre decisioni del
+  proprietario. (1) l'export per portare a casa è un **trasloco**: la copia ospitata si
+  congeda solo dopo la prima conversazione locale riuscita; la «copia di sicurezza» è una
+  biforcazione dichiarata, e il suo schema ha un ADR suo in MKT-10.5. (2) installazione =
+  **kit Compose + procedura guidata `/setup` nel browser**, con uno **spike a tempo** sul
+  pacchetto nativo senza container. (3) **Linux mini-PC, Windows e macOS insieme**.
+  Fornitore invariato: OpenRouter (ADR-125/131), chiave dell'utente, mai nell'archivio.
+- **Non fatto**: nessuna riga di codice, nessuna migrazione, nessun test nuovo. I task
+  10.1–10.10 sono nel BACKLOG (gruppo 21).
+- **Aperto, in attesa del proprietario** (default di lavoro in ADR-132): modelli locali,
+  formula «niente canone» coi costi OpenRouter, **licenza del runtime (nel repo non c'è
+  nessun `LICENSE`)**, controllo aggiornamenti.
+- **Da correggere in MKT-10.9**: `il-confidente-inviolabile.md` dice che il trasloco «non è un
+  bottone» e parla di una «voce di casa» eliminata da ADR-131.
+- **Giro regola 12**: BO, `/admin`, FE — nessuna modifica in questo passo (solo documenti).
+
+- **Fatto (MKT-10.2, 2026-11-23)**: il **formato `.ugosoul` v1**, specifica in
+  [`FORMATO_UGOSOUL.md`](./FORMATO_UGOSOUL.md) e implementazione in
+  `packages/shared/src/soulArchive/` (scrittore e lettore in streaming, manifesto Zod,
+  politica di compatibilità, codice di recupero). Zero dipendenze nuove. **67 test**, cifratura
+  vera: andata e ritorno, frase sbagliata, bit invertiti, troncamenti, chunk scambiati, header
+  alterato (visibile solo all'AAD — verificato togliendolo), archivi **ostili ma cifrati bene**
+  (`../`, percorsi assoluti, nomi fuori whitelist, digest falsi), tetti, costo di produzione del
+  KDF. `tsc`, `eslint --max-warnings=0`, build e l'intera suite di `@ugo/shared` (121) verdi.
+  **Decisione presa strada facendo**: niente tar — contenitore nostro, senza percorsi né
+  compressione (emendamento in ADR-132 §4).
+- **Non fatto in 10.2**: quali tabelle e colonne entrano (10.3), l'importatore (10.5), vettori di
+  prova per un secondo lettore. `container.test.ts` supera le 200 righe (261): è un file di test,
+  da spezzare se cresce ancora.
+- **Giro regola 12**: BO — nuovo codice in `packages/shared` (nessuna rotta, nessun consumatore
+  ancora); `/admin` e FE — nessuna modifica, e non serviva: niente di visibile cambia finché
+  10.3/10.4 non lo collegano. Nessun rilascio del muso.
+
+- **Fatto (MKT-10.3, 2026-11-23)**: lo **scrittore dell'archivio** — `apps/soul/src/services/soulExport/`
+  (`exportSoulArchive(db, deps, request, sink)`), più `latestMigrationTag()` in `@ugo/db` (la
+  versione dello schema scritta nel manifesto, letta dal journal di drizzle). Tabelle e colonne
+  **scoperte dal database**, classificate da una policy esplicita (`policyTables.ts`, una voce per
+  tabella, motivo in italiano per ogni esclusione); lettura con cursore in **una transazione
+  `REPEATABLE READ` di sola lettura** con la casa dichiarata a RLS; testi decifrati con un
+  portachiavi (master, casa, creatura) e **fail-closed**: cifrato che nessuna chiave apre, o
+  cifrato in colonna «in chiaro», o tabella/colonna opaca non classificata → l'export si ferma.
+  Il manifesto porta `omissions[]` con **conteggi esatti** (colonna opzionale aggiunta allo
+  schema in `@ugo/shared`). Documentato in `FORMATO_UGOSOUL.md` §10.
+- **Verifiche**: 11 unit (`rowCrypto`) + 8 (`policy`) + **17 d'integrazione** su Postgres vero
+  (tre chiavi, due case, due creature, 1.300 righe su più batch del cursore, rifiuti, rete di
+  sicurezza, policy contro il catalogo reale). Mutazioni provate: tolto il filtro di casa → 3 test
+  rossi; fatta uscire la chiave privata di firma → 2 rossi. `tsc`, `eslint --max-warnings=0` verdi.
+  **Trovati dai test, non da me**: `access_tokens` ha 2 righe, non 1 (fondare una casa conia un
+  token); `house_documents` ha `s3_key`, non `object_key` (e il piano ora **si ferma** se una
+  colonna-media dichiarata non esiste, invece di tacere); `account_ties`/`parcels` si legano alla
+  casa con `from_`/`to_account_id` (campo `accountColumns` nella policy).
+- **Ambiente**: Docker Hub non rispondeva (nemmeno `mirror.gcr.io`), quindi i test d'integrazione
+  sono girati su un **Postgres 18 + pgvector** locale (container usa-e-getta, `UGO_TEST_PG_URL`);
+  la CI usa pg16. Da rieseguire su pg16 prima di chiudere il gruppo.
+- **Non fatto in 10.3**: la rotta/pulsante (10.4), l'importatore e il rimappaggio di
+  `account_id`/`parent_gosino_id` (10.5), i byte dei file. Decisioni nuove in ADR-132: voce 8
+  (chiavi d'identità del gosino, fuori per ora) e voce 9 (perimetro di default).
+- **Giro regola 12**: BO — nuovo servizio, senza rotte né chiamanti ancora; `/admin` e FE —
+  nessuna modifica, e non serviva (niente di visibile cambia finché 10.4 non lo collega).
+
+- **Fatto (MKT-10.4, 2026-11-23)**: la **superficie dell'export** — rotte, pannello e muso — **spenta di
+  default** (`UGO_SOUL_EXPORT=off`, come la ruminazione): finché importatore e installazione non esistono
+  (10.5–10.7) un bottone per un file che nessuno sa aprire promette più di quanto si mantiene.
+  - **BO** — `GET /v1/privacy/soul-export/options` e `POST /v1/privacy/soul-export`
+    (`routes/soulExport.ts`), solo per chi amministra. Si **rifiuta prima del primo byte** (creatura
+    non della casa o congedata → 404 come una che non c'è; nome non scritto → 422; più di 3
+    all'ora per casa o due insieme → 429): da lì in poi un errore **taglia** il file, e un file
+    tagliato non si apre mai. Streaming con backpressure. La **frase di recupero** (24 caratteri,
+    120 bit) esce una volta sola in `x-ugo-recovery-code`; o una frase scelta (≥12). Verbo d'audit
+    nuovo `soul_export` (id della creatura, mai nome, frase o contenuto).
+  - **`/admin`** — blocco «Porta la tua anima a casa» in **I dati**: tendina della creatura (nasce
+    vuota: «va il default» è l'errore di §6-quadragies), nome da scrivere, trasloco/copia; il
+    blocco **non compare** se la funzione è spenta (404). `call()` guadagna `{ raw: true }` per i
+    file e resta l'unico varco (`scoped()` intatto: `script.test.ts` lo esegue).
+  - **FE (muso)** — blocco dentro «I tuoi dati» (`soulExportPanel.ts`, `names.ts`): compare solo se la
+    rotta esiste, token digitato lì per lì, codice di recupero **mostrato una volta e cancellato alla
+    chiusura**. Giunzione senza contratto nuovo: il muso deduce lo stato da 404/401·403/200, e un
+    test d'integrazione lato soul **fissa** quei tre stati (ADR-045: le due metà restano verdi da sole).
+  - **Il muso va ricostruito**: il blocco arriva sul dispositivo solo col nuovo bundle (soul lo serve
+    già costruito). Limite dichiarato: nelle shell Capacitor il download di un file può non partire.
+- **Verifiche**: 10 unit (guardie) + 14 d'integrazione della rotta + 1 nuovo sul pannello (`script.test.ts`) +
+  9 sul muso. Mutazioni provate: nome non controllato → 3 test rossi; creatura non della casa
+  accettata → 1 rosso. **Trovato dai test**: l'audit «ok» si scriveva *dopo* la chiusura del flusso
+  (la risposta poteva finire prima della sua riga) — ora prima dell'ultimo byte; e un mio test
+  dell'audit non controllava lo status e aveva esercitato un 429 senza accorgersene.
+- **Non verificato**: gli e2e Playwright (muso e pannello) non sono stati eseguiti qui (servono browser
+  e soul costruito); i test d'integrazione sono girati su **pg18** (Docker Hub irraggiungibile), la CI usa pg16.
+- **Aperto**: le due decisioni di policy (chiavi d'identità, perimetro) restano ai default di ADR-132;
+  tre test unit di soul e `dockerWorkspace.test.ts` falliscono su Windows per i separatori di
+  percorso (preesistente, non toccato).
+
+- **Fatto (MKT-10.5, 2026-11-23)**: l'**importatore** — `apps/soul/src/services/soulImport/`
+  (`importSoulArchive`, `inspectSoulArchive`). Specifica in `FORMATO_UGOSOUL.md` §11; decisioni in
+  ADR-132 §6. **Nessun cambio di schema.**
+  - **Una transazione, si conferma a lettura finita**: il record d'integrità sta in fondo, quindi un
+    archivio manomesso o tagliato dopo che metà casa è già dentro **non lascia niente** (rollback fino al
+    seme). Tabelle in ordine di chiavi esterne (lo scrittore le ordina), lette in streaming, inserite a
+    lotti con `jsonb_populate_recordset` (array, bytea, timestamp, vettori convertiti dalle funzioni di
+    input di Postgres, senza codice per tipo).
+  - **Stessi id**: la creatura che arriva è la stessa. Testi **ricifrati con la chiave locale** (provato
+    con due master diverse: con la vecchia non si aprono), ricordi in chiaro (ADR-091), chiavi dati nuove
+    per casa e creatura, **nessun diritto di fondare o allevare** (regola 14), chiave di firma pubblica sì,
+    privata no.
+  - **Riferimenti che l'archivio non porta** → NULL o riga saltata, e **il rapporto lo dice**; un cucciolo
+    esportato senza genitore perde il certificato di nascita (`births`) — dichiarato, non nascosto.
+  - **Anteprima** prima di scrivere, con una **stima** del costo dei vettori (non un preventivo).
+- **Scoperte dei test, non della lettura**: (1) **ogni database migrato non è vuoto** — c'è già
+  `casa-prime`, `ugo-prime`, una stanza e un luogo: «vuoto» è ora «solo il seme», che si sostituisce;
+  (2) un archivio di prova stava in **un solo chunk**, quindi «manomesso a metà import» non esercitava
+  mai la scrittura parziale: ora lo scrittore accetta la dimensione del chunk (solo test) e l'asserzione
+  `> 4 chunk` lo impone; (3) una tabella *vuota* con vettore obbligatorio non deve rifiutare.
+- **Verifiche**: 22 unit (`prepareRow`, `lines`) + 6 (`order`) + **25 d'integrazione** su database veri
+  (export → import in un DB con altra master → re-export identico riga per riga). Mutazioni provate
+  (tutte rosse): testi non ricifrati; archivio che concede il diritto di fondare; niente guardia «la casa
+  prima»; **commit del parziale su errore** (6 rossi — è la prova che il rollback regge).
+- **NON verificato**: i vettori sul **fornitore vero** — `soulImportEmbeddings.integration.test.ts` esiste,
+  compila, ed è scritto per **richiedere** `OPENROUTER_API_KEY` (convenzione ADR-125: niente skip) ma qui
+  la chiave non c'era, quindi non è mai girato; il giro intero va rieseguito in CI. Anche: pg18 invece di
+  pg16 (Docker Hub irraggiungibile).
+- **Non fatto**: il **congedo della creatura nella casa ospitante** dopo la conferma (10.5b: l'altra metà
+  del «trasloco»), l'importazione da UI (10.6 la collega), `ugo import`. Il chiamante deve usare una
+  connessione che veda tutte le case (proprietario del database).
+- **Giro regola 12**: BO — nuovo servizio, senza rotte né chiamanti; `/admin` e FE — nessuna modifica, e
+  non serviva (l'importazione si fa dal `/setup` di 10.6, che ancora non esiste).
+- **Fatto (MKT-10.6, 2026-11-23)**: la **procedura guidata** — `apps/soul/src/home/` (nuovo): `secrets.ts` (chiave
+  maestra e segreto interno che NASCONO qui, chiave OpenRouter dell'utente: file 0600, scrittura atomica),
+  `guard.ts` (gettone di setup per avvio, solo host locali contro il DNS rebinding, stessa origine, blocco dopo
+  10 frasi sbagliate), `setupService.ts` (stati `fresh` / `needs-key` / `ready`; carica → ispeziona → installa;
+  una operazione per volta), `setupRoutes.ts` + `setupPage.ts` (pagina in italiano, CSP `default-src 'self'`,
+  nessuno script in linea, chiave in un campo a sola scrittura), `main.ts` (ingresso: `pnpm --filter soul
+  start:home`). A installazione finita il setup si spegne e parte il runtime di sempre **senza riavviare**,
+  con i segreti letti dai file (i file vincono sulle variabili: la chiave maestra è quella con cui l'archivio
+  è stato ricifrato). La chiave dell'utente si scrive **dopo** il commit dell'import, mai prima: un archivio
+  rifiutato non lascia né casa né chiave.
+- **Prove (MKT-10.6)**: `homeSetup.integration.test.ts` (12, Postgres vero, server vero, file veri; verdi su
+  Docker/pg16): gettone, host, origine, blocco, flusso completo, chiave pulita ai bordi e mai restituita né
+  nei log/audit né negli altri file, carattere invisibile rifiutato, manomissione senza residui, tetto di
+  dimensione, `needs-key`, segreti stabili. Mutazioni: gettone non controllato → rosso; chiave scritta prima
+  dell'import → rosso. **Fumo reale** (fuori dai test): `main.ts` contro un Postgres 16 vuoto → upload,
+  ispezione, installazione via HTTP → `/setup` sparisce (404), `/health` 200, il token proprietario legge la
+  creatura importata, senza token 401.
+- **Non fatto in 10.6**: i **job senza S3** (→ 10.7, col kit); il percorso con vettori veri dal `/setup`
+  (il test `soulImportEmbeddings` richiede `OPENROUTER_API_KEY` e non è stato eseguito); nessuna prova
+  della pagina in un browser vero (Playwright): il suo JS è provato solo come testo servito con CSP; il
+  controllo della validità della chiave presso OpenRouter prima dell'installazione (si scopre al primo
+  vettore, o alla prima parola); `ugo import` da riga di comando. Il gettone di setup va sulla console:
+  portarlo nel link è compito del lanciatore (10.7).
+- **Giro regola 12 (10.6)**: BO — fatto (sopra). `/admin` — nessuna modifica e non serviva: in modalità locale
+  il pannello è quello di sempre e si entra col token proprietario che il setup mostra una volta. FE
+  (`apps/face`) — nessuna modifica, non serviva: il muso non conosce il setup; **ma** il token proprietario
+  si copia a mano nel muso finché 10.7 non lo passa dal lanciatore.
+- **Fatto (MKT-10.7, 2026-11-23)**: il **kit** — `ops/home/`: `compose.yml` (Postgres+pgvector su rete interna
+  senza porte sull'host; soul su `127.0.0.1:3000`, `cap_drop ALL`, `no-new-privileges`, comando `dist/home/main.js`,
+  volume `ugo-home` per i segreti), lanciatori `start.sh` (Linux/macOS), `Avvia UGO.command` (macOS), `Avvia UGO.bat` +
+  `start.ps1` (Windows), `README.md` per chi lo riceve. I lanciatori controllano Docker (assente / spento, con parole
+  da non tecnici), generano la password del database la prima volta in `.env` (0600, mai nel repo), costruiscono o
+  avviano, aspettano il link **con il gettone di setup** letto dai log di soul e aprono il browser lì; a casa già
+  installata aprono la radice. `soul.Dockerfile`: crea `/data` di proprietà di `node` (l'immagine ospitata non cambia
+  altrimenti).
+- **Job senza S3**: il kit **non include i job Python** (backup, ingestione, documenti): nulla del percorso locale li richiede, e
+  l'S3 resta spento (già opzionale). Il backup locale è 10.8.
+- **Costruzione dell'immagine (10.7, chiusa in 10.10)**: i primi tentativi fallivano per la rete e poi per un difetto vero: **non c'era nessun `.dockerignore`**, quindi `COPY packages/*` portava nell'immagine i `node_modules` della macchina di chi costruisce (su Windows: giunzioni che coprivano quelli del contenitore → `typescript` introvabile). Aggiunto `ops/docker/soul.Dockerfile.dockerignore` (`**/node_modules`, `**/dist`, `.git`, `.env*`); su una checkout pulita (CI) non cambia nulla. Scoperta: `docker compose --build` fallisce su Docker Desktop recente (Bake non legge fuori dalla cartella) → i lanciatori usano `docker build`.
+- **Non fatto in 10.7**: immagine **pubblicata** (dove e con quale licenza resta del proprietario: oggi il kit costruisce dal repo);
+  firma/notarizzazione dei lanciatori (Windows SmartScreen e macOS Gatekeeper li segnaleranno); il bit di esecuzione di
+  `start.sh`/`.command` va fissato in git (`git update-index --chmod=+x`); prova su macOS e su Linux (provato solo
+  Windows + Docker Desktop); spike nativo 10.1.
+- **Giro regola 12 (10.7)**: BO — kit e Dockerfile (sopra). `/admin` e FE — nessuna modifica, non serviva.
+- **Fatto (MKT-10.8, 2026-11-23)**: `ops/home/ugo.sh` e `ugo.ps1` — `backup` (pg_dump formato custom + chiave maestra letta dal volume,
+  in `backups/`, permessi 0600, scartato se vuoto), `restore` (conferma scritta «SI», salvataggio di sicurezza PRIMA, ricrea il
+  database, rimette dump e chiave con proprietario 1000 e 0600), `update` (salvataggio, build/pull, `up`; se la build fallisce
+  UGO resta com'era), `stop`. Volumi con nome fisso (`ugo-home-postgres`, `ugo-home-secrets`). README del kit aggiornato.
+  Scelta dichiarata: il salvataggio completo sono **due file** insieme (dump + chiave): chi li ha entrambi legge tutto; la chiave
+  OpenRouter non entra mai. Il formato portabile e cifrato resta il `.ugosoul`.
+- **Prove (10.8)**: contro un Postgres 16 vero, con `.sh` e con `.ps1`: salvataggio → modifica di dati e chiave → rifiuto senza «SI»
+  (nulla toccato) → ripristino: dati e chiave tornano, chiave con uid 1000 e 0600, salvataggio di sicurezza creato. Scoperte: Git Bash
+  su Windows riscrive i percorsi dei volumi (si usa `ugo.ps1` o `MSYS_NO_PATHCONV=1`); PowerShell 5.1 legge gli script senza BOM come
+  ANSI e storpia gli accenti → `start.ps1` e `ugo.ps1` hanno il BOM UTF-8 (valeva anche per i messaggi di 10.7).
+- **Non fatto in 10.8**: salvataggio pianificato; cifratura del salvataggio (oggi in chiaro: protetto dai permessi del file, non dal
+  contenuto); prova di `update` completo (l'immagine non si costruisce su questa rete, vedi 10.7) e di `restore` con soul acceso;
+  prova su Linux/macOS (`ugo.sh` provato solo da Git Bash su Windows); il ripristino da `.ugosoul` su una casa viva (l'import non
+  fonde mai) resta «reinstalla da zero».
+- **Giro regola 12 (10.8)**: BO — script di kit; `/admin` e FE — nessuna modifica, non serviva.
+- **Fatto (MKT-10.9, 2026-11-23)**: documentazione utente. Nuova `01-getting-started/a-casa-tua.md` (cosa serve, scarica l'anima,
+  avvia il kit, rimetti in piedi la creatura, ogni giorno, salvataggi; etichette copiate dalla UI vera); sezione «A casa tua non parte o non
+  installa» in `problemi-comuni.md` (messaggi copiati dal codice); `i-tuoi-dati.md` (non più «in preparazione»); `index.md`.
+  **`il-confidente-inviolabile.md` corretto**: diceva che a rispondere era «la voce di casa» e che «non esce niente» — falso dopo ADR-125/131
+  (oggi testo, ricordi pertinenti, vettori, foto e voce escono verso OpenRouter); aggiunta la strada del computer di casa e la frase onesta
+  «niente canone ≠ niente costi». Trovate e corrette le stesse affermazioni superate in `parlare-con-ugo.md` (riassunto settimanale,
+  modello di casa), `quando-comincia-lui.md` e `problemi-comuni.md` (`UGO_CHAT_HOME_VOICE` non esiste più nel codice).
+- **Non fatto in 10.9**: `primo-avvio.md` parla ancora di «voce di casa» per la SINTESI vocale — il codice ha ancora `ttsLocal`, quindi non
+  l'ho toccata senza verificare; non ho riletto le altre pagine per affermazioni simili (le `rg` per «non esce» e «modello di casa» sono
+  pulite); nessuno screenshot (segnaposto non inseriti); le pagine legali (informativa, termini) non rivedute per il caso «a casa tua» —
+  **vanno viste da chi ha titolo legale** prima di distribuire; licenza del runtime ancora assente.
+- **Giro regola 12 (10.9)**: solo documentazione; BO, `/admin` e FE non toccati e non serviva.
+- **MKT-10.10, 2026-11-23 — accettazione: PARTE TECNICA FATTA, PROVA CON UNA PERSONA NON FATTA.** `docs/UAT_A_CASA_TUA.md`: protocollo (regole, preparazione, 5 consegne, 10 misure con criteri, rapporto) e le evidenze raccolte sul kit vero: `start.ps1` da zero → contenitori healthy → `/setup` attraverso la porta pubblicata → runtime con `/health` ok → processo non-root (uid 1000), segreti 0600 → riavvio senza nuovo setup → `ugo.ps1 backup`/`restore` con soul acceso/`update` → ok. **Non provato**: macOS, Linux, Docker assente, ricerca nei ricordi e chat con la chiave OpenRouter vera, memoria/CPU reali (i requisiti di ADR-132 §3 restano ipotesi), e soprattutto **la persona non tecnica**: senza di lei 10.10 non è chiusa e UGOMKT-10 non è completo.
+- **Giro regola 12 (10.10)**: BO — `.dockerignore` e prova del kit; `/admin` e FE non toccati.

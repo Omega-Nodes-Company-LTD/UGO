@@ -1,8 +1,8 @@
 ---
 title: "Parlare con UGO"
 description: "Come funziona una conversazione: la voce, la memoria che resta, l'umore che cambia e il budget giornaliero."
-version: "0.14.0"
-last_updated: "2026-11-10"
+version: "0.88.0"
+last_updated: "2026-11-23"
 author: "ThinkPink Studio"
 ---
 
@@ -146,9 +146,9 @@ Di una giornata sola te la racconta a memoria: il diario l'ha già scritto lui s
 costa niente. Di una **settimana** no — sette pagine in fila non sono un riassunto — e allora
 le mette in ordine e te la racconta in tre frasi.
 
-A farlo è **la voce di casa**, sempre, anche quando per il resto sta rispondendo il modello
-grande: quello che c'è scritto nel diario è la vita di chi ci abita, e non esce per farsi
-riassumere.
+A farlo è il modello, tramite OpenRouter, come per ogni altra risposta: **le pagine del diario
+che gli servono per riassumere escono di casa** per il tempo della risposta. Se non vuoi che
+quello che c'è scritto lì viaggi, non chiedergli il riassunto di una settimana.
 
 Se di quei giorni non ha scritto niente te lo dice, invece di inventarti una settimana.
 
@@ -356,7 +356,7 @@ una favola costa qualche decimillesimo di dollaro, e se il budget è finito te l
 La racconta **lui**, col suo carattere, e spesso comincia da com'è andata la giornata — se ha
 piovuto, nella storia può piovere. La senti a voce come ogni altra cosa che dice.
 
-Due cose oneste. Se il modello di casa non è acceso o non risponde, **te lo dice**: non ha una
+Due cose oneste. Se il modello non risponde (rete, chiave o credito di OpenRouter), **te lo dice**: non ha una
 favola di riserva, perché una storia precotta ripetuta ogni sera si riconosce alla seconda. E
 se gli chiedi «raccontami cos'hai fatto ieri» ti risponde il **diario**, non una storia
 inventata: quella è una domanda su una cosa vera, e inventare lì sarebbe mentire.

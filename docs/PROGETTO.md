@@ -1,8 +1,8 @@
 ---
 title: "PROGETTO UGO — Unità Gosiniana Operativa"
 description: "Specifica master del compagno artificiale con memoria persistente, stato emotivo e tre corpi (casa, tasca, riunioni). Documento di riferimento per lo sviluppo autonomo con Claude Code."
-version: "0.3.0"
-last_updated: "2026-08-07"
+version: "0.4.0"
+last_updated: "2026-11-23"
 author: "ThinkPink Studio × Claude"
 ---
 
@@ -39,13 +39,13 @@ Queste decisioni sono state prese consapevolmente e **non vanno rimesse in discu
 
 | # | Decisione | Motivazione / alternativa scartata |
 |---|-----------|-------------------------------------|
-| ADR-001 | **Niente GPU.** LLM real-time = Claude API `claude-haiku-4-5` con prompt caching. Batch notturno = Ollama su CPU (MoE tipo `qwen3:30b-a3b` o simile: ~3B parametri attivi/token, adatto a CPU con 128GB RAM). Fallback batch: API in modalità batch. | Il server GPU di terzi è escluso. Il Mac Mini M4 è opzionale, non nel percorso critico. |
+| ADR-001 | **Niente GPU.** *(Modelli: superata da ADR-125/131 — oggi **tutti** i modelli, chat, sogno, embedding, visione e dettatura, passano da OpenRouter; **Ollama non esiste più**. Resta valido: nessuna GPU sul server.)* Originale: LLM real-time = Claude API `claude-haiku-4-5` con prompt caching; batch notturno = Ollama su CPU. | Il server GPU di terzi è escluso. Il Mac Mini M4 è opzionale, non nel percorso critico. |
 | ADR-002 | **Audio, non video.** Registrazioni in Opus ~32 kbps (~200 MB/giorno di vita intera). Facoltativo in futuro: timelapse fotografico. | Il video 1080p (~50 GB/giorno) ha rapporto significato/GB pessimo per un diario di vita. |
 | ADR-003 | **Niente servo / parti mobili.** Espressività = occhi su schermo con gaze-follow (face detection on-device) + LED Glyph se l'SDK supporta il 3a Pro. | Servo non disponibili. Guscio statico = zero guasti meccanici. |
 | ADR-004 | **Corpo-riunioni = Vexa self-hosted** (Apache 2.0, Docker, bot come partecipante da browser headless, trascrizione diarizzata via WebSocket, TTS per parlare in call). Fallback: Attendee (Django/Postgres/Redis). Faccia animata in call: fase successiva, canvas→`captureStream()` iniettato come webcam finta in Chromium headless. | Costruire il bot da zero è rifare Recall.ai. |
 | ADR-005 | **Lo stato è la creatura.** Tutto ciò che rende UGO "lui" vive in Postgres + bucket S3. Ogni modello (LLM, STT, TTS, embeddings) è sostituibile via env senza perdita d'identità. | Nessun lock-in su un provider. |
 | ADR-006 | **STT/TTS di casa on-device** (Android SpeechRecognizer + TTS di sistema, offline dove disponibile). Trascrizione d'archivio: batch notturno con faster-whisper su CPU + diarizzazione. | Latenza e costo zero per l'interazione quotidiana. |
-| ADR-007 | **Local-first, zero esposizione pubblica** (superata in parte da ADR-127: soul può stare sul web, dietro token obbligatorio; i servizi interni restano privati). Tutti i servizi su rete Docker privata; accesso umano via Tailscale/WireGuard. Nessuna porta DB/MQTT/Ollama pubblicata sull'host. | Nel sistema transitano conversazioni di clienti. |
+| ADR-007 | **Local-first, zero esposizione pubblica** (superata in parte da ADR-127: soul può stare sul web, dietro token obbligatorio; i servizi interni restano privati). Tutti i servizi su rete Docker privata; accesso umano via Tailscale/WireGuard. Nessuna porta DB/MQTT pubblicata sull'host. | Nel sistema transitano conversazioni di clienti. |
 | ADR-008 | **MQTT (Mosquitto) per il firmware.** Il Nano 33 IoT parla solo MQTT autenticato sulla LAN. | Più robusto di HTTP polling per un microcontrollore. |
 | ADR-009 | **Monorepo pnpm + Turborepo + TypeScript strict**, convenzioni allineate a Trisite. Schema DB con Drizzle; validazione runtime ai confini con Zod. | Coerenza con il resto dell'ecosistema ThinkPink. |
 | ADR-010 | **Giurisdizione: Italia/UE** (GDPR + postura NIS2). Le riunioni possono includere contatti in Uganda (Data Protection and Privacy Act 2019: minimizzazione e consenso valgono comunque). Registrare solo conversazioni a cui il proprietario partecipa; nelle call con clienti il bot è visibile e viene annunciato. | Pre-risposta alla domanda bloccante di geolocalizzazione legislativa del framework ThinkPink: non riproporla. |
@@ -59,8 +59,8 @@ Queste decisioni sono state prese consapevolmente e **non vanno rimesse in discu
                         ┌──────────────────────── SERVER (Coolify) ────────────────────────┐
                         │                                                                   │
   ┌─────────────┐  WS   │  ┌────────────┐   ┌───────────────┐   ┌──────────────────────┐   │
-  │ CASA        │◄──────┼─►│  soul-api  │◄─►│ Postgres 16   │   │ Ollama (CPU)         │   │
-  │ Nothing 3a  │       │  │  Fastify   │   │ + pgvector    │   │ embeddings + MoE      │   │
+  │ CASA        │◄──────┼─►│  soul-api  │◄─►│ Postgres 16   │   │ percezione (CPU)     │   │
+  │ Nothing 3a  │       │  │  Fastify   │   │ + pgvector    │   │ volto/voce, OCR       │   │
   │ (face app)  │       │  └─────┬──────┘   └───────────────┘   └──────────────────────┘   │
   └─────────────┘       │        │ MQTT            ▲                        ▲               │
                         │  ┌─────▼──────┐          │ notte                  │               │
@@ -83,7 +83,7 @@ Queste decisioni sono state prese consapevolmente e **non vanno rimesse in discu
                           └──────────────────┘
 ```
 
-Cervello linguistico real-time: **Claude API** (fuori dal server, unico servizio cloud; vedi §6 per budget guard).
+Tutti i modelli (chat, sogno, embedding, visione, dettatura, voce) sono serviti da **OpenRouter**, fuori dal server: è l'unico fornitore di modelli (ADR-125/131; vedi §6 per budget guard). Il box «percezione» tiene solo ciò che la biometria vuole in casa (ADR-016): riconoscimento di volto e voce, OCR, Piper. Nel diagramma il job notturno usa OpenRouter per la riflessione e faster-whisper su CPU per la trascrizione d'archivio.
 
 ---
 
@@ -116,7 +116,7 @@ Fuori casa non c'è un registratore in tasca: c'è **UGO stesso, indossato a vis
 - Deploy dello stack Vexa dal repo ufficiale (`Vexa-ai/vexa`) come risorsa docker-compose su Coolify, rete privata.
 - soul-api espone `POST /v1/meetings/join {url, title}` → chiama l'API Vexa per lanciare il bot (display name: `UGO 🐾 appunti di <nome>`).
 - Ingestione live: consumer WebSocket Vexa → `transcript_segments` (+ embeddings) in streaming.
-- **Trigger vocale**: se un segmento contiene il nome del bot + una domanda, soul recupera memoria (§5.4), genera risposta breve (Haiku) e la fa pronunciare via TTS Vexa nella call. Rate-limit: max 1 intervento/2 min, mai interrompere chi parla da <3 s.
+- **Trigger vocale**: se un segmento contiene il nome del bot + una domanda, soul recupera memoria (§5.4), genera risposta breve (modello di chat, §5.5) e la fa pronunciare via TTS Vexa nella call. Rate-limit: max 1 intervento/2 min, mai interrompere chi parla da <3 s.
 - Post-riunione: digest, action items, memorie consolidate, aggiornamento `people`.
 - **Faccia animata in call** (`apps/meet-face`, fase successiva): pagina canvas della faccia + Chromium headless con `getUserMedia` patchato su `canvas.captureStream()`; espressioni pilotate dagli eventi transcript (nome→orecchie su; action item→annuisce). Non nel percorso critico.
 
@@ -158,14 +158,14 @@ Due gusci, stessa creatura, stesso script parametrico con due profili in `params
 | `soul-api` | Dockerfile multi-stage del repo (Node 22, utente non-root) | Fastify + TS, REST+WS. Healthcheck `/health`. |
 | `postgres` | `pgvector/pgvector:pg16` | Rete privata, nessuna porta host. Volume dedicato. |
 | `mosquitto` | `eclipse-mosquitto:2` | Auth password + ACL. Porta 1883 solo su LAN/VLAN IoT. |
-| `ollama` | `ollama/ollama` (CPU) | Modelli: `nomic-embed-text` (768d) + MoE batch. Limite RAM via Coolify. |
+| `percezione` | Dockerfile Python del repo (`ops/docker/percezione.Dockerfile`) | Riconoscimento volto/voce (biometria in casa, ADR-016), OCR, Piper. Sostituisce `ollama`, rimosso da ADR-131. |
 | `jobs` | Dockerfile Python del repo | faster-whisper, whisperX/pyannote, cron notturno. |
 | `vexa` | compose ufficiale Vexa | Fase 5. |
 | `minio` | solo se il bucket S3 esistente non è utilizzabile | Policy private, presigned URL. |
 
 ### 5.2 Modello dati (Drizzle, Postgres + pgvector)
 
-Chiavi: UUIDv4. Embeddings: `vector(768)` (nomic-embed-text). Indici ivfflat/hnsw sulle colonne vector.
+Chiavi: UUIDv4. Embeddings: `vector(768)` (`openai/text-embedding-3-small` a 768 dimensioni via OpenRouter, ADR-131). Indici ivfflat/hnsw sulle colonne vector.
 
 | Tabella | Colonne chiave |
 |---|---|
@@ -210,21 +210,21 @@ Transizioni corpo-casa: `lights_off && ora>22` → `sleeping`; volto rilevato da
 
 ### 5.5 Assemblaggio prompt e disciplina di caching
 
-Ordine fisso dei blocchi (i primi due marcati `cache_control` — la parte cached DEVE precedere ogni contenuto dinamico):
+Ordine fisso dei blocchi. Con OpenRouter la cache è **a prefisso automatico** (nessun `cache_control` nel codice): i primi due blocchi devono restare identici byte per byte e precedere ogni contenuto dinamico, perché un dato variabile interpolato lì azzera la cache senza dare errore (CLAUDE.md, regola 2):
 
-1. `[CACHED]` Identità e personalità di UGO (file versionato `packages/prompts/identity.it.md`: spirito da gosinata — idee folli che funzionano — autoironia da porcetto, grugniti occasionali, mai servile, risposte brevi in casa).
-2. `[CACHED]` Regole di formato e limiti (max 2 frasi in casa, max 3 in call; niente markdown a voce).
+1. `[PREFISSO STABILE]` Identità e personalità di UGO (file versionato `packages/prompts/identity.it.md`: spirito da gosinata — idee folli che funzionano — autoironia da porcetto, grugniti occasionali, mai servile, risposte brevi in casa).
+2. `[PREFISSO STABILE]` Regole di formato e limiti (max 2 frasi in casa, max 3 in call; niente markdown a voce).
 3. Stato psiche (label + frase) + estratto ultimo diario.
 4. Memorie recuperate (top-k, con data).
 5. Ultimi N turni del canale.
 6. Messaggio utente.
 
-Modello: `claude-haiku-4-5`, `max_tokens` 200 (casa) / 300 (call). Ogni chiamata registra token e costo in `budget_ledger`.
+Modello: `deepseek/deepseek-v4-flash` via OpenRouter (`OPENROUTER_CHAT_MODEL`, ADR-125), `max_tokens` per canale in `packages/memory/src/chatRequest.ts`: 200 casa e api, 300 riunioni, 400 ticket, 120 telefono. Ogni chiamata registra token e costo in `budget_ledger`.
 
 ### 5.6 Il lavoro notturno ("sogno", `ops/jobs`, cron 02:30 Europe/Rome)
 
 1. **Ingest audio**: scarica `ugo-audio/inbox/*` dal bucket → faster-whisper CPU (int8, `large-v3` o distil-large; lingua auto it/en) → whisperX align + pyannote per diarizzazione (richiede `HF_TOKEN`) → match speaker↔`people` via embedding voce/contesto → segmenti in DB → file in `archive/`.
-2. **Riflessione**: il modello batch (Ollama MoE; fallback API batch) rilegge eventi+messaggi+segmenti del giorno → estrae memorie candidate con `importance`, aggiorna `people.notes`, scrive `diary_entries`, genera 1–3 `desires` ("domani chiedigli com'è andata la consegna DHL").
+2. **Riflessione**: il modello del sogno (`OPENROUTER_CHAT_MODEL`, ADR-131: non c'è più Ollama) rilegge eventi+messaggi+segmenti del giorno → estrae memorie candidate con `importance`, aggiorna `people.notes`, scrive `diary_entries`, genera 1–3 `desires` ("domani chiedigli com'è andata la consegna DHL").
 3. **Igiene**: decadimento importanza dei ricordi mai riletti, dedup semantico (similarità >0.95 → merge), aggiornamento lieve delle baseline psiche (settimana pesante → baseline umore −0.02).
 4. **Backup**: `pg_dump` cifrato → bucket `ugo-backup/` (retention 30 giorni); lifecycle audio (§7). Report del sogno in log strutturato.
 
@@ -242,7 +242,7 @@ Il job è idempotente e ripartibile: ogni step marca il proprio stato; un crash 
 | `GET /psyche` | vars + label correnti |
 | `POST /meetings/join` | `{url, title?}` → lancia bot Vexa |
 | `POST /jobs/dream` | trigger manuale del sogno (auth interna) |
-| `GET /health` | liveness+readiness (DB, MQTT, Ollama) |
+| `GET /health` | liveness+readiness (DB, MQTT; OpenRouter non si sonda, ADR-131) |
 
 **WS `/v1/face`** — server→face: `{type:"mood"|"speak"|"state"|"glyph", ...}`; face→server: `{type:"heard_text"|"face_seen"|"light"|"noise"|"tap"|"shake", ...}`.
 
@@ -252,15 +252,15 @@ Il job è idempotente e ripartibile: ogni step marca il proprio stato; un crash 
 
 ## 6. Costi e budget guard
 
-- Tariffe di riferimento (verificare a runtime sul listino ufficiale): Haiku 4.5 ≈ $1/$5 per MTok; cache hit ≈ 10% dell'input; batch −50%.
-- Uso atteso: casa ~50 scambi/giorno con blocco cached ⇒ **~1–3 €/mese**. Trascrizioni: 0 € (CPU locale). Sogno: 0 € se su Ollama.
+- Tariffe: quelle del listino OpenRouter per il modello in uso, lette a runtime (`packages/memory/src/pricing.ts`); la cache di prefisso riduce l'input ripetuto.
+- Uso atteso: la stima originale (~1–3 €/mese con Haiku) **non vale più** col modello attuale e va rimisurata dal `budget_ledger`. Trascrizioni d'archivio: 0 € (faster-whisper su CPU). **Sogno, embedding, visione e dettatura costano** (ADR-131): embedding e dettatura si segnano sul ledger ma non fermano il tetto giornaliero.
 - **Guard obbligatoria**: `UGO_DAILY_BUDGET_USD` (default 0.50). Superata la soglia: degradazione dichiarata (risposte template + "oggi ho finito le parole, torno domani") e alert nei log. Il conteggio vive in `budget_ledger` — il **salvadanaio**: un porcetto che sorveglia il proprio salvadanaio è di una coerenza impeccabile — mai stimato client-side.
 
 ## 7. Sicurezza, privacy, conformità (postura GDPR/NIS2 — vedi ADR-010)
 
 Si applicano integralmente le direttive `.claudeskills/SECURITY_COMPLIANCE.md`. Specifiche di progetto:
 
-- **Rete**: nessun servizio esposto pubblicamente; accesso umano via Tailscale/WireGuard; DB/MQTT/Ollama solo su reti Docker private; container non-root, FS read-only dove possibile.
+- **Rete**: nessun servizio esposto pubblicamente; accesso umano via Tailscale/WireGuard; DB/MQTT solo su reti Docker private; container non-root, FS read-only dove possibile.
 - **Segreti**: solo variabili Coolify; `.env.example` autodocumentato; fail-fast all'avvio se manca una variabile critica.
 - **Dati sensibili**: testo di `transcript_segments` e `messages` cifrato a livello applicativo (AES-256-GCM, chiave `UGO_DATA_KEY` separata dal DB); audio nel bucket con SSE e policy private; niente PII nei log (gli audit log referenziano ID, mai contenuti).
 - **Minimizzazione & retention**: audio grezzo eliminato dopo `UGO_AUDIO_RETENTION_DAYS` (default 90); trascrizioni conservate; comando CLI `ugo forget --person <id>` per l'oblio (anonimizzazione irreversibile).
@@ -294,24 +294,31 @@ ugo/
 ├── apps/
 │   ├── soul/                  # Fastify API + WS
 │   ├── face/                  # webapp kiosk + modalità portable (Nothing 3a Pro)
-│   └── meet-face/             # (post-v1) faccia animata per call
+│   ├── face-android/          # guscio Capacitor (ADR-018, Tempo 2)
+│   ├── face-ios/              # guscio iOS (ADR-130)
+│   ├── reception/             # suite pubblica per i clienti, Next.js (ADR-051…055)
+│   ├── registry/              # registro con Postgres proprio
+│   ├── dictation-mac/         # UGO Dettatura, Tauri/Rust, fuori dal workspace pnpm (ADR-129)
+│   └── meet-face/             # (post-v1, non esiste ancora) faccia animata per call
 ├── packages/
 │   ├── db/                    # Drizzle schema + migrazioni + client
 │   ├── psyche/                # motore omeostasi (puro, unit-testabile)
 │   ├── memory/                # embeddings client, retrieval, consolidamento
 │   ├── prompts/               # identity + template, versionati
+│   ├── face-body/             # il corpo del muso condiviso
 │   └── shared/                # tipi Zod, eventi, costanti topic/canali
-├── firmware/nano33/           # PlatformIO
-├── hardware/shell/            # build123d → STL/STEP
+├── firmware/nano33/           # PlatformIO (non ancora nel repo: accantonato)
+├── hardware/shell/            # build123d → STL/STEP (Fase 6, non ancora nel repo)
 ├── ops/
 │   ├── docker/                # Dockerfiles, compose dev e produzione
-│   └── jobs/                  # Python: whisper, diarizzazione, sogno
+│   ├── jobs/                  # Python: whisper, diarizzazione, sogno
+│   └── voice/                 # servizio voce (app.py)
 └── tests/factories/           # factory dati (Faker), zero hardcoding
 ```
 
 ## 10. Variabili d'ambiente (`.env.example` completo in Fase 0)
 
-`DATABASE_URL` · `MQTT_URL` · `MQTT_USER/PASS` · `OLLAMA_URL` · `OLLAMA_EMBED_MODEL=nomic-embed-text` · `OLLAMA_BATCH_MODEL` · `OPENROUTER_API_KEY` · `OPENROUTER_CHAT_MODEL=deepseek/deepseek-v4-flash` (ADR-125) · `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY` (AES-256-GCM) · `S3_ENDPOINT/ACCESS_KEY/SECRET_KEY` · `S3_BUCKET_AUDIO/S3_BUCKET_BACKUP` · `UGO_AUDIO_RETENTION_DAYS=90` · `HF_TOKEN` (pyannote) · `VEXA_API_URL/KEY` (Fase 5) · `TZ=Europe/Rome`
+`DATABASE_URL` · `MQTT_URL` · `MQTT_USER/PASS` · `OPENROUTER_API_KEY` · `OPENROUTER_CHAT_MODEL=deepseek/deepseek-v4-flash` (ADR-125) · `OPENROUTER_EMBED_MODEL=openai/text-embedding-3-small` · `OPENROUTER_VISION_MODEL` · `OPENROUTER_STT_MODEL` · `OPENROUTER_TTS_MODEL` (ADR-131; le `OLLAMA_*` non esistono più e, se presenti, vengono ignorate) · `UGO_INTERNAL_TOKEN` (obbligatorio in produzione) · `UGO_DAILY_BUDGET_USD=0.50` · `UGO_DATA_KEY` (AES-256-GCM) · `S3_ENDPOINT/ACCESS_KEY/SECRET_KEY` · `S3_BUCKET_AUDIO/S3_BUCKET_BACKUP` · `UGO_AUDIO_RETENTION_DAYS=90` · `HF_TOKEN` (pyannote) · `VEXA_API_URL/KEY` (Fase 5) · `TZ=Europe/Rome`
 
 ## 11. Rischi noti e mitigazioni
 
@@ -329,4 +336,4 @@ ugo/
 ## Prossimi Passi
 
 - Leggi `CLAUDE.md` (hub operativo e regole non negoziabili).
-- Usa i prompt in `PROMPTS_CLAUDE_CODE.md` per avviare la Fase 0 e generare `docs/OPS_COOLIFY.md`.
+- Leggi `docs/STATE.md` (avanzamento) e `docs/BACKLOG.md` (lavoro deciso e non ancora fatto). Il runbook di deploy è `docs/OPS_COOLIFY.md`.

@@ -20,10 +20,14 @@
 
 ## Comandi rapidi
 
+Prerequisiti: Node `>=22 <23` (`.nvmrc`), pnpm 10, Docker. Prima del primo avvio dello stack:
+`cp .env.example .env` (servono almeno `OPENROUTER_API_KEY` e `UGO_DATA_KEY`) e
+`ops/docker/mosquitto/generate-passwd.sh`.
+
 ```bash
 pnpm install
 pnpm turbo build lint test              # validazione formale completa
-pnpm turbo test:integration             # test reali su Postgres effimero (Testcontainers)
+pnpm turbo test:integration             # test reali: Postgres effimero (Testcontainers) + OpenRouter vero (serve OPENROUTER_API_KEY)
 pnpm db:generate && pnpm db:migrate     # migrazioni Drizzle
 docker compose -f ops/docker/compose.dev.yml up -d --build
 curl http://127.0.0.1:3000/health       # liveness + readiness di soul-api
@@ -31,7 +35,7 @@ curl http://127.0.0.1:3000/health       # liveness + readiness di soul-api
 
 ## Nota sul dev loop
 
-Per scelta di sicurezza (CLAUDE.md, regola 4) **nessuna porta di Postgres/MQTT/Ollama è pubblicata
+Per scelta di sicurezza (CLAUDE.md, regola 4) **nessuna porta di Postgres/MQTT è pubblicata
 sull'host**, in nessun compose. Il ciclo di sviluppo con datastore reali passa quindi da:
 
 1. `docker compose -f ops/docker/compose.dev.yml up -d --build` — l'intero stack, `soul` compreso,
@@ -82,8 +86,8 @@ SOUL_URL=http://127.0.0.1:3000 UGO_RECEPTION_TOKEN=<lo stesso del .env> pnpm --f
 ```
 
 **3. Il giro automatico, senza preparare niente.** Gli E2E si portano dietro backend, cliente,
-gosino e token — Postgres e Ollama veri via Testcontainers, soul avviato dal suo entrypoint di
-produzione:
+gosino e token — Postgres vero via Testcontainers, soul avviato dal suo entrypoint di produzione
+(i modelli sono quelli veri di OpenRouter, ADR-131: serve `OPENROUTER_API_KEY`):
 
 ```bash
 pnpm turbo build && pnpm --filter reception test:e2e
@@ -98,4 +102,7 @@ variabili di quel container).
 
 ## Stato
 
-Vedi [`docs/STATE.md`](docs/STATE.md). Fase corrente: **0 — Fondamenta**.
+Vedi [`docs/STATE.md`](docs/STATE.md), la fonte dell'avanzamento. In sintesi: le Fasi 0–5 sono
+completate lato software (restano le validazioni su dispositivo e il deploy di Vexa), la Fase 6
+(gusci, `hardware/`) non è iniziata e il firmware (`firmware/`) è accantonato per decisione del
+proprietario. Il lavoro deciso e non ancora fatto è in [`docs/BACKLOG.md`](docs/BACKLOG.md).

@@ -1,0 +1,4 @@
+
+# i lanciatori della casa locale: un fine riga CRLF rompe `sh` su Linux e macOS
+ops/home/*.sh text eol=lf
+ops/home/*.command text eol=lf

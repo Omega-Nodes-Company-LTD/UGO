@@ -50,10 +50,15 @@ const scoped = (path) => {
 };
 
 async function call(path, options) {
+  // { raw: true } is for a file: the body comes back as a Blob, with the
+  // headers (the recovery code of an archive travels in one). Errors still
+  // come back as JSON problems, so they are read the usual way below.
+  const raw = options?.raw === true;
   const res = await fetch(scoped(path), {
     ...options,
     headers: headers(options?.body !== undefined, options?.contentType),
   });
+  if (raw && res.ok) return { blob: await res.blob(), headers: res.headers };
   let body = null;
   try { body = await res.json(); } catch { /* empty body is fine */ }
   if (!res.ok) {

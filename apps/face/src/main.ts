@@ -262,6 +262,14 @@ mountMyData(
     forget: requireElement("#mydata-forget"),
     exportAll: requireElement("#mydata-export"),
     message: requireElement("#mydata-msg"),
+    soul: {
+      box: requireElement("#mydata-soul"),
+      who: requireElement("#mydata-soul-who") as HTMLSelectElement,
+      confirm: requireElement("#mydata-soul-confirm") as HTMLInputElement,
+      button: requireElement("#mydata-soul-export"),
+      codeBox: requireElement("#mydata-soul-codebox"),
+      code: requireElement("#mydata-soul-code"),
+    },
   },
   { soulHttp, kioskToken: params.get("token") ?? undefined },
 );

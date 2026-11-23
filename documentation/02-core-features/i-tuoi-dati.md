@@ -1,8 +1,8 @@
 ---
 title: "I tuoi dati"
 description: "Dove vivono i dati di UGO, come portarli via in un file solo e come far dimenticare una persona per sempre."
-version: "0.12.0"
-last_updated: "2026-08-12"
+version: "0.88.0"
+last_updated: "2026-11-23"
 author: "ThinkPink Studio"
 ---
 
@@ -115,6 +115,29 @@ chiaro non può dipendere da chi ci passa davanti. Appena chiudi la scheda, quel
 scritto sparisce.
 
 Conservalo come conserveresti un backup del telefono: dentro c'è tutto.
+
+### Portare a casa l'anima di una creatura
+
+Un'altra cosa, e non va confusa con l'esportazione qui sopra: un archivio **cifrato** di *una*
+creatura — i ricordi, il diario, il carattere, il branco — pensato per farla vivere su un
+computer tuo, senza un canone a UGO.
+
+**Spenta di default.** Se chi amministra il server l'ha accesa (`UGO_SOUL_EXPORT=on`), compare nel pannello
+(**I dati → Porta la tua anima a casa**) e nel muso (🔒 i tuoi dati → *Porta l'anima a casa*). Per rimetterla in piedi
+su un computer tuo: [UGO a casa tua](../01-getting-started/a-casa-tua.md).
+
+Cosa devi sapere prima:
+
+- **Si scrive il nome della creatura** per confermare, e serve il token dell'account.
+- **Il codice di recupero compare una volta sola**, sullo schermo, dopo il download. Scrivilo su carta:
+  non lo teniamo noi e non si recupera. Senza, l'archivio è rumore.
+- **Quanti**: tre all'ora per casa, uno alla volta.
+- **Trasloco o copia**: il trasloco sposta la creatura (quella qui si congeda a cose fatte); la copia
+  la lascia anche qui, e le due vite divergeranno. Dal muso c'è solo il trasloco.
+- **Cosa non c'è**: impronte di volti e voci, chiavi d'accesso, i conti con questa installazione, i
+  file di foto e audio, e i clienti della reception. Ogni esclusione, col suo perché e il suo numero, è
+  scritta nel file stesso.
+- **Una creatura congedata non si porta via**: la sua interiorità non si può più leggere, per costruzione.
 
 ## I tuoi agenti possono chiedergli le cose
 

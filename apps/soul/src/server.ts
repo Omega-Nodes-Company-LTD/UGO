@@ -17,6 +17,7 @@ import { registerJournalRoutes } from "./routes/journal.js";
 import { registerKeysRoutes } from "./routes/keys.js";
 import { registerPackRoutes } from "./routes/pack/index.js";
 import { registerDataSummaryRoute, registerPrivacyRoutes } from "./routes/privacy.js";
+import { registerSoulExportRoutes, type SoulExportRun } from "./routes/soulExport.js";
 import { registerStatsRoute } from "./routes/stats.js";
 import { registerDebugChatRoute } from "./routes/debugChat.js";
 import { registerFaceStatic } from "./routes/faceStatic.js";
@@ -159,6 +160,8 @@ export interface ServerOptions extends HealthDeps {
       forget: (db: DbClient) => ForgetService;
       exporter: (db: DbClient) => ExportService;
     };
+    /** ADR-132: l'anima in un archivio .ugosoul. Assente = le rotte non esistono. */
+    soulExport?: SoulExportRun;
     stats?: { dailyBudgetUsd: number; timezone: string };
     /** the pack surface (ADR-014); the Umwelt map comes from configuration */
     speciesMap?: SpeciesMap;
@@ -346,6 +349,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       photos,
       meetings,
       privacy,
+      soulExport,
       stats,
       speciesMap,
       council,
@@ -459,6 +463,9 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     }
     if (privacy !== undefined) {
       registerPrivacyRoutes(app, { db: options.db, ...privacy, guard, audit });
+    }
+    if (soulExport !== undefined) {
+      registerSoulExportRoutes(app, { db: options.db, run: soulExport, guard, audit });
     }
     // ADR-090: e i conti sempre, anche senza i due servizi — dire cosa si
     // tiene è il gradino prima di ogni diritto

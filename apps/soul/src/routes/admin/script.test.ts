@@ -147,6 +147,28 @@ describe("the assembled panel script", () => {
    * scatto lo chiede una persona al corpo; un bottone «scatta» qui sarebbe
    * la casa che fotografa una stanza in cui nessuno ha chiesto niente.
    */
+  /**
+   * ADR-132, MKT-10.4. Portare via un'anima è un'azione su UNA creatura:
+   * «va il default» sarebbe l'errore di STATE §6-quadragies, quindi la
+   * tendina nasce vuota, il gesto la pretende, e il nome si scrive. E il
+   * download passa da `call()` come tutto il resto: una `fetch` diretta
+   * perderebbe `scoped()`, cioè la casa.
+   */
+  it("«porta la tua anima a casa» chiede quale creatura, il nome, e passa da call()", () => {
+    const handler = /\$\("soul-export"\)\.addEventListener[\s\S]*?\n\}\);/.exec(ADMIN_SCRIPT)?.[0] ?? "";
+    expect(handler, "il gesto dell'export dell'anima è sparito").not.toBe("");
+    expect(handler).toContain('$("soul-who").value');
+    expect(handler).toMatch(/gosinoId === ""/u);
+    expect(handler).toContain("confirmName");
+    expect(handler).toContain('call("/v1/privacy/soul-export"');
+    expect(ADMIN_SCRIPT).not.toMatch(/fetch\([^)]*soul-export/u);
+    // spenta (404), il blocco non compare: un bottone per ciò che non c'è è peggio di niente
+    expect(ADMIN_SCRIPT).toMatch(/error\.status === 404\) \{ box\.hidden = true/u);
+    expect(ADMIN_PAGE).toMatch(/id="soul-box"[^>]*hidden/u);
+    // il codice di recupero non resta nella pagina oltre il bisogno e non viaggia in un attributo
+    expect(ADMIN_PAGE).not.toMatch(/data-code=/u);
+  });
+
   it("il pannello non ha un modo per far scattare una foto", () => {
     expect(ADMIN_SCRIPT).not.toMatch(/\/v1\/album\/[^"']*sca?tta/u);
     expect(ADMIN_PAGE).not.toMatch(/id="album-shoot"/u);
