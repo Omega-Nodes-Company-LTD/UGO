@@ -1,8 +1,8 @@
 ---
 title: "Quando comincia lui"
 description: "UGO non aspetta sempre che sia tu a parlare: si fa vivo, ti chiama e ogni tanto ti fa una domanda sua. Come funziona e come si spegne."
-version: "0.13.0"
-last_updated: "2026-08-11"
+version: "0.88.0"
+last_updated: "2026-11-23"
 author: "ThinkPink Studio"
 ---
 
@@ -39,8 +39,8 @@ Glyph, che si vedono dall'altra parte della stanza.
 ## Le domande che si inventa
 
 Ogni tanto UGO si fa venire una domanda partendo da quello che sa di te. Non è
-una frase preconfezionata: se la costruisce sul momento, **sul server di casa**,
-con il modello che gira lì — non esce niente su Internet e non ti costa nulla.
+una frase preconfezionata: se la costruisce sul momento con il modello di OpenRouter:
+**quello che sa di te, per costruirla, esce di casa** verso OpenRouter, e costa qualcosa (poco) sul tuo conto.
 
 Una domanda che si è fatto venire non si perde: se la segna e te la fa quando è il
 momento giusto. E quando te l'ha fatta, è chiusa — non te la rifarà una seconda

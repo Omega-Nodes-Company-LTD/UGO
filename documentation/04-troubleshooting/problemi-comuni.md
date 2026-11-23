@@ -1,8 +1,8 @@
 ---
 title: "Problemi comuni"
 description: "UGO non risponde, non ricorda, non sente o non si sveglia: cosa controllare, nell'ordine giusto."
-version: "0.45.0"
-last_updated: "2026-11-10"
+version: "0.88.0"
+last_updated: "2026-11-23"
 author: "ThinkPink Studio"
 ---
 
@@ -287,22 +287,15 @@ che il server ha troppo da fare.
 
 ### Chi compone le parole, e perché conta per l'attesa
 
-Le frasi di UGO le compone un modello, e l'ordine è questo:
+Le frasi di UGO le compone **OpenRouter**, fuori casa (ADR-125, ADR-131): non esiste più un modello sul
+tuo server. Risponde di solito in un secondo o due, con un modello scelto da noi e solo su fornitori
+che non conservano i dati di casa.
 
-1. **OpenRouter**, fuori casa. Risponde di solito in un secondo o due, con un modello scelto da
-   noi e solo su fornitori che non conservano i dati di casa.
-2. **La voce di casa**, sul tuo server, **solo se l'hai accesa** e solo quando OpenRouter non
-   risponde. Di serie è spenta: senza una scheda video dedicata ci mette decine di secondi per
-   frase, e un'attesa così non è una conversazione.
+Se l'attesa è lunga in modo nuovo, controlla:
 
-Se l'attesa è lunga in modo nuovo, controlla due cose in quest'ordine.
-
-1. Guarda se la voce di casa è accesa (`UGO_CHAT_HOME_VOICE=on` fra le variabili del server) su
-   una macchina **senza GPU**. È la causa più frequente, e si spegne mettendola a `off`: dalla
-   risposta dopo, l'attesa torna di qualche secondo.
-2. Guarda se la chiave di OpenRouter (`OPENROUTER_API_KEY`) è valida e ha credito. Da ADR-125 è
-   l'unico fornitore: senza chiave il server non parte, con una chiave senza credito ogni risposta
-   fallisce (e, se è accesa, risponde la voce di casa al suo posto).
+1. Che la chiave di OpenRouter (`OPENROUTER_API_KEY`) sia valida e abbia credito. Senza chiave il
+   server non parte; con una chiave senza credito ogni risposta fallisce.
+2. Che la rete di casa raggiunga OpenRouter: la diagnostica dice dove se ne va il tempo.
 
 **Un minuto di attesa non è normale e non lo è mai stato.** Se lo vedi ancora dopo questi due
 controlli, il tempo se ne va in uno dei posti del paragrafo qui sopra, e la diagnostica dice in
@@ -337,3 +330,32 @@ arriva: ci va quando ha finito.
 Se lo vedi ancora di schiena **mentre parla**, il dispositivo sta mostrando un muso vecchio:
 controlla in `/admin`, nella barra a sinistra in basso, che il numero del **muso** sia quello
 scritto in basso a destra sul chiosco. Se non lo è, ricarica la pagina del chiosco.
+
+## A casa tua non parte o non installa
+
+Vale per il kit di [UGO a casa tua](../01-getting-started/a-casa-tua.md). Ogni messaggio qui sotto è
+quello che vedi davvero.
+
+| Cosa vedi | Cosa significa | Cosa fare |
+| --- | --- | --- |
+| *manca Docker* | Docker non è installato | Installa Docker Desktop (o Docker su Linux) e rilancia il kit |
+| *Docker è installato ma non è acceso* | Il programma c'è ma non è partito | Apri Docker Desktop, aspetta che dica che è pronto, rilancia |
+| *soul non ha risposto in tre minuti* | UGO non si è avviato | Guarda i messaggi: `docker compose logs soul` dalla cartella del kit |
+| *la costruzione non è riuscita* | La prima costruzione si è fermata, di solito per la rete | Riprova con una connessione stabile: riparte da dove era |
+| Pagina: *gettone di setup mancante o errato* | Hai aperto `/setup` senza il codice nell'indirizzo | Riapri il link che il kit ha scritto, quello con `#t=…` |
+| Pagina: *host non ammesso* | Hai usato un indirizzo diverso da `localhost` | Apri `http://localhost:3000/setup` da questo computer |
+| *troppi tentativi falliti* | Dieci frasi o codici sbagliati di fila | Riavvia UGO (`./ugo.sh stop`, poi il kit) e riprova con la frase giusta |
+| *il file è più grande di quanto UGO accetti* | Oltre il tetto di 8 GB | Esporta una creatura sola |
+| *questo archivio usa un formato che questa versione non conosce* | Il file viene da una versione più nuova | Aggiorna il kit (`./ugo.sh update`) e riprova |
+| *OpenRouter non accetta questa chiave* | Chiave sbagliata o revocata | Ricopiala da OpenRouter, senza spazi, e riprova |
+| *il conto OpenRouter non ha credito* | Credito esaurito | Ricarica su OpenRouter e riprova |
+| *la chiave OpenRouter ha un carattere invisibile* | Incollando sono entrati caratteri nascosti | Riscrivila a mano |
+| *questa casa è già installata* | Il setup ha già fatto il suo | Apri UGO: `http://localhost:3000` |
+
+Due cose da sapere:
+
+- **Un errore in installazione non lascia niente a metà.** Se la pagina ti dà un errore, non è stato
+  scritto niente: correggi e riprova.
+- **Hai perso la frase di recupero?** Il file non si apre, per nessuno. Riesporta la creatura dalla
+  casa dove vive ancora, se c'è.
+

@@ -1,8 +1,8 @@
 ---
 title: "UGO — Manuale"
 description: "Cos'è UGO, come parlargli e cosa ricorda: la guida per chi lo usa, non per chi lo sviluppa."
-version: "0.44.0"
-last_updated: "2026-11-09"
+version: "0.88.0"
+last_updated: "2026-11-23"
 author: "ThinkPink Studio"
 ---
 
@@ -32,6 +32,7 @@ Vive in tre corpi, ma è sempre la stessa creatura:
 ## Prossimi Passi
 
 - [Primo avvio](./01-getting-started/primo-avvio.md) — accendere UGO e dirgli la prima cosa.
+- [UGO a casa tua](./01-getting-started/a-casa-tua.md) — porta una creatura su un computer tuo: il file, il kit, la tua chiave OpenRouter.
 - [Entrare da fuori casa](./01-getting-started/entrare-da-fuori-casa.md) — abbinare telefono, Mac o browser con un codice o col link via email.
 - [Installare UGO su iPhone e Mac](./01-getting-started/installare-su-iphone-e-mac.md) — l'app da TestFlight, e cosa serve.
 - [Il corpo di UGO](./02-core-features/il-corpo-di-ugo.md) — posture, gesti, la stanza in cui sta, gli arredi, la carezza e la mela.

@@ -1,8 +1,8 @@
 ---
 title: "Il confidente inviolabile"
 description: "Le tre promesse che rendono UGO un confidente e non un servizio: le chiavi sono tue, lo stato esce per intero, e il trasloco è sempre possibile."
-version: "0.78.0"
-last_updated: "2026-08-19"
+version: "0.88.0"
+last_updated: "2026-11-23"
 author: "ThinkPink Studio"
 ---
 
@@ -82,15 +82,32 @@ te e non solo sulla carta.
 Cosa serve, in tutto: il file di backup cifrato, la chiave, e un Postgres. Nient'altro, e
 nessuno da avvisare.
 
+### E se vuoi UGO su un computer di casa tua
+
+Per una creatura sola c'è anche una strada più corta, pensata per chi non amministra server:
+l'**anima in un file** (`.ugosoul`, cifrato con una frase di recupero che scrivi su carta) e
+un **computer tuo** con Docker. Lo spiega [UGO a casa tua](../01-getting-started/a-casa-tua.md).
+Qui valgono gli stessi confini, e due in più:
+
+- **Il file non porta la chiave dei dati**: sul nuovo computer ne nasce una nuova, e i testi
+  si ricifrano con quella. Se perdi la **frase di recupero**, il file è rumore — per tutti,
+  anche per noi.
+- **«Niente canone a UGO» non vuol dire «niente costi»**: paghi OpenRouter, con la **tua**
+  chiave, quello che usi. Senza chiave la creatura conserva la memoria ma non può rispondere.
+
 ## Cosa NON è promesso
 
 Le tre promesse sopra reggono perché questa sezione esiste.
 
-- **Non è promesso che UGO non parli mai con nessuno.** A rispondere, di norma, è la **voce di
-  casa** — il modello che gira sul tuo server, e in quel caso non esce niente. Quando quella non
-  ce la fa, subentra il modello grande, e allora il **testo della tua domanda** esce di casa per
-  il tempo della risposta. Il resto — memoria, biografia, carattere, registrazioni — non esce
-  **mai**, con nessuno dei due.
+- **Non è promesso che UGO non parli mai con nessuno — e questa riga prima diceva il
+  contrario.** Oggi UGO pensa, parla e cerca nei ricordi **solo tramite OpenRouter**: non c'è
+  più un modello che gira sul tuo server. Quindi, a ogni risposta, escono di casa verso
+  OpenRouter **il testo della conversazione e i ricordi pertinenti che UGO decide di mettere
+  nella domanda**; escono i testi che si trasformano in vettori per la ricerca nei ricordi; le
+  foto, se le fai guardare; la voce, se la fai parlare. Cosa **non** esce: il database intero,
+  le chiavi, le impronte di volti e voci, i file delle foto e degli audio che non hai chiesto
+  di far guardare o ascoltare. Il tetto giornaliero limita la spesa, non la quantità di ciò che
+  esce. Chi non vuole che *quel* testo esca, non lo scrive a UGO.
 - **Non è promesso che sia inviolabile per chi entra in casa tua.** Chi ha accesso fisico al
   tuo server, o al tuo pannello con un token valido, vede quello che vedi tu. L'inviolabilità
   è verso l'esterno, non verso chi ha già le chiavi.
