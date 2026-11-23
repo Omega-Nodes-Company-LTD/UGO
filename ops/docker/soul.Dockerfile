@@ -66,6 +66,8 @@ COPY --from=prune --chown=node:node /out .
 COPY --from=build --chown=node:node /repo/packages/db/drizzle ./node_modules/@ugo/db/drizzle
 COPY --from=build --chown=node:node /repo/apps/face/dist ./public
 ENV UGO_FACE_DIR=/app/public
+# la casa locale (ADR-132) tiene qui i suoi segreti; il volume eredita questo proprietario
+RUN mkdir /data && chown node:node /data
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

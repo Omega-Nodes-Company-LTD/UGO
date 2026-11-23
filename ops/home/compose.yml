@@ -1,0 +1,59 @@
+# UGO a casa tua (ADR-132, MKT-10.7): il kit per un computer di casa.
+# Due servizi, una porta: Postgres+pgvector (rete interna, nessuna porta sull'host)
+# e soul, raggiungibile SOLO da questo computer (127.0.0.1:3000). Regola 4.
+# Non si lancia a mano: lo fanno i lanciatori (Avvia UGO.bat / start.sh), che
+# generano `.env` con una password nata sul posto. Nessun segreto sta nel repo.
+
+name: ugo-home
+
+networks:
+  backend:
+    internal: true
+  edge: {}
+
+volumes:
+  postgres-data:
+    name: ugo-home-postgres
+  # chiave maestra, segreto interno e chiave OpenRouter dell'utente (file 0600)
+  ugo-home:
+    name: ugo-home-secrets
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    networks: [backend]
+    environment:
+      POSTGRES_DB: ugo
+      POSTGRES_USER: ugo
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?manca POSTGRES_PASSWORD - lancia start.sh o Avvia UGO.bat}"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ugo -d ugo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  soul:
+    image: ${UGO_SOUL_IMAGE:-ugo-soul:local}
+    # l'immagine la costruisce il lanciatore (`docker build`): `compose build` passa da Bake, che
+    # rifiuta di leggere fuori da questa cartella
+    restart: unless-stopped
+    # l'ingresso della casa locale: prima il /setup, poi il runtime di sempre
+    command: ["node", "dist/home/main.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend, edge]
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URL: postgres://ugo:${POSTGRES_PASSWORD}@postgres:5432/ugo
+      PORT: "3000"
+      UGO_HOME_DIR: /data
+      TZ: ${TZ:-Europe/Rome}
+    volumes:
+      - ugo-home:/data
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

@@ -1,0 +1,9 @@
+# il contesto è la radice del repo: senza questo, COPY porta nell immagine i node_modules e i dist
+# della macchina di chi costruisce (su Windows: giunzioni che coprono quelli del contenitore)
+**/node_modules
+**/dist
+.git
+.env
+.env.*
+ops/home/.env
+ops/home/backups
