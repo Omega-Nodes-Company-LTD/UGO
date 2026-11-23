@@ -11,6 +11,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
+    "start:home": "node dist/home/main.js",
     "ugo": "tsx src/cli.ts"
   },
   "dependencies": {
