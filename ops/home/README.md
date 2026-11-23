@@ -18,7 +18,8 @@ dopo, lo stesso gesto apre UGO.
 
 > **Niente canone a UGO non vuol dire niente costi.** Paghi a OpenRouter quello
 > che usi (il tetto giornaliero lo limita). Senza chiave la creatura conserva la
-> memoria ma non può rispondere.
+> memoria ma non può rispondere. Il tetto è un limite **di UGO** sul costo già registrato (l'ultima
+> risposta può superarlo): il tetto duro si imposta sulla chiave, dentro OpenRouter.
 
 ## Cosa sta dove
 

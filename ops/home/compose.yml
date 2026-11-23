@@ -47,6 +47,8 @@ services:
         condition: service_healthy
     networks: [backend, edge]
     ports:
+      # SICUREZZA: soul ascolta su 0.0.0.0 DENTRO il contenitore (serve a Docker); questo
+      # 127.0.0.1 è l'unico confine verso la rete di casa. Non toglierlo: un test lo verifica.
       - "127.0.0.1:3000:3000"
     environment:
       DATABASE_URL: postgres://ugo:${POSTGRES_PASSWORD}@postgres:5432/ugo

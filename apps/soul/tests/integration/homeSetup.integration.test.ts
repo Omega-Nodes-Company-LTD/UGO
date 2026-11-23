@@ -83,7 +83,8 @@ async function rig(options: { maxArchiveBytes?: number } = {}): Promise<Rig> {
   return { db, dir, secrets, service, guard, app, base: `http://127.0.0.1:${String((app.server.address() as AddressInfo).port)}` };
 }
 
-const auth = (r: Rig): Record<string, string> => ({ "x-setup-token": r.guard.token });
+// il browser dichiara sempre da dove viene: lo stesso fanno i test
+const auth = (r: Rig): Record<string, string> => ({ "x-setup-token": r.guard.token, "sec-fetch-site": "same-origin" });
 const json = (r: Rig): Record<string, string> => ({ ...auth(r), "content-type": "application/json" });
 const upload = (r: Rig, body: Buffer): Promise<Response> =>
   fetch(`${r.base}/setup/archive`, { method: "POST", headers: { ...auth(r), "content-type": "application/octet-stream" }, body: new Uint8Array(body) });
@@ -141,6 +142,26 @@ describe("la porta del setup", () => {
     expect(await status({ origin: "http://evil.example" })).toBe(403);
     expect(await status({ origin: "null" })).toBe(403);
     expect(await status({})).toBe(200);
+  });
+
+  it("una POST senza origine dichiarata si rifiuta anche col gettone giusto", async () => {
+    const r = await rig();
+    const post403 = (headers: Record<string, string>): Promise<number> =>
+      new Promise((resolve, reject) => {
+        const req = request(`${r.base}/setup/inspect`, { method: "POST", headers: { "content-type": "application/json", ...headers } }, (res) => {
+          res.resume();
+          resolve(res.statusCode ?? 0);
+        });
+        req.on("error", reject);
+        req.end("{}");
+      });
+    const token = { "x-setup-token": r.guard.token };
+    expect(await post403(token)).toBe(403); // né Origin né Sec-Fetch-Site
+    expect(await post403({ ...token, "sec-fetch-site": "cross-site" })).toBe(403);
+    expect(await post403({ ...token, "sec-fetch-site": "same-site" })).toBe(403);
+    expect(await post403({ ...token, origin: r.base })).not.toBe(403); // arriva al servizio (400: corpo vuoto)
+    expect(await post403({ "sec-fetch-site": "same-origin" })).toBe(401); // origine ok, gettone no
+    expect(await post403({ "sec-fetch-site": "same-origin", "x-setup-token": "sbagliato" })).toBe(401);
   });
 
   it("dopo troppi tentativi falliti non risponde più, nemmeno col gettone giusto", async () => {

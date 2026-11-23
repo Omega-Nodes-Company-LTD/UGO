@@ -135,8 +135,15 @@ export class LlmClient {
    * un vincolo che si può scavalcare correndo non è un vincolo. Resta di
    * processo, come l'istanza: due soul sullo stesso database si
    * ri-sovrapporrebbero, e allora il posto giusto sarebbe il database.
+   *
+   * La coda è **per casa e non per istanza**: `llmFor` costruisce un client
+   * nuovo a ogni chiamata, quindi una coda d'istanza non serializzava niente.
+   * Resta comunque un limite APPLICATIVO: il costo si conosce a risposta
+   * arrivata, quindi l'ultima chiamata può superare il tetto, e embedding e
+   * dettatura si segnano senza fermarsi (ADR-131). Il tetto duro vero è quello
+   * sulla chiave OpenRouter.
    */
-  private queue: Promise<unknown> = Promise.resolve();
+  private static readonly queues = new Map<string, Promise<unknown>>();
 
   public constructor(private readonly options: LlmClientOptions) {
     this.providers = options.providers ?? DEFAULT_PROVIDERS;
@@ -240,9 +247,10 @@ export class LlmClient {
    * segnare la spesa, comprese le chiamate finite male.
    */
   private enqueue(call: () => Promise<LlmChatResult>): Promise<LlmChatResult> {
-    const mine = this.queue.then(call, call);
+    const previous = LlmClient.queues.get(this.accountId) ?? Promise.resolve();
+    const mine = previous.then(call, call);
     // la coda non deve mai restare "rifiutata", o inghiottirebbe le successive
-    this.queue = mine.catch(() => undefined);
+    LlmClient.queues.set(this.accountId, mine.catch(() => undefined));
     return mine;
   }
 
