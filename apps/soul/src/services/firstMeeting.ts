@@ -39,7 +39,11 @@ export function firstMeetingLine(name: string): string {
  */
 const PROMISES: readonly RegExp[] = [
   /\bmi\s+ricorder[òo]/iu,
-  /\bnon\s+(?:lo\s+|la\s+|ti\s+)?dimentic/iu,
+  // «non ti dimenticherò», «non scorderò»: la creatura che promette. NON «non
+  // dimenticarti di riposare», che è un invito a chi ascolta (falso positivo
+  // visto al primo giro in CI, run 45886532132)
+  /\bnon\s+(?:ti\s+|lo\s+|la\s+|vi\s+|mi\s+)?(?:dimenticher|scorder)[òo]/iu,
+  /\bnon\s+(?:ti\s+|lo\s+|la\s+)?(?:dimentico|scordo)\b/iu,
   /\bme\s+(?:lo|la)\s+segno\b/iu,
   /\bdomani\s+ti\s+chieder/iu,
   /\bricorder[òo]\s+tutto/iu,

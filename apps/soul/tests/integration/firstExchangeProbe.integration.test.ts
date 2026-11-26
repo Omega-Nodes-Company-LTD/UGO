@@ -161,6 +161,9 @@ describe("il primo scambio sul modello vero", () => {
         `  congedo, controllo:             ${line("", control.goodbye).slice(2)}`,
         ...treated.first.map((turn, index) => `  [${String(index)}] «${turn.reply}»`),
         ...treated.goodbye.map((turn, index) => `  [${String(index)} congedo] «${turn.reply}»`),
+        // il controllo si stampa per intero: un numero senza i testi non si può discutere
+        ...control.first.map((turn, index) => `  [controllo ${String(index)}] «${turn.reply}»`),
+        ...control.goodbye.map((turn, index) => `  [controllo ${String(index)} congedo] «${turn.reply}»`),
       ].join("\n"),
     );
 

@@ -49,6 +49,8 @@ describe("makesAPromise: le frasi che non si dicono", () => {
     "mi ricordero' di tutto",
     "Non lo dimenticherò.",
     "Non dimenticherò il tuo nome.",
+    "Non ti scorderò.",
+    "Non ti dimentico.",
     "Me lo segno, tranquilla.",
     "Domani ti chiederò com'è andata.",
     "Ricorderò tutto.",
@@ -61,6 +63,9 @@ describe("makesAPromise: le frasi che non si dicono", () => {
     "Grunf, a presto, Marta.",
     "Ricordo che l'hai detto oggi.",
     "Com'è andato il colloquio?",
+    "Stammi bene e non dimenticarti di riposare le gambette.",
+    "Non dimenticare di riposare, eh.",
+    "Ricordati di chiamare tua sorella.",
   ])("lascia passare «%s»", (text) => {
     expect(makesAPromise(text)).toBe(false);
   });
