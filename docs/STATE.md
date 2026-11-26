@@ -3375,8 +3375,11 @@ conversazione. **Non è chiuso**: la spec è una bozza non approvata e le **sess
 - **Non fatto**: le 5 sessioni con persone esterne; l'emissione di un link di ingresso per chi riceve (il codice di
   abbinamento lo emette un amministratore già dentro); la verifica del percorso web del telefono e l'aggiornamento di
   `primo-avvio.md` (parla ancora di Tailscale, ADR-127 ha messo soul sul web); la spiegazione dei permessi; la spec della vetrina
-  per l'acquirente; le pagine legali; **la documentazione utente per il saluto (regola 11: non aggiornata)**; come suona il saluto
+  per l'acquirente; le pagine legali; come suona il saluto
   detto dal TTS del telefono; la tenuta della finestra di 60 s con una persona vera.
+- **Documentazione utente (regola 11)**: nuova `documentation/02-core-features/il-primo-incontro.md` (v0.91.0), con rimando da
+  `primo-avvio.md` e dall'indice. Ricavata dal codice, non provata da una persona. `primo-avvio.md`: aggiornato solo `last_updated`,
+  `version` resta 0.38.0 perché la pagina non è stata riverificata (Tailscale, «voce di casa»).
 - **Giro regola 12 (UGOMKT-11)**: **BO** — `apps/soul` (gateway, socket, prompt di chat, env), `ops/jobs` (prompt del sogno),
   `.env.example`; fixture di test: `helpers/chat.ts` e `helpers/faceSocket.ts` condivisi, `faceWs.integration` riusa il secondo;
   **`/admin`** — non toccato; **non ho verificato** come il pannello mostra il nuovo evento `first_meeting`; **FE** — `apps/face`
