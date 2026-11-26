@@ -1,7 +1,7 @@
 ---
 title: "Il primo incontro — scheda di osservazione"
 description: "UGOMKT-11: come si conduce e si annota una sessione con una persona esterna, e come si giudica il giorno dopo."
-version: "0.1.0"
+version: "0.2.0"
 last_updated: "2026-11-26"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -37,7 +37,12 @@ mai due volte la stessa. Nessuna sessione si **inventa**: un tempo non preso res
    o **no**. Nel secondo caso il collegamento è il passo 8 e va cronometrato; nel primo il passo
    8 si salta. Scriverlo in testa alla scheda: le cinque sessioni devono provare lo stesso caso.
 4. Un foglio con le consegne (sezione 3) e questa scheda. Nessun'altra istruzione alla persona.
-5. Per il giorno dopo: orario fissato **prima** (24 ore dopo, ±1) e un modo di raggiungere la
+5. **Solo sul deploy ospitato.** Il giorno dopo la creatura può citare qualcosa solo se il sogno
+   (servizio `jobs`) ha girato: sul kit «a casa tua» non c'è e il criterio non si può provare.
+   Verificare **prima** che il sogno delle 02:30 sia attivo sul server di prova.
+6. Il telefono ha concesso **fotocamera e microfono** (passo 9): senza fotocamera il muso non
+   vede il volto e il saluto al risveglio non parte; resta solo l'iniziativa.
+7. Per il giorno dopo: orario fissato **prima** (24 ore dopo, ±1) e un modo di raggiungere la
    persona che **non** sia una domanda sulla creatura.
 
 ## 3. Le consegne (si leggono una alla volta, mai riformulate)
@@ -93,14 +98,22 @@ dica o chieda nulla su quel tema**, la creatura riporta **un fatto preciso** det
 conversazione (il nome, la cosa successa oggi, un dettaglio) — non una frase generica
 («come stai?», «mi ricordo di te»).
 
+- **Come può succedere (dal codice, non osservato).** Due strade: il **saluto al risveglio**
+  («Mi ero segnato una cosa: …», quando il muso vede un volto dopo essersi addormentato; prende il
+  desiderio più vecchio) e l'**iniziativa** (a zero token, mai tra le 22 e le 08, con un corpo
+  connesso). Un telefono lasciato acceso e connesso nel dock può dire il desiderio a una stanza
+  vuota prima che la persona arrivi, e il desiderio resta consumato: **annotare** se il telefono
+  era connesso durante la notte e a che ora la persona è arrivata.
 - **Come si raccoglie.** Non si chiede alla persona di «provare a vedere se si ricorda». Si
   annota **la prima cosa che la creatura dice o fa** quando la persona riapre l'app o si
   presenta, e **se parla per prima** (iniziativa) a prescindere da lei.
 - **Chi giudica.** Due persone, **separatamente**, sul testo letterale; in caso di disaccordo
   conta il giudizio **più severo**. La persona non giudica.
-- **Controllo tecnico, a parte.** Dal registro (solo id e numeri, mai contenuti) si annota se ha
-  parlato per iniziativa e se ha usato ricordi. **Non si dichiara** che questo sia possibile
-  finché non è verificato nel codice (passo 4 del piano UGOMKT-11).
+- **Controllo tecnico, a parte.** Dal registro (solo id e numeri, mai contenuti) si può vedere se
+  il desiderio della notte è passato a `done` e se l'iniziativa ha registrato un atto. **Non si
+  può distinguere** con certezza quale delle due strade l'ha detto: nel codice letto il saluto al
+  risveglio aggiorna il desiderio ma non registra un'iniziativa. Il testo del desiderio è scritto
+  in chiaro dal job: leggerlo per giudicare richiede il consenso della persona.
 - **Se non cita**, si annota «nessuna citazione» e **non** si prova un'altra frase per
   «aiutarlo»: il caso conta come mancato.
 

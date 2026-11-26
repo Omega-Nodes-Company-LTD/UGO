@@ -1,7 +1,7 @@
 ---
 title: "Il primo incontro, com'è oggi — misura"
 description: "UGOMKT-11, passo 1: il percorso dalla vetrina alla prima conversazione, passaggio per passaggio, con cosa è misurato e cosa no."
-version: "0.1.0"
+version: "0.2.0"
 last_updated: "2026-11-26"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -72,11 +72,52 @@ passati). I tempi sono di una singola esecuzione su una macchina di sviluppo e d
 Totale della macchina lungo tutto il percorso: **meno di un secondo e mezzo**. I cinque minuti
 si spendono altrove.
 
+## 3-bis. Il giorno dopo: la metà del sogno, misurata
+
+Il criterio dice che il giorno dopo la creatura cita qualcosa della prima conversazione. **Dal
+codice** (lettura, non esecuzione):
+
+- La chat **non scrive ricordi**: nascono solo dal sogno. Lo storico dei turni copre le ultime
+  **12 ore** e 8 turni, quindi il giorno dopo la prima conversazione non è più nel prompt.
+- Il sogno (`jobs`, alle 02:30) legge `messages` del giorno e scrive ricordi, diario e 1–3
+  desideri. **Il kit «a casa tua» non ha il servizio `jobs`**: lì questo percorso non esiste.
+- Un desiderio arriva alla persona per due strade: l'**iniziativa** (`speakDesire`, alla lettera,
+  non in fascia di quiete 22–08, con un corpo connesso) e il **saluto al risveglio** (quando il
+  muso vede un volto mentre dorme: «Mi ero segnato una cosa: …», prende il desiderio **più
+  vecchio**). Nessuno dei due riformula il testo.
+
+**Sonda** (`ops/jobs/tests/test_first_conversation_probe.py`, sogno vero su OpenRouter, CI
+2026-11-26): 5 sogni sulla stessa prima conversazione sintetica, con fatti precisi.
+
+| Misura | Prima del cambio al prompt (run 45821500012) | Dopo (run 45825434564) |
+|---|---|---|
+| Desideri che citano un fatto | 5/5 sogni | 5/5 sogni |
+| Ricordi che citano un fatto | 5/5 sogni | 5/5 sogni |
+| Desideri in forma di domanda diretta | 6/15 | **14/14** |
+
+Il prompt del sogno scriveva «desideri o domande da porre domani»: 9 desideri su 15 erano
+istruzioni a sé stesso («Chiedere a Marta…»), che l'iniziativa avrebbe pronunciato alla lettera.
+Ora chiede frasi da dire a voce, in seconda persona, con un fatto preciso.
+
+**Limiti, da non perdere di vista:**
+- Una sola esecuzione, una sola conversazione sintetica. La frequenza non è stabile.
+- «Forma di domanda» = il testo finisce con `?`: non giudica se la domanda è buona.
+- Resta qualche invenzione piccola («Briciola ha fatto ancora i dispetti?»: nella conversazione
+  il gatto aveva solo tenuto sveglia la persona) e una frase ambigua («Sono ancora in ansia?»).
+- **Non provato:** il giro completo con una persona e un corpo connessi, come suona
+  «Mi ero segnato una cosa: Marta, come è andata…» detto ad alta voce, e il kit locale.
+- Gli altri scrittori di desideri (`anniversaries`, `feeds`, `recap`, il volto sconosciuto)
+  restano in forma di istruzione e verrebbero detti alla lettera dall'iniziativa.
+- Trovato leggendo, non provato: `_day_window` in `reflect.py` usa il giorno UTC e non il fuso
+  della casa; una conversazione nelle prime 1–2 ore locali del giorno finisce nel sogno sbagliato.
+
 ## 4. Cosa NON è misurato
 
 - **Tutti i tempi umani** (passi 3, 4, 6, 8, 9): servono una persona e un telefono, e in questa
   sessione non c'erano.
 - **Il tempo fino alla prima risposta** (passo 10): richiede una chiave OpenRouter vera.
+- **Il giorno dopo con una persona vera** (sezione 3-bis): provato solo il sogno, non
+  l'incontro del giorno dopo.
 - **I punti in cui ci si ferma**: nessuna persona esterna ha percorso il flusso. Le giunture
   della sezione 2 sono ricavate dal codice e dai documenti, **non osservate**.
 - **Il guscio** e la parte fisica.
