@@ -1,7 +1,7 @@
 ---
 title: "Il copione del primo incontro (BOZZA)"
 description: "UGOMKT-11, scelta E1: cosa dice la creatura appena consegnata — il saluto, la domanda, la risposta e il congedo — e come lo si verifica."
-version: "0.1.0-bozza"
+version: "0.2.0-bozza"
 last_updated: "2026-11-26"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -10,8 +10,9 @@ author: "Senior Principal Engineer & Privacy Officer"
 
 **Stato: bozza, non approvata, non implementata.** Specifica il lavoro 3 di
 `PRIMI_CINQUE_MINUTI.md` §8, dopo la scelta **E1**: la creatura **conduce** la prima
-conversazione con **una riga e una domanda**. Le parole sono **proposte di voce**: sono del
-proprietario, non mie. Etichette di prova: `[CODICE]` letto · `[IPOTESI]` proposta ·
+conversazione con **una riga e una domanda**. **Le tre scelte di voce sono chiuse (2026-11-26):
+V3, alla connessione, in silenzio se la persona tace.** Nessun codice, nessun test: la bozza
+resta una bozza. Etichette di prova: `[CODICE]` letto · `[IPOTESI]` proposta ·
 `[NON VERIFICATO]` non so.
 
 ## 1. Vincoli che il copione non può violare
@@ -43,18 +44,18 @@ risveglio, che dice «buongiorno! Mi ero segnato una cosa: …» e parte solo se
 (`faceGateway.ts`, `wakeUpGreeting`) `[CODICE]`; non ho trovato altro nel gateway né nelle
 rotte del socket `[NON VERIFICATO]`. Il saluto del primo incontro è quindi **nuovo**.
 
-> **SCELTA APERTA 1 — La formula.** Tre proposte, tutte entro due frasi e con il nome della
-> creatura. `{nome}` è il nome del gosino.
+> **SCELTA CHIUSA — 1 — La formula: V3.** Le tre proposte erano tutte entro due frasi e con il
+> nome della creatura. `{nome}` è il nome del gosino.
 >
 > | | Testo | Cosa fa emergere |
 > |---|---|---|
 > | **V1** | «Grunf, piacere: io sono {nome}. E tu, come ti chiami?» | Il **nome** della persona (un fatto preciso, il più facile da citare) |
 > | **V2** | «Grunf, piacere: io sono {nome}. Dimmi una cosa che ti è successa oggi, anche piccola.» | Un **evento**; il nome può non uscire |
-> | **V3** *(proposta)* | «Grunf, piacere: io sono {nome}. Tu come ti chiami, e che cosa hai fatto oggi?» | **Nome ed evento** insieme: più materia per il sogno |
+> | **V3** *(SCELTA)* | «Grunf, piacere: io sono {nome}. Tu come ti chiami, e che cosa hai fatto oggi?» | **Nome ed evento** insieme: più materia per il sogno |
 >
-> V3 fa due richieste in una frase: a voce è naturale, ma la persona può rispondere solo a metà.
-> **Non so** quale funzioni meglio: lo dicono le sessioni, non io. La scelta è di voce, quindi
-> **del proprietario**.
+> V3 fa due richieste in una frase: a voce è naturale, ma la persona può rispondere solo a metà
+> (da osservare nelle sessioni). **Non so** se sia la formula che funziona meglio: la scelta è di
+> voce, del proprietario, e le sessioni dicono se regge.
 
 Regole comuni, qualunque formula:
 - Una volta sola per creatura: **idempotente** anche con due connessioni insieme (come già fa la
@@ -62,10 +63,15 @@ Regole comuni, qualunque formula:
   `[CODICE]`.
 - Nessun «come posso aiutarti», nessuna spiegazione di cosa sia UGO, nessun elenco di funzioni.
 
-> **SCELTA APERTA 2 — Quando parla.** (a) appena il muso si collega; (b) appena la persona dà i
-> **sensi** (microfono e fotocamera). **(b) è la proposta**: a muso collegato ma senza microfono
-> la persona non può rispondere a voce, e il cancello dei 60 secondi consumerebbe la finestra. Da
-> verificare con una persona vera `[NON VERIFICATO]`.
+> **SCELTA CHIUSA — 2 — Quando parla: (a) alla connessione.** Si è scelto (a), appena il muso si
+> collega. La mia proposta era (b), ai sensi; l'alternativa non scelta resta scritta.
+>
+> **Rischio di (a), da osservare e non risolto:** a muso collegato ma senza microfono la persona
+> non può rispondere a voce, e la finestra dei 60 secondi del cancello può chiudersi **prima**
+> che dia i sensi; allora la sua prima risposta, senza il nome della creatura, non parte. Non so
+> se esista un altro modo di rispondere (ad esempio scrivendo) `[NON VERIFICATO]`. Le sessioni
+> misurano questo: quanto passa fra il saluto (4a) e la risposta utile (4b), e se la risposta si
+> perde.
 
 ## 3. La risposta alla persona (generata, con una regola in più)
 
@@ -84,10 +90,10 @@ Esempio **illustrativo**, da non copiare nel prompt (altrimenti si adatta il pro
 persona: «Sono Giulia, oggi ho traslocato» → creatura: «Piacere, Giulia. Com'è andato il
 trasloco?». Si noti che **non** dice «me lo ricorderò».
 
-> **SCELTA APERTA 3 — Se la persona non risponde.** Proposta: la creatura **aspetta** e fa un
-> gesto (orecchie, sguardo), **senza ripetere la domanda a voce**; l'insistere è «servile» per
-> `identity.it.md`. Alternativa: una sola ripetizione dopo un tempo da fissare. Il tempo oltre i
-> 60 secondi comporta comunque il problema del cancello del nome.
+> **SCELTA CHIUSA — 3 — Se la persona non risponde: aspetta in silenzio.** La creatura **non
+> ripete la domanda a voce** e non insiste: l'insistere è «servile» per `identity.it.md`
+> `[CODICE]`. Non è stato scelto nessun gesto in più: continua il comportamento da fermo di
+> sempre. L'alternativa scartata era una sola ripetizione dopo un tempo da fissare.
 
 ## 4. Il congedo (senza promesse)
 
@@ -119,9 +125,20 @@ finisca da sé. Non si forza una chiusura a 4:30 solo perché la spec dice «4:3
 La parte generata è probabilistica: la prova è una **frequenza** su più esecuzioni, non un
 «passa». Nessuna di queste prove è stata scritta né eseguita.
 
-## 7. Decisioni che servono
+## 7. Conseguenze delle scelte chiuse
 
-1. **Scelta 1:** V1, V2, V3 (o parole tue).
-2. **Scelta 2:** il saluto parte alla connessione o ai sensi?
-3. **Scelta 3:** cosa fa la creatura se la persona tace?
-4. **Chi** firma la voce di UGO: queste sono proposte, non il testo definitivo.
+- **Il saluto precede i sensi.** Con (a) la creatura parla subito dopo l'ingresso, **prima** che la
+  persona abbia dato microfono e fotocamera. Quindi `PRIMI_CINQUE_MINUTI.md` §4 (il saluto sta
+  oggi a 1:30, dopo i sensi a 1:00) e `SCHEDA_OSSERVAZIONE_PRIMO_INCONTRO.md` (4a dopo il passo 3
+  e «entro 60 secondi dai sensi accesi») descrivono un altro ordine: **non ancora aggiornati**.
+- **Il saluto è una volta sola per creatura.** Se la persona lo riceve nel browser e poi installa
+  l'app sulla Home, il nuovo contesto non lo ripete e la persona può trovarsi senza saluto e
+  senza domanda `[NON VERIFICATO]`. Le sessioni annotano l'ordine dei passi.
+- Con la scelta 3 il silenzio della persona non produce nessuna frase della creatura: nelle
+  sessioni «la persona non risponde» è un esito da annotare, non da correggere.
+- Il testo di V3 è quello scritto sopra; le parole restano del proprietario e si cambiano qui.
+
+## 8. Decisioni che restano
+
+1. Chi rivede le pagine legali e la spiegazione dei permessi (§5), prima delle sessioni.
+2. Il lavoro 3 non è iniziato: serve una fase sua (regola 8), con i test di §6.
