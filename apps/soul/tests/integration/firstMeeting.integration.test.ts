@@ -5,7 +5,7 @@ import { startPostgres } from "@ugo/factories";
 import { encryptText } from "@ugo/shared";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { FirstMeeting, firstMeetingLine } from "../../src/services/firstMeeting.js";
+import { FirstMeeting, firstMeetingLine, isFirstExchange } from "../../src/services/firstMeeting.js";
 import { createAccountWithFounder } from "../../src/services/accountService.js";
 
 /**
@@ -104,5 +104,44 @@ describe("FirstMeeting.greeting", () => {
     const missing = "00000000-0000-4000-8000-0000000000ff";
     expect(await new FirstMeeting(db).greeting(missing)).toBeUndefined();
     expect(await meetings(missing)).toHaveLength(0);
+  });
+});
+
+describe("isFirstExchange", () => {
+  it("una creatura senza messaggi è al primo scambio; con un messaggio no", async () => {
+    const gosinoId = await creature("Novellina");
+    expect(await isFirstExchange(db, gosinoId)).toBe(true);
+
+    await db.insert(messages).values({
+      gosinoId,
+      channel: "home",
+      role: "user",
+      text: encryptText("ciao", KEY),
+    });
+    expect(await isFirstExchange(db, gosinoId)).toBe(false);
+  });
+
+  it("non dipende dall'età dei messaggi né dal canale", async () => {
+    const gosinoId = await creature("Antica");
+    await db.insert(messages).values({
+      gosinoId,
+      channel: "meeting",
+      role: "user",
+      ts: new Date("2020-01-01T00:00:00Z"),
+      text: encryptText("vecchio", KEY),
+    });
+    expect(await isFirstExchange(db, gosinoId)).toBe(false);
+  });
+
+  it("i messaggi di un'altra creatura non contano", async () => {
+    const other = await creature("Altra");
+    const mine = await creature("Mia");
+    await db.insert(messages).values({
+      gosinoId: other,
+      channel: "home",
+      role: "user",
+      text: encryptText("ciao", KEY),
+    });
+    expect(await isFirstExchange(db, mine)).toBe(true);
   });
 });

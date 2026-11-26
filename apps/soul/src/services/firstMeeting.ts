@@ -49,6 +49,37 @@ export function makesAPromise(text: string): boolean {
   return PROMISES.some((pattern) => pattern.test(text));
 }
 
+/**
+ * La regola del primo scambio (copione §3): una riga nel blocco DINAMICO del
+ * prompt, mai nel primo messaggio di sistema, che deve restare identico byte
+ * per byte (regola 2). Il formato — due frasi, parlate — viene dalle regole
+ * cached e non si ripete qui.
+ *
+ *  - nomina ciò che ha sentito: nome (se l'ha detto: regola 7, mai inventare)
+ *    e un dettaglio preciso con le sue parole;
+ *  - al massimo UNA domanda, su quel dettaglio;
+ *  - nessuna promessa: il «giorno dopo cita» è probabile, non garantito.
+ */
+export const FIRST_EXCHANGE_RULE =
+  "È la prima volta che parli con questa persona. Rispondile nominando quello che ti ha detto: " +
+  "il suo nome, se te l'ha detto (se no, non inventarlo), e un dettaglio preciso con le sue parole. " +
+  "Fai al massimo una domanda, su quel dettaglio e non su altro. " +
+  "Non promettere di ricordare né di riparlarne: non sai se succederà.";
+
+/**
+ * Il primo scambio: questa creatura non ha MAI avuto un messaggio, in nessun
+ * canale e di nessuna età. Non basta lo storico dei turni (12 ore): una
+ * creatura riaperta dopo due giorni non è al primo incontro.
+ */
+export async function isFirstExchange(db: DbClient, gosinoId: string): Promise<boolean> {
+  const [spoken] = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .where(eq(messages.gosinoId, gosinoId))
+    .limit(1);
+  return spoken === undefined;
+}
+
 export class FirstMeeting {
   public constructor(private readonly db: DbClient) {}
 

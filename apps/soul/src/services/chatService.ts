@@ -45,6 +45,7 @@ import { confirmReminder, parseReminder } from "./volition/reminders.js";
 import { dateFor, parseDiaryAsk, tellDiary } from "./volition/diaryAsk.js";
 import { monthOf, parseMemoryAsk, tellMemories } from "./volition/memoryAsk.js";
 import { parseStoryAsk, storyPrompt, tellNoStory } from "./volition/story.js";
+import { FIRST_EXCHANGE_RULE, isFirstExchange } from "./firstMeeting.js";
 import { MemoryBook } from "./memoryBook.js";
 import { parseNewsAsk, tellNews } from "./volition/news.js";
 import {
@@ -221,7 +222,7 @@ export interface ChatServiceDeps {
 }
 
 /** Blocks 3+4 of the §5.5 prompt order — dynamic, therefore NEVER cached. */
-function buildDynamicSystem(
+export function buildDynamicSystem(
   now: string,
   view: { label: string; phrase: string },
   diary: { date: string; text: string } | undefined,
@@ -233,6 +234,8 @@ function buildDynamicSystem(
   answerable = true,
   /** ADR-108: la domanda chiede un verdetto, e a un verdetto non si risponde */
   reporting = false,
+  /** UGOMKT-11: la prima volta che questa creatura parla con qualcuno */
+  firstExchange = false,
 ): string {
   // the clock goes in the DYNAMIC block and nowhere else: interpolating a time
   // into a cached block would break the cache on every single call (§5.5)
@@ -297,6 +300,8 @@ function buildDynamicSystem(
   // cached, quindi vale per tutti. Questo è l'asse che il genoma può muovere
   // senza rinegoziare il formato — fra 18 e 60 parole ci sta la differenza fra
   // uno di poche parole e un logorroico, dentro le stesse due frasi.
+  // UGOMKT-11: prima del tetto di parole, che chiude sempre il blocco
+  if (firstExchange) lines.push(FIRST_EXCHANGE_RULE);
   lines.push(`Non superare ${String(character.maxWords)} parole.`);
   return lines.join("\n");
 }
@@ -994,6 +999,12 @@ export class ChatService {
       .limit(1);
 
     const history = await this.loadHistory(request.channel, request.beingId, at);
+    // UGOMKT-11: solo in casa, e solo se nessuno ha mai parlato con lei. Lo
+    // storico vuoto basta a scartare la gran parte dei casi senza un'altra query
+    const firstExchange =
+      request.channel === "home" &&
+      history.length === 0 &&
+      (await isFirstExchange(db, this.deps.gosinoId));
     const result = await llm.chat(
       {
         channel: request.channel,
@@ -1007,6 +1018,7 @@ export class ChatService {
           this.deps.character,
           verdict.answerable,
           verdict.reporting,
+          firstExchange,
         ),
         history,
         userText: modelText,
