@@ -1,19 +1,17 @@
 import { randomBytes } from "node:crypto";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { createDbClient, events, runMigrations, type DbClient } from "@ugo/db";
-import { openRouterKey } from "@ugo/factories";
-import { DEFAULT_CHAT_MODEL, LlmClient, OpenRouterEmbeddingsClient } from "@ugo/memory";
 import type { ServerToFaceMessage } from "@ugo/shared";
 import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createAccountWithFounder } from "../../src/services/accountService.js";
-import { ChatService } from "../../src/services/chatService.js";
-import { characterFrom } from "../../src/services/council/character.js";
+import type { ChatService } from "../../src/services/chatService.js";
 import { FaceGateway } from "../../src/services/faceGateway.js";
 import { firstMeetingLine } from "../../src/services/firstMeeting.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
+import { chatFor } from "./helpers/chat.js";
 import { connectFace } from "./helpers/faceSocket.js";
 
 /**
@@ -49,23 +47,7 @@ async function bodyFor(
   firstMeeting: boolean,
 ): Promise<Body> {
   const psyche = await PsycheService.restore(db, new Date(), who.gosinoId);
-  const chat = new ChatService({
-    gosinoId: who.gosinoId,
-    accountId: who.accountId,
-    character: characterFrom({}),
-    db,
-    embedder: new OpenRouterEmbeddingsClient({ db, apiKey: openRouterKey() }),
-    llm: new LlmClient({
-      db,
-      apiKey: openRouterKey(),
-      model: DEFAULT_CHAT_MODEL,
-      dailyBudgetUsd: 5,
-      accountId: who.accountId,
-      gosinoId: who.gosinoId,
-    }),
-    psyche,
-    dataKey: randomBytes(32),
-  });
+  const chat = chatFor(db, who, psyche);
   const gateway = new FaceGateway({
     gosinoId: who.gosinoId,
     db,
