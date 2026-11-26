@@ -144,6 +144,13 @@ export const soulEnvSchema = z.object({
     (value) => (value === "" ? undefined : value),
     z.enum(["on", "off"]).default("on"),
   ),
+  /**
+   * UGOMKT-11: alla prima connessione di una creatura che nessuno ha ancora
+   * incontrato, dice una frase sola di saluto e domanda (`docs/COPIONE_PRIMO_INCONTRO.md`).
+   * Testo fisso, zero token. `off` torna a come era: la creatura non parla per prima.
+   */
+  UGO_FIRST_MEETING: z
+    .preprocess((value) => (value === "" ? undefined : value), z.enum(["on", "off"]).default("on")),
   UGO_INITIATIVE_TICK_MINUTES: z.preprocess(
     (value) => (value === "" ? undefined : value),
     z.coerce.number().int().min(1).default(4),

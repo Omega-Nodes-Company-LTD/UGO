@@ -12,6 +12,7 @@ import {
 import { and, asc, eq, gte, isNull } from "drizzle-orm";
 import type { ChatService } from "./chatService.js";
 import type { PsycheService } from "./psycheService.js";
+import { FirstMeeting } from "./firstMeeting.js";
 import { toneOfBase64 } from "./prosody.js";
 import { RecentFaces } from "./recentFaces.js";
 import { voiceAskOpen, type VoiceSampleResult } from "./voiceEnrolment.js";
@@ -24,6 +25,12 @@ export interface FaceGatewayDeps {
   psyche: PsycheService;
   /** injectable clock so sleep/wake transitions are testable (Zero-Mock: real time otherwise) */
   now?: () => Date;
+  /**
+   * UGOMKT-11: alla prima connessione di una creatura che nessuno ha ancora
+   * incontrato, dice il saluto del primo incontro. Assente = non lo dice, come
+   * prima di questo lavoro (`UGO_FIRST_MEETING`).
+   */
+  firstMeeting?: boolean;
   /** hour extractor in project TZ; defaults to local hours */
   hourOf?: (at: Date) => number;
   /**
@@ -121,6 +128,23 @@ export class FaceGateway {
 
   public unregisterSender(send: FaceSender): void {
     this.senders.delete(send);
+  }
+
+  /**
+   * UGOMKT-11 (copione V3): il saluto del primo incontro, **solo** a chi si
+   * è appena collegato e una volta sola per creatura (`FirstMeeting`). Il muso
+   * lo pronuncia con la sua voce e, parlando, apre la finestra del cancello
+   * del nome: la risposta della persona passa anche senza dire il nome.
+   *
+   * Torna `true` se ha parlato. Non solleva mai a chi chiama: un saluto che
+   * non parte non deve impedire alla creatura di comparire.
+   */
+  public async greetFirstMeeting(send: FaceSender): Promise<boolean> {
+    if (this.deps.firstMeeting !== true) return false;
+    const line = await new FirstMeeting(this.deps.db).greeting(this.deps.gosinoId);
+    if (line === undefined) return false;
+    send({ type: "speak", text: line });
+    return true;
   }
 
   /**
