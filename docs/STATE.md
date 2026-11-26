@@ -1,8 +1,8 @@
 ---
 title: "UGO — Stato del progetto"
 description: "Fotografia dello stato corrente: cosa è fatto, cosa manca, decisioni prese e prossimo passo operativo. Aggiornato a fine di ogni task."
-version: "0.90.0"
-last_updated: "2026-11-23"
+version: "0.91.0"
+last_updated: "2026-11-27"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
@@ -3330,3 +3330,56 @@ notarizzazione. L'icona è provvisoria (`icons/icon.png`): va sostituita e rigen
 - **Giro regola 12 (10.9)**: solo documentazione; BO, `/admin` e FE non toccati e non serviva.
 - **MKT-10.10, 2026-11-23 — accettazione: PARTE TECNICA FATTA, PROVA CON UNA PERSONA NON FATTA.** `docs/UAT_A_CASA_TUA.md`: protocollo (regole, preparazione, 5 consegne, 10 misure con criteri, rapporto) e le evidenze raccolte sul kit vero: `start.ps1` da zero → contenitori healthy → `/setup` attraverso la porta pubblicata → runtime con `/health` ok → processo non-root (uid 1000), segreti 0600 → riavvio senza nuovo setup → `ugo.ps1 backup`/`restore` con soul acceso/`update` → ok. **Non provato**: macOS, Linux, Docker assente, ricerca nei ricordi e chat con la chiave OpenRouter vera, memoria/CPU reali (i requisiti di ADR-132 §3 restano ipotesi), e soprattutto **la persona non tecnica**: senza di lei 10.10 non è chiusa e UGOMKT-10 non è completo.
 - **Giro regola 12 (10.10)**: BO — `.dockerignore` e prova del kit; `/admin` e FE non toccati.
+
+## 6-octoctogies. I primi cinque minuti (UGOMKT-11): in corso, criterio NON chiuso
+
+Branch `feat/UGOMKT-11-primi-cinque-minuti-telefono-come-casa-d`, PR #125 **in bozza**. Criterio (Product lens): spec dei
+primi 5 minuti, provata con 5 persone esterne, e il giorno dopo la creatura cita spontaneamente qualcosa della prima
+conversazione. **Non è chiuso**: la spec è una bozza non approvata e le **sessioni con persone esterne non sono state fatte**
+(quindi nessun tempo umano misurato).
+
+- **Decisioni chiuse, 2026-11-26** (`PRIMI_CINQUE_MINUTI.md` §2, `COPIONE_PRIMO_INCONTRO.md`): **A1** i cinque minuti cominciano dal
+  primo tocco sul telefono con la creatura già consegnata; **B1** il pagamento sta fuori; **C1** deploy ospitato (il kit «a casa
+  tua» non ha `jobs`, quindi non può passare il criterio del giorno dopo); **D1** il telefono è il corpo, di default, senza guscio
+  — **lettura mia** del titolo del compito, alternativa scartata scritta; **E1** la creatura conduce; copione: formula **V3**,
+  saluto **alla connessione** (la mia proposta era ai sensi), **silenzio** se la persona tace.
+- **Documenti**: `MISURA_PRIMO_INCONTRO.md` (il percorso di oggi, 10 passaggi di mano, solo la parte macchina misurata: < 1,5 s),
+  `SCHEDA_OSSERVAZIONE_PRIMO_INCONTRO.md` v0.5.0 (mai usata), `PRIMI_CINQUE_MINUTI.md` v0.3.0-bozza, `COPIONE_PRIMO_INCONTRO.md`
+  v0.2.0-bozza.
+- **Codice 1 — il sogno** (`ops/jobs/src/ugo_jobs/reflect.py`): i desideri si scrivono come frasi da dire a voce, perché
+  `speakDesire` le pronuncia alla lettera (9 su 15 erano istruzioni a sé stesso). Sonda `test_first_conversation_probe.py`: su
+  5 sogni, desideri e ricordi citano un fatto 5/5; desideri in forma di domanda 6/15 → 14/14. **Cambia come il sogno scrive i
+  desideri in ogni casa.** Gli altri scrittori (`anniversaries`, `feeds`, `recap`, volto sconosciuto) restano imperativi.
+- **Codice 2 — il saluto** (`apps/soul/src/services/firstMeeting.ts`, `FaceGateway.greetFirstMeeting`, `routes/faceWs.ts`):
+  alla prima connessione di una creatura **senza alcun messaggio**, subito dopo `whoami`, una frase fissa (zero token, senza
+  chiave). Una volta sola per creatura: evento `first_meeting` + lock consultivo Postgres, **nessuna migrazione**. **Interruttore
+  `UGO_FIRST_MEETING`, default `on`** (`.env.example`).
+- **Codice 3 — la regola del primo scambio** (`FIRST_EXCHANGE_RULE`, `isFirstExchange`, `buildDynamicSystem` esportata):
+  una riga nel blocco **dinamico** del prompt (regola 2: il primo messaggio di sistema non cambia), solo in casa e a storico
+  vuoto «per sempre» (non la finestra di 12 ore).
+- **Prove**: 22 unit sul saluto e sulle frasi che non si dicono (`makesAPromise`), 7 sulla forma del prompt; su Postgres vero 9
+  (una volta sola, dieci connessioni insieme, chi ha già una storia) e 3 sul socket WebSocket vero; **mutazioni**: senza il lock
+  3 saluti invece di 1, senza il cablaggio il saluto non arriva. CI run `45888322888`: 7/7 (il primo tentativo di `integration`
+  era caduto per un timeout del fornitore su `memoryBench`, `packages/memory` non toccato; rilanciato il solo job).
+- **Sonda sul modello vero** (`firstExchangeProbe.integration.test.ts`, tre esecuzioni, 5 persone, con controllo senza regola):
+  **promesse di ricordare: 0** (il «1» del secondo giro era un falso positivo di `makesAPromise` su «non dimenticarti di
+  riposare», corretto); nome 15/15 in entrambi i gruppi; dettaglio regola 15/15 contro controllo 12/15 → **nessuna differenza
+  affidabile**. Il pavimento è «zero promesse», nome ≥ 3/5 e una domanda al massimo ≥ 4/5; **«entro due frasi» si misura e non si
+  asserisce**. A occhio, con la regola la creatura fa una domanda vera in 13 casi su 15; il controllo è visibile solo nell'ultimo
+  giro (1 su 5, retorica): **non misurato**.
+- **Problemi noti, non risolti**: le risposte superano le due frasi quasi sempre, **anche senza la regola** (difetto esistente);
+  il modello inventa percezioni («un profumo di vernice che mi fa starnutire»); congedi vaghi («a presto»); la finestra di 60 s del
+  cancello del nome può chiudersi prima che la persona dia i sensi (saluto alla connessione); il saluto è una volta sola: dal
+  browser alla Home potrebbe non ripetersi; più creature appena consegnate nello stesso socket parlerebbero insieme (non gestito,
+  non provato); `_day_window` in `reflect.py` usa il giorno UTC e non il fuso della casa (letto, non provato).
+- **Non fatto**: le 5 sessioni con persone esterne; l'emissione di un link di ingresso per chi riceve (il codice di
+  abbinamento lo emette un amministratore già dentro); la verifica del percorso web del telefono e l'aggiornamento di
+  `primo-avvio.md` (parla ancora di Tailscale, ADR-127 ha messo soul sul web); la spiegazione dei permessi; la spec della vetrina
+  per l'acquirente; le pagine legali; **la documentazione utente per il saluto (regola 11: non aggiornata)**; come suona il saluto
+  detto dal TTS del telefono; la tenuta della finestra di 60 s con una persona vera.
+- **Giro regola 12 (UGOMKT-11)**: **BO** — `apps/soul` (gateway, socket, prompt di chat, env), `ops/jobs` (prompt del sogno),
+  `.env.example`; fixture di test: `helpers/chat.ts` e `helpers/faceSocket.ts` condivisi, `faceWs.integration` riusa il secondo;
+  **`/admin`** — non toccato; **non ho verificato** come il pannello mostra il nuovo evento `first_meeting`; **FE** — `apps/face`
+  non toccato (il muso riceve `speak` sul contratto di sempre) → **nessun bundle da ricostruire**; l'e2e col browser vero è passato.
+- **Note di rilascio**: con `UGO_FIRST_MEETING=on` (default) ogni creatura senza storia parla per prima alla prima connessione;
+  `off` per spegnerlo. Cambia anche la forma dei desideri del sogno in ogni casa.
