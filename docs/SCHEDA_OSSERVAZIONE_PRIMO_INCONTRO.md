@@ -1,7 +1,7 @@
 ---
 title: "Il primo incontro — scheda di osservazione"
 description: "UGOMKT-11: come si conduce e si annota una sessione con una persona esterna, e come si giudica il giorno dopo."
-version: "0.4.0"
+version: "0.5.0"
 last_updated: "2026-11-26"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -52,13 +52,14 @@ finestra** e li fa il conduttore *prima* che la persona arrivi (sezione 2). Ques
 5. **Solo sul deploy ospitato.** Il giorno dopo la creatura può citare qualcosa solo se il sogno
    (servizio `jobs`) ha girato: sul kit «a casa tua» non c'è e il criterio non si può provare.
    Verificare **prima** che il sogno delle 02:30 sia attivo sul server di prova.
-6. Il telefono ha concesso **fotocamera e microfono** (passo 3): senza fotocamera il muso non
+6. Il telefono ha concesso **fotocamera e microfono** (passo 3b): senza fotocamera il muso non
    vede il volto e il saluto al risveglio non parte; resta solo l'iniziativa.
 7. Per il giorno dopo: orario fissato **prima** (24 ore dopo, ±1) e un modo di raggiungere la
    persona che **non** sia una domanda sulla creatura.
 8. **Il copione di primo incontro (E1) deve esistere.** Oggi non esiste (spec, §4 e lavoro 3). Se
    manca, la sessione **non prova E1** ma il comportamento attuale: scriverlo in testa alla
-   scheda. **Non si fa partire la creatura a mano**: sarebbe provare un'altra cosa.
+   scheda. **Non si fa partire la creatura a mano**: sarebbe provare un'altra cosa. Il copione è
+   `COPIONE_PRIMO_INCONTRO.md`: V3, alla connessione, in silenzio se la persona tace.
 
 ## 3. Le consegne (si leggono una alla volta, mai riformulate)
 
@@ -67,7 +68,8 @@ finestra** e li fa il conduttore *prima* che la persona arrivi (sezione 2). Ques
 2. «Adesso parlate voi due: quando ti parla, rispondile come ti viene. Io non dico altro.»
    *(Chi conduce **non dice cosa dire, non fa domande, non rilancia**. Con E1 è la creatura a
    condurre: saluta e fa **una** domanda. I fatti che la persona dirà sono i suoi, non quelli
-   che le abbiamo suggerito.)*
+   che le abbiamo suggerito. Se la persona **tace**, la creatura **aspetta in silenzio** e non ripete
+   la domanda: si annota «nessuna risposta» e non si interviene, salvo la regola dei 3 minuti.)*
 3. «Questo è tutto: puoi smettere quando vuoi.»
 
 ## 4. Scheda per passo
@@ -79,9 +81,9 @@ abbandonato), **fermo a** (cosa guardava, cosa tentava), **frase detta**, **erro
 |---|---|---|---|---|
 | 1 | Entra col codice o il link ricevuto («Fammi entrare») | | | |
 | 2 | Raggiunge il server (rete, indirizzo `https://`) — si salta se il telefono parte già collegato | | | |
-| 3 | Installa sulla Home e concede microfono/fotocamera | | | |
-| 4a | La creatura **saluta per prima** e fa la sua domanda — trascrivere **alla lettera** | | | |
-| 4b | La persona risponde; **prima risposta** della creatura a ciò che ha detto | | | |
+| 3a | **Alla connessione** la creatura dice il saluto con la domanda (V3) — trascrivere **alla lettera** e annotare l'**ora esatta** e se la persona ha già dato i sensi | | | |
+| 3b | Installa sulla Home e concede microfono/fotocamera — può venire **prima o dopo** 3a: annotare l'**ordine** | | | |
+| 4 | La persona risponde; **prima risposta** della creatura a ciò che ha detto. Annotare **quanti secondi dopo 3a** e se la prima risposta **si è persa** (nessuna reazione) | | | |
 
 In testa alla scheda: **modello di telefono, sistema, browser, rete**, e **cosa ha ricevuto la
 persona** (codice o link).
@@ -90,16 +92,18 @@ persona** (codice o link).
 
 | # | Misura | Come |
 |---|---|---|
-| 1 | Tempo dalla consegna 1 alla prima risposta della creatura **a ciò che la persona ha detto** (4b), **senza** le attese della macchina, annotate a parte | cronometro, sezione 4 |
+| 1 | Tempo dalla consegna 1 alla prima risposta della creatura **a ciò che la persona ha detto** (4), **senza** le attese della macchina, annotate a parte | cronometro, sezione 4 |
 | 2 | Aiuti dati e punto esatto di ciascuno | scheda |
 | 3 | **Dove si ferma per primo**, e per quanto | scheda |
 | 4 | Passi in cui la persona **non sa cosa fare** senza leggere | scheda |
 | 5 | La persona sa dire in una frase **cosa ha davanti** e che cosa ne farà di ciò che le dice | domanda finale |
 | 6 | Errori mostrati e se la persona li ha **capiti** | scheda |
 | 7 | Domanda finale: «cosa ti ha fatto più paura o più dubitare?» | si annota così com'è |
-| 8 | La creatura **ha condotto**: saluto e **una** domanda aperta e concreta, entro 60 secondi dai sensi accesi | riga 4a, alla lettera |
+| 8 | La creatura **ha condotto** alla connessione: saluto e domanda in una frase, senza che la persona faccia nulla | riga 3a, alla lettera |
 | 9 | La persona ha detto **almeno un fatto preciso** (un nome, una cosa successa): è la materia del sogno | lista dei fatti, sezione 6 |
-| 10 | La creatura ha **promesso** di ricordare («domani mi ricorderò»)? **Non deve** | riga 4b, alla lettera |
+| 10 | La creatura ha **promesso** di ricordare («domani mi ricorderò»)? **Non deve** | riga 4, alla lettera |
+| 11 | La prima risposta della persona **si è persa** (la finestra di 60 secondi del cancello del nome si è chiusa, o il microfono non c'era ancora)? Quanti secondi fra 3a e 4 | righe 3a e 4 |
+| 12 | Il saluto è andato **perso** passando dal browser alla Home (una volta sola per creatura)? | ordine in 3b |
 
 Ogni aiuto e ogni risposta alla 7 produce una voce nel backlog, anche se tutto va bene.
 

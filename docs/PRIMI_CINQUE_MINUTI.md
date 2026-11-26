@@ -1,7 +1,7 @@
 ---
 title: "I primi cinque minuti — specifica (BOZZA)"
 description: "UGOMKT-11: come dovrebbe essere il primo incontro con una creatura, con le scelte chiuse e quelle scartate segnate."
-version: "0.3.0-bozza"
+version: "0.4.0-bozza"
 last_updated: "2026-11-26"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -100,11 +100,10 @@ I tempi sono **obiettivi provvisori**: nessun tempo umano è stato misurato `[IP
 |---|---|---|---|
 | 0:00 | La persona tocca **un solo link** e il muso si apre sul telefono, già abbinato | `/login/:secret` apre il muso ed **entra da solo**; `/pair/:code` apre il muso e **precompila** il codice, che va poi confermato `[CODICE]` | Chi **emette** il link per chi riceve. Il codice lo emette un amministratore già dentro; il link via email vale **solo per l'email del proprietario** configurata, non per un acquirente `[CODICE]` |
 | 0:30 | Nessun indirizzo da digitare, nessuna app da installare per cominciare | Il flusso di `primo-avvio.md` chiede Tailscale, un indirizzo `https://` e l'installazione sulla Home; la pagina è del 2026-11-09 e ADR-127 mette soul sul web | Non so quale sia oggi il percorso reale in produzione `[NON VERIFICATO]` |
-| 1:00 | **Un** gesto per dare i sensi, con una frase che dice **perché** microfono e fotocamera | Pulsante «Attiva sensi» e due permessi del sistema `[CODICE]` | La spiegazione prima del permesso: non so se c'è `[NON VERIFICATO]` |
-| 1:30 | La creatura **saluta per prima**, con una riga sola | Il saluto esiste solo al risveglio, con «Mi ero segnato una cosa…» `[CODICE]` | Cosa dice una creatura **appena consegnata**, la prima volta: non verificato `[NON VERIFICATO]` |
-| 2:00 | (E1, scelta) fa **una** domanda aperta e concreta | Non c'è un copione di primo incontro `[NON VERIFICATO]` | **Il copione** |
-| 2:30–4:30 | La persona risponde; la creatura risponde **sul serio**, **nominando** quello che ha sentito | Chat e risposta `[CODICE]`; il tempo fino alla prima risposta richiede una chiave vera e non è misurato | Il tempo; **la chiave OpenRouter del server di prova** |
-| 4:30 | La creatura si congeda **senza promettere** che ricorderà | — | Il testo del congedo |
+| 0:30–1:00 | **Alla connessione** la creatura dice **una frase**: il saluto e la domanda insieme (V3, testo fisso: «Grunf, piacere: io sono {nome}. Tu come ti chiami, e che cosa hai fatto oggi?») | Nessun saluto alla prima connessione: l'unico è quello al risveglio, con «Mi ero segnato una cosa…» `[CODICE]` | **Il copione** (`COPIONE_PRIMO_INCONTRO.md`), da implementare |
+| 1:00 | **Un** gesto per dare i sensi, con una frase che dice **perché** microfono e fotocamera. Serve per rispondere a voce | Pulsante «Attiva sensi» e due permessi del sistema `[CODICE]` | La spiegazione prima del permesso: non so se c'è `[NON VERIFICATO]`. **Rischio:** la finestra di 60 secondi del cancello del nome può chiudersi **prima** che la persona dia i sensi, e la sua prima risposta senza il nome della creatura non parte `[CODICE]` |
+| 1:30–4:30 | La persona risponde; la creatura risponde **sul serio**, **nominando** quello che ha sentito | Chat e risposta `[CODICE]`; il tempo fino alla prima risposta richiede una chiave vera e non è misurato | Il tempo; **la chiave OpenRouter del server di prova** |
+| alla fine | La creatura si congeda **quando la persona saluta**, **senza promettere** che ricorderà; il congedo non è temporizzato | — | Il testo del congedo (`COPIONE_PRIMO_INCONTRO.md` §4) |
 
 **Vincolo di onestà.** Il terzo punto del criterio è un esito **probabile, non garantito**
 `[MISURATO]` (5 sogni su 5, una sola prova sintetica). La creatura **non deve promettere**
@@ -161,7 +160,7 @@ Ordine indicativo, con le scelte A1 + B1 + C1 + D1 + E1 chiuse:
 
 1. Emissione del link di ingresso alla consegna (un solo gesto per chi riceve).
 2. Verifica reale del percorso web del telefono e aggiornamento di `primo-avvio.md`.
-3. Copione di primo incontro (saluto + una domanda) e congedo senza promesse.
+3. Copione di primo incontro (saluto + una domanda alla connessione, V3) e congedo senza promesse: bozza in `COPIONE_PRIMO_INCONTRO.md`, tre scelte di voce chiuse.
 4. Spiegazione dei permessi prima del permesso.
 5. Spec separata della vetrina per l'acquirente (fuori dalla finestra).
 6. Le cinque sessioni, con la scheda.
