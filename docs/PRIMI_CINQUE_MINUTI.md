@@ -1,16 +1,17 @@
 ---
 title: "I primi cinque minuti — specifica (BOZZA)"
-description: "UGOMKT-11: come dovrebbe essere il primo incontro con una creatura, con le scelte ancora aperte segnate."
-version: "0.2.0-bozza"
+description: "UGOMKT-11: come dovrebbe essere il primo incontro con una creatura, con le scelte chiuse e quelle scartate segnate."
+version: "0.3.0-bozza"
 last_updated: "2026-11-26"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
 # I primi cinque minuti — specifica (BOZZA)
 
-**Stato: bozza, non approvata.** Il 2026-11-26 sono state chiuse le scelte **A1, B1, C1, E1**
-(sezione 2). **Resta aperta la D** («telefono come casa d…»): finché non è chiusa, la parte che
-tocca il guscio e l'hardware non si specifica. Dove manca una misura, c'è scritto. Base: `MISURA_PRIMO_INCONTRO.md`
+**Stato: bozza, non approvata.** Il 2026-11-26 sono state chiuse le scelte **A1, B1, C1, D1, E1**
+(sezione 2): **nessuna scelta resta aperta**. La spec però **non è approvata**: nessun tempo
+umano è stato misurato e le cinque sessioni non sono state fatte. Dove manca una misura, c'è
+scritto. Base: `MISURA_PRIMO_INCONTRO.md`
 (il percorso di oggi) e `SCHEDA_OSSERVAZIONE_PRIMO_INCONTRO.md` (come si prova).
 
 **Legenda delle prove** — ogni affermazione porta la sua etichetta:
@@ -26,9 +27,9 @@ tocca il guscio e l'hardware non si specifica. Dove manca una misura, c'è scrit
 Oggi il primo incontro ha «troppe giunture»: vetrina, pagamento manuale, guscio da stampare.
 **Nessuno dei tre punti è chiuso.**
 
-## 2. Le scelte aperte (da chiudere prima di implementare)
+## 2. Le scelte (chiuse il 2026-11-26)
 
-**Chiuse il 2026-11-26** (A1, B1, C1, E1). Le opzioni scartate restano scritte, con le
+**Chiuse il 2026-11-26** (A1, B1, C1, D1, E1). Le opzioni scartate restano scritte, con le
 conseguenze, per chi le riapre: riaprirle riscrive le sezioni 4 e 5.
 
 > **SCELTA CHIUSA — A1 — Dove cominciano i cinque minuti.**
@@ -54,10 +55,19 @@ conseguenze, per chi le riapre: riaprirle riscrive le sezioni 4 e 5.
 >   sogno, nessun desiderio, nessun ricordo dalla chat. Il terzo punto del criterio **non si può
 >   passare** così com'è; servirebbe portare il sogno nel kit (lavoro a sé).
 
-> **SCELTA APERTA D — Il significato di «telefono come casa d…».** Il nome del branch è troncato.
-> Letture possibili, da non confondere: (1) il **telefono è il corpo** della creatura; (2) il
-> telefono è la **porta d'ingresso** alla casa, che vive altrove; (3) altro, che non so. Cambia
-> cosa significa «guscio» e se l'hardware sta o no nei 5 minuti. **Mi serve la risposta.**
+> **SCELTA CHIUSA — D1 — «Telefono come casa di default».** Il nome del branch era troncato
+> («telefono come casa d…»). Il titolo del compito, riportato dal proprietario il 2026-11-26, è
+> «Primi cinque minuti: telefono come casa di default, nessun assemblaggio, ricordo al giorno
+> dopo».
+> - **D1** *(SCELTA)*: il **telefono è il corpo della creatura, di default, senza guscio**: niente
+>   da stampare, niente da assemblare, nessun hardware richiesto nei cinque minuti. È il
+>   «corpo-telefono» che il backlog già nomina (con un guscio, `[CODICE]`: gruppo 6 e ADR-018).
+> - Non decide: se un guscio fisico esista come opzione **dopo** (resta fuori dalla finestra e
+>   fuori da questa spec); né cosa sia la «casa»: resta l'account sul server (C1).
+> - Scartata: il telefono come sola **porta d'ingresso** a una casa che vive altrove. È la lettura
+>   che non ho adottato; la lettura di D1 è mia e va corretta se non è quella voluta.
+> - Un limite: senza un dock il telefono può non essere connesso, o non trovarsi al buio, di
+>   notte; il saluto al risveglio e l'iniziativa dipendono da questo `[NON VERIFICATO]`.
 
 > **SCELTA CHIUSA — E1 — Chi guida la prima conversazione.**
 > - **E1** *(SCELTA)*: la creatura **conduce**: dice una riga e fa **una** domanda aperta e
@@ -70,8 +80,8 @@ conseguenze, per chi le riapre: riaprirle riscrive le sezioni 4 e 5.
 - B1 e C1: nessuna modifica al codice per il pagamento e nessun ADR; la **casa locale** («a casa
   tua», UGOMKT-10) è **fuori** dai cinque minuti e non può passare il terzo punto del criterio.
 - E1: serve un **copione di primo incontro** (una riga e una domanda), oggi inesistente.
-- **D** (scelta aperta): se il telefono è il corpo o la porta d'ingresso cambia il guscio; le
-  scelte chiuse non dipendono da D, ma il perimetro hardware sì.
+- D1: **l'hardware non è un requisito** dei cinque minuti: nessun guscio, nessun assemblaggio. Se
+  qualcuno riapre D, cambia il perimetro hardware e vanno riviste le sezioni 4 e 5.
 
 ## 3. Cosa non cambia con nessuna scelta
 
@@ -110,7 +120,7 @@ I tempi sono **obiettivi provvisori**: nessun tempo umano è stato misurato `[IP
 | Due credenziali (token da proprietario, codice di abbinamento) per un solo ingresso | **Un solo link** | `[CODICE]` | Emissione del link alla consegna |
 | Quattro precondizioni sul telefono | **Ridotte a un gesto** (sensi) | `[CODICE]` letto, non osservato | Verificare il percorso web reale |
 | Riconoscimento vocale di Chrome (passa da Google) | Da **dichiarare** nel primo incontro, non da nascondere | `[CODICE]` (`primo-avvio.md`) | Testo di informazione |
-| Guscio da stampare | **Fuori dalla finestra**; dipende da D | non guardato | Risposta a D |
+| Guscio da stampare | **Sparisce**: nessun assemblaggio nei cinque minuti (D1) | `[CODICE]` (backlog) | Niente |
 | Server già installato da altri | **Fuori**: lo specifica chi gestisce il server | `[CODICE]` | Niente |
 
 ## 6. Il giorno dopo (terzo punto del criterio)
@@ -147,7 +157,7 @@ Senza le cinque sessioni UGOMKT-11 **non è chiuso**: nessun documento, test o s
 
 ## 8. Lavoro che ne uscirebbe (candidato, NON iniziato)
 
-Ordine indicativo, con le scelte A1 + B1 + C1 + E1 chiuse. Resta aperta la D:
+Ordine indicativo, con le scelte A1 + B1 + C1 + D1 + E1 chiuse:
 
 1. Emissione del link di ingresso alla consegna (un solo gesto per chi riceve).
 2. Verifica reale del percorso web del telefono e aggiornamento di `primo-avvio.md`.
@@ -156,11 +166,10 @@ Ordine indicativo, con le scelte A1 + B1 + C1 + E1 chiuse. Resta aperta la D:
 5. Spec separata della vetrina per l'acquirente (fuori dalla finestra).
 6. Le cinque sessioni, con la scheda.
 
-Ogni punto è una fase a sé (regola 8). **Il lavoro non è iniziato**: la scelta D non blocca i
-punti 1–6, ma blocca qualunque cosa tocchi il guscio. Se si riaprono B2/B3 o C2 serve un ADR.
+Ogni punto è una fase a sé (regola 8). **Il lavoro non è iniziato.** Se si riaprono B2/B3 o C2
+serve un ADR.
 
 ## 9. Domande che restano a chi decide
 
-1. **D**: cosa vuol dire «telefono come casa d…»? (le altre quattro sono chiuse)
-2. Chi ha titolo per rivedere informativa e termini prima delle sessioni?
-3. Chi conduce le sessioni, e dove si trovano cinque persone esterne allo studio?
+1. Chi ha titolo per rivedere informativa e termini prima delle sessioni?
+2. Chi conduce le sessioni, e dove si trovano cinque persone esterne allo studio?
