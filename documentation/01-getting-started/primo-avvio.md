@@ -2,7 +2,7 @@
 title: "Primo avvio"
 description: "Accendere UGO, metterlo nel dock e fare la prima conversazione."
 version: "0.38.0"
-last_updated: "2026-11-09"
+last_updated: "2026-11-27"
 author: "ThinkPink Studio"
 ---
 
@@ -89,6 +89,10 @@ sempre decidere il contrario.
 > Qualunque gradino manchi, UGO parla comunque.
 
 ## La prima conversazione
+
+Se la creatura è appena arrivata e nessuno ha mai parlato con lei, **comincia lei**: appena il suo
+corpo si collega ti dice una frase e ti fa una domanda. Cosa dice, come rispondere e cosa non
+promette sta in [Il primo incontro](../02-core-features/il-primo-incontro.md).
 
 Da agosto 2026 **non devi toccare niente**: appena accendi i sensi, UGO resta in ascolto. Nei
 comandi c'è **ti ascolto**; premilo per spegnere le orecchie quando vuoi parlare senza che senta, e
