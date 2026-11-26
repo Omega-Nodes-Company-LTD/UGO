@@ -14,7 +14,12 @@ import type { FastifyReply, FastifyRequest } from "fastify";
  *  2. **Host ammesso**: solo `localhost`/`127.0.0.1`/`[::1]`. Contro il DNS
  *     rebinding: una pagina web qualunque non può far parlare il browser
  *     dell'utente con questa porta sotto un nome suo.
- *  3. **Stessa origine** nelle richieste che scrivono.
+ *  3. **Stessa origine** nelle richieste che scrivono: `Origin` uguale all'host,
+ *     oppure `Sec-Fetch-Site: same-origin`. Se nessuno dei due c'è, si rifiuta.
+ *
+ * Il server ascolta su 0.0.0.0 DENTRO il contenitore (serve a Docker per
+ * pubblicare la porta). Il confine con la rete è `127.0.0.1:3000:3000` in
+ * `ops/home/compose.yml`: non va allargato, e un test lo verifica.
  *
  * Più un limite ai tentativi falliti: la frase vale 120 bit, ma un setup che
  * accetta infiniti tentativi è un setup scritto male.
@@ -69,8 +74,18 @@ export class SetupGuard {
       return;
     }
     const origin = request.headers.origin;
-    if (origin !== undefined && !SetupGuard.sameOrigin(origin, request.headers.host)) {
+    const fetchSite = request.headers["sec-fetch-site"];
+    const crossSite = typeof fetchSite === "string" && fetchSite !== "same-origin" && fetchSite !== "none";
+    if (crossSite || (origin !== undefined && !SetupGuard.sameOrigin(origin, request.headers.host))) {
       void reply.code(403).send({ error: "origine non ammessa" });
+      return;
+    }
+    // Una richiesta che scrive deve dichiarare da dove viene: un browser manda
+    // sempre `Origin` (o `Sec-Fetch-Site`) sulle POST. Senza nessuno dei due non è
+    // il nostro browser, e il gettone da solo non basta più (difesa in profondità).
+    const writes = request.method !== "GET" && request.method !== "HEAD";
+    if (writes && origin === undefined && fetchSite !== "same-origin") {
+      void reply.code(403).send({ error: "origine non dichiarata" });
       return;
     }
     const header = request.headers["x-setup-token"];

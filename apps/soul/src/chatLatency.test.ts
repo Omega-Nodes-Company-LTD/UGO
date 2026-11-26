@@ -52,7 +52,8 @@ describe("il budget di silenzio di una risposta", () => {
     expect(judge).toBeLessThanOrEqual(3_000);
     // e arriva davvero al giudice: il client condiviso resta col default lungo
     // per chi non sta aspettando (cantastorie, consiglio, iniziativa)
-    expect(SOUL).toMatch(/const judgeText = textFor\(JUDGE_TIMEOUT_MS\);/u);
+    // il giudice sta nel percorso della chat: la corsia è quella della chat, non dello sfondo
+    expect(SOUL).toMatch(/const judgeText = textFor\(JUDGE_TIMEOUT_MS, "chat"\);/u);
     expect(SOUL).toMatch(/judge: judgeText,/u);
   });
 

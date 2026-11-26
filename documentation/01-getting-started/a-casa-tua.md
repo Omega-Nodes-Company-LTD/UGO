@@ -12,8 +12,14 @@ Una creatura può vivere su un computer che è tuo, senza un canone a UGO. Quest
 chi **non** amministra server: servono un computer, Docker e dieci minuti.
 
 > **Niente canone a UGO non vuol dire niente costi.** UGO pensa e parla tramite OpenRouter, e lo
-> paghi tu, con la **tua** chiave, a consumo. Un tetto giornaliero (lo scegli tu) limita la spesa.
-> Senza chiave la creatura **conserva la memoria ma non può rispondere**.
+> paghi tu, con la **tua** chiave, a consumo. Senza chiave la creatura **conserva la memoria ma non
+> può rispondere**.
+>
+> **Il tetto giornaliero (lo scegli tu) è un limite di UGO, non una garanzia di OpenRouter.** UGO
+> somma quanto OpenRouter dichiara di aver addebitato e smette di rispondere quando la somma lo
+> raggiunge. Ma il costo si conosce solo a risposta arrivata, quindi l'ultima risposta può superarlo,
+> e la ricerca nei ricordi e la dettatura si segnano senza fermarsi. Il tetto **duro** è quello che
+> imposti tu su OpenRouter, sulla chiave stessa (limite di credito): impostalo anche lì.
 
 ## Cosa serve
 
@@ -47,8 +53,9 @@ Il kit è la cartella `ops/home`.
 3. Si apre il browser su una pagina **UGO, a casa tua**. Se non si apre, copia nel browser
    l'indirizzo `http://localhost:3000/setup#t=…` che il programma ha scritto nella finestra.
 
-> **Solo da questo computer.** La pagina risponde solo su `localhost`, e serve il codice che
-> compare nell'indirizzo: chi è sulla tua rete ma non su questo computer non può usarla.
+> **Solo da questo computer.** La porta è pubblicata solo su `127.0.0.1`, la pagina risponde solo
+> su `localhost` e serve il codice che compare nell'indirizzo: chi è sulla tua rete ma non su
+> questo computer non può usarla. Non cambiare la porta nel file `compose.yml` per aprirla alla rete.
 
 ## 3. Rimetti in piedi la creatura
 
@@ -75,6 +82,7 @@ riprovare. Dopo dieci frasi sbagliate la pagina si blocca: riavvia UGO.
 ## Ogni giorno
 
 - **Riaprire UGO**: lo stesso doppio clic. Se la casa è già installata, apre direttamente UGO.
+- **Cambiare il tetto di spesa**: dal pannello, pagina dell'account, riquadro **Come si chiama, e che ore sono lì** (ultimo campo, in dollari). Il valore resta salvato e vale anche dopo il riavvio.
 - **Fermarlo**: `./ugo.sh stop` (Windows: `.\ugo.ps1 stop`). I dati restano.
 
 ## Salvataggi e aggiornamenti

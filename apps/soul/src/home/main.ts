@@ -71,6 +71,7 @@ if ((await service.state()) === "ready") {
   const app = Fastify({ logger: { level: "info", redact: ["req.headers.x-setup-token"] }, bodyLimit: 1024 * 1024 });
   registerSetupRoutes(app, service, guard);
   const port = Number(process.env.PORT ?? 3000);
+  // 0.0.0.0 è per Docker (la porta pubblicata); l'esposizione la decide `ops/home/compose.yml`, solo su 127.0.0.1
   await app.listen({ port, host: process.env.HOST ?? "0.0.0.0" });
   // il gettone va SOLO sulla console di chi ha avviato: è la chiave della porta
   console.log(`\nUGO è pronto per l'installazione. Apri:\n  http://localhost:${String(port)}/setup#t=${guard.token}\n`);
