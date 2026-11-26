@@ -1,7 +1,7 @@
 ---
 title: "Il primo incontro — scheda di osservazione"
 description: "UGOMKT-11: come si conduce e si annota una sessione con una persona esterna, e come si giudica il giorno dopo."
-version: "0.2.0"
+version: "0.3.0"
 last_updated: "2026-11-26"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
@@ -19,7 +19,8 @@ mai due volte la stessa. Nessuna sessione si **inventa**: un tempo non preso res
   telefono, non suggerisce, non spiega**. Annota ogni esitazione e ogni frase detta ad alta voce.
 - Ferma da **3 minuti** sullo stesso passo: si annota «fermo a: …», si dà **un** aiuto e si
   segna. Ogni aiuto è un punto debole del percorso, non della persona.
-- **Il cronometro parte alla consegna 1** e si ferma alla prima risposta della creatura. Si
+- **Il cronometro parte alla consegna 1** e si ferma alla **prima risposta della creatura a ciò
+  che la persona le ha detto** — non al suo saluto: con E1 parla lei per prima. Si
   prendono i tempi parziali ai passi della sezione 4. Il tempo che dipende da altri (attese
   della macchina, il conduttore che fa da allevamento) si annota **a parte** e non si somma.
 - La persona usa **il suo telefono**, con la sua rete. Si registra lo schermo **solo con il
@@ -45,13 +46,20 @@ mai due volte la stessa. Nessuna sessione si **inventa**: un tempo non preso res
 7. Per il giorno dopo: orario fissato **prima** (24 ore dopo, ±1) e un modo di raggiungere la
    persona che **non** sia una domanda sulla creatura.
 
+8. **Il copione di primo incontro (E1) deve esistere.** Oggi non esiste (spec, §4 e lavoro 3). Se
+   manca, la sessione **non prova E1** ma il comportamento attuale: scriverlo in testa alla
+   scheda. **Non si fa partire la creatura a mano**: sarebbe provare un'altra cosa.
+
 ## 3. Le consegne (si leggono una alla volta, mai riformulate)
 
 1. «Vuoi un compagno artificiale. Hai a disposizione solo questo telefono. Vorrei che arrivassi a
    parlarci. Pensa ad alta voce.»
 2. (Quando serve) «Questo è il riferimento del tuo pagamento.» *(il conduttore lo segna sul
    proprio lato)*
-3. «Digli come ti chiami e una cosa che ti è successa oggi.»
+3. «Adesso parlate voi due: quando ti parla, rispondile come ti viene. Io non dico altro.»
+   *(Chi conduce **non dice cosa dire, non fa domande, non rilancia**. Con E1 è la creatura a
+   condurre: saluta e fa **una** domanda. I fatti che la persona dirà sono i suoi, non quelli
+   che le abbiamo suggerito.)*
 4. «Questo è tutto: puoi smettere quando vuoi.»
 
 ## 4. Scheda per passo
@@ -70,7 +78,8 @@ abbandonato), **fermo a** (cosa guardava, cosa tentava), **frase detta**, **erro
 | 7 | Entra («Fammi entrare») | | | |
 | 8 | Raggiunge il server (rete, indirizzo `https://`) | | | |
 | 9 | Installa sulla Home e concede microfono/fotocamera | | | |
-| 10 | Prima frase e prima risposta della creatura | | | |
+| 10a | La creatura **saluta per prima** e fa la sua domanda — trascrivere **alla lettera** | | | |
+| 10b | La persona risponde; **prima risposta** della creatura a ciò che ha detto | | | |
 
 Sotto la tabella, in testa alla scheda: **modello di telefono, sistema, browser, rete**.
 
@@ -78,13 +87,16 @@ Sotto la tabella, in testa alla scheda: **modello di telefono, sistema, browser,
 
 | # | Misura | Come |
 |---|---|---|
-| 1 | Tempo dalla consegna 1 alla prima risposta, **senza** le attese 4–5 | cronometro, sezione 4 |
+| 1 | Tempo dalla consegna 1 alla prima risposta della creatura **a ciò che la persona ha detto** (10b), **senza** le attese 4–5 | cronometro, sezione 4 |
 | 2 | Aiuti dati e punto esatto di ciascuno | scheda |
 | 3 | **Dove si ferma per primo**, e per quanto | scheda |
 | 4 | Passi in cui la persona **non sa cosa fare** senza leggere | scheda |
 | 5 | La persona sa dire in una frase **cosa ha comprato e cosa ha pagato** | domanda finale |
 | 6 | Errori mostrati e se la persona li ha **capiti** | scheda |
 | 7 | Domanda finale: «cosa ti ha fatto più paura o più dubitare?» | si annota così com'è |
+| 8 | La creatura **ha condotto**: saluto e **una** domanda aperta e concreta, entro 60 secondi dai sensi accesi | riga 10a, alla lettera |
+| 9 | La persona ha detto **almeno un fatto preciso** (un nome, una cosa successa): è la materia del sogno | lista dei fatti, sezione 6 |
+| 10 | La creatura ha **promesso** di ricordare («domani mi ricorderò»)? **Non deve** | riga 10b, alla lettera |
 
 Ogni aiuto e ogni risposta alla 7 produce una voce nel backlog, anche se tutto va bene.
 
@@ -104,6 +116,11 @@ conversazione (il nome, la cosa successa oggi, un dettaglio) — non una frase g
   connesso). Un telefono lasciato acceso e connesso nel dock può dire il desiderio a una stanza
   vuota prima che la persona arrivi, e il desiderio resta consumato: **annotare** se il telefono
   era connesso durante la notte e a che ora la persona è arrivata.
+- **La lista dei fatti.** Con E1 i fatti non si scelgono: sono quelli che la persona ha detto
+  rispondendo alla creatura. **Subito dopo la sessione**, chi conduce scrive la lista dei fatti
+  precisi detti (nome, persone, animali, cose successe) **dalla trascrizione**. È la lista contro
+  cui i due giudici valutano il giorno dopo: senza una lista scritta **prima**, la definizione si
+  piegherebbe al risultato.
 - **Come si raccoglie.** Non si chiede alla persona di «provare a vedere se si ricorda». Si
   annota **la prima cosa che la creatura dice o fa** quando la persona riapre l'app o si
   presenta, e **se parla per prima** (iniziativa) a prescindere da lei.
