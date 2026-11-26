@@ -1,15 +1,16 @@
 ---
 title: "I primi cinque minuti — specifica (BOZZA)"
 description: "UGOMKT-11: come dovrebbe essere il primo incontro con una creatura, con le scelte ancora aperte segnate."
-version: "0.1.0-bozza"
+version: "0.2.0-bozza"
 last_updated: "2026-11-26"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
 # I primi cinque minuti — specifica (BOZZA)
 
-**Stato: bozza, non approvata.** Niente qui è una decisione finché una **SCELTA APERTA** non è
-chiusa dal proprietario. Dove manca una misura, c'è scritto. Base: `MISURA_PRIMO_INCONTRO.md`
+**Stato: bozza, non approvata.** Il 2026-11-26 sono state chiuse le scelte **A1, B1, C1, E1**
+(sezione 2). **Resta aperta la D** («telefono come casa d…»): finché non è chiusa, la parte che
+tocca il guscio e l'hardware non si specifica. Dove manca una misura, c'è scritto. Base: `MISURA_PRIMO_INCONTRO.md`
 (il percorso di oggi) e `SCHEDA_OSSERVAZIONE_PRIMO_INCONTRO.md` (come si prova).
 
 **Legenda delle prove** — ogni affermazione porta la sua etichetta:
@@ -27,26 +28,27 @@ Oggi il primo incontro ha «troppe giunture»: vetrina, pagamento manuale, gusci
 
 ## 2. Le scelte aperte (da chiudere prima di implementare)
 
-Le proposte sono la mia lettura, non una decisione. Ogni scelta dice cosa cambia.
+**Chiuse il 2026-11-26** (A1, B1, C1, E1). Le opzioni scartate restano scritte, con le
+conseguenze, per chi le riapre: riaprirle riscrive le sezioni 4 e 5.
 
-> **SCELTA APERTA A — Dove cominciano i cinque minuti.**
-> - **A1** *(proposta)*: dal primo tocco sul telefono con la creatura **già consegnata**. Vetrina,
+> **SCELTA CHIUSA — A1 — Dove cominciano i cinque minuti.**
+> - **A1** *(SCELTA)*: dal primo tocco sul telefono con la creatura **già consegnata**. Vetrina,
 >   prenotazione, pagamento e consegna restano **fuori** dalla finestra e si specificano a parte.
 > - **A2**: dalla vetrina alla prima risposta, tutto dentro. Include il pagamento: **non
 >   fattibile in 5 minuti** finché è una persona a segnarlo `[CODICE]`.
 >
 > Se A2, le sezioni 4 e 5 vanno riscritte.
 
-> **SCELTA APERTA B — Il pagamento.**
-> - **B1** *(proposta)*: **fuori** dal primo incontro. Si paga e si consegna prima; i 5 minuti
+> **SCELTA CHIUSA — B1 — Il pagamento.**
+> - **B1** *(SCELTA)*: **fuori** dal primo incontro. Si paga e si consegna prima; i 5 minuti
 >   cominciano con una creatura già di chi la riceve. Nessuna modifica al codice.
 > - **B2**: la creatura arriva **prima** del pagamento. Contraddice ADR-082 («si consegna quello
 >   che è stato pagato, perché la consegna è irreversibile») `[CODICE]`: serve un ADR.
 > - **B3**: pagamento dentro i 5 minuti con un **incassatore automatico**: lavoro a sé, ancora
 >   nel backlog `[CODICE]`.
 
-> **SCELTA APERTA C — Dove vive la creatura.**
-> - **C1** *(proposta)*: **deploy ospitato**. È l'unico dove il sogno gira e quindi dove il
+> **SCELTA CHIUSA — C1 — Dove vive la creatura.**
+> - **C1** *(SCELTA)*: **deploy ospitato**. È l'unico dove il sogno gira e quindi dove il
 >   criterio «il giorno dopo cita» si può provare `[CODICE]`.
 > - **C2**: **casa locale** («a casa tua»). Il kit non ha il servizio `jobs` `[CODICE]`: nessun
 >   sogno, nessun desiderio, nessun ricordo dalla chat. Il terzo punto del criterio **non si può
@@ -57,15 +59,19 @@ Le proposte sono la mia lettura, non una decisione. Ogni scelta dice cosa cambia
 > telefono è la **porta d'ingresso** alla casa, che vive altrove; (3) altro, che non so. Cambia
 > cosa significa «guscio» e se l'hardware sta o no nei 5 minuti. **Mi serve la risposta.**
 
-> **SCELTA APERTA E — Chi guida la prima conversazione.**
-> - **E1** *(proposta)*: la creatura **conduce**: dice una riga e fa **una** domanda aperta e
+> **SCELTA CHIUSA — E1 — Chi guida la prima conversazione.**
+> - **E1** *(SCELTA)*: la creatura **conduce**: dice una riga e fa **una** domanda aperta e
 >   concreta («cosa hai fatto oggi?»). Serve a dare al sogno fatti precisi, da cui dipende il
 >   terzo punto del criterio `[IPOTESI]`.
 > - **E2**: la persona parla per prima, la creatura risponde e basta. Più naturale, ma il sogno
 >   può non avere niente di preciso da riportare.
 
-Le proposte A1 + B1 + C1 sono coerenti fra loro. **A2, B2/B3, C2 e D(1) cambiano molto di più
-e vanno decise consapevolmente.**
+**Conseguenze delle scelte chiuse:**
+- B1 e C1: nessuna modifica al codice per il pagamento e nessun ADR; la **casa locale** («a casa
+  tua», UGOMKT-10) è **fuori** dai cinque minuti e non può passare il terzo punto del criterio.
+- E1: serve un **copione di primo incontro** (una riga e una domanda), oggi inesistente.
+- **D** (scelta aperta): se il telefono è il corpo o la porta d'ingresso cambia il guscio; le
+  scelte chiuse non dipendono da D, ma il perimetro hardware sì.
 
 ## 3. Cosa non cambia con nessuna scelta
 
@@ -76,7 +82,7 @@ e vanno decise consapevolmente.**
 - **Le pagine legali** (informativa, termini) non sono state riviste per questo percorso
   `[NON VERIFICATO]`: serve chi ha titolo legale prima di far provare persone esterne.
 
-## 4. I cinque minuti, minuto per minuto (con A1 + B1 + C1)
+## 4. I cinque minuti, minuto per minuto (con A1 + B1 + C1 + E1, scelte chiuse)
 
 I tempi sono **obiettivi provvisori**: nessun tempo umano è stato misurato `[IPOTESI]`.
 
@@ -86,7 +92,7 @@ I tempi sono **obiettivi provvisori**: nessun tempo umano è stato misurato `[IP
 | 0:30 | Nessun indirizzo da digitare, nessuna app da installare per cominciare | Il flusso di `primo-avvio.md` chiede Tailscale, un indirizzo `https://` e l'installazione sulla Home; la pagina è del 2026-11-09 e ADR-127 mette soul sul web | Non so quale sia oggi il percorso reale in produzione `[NON VERIFICATO]` |
 | 1:00 | **Un** gesto per dare i sensi, con una frase che dice **perché** microfono e fotocamera | Pulsante «Attiva sensi» e due permessi del sistema `[CODICE]` | La spiegazione prima del permesso: non so se c'è `[NON VERIFICATO]` |
 | 1:30 | La creatura **saluta per prima**, con una riga sola | Il saluto esiste solo al risveglio, con «Mi ero segnato una cosa…» `[CODICE]` | Cosa dice una creatura **appena consegnata**, la prima volta: non verificato `[NON VERIFICATO]` |
-| 2:00 | (E1) fa **una** domanda aperta e concreta | Non c'è un copione di primo incontro `[NON VERIFICATO]` | Il copione, se E1 |
+| 2:00 | (E1, scelta) fa **una** domanda aperta e concreta | Non c'è un copione di primo incontro `[NON VERIFICATO]` | **Il copione** |
 | 2:30–4:30 | La persona risponde; la creatura risponde **sul serio**, **nominando** quello che ha sentito | Chat e risposta `[CODICE]`; il tempo fino alla prima risposta richiede una chiave vera e non è misurato | Il tempo; **la chiave OpenRouter del server di prova** |
 | 4:30 | La creatura si congeda **senza promettere** che ricorderà | — | Il testo del congedo |
 
@@ -141,7 +147,7 @@ Senza le cinque sessioni UGOMKT-11 **non è chiuso**: nessun documento, test o s
 
 ## 8. Lavoro che ne uscirebbe (candidato, NON iniziato)
 
-Ordine indicativo, valido con A1 + B1 + C1:
+Ordine indicativo, con le scelte A1 + B1 + C1 + E1 chiuse. Resta aperta la D:
 
 1. Emissione del link di ingresso alla consegna (un solo gesto per chi riceve).
 2. Verifica reale del percorso web del telefono e aggiornamento di `primo-avvio.md`.
@@ -150,11 +156,11 @@ Ordine indicativo, valido con A1 + B1 + C1:
 5. Spec separata della vetrina per l'acquirente (fuori dalla finestra).
 6. Le cinque sessioni, con la scheda.
 
-Ogni punto è una fase a sé (regola 8): **non si anticipa niente** finché le scelte A–E non
-sono chiuse. Le decisioni strutturali (B2/B3, C2) vogliono un ADR.
+Ogni punto è una fase a sé (regola 8). **Il lavoro non è iniziato**: la scelta D non blocca i
+punti 1–6, ma blocca qualunque cosa tocchi il guscio. Se si riaprono B2/B3 o C2 serve un ADR.
 
 ## 9. Domande che restano a chi decide
 
-1. A, B, C, D, E: quale opzione, per ciascuna?
+1. **D**: cosa vuol dire «telefono come casa d…»? (le altre quattro sono chiuse)
 2. Chi ha titolo per rivedere informativa e termini prima delle sessioni?
 3. Chi conduce le sessioni, e dove si trovano cinque persone esterne allo studio?
