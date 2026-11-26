@@ -104,6 +104,15 @@ export interface LlmClientOptions {
   /** La lingua della casa (ADR-050): sceglie i due blocchi cached, N per N. */
   locale?: string;
   logger?: { warn: (data: Record<string, unknown>, message: string) => void };
+  /**
+   * La corsia della coda del tetto. `chat` (default) è quella di chi aspetta una
+   * risposta; `background` è del lavoro che nessuno aspetta (iniziativa,
+   * ruminazione, cantastorie, consiglio): corsie separate, perché una chiamata
+   * lenta di sfondo non deve tenere davanti la chat. Il tetto è lo stesso — si
+   * legge dal registro della casa —, quindi le due corsie possono sforarlo
+   * insieme al più di una chiamata ciascuna.
+   */
+  lane?: "chat" | "background";
 }
 
 const completionResponseSchema = z.object({
@@ -136,7 +145,7 @@ export class LlmClient {
    * processo, come l'istanza: due soul sullo stesso database si
    * ri-sovrapporrebbero, e allora il posto giusto sarebbe il database.
    *
-   * La coda è **per casa e non per istanza**: `llmFor` costruisce un client
+   * La coda è **per casa e corsia, non per istanza**: `llmFor` costruisce un client
    * nuovo a ogni chiamata, quindi una coda d'istanza non serializzava niente.
    * Resta comunque un limite APPLICATIVO: il costo si conosce a risposta
    * arrivata, quindi l'ultima chiamata può superare il tetto, e embedding e
@@ -144,6 +153,9 @@ export class LlmClient {
    * sulla chiave OpenRouter.
    */
   private static readonly queues = new Map<string, Promise<unknown>>();
+  private get queueKey(): string {
+    return `${this.accountId}:${this.options.lane ?? "chat"}`;
+  }
 
   public constructor(private readonly options: LlmClientOptions) {
     this.providers = options.providers ?? DEFAULT_PROVIDERS;
@@ -247,10 +259,10 @@ export class LlmClient {
    * segnare la spesa, comprese le chiamate finite male.
    */
   private enqueue(call: () => Promise<LlmChatResult>): Promise<LlmChatResult> {
-    const previous = LlmClient.queues.get(this.accountId) ?? Promise.resolve();
+    const previous = LlmClient.queues.get(this.queueKey) ?? Promise.resolve();
     const mine = previous.then(call, call);
     // la coda non deve mai restare "rifiutata", o inghiottirebbe le successive
-    LlmClient.queues.set(this.accountId, mine.catch(() => undefined));
+    LlmClient.queues.set(this.queueKey, mine.catch(() => undefined));
     return mine;
   }
 

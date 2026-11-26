@@ -166,6 +166,7 @@ const openRouterFor = (
   model: string,
   clock: HouseClock = { timezone: env.TZ, locale: DEFAULT_LOCALE },
   timeoutMs?: number,
+  lane?: "chat" | "background",
 ): LlmClient =>
   new LlmClient({
     // ADR-098: il muro del budget legge il ledger DELLA casa — sulla
@@ -181,6 +182,7 @@ const openRouterFor = (
     locale: clock.locale,
     logger: providerLog,
     ...(timeoutMs !== undefined && { timeoutMs }),
+    ...(lane !== undefined && { lane }),
   });
 const llmFor = (accountId: string, gosinoId: string, clock?: HouseClock): ChatLlm =>
   openRouterFor(accountId, gosinoId, env.OPENROUTER_CHAT_MODEL, clock);
@@ -190,9 +192,9 @@ const llmFor = (accountId: string, gosinoId: string, clock?: HouseClock): ChatLl
  * salvadanaio dell'esemplare d'avvio — limite dichiarato in ADR-131: oggi la
  * casa è una, e questi servizi non portano con sé chi li ha chiesti.
  */
-const textFor = (timeoutMs?: number): OpenRouterTextClient =>
+const textFor = (timeoutMs?: number, lane: "chat" | "background" = "background"): OpenRouterTextClient =>
   new OpenRouterTextClient(
-    openRouterFor(bootstrapAccountId, bootstrapExemplar.id, env.OPENROUTER_CHAT_MODEL, undefined, timeoutMs),
+    openRouterFor(bootstrapAccountId, bootstrapExemplar.id, env.OPENROUTER_CHAT_MODEL, undefined, timeoutMs, lane),
     providerLog,
   );
 const localText = textFor();
@@ -397,7 +399,8 @@ const meetings =
  * true`): un giudice che non arriva in tempo lascia rispondere.
  */
 const JUDGE_TIMEOUT_MS = 2_500;
-const judgeText = textFor(JUDGE_TIMEOUT_MS);
+// il giudice sta nel percorso della chat: corsia della chat, non dello sfondo
+const judgeText = textFor(JUDGE_TIMEOUT_MS, "chat");
 
 const hourOf = (at: Date): number =>
   Number(at.toLocaleString("it-IT", { hour: "2-digit", hour12: false, timeZone: env.TZ }));

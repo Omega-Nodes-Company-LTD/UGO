@@ -12,7 +12,8 @@ import { createAccountWithFounder } from "../../src/services/accountService.js";
  * (`LlmClient.queues`), quindi una chiamata lenta di sfondo (iniziativa,
  * ruminazione, sogno) tiene davanti la chat. Questo test lo MISURA su
  * OpenRouter vero (regola 1: niente server finti) e fissa due fatti:
- *  - stessa casa → le chiamate si susseguono, mai in parallelo;
+ *  - stessa casa e stessa corsia → le chiamate si susseguono, mai in parallelo;
+ *  - sfondo e chat hanno corsie separate → la chat non aspetta lo sfondo;
  *  - case diverse → non si aspettano.
  * Non asserisce velocità assolute, solo l'ordine; i tempi escono in console.
  * Richiede OPENROUTER_API_KEY e spende pochi centesimi.
@@ -24,8 +25,17 @@ let container: StartedPostgreSqlContainer;
 let db: DbClient;
 const houses: { accountId: string; gosinoId: string }[] = [];
 
-const clientFor = (house: { accountId: string; gosinoId: string }): LlmClient =>
-  new LlmClient({ db, apiKey, model: DEFAULT_CHAT_MODEL, dailyBudgetUsd: 5, accountId: house.accountId, gosinoId: house.gosinoId, timeoutMs: 90_000 });
+const clientFor = (house: { accountId: string; gosinoId: string }, lane?: "chat" | "background"): LlmClient =>
+  new LlmClient({
+    db,
+    apiKey,
+    model: DEFAULT_CHAT_MODEL,
+    dailyBudgetUsd: 5,
+    accountId: house.accountId,
+    gosinoId: house.gosinoId,
+    timeoutMs: 90_000,
+    ...(lane !== undefined && { lane }),
+  });
 
 interface Span {
   start: number;
@@ -69,6 +79,16 @@ describe("chat e sfondo sul fornitore vero", () => {
     const chatSame = timed(() => clientFor(one).chat({ channel: "home", userText: "Rispondi solo: ok." }));
     const [bgS, chatS] = await Promise.all([bgSame, chatSame]);
 
+    // stessa casa, ma lo sfondo ha la sua corsia: la chat non lo aspetta
+    const bgLane = timed(() => clientFor(one, "background").generate(BACKGROUND_PROMPT, 400, 0.7));
+    const chatLane = timed(() => clientFor(one).chat({ channel: "home", userText: "Rispondi solo: ok." }));
+    const [bgL, chatL] = await Promise.all([bgLane, chatLane]);
+
+    // due lavori di sfondo sulla stessa casa: fra loro restano in fila (il tetto)
+    const bgFirst = timed(() => clientFor(one, "background").generate(BACKGROUND_PROMPT, 400, 0.7));
+    const bgSecond = timed(() => clientFor(one, "background").generate("Rispondi solo: ok.", 20, 0));
+    const [bgF, bgSec] = await Promise.all([bgFirst, bgSecond]);
+
     // altra casa: stesso sfondo sulla prima, chat sulla seconda
     const bgOther = timed(() => clientFor(one).generate(BACKGROUND_PROMPT, 400, 0.7));
     const chatOther = timed(() => clientFor(two).chat({ channel: "home", userText: "Rispondi solo: ok." }));
@@ -79,15 +99,19 @@ describe("chat e sfondo sul fornitore vero", () => {
       [
         `chat da sola: ${ms(alone.end - alone.start)}`,
         `stessa casa: sfondo ${ms(bgS.end - bgS.start)}, chat ${ms(chatS.end - chatS.start)} (finisce ${ms(chatS.end - bgS.end)} dopo lo sfondo)`,
+        `corsia di sfondo: sfondo ${ms(bgL.end - bgL.start)}, chat ${ms(chatL.end - chatL.start)} (finisce ${ms(chatL.end - bgL.end)} dopo lo sfondo)`,
+        `sfondo+sfondo: primo ${ms(bgF.end - bgF.start)}, secondo finisce ${ms(bgSec.end - bgF.end)} dopo il primo`,
         `altra casa: sfondo ${ms(bgO.end - bgO.start)}, chat ${ms(chatO.end - chatO.start)} (finisce ${ms(chatO.end - bgO.end)} dopo lo sfondo)`,
       ].join("\n"),
     );
 
     expect(chatS.end).toBeGreaterThan(bgS.end); // in coda: finisce dopo lo sfondo
+    expect(chatL.end).toBeLessThan(bgL.end); // stessa casa, corsia di sfondo: la chat non aspetta
+    expect(bgSec.end).toBeGreaterThan(bgF.end); // nella stessa corsia si resta in fila
     expect(chatO.end).toBeLessThan(bgO.end); // casa diversa: non lo aspetta
 
     // ogni chiamata ha lasciato la sua riga sul registro (nessuna spesa persa nella corsa)
     const rows = await db.select().from(budgetLedger);
-    expect(rows.length).toBe(5); // 1 da sola + 2 sulla stessa casa + 2 su case diverse
+    expect(rows.length).toBe(9); // 1 da sola + 2 stessa corsia + 2 corsie diverse + 2 sfondo + 2 case diverse
   }, 300_000);
 });
