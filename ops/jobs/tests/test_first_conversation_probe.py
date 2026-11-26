@@ -25,6 +25,13 @@ Cosa asserisce e cosa no:
   - NON prova il giro d'iniziativa (sta in `volition.integration.test.ts`) né
     che la persona sia nella stanza quando parla.
 
+Seconda domanda, la FORMA: `speakDesire` pronuncia il desiderio alla lettera
+(nessuno lo riformula: `VolitionService.perform` → `broadcastSpeak` → TTS del
+muso). Un desiderio scritto come istruzione a sé stesso («Chiedere a Marta…»)
+verrebbe letto così. Prima del cambio al prompt di `reflect.py` la sonda ha
+misurato in CI (run 45821500012) 6 desideri su 15 in forma di domanda diretta.
+Ora la forma è un pavimento: almeno metà dei desideri su tutte le prove.
+
 I dati sono sintetici. Il giudizio è per ancore letterali (nomi e fatti
 precisi), non per «sembra pertinente»: la definizione di «cita» è fissata
 prima, in `docs/SCHEDA_OSSERVAZIONE_PRIMO_INCONTRO.md` §6.
@@ -83,6 +90,16 @@ def anchors_in(text: str) -> set[str]:
     return {anchor for anchor in ANCHORS if anchor in folded}
 
 
+def is_spoken_form(text: str) -> bool:
+    """Una frase che si può dire ad alta voce a una persona: una domanda diretta.
+
+    Volutamente rozza: «finisce con un punto interrogativo» lascia fuori le
+    istruzioni a sé stesso («Chiedere a Marta se…»), che è esattamente ciò che
+    la sonda deve distinguere. Non giudica se la domanda è bella.
+    """
+    return text.strip().endswith("?")
+
+
 def seed_first_conversation(conn: psycopg.Connection, gosino_id: str) -> None:
     key = parse_data_key(TEST_DATA_KEY)
     for minute, (role, text) in enumerate(FIRST_CONVERSATION):
@@ -132,6 +149,7 @@ def test_the_dream_turns_a_first_conversation_into_something_citable(
         per_run.append(
             {
                 "desires": [text for text, *_ in desires],
+                "spoken_form": sum(1 for text, *_ in desires if is_spoken_form(text)),
                 "desire_hits": sorted(desire_hits),
                 "memory_hits": sorted(memory_hits),
                 "memories": len(memories),
@@ -141,6 +159,8 @@ def test_the_dream_turns_a_first_conversation_into_something_citable(
     cited_by_desire = sum(1 for run in per_run if run["desire_hits"])
     cited_by_memory = sum(1 for run in per_run if run["memory_hits"])
     cited_by_either = sum(1 for run in per_run if run["desire_hits"] or run["memory_hits"])
+    total_desires = sum(len(run["desires"]) for run in per_run)  # type: ignore[arg-type]
+    spoken_form = sum(int(run["spoken_form"]) for run in per_run)  # type: ignore[call-overload]
 
     # il risultato è QUESTO, non l'asserzione: va letto nel log della sonda.
     # `pytest -q` (come in CI) nasconde l'output dei test che passano: si stampa
@@ -150,6 +170,7 @@ def test_the_dream_turns_a_first_conversation_into_something_citable(
         print(f"  desideri che citano un fatto: {cited_by_desire}/{RUNS} sogni")
         print(f"  ricordi che citano un fatto:  {cited_by_memory}/{RUNS} sogni")
         print(f"  almeno uno dei due:           {cited_by_either}/{RUNS} sogni")
+        print(f"  desideri in forma di domanda: {spoken_form}/{total_desires} (prima del cambio: 6/15)")
         for index, run in enumerate(per_run):
             print(f"  [{index}] ancore nei desideri={run['desire_hits']} nei ricordi={run['memory_hits']}")
             for desire in run["desires"]:  # type: ignore[attr-defined]
@@ -160,4 +181,10 @@ def test_the_dream_turns_a_first_conversation_into_something_citable(
     assert cited_by_desire >= 1, (
         f"nessun desiderio su {RUNS} sogni cita un fatto della prima conversazione: "
         "la via dell'iniziativa non può soddisfare il criterio così com'è"
+    )
+
+    # la forma: il desiderio si dice alla lettera, quindi deve essere dicibile
+    assert spoken_form * 2 >= total_desires, (
+        f"solo {spoken_form} desideri su {total_desires} sono domande dirette: "
+        "il prompt non ha cambiato come il sogno scrive i desideri"
     )
