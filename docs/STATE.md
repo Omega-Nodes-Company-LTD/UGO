@@ -3372,6 +3372,14 @@ conversazione. **Non è chiuso**: la spec è una bozza non approvata e le **sess
   cancello del nome può chiudersi prima che la persona dia i sensi (saluto alla connessione); il saluto è una volta sola: dal
   browser alla Home potrebbe non ripetersi; più creature appena consegnate nello stesso socket parlerebbero insieme (non gestito,
   non provato); `_day_window` in `reflect.py` usa il giorno UTC e non il fuso della casa (letto, non provato).
+- **Test instabile noto: `apps/soul/tests/integration/chatGroup.integration.test.ts`** («sull'API lo scoping per persona di ADR-032
+  non si è mosso»). Dipende dalla risposta del **modello vero**: cerca la parola «faccenda» in una risposta che deve riprendere un
+  messaggio già in storia. Due fallimenti in CI, **nessuno legato al codice**: il primo giro di `integration` su UGOMKT-10
+  (PR #123) e il primo tentativo della run `45900015099` (commit `ecc0f27`, solo documentazione), dove il modello ha risposto
+  recitando la prima riga del proprio prompt di identità («sei un gosino: un'unità gosiniana operativa…»). Rilanciato il solo
+  job, è passato. **Non so quanto spesso succeda** (due casi non fanno una frequenza) **né ho una correzione**: se rosso, si
+  rilancia il job; se diventa frequente va guardato il test, non ignorato. Non c'entra con la regola del primo scambio: il
+  test inserisce una storia, quindi `isFirstExchange` è falso.
 - **Non fatto**: le 5 sessioni con persone esterne; l'emissione di un link di ingresso per chi riceve (il codice di
   abbinamento lo emette un amministratore già dentro); la verifica del percorso web del telefono e l'aggiornamento di
   `primo-avvio.md` (parla ancora di Tailscale, ADR-127 ha messo soul sul web); la spiegazione dei permessi; la spec della vetrina
