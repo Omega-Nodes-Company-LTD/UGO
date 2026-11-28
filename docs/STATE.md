@@ -3394,11 +3394,14 @@ conversazione. **Non è chiuso**: la spec è una bozza non approvata e le **sess
   `version` resta 0.38.0 perché la pagina non è stata riverificata (Tailscale, «voce di casa»).
 - **Giro regola 12 (UGOMKT-11)**: **BO** — `apps/soul` (gateway, socket, prompt di chat, env), `ops/jobs` (prompt del sogno),
   `.env.example`; fixture di test: `helpers/chat.ts` e `helpers/faceSocket.ts` condivisi, `faceWs.integration` riusa il secondo;
-  **`/admin`** — non toccato; **letto il codice, non provato nel browser**: nessuna rotta né script del pannello elenca gli
-  eventi per tipo, e ogni lettore di `events` filtra per i propri tipi, quindi `first_meeting` non compare come evento. Entra solo
-  nel contatore «eventi» di `routes/stats.ts` (+1 per creatura salutata) e nella redazione PII di `forgetService` (payload `{}`,
-  intatto); `CAUSE_LABEL` è per le cause della psiche e non ne ha bisogno. **Lacuna**: dal pannello non si vede se una creatura è già
-  stata salutata (il marcatore è invisibile e la frase detta non è un messaggio); utile da osservare nelle 5 sessioni; **FE** — `apps/face`
+  **`/admin`** — **toccato 2026-11-28**. Letto il codice e provato su un soul vero con Postgres vero (prova a perdere): nessuna
+  rotta né script del pannello elenca gli eventi per tipo e ogni lettore di `events` filtra per i propri tipi, quindi `first_meeting`
+  non compariva; entrava solo nel contatore «eventi» di `routes/stats.ts` e nella redazione PII di `forgetService` (payload `{}`,
+  intatto). **Lacuna chiusa**: `/v1/stats` ora porta `firstMeeting: { greeted, of, at }` (conteggi e una data, mai contenuti; ristretto
+  a un esemplare con `?gosino=`, altrimenti la casa) e `script/status.ts` mostra un tassello «primo incontro»: «non ancora» / «fatto»
+  per una creatura, «1 su N» per la casa (mai «salutato» di una casa dove ne è stata salutata una sola). Nota: `N` conta anche la
+  creatura seminata dalle migrazioni. Prova: `adminSurface.integration` (Postgres vero), 13/13; `script.test.ts` verde. **Non**
+  guardato nel browser. **FE** — `apps/face`
   non toccato (il muso riceve `speak` sul contratto di sempre) → **nessun bundle da ricostruire**; l'e2e col browser vero è passato.
 - **Note di rilascio**: con `UGO_FIRST_MEETING=on` (default) ogni creatura senza storia parla per prima alla prima connessione;
   `off` per spegnerlo. Cambia anche la forma dei desideri del sogno in ogni casa.

@@ -114,7 +114,9 @@ async function loadStats() {
       "sul prefisso cached") +
     tile("ricordi", s.counts.memories, s.counts.messages + " messaggi") +
     tile("ultimo sogno", s.lastDream ? s.lastDream.at.slice(5, 10) : "mai",
-      s.lastDream ? "" : "non ha ancora sognato");
+      s.lastDream ? "" : "non ha ancora sognato") +
+    tile("primo incontro", firstMeetingValue(s.firstMeeting),
+      s.firstMeeting.at ? "salutato il " + s.firstMeeting.at.slice(5, 10) : "nessun saluto ancora");
 
   MOOD = s.mood ?? [];
   drawMood();
@@ -128,6 +130,10 @@ async function loadStats() {
     s.history.map((d) => "<tr><td>" + d.date + "</td><td>$" + d.costUsd.toFixed(4) +
       "</td><td>" + d.calls + "</td></tr>").join("") + "</tbody></table>";
 }
+// una creatura sola: «sì»/«non ancora»; una casa: «1 su 2» — il pannello non deve
+// dire «salutato» di una casa dove ne e' stata salutata una sola
+const firstMeetingValue = (f) =>
+  f.of === 1 ? (f.greeted === 1 ? "fatto" : "non ancora") : f.greeted + " su " + f.of;
 const tile = (label, value, note) =>
   '<div class="tile"><small>' + label + "</small><b>" + value + "</b><span>" + (note ?? "") + "</span></div>";
 
