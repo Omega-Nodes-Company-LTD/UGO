@@ -1,19 +1,21 @@
 ---
 title: "Il copione del primo incontro (BOZZA)"
 description: "UGOMKT-11, scelta E1: cosa dice la creatura appena consegnata — il saluto, la domanda, la risposta e il congedo — e come lo si verifica."
-version: "0.2.0-bozza"
-last_updated: "2026-11-26"
+version: "0.3.0-bozza"
+last_updated: "2026-11-28"
 author: "Senior Principal Engineer & Privacy Officer"
 ---
 
 # Il copione del primo incontro (BOZZA)
 
-**Stato: bozza, non approvata, non implementata.** Specifica il lavoro 3 di
-`PRIMI_CINQUE_MINUTI.md` §8, dopo la scelta **E1**: la creatura **conduce** la prima
-conversazione con **una riga e una domanda**. **Le tre scelte di voce sono chiuse (2026-11-26):
-V3, alla connessione, in silenzio se la persona tace.** Nessun codice, nessun test: la bozza
-resta una bozza. Etichette di prova: `[CODICE]` letto · `[IPOTESI]` proposta ·
-`[NON VERIFICATO]` non so.
+**Stato: bozza non approvata, ma implementata e provata** (v0.91.0, PR #125 in bozza).
+Specifica il lavoro 3 di `PRIMI_CINQUE_MINUTI.md` §8, dopo la scelta **E1**: la creatura
+**conduce** la prima conversazione con **una riga e una domanda**. **Le tre scelte di voce sono
+chiuse (2026-11-26): V3, alla connessione, in silenzio se la persona tace.** Il codice: saluto in
+`apps/soul/src/services/firstMeeting.ts`, regola del primo scambio in `chatService.ts`; i test
+sono in §6. Dove il testo sotto dice «oggi non esiste» o «non ancora», vale la nota di stato
+accanto. Etichette di prova: `[CODICE]` letto · `[MISURATO]` preso da un test · `[IPOTESI]`
+proposta · `[NON VERIFICATO]` non so.
 
 ## 1. Vincoli che il copione non può violare
 
@@ -39,8 +41,10 @@ Tutti ricavati dal codice, non da me:
 
 ## 2. Il saluto e la domanda (testo fisso)
 
-Oggi **non esiste** un punto che parli alla prima connessione: il solo saluto è quello al
-risveglio, che dice «buongiorno! Mi ero segnato una cosa: …» e parte solo se il muso **dorme**
+**Stato 2026-11-28: implementato** (`FirstMeeting.greeting`, chiamato da `greetFirstMeeting` subito
+dopo `whoami`; una volta sola con evento `first_meeting` + lock consultivo Postgres; interruttore
+`UGO_FIRST_MEETING`) `[CODICE]`. Prima di questo lavoro non esisteva un punto che parlasse alla
+prima connessione: il solo saluto era quello al risveglio, che dice «buongiorno! Mi ero segnato una cosa: …» e parte solo se il muso **dorme**
 (`faceGateway.ts`, `wakeUpGreeting`) `[CODICE]`; non ho trovato altro nel gateway né nelle
 rotte del socket `[NON VERIFICATO]`. Il saluto del primo incontro è quindi **nuovo**.
 
@@ -68,8 +72,10 @@ Regole comuni, qualunque formula:
 >
 > **Rischio di (a), da osservare e non risolto:** a muso collegato ma senza microfono la persona
 > non può rispondere a voce, e la finestra dei 60 secondi del cancello può chiudersi **prima**
-> che dia i sensi; allora la sua prima risposta, senza il nome della creatura, non parte. Non so
-> se esista un altro modo di rispondere (ad esempio scrivendo) `[NON VERIFICATO]`. Le sessioni
+> che dia i sensi; allora la sua prima risposta, senza il nome della creatura, non parte. **Un altro
+> modo di rispondere esiste**: la riga «scrivigli…» manda il testo senza passare dal cancello del
+> nome, che giudica solo la voce `[CODICE]` (`typedLine.ts`, `main.ts`); non so se la persona la
+> trova `[NON VERIFICATO]`. Le sessioni
 > misurano questo: quanto passa fra il saluto (4a) e la risposta utile (4b), e se la risposta si
 > perde.
 
@@ -115,22 +121,24 @@ finisca da sé. Non si forza una chiusura a 4:30 solo perché la spec dice «4:3
 
 ## 6. Come si verificherebbe (non è stato fatto)
 
-| Cosa | Come | Con cosa |
-|---|---|---|
-| Il saluto parte **una volta sola**, con due connessioni insieme | Integrazione sul gateway | Postgres vero |
-| Il saluto ha ≤ 2 frasi, dice il nome della creatura e nessuna frase vietata | Test puro sul testo | Niente |
-| La risposta nomina nome e dettaglio, ≤ 2 frasi, **non promette** | Come la sonda del sogno: più esecuzioni sulla stessa risposta, misurate e stampate | OpenRouter vero; il pavimento è la frase vietata |
-| La finestra dei 60 secondi regge una persona lenta | Sessione con una persona vera | Telefono vero |
+| Cosa | Come | Con cosa | Stato |
+|---|---|---|---|
+| Il saluto parte **una volta sola**, con due connessioni insieme | Integrazione sul gateway | Postgres vero | **Fatto**: 9 test (anche dieci connessioni insieme, e chi ha già una storia); senza il lock 3 saluti invece di 1 `[MISURATO]` |
+| Il saluto arriva sul socket vero | Integrazione sul WebSocket | Server vero | **Fatto**: 3 test; senza il cablaggio il saluto non arriva `[MISURATO]` |
+| Il saluto ha ≤ 2 frasi, dice il nome della creatura e nessuna frase vietata | Test puro sul testo | Niente | **Fatto**: 22 unit su saluto e `makesAPromise` |
+| La regola del primo scambio non cambia il primo messaggio di sistema | Test puro sulla forma del prompt | Niente | **Fatto**: 7 unit |
+| La risposta nomina nome e dettaglio, ≤ 2 frasi, **non promette** | Sonda: più esecuzioni, misurate e stampate | OpenRouter vero | **Fatto** (3 esecuzioni × 5 persone, con controllo senza regola): promesse 0; nome 15/15 in entrambi i gruppi; dettaglio 15/15 contro 12/15; **«entro due frasi» si misura e non si asserisce**, perché le risposte superano le due frasi quasi sempre anche senza regola `[MISURATO]` |
+| La finestra dei 60 secondi regge una persona lenta | Sessione con una persona vera | Telefono vero | **Non fatto** |
+| Come suona il saluto dal TTS del telefono | Sessione con una persona vera | Telefono vero | **Non fatto** |
 
 La parte generata è probabilistica: la prova è una **frequenza** su più esecuzioni, non un
-«passa». Nessuna di queste prove è stata scritta né eseguita.
+«passa». Il pavimento della sonda è «zero promesse», nome ≥ 3/5 e al massimo una domanda ≥ 4/5.
 
 ## 7. Conseguenze delle scelte chiuse
 
 - **Il saluto precede i sensi.** Con (a) la creatura parla subito dopo l'ingresso, **prima** che la
-  persona abbia dato microfono e fotocamera. Quindi `PRIMI_CINQUE_MINUTI.md` §4 (il saluto sta
-  oggi a 1:30, dopo i sensi a 1:00) e `SCHEDA_OSSERVAZIONE_PRIMO_INCONTRO.md` (4a dopo il passo 3
-  e «entro 60 secondi dai sensi accesi») descrivono un altro ordine: **non ancora aggiornati**.
+  persona abbia dato microfono e fotocamera. `PRIMI_CINQUE_MINUTI.md` §4 (0.5.0) e
+  `SCHEDA_OSSERVAZIONE_PRIMO_INCONTRO.md` (riga 3a) sono **allineati** a questo ordine.
 - **Il saluto è una volta sola per creatura.** Se la persona lo riceve nel browser e poi installa
   l'app sulla Home, il nuovo contesto non lo ripete e la persona può trovarsi senza saluto e
   senza domanda `[NON VERIFICATO]`. Le sessioni annotano l'ordine dei passi.
@@ -141,4 +149,7 @@ La parte generata è probabilistica: la prova è una **frequenza** su più esecu
 ## 8. Decisioni che restano
 
 1. Chi rivede le pagine legali e la spiegazione dei permessi (§5), prima delle sessioni.
-2. Il lavoro 3 non è iniziato: serve una fase sua (regola 8), con i test di §6.
+2. Il congedo (§4) oggi lo genera il modello: le frasi vietate si controllano con `makesAPromise`,
+   ma il testo non è fisso e nelle sonde compaiono congedi vaghi («a presto»). Tenerlo generato o
+   renderlo fisso: **non deciso**.
+3. L'approvazione del copione da parte del proprietario, e le sessioni con persone vere (§6).

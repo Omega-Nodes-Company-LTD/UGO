@@ -3344,8 +3344,12 @@ conversazione. **Non è chiuso**: la spec è una bozza non approvata e le **sess
   — **lettura mia** del titolo del compito, alternativa scartata scritta; **E1** la creatura conduce; copione: formula **V3**,
   saluto **alla connessione** (la mia proposta era ai sensi), **silenzio** se la persona tace.
 - **Documenti**: `MISURA_PRIMO_INCONTRO.md` (il percorso di oggi, 10 passaggi di mano, solo la parte macchina misurata: < 1,5 s),
-  `SCHEDA_OSSERVAZIONE_PRIMO_INCONTRO.md` v0.5.0 (mai usata), `PRIMI_CINQUE_MINUTI.md` v0.3.0-bozza, `COPIONE_PRIMO_INCONTRO.md`
-  v0.2.0-bozza.
+  `SCHEDA_OSSERVAZIONE_PRIMO_INCONTRO.md` v0.5.0 (mai usata), `PRIMI_CINQUE_MINUTI.md` v0.5.0-bozza, `COPIONE_PRIMO_INCONTRO.md`
+  v0.3.0-bozza. **2026-11-28**: la spec è **completa nel contenuto** (§4 riallineato al saluto alla connessione e a ciò che è
+  fatto, §6 con la sonda, §8 con lo stato dei sei lavori, nuovo §10 su cosa separa la bozza dall'approvazione); **resta bozza non
+  approvata**. Trovato leggendo `apps/face`: la riga «scrivigli…» manda il testo **senza passare dal cancello del nome**, quindi è
+  un'uscita dal rischio dei 60 s; non so se la persona la trova. La spiegazione dei permessi **non esiste** (`micReason.ts` spiega
+  solo i permessi falliti).
 - **Codice 1 — il sogno** (`ops/jobs/src/ugo_jobs/reflect.py`): i desideri si scrivono come frasi da dire a voce, perché
   `speakDesire` le pronuncia alla lettera (9 su 15 erano istruzioni a sé stesso). Sonda `test_first_conversation_probe.py`: su
   5 sogni, desideri e ricordi citano un fatto 5/5; desideri in forma di domanda 6/15 → 14/14. **Cambia come il sogno scrive i
