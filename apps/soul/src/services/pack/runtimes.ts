@@ -122,6 +122,11 @@ export interface RuntimeDeps {
    * spegnere l'iniziativa da una casa la spegneva anche al vicino.
    */
   initiativeEnabled: (accountId: string) => boolean;
+  /**
+   * UGOMKT-11: il saluto del primo incontro alla prima connessione
+   * (`UGO_FIRST_MEETING`). Assente = non saluta, come prima di questo lavoro.
+   */
+  firstMeeting?: boolean;
   /** ADR-107: se il giudice dell'astensione è acceso (`UGO_ABSTAIN`) */
   abstain?: boolean;
   /**
@@ -341,6 +346,7 @@ async function buildRuntime(
     psyche,
     chat,
     gosinoId: row.id,
+    ...(deps.firstMeeting === true && { firstMeeting: true }),
     reward: (input) => reward.give(input),
     ...(recognition !== undefined && { recognition }),
     // ADR-057: il deposito è lo stesso del pannello (`storeVoiceSample`), coi

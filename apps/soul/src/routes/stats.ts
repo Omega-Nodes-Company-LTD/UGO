@@ -67,6 +67,7 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
         memories: sql<string>`(select count(*) from ${memories} where ${memories.gosinoId} in ${ours})`,
         messages: sql<string>`(select count(*) from ${messages} where ${messages.gosinoId} in ${ours})`,
         events: sql<string>`(select count(*) from ${events} where ${events.gosinoId} in ${ours})`,
+        creatures: sql<string>`(select count(*) from gosini where account_id = ${accountId})`,
       })
       .from(sql`(select 1) as _`);
 
@@ -115,6 +116,25 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
       )
       .orderBy(psycheSnapshots.ts);
 
+    // UGOMKT-11: il saluto del primo incontro lascia un marcatore (`first_meeting`) e
+    // nient'altro; senza questa riga il pannello non puo' dire se una creatura e' gia'
+    // stata salutata. Come la mood, si restringe a UN esemplare solo se richiesto: senza
+    // `gosino` e' la casa («1 su 2»). Solo conteggi e una data, mai contenuti (ADR-020).
+    const greetedRows = await db
+      .select({ gosinoId: events.gosinoId, ts: events.ts })
+      .from(events)
+      .where(
+        and(
+          eq(events.type, "first_meeting"),
+          who === undefined ? inArray(events.gosinoId, mine) : eq(events.gosinoId, who.id),
+        ),
+      );
+    const greeted = new Set(greetedRows.map((row) => row.gosinoId));
+    const greetedLast = greetedRows.reduce<Date | undefined>(
+      (latest, row) => (latest === undefined || row.ts > latest ? row.ts : latest),
+      undefined,
+    );
+
     const [lastDream] = await db
       .select({ ts: events.ts, payload: events.payload })
       .from(events)
@@ -158,6 +178,12 @@ export function registerStatsRoute(app: FastifyInstance, deps: StatsDeps): void 
         vars: row.vars,
         label: row.label,
       })),
+      /** quante creature hanno gia' ricevuto il saluto, su quante (1 se si guarda un esemplare) */
+      firstMeeting: {
+        greeted: greeted.size,
+        of: who === undefined ? Number(counts?.creatures ?? 0) : 1,
+        at: greetedLast === undefined ? null : greetedLast.toISOString(),
+      },
       lastDream:
         lastDream === undefined
           ? null

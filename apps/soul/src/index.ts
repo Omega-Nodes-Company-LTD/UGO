@@ -330,6 +330,7 @@ const face: FaceGateway = new FaceGateway({
   chat,
   psyche,
   gosinoId: bootstrapExemplar.id,
+  firstMeeting: env.UGO_FIRST_MEETING === "on",
   // hour in project TZ so the sleep rule follows Europe/Rome, not the host
   hourOf: (at) =>
     Number(
@@ -438,6 +439,7 @@ const registry = await GosinoRegistry.load({
   speciesMap,
   localModelUp: () => true,
   initiativeEnabled: (accountId: string) => initiative.on(accountId),
+  firstMeeting: env.UGO_FIRST_MEETING === "on",
   // ADR-107: il giudice dell'astensione, sul modello di casa, col suo tetto
   abstain: env.UGO_ABSTAIN === "on",
   judge: judgeText,

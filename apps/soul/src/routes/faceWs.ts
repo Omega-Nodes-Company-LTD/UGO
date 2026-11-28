@@ -223,6 +223,12 @@ export async function registerFaceWs(
         const view = member.gateway.psycheView();
         send({ type: "mood", label: view.label, vars: view.vars });
         send({ type: "whoami", name: member.name });
+        // UGOMKT-11: il primo incontro. Dopo whoami, perché il muso sa chi è
+        // prima di sentirlo parlare; senza `await`, perché il database lento
+        // non deve trattenere il resto della connessione
+        void member.gateway.greetFirstMeeting(send).catch(() => {
+          app.log.warn({ gosino: member.id }, "first meeting greeting failed");
+        });
       }
 
       deliver = (text: string): void => {

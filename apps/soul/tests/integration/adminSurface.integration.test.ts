@@ -20,6 +20,7 @@ import { loadSpeciesMap } from "@ugo/shared";
 import type { EmbeddingsClient, LocalTextClient } from "@ugo/memory";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { FirstMeeting } from "../../src/services/firstMeeting.js";
 import { GosinoRegistry } from "../../src/services/pack/runtimes.js";
 import { InitiativeSwitch } from "../../src/services/volition/initiativeSwitch.js";
 import { buildServer } from "../../src/server.js";
@@ -299,6 +300,30 @@ describe("what the panel can see", () => {
     });
     expect(registry.inRoom("cucina", accountId).map((r) => r.name)).toEqual(["Ugo"]);
     expect(registry.rooms(accountId).flatMap((r) => r.gosini.map((g) => g.name))).not.toContain("Nino");
+  });
+
+  it("says whether the creature has been greeted: a house counts them, an exemplar says yes or no (UGOMKT-11)", async () => {
+    interface Met {
+      firstMeeting: { greeted: number; of: number; at: string | null };
+    }
+    const stats = async (query = ""): Promise<Met["firstMeeting"]> =>
+      (await get(`/v1/stats${query}`)).json<Met>().firstMeeting;
+
+    // la casa ha anche la creatura che le migrazioni seminano: il totale si
+    // legge dal database, non si indovina
+    const total = (await db.select({ id: gosini.id }).from(gosini)).length;
+    expect(total).toBeGreaterThanOrEqual(2);
+    expect(await stats()).toEqual({ greeted: 0, of: total, at: null });
+
+    expect(await new FirstMeeting(db).greeting(ugo)).toBeDefined();
+
+    // la casa: «1 su N», non «salutato»
+    const house = await stats();
+    expect(house).toMatchObject({ greeted: 1, of: total });
+    expect(house.at).not.toBeNull();
+    // un esemplare: il suo, non quello dell'altro
+    expect(await stats(`?gosino=${ugo}`)).toMatchObject({ greeted: 1, of: 1 });
+    expect(await stats(`?gosino=${nino}`)).toEqual({ greeted: 0, of: 1, at: null });
   });
 
   it("refuses to show any of it without the token", async () => {

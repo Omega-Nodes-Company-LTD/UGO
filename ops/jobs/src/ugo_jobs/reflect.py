@@ -45,7 +45,12 @@ Qui sotto trovi gli eventi, le conversazioni e le registrazioni del giorno {date
 Rispondi SOLO con un JSON con questa forma:
 {{"memories":[{{"kind":"fact|preference|episode|insight","text":"...","importance":0.0}}],
 "diary":"racconto in prima persona della giornata, in italiano, 3-6 frasi",
-"desires":["1-3 desideri o domande da porre domani, in italiano"]}}
+"desires":["1-3 frasi da dire domani a voce, in italiano"]}}
+
+I desideri sono frasi che dirai AD ALTA VOCE alla persona che hai davanti, domani, così come sono
+scritte: domande dirette in seconda persona ("Com'è andata la visita dal dentista?"), mai
+istruzioni a te stesso ("Chiedere com'è andata...") né frasi in terza persona. Ognuno nomina
+il fatto preciso a cui si riferisce (una persona, una cosa successa), non una curiosità generica.
 
 EVENTI:
 {events}

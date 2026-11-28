@@ -11,15 +11,14 @@ import {
 } from "@ugo/db";
 import { openRouterKey } from "@ugo/factories";
 import { DEFAULT_CHAT_MODEL, LlmClient, OpenRouterEmbeddingsClient } from "@ugo/memory";
-import type { ServerToFaceMessage } from "@ugo/shared";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import WebSocket from "ws";
 import { ChatService } from "../../src/services/chatService.js";
 import { FaceGateway } from "../../src/services/faceGateway.js";
 import { PsycheService } from "../../src/services/psycheService.js";
 import { buildServer } from "../../src/server.js";
+import { connectFace } from "./helpers/faceSocket.js";
 import { characterFrom } from "../../src/services/council/character.js";
 
 // WS vero su un server vero in ascolto, Postgres vero e OpenRouter vero per
@@ -28,13 +27,6 @@ import { characterFrom } from "../../src/services/council/character.js";
 
 let pg: StartedPostgreSqlContainer;
 let db: DbClient;
-
-interface FaceTestClient {
-  send: (message: Record<string, unknown>) => void;
-  received: ServerToFaceMessage[];
-  waitFor: (type: ServerToFaceMessage["type"], count?: number) => Promise<ServerToFaceMessage>;
-  close: () => Promise<void>;
-}
 
 let app: FastifyInstance | undefined;
 
@@ -66,55 +58,6 @@ async function startSoul(fakeHour: number): Promise<{ url: string; gateway: Face
   const address = app.server.address();
   if (address === null || typeof address === "string") throw new Error("no address");
   return { url: `ws://127.0.0.1:${String(address.port)}/v1/face`, gateway };
-}
-
-async function connectFace(url: string): Promise<FaceTestClient> {
-  const socket = new WebSocket(url);
-  const received: ServerToFaceMessage[] = [];
-  const waiters: { predicate: () => ServerToFaceMessage | undefined; resolve: (m: ServerToFaceMessage) => void }[] = [];
-  socket.on("message", (raw: Buffer) => {
-    received.push(JSON.parse(raw.toString()) as ServerToFaceMessage);
-    for (const waiter of [...waiters]) {
-      const match = waiter.predicate();
-      if (match !== undefined) {
-        waiters.splice(waiters.indexOf(waiter), 1);
-        waiter.resolve(match);
-      }
-    }
-  });
-  await new Promise<void>((resolve, reject) => {
-    socket.once("open", resolve);
-    socket.once("error", reject);
-  });
-  return {
-    send: (message) => {
-      socket.send(JSON.stringify(message));
-    },
-    received,
-    waitFor: (type, count = 1) =>
-      new Promise((resolve, reject) => {
-        const predicate = (): ServerToFaceMessage | undefined => {
-          const matches = received.filter((m) => m.type === type);
-          return matches.length >= count ? matches[count - 1] : undefined;
-        };
-        const immediate = predicate();
-        if (immediate !== undefined) {
-          resolve(immediate);
-          return;
-        }
-        waiters.push({ predicate, resolve });
-        setTimeout(() => {
-          reject(new Error(`timed out waiting for "${type}" x${String(count)}`));
-        }, 15_000);
-      }),
-    close: () =>
-      new Promise((resolve) => {
-        socket.once("close", () => {
-          resolve();
-        });
-        socket.close();
-      }),
-  };
 }
 
 beforeAll(async () => {
